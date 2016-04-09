@@ -544,7 +544,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media" = "{from} hat {media} angeheftet";
 "lng_action_pinned_media_photo" = "ein Bild";
 "lng_action_pinned_media_video" = "ein Video";
-"lng_action_pinned_media_audio" = "ein Audio";
+"lng_action_pinned_media_audio" = "eine Audiodatei";
 "lng_action_pinned_media_voice" = "eine Sprachnachricht";
 "lng_action_pinned_media_file" = "eine Datei";
 "lng_action_pinned_media_gif" = "ein GIF";
@@ -600,6 +600,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Weitergeleitet aus {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Antwort auf";
+
+"lng_bot_share_location_unavailable" = "Teilen von Standorten ist derzeit bei Telegram Desktop nicht möglich.";
+"lng_bot_inline_geo_unavailable" = "Dieser Bot braucht deinen aktuellen Standort. Die Funktion ist bei Telegram Desktop derzeit nicht verfügbar.";
+"lng_bot_share_phone" = "Telefonnummer teilen?";
+"lng_bot_share_phone_confirm" = "Teilen";
 
 "lng_attach_failed" = "Uploadfehler";
 "lng_attach_file" = "Datei";
@@ -685,8 +690,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact_channel" = "Du kannst nur Personen hinzufügen,\nwenn ihr eure Nummern ausgetauscht habt.\n{more_info}";
 "lng_cant_more_info" = "Weitere Infos »";
 "lng_cant_invite_banned" = "Nur Admins können diesen Nutzer hinzufügen.";
-"lng_cant_invite_privacy" = "Du kannst mit diesen Nutzern keine Gruppe erstellen, weil sie es nicht erlauben.";
-"lng_cant_invite_privacy_channel" = "Du kannst diese Nutzer keinen Kanälen hinzufügen, weil sie es nicht erlauben.";
+"lng_cant_invite_privacy" = "Du kannst mit diesem Nutzer keine Gruppe erstellen, weil er es nicht erlaubt.";
+"lng_cant_invite_privacy_channel" = "Du kannst diesen Nutzer keinen Kanälen hinzufügen, weil er es nicht erlaubt.";
 "lng_cant_do_this" = "Verzeihung. Das ist leider nicht möglich.";
 
 "lng_send_button" = "Senden";
@@ -698,7 +703,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_will_be_notified" = "Mitglieder werden benachrichtigt";
 "lng_wont_be_notified" = "Mitglieder werden nicht benachrichtigt";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Chat auswählen um zu schreiben";
+"lng_willbe_history" = "Chat auswählen, um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 "lng_bot_description" = "Was kann dieser Bot?";
@@ -725,10 +730,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_action_record_video" = "{user} sendet ein Video";
 "lng_send_action_upload_video" = "schickt ein Video";
 "lng_user_action_upload_video" = "{user} sendet ein Video";
-"lng_send_action_record_audio" = "nimmt ein Audio auf";
-"lng_user_action_record_audio" = "{user} nimmt eine Sprachnachricht auf";
-"lng_send_action_upload_audio" = "sendet eine Sprachnachricht";
-"lng_user_action_upload_audio" = "{user} sendet eine Sprachnachricht";
+"lng_send_action_record_audio" = "nimmt Sprachnachricht auf";
+"lng_user_action_record_audio" = "{user} nimmt Sprachnachricht auf";
+"lng_send_action_upload_audio" = "sendet Sprachnachricht";
+"lng_user_action_upload_audio" = "{user} sendet Sprachnachricht";
 "lng_send_action_upload_photo" = "sendet ein Bild";
 "lng_user_action_upload_photo" = "{user} sendet ein Bild";
 "lng_send_action_upload_file" = "sendet eine Datei";
@@ -810,6 +815,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Nachrichtenanhang|# Nachrichtenanhänge}";
 "lng_forwarding_from" = "{user} und {count:_not_used_|# anderer|# andere}";
 "lng_forwarding_from_two" = "{user} und {second_user}";
+"lng_inline_switch_choose" = "Chat wählen...";
+"lng_inline_switch_cant" = "Hier kannst du nicht schreiben :(";
 
 "lng_share_cant" = "Weiterleitung nicht möglich :(";
 "lng_reply_cant" = "Leider kann man alte Nachrichten in Supergruppen nicht beantworten :(";

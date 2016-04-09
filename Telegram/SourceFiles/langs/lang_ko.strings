@@ -601,6 +601,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "다음 유저에게 답장 :";
 
+"lng_bot_share_location_unavailable" = "죄송합니다, 위치 공유는 텔레그램 테스크탑에서는 현재 지원을 하고 있지 않습니다.";
+"lng_bot_inline_geo_unavailable" = "죄송합니다, 이 봇은 위치 공유가 필요합니다.\n텔레그램 테스크탑에서 현재 지원을 하고 있지 않습니다.";
+"lng_bot_share_phone" = "전화번호를 공유하겠습니까?";
+"lng_bot_share_phone_confirm" = "공유";
+
 "lng_attach_failed" = "실패";
 "lng_attach_file" = "파일";
 "lng_attach_photo" = "사진";
@@ -810,6 +815,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
 "lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
 "lng_forwarding_from_two" = "{user} 님과 {second_user}";
+"lng_inline_switch_choose" = "대화 선택...";
+"lng_inline_switch_cant" = "죄송합니다. 이쪽으로 글을 쓸 수 없습니다 :(";
 
 "lng_share_cant" = "이쪽으로 공유 할 수 없습니다 :(";
 "lng_reply_cant" = "죄송합니다. 슈퍼그룹방의 이전 메시지에 답글을 할 수 없습니다 :(";

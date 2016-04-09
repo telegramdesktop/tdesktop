@@ -38,6 +38,8 @@
 		02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E466873F01ABA1E55E914489 /* dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		06EABCC49D2EEE4076322BE7 /* moc_facade.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_facade.cpp */; settings = {ATTRIBUTES = (); }; };
+		0702E9A51CB8D2A8007A7495 /* serialize_common.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0702E9A11CB8D2A8007A7495 /* serialize_common.cpp */; };
+		0702E9A61CB8D2A8007A7495 /* serialize_document.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0702E9A31CB8D2A8007A7495 /* serialize_document.cpp */; };
 		07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BCD1A43588C00741A51 /* lang_auto.cpp */; };
 		07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BD01A436A5000741A51 /* lang.cpp */; };
 		0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */; };
@@ -285,6 +287,10 @@
 		047DAFB0A7DE92C63033A43C /* mainwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mainwidget.cpp; path = SourceFiles/mainwidget.cpp; sourceTree = "<absolute>"; };
 		060A694B42A4555240009936 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtga.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtga.pri"; sourceTree = "<absolute>"; };
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
+		0702E9A11CB8D2A8007A7495 /* serialize_common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = serialize_common.cpp; path = SourceFiles/serialize/serialize_common.cpp; sourceTree = SOURCE_ROOT; };
+		0702E9A21CB8D2A8007A7495 /* serialize_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serialize_common.h; path = SourceFiles/serialize/serialize_common.h; sourceTree = SOURCE_ROOT; };
+		0702E9A31CB8D2A8007A7495 /* serialize_document.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = serialize_document.cpp; path = SourceFiles/serialize/serialize_document.cpp; sourceTree = SOURCE_ROOT; };
+		0702E9A41CB8D2A8007A7495 /* serialize_document.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serialize_document.h; path = SourceFiles/serialize/serialize_document.h; sourceTree = SOURCE_ROOT; };
 		07055CC3194EE85B0008DEF6 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "./../../Libraries/openssl-xcode/libcrypto.a"; sourceTree = "<group>"; };
 		07080BCB1A4357F300741A51 /* lang.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang.strings; path = Resources/lang.strings; sourceTree = SOURCE_ROOT; };
 		07080BCD1A43588C00741A51 /* lang_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lang_auto.cpp; path = GeneratedFiles/lang_auto.cpp; sourceTree = SOURCE_ROOT; };
@@ -805,6 +811,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0702E99F1CB8D290007A7495 /* serialize */ = {
+			isa = PBXGroup;
+			children = (
+				0702E9A11CB8D2A8007A7495 /* serialize_common.cpp */,
+				0702E9A21CB8D2A8007A7495 /* serialize_common.h */,
+				0702E9A31CB8D2A8007A7495 /* serialize_document.cpp */,
+				0702E9A41CB8D2A8007A7495 /* serialize_document.h */,
+			);
+			name = serialize;
+			sourceTree = "<group>";
+		};
 		07084685195445A600B5AE3A /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -1018,6 +1035,7 @@
 				5E35A03E5F2C51353EBCBF00 /* intro */,
 				074968CB1A44D0B800394F46 /* langs */,
 				1A6AA22F4A758C4B5F5138FB /* mtproto */,
+				0702E99F1CB8D290007A7495 /* serialize */,
 				0764D5581ABAD6F900FBFEED /* apiwrap.cpp */,
 				0764D5591ABAD6F900FBFEED /* apiwrap.h */,
 				06E379415713F34B83F99C35 /* app.cpp */,
@@ -1660,6 +1678,7 @@
 				B8CA3E1E11A7E0E7DF9E1CDE /* file_download.cpp in Compile Sources */,
 				07C8FE0E1CB80890007A8702 /* toast_manager.cpp in Compile Sources */,
 				0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */,
+				0702E9A61CB8D2A8007A7495 /* serialize_document.cpp in Compile Sources */,
 				99F0A9B2AFE5ABDCBFC04510 /* rpc_sender.cpp in Compile Sources */,
 				A297B1E3CE33CC501DFEDB6E /* session.cpp in Compile Sources */,
 				D1FC601FC2F9F3E33F3A14E9 /* animation.cpp in Compile Sources */,
@@ -1714,6 +1733,7 @@
 				C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */,
 				07C8FE011CB66D97007A8702 /* inline_bot_layout_internal.cpp in Compile Sources */,
 				D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */,
+				0702E9A51CB8D2A8007A7495 /* serialize_common.cpp in Compile Sources */,
 				6C79FBC5CFA36AC3EA6ABBD4 /* moc_dropdown.cpp in Compile Sources */,
 				077A4AFA1CA41C38002188D2 /* connection_tcp.cpp in Compile Sources */,
 				822C2860FBFAF3EAE42C5A3F /* moc_fileuploader.cpp in Compile Sources */,

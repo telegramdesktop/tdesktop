@@ -138,7 +138,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_pinned_notify" = "Notifica tutti i membri";
 
 "lng_intro" = "Benvenuti nell'app desktop ufficiale di [a href=\"https://telegram.org/\"]Telegram[/a].\nÈ [b]veloce[/b] e [b]sicura[/b].";
-"lng_start_msgs" = "INIZIA A MESSAGGIARE";
+"lng_start_msgs" = "INIZIA A CHATTARE";
 
 "lng_intro_next" = "AVANTI";
 "lng_intro_finish" = "ISCRIVITI";
@@ -379,7 +379,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_button" = "Chiudi";
 "lng_settings_reset_done" = "Altre sessioni terminate";
 "lng_settings_ask_question" = "Fai una domanda";
-"lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti su Telegram: potrai trovare importanti suggerimenti riguardo alcune problematiche e risposte alla maggior parte delle domande.";
+"lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti di Telegram: contengono suggerimenti importanti per risolvere i problemi e risposte a quasi tutte le domande.";
 "lng_settings_faq_button" = "Domande frequenti";
 "lng_settings_ask_ok" = "Chiedi";
 "lng_settings_faq" = "Domande frequenti";
@@ -601,6 +601,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In risposta a";
 
+"lng_bot_share_location_unavailable" = "Spiacenti, la condivisione della posizione non è al momento disponibile su Telegram Desktop.";
+"lng_bot_inline_geo_unavailable" = "Spiacenti, questo bot richiede la condivisione della posizione. Non è disponibile su Telegram Desktop.";
+"lng_bot_share_phone" = "Condividere il numero di telefono?";
+"lng_bot_share_phone_confirm" = "Condividi";
+
 "lng_attach_failed" = "Fallito";
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Foto";
@@ -685,8 +690,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact_channel" = "Spiacenti, ma al momento puoi aggiungere\nai canali solo contatti reciproci.\n{more_info}";
 "lng_cant_more_info" = "Più info »";
 "lng_cant_invite_banned" = "Spiacenti, solo l'amministratore può aggiungere questo utente.";
-"lng_cant_invite_privacy" = "Spiacenti, non puoi aggiungere questo utente al gruppo a causa delle sue impostazioni di privacy.";
-"lng_cant_invite_privacy_channel" = "Spiacenti, non puoi aggiungere questo utente al canale a causa delle sue impostazioni di privacy.";
+"lng_cant_invite_privacy" = "Spiacenti, non puoi aggiungere questo utente ai gruppi a causa delle sue impostazioni di privacy.";
+"lng_cant_invite_privacy_channel" = "Spiacenti, non puoi aggiungere questo utente ai canali a causa delle sue impostazioni di privacy.";
 "lng_cant_do_this" = "Spiacenti, questa azione non è disponibile.";
 
 "lng_send_button" = "Invia";
@@ -698,7 +703,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_will_be_notified" = "I post saranno notificati ai membri";
 "lng_wont_be_notified" = "I post non saranno notificati ai membri";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Seleziona una chat per iniziare a messaggiare";
+"lng_willbe_history" = "Seleziona una chat per iniziare a chattare";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tu";
 "lng_bot_description" = "Cosa può fare questo bot?";
@@ -810,6 +815,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|messaggio inoltrato|# messaggi inoltrati}";
 "lng_forwarding_from" = "{user} e {count:_not_used_|# altro|altri #}";
 "lng_forwarding_from_two" = "{user} e {second_user}";
+"lng_inline_switch_choose" = "Scegli conversazione...";
+"lng_inline_switch_cant" = "Spiacenti, impossibile scrivere qui :(";
 
 "lng_share_cant" = "Spiacenti, impossibile condividere qui :(";
 "lng_reply_cant" = "Spiacenti, non si può rispondere a un vecchio messaggio nel supergruppo :(";

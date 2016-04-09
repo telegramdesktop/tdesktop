@@ -601,6 +601,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Em resposta a";
 
+"lng_bot_share_location_unavailable" = "O compartilhamento de localização está atualmente indisponível no Telegram Desktop.";
+"lng_bot_inline_geo_unavailable" = "Esse bot requer o compartilhamento da localização\nIsso está indisponível no Telegram Desktop.";
+"lng_bot_share_phone" = "Compartilhar Número de Telefone?";
+"lng_bot_share_phone_confirm" = "Compartilhar";
+
 "lng_attach_failed" = "Falhou";
 "lng_attach_file" = "Arquivo";
 "lng_attach_photo" = "Foto";
@@ -810,6 +815,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Mensagem encaminhada|# mensagens encaminhadas}";
 "lng_forwarding_from" = "{user} e {count:_not_used_|# outro|# outros}";
 "lng_forwarding_from_two" = "{user} e {second_user}";
+"lng_inline_switch_choose" = "Escolher conversa...";
+"lng_inline_switch_cant" = "Desculpe, não há como escrever aqui :(";
 
 "lng_share_cant" = "Não há como compartilhar aqui :(";
 "lng_reply_cant" = "Desculpe, não há como responder uma mensagem antiga no supergrupo :(";

@@ -137,7 +137,7 @@ Download [libiconv-1.14](http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.g
 
 In Termianl go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run
 
-    ./configure --enable-static
+    CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure --enable-static --prefix=/usr/local/iconv_old
     make
     sudo make install
 

@@ -601,6 +601,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Respondiendo a";
 
+"lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
+"lng_bot_inline_geo_unavailable" = "Sorry, this bot requires location sharing.\nIt is not unavailable in Telegram Desktop.";
+"lng_bot_share_phone" = "Share Phone Number?";
+"lng_bot_share_phone_confirm" = "Share";
+
 "lng_attach_failed" = "Fallido";
 "lng_attach_file" = "Archivo";
 "lng_attach_photo" = "Foto";
@@ -685,8 +690,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact_channel" = "Por ahora, sólo puedes añadir \ncontactos mutuos a canales. \n{more_info}";
 "lng_cant_more_info" = "Más información »";
 "lng_cant_invite_banned" = "Sólo el administrador puede añadir a este usuario.";
-"lng_cant_invite_privacy" = "No puedes añadir a este usuario a grupos por sus ajustes de privacidad.";
-"lng_cant_invite_privacy_channel" = "No puedes añadir a este usuario a canales por sus ajustes de privacidad.";
+"lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
+"lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
 "lng_cant_do_this" = "Lo sentimos, esta acción no está disponible.";
 
 "lng_send_button" = "Enviar";
@@ -810,6 +815,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Mensaje adjunto|# mensajes adjuntos}";
 "lng_forwarding_from" = "{user} y {count:_not_used_|# otro|# otros}";
 "lng_forwarding_from_two" = "{user} y {second_user}";
+"lng_inline_switch_choose" = "Choose conversation...";
+"lng_inline_switch_cant" = "Sorry, no way to write here :(";
 
 "lng_share_cant" = "Lo sentimos. No hay forma de compartir aquí :(";
 "lng_reply_cant" = "Lo sentimos, no puedes responder un mensaje viejo en un supergrupo :(";
@@ -886,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "– Mejoras visuales";
+"lng_new_version_text" = "— Mejoras visuales";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
