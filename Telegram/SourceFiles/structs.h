@@ -118,9 +118,7 @@ inline PeerId peerFromMessage(const MTPmessage &msg) {
 inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
 	case mtpc_message: return msg.c_message().vflags.v;
-
-	// dirty type hack :( we assume that MTPDmessage::Flags has the same flags and perhaps more
-	case mtpc_messageService: return MTPDmessage::Flags(QFlag(msg.c_messageService().vflags.v));
+	case mtpc_messageService: return mtpCastFlags(msg.c_messageService().vflags.v);
 	}
 	return 0;
 }

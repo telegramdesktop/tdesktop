@@ -79,8 +79,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalOptions>/Zm152 %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
-      <ForcedIncludeFiles>
-      </ForcedIncludeFiles>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -111,8 +110,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
-      <ForcedIncludeFiles>
-      </ForcedIncludeFiles>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,8 +143,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
-      <ForcedIncludeFiles>
-      </ForcedIncludeFiles>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

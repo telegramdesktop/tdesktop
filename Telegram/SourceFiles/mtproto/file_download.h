@@ -60,6 +60,7 @@ inline StorageFileType mtpToStorageType(mtpTypeId type) {
 }
 inline mtpTypeId mtpFromStorageType(StorageFileType type) {
 	switch (type) {
+	case StorageFileJpeg: return mtpc_storage_fileJpeg;
 	case StorageFileGif: return mtpc_storage_fileGif;
 	case StorageFilePng: return mtpc_storage_filePng;
 	case StorageFilePdf: return mtpc_storage_filePdf;

@@ -145,6 +145,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewFiles: return MTP_inputMessagesFilterDocument();
 	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
+	case OverviewCount: break;
 	default: type = OverviewCount; break;
 	}
 	return MTPMessagesFilter();
@@ -1991,7 +1992,7 @@ inline MediaOverviewType mediaToOverviewType(HistoryMedia *media) {
 	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewFiles;
 	case MediaTypeVoiceFile: return OverviewVoiceFiles;
 	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
-//	case MediaTypeSticker: return OverviewFiles;
+	default: break;
 	}
 	return OverviewCount;
 }

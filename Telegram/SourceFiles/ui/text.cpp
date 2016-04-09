@@ -709,7 +709,7 @@ public:
 			} else {
 				int32 i = 0, l = preparsed.size();
 				entities.reserve(l);
-				const QChar *p = text.constData(), s = text.size();
+				const QChar s = text.size();
 				for (; i < l; ++i) {
 					EntityInTextType t = preparsed.at(i).type;
 					if ((t == EntityInTextMention && !parseMentions) ||
@@ -2348,7 +2348,7 @@ public:
 								// neutrals go to R
 								eor = current - 1;
 								eAppendItems(analysis, sor, eor, control, dir);
-								dir = QChar::DirON; status.eor = QChar::DirEN;
+								status.eor = QChar::DirEN;
 								dir = QChar::DirAN;
 							}
 							else if(status.eor == QChar::DirL ||
@@ -2358,11 +2358,11 @@ public:
 								// numbers on both sides, neutrals get right to left direction
 								if(dir != QChar::DirL) {
 									eAppendItems(analysis, sor, eor, control, dir);
-									dir = QChar::DirON; status.eor = QChar::DirON;
+									status.eor = QChar::DirON;
 									eor = current - 1;
 									dir = QChar::DirR;
 									eAppendItems(analysis, sor, eor, control, dir);
-									dir = QChar::DirON; status.eor = QChar::DirON;
+									status.eor = QChar::DirON;
 									dir = QChar::DirAN;
 								} else {
 									eor = current; status.eor = dirCurrent;
