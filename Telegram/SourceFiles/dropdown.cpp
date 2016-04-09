@@ -3655,7 +3655,7 @@ void EmojiPan::inlineBotChanged() {
 	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
 	_inlineRequestId = 0;
 	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
-	_inlineBot = 0;
+	_inlineBot = nullptr;
 	for (InlineCache::const_iterator i = _inlineCache.cbegin(), e = _inlineCache.cend(); i != e; ++i) {
 		delete i.value();
 	}

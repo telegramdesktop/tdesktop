@@ -25,27 +25,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
-, _minHeight(-1)
-, _maxHeight(-1)
-, _maxLength(-1)
-, _ctrlEnterSubmit(true)
 , _oldtext(v)
-, _phAfter(0)
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
 , a_phColor(st.phColor->c)
 , _a_appearance(animation(this, &FlatTextarea::step_appearance))
-, _st(st)
-, _undoAvailable(false)
-, _redoAvailable(false)
-, _inDrop(false)
-, _inHeightCheck(false)
-, _fakeMargin(0)
-, _touchPress(false)
-, _touchRightButton(false)
-, _touchMove(false)
-, _correcting(false) {
+, _st(st) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 
@@ -270,7 +256,10 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBotUsername) const {
+QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInlineBotUsername) const {
+	t_assert(outInlineBot != nullptr);
+	t_assert(outInlineBotUsername != nullptr);
+
 	const QString &text(getLastText());
 
 	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
@@ -288,23 +277,23 @@ QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBot
 		}
 		if (inlineUsernameLength && inlineUsernameStart + inlineUsernameLength < text.size() && text.at(inlineUsernameStart + inlineUsernameLength).isSpace()) {
 			QStringRef username = text.midRef(inlineUsernameStart, inlineUsernameLength);
-			if (username != inlineBotUsername) {
-				inlineBotUsername = username.toString();
-				PeerData *peer = App::peerByName(inlineBotUsername);
+			if (username != *outInlineBotUsername) {
+				*outInlineBotUsername = username.toString();
+				PeerData *peer = App::peerByName(*outInlineBotUsername);
 				if (peer) {
 					if (peer->isUser()) {
-						inlineBot = peer->asUser();
+						*outInlineBot = peer->asUser();
 					} else {
-						inlineBot = 0;
+						*outInlineBot = nullptr;
 					}
 				} else {
-					inlineBot = LookingUpInlineBot;
+					*outInlineBot = LookingUpInlineBot;
 				}
 			}
-			if (inlineBot == LookingUpInlineBot) return QString();
+			if (*outInlineBot == LookingUpInlineBot) return QString();
 
-			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
-				inlineBot = 0;
+			if (*outInlineBot && (!(*outInlineBot)->botInfo || (*outInlineBot)->botInfo->inlinePlaceholder.isEmpty())) {
+				*outInlineBot = nullptr;
 			} else {
 				return text.mid(inlineUsernameStart + inlineUsernameLength + 1);
 			}
@@ -313,8 +302,8 @@ QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBot
 		}
 	}
 	if (inlineUsernameLength < 3) {
-		inlineBot = 0;
-		inlineBotUsername = QString();
+		*outInlineBot = nullptr;
+		*outInlineBotUsername = QString();
 	}
 	return QString();
 }
@@ -945,14 +934,21 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 	return result;
 }
 
-void FlatTextarea::setCtrlEnterSubmit(bool ctrlEnterSubmit) {
-	_ctrlEnterSubmit = ctrlEnterSubmit;
+void FlatTextarea::setSubmitSettings(SubmitSettings settings) {
+	_submitSettings = settings;
 }
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && _ctrlEnterSubmit) || (!ctrl && !shift && !_ctrlEnterSubmit) || (ctrl && shift);
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
+	bool enterSubmit = (ctrl && shift);
+	if (ctrl && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::Enter) {
+		enterSubmit = true;
+	}
+	if (!ctrl && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::CtrlEnter) {
+		enterSubmit = true;
+	}
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {
@@ -960,7 +956,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		start.movePosition(QTextCursor::StartOfLine);
 		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
 		tc.removeSelectedText();
-	} else if (enter && ctrlGood) {
+	} else if (enter && enterSubmit) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
 		emit cancelled();

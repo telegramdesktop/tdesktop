@@ -270,11 +270,9 @@ public:
 	bool hasSendText() const;
 
 public slots:
-
 	void onEmojiInsert(EmojiPtr emoji);
 
 signals:
-
 	void focused();
 
 private:
@@ -490,13 +488,9 @@ enum TextUpdateEventsFlags {
 
 namespace InlineBots {
 namespace Layout {
-
 class ItemBase;
-
 } // namespace Layout
-
 class Result;
-
 } // namespace InlineBots
 
 class HistoryWidget : public TWidget, public RPCSender {
@@ -653,7 +647,7 @@ public:
 	void updateCollapseCommentsVisibility();
 
 	void updateAfterDrag();
-	void ctrlEnterSubmitUpdated();
+	void updateFieldSubmitSettings();
 
 	void setInnerFocus();
 	bool canSendMessages(PeerData *peer) const;
@@ -813,7 +807,19 @@ public slots:
 	// in the scroll area and preloads history if needed
 	void preloadHistoryIfNeeded();
 
+private slots:
+
+	void onInlineBotCancel();
+
 private:
+
+	// Updates position of controls around the message field,
+	// like send button, emoji button and others.
+	void moveFieldControls();
+	void updateFieldSize();
+
+	void clearInlineBot();
+	void inlineBotChanged();
 
 	MsgId _replyToId = 0;
 	Text _replyToName;
@@ -950,6 +956,9 @@ private:
 	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
 	void writeDrafts(History *history);
 	void setFieldText(const QString &text, int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true);
+	void clearFieldText(int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true) {
+		setFieldText(QString());
+	}
 
 	QStringList getMediasFromMime(const QMimeData *d);
 
@@ -998,9 +1007,11 @@ private:
 	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
+
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
+	UniquePointer<IconedButton> _inlineBotCancel;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 

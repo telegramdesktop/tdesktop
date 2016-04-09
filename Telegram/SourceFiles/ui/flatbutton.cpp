@@ -241,7 +241,7 @@ void IconedButton::onStateChange(int oldState, ButtonStateChangeSource source) {
 }
 
 void IconedButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	p.setOpacity(_opacity);
 
@@ -256,10 +256,16 @@ void IconedButton::paintEvent(QPaintEvent *e) {
 		const QPoint &t((_state & StateDown) ? _st.downTextPos : _st.textPos);
 		p.drawText(t.x(), t.y() + _st.font->ascent, _text);
 	}
-	const QRect &i((_state & StateDown) ? _st.downIcon : _st.icon);
-	if (i.width()) {
-		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
-		p.drawPixmap(t, App::sprite(), i);
+	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (i.pxWidth()) {
+		QPoint t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
+		if (t.x() < 0) {
+			t.setX((width() - i.pxWidth()) / 2);
+		}
+		if (t.y() < 0) {
+			t.setY((height() - i.pxHeight()) / 2);
+		}
+		p.drawSprite(t, i);
 	}
 }
 

@@ -723,6 +723,15 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data)
 	}
 }
 
+void MainWidget::rpcClear() {
+	history.rpcClear();
+	dialogs.rpcClear();
+	if (profile) profile->rpcClear();
+	if (overview) overview->rpcClear();
+	if (_api) _api->rpcClear();
+	RPCSender::rpcClear();
+}
+
 QPixmap MainWidget::grabInner() {
 	if (overview && !overview->isHidden()) {
 		return myGrab(overview);
@@ -2306,7 +2315,7 @@ void MainWidget::updateAfterDrag() {
 }
 
 void MainWidget::ctrlEnterSubmitUpdated() {
-	history.ctrlEnterSubmitUpdated();
+	history.updateFieldSubmitSettings();
 }
 
 void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {

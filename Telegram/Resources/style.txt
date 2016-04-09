@@ -1489,6 +1489,11 @@ replyCancel: iconedButton(btnDefIconed) {
 	width: 49px;
 	height: 49px;
 }
+inlineBotCancel: iconedButton(replyCancel) {
+	height: 46px;
+	iconPos: point(-1px, 16px); // < 0 means draw in the center of the button
+	downIconPos: point(-1px, 17px);
+}
 forwardIcon: sprite(368px, 197px, 24px, 24px);
 
 historyScroll: flatScroll(scrollDef) {

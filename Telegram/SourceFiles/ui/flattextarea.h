@@ -67,7 +67,12 @@ public:
 
 	EmojiPtr getSingleEmoji() const;
 	QString getMentionHashtagBotCommandPart(bool &start) const;
-	QString getInlineBotQuery(UserData *&contextBot, QString &contextBotUsername) const;
+
+	// Get the current inline bot and request string for it.
+	// The *outInlineBot can be filled by LookingUpInlineBot shared ptr.
+	// In that case the caller should lookup the bot by *outInlineBotUsername.
+	QString getInlineBotQuery(UserData **outInlineBot, QString *outInlineBotUsername) const;
+
 	void removeSingleEmoji();
 	bool hasText() const;
 
@@ -80,7 +85,14 @@ public:
 	void insertFromMimeData(const QMimeData *source);
 
 	QMimeData *createMimeDataFromSelection() const;
-	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
+
+	enum class SubmitSettings {
+		None,
+		Enter,
+		CtrlEnter,
+		Both,
+	};
+	void setSubmitSettings(SubmitSettings settings);
 
 	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
@@ -123,12 +135,13 @@ private:
 	void processDocumentContentsChange(int position, int charsAdded);
 	bool heightAutoupdated();
 
-	int32 _minHeight, _maxHeight; // < 0 - no autosize
-	int32 _maxLength;
-	bool _ctrlEnterSubmit;
+	int _minHeight = -1; // < 0 - no autosize
+	int _maxHeight = -1;
+	int _maxLength = -1;
+	SubmitSettings _submitSettings = SubmitSettings::Enter;
 
 	QString _ph, _phelided, _oldtext;
-	int32 _phAfter;
+	int _phAfter = 0;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
@@ -137,15 +150,20 @@ private:
 
 	style::flatTextarea _st;
 
-	bool _undoAvailable, _redoAvailable, _inDrop, _inHeightCheck;
+	bool _undoAvailable = false;
+	bool _redoAvailable = false;
+	bool _inDrop = false;
+	bool _inHeightCheck = false;
 
-	int32 _fakeMargin;
+	int _fakeMargin = 0;
 
 	QTimer _touchTimer;
-	bool _touchPress, _touchRightButton, _touchMove;
+	bool _touchPress = false;
+	bool _touchRightButton = false;
+	bool _touchMove = false;
 	QPoint _touchStart;
 
-	bool _correcting;
+	bool _correcting = false;
 
 	typedef QPair<int, int> LinkRange;
 	typedef QList<LinkRange> LinkRanges;

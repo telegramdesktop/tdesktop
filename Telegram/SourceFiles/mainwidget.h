@@ -20,17 +20,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "apiwrap.h"
 #include "dialogswidget.h"
 #include "historywidget.h"
 #include "profilewidget.h"
 #include "overviewwidget.h"
 #include "playerwidget.h"
-#include "apiwrap.h"
 
 class Window;
 struct DialogRow;
+
+class ApiWrap;
 class MainWidget;
 class ConfirmBox;
+class DialogsWidget;
+class HistoryWidget;
+class ProfileWidget;
+class OverviewWidget;
+class PlayerWidget;
 
 class TopBarWidget : public TWidget {
 	Q_OBJECT
@@ -433,14 +440,7 @@ public:
 	QPixmap grabTopBar();
 	QPixmap grabInner();
 
-	void rpcClear() override {
-		history.rpcClear();
-		dialogs.rpcClear();
-		if (profile) profile->rpcClear();
-		if (overview) overview->rpcClear();
-		if (_api) _api->rpcClear();
-		RPCSender::rpcClear();
-	}
+	void rpcClear() override;
 
 	bool isItemVisible(HistoryItem *item);
 
@@ -620,8 +620,8 @@ private:
 
 	DialogsWidget dialogs;
 	HistoryWidget history;
-	ProfileWidget *profile = nullptr;
-	OverviewWidget *overview = nullptr;
+	ProfileWidget* profile = nullptr;
+	OverviewWidget* overview = nullptr;
 	PlayerWidget _player;
 	TopBarWidget _topBar;
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout

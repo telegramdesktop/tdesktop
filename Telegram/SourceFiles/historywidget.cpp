@@ -2816,7 +2816,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
 	connect(&_attachMention, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
 	_field.installEventFilter(&_attachMention);
-	_field.setCtrlEnterSubmit(cCtrlEnter());
+	updateFieldSubmitSettings();
 
 	_field.hide();
 	_send.hide();
@@ -2884,28 +2884,31 @@ void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 }
 
 void HistoryWidget::updateInlineBotQuery() {
-	UserData *bot = _inlineBot;
-	bool start = false;
-	QString inlineBotUsername(_inlineBotUsername);
-	QString query = _field.getInlineBotQuery(_inlineBot, _inlineBotUsername);
+	UserData *bot = nullptr;
+	QString inlineBotUsername;
+	QString query = _field.getInlineBotQuery(&bot, &inlineBotUsername);
 	if (inlineBotUsername != _inlineBotUsername) {
+		_inlineBotUsername = inlineBotUsername;
 		if (_inlineBotResolveRequestId) {
 //			Notify::inlineBotRequesting(false);
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
-		if (_inlineBot == LookingUpInlineBot) {
+		if (bot == LookingUpInlineBot) {
+			_inlineBot = LookingUpInlineBot;
 //			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}
-	} else if (_inlineBot == LookingUpInlineBot) {
+	} else if (bot == LookingUpInlineBot) {
+		_inlineBot = LookingUpInlineBot;
 		return;
 	}
 
-	if (_inlineBot) {
+	if (bot) {
 		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
+			_inlineBot = bot;
+			inlineBotChanged();
 		}
 		if (_inlineBot->username == cInlineGifBotUsername() && query.isEmpty()) {
 			_emojiPan.clearInlineBot();
@@ -2916,12 +2919,7 @@ void HistoryWidget::updateInlineBotQuery() {
 			_attachMention.hideStart();
 		}
 	} else {
-		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
-			_field.finishPlaceholder();
-		}
-		_emojiPan.clearInlineBot();
-		onCheckMentionDropdown();
+		clearInlineBot();
 	}
 }
 
@@ -3531,7 +3529,7 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 void HistoryWidget::applyDraft(bool parseLinks) {
 	HistoryDraft *draft = _history ? _history->draft() : nullptr;
 	if (!draft) {
-		setFieldText(QString());
+		clearFieldText();
 		_field.setFocus();
 		_editMsgId = _replyToId = 0;
 		return;
@@ -3672,11 +3670,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_scroll.takeWidget();
 	updateTopBarSelection();
 
-	if (_inlineBot) {
-		_inlineBot = nullptr;
-		_emojiPan.clearInlineBot();
-		updateFieldPlaceholder();
-	}
+	clearInlineBot();
 
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
@@ -3776,7 +3770,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			onBotStart();
 		}
 	} else {
-		setFieldText(QString());
+		clearFieldText();
 		doneShow();
 	}
 
@@ -3815,8 +3809,14 @@ void HistoryWidget::updateAfterDrag() {
 	if (_list) _list->dragActionUpdate(QCursor::pos());
 }
 
-void HistoryWidget::ctrlEnterSubmitUpdated() {
-	_field.setCtrlEnterSubmit(cCtrlEnter());
+void HistoryWidget::updateFieldSubmitSettings() {
+	FlatTextarea::SubmitSettings settings = FlatTextarea::SubmitSettings::Enter;
+	if (_inlineBotCancel) {
+		settings = FlatTextarea::SubmitSettings::None;
+	} else if (cCtrlEnter()) {
+		settings = FlatTextarea::SubmitSettings::CtrlEnter;
+	}
+	_field.setSubmitSettings(settings);
 }
 
 void HistoryWidget::updateNotifySettings() {
@@ -3943,6 +3943,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_scroll.hide();
 		_kbScroll.hide();
 		_send.hide();
+		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_unblock.hide();
 		_botStart.hide();
 		_joinChannel.hide();
@@ -4010,6 +4011,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_kbShown = false;
 		_attachMention.hide();
 		_send.hide();
+		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_botStart.hide();
 		_attachDocument.hide();
 		_attachPhoto.hide();
@@ -4044,6 +4046,7 @@ void HistoryWidget::updateControlsVisibility() {
 			}
 			_kbShown = false;
 			_send.hide();
+			if (_inlineBotCancel) _inlineBotCancel->hide();
 			_field.hide();
 			_attachEmoji.hide();
 			_kbShow.hide();
@@ -4064,7 +4067,12 @@ void HistoryWidget::updateControlsVisibility() {
 				_send.hide();
 				mouseMoveEvent(0);
 			} else {
-				_send.show();
+				if (_inlineBotCancel) {
+					_inlineBotCancel->show();
+					_send.hide();
+				} else {
+					_send.show();
+				}
 				_a_record.stop();
 				_inRecord = _inField = false;
 				a_recordOver = anim::fvalue(0, 0);
@@ -4146,6 +4154,7 @@ void HistoryWidget::updateControlsVisibility() {
 	} else {
 		_attachMention.hide();
 		_send.hide();
+		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_unblock.hide();
 		_botStart.hide();
 		_joinChannel.hide();
@@ -4630,6 +4639,15 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	}
 }
 
+void HistoryWidget::onInlineBotCancel() {
+	QString text = _field.getLastText();
+	if (text.size() > _inlineBotUsername.size() + 2) {
+		setFieldText('@' + _inlineBotUsername + ' ', TextUpdateEventsSaveDraft, false);
+	} else {
+		clearFieldText(TextUpdateEventsSaveDraft, false);
+	}
+}
+
 void HistoryWidget::onWindowVisibleChanged() {
 	QTimer::singleShot(0, this, SLOT(preloadHistoryIfNeeded()));
 }
@@ -4746,7 +4764,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 	App::main()->sendMessage(_history, _field.getLastText(), replyTo, _broadcast.checked(), _silent.checked(), webPageId);
 
-	setFieldText(QString());
+	clearFieldText();
 	_saveDraftText = true;
 	_saveDraftStart = getms();
 	onDraftSave();
@@ -4971,6 +4989,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_field.hide();
 	_fieldBarCancel.hide();
 	_send.hide();
+	if (_inlineBotCancel) _inlineBotCancel->hide();
 	_unblock.hide();
 	_botStart.hide();
 	_joinChannel.hide();
@@ -5341,7 +5360,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		QString text = _field.getLastText();
 		if (specialGif) {
 			if (text.trimmed() == '@' + cInlineGifBotUsername() && text.at(0) == '@') {
-				setFieldText(QString(), TextUpdateEventsSaveDraft, false);
+				clearFieldText(TextUpdateEventsSaveDraft, false);
 			}
 		} else {
 			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
@@ -5481,8 +5500,7 @@ bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
-		_inlineBot = nullptr;
-		onCheckMentionDropdown();
+		clearInlineBot();
 	}
 	return true;
 }
@@ -5654,7 +5672,6 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 void HistoryWidget::onCmdStart() {
 	setFieldText(qsl("/"));
-	_field.moveCursor(QTextCursor::End);
 }
 
 void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
@@ -5816,35 +5833,92 @@ void HistoryWidget::updateOnlineDisplayTimer() {
 	App::main()->updateOnlineDisplayIn(minIn * 1000);
 }
 
-void HistoryWidget::onFieldResize() {
-	int32 maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
+void HistoryWidget::moveFieldControls() {
+	int w = width(), h = height(), right = w, bottom = h, keyboardHeight = 0;
+	int maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
 	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
-
-	int32 kbh = 0;
 	if (_kbShown) {
-		kbh = qMin(_keyboard.height(), maxKeyboardHeight);
-		_kbScroll.setGeometry(0, height() - kbh, width(), kbh);
+		keyboardHeight = qMin(_keyboard.height(), maxKeyboardHeight);
+		bottom -= keyboardHeight;
+		_kbScroll.setGeometry(0, bottom, w, keyboardHeight);
 	}
-	_field.move(_attachDocument.x() + _attachDocument.width(), height() - kbh - _field.height() - st::sendPadding);
-	_fieldBarCancel.move(width() - _fieldBarCancel.width(), _field.y() - st::sendPadding - _fieldBarCancel.height());
 
-	_attachDocument.move(0, height() - kbh - _attachDocument.height());
-	_attachPhoto.move(_attachDocument.x(), _attachDocument.y());
-	_botStart.setGeometry(0, _attachDocument.y(), width(), _botStart.height());
-	_unblock.setGeometry(0, _attachDocument.y(), width(), _unblock.height());
-	_joinChannel.setGeometry(0, _attachDocument.y(), width(), _joinChannel.height());
-	_muteUnmute.setGeometry(0, _attachDocument.y(), width(), _muteUnmute.height());
-	_send.move(width() - _send.width(), _attachDocument.y());
-	_broadcast.move(_send.x() - _broadcast.width(), height() - kbh - _broadcast.height());
-	_attachEmoji.move((hasBroadcastToggle() ? _broadcast.x() : _send.x()) - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
-	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
-	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
-	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
-	_silent.move(_attachEmoji.x() - _silent.width(), height() - kbh - _silent.height());
+// _attachType ----------------------------------------------------------- _emojiPan --------- _fieldBarCancel
+// (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
+// (_botStart|_unblock|_joinChannel|_muteUnmute)
 
+	int buttonsBottom = bottom - _attachDocument.height();
+	_attachDocument.move(0, buttonsBottom);
+	_attachPhoto.move(0, buttonsBottom);
+	_field.move(_attachDocument.width(), bottom - _field.height() - st::sendPadding);
+	_send.move(right - _send.width(), buttonsBottom);
+	if (_inlineBotCancel) _inlineBotCancel->move(_send.pos());
+	right -= _send.width();
+	_broadcast.move(right - _broadcast.width(), buttonsBottom);
+	if (hasBroadcastToggle()) right -= _broadcast.width();
+	_attachEmoji.move(right - _attachEmoji.width(), buttonsBottom);
+	_kbHide.move(right - _kbHide.width(), buttonsBottom);
+	right -= _attachEmoji.width();
+	_kbShow.move(right - _kbShow.width(), buttonsBottom);
+	_cmdStart.move(right - _cmdStart.width(), buttonsBottom);
+	_silent.move(right - _silent.width(), buttonsBottom);
+
+	right = w;
+	_fieldBarCancel.move(right - _fieldBarCancel.width(), _field.y() - st::sendPadding - _fieldBarCancel.height());
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
 	_emojiPan.moveBottom(_attachEmoji.y());
 
+	_botStart.setGeometry(0, bottom - _botStart.height(), w, _botStart.height());
+	_unblock.setGeometry(0, bottom - _unblock.height(), w, _unblock.height());
+	_joinChannel.setGeometry(0, bottom - _joinChannel.height(), w, _joinChannel.height());
+	_muteUnmute.setGeometry(0, bottom - _muteUnmute.height(), w, _muteUnmute.height());
+}
+
+void HistoryWidget::updateFieldSize() {
+	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
+	int fieldWidth = width() - _attachDocument.width();
+	fieldWidth -= _send.width();
+	fieldWidth -= _attachEmoji.width();
+	if (kbShowShown) fieldWidth -= _kbShow.width();
+	if (_cmdStartShown) fieldWidth -= _cmdStart.width();
+	if (hasBroadcastToggle()) fieldWidth -= _broadcast.width();
+	if (hasSilentToggle()) fieldWidth -= _silent.width();
+
+	if (_field.width() != fieldWidth) {
+		_field.resize(fieldWidth, _field.height());
+	} else {
+		moveFieldControls();
+	}
+}
+
+void HistoryWidget::clearInlineBot() {
+	if (_inlineBot) {
+		_inlineBot = nullptr;
+		inlineBotChanged();
+		_field.finishPlaceholder();
+	}
+	_emojiPan.clearInlineBot();
+	onCheckMentionDropdown();
+}
+
+void HistoryWidget::inlineBotChanged() {
+	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
+	if (isInlineBot && !_inlineBotCancel) {
+		_inlineBotCancel = MakeUnique<IconedButton>(this, st::inlineBotCancel);
+		connect(_inlineBotCancel.data(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
+		_inlineBotCancel->setGeometry(_send.geometry());
+		updateFieldSubmitSettings();
+		updateControlsVisibility();
+	} else if (!isInlineBot && _inlineBotCancel) {
+		_inlineBotCancel.clear();
+		updateFieldSubmitSettings();
+		updateControlsVisibility();
+	}
+	updateFieldPlaceholder();
+}
+
+void HistoryWidget::onFieldResize() {
+	moveFieldControls();
 	updateListSize();
 	updateField();
 }
@@ -5996,7 +6070,7 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 
 void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
 	if (_confirmWithTextId && file->id == _confirmWithTextId) {
-		setFieldText(QString());
+		clearFieldText();
 		_confirmWithTextId = 0;
 	}
 	if (!file->originalText.isEmpty()) {
@@ -6017,7 +6091,7 @@ void HistoryWidget::confirmShareContact(const QString &phone, const QString &fna
 
 void HistoryWidget::cancelShareContact() {
 	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
-		setFieldText(QString());
+		clearFieldText();
 		_confirmWithTextId = 0;
 	}
 }
@@ -6331,15 +6405,7 @@ void HistoryWidget::notify_handlePendingHistoryUpdate() {
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_reportSpamPanel.resize(width(), _reportSpamPanel.height());
 
-	int32 maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
-	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
-
-	int32 kbh = 0;
-	if (_kbShown) {
-		kbh = qMin(_keyboard.height(), maxKeyboardHeight);
-		_kbScroll.setGeometry(0, height() - kbh, width(), kbh);
-	}
-	_field.move(_attachDocument.x() + _attachDocument.width(), height() - kbh - _field.height() - st::sendPadding);
+	moveFieldControls();
 
 	if (_pinnedBar) {
 		if (_scroll.y() != st::replyHeight) {
@@ -6355,32 +6421,13 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 		_attachMention.setBoundings(_scroll.geometry());
 	}
 
-	_attachDocument.move(0, height() - kbh - _attachDocument.height());
-	_attachPhoto.move(_attachDocument.x(), _attachDocument.y());
-
-	_fieldBarCancel.move(width() - _fieldBarCancel.width(), _field.y() - st::sendPadding - _fieldBarCancel.height());
 	updateListSize(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
 
-	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0) - (hasBroadcastToggle() ? _broadcast.width() : 0) - (hasSilentToggle() ? _silent.width() : 0), _field.height());
+	updateFieldSize();
 
 	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 	updateCollapseCommentsVisibility();
 
-	_send.move(width() - _send.width(), _attachDocument.y());
-	_botStart.setGeometry(0, _attachDocument.y(), width(), _botStart.height());
-	_unblock.setGeometry(0, _attachDocument.y(), width(), _unblock.height());
-	_joinChannel.setGeometry(0, _attachDocument.y(), width(), _joinChannel.height());
-	_muteUnmute.setGeometry(0, _attachDocument.y(), width(), _muteUnmute.height());
-	_broadcast.move(_send.x() - _broadcast.width(), height() - kbh - _broadcast.height());
-	_attachEmoji.move((hasBroadcastToggle() ? _broadcast.x() : _send.x()) - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
-	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
-	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
-	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
-	_silent.move(_attachEmoji.x() - _silent.width(), height() - kbh - _silent.height());
-
-	_attachType.move(0, _attachDocument.y() - _attachType.height());
-	_emojiPan.moveBottom(_attachEmoji.y());
 	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 
 	switch (_attachDrag) {
@@ -6904,7 +6951,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 
 	App::historyRegRandom(randomId, newId);
 
-	setFieldText(QString());
+	clearFieldText();
 	_saveDraftText = true;
 	_saveDraftStart = getms();
 	onDraftSave();
@@ -7079,7 +7126,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	App::historyRegRandom(randomId, newId);
 
 	if (_attachMention.stickersShown()) {
-		setFieldText(QString());
+		clearFieldText();
 		_saveDraftText = true;
 		_saveDraftStart = getms();
 		onDraftSave();
@@ -7142,10 +7189,11 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 void HistoryWidget::setFieldText(const QString &text, int32 textUpdateEventsFlags, bool clearUndoHistory) {
 	_textUpdateEventsFlags = textUpdateEventsFlags;
 	_field.setTextFast(text, clearUndoHistory);
+	_field.moveCursor(QTextCursor::End);
 	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 
 	_previewCancelled = false;
-	_previewData = 0;
+	_previewData = nullptr;
 	if (_previewRequest) {
 		MTP::cancel(_previewRequest);
 		_previewRequest = 0;
@@ -7554,8 +7602,8 @@ void HistoryWidget::updatePreview() {
 }
 
 void HistoryWidget::onCancel() {
-	if (_inlineBot && _field.getLastText().startsWith('@' + _inlineBot->username + ' ')) {
-		setFieldText(QString(), TextUpdateEventsSaveDraft, false);
+	if (_inlineBotCancel) {
+		onInlineBotCancel();
 	} else if (!_attachMention.isHidden()) {
 		_attachMention.hideStart();
 	} else  {
