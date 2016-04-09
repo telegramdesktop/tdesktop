@@ -27,6 +27,7 @@ class HistoryItem;
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
 #include "structs.h"
+#include "dialogs/dialogs_common.h"
 
 enum NewMessageType {
 	NewMessageUnread,
@@ -87,29 +88,6 @@ private:
 };
 
 class HistoryBlock;
-
-struct DialogRow {
-	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
-	}
-
-	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
-
-	DialogRow *prev, *next;
-	History *history;
-	int32 pos;
-	void *attached; // for any attached data, for example View in contacts list
-};
-
-struct FakeDialogRow {
-	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
-	}
-
-	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
-
-	HistoryItem *_item;
-	mutable const HistoryItem *_cacheFor;
-	mutable Text _cache;
-};
 
 enum HistoryMediaType {
 	MediaTypePhoto,
@@ -215,7 +193,11 @@ enum AddToOverviewMethod {
 	AddToOverviewBack, // when new messages slice was received and it is the last one, we index all media
 };
 
-struct DialogsIndexed;
+namespace Dialogs {
+class Row;
+class IndexedList;
+} // namespace Dialogs
+
 class ChannelHistory;
 class History {
 public:
@@ -283,22 +265,19 @@ public:
 	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
 
-	typedef QMap<QChar, DialogRow*> ChatListLinksMap;
 	void setChatsListDate(const QDateTime &date);
-	QPair<int32, int32> adjustByPosInChatsList(DialogsIndexed &indexed);
+	QPair<int32, int32> adjustByPosInChatsList(Dialogs::IndexedList *indexed);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
 	bool inChatList() const {
 		return !_chatListLinks.isEmpty();
 	}
-	int32 posInChatList() const {
-		return mainChatListLink()->pos;
-	}
-	DialogRow *addToChatList(DialogsIndexed &indexed);
-	void removeFromChatList(DialogsIndexed &indexed);
+	int posInChatList() const;
+	Dialogs::Row *addToChatList(Dialogs::IndexedList *indexed);
+	void removeFromChatList(Dialogs::IndexedList *indexed);
 	void removeChatListEntryByLetter(QChar letter);
-	void addChatListEntryByLetter(QChar letter, DialogRow *row);
+	void addChatListEntryByLetter(QChar letter, Dialogs::Row *row);
 	void updateChatListEntry() const;
 
 	MsgId minMsgId() const;
@@ -555,8 +534,8 @@ private:
 	}
 	Flags _flags;
 
-	ChatListLinksMap _chatListLinks;
-	DialogRow *mainChatListLink() const {
+	Dialogs::RowsByLetter _chatListLinks;
+	Dialogs::Row *mainChatListLink() const {
 		auto it = _chatListLinks.constFind(0);
 		t_assert(it != _chatListLinks.cend());
 		return it.value();
@@ -659,280 +638,6 @@ private:
 	int32 _rangeDifferencePts;
 	mtpRequestId _rangeDifferenceRequestId;
 
-};
-
-enum DialogsSortMode {
-	DialogsSortByDate,
-	DialogsSortByName,
-	DialogsSortByAdd
-};
-
-struct DialogsList {
-	DialogsList(DialogsSortMode sortMode) : begin(&last), end(&last), sortMode(sortMode), count(0), current(&last) {
-	}
-
-	void adjustCurrent(int32 y, int32 h) const {
-		int32 pos = (y > 0) ? (y / h) : 0;
-		while (current->pos > pos && current != begin) {
-			current = current->prev;
-		}
-		while (current->pos + 1 <= pos && current->next != end) {
-			current = current->next;
-		}
-	}
-
-	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const {
-		adjustCurrent(hFrom, st::dlgHeight);
-
-		DialogRow *drawFrom = current;
-		p.translate(0, drawFrom->pos * st::dlgHeight);
-		while (drawFrom != end && drawFrom->pos * st::dlgHeight < hTo) {
-			bool active = (drawFrom->history->peer == act) || (drawFrom->history->peer->migrateTo() && drawFrom->history->peer->migrateTo() == act);
-			bool selected = (drawFrom->history->peer == sel);
-			drawFrom->paint(p, w, active, selected, onlyBackground);
-			drawFrom = drawFrom->next;
-			p.translate(0, st::dlgHeight);
-		}
-	}
-
-	DialogRow *rowAtY(int32 y, int32 h) const {
-		if (!count) return 0;
-
-		int32 pos = (y > 0) ? (y / h) : 0;
-		adjustCurrent(y, h);
-		return (pos == current->pos) ? current : 0;
-	}
-
-	DialogRow *addToEnd(History *history) {
-		DialogRow *result = new DialogRow(history, end->prev, end, end->pos);
-		end->pos++;
-		if (begin == end) {
-			begin = current = result;
-		} else {
-			end->prev->next = result;
-		}
-		rowByPeer.insert(history->peer->id, result);
-		++count;
-		end->prev = result;
-		if (sortMode == DialogsSortByDate) {
-			adjustByPos(result);
-		}
-		return result;
-	}
-
-	bool insertBefore(DialogRow *row, DialogRow *before) {
-		if (row == before) return false;
-
-		if (current == row) current = row->prev;
-
-		DialogRow *updateTill = row->prev;
-		remove(row);
-
-		// insert row
-		row->next = before; // update row
-		row->prev = before->prev;
-		row->next->prev = row; // update row->next
-		if (row->prev) { // update row->prev
-			row->prev->next = row;
-		} else {
-			begin = row;
-		}
-
-		// update y
-		for (DialogRow *n = row; n != updateTill; n = n->next) {
-			n->next->pos++;
-			row->pos--;
-		}
-		return true;
-	}
-
-	bool insertAfter(DialogRow *row, DialogRow *after) {
-		if (row == after) return false;
-
-		if (current == row) current = row->next;
-
-		DialogRow *updateFrom = row->next;
-		remove(row);
-
-		// insert row
-		row->prev = after; // update row
-		row->next = after->next;
-		row->prev->next = row; // update row->prev
-		row->next->prev = row; // update row->next
-
-		// update y
-		for (DialogRow *n = updateFrom; n != row; n = n->next) {
-			n->pos--;
-			row->pos++;
-		}
-		return true;
-	}
-
-	DialogRow *adjustByName(const PeerData *peer) {
-		if (sortMode != DialogsSortByName) return 0;
-
-		RowByPeer::iterator i = rowByPeer.find(peer->id);
-		if (i == rowByPeer.cend()) return 0;
-
-		DialogRow *row = i.value(), *change = row;
-		while (change->prev && change->prev->history->peer->name > peer->name) {
-			change = change->prev;
-		}
-		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->peer->name < peer->name) {
-				change = change->next;
-			}
-			insertAfter(row, change);
-		}
-		return row;
-	}
-
-	DialogRow *addByName(History *history) {
-		if (sortMode != DialogsSortByName) return 0;
-
-		DialogRow *row = addToEnd(history), *change = row;
-		const QString &peerName(history->peer->name);
-		while (change->prev && change->prev->history->peer->name.compare(peerName, Qt::CaseInsensitive) > 0) {
-			change = change->prev;
-		}
-		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->peer->name.compare(peerName, Qt::CaseInsensitive) < 0) {
-				change = change->next;
-			}
-			insertAfter(row, change);
-		}
-		return row;
-	}
-
-	void adjustByPos(DialogRow *row) {
-		if (sortMode != DialogsSortByDate) return;
-
-		DialogRow *change = row;
-		if (change != begin && begin->history->sortKeyInChatList() < row->history->sortKeyInChatList()) {
-			change = begin;
-		} else while (change->prev && change->prev->history->sortKeyInChatList() < row->history->sortKeyInChatList()) {
-			change = change->prev;
-		}
-		if (!insertBefore(row, change)) {
-			if (change->next != end && end->prev->history->sortKeyInChatList() > row->history->sortKeyInChatList()) {
-				change = end->prev;
-			} else while (change->next != end && change->next->history->sortKeyInChatList() > row->history->sortKeyInChatList()) {
-				change = change->next;
-			}
-			insertAfter(row, change);
-		}
-	}
-
-	bool del(const PeerId &peerId, DialogRow *replacedBy = 0);
-
-	void remove(DialogRow *row) {
-		row->next->prev = row->prev; // update row->next
-		if (row->prev) { // update row->prev
-			row->prev->next = row->next;
-		} else {
-			begin = row->next;
-		}
-	}
-
-	void clear() {
-		while (begin != end) {
-			current = begin;
-			begin = begin->next;
-			delete current;
-		}
-		current = begin;
-		rowByPeer.clear();
-		count = 0;
-	}
-
-	~DialogsList() {
-		clear();
-	}
-
-	DialogRow last;
-	DialogRow *begin, *end;
-	DialogsSortMode sortMode;
-	int32 count;
-
-	typedef QHash<PeerId, DialogRow*> RowByPeer;
-	RowByPeer rowByPeer;
-
-	mutable DialogRow *current; // cache
-};
-
-struct DialogsIndexed {
-	DialogsIndexed(DialogsSortMode sortMode) : sortMode(sortMode), list(sortMode) {
-	}
-
-	History::ChatListLinksMap addToEnd(History *history) {
-		History::ChatListLinksMap result;
-		DialogsList::RowByPeer::const_iterator i = list.rowByPeer.find(history->peer->id);
-		if (i == list.rowByPeer.cend()) {
-			result.insert(0, list.addToEnd(history));
-			for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
-				DialogsIndex::iterator j = index.find(*i);
-				if (j == index.cend()) {
-					j = index.insert(*i, new DialogsList(sortMode));
-				}
-				result.insert(*i, j.value()->addToEnd(history));
-			}
-		}
-		return result;
-	}
-
-	DialogRow *addByName(History *history) {
-		DialogsList::RowByPeer::const_iterator i = list.rowByPeer.constFind(history->peer->id);
-		if (i != list.rowByPeer.cend()) {
-			return i.value();
-		}
-
-		DialogRow *res = list.addByName(history);
-		for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
-			DialogsIndex::iterator j = index.find(*i);
-			if (j == index.cend()) {
-				j = index.insert(*i, new DialogsList(sortMode));
-			}
-			j.value()->addByName(history);
-		}
-		return res;
-	}
-
-	void adjustByPos(const History::ChatListLinksMap &links) {
-		for (History::ChatListLinksMap::const_iterator i = links.cbegin(), e = links.cend(); i != e; ++i) {
-			if (i.key() == QChar(0)) {
-				list.adjustByPos(i.value());
-			} else {
-				DialogsIndex::iterator j = index.find(i.key());
-				if (j != index.cend()) {
-					j.value()->adjustByPos(i.value());
-				}
-			}
-		}
-	}
-
-	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-
-	void del(const PeerData *peer, DialogRow *replacedBy = 0) {
-		if (list.del(peer->id, replacedBy)) {
-			for (PeerData::NameFirstChars::const_iterator i = peer->chars.cbegin(), e = peer->chars.cend(); i != e; ++i) {
-				DialogsIndex::iterator j = index.find(*i);
-				if (j != index.cend()) {
-					j.value()->del(peer->id, replacedBy);
-				}
-			}
-		}
-	}
-
-	~DialogsIndexed() {
-		clear();
-	}
-
-	void clear();
-
-	DialogsSortMode sortMode;
-	DialogsList list;
-	typedef QMap<QChar, DialogsList*> DialogsIndex;
-	DialogsIndex index;
 };
 
 class HistoryBlock {

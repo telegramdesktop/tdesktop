@@ -168,6 +168,9 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
+    ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
+    ./SourceFiles/dialogs/dialogs_layout.cpp \
+    ./SourceFiles/dialogs/dialogs_list.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
     ./SourceFiles/inline_bots/inline_bot_result.cpp \
@@ -274,6 +277,11 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
+    ./SourceFiles/dialogs/dialogs_common.h \
+    ./SourceFiles/dialogs/dialogs_indexed_list.h \
+    ./SourceFiles/dialogs/dialogs_layout.h \
+    ./SourceFiles/dialogs/dialogs_list.h \
+    ./SourceFiles/dialogs/dialogs_row.h \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
     ./SourceFiles/inline_bots/inline_bot_layout_item.h \
     ./SourceFiles/inline_bots/inline_bot_result.h \

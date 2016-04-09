@@ -28,8 +28,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 
 class Window;
-struct DialogRow;
-
 class ApiWrap;
 class MainWidget;
 class ConfirmBox;
@@ -38,6 +36,10 @@ class HistoryWidget;
 class ProfileWidget;
 class OverviewWidget;
 class PlayerWidget;
+
+namespace Dialogs {
+class Row;
+} // namespace Dialogs
 
 class TopBarWidget : public TWidget {
 	Q_OBJECT
@@ -257,7 +259,7 @@ public:
 
 	void createDialog(History *history);
 	void removeDialog(History *history);
-	void dlgUpdated(DialogRow *row = 0);
+	void dlgUpdated(Dialogs::Row *row = nullptr);
 	void dlgUpdated(History *row, MsgId msgId);
 
 	void windowShown();
@@ -350,8 +352,8 @@ public:
 	void deleteSelectedItems();
 	void clearSelectedItems();
 
-	DialogsIndexed &contactsList();
-	DialogsIndexed &dialogsList();
+	Dialogs::IndexedList *contactsList();
+	Dialogs::IndexedList *dialogsList();
 
 	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
@@ -477,7 +479,7 @@ signals:
 	void peerUpdated(PeerData *peer);
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void peerPhotoChanged(PeerData *peer);
-	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 	void dialogsUpdated();
 	void stickersUpdated();
 	void savedGifsUpdated();

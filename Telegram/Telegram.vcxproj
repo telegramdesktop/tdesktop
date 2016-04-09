@@ -1064,6 +1064,9 @@
     <ClCompile Include="SourceFiles\boxes\stickersetbox.cpp" />
     <ClCompile Include="SourceFiles\boxes\usernamebox.cpp" />
     <ClCompile Include="SourceFiles\dialogswidget.cpp" />
+    <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp" />
+    <ClCompile Include="SourceFiles\dialogs\dialogs_layout.cpp" />
+    <ClCompile Include="SourceFiles\dialogs\dialogs_list.cpp" />
     <ClCompile Include="SourceFiles\dropdown.cpp" />
     <ClCompile Include="SourceFiles\facades.cpp" />
     <ClCompile Include="SourceFiles\fileuploader.cpp" />
@@ -1223,6 +1226,11 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/basic_types.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\..\..\Libraries\breakpad\src" "-I.\ThirdParty\minizip" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_common.h" />
+    <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h" />
+    <ClInclude Include="SourceFiles\dialogs\dialogs_layout.h" />
+    <ClInclude Include="SourceFiles\dialogs\dialogs_list.h" />
+    <ClInclude Include="SourceFiles\dialogs\dialogs_row.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_internal.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_item.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_result.h" />

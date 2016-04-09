@@ -22,6 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Dialogs {
+class Row;
+class IndexedList;
+} // namespace Dialogs
+
 enum MembersFilter {
 	MembersFilterRecent,
 	MembersFilterAdmins,
@@ -69,7 +74,7 @@ public:
 
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
-	void changeCheckState(DialogRow *row);
+	void changeCheckState(Dialogs::Row *row);
 	void changeCheckState(ContactData *data, PeerData *peer);
 
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
@@ -102,7 +107,7 @@ signals:
 
 public slots:
 
-	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 	void updateSel();
 	void peerUpdated(PeerData *peer);
@@ -120,36 +125,38 @@ private:
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
-	int32 _rowHeight, _newItemHeight;
-	bool _newItemSel;
+	int32 _rowHeight;
+	int _newItemHeight = 0;
+	bool _newItemSel = false;
 
-	ChatData *_chat;
-	ChannelData *_channel;
-	MembersFilter _membersFilter;
-	UserData *_bot;
-	CreatingGroupType _creating;
+	ChatData *_chat = nullptr;
+	ChannelData *_channel = nullptr;
+	MembersFilter _membersFilter = MembersFilterRecent;
+	UserData *_bot = nullptr;
+	CreatingGroupType _creating = CreatingGroupNone;
 	MembersAlreadyIn _already;
 
 	Checkbox _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
 
-	PeerData *_addToPeer;
-	UserData *_addAdmin;
-	mtpRequestId _addAdminRequestId;
-	ConfirmBox *_addAdminBox;
+	PeerData *_addToPeer = nullptr;
+	UserData *_addAdmin = nullptr;
+	mtpRequestId _addAdminRequestId = 0;
+	ConfirmBox *_addAdminBox = nullptr;
 
 	int32 _time;
 
-	DialogsIndexed *_contacts;
-	DialogRow *_sel;
+	UniquePointer<Dialogs::IndexedList> _customList;
+	Dialogs::IndexedList *_contacts = nullptr;
+	Dialogs::Row *_sel = nullptr;
 	QString _filter;
-	typedef QVector<DialogRow*> FilteredDialogs;
+	typedef QVector<Dialogs::Row*> FilteredDialogs;
 	FilteredDialogs _filtered;
-	int32 _filteredSel;
-	bool _mouseSel;
+	int _filteredSel = -1;
+	bool _mouseSel = false;
 
-	int32 _selCount;
+	int _selCount = 0;
 
 	struct ContactData {
 		Text name;
@@ -163,22 +170,22 @@ private:
 	typedef QMap<PeerData*, bool> CheckedContacts;
 	CheckedContacts _checkedContacts;
 
-	ContactData *contactData(DialogRow *row);
+	ContactData *contactData(Dialogs::Row *row);
 
-	bool _searching;
+	bool _searching = false;
 	QString _lastQuery;
 	typedef QVector<PeerData*> ByUsernameRows;
 	typedef QVector<ContactData*> ByUsernameDatas;
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
 	ByUsernameDatas _byUsernameDatas;
-	int32 _byUsernameSel;
+	int _byUsernameSel = -1;
 
 	QPoint _lastMousePos;
 	LinkButton _addContactLnk;
 
-	bool _saving;
-	bool _allAdminsChecked;
+	bool _saving = false;
+	bool _allAdminsChecked = false;
 
 };
 

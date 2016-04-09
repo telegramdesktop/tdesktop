@@ -1363,11 +1363,11 @@ void MainWidget::clearSelectedItems() {
 	}
 }
 
-DialogsIndexed &MainWidget::contactsList() {
+Dialogs::IndexedList *MainWidget::contactsList() {
 	return dialogs.contactsList();
 }
 
-DialogsIndexed &MainWidget::dialogsList() {
+Dialogs::IndexedList *MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
@@ -2653,7 +2653,7 @@ QRect MainWidget::historyRect() const {
 	return r;
 }
 
-void MainWidget::dlgUpdated(DialogRow *row) {
+void MainWidget::dlgUpdated(Dialogs::Row *row) {
 	if (row) {
 		dialogs.dlgUpdated(row);
 	} else if (_peerInStack) {

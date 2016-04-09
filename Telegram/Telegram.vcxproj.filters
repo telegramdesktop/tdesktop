@@ -61,6 +61,9 @@
     <Filter Include="Resources\langs">
       <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="dialogs">
+      <UniqueIdentifier>{405e59c2-0800-4f73-b975-1749c8c36e87}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1017,6 +1020,15 @@
     <ClCompile Include="SourceFiles\serialize\serialize_common.cpp">
       <Filter>serialize</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\dialogs\dialogs_layout.cpp">
+      <Filter>dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dialogs\dialogs_list.cpp">
+      <Filter>dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp">
+      <Filter>dialogs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1138,6 +1150,21 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\serialize\serialize_common.h">
       <Filter>serialize</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_layout.h">
+      <Filter>dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_list.h">
+      <Filter>dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h">
+      <Filter>dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_common.h">
+      <Filter>dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dialogs\dialogs_row.h">
+      <Filter>dialogs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

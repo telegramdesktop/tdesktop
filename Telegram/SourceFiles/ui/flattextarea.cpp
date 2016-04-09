@@ -946,7 +946,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	if (ctrl && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::Enter) {
 		enterSubmit = true;
 	}
-	if (!ctrl && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::CtrlEnter) {
+	if (!ctrl && !shift && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::CtrlEnter) {
 		enterSubmit = true;
 	}
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);

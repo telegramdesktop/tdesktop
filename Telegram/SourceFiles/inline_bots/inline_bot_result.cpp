@@ -61,7 +61,7 @@ Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creato
 
 UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
 	using StringToTypeMap = QMap<QString, Result::Type>;
-	StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
+	static StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
 		auto result = MakeUnique<StringToTypeMap>();
 		result->insert(qsl("photo"), Result::Type::Photo);
 		result->insert(qsl("video"), Result::Type::Video);
@@ -75,7 +75,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		return result.release();
 	})() };
 
-	auto getInlineResultType = [&stringToTypeMap](const MTPBotInlineResult &inlineResult) -> Type {
+	auto getInlineResultType = [](const MTPBotInlineResult &inlineResult) -> Type {
 		QString type;
 		switch (inlineResult.type()) {
 		case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype); break;

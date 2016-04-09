@@ -21,6 +21,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 class MainWidget;
+namespace Dialogs {
+class Row;
+class FakeRow;
+class IndexedList;
+} // namespace Dialogs
 
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
@@ -67,7 +72,7 @@ public:
 	void selectSkipPage(int32 pixels, int32 direction);
 
 	void createDialog(History *history);
-	void dlgUpdated(DialogRow *row);
+	void dlgUpdated(Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 	void removeDialog(History *history);
 
@@ -84,12 +89,12 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
-	typedef QVector<DialogRow*> FilteredDialogs;
+	typedef QVector<Dialogs::Row*> FilteredDialogs;
 	typedef QVector<PeerData*> PeopleResults;
-	typedef QVector<FakeDialogRow*> SearchResults;
+	typedef QVector<Dialogs::FakeRow*> SearchResults;
 
-	DialogsIndexed &contactsList();
-	DialogsIndexed &dialogsList();
+	Dialogs::IndexedList *contactsList();
+	Dialogs::IndexedList *dialogsList();
 	FilteredDialogs &filteredList();
 	PeopleResults &peopleList();
 	SearchResults &searchList();
@@ -129,7 +134,7 @@ public slots:
 	void onParentGeometryChanged();
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
-	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 	void onContextProfile();
 	void onContextToggleNotifications();
@@ -165,46 +170,52 @@ private:
 	bool menuPeerMuted();
 	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
 
-	DialogsIndexed dialogs;
-	DialogsIndexed contactsNoDialogs;
-	DialogsIndexed contacts;
-	DialogRow *sel;
-	bool contactSel;
-	bool selByMouse;
+	using DialogsList = UniquePointer<Dialogs::IndexedList>;
+	DialogsList dialogs;
+	DialogsList contactsNoDialogs;
+	DialogsList contacts;
+	Dialogs::Row *sel = nullptr;
+	bool selByMouse = false;
 
 	QString _filter, _hashtagFilter;
 
 	QStringList _hashtagResults;
-	int32 _hashtagSel;
+	int _hashtagSel = -1;
 
 	FilteredDialogs _filterResults;
-	int32 _filteredSel;
+	int _filteredSel = -1;
 
 	SearchResults _searchResults;
-	int32 _searchedCount, _searchedMigratedCount, _searchedSel;
+	int _searchedCount = 0;
+	int _searchedMigratedCount = 0;
+	int _searchedSel = -1;
 
 	QString _peopleQuery;
 	PeopleResults _peopleResults;
-	int32 _peopleSel;
+	int _peopleSel = -1;
 
-	int32 _lastSearchDate;
-	PeerData *_lastSearchPeer;
-	MsgId _lastSearchId, _lastSearchMigratedId;
+	int _lastSearchDate = 0;
+	PeerData *_lastSearchPeer = nullptr;
+	MsgId _lastSearchId = 0;
+	MsgId _lastSearchMigratedId = 0;
 
-	State _state;
+	State _state = DefaultState;
 
 	QPoint lastMousePos;
 
-	void paintDialog(QPainter &p, DialogRow *dialog);
+	void paintDialog(QPainter &p, Dialogs::Row *dialog);
 
 	LinkButton _addContactLnk;
 	IconedButton _cancelSearchInPeer;
 
-	bool _overDelete;
+	bool _overDelete = false;
 
-	PeerData *_searchInPeer, *_searchInMigrated, *_menuPeer, *_menuActionPeer;
+	PeerData *_searchInPeer = nullptr;
+	PeerData *_searchInMigrated = nullptr;
+	PeerData *_menuPeer = nullptr;
+	PeerData *_menuActionPeer = nullptr;
 
-	PopupMenu *_menu;
+	PopupMenu *_menu = nullptr;
 
 };
 
@@ -233,7 +244,7 @@ public:
 
 	void loadDialogs();
 	void createDialog(History *history);
-	void dlgUpdated(DialogRow *row);
+	void dlgUpdated(Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 
 	void dialogsToUp();
@@ -249,8 +260,8 @@ public:
 
 	void removeDialog(History *history);
 
-	DialogsIndexed &contactsList();
-	DialogsIndexed &dialogsList();
+	Dialogs::IndexedList *contactsList();
+	Dialogs::IndexedList *dialogsList();
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();

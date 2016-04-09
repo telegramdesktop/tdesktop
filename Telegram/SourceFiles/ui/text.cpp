@@ -1341,7 +1341,7 @@ public:
 	}
 
 	const ClickHandlerPtr &link(int32 x, int32 y, int32 w, style::align align) {
-		StaticNeverFreedPointer<ClickHandlerPtr> zero(new ClickHandlerPtr());
+		static StaticNeverFreedPointer<ClickHandlerPtr> zero(new ClickHandlerPtr());
 
 		_lnkX = x;
 		_lnkY = y;

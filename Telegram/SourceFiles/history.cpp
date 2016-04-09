@@ -19,18 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "history.h"
+
+#include "dialogs/dialogs_indexed_list.h"
 #include "ui/style.h"
 #include "lang.h"
-
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "window.h"
 #include "ui/filedialog.h"
-
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
-
 #include "audio.h"
 #include "localstorage.h"
 
@@ -85,177 +85,6 @@ namespace {
 
 void historyInit() {
 	_initTextOptions();
-}
-
-void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
-	QRect fullRect(0, 0, w, st::dlgHeight);
-	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-	if (onlyBackground) return;
-
-	PeerData *userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
-	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, w);
-
-	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
-	int32 namewidth = w - nameleft - st::dlgPaddingHor;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
-
-	// draw chat icon
-	if (history->peer->isChat() || history->peer->isMegagroup()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	} else if (history->peer->isChannel()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	}
-
-	HistoryItem *last = history->lastMsg;
-	if (!last) {
-		p.setFont(st::dlgHistFont->f);
-		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			p.drawText(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgFont->ascent + st::dlgSep, lang(lng_empty_history));
-		} else {
-			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth);
-		}
-	} else {
-		// draw date
-		QDateTime now(QDateTime::currentDateTime()), lastTime(last->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt;
-		if (lastDate == nowDate) {
-			dt = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
-			dt = langDayOfWeek(lastDate);
-		} else {
-			dt = lastDate.toString(qsl("d.MM.yy"));
-		}
-		int32 dtWidth = st::dlgDateFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-		p.setFont(st::dlgDateFont->f);
-		p.setPen((act ? st::dlgActiveDateColor : st::dlgDateColor)->p);
-		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
-
-		// draw check
-		if (last->needCheck()) {
-			const style::sprite *check;
-			if (last->id > 0) {
-				if (last->unread()) {
-					check = act ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
-				} else {
-					check = act ? &st::dlgActiveDblCheckImg: &st::dlgDblCheckImg;
-				}
-			} else {
-				check = act ? &st::dlgActiveSendImg : &st::dlgSendImg;
-			}
-			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
-			p.drawPixmap(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), App::sprite(), *check);
-		}
-
-		// draw unread
-		int32 lastWidth = namewidth, unread = history->unreadCount;
-		if (history->peer->migrateFrom()) {
-			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
-				unread += h->unreadCount;
-			}
-		}
-		if (unread) {
-			QString unreadStr = QString::number(unread);
-			int32 unreadWidth = st::dlgUnreadFont->width(unreadStr);
-			int32 unreadRectWidth = unreadWidth + 2 * st::dlgUnreadPaddingHor;
-			int32 unreadRectHeight = st::dlgUnreadFont->height + 2 * st::dlgUnreadPaddingVer;
-			int32 unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-			int32 unreadRectTop = st::dlgHeight - st::dlgPaddingVer - unreadRectHeight;
-			lastWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
-			p.setBrush((act ? (history->mute ? st::dlgActiveUnreadMutedBG : st::dlgActiveUnreadBG) : (history->mute ? st::dlgUnreadMutedBG : st::dlgUnreadBG))->b);
-			p.setPen(Qt::NoPen);
-			p.drawRoundedRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight, st::dlgUnreadRadius, st::dlgUnreadRadius);
-			p.setFont(st::dlgUnreadFont->f);
-			p.setPen((act ? st::dlgActiveUnreadColor : st::dlgUnreadColor)->p);
-			p.drawText(unreadRectLeft + st::dlgUnreadPaddingHor, unreadRectTop + st::dlgUnreadPaddingVer + st::dlgUnreadFont->ascent, unreadStr);
-		}
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			last->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, history->textCachedFor, history->lastItemTextCache);
-		} else {
-			p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth);
-		}
-	}
-
-	if (history->peer->isUser() && history->peer->isVerified()) {
-		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-		p.drawSprite(rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
-	}
-
-	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-}
-
-void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
-	QRect fullRect(0, 0, w, st::dlgHeight);
-	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-	if (onlyBackground) return;
-
-	History *history = _item->history();
-	PeerData *userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
-	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, w);
-
-	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
-	int32 namewidth = w - nameleft - st::dlgPaddingHor;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
-
-	// draw chat icon
-	if (history->peer->isChat() || history->peer->isMegagroup()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	} else if (history->peer->isChannel()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	}
-
-	// draw date
-	QDateTime now(QDateTime::currentDateTime()), lastTime(_item->date);
-	QDate nowDate(now.date()), lastDate(lastTime.date());
-	QString dt;
-	if (lastDate == nowDate) {
-		dt = lastTime.toString(cTimeFormat());
-	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
-		dt = langDayOfWeek(lastDate);
-	} else {
-		dt = lastDate.toString(qsl("d.MM.yy"));
-	}
-	int32 dtWidth = st::dlgDateFont->width(dt);
-	rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-	p.setFont(st::dlgDateFont->f);
-	p.setPen((act ? st::dlgActiveDateColor : st::dlgDateColor)->p);
-	p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
-
-	// draw check
-	if (_item->needCheck()) {
-		const style::sprite *check;
-		if (_item->id > 0) {
-			if (_item->unread()) {
-				check = act ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
-			} else {
-				check = act ? &st::dlgActiveDblCheckImg : &st::dlgDblCheckImg;
-			}
-		} else {
-			check = act ? &st::dlgActiveSendImg : &st::dlgSendImg;
-		}
-		rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
-		p.drawPixmap(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), App::sprite(), *check);
-	}
-
-	// draw unread
-	int32 lastWidth = namewidth;
-	_item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, _cacheFor, _cache);
-
-	if (history->peer->isUser() && history->peer->isVerified()) {
-		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-		p.drawSprite(rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
-	}
-
-	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 History::History(const PeerId &peerId)
@@ -979,107 +808,6 @@ ChannelHistory::~ChannelHistory() {
 	// all items must be destroyed before ChannelHistory is destroyed
 	// or they will call history()->asChannelHistory() -> undefined behaviour
 	clearOnDestroy();
-}
-
-bool DialogsList::del(const PeerId &peerId, DialogRow *replacedBy) {
-	RowByPeer::iterator i = rowByPeer.find(peerId);
-	if (i == rowByPeer.cend()) return false;
-
-	DialogRow *row = i.value();
-	if (App::main()) {
-		emit App::main()->dialogRowReplaced(row, replacedBy);
-	}
-
-	if (row == current) {
-		current = row->next;
-	}
-	for (DialogRow *change = row->next; change != end; change = change->next) {
-		change->pos--;
-	}
-	end->pos--;
-	remove(row);
-	delete row;
-	--count;
-	rowByPeer.erase(i);
-
-	return true;
-}
-
-void DialogsIndexed::peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
-	if (sortMode == DialogsSortByName) {
-		DialogRow *mainRow = list.adjustByName(peer);
-		if (!mainRow) return;
-
-		History *history = mainRow->history;
-
-		PeerData::NameFirstChars toRemove = oldChars, toAdd;
-		for (PeerData::NameFirstChars::const_iterator i = peer->chars.cbegin(), e = peer->chars.cend(); i != e; ++i) {
-			PeerData::NameFirstChars::iterator j = toRemove.find(*i);
-			if (j == toRemove.cend()) {
-				toAdd.insert(*i);
-			} else {
-				toRemove.erase(j);
-				DialogsIndex::iterator k = index.find(*i);
-				if (k != index.cend()) {
-					k.value()->adjustByName(peer);
-				}
-			}
-		}
-		for (PeerData::NameFirstChars::const_iterator i = toRemove.cbegin(), e = toRemove.cend(); i != e; ++i) {
-			DialogsIndex::iterator j = index.find(*i);
-			if (j != index.cend()) {
-				j.value()->del(peer->id, mainRow);
-			}
-		}
-		if (!toAdd.isEmpty()) {
-			for (PeerData::NameFirstChars::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
-				DialogsIndex::iterator j = index.find(*i);
-				if (j == index.cend()) {
-					j = index.insert(*i, new DialogsList(sortMode));
-				}
-				j.value()->addByName(history);
-			}
-		}
-	} else {
-		DialogsList::RowByPeer::const_iterator i = list.rowByPeer.find(peer->id);
-		if (i == list.rowByPeer.cend()) return;
-
-		DialogRow *mainRow = i.value();
-		History *history = mainRow->history;
-
-		PeerData::NameFirstChars toRemove = oldChars, toAdd;
-		for (PeerData::NameFirstChars::const_iterator i = peer->chars.cbegin(), e = peer->chars.cend(); i != e; ++i) {
-			PeerData::NameFirstChars::iterator j = toRemove.find(*i);
-			if (j == toRemove.cend()) {
-				toAdd.insert(*i);
-			} else {
-				toRemove.erase(j);
-			}
-		}
-		for (PeerData::NameFirstChars::const_iterator i = toRemove.cbegin(), e = toRemove.cend(); i != e; ++i) {
-			if (sortMode == DialogsSortByDate) history->removeChatListEntryByLetter(*i);
-			DialogsIndex::iterator j = index.find(*i);
-			if (j != index.cend()) {
-				j.value()->del(peer->id, mainRow);
-			}
-		}
-		for (PeerData::NameFirstChars::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
-			DialogsIndex::iterator j = index.find(*i);
-			if (j == index.cend()) {
-				j = index.insert(*i, new DialogsList(sortMode));
-			}
-			DialogRow *row = j.value()->addToEnd(history);
-			if (sortMode == DialogsSortByDate) history->addChatListEntryByLetter(*i, row);
-		}
-	}
-}
-
-void DialogsIndexed::clear() {
-	for (DialogsIndex::iterator i = index.begin(), e = index.end(); i != e; ++i) {
-		delete i.value();
-	}
-	index.clear();
-	list.clear();
 }
 
 History *Histories::find(const PeerId &peerId) {
@@ -2469,17 +2197,23 @@ void History::clearOnDestroy() {
 	clearBlocks(false);
 }
 
-QPair<int32, int32> History::adjustByPosInChatsList(DialogsIndexed &indexed) {
-	DialogRow *lnk = mainChatListLink();
-	int32 movedFrom = lnk->pos * st::dlgHeight;
-	indexed.adjustByPos(_chatListLinks);
-	int32 movedTo = lnk->pos * st::dlgHeight;
+QPair<int32, int32> History::adjustByPosInChatsList(Dialogs::IndexedList *indexed) {
+	t_assert(indexed != nullptr);
+	Dialogs::Row *lnk = mainChatListLink();
+	int32 movedFrom = lnk->pos() * st::dlgHeight;
+	indexed->adjustByPos(_chatListLinks);
+	int32 movedTo = lnk->pos() * st::dlgHeight;
 	return qMakePair(movedFrom, movedTo);
 }
 
-DialogRow *History::addToChatList(DialogsIndexed &indexed) {
+int History::posInChatList() const {
+	return mainChatListLink()->pos();
+}
+
+Dialogs::Row *History::addToChatList(Dialogs::IndexedList *indexed) {
+	t_assert(indexed != nullptr);
 	if (!inChatList()) {
-		_chatListLinks = indexed.addToEnd(this);
+		_chatListLinks = indexed->addToEnd(this);
 		if (unreadCount) {
 			App::histories().unreadIncrement(unreadCount, mute);
 			if (App::wnd()) App::wnd()->updateCounter();
@@ -2488,9 +2222,10 @@ DialogRow *History::addToChatList(DialogsIndexed &indexed) {
 	return mainChatListLink();
 }
 
-void History::removeFromChatList(DialogsIndexed &indexed) {
+void History::removeFromChatList(Dialogs::IndexedList *indexed) {
+	t_assert(indexed != nullptr);
 	if (inChatList()) {
-		indexed.del(peer);
+		indexed->del(peer);
 		_chatListLinks.clear();
 		if (unreadCount) {
 			App::histories().unreadIncrement(-unreadCount, mute);
@@ -2506,7 +2241,7 @@ void History::removeChatListEntryByLetter(QChar letter) {
 	}
 }
 
-void History::addChatListEntryByLetter(QChar letter, DialogRow *row) {
+void History::addChatListEntryByLetter(QChar letter, Dialogs::Row *row) {
 	t_assert(letter != 0);
 	if (inChatList()) {
 		_chatListLinks.insert(letter, row);
