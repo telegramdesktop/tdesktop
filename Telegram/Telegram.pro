@@ -172,6 +172,8 @@ SOURCES += \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
     ./SourceFiles/inline_bots/inline_bot_result.cpp \
     ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
+    ./SourceFiles/serialize/serialize_common.cpp \
+    ./SourceFiles/serialize/serialize_document.cpp \
     ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
@@ -276,6 +278,8 @@ HEADERS += \
     ./SourceFiles/inline_bots/inline_bot_layout_item.h \
     ./SourceFiles/inline_bots/inline_bot_result.h \
     ./SourceFiles/inline_bots/inline_bot_send_data.h \
+    ./SourceFiles/serialize/serialize_common.h \
+    ./SourceFiles/serialize/serialize_document.h \
     ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
