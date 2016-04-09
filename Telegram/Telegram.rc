@@ -26,7 +26,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "SourceFiles\\art\\icon256.ico"
+IDI_ICON1               ICON                    "Resources\\art\\icon256.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //

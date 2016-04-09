@@ -287,12 +287,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			int32 iItem = (_curHistory == _history ? _curItem : 0);
 			HistoryItem *item = block->items[iItem];
 
+			QRect historyRect = r.intersected(QRect(0, hdrawtop, width(), r.height()));
 			int32 y = htop + block->y + item->y;
 			p.save();
 			p.translate(0, y);
 			while (y < drawToY) {
 				int32 h = item->height();
-				if (r.y() < y + h && hdrawtop < y + h) {
+				if (historyRect.y() < y + h && hdrawtop < y + h) {
 					uint32 sel = 0;
 					if (y >= selfromy && y < seltoy) {
 						sel = (_dragSelecting && !item->serviceMsg() && item->id > 0) ? FullSelection : 0;
@@ -302,7 +303,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 							sel = i.value();
 						}
 					}
-					item->draw(p, r.translated(0, -y), sel, ms);
+					item->draw(p, historyRect.translated(0, -y), sel, ms);
 
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
@@ -323,7 +324,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				item = block->items[iItem];
 			}
 			p.restore();
+		}
 
+		if (mtop >= 0 || htop >= 0) {
 			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) -> bool {
 				// stop the enumeration if the userpic is above the painted rect
 				if (userpicTop + st::msgPhotoSize <= r.top()) {

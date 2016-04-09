@@ -34,9 +34,6 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
-    <Filter Include="langs">
-      <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resources">
       <UniqueIdentifier>{df139398-6d5d-4bd5-8abe-b509b102f5d8}</UniqueIdentifier>
     </Filter>
@@ -60,6 +57,9 @@
     </Filter>
     <Filter Include="serialize">
       <UniqueIdentifier>{e9244e0a-a3ae-43dc-8a72-fd7d14cee20b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\langs">
+      <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -1288,13 +1288,13 @@
     <CustomBuild Include="Resources\style_classes.txt">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\telegram.qrc">
+    <CustomBuild Include="Resources\telegram.qrc">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\telegram_emojis.qrc">
+    <CustomBuild Include="Resources\telegram_emojis.qrc">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\telegram_wnd.qrc">
+    <CustomBuild Include="Resources\telegram_wnd.qrc">
       <Filter>Resources</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\layout.h">
@@ -1383,26 +1383,23 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SourceFiles\langs\lang_it.strings">
-      <Filter>langs</Filter>
+    <None Include="Resources\langs\lang_it.strings">
+      <Filter>Resources\langs</Filter>
     </None>
-    <None Include="SourceFiles\langs\lang_es.strings">
-      <Filter>langs</Filter>
+    <None Include="Resources\langs\lang_es.strings">
+      <Filter>Resources\langs</Filter>
     </None>
-    <None Include="SourceFiles\langs\lang_de.strings">
-      <Filter>langs</Filter>
+    <None Include="Resources\langs\lang_de.strings">
+      <Filter>Resources\langs</Filter>
     </None>
-    <None Include="SourceFiles\langs\lang_nl.strings">
-      <Filter>langs</Filter>
+    <None Include="Resources\langs\lang_nl.strings">
+      <Filter>Resources\langs</Filter>
     </None>
-    <None Include="SourceFiles\langs\lang_pt_BR.strings">
-      <Filter>langs</Filter>
+    <None Include="Resources\langs\lang_pt_BR.strings">
+      <Filter>Resources\langs</Filter>
     </None>
-    <None Include="SourceFiles\langs\lang_ko.strings">
-      <Filter>langs</Filter>
-    </None>
-    <None Include="SourceFiles\pspecific_mac_p.mm">
-      <Filter>Source Files</Filter>
+    <None Include="Resources\langs\lang_ko.strings">
+      <Filter>Resources\langs</Filter>
     </None>
     <None Include="Telegram.xcodeproj\project.pbxproj">
       <Filter>Version</Filter>
@@ -1425,9 +1422,12 @@
     <None Include="SourceFiles\mtproto\scheme.tl">
       <Filter>mtproto</Filter>
     </None>
+    <None Include="SourceFiles\pspecific_mac_p.mm">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="SourceFiles\art\icon256.ico">
+    <Image Include="Resources\art\icon256.ico">
       <Filter>Resources</Filter>
     </Image>
   </ItemGroup>

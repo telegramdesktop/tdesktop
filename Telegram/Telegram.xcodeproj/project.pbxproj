@@ -309,12 +309,12 @@
 		071AD86E1C5E8536008C9E90 /* zip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = zip.h; path = ThirdParty/minizip/zip.h; sourceTree = SOURCE_ROOT; };
 		071AD8D11C5E8E6D008C9E90 /* zip.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = zip.c; path = ThirdParty/minizip/zip.c; sourceTree = SOURCE_ROOT; };
 		071AD8F71C5E99D6008C9E90 /* ioapi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = ThirdParty/minizip/ioapi.c; sourceTree = SOURCE_ROOT; };
-		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
+		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = Resources/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_basic_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_basic_types.cpp; path = GeneratedFiles/Debug/moc_basic_types.cpp; sourceTree = SOURCE_ROOT; };
-		074968CC1A44D13400394F46 /* lang_it.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_it.strings; path = SourceFiles/langs/lang_it.strings; sourceTree = SOURCE_ROOT; };
+		074968CC1A44D13400394F46 /* lang_it.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_it.strings; path = Resources/langs/lang_it.strings; sourceTree = SOURCE_ROOT; };
 		074968CE1A44D14C00394F46 /* languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = languagebox.cpp; path = SourceFiles/boxes/languagebox.cpp; sourceTree = SOURCE_ROOT; };
 		074968CF1A44D14C00394F46 /* languagebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = languagebox.h; path = SourceFiles/boxes/languagebox.h; sourceTree = SOURCE_ROOT; };
 		074968D11A44D1DF00394F46 /* moc_languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_languagebox.cpp; path = GeneratedFiles/Debug/moc_languagebox.cpp; sourceTree = SOURCE_ROOT; };
@@ -330,7 +330,7 @@
 		0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_intropwdcheck.cpp; path = GeneratedFiles/Debug/moc_intropwdcheck.cpp; sourceTree = SOURCE_ROOT; };
 		0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_sessionsbox.cpp; path = GeneratedFiles/Debug/moc_sessionsbox.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
-		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = SourceFiles/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
+		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = Resources/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
 		075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = shortcuts.cpp; path = SourceFiles/shortcuts.cpp; sourceTree = SOURCE_ROOT; };
 		075FEBEB1C82336D0003ECA3 /* shortcuts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = shortcuts.h; path = SourceFiles/shortcuts.h; sourceTree = SOURCE_ROOT; };
 		0764D5581ABAD6F900FBFEED /* apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = apiwrap.cpp; path = SourceFiles/apiwrap.cpp; sourceTree = SOURCE_ROOT; };
@@ -355,16 +355,16 @@
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
-		078DD0241A48DD9E00DD14CC /* lang_de.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_de.strings; path = SourceFiles/langs/lang_de.strings; sourceTree = SOURCE_ROOT; };
-		078DD0251A48DD9E00DD14CC /* lang_nl.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_nl.strings; path = SourceFiles/langs/lang_nl.strings; sourceTree = SOURCE_ROOT; };
-		07A190511A723E0A004287AE /* lang_ko.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_ko.strings; path = SourceFiles/langs/lang_ko.strings; sourceTree = SOURCE_ROOT; };
+		078DD0241A48DD9E00DD14CC /* lang_de.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_de.strings; path = Resources/langs/lang_de.strings; sourceTree = SOURCE_ROOT; };
+		078DD0251A48DD9E00DD14CC /* lang_nl.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_nl.strings; path = Resources/langs/lang_nl.strings; sourceTree = SOURCE_ROOT; };
+		07A190511A723E0A004287AE /* lang_ko.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_ko.strings; path = Resources/langs/lang_ko.strings; sourceTree = SOURCE_ROOT; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
 		07A6933419927B160099CB9F /* moc_mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mediaview.cpp; path = GeneratedFiles/Debug/moc_mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qrc_telegram_emojis.cpp; path = GeneratedFiles/qrc_telegram_emojis.cpp; sourceTree = SOURCE_ROOT; };
 		07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qrc_telegram_mac.cpp; path = GeneratedFiles/qrc_telegram_mac.cpp; sourceTree = SOURCE_ROOT; };
-		07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_emojis.qrc; path = SourceFiles/telegram_emojis.qrc; sourceTree = SOURCE_ROOT; };
-		07AF95F81AFD03C80060B057 /* telegram_mac.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_mac.qrc; path = SourceFiles/telegram_mac.qrc; sourceTree = SOURCE_ROOT; };
+		07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_emojis.qrc; path = Resources/telegram_emojis.qrc; sourceTree = SOURCE_ROOT; };
+		07AF95F81AFD03C80060B057 /* telegram_mac.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_mac.qrc; path = Resources/telegram_mac.qrc; sourceTree = SOURCE_ROOT; };
 		07B604301B46A0EC00CA29FE /* playerwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = playerwidget.cpp; path = SourceFiles/playerwidget.cpp; sourceTree = SOURCE_ROOT; };
 		07B604311B46A0EC00CA29FE /* playerwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = playerwidget.h; path = SourceFiles/playerwidget.h; sourceTree = SOURCE_ROOT; };
 		07B604341B46A20900CA29FE /* moc_playerwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_playerwidget.cpp; path = GeneratedFiles/Debug/moc_playerwidget.cpp; sourceTree = SOURCE_ROOT; };
@@ -442,7 +442,7 @@
 		1080B6D395843B8F76A2E45E /* moc_title.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_title.cpp; path = GeneratedFiles/Debug/moc_title.cpp; sourceTree = "<absolute>"; };
 		111BBEE3D1432C3B517FD539 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qdds.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qdds.pri"; sourceTree = "<absolute>"; };
 		120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = contactsbox.h; path = SourceFiles/boxes/contactsbox.h; sourceTree = "<absolute>"; };
-		1292B92B4848460640F6A391 /* telegram.qrc */ = {isa = PBXFileReference; lastKnownFileType = text; name = telegram.qrc; path = SourceFiles/telegram.qrc; sourceTree = "<absolute>"; };
+		1292B92B4848460640F6A391 /* telegram.qrc */ = {isa = PBXFileReference; lastKnownFileType = text; name = telegram.qrc; path = Resources/telegram.qrc; sourceTree = "<absolute>"; };
 		135FD3715BFDC50AD7B00E04 /* text.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = text.cpp; path = SourceFiles/ui/text.cpp; sourceTree = "<absolute>"; };
 		143405635D04698F421A12EA /* aboutbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = aboutbox.h; path = SourceFiles/boxes/aboutbox.h; sourceTree = "<absolute>"; };
 		14437BFDCD58FF1742EF1B35 /* photocropbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = photocropbox.h; path = SourceFiles/boxes/photocropbox.h; sourceTree = "<absolute>"; };
@@ -1606,7 +1606,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "open ../Mac/DebugStyle/MetaStyle.app --args -classes_in \"../../Telegram/Resources/style_classes.txt\" -classes_out \"../../Telegram/GeneratedFiles/style_classes.h\" -styles_in \"../../Telegram/Resources/style.txt\" -styles_out \"../../Telegram/GeneratedFiles/style_auto.h\" -path_to_sprites \"../../Telegram/SourceFiles/art/\"";
+			shellScript = "open ../Mac/DebugStyle/MetaStyle.app --args -classes_in \"../../Telegram/Resources/style_classes.txt\" -classes_out \"../../Telegram/GeneratedFiles/style_classes.h\" -styles_in \"../../Telegram/Resources/style.txt\" -styles_out \"../../Telegram/GeneratedFiles/style_auto.h\" -path_to_sprites \"../../Telegram/Resources/art/\"";
 		};
 		07C3AF3B194CCC310016CFF1 /* Meta Lang */ = {
 			isa = PBXShellScriptBuildPhase;

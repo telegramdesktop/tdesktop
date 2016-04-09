@@ -7406,13 +7406,17 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
-		date->paint(p, 0, _history->width);
+		if (r.intersects(QRect(0, 0, _history->width, dateh))) {
+			date->paint(p, 0, _history->width);
+		}
 	}
 	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
-		p.translate(0, dateh);
-		unreadbar->paint(p, 0, _history->width);
-		p.translate(0, -dateh);
+		if (r.intersects(QRect(0, dateh, _history->width, unreadbarh))) {
+			p.translate(0, dateh);
+			unreadbar->paint(p, 0, _history->width);
+			p.translate(0, -dateh);
+		}
 	}
 
 	uint64 animms = App::main() ? App::main()->animActiveTimeStart(this) : 0;
@@ -8217,13 +8221,17 @@ void HistoryService::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
-		date->paint(p, 0, _history->width);
+		if (r.intersects(QRect(0, 0, _history->width, dateh))) {
+			date->paint(p, 0, _history->width);
+		}
 		p.translate(0, dateh);
 		height -= dateh;
 	}
 	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
-		unreadbar->paint(p, 0, _history->width);
+		if (r.intersects(QRect(0, 0, _history->width, unreadbarh))) {
+			unreadbar->paint(p, 0, _history->width);
+		}
 		p.translate(0, unreadbarh);
 		height -= unreadbarh;
 	}

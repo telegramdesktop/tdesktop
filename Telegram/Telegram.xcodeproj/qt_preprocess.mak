@@ -108,44 +108,56 @@ compiler_no_pch_compiler_clean:
 compiler_rcc_make_all: GeneratedFiles/qrc_telegram.cpp GeneratedFiles/qrc_telegram_emojis.cpp GeneratedFiles/qrc_telegram_mac.cpp
 compiler_rcc_clean:
 	-$(DEL_FILE) GeneratedFiles/qrc_telegram.cpp GeneratedFiles/qrc_telegram_emojis.cpp GeneratedFiles/qrc_telegram_mac.cpp
-GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
-		SourceFiles/art/blank.gif \
-		SourceFiles/art/bg.jpg \
-		SourceFiles/art/sprite_150x.png \
-		SourceFiles/art/sprite.png \
-		SourceFiles/art/icon256.png \
-		SourceFiles/art/sprite_200x.png \
-		SourceFiles/art/newmsg.wav \
-		SourceFiles/art/sprite_125x.png \
-		SourceFiles/art/fonts/OpenSans-Regular.ttf \
-    SourceFiles/art/fonts/OpenSans-Bold.ttf \
-    SourceFiles/art/fonts/OpenSans-Semibold.ttf \
-		SourceFiles/qmime/freedesktop.org.xml \
-		SourceFiles/art/usercolor4.png \
-		SourceFiles/art/chatcolor1.png \
-		SourceFiles/art/usercolor8.png \
-		SourceFiles/art/usercolor3.png \
-		SourceFiles/art/usercolor7.png \
-		SourceFiles/art/chatcolor4.png \
-		SourceFiles/art/usercolor2.png \
-		SourceFiles/art/usercolor6.png \
-		SourceFiles/art/chatcolor3.png \
-		SourceFiles/art/usercolor1.png \
-		SourceFiles/art/usercolor5.png \
-		SourceFiles/art/chatcolor2.png
-	/usr/local/Qt-5.5.1/bin/rcc -name telegram SourceFiles/telegram.qrc -o GeneratedFiles/qrc_telegram.cpp
+GeneratedFiles/qrc_telegram.cpp: Resources/telegram.qrc \
+		Resources/art/fonts/OpenSans-Regular.ttf \
+    Resources/art/fonts/OpenSans-Bold.ttf \
+    Resources/art/fonts/OpenSans-Semibold.ttf \
+		Resources/art/newmsg.wav \
+		Resources/art/bg.jpg \
+		Resources/art/bg0.jpg \
+		Resources/art/sprite.png \
+		Resources/art/sprite_125x.png \
+		Resources/art/sprite_150x.png \
+		Resources/art/sprite_200x.png \
+		Resources/art/blank.gif \
+		Resources/art/icon256.png \
+		Resources/art/iconbig256.png \
+		Resources/art/chatcolor1.png \
+		Resources/art/chatcolor2.png
+		Resources/art/chatcolor3.png \
+		Resources/art/chatcolor4.png \
+		Resources/art/channelcolor1.png \
+		Resources/art/channelcolor2.png
+		Resources/art/channelcolor3.png \
+		Resources/art/channelcolor4.png \
+		Resources/art/usercolor1.png \
+		Resources/art/usercolor2.png \
+		Resources/art/usercolor3.png \
+		Resources/art/usercolor4.png \
+		Resources/art/usercolor5.png \
+		Resources/art/usercolor6.png \
+		Resources/art/usercolor7.png \
+		Resources/art/usercolor8.png \
+		Resources/qmime/freedesktop.org.xml \
+		Resources/langs/lang_it.strings \
+		Resources/langs/lang_es.strings \
+		Resources/langs/lang_de.strings \
+		Resources/langs/lang_nl.strings \
+		Resources/langs/lang_pt_BR.strings \
+		Resources/langs/lang_ko.strings \
+	/usr/local/Qt-5.5.1/bin/rcc -name telegram Resources/telegram.qrc -o GeneratedFiles/qrc_telegram.cpp
 
-GeneratedFiles/qrc_telegram_emojis.cpp: SourceFiles/telegram_emojis.qrc \
-		SourceFiles/art/emoji.webp \
-		SourceFiles/art/emoji_150x.webp \
-		SourceFiles/art/emoji_200x.webp \
-		SourceFiles/art/emoji_250x.webp \
-		SourceFiles/art/emoji_125x.webp
-	/usr/local/Qt-5.5.1/bin/rcc -name telegram_emojis SourceFiles/telegram_emojis.qrc -o GeneratedFiles/qrc_telegram_emojis.cpp
+GeneratedFiles/qrc_telegram_emojis.cpp: Resources/telegram_emojis.qrc \
+		Resources/art/emoji.webp \
+		Resources/art/emoji_125x.webp \
+		Resources/art/emoji_150x.webp \
+		Resources/art/emoji_200x.webp \
+		Resources/art/emoji_250x.webp
+	/usr/local/Qt-5.5.1/bin/rcc -name telegram_emojis Resources/telegram_emojis.qrc -o GeneratedFiles/qrc_telegram_emojis.cpp
 
-GeneratedFiles/qrc_telegram_mac.cpp: SourceFiles/telegram_mac.qrc \
-		SourceFiles/art/osxtray.png
-	/usr/local/Qt-5.5.1/bin/rcc -name telegram_mac SourceFiles/telegram_mac.qrc -o GeneratedFiles/qrc_telegram_mac.cpp
+GeneratedFiles/qrc_telegram_mac.cpp: Resources/telegram_mac.qrc \
+		Resources/art/osxtray.png
+	/usr/local/Qt-5.5.1/bin/rcc -name telegram_mac Resources/telegram_mac.qrc -o GeneratedFiles/qrc_telegram_mac.cpp
 
 compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_application.cpp\

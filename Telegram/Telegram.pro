@@ -31,22 +31,22 @@ linux {
 
 style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
 style_auto_cpp.depends = FORCE
-style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_auto_cpp.depends = ./../../Telegram/Resources/style.txt
 
 style_auto_h.target = ./GeneratedFiles/style_auto.h
 style_auto_h.depends = FORCE
-style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_auto_h.depends = ./../../Telegram/Resources/style.txt
 
 style_classes_h.target = ./GeneratedFiles/style_classes.h
 style_classes_h.depends = FORCE
-style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
 
 numbers_cpp.target = ./GeneratedFiles/numbers.cpp
 numbers_cpp.depends = FORCE
-numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
@@ -363,16 +363,16 @@ LIBS += /usr/local/lib/libxkbcommon.a
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
-    ./SourceFiles/telegram.qrc \
-    ./SourceFiles/telegram_linux.qrc \
-    ./SourceFiles/telegram_emojis.qrc
+    ./Resources/telegram.qrc \
+    ./Resources/telegram_linux.qrc \
+    ./Resources/telegram_emojis.qrc
 
 OTHER_FILES += \
-    Resources/style_classes.txt \
-    Resources/style.txt \
-    Resources/lang.strings \
-    SourceFiles/langs/lang_it.strings \
-    SourceFiles/langs/lang_es.strings \
-    SourceFiles/langs/lang_de.strings \
-    SourceFiles/langs/lang_nl.strings \
-    SourceFiles/langs/lang_pt_BR.strings
+    ./Resources/style_classes.txt \
+    ./Resources/style.txt \
+    ./Resources/lang.strings \
+    ./Resources/langs/lang_it.strings \
+    ./Resources/langs/lang_es.strings \
+    ./Resources/langs/lang_de.strings \
+    ./Resources/langs/lang_nl.strings \
+    ./Resources/langs/lang_pt_BR.strings
