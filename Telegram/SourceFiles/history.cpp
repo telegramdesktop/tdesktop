@@ -6769,6 +6769,11 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 : HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	CreateConfig config;
 
+	config.authorIdOriginal = fwd->authorOriginal()->id;
+	config.fromIdOriginal = fwd->fromOriginal()->id;
+	if (fwd->authorOriginal()->isChannel()) {
+		config.originalId = fwd->id;
+	}
 	UserData *fwdViaBot = fwd->viaBot();
 	if (fwdViaBot) config.viaBotId = peerToUser(fwdViaBot->id);
 	int fwdViewsCount = fwd->viewsCount();
