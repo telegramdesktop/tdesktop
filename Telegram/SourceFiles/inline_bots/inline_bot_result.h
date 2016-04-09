@@ -86,6 +86,8 @@ public:
 	~Result();
 
 private:
+	void createDocument();
+
 	enum class Type {
 		Unknown,
 		Photo,
@@ -115,10 +117,7 @@ private:
 	int _height = 0;
 	int _duration = 0;
 
-	mutable MTPDocument _mtpDocument = MTP_documentEmpty(MTP_long(0));
 	DocumentData *_document = nullptr;
-
-	mutable MTPPhoto _mtpPhoto = MTP_photoEmpty(MTP_long(0));
 	PhotoData *_photo = nullptr;
 
 	UniquePointer<MTPReplyMarkup> _mtpKeyboard;

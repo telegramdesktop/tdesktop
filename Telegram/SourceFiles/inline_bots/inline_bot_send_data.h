@@ -42,21 +42,9 @@ public:
 
 	virtual bool isValid() const = 0;
 
-	virtual DocumentData *getSentDocument() const {
-		return nullptr;
-	}
-	virtual PhotoData *getSentPhoto() const {
-		return nullptr;
-	}
-	virtual QString getSentCaption() const {
-		return QString();
-	}
-	struct SentMTPMessageFields {
-		MTPString text = MTP_string("");
-		MTPVector<MTPMessageEntity> entities = MTPnullEntities;
-		MTPMessageMedia media = MTP_messageMediaEmpty();
-	};
-	virtual SentMTPMessageFields getSentMessageFields(const Result *owner) const = 0;
+	virtual void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const = 0;
 
 	virtual bool hasLocationCoords() const {
 		return false;
@@ -75,16 +63,32 @@ protected:
 	QString getResultMime(const Result *owner) const;
 	QVector<MTPDocumentAttribute> prepareResultAttributes(const Result *owner) const;
 
-	void setResultDocument(const Result *owner, const MTPDocument &document) const;
-	void setResultPhoto(const Result *owner, const MTPPhoto &photo) const;
+	void setResultDocument(const Result *owner, DocumentData *document) const;
+	void setResultPhoto(const Result *owner, PhotoData *photo) const;
 
-	MTPDocument getResultDocument(const Result *owner) const;
-	MTPPhoto getResultPhoto(const Result *owner) const;
+};
+
+// This class implements addHistory() for most of the types hiding
+// the differences in getSentMessageFields() method.
+// Only SendFile and SendPhoto work by their own.
+class SendDataCommon : public SendData {
+public:
+
+	struct SentMTPMessageFields {
+		MTPString text = MTP_string("");
+		MTPVector<MTPMessageEntity> entities = MTPnullEntities;
+		MTPMessageMedia media = MTP_messageMediaEmpty();
+	};
+	virtual SentMTPMessageFields getSentMessageFields() const = 0;
+
+	void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
 
 };
 
 // Plain text message.
-class SendText : public SendData {
+class SendText : public SendDataCommon {
 public:
 	SendText(const QString &message, const EntitiesInText &entities, bool/* noWebPage*/)
 		: _message(message)
@@ -95,7 +99,7 @@ public:
 		return !_message.isEmpty();
 	}
 
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	SentMTPMessageFields getSentMessageFields() const override;
 
 private:
 	QString _message;
@@ -104,7 +108,7 @@ private:
 };
 
 // Message with geo location point media.
-class SendGeo : public SendData {
+class SendGeo : public SendDataCommon {
 public:
 	SendGeo(const MTPDgeoPoint &point) : _location(point) {
 	}
@@ -113,7 +117,7 @@ public:
 		return true;
 	}
 
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	SentMTPMessageFields getSentMessageFields() const override;
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -130,7 +134,7 @@ private:
 };
 
 // Message with venue media.
-class SendVenue : public SendData {
+class SendVenue : public SendDataCommon {
 public:
 	SendVenue(const MTPDgeoPoint &point, const QString &venueId,
 		const QString &provider, const QString &title, const QString &address)
@@ -145,7 +149,7 @@ public:
 		return true;
 	}
 
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	SentMTPMessageFields getSentMessageFields() const override;
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -163,7 +167,7 @@ private:
 };
 
 // Message with shared contact media.
-class SendContact : public SendData {
+class SendContact : public SendDataCommon {
 public:
 	SendContact(const QString &firstName, const QString &lastName, const QString &phoneNumber)
 		: _firstName(firstName)
@@ -175,7 +179,7 @@ public:
 		return (!_firstName.isEmpty() || !_lastName.isEmpty()) && !_phoneNumber.isEmpty();
 	}
 
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	SentMTPMessageFields getSentMessageFields() const override;
 
 	QString getLayoutDescription(const Result *owner) const override;
 
@@ -197,13 +201,9 @@ public:
 		return _photo || !_url.isEmpty();
 	}
 
-	PhotoData *getSentPhoto() const override {
-		return _photo;
-	}
-	QString getSentCaption() const override {
-		return _caption;
-	}
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
 
 private:
 	PhotoData *_photo;
@@ -224,17 +224,11 @@ public:
 		return _document || !_url.isEmpty();
 	}
 
-	DocumentData *getSentDocument() const override {
-		return _document;
-	}
-	QString getSentCaption() const override {
-		return _caption;
-	}
-	SentMTPMessageFields getSentMessageFields(const Result *owner) const override;
+	void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
 
 private:
-	void prepareDocument(const Result *owner) const;
-
 	DocumentData *_document;
 	QString _url, _caption;
 

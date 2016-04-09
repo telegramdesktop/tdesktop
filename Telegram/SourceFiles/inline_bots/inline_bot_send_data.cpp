@@ -73,42 +73,36 @@ QVector<MTPDocumentAttribute> SendData::prepareResultAttributes(const Result *ow
 	return result;
 }
 
-void SendData::setResultDocument(const Result *owner, const MTPDocument &document) const {
-	owner->_mtpDocument = document;
+void SendDataCommon::addToHistory(const Result *owner, History *history,
+MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
+	SentMTPMessageFields fields = getSentMessageFields();
+	if (!fields.entities.c_vector().v.isEmpty()) {
+		flags |= MTPDmessage::Flag::f_entities;
+	}
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
 }
 
-void SendData::setResultPhoto(const Result *owner, const MTPPhoto &photo) const {
-	owner->_mtpPhoto = photo;
-}
-
-MTPDocument SendData::getResultDocument(const Result *owner) const {
-	return owner->_mtpDocument;
-}
-
-MTPPhoto SendData::getResultPhoto(const Result *owner) const {
-	return owner->_mtpPhoto;
-}
-
-SendData::SentMTPMessageFields SendText::getSentMessageFields(const Result*) const {
+SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.text = MTP_string(_message);
 	result.entities = linksToMTP(_entities);
 	return result;
 }
 
-SendData::SentMTPMessageFields SendGeo::getSentMessageFields(const Result*) const {
+SendDataCommon::SentMTPMessageFields SendGeo::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.media = MTP_messageMediaGeo(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)));
 	return result;
 }
 
-SendData::SentMTPMessageFields SendVenue::getSentMessageFields(const Result*) const {
+SendDataCommon::SentMTPMessageFields SendVenue::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.media = MTP_messageMediaVenue(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)), MTP_string(_title), MTP_string(_address), MTP_string(_provider), MTP_string(_venueId));
 	return result;
 }
 
-SendData::SentMTPMessageFields SendContact::getSentMessageFields(const Result*) const {
+SendDataCommon::SentMTPMessageFields SendContact::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.media = MTP_messageMediaContact(MTP_string(_phoneNumber), MTP_string(_firstName), MTP_string(_lastName), MTP_int(0));
 	return result;
@@ -122,8 +116,13 @@ QString SendContact::getLayoutDescription(const Result *owner) const {
 	return result;
 }
 
-SendData::SentMTPMessageFields SendPhoto::getSentMessageFields(const Result *owner) const {
-	SentMTPMessageFields result;
+void SendPhoto::addToHistory(const Result *owner, History *history,
+MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
+	if (_photo) {
+		history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _photo, _caption, markup);
+		return;
+	}
 
 	ImagePtr resultThumb = getResultThumb(owner);
 	QImage fileThumb(resultThumb->pix().toImage());
@@ -143,13 +142,17 @@ SendData::SentMTPMessageFields SendPhoto::getSentMessageFields(const Result *own
 	PhotoData *ph = App::photoSet(photoId, 0, 0, unixtime(), thumbPtr, ImagePtr(medium.width(), medium.height()), ImagePtr(getResultWidth(owner), getResultHeight(owner)));
 	MTPPhoto photo = MTP_photo(MTP_long(photoId), MTP_long(0), MTP_int(ph->date), MTP_vector<MTPPhotoSize>(photoSizes));
 
-	result.media = MTP_messageMediaPhoto(photo, MTP_string(_caption));
-
-	return result;
+	MTPMessageMedia media = MTP_messageMediaPhoto(photo, MTP_string(_caption));
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, MTP_string(""), media, markup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 }
 
-void SendFile::prepareDocument(const Result *owner) const {
-	if (getResultDocument(owner).type() != mtpc_documentEmpty) return;
+void SendFile::addToHistory(const Result *owner, History *history,
+MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
+	if (_document) {
+		history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _document, _caption, markup);
+		return;
+	}
 
 	uint64 docId = rand_value<uint64>();
 
@@ -176,24 +179,16 @@ void SendFile::prepareDocument(const Result *owner) const {
 
 	QVector<MTPDocumentAttribute> attributes = prepareResultAttributes(owner);
 	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(getResultMime(owner)), MTP_int(owner->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
-	if (tw > 0 && th > 0) {
-		App::feedDocument(document, thumb);
-	}
+
 	if (!owner->data().isEmpty()) {
 		Local::writeStickerImage(mediaKey(DocumentFileLocation, MTP::maindc(), docId), owner->data());
 	}
-	setResultDocument(owner, document);
-}
 
-SendData::SentMTPMessageFields SendFile::getSentMessageFields(const Result *owner) const {
-	SentMTPMessageFields result;
-
-	prepareDocument(owner);
-
-	MTPDocument document = getResultDocument(owner);
-	result.media = MTP_messageMediaDocument(document, MTP_string(_caption));
-
-	return result;
+	if (tw > 0 && th > 0) {
+		App::feedDocument(document, thumb);
+	}
+	MTPMessageMedia media = MTP_messageMediaDocument(document, MTP_string(_caption));
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, MTP_string(""), media, markup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 }
 
 } // namespace internal

@@ -114,11 +114,9 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		if (r.has_title()) result->_title = qs(r.vtitle);
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_photo()) {
-			result->_mtpPhoto = r.vphoto;
 			result->_photo = App::feedPhoto(r.vphoto);
 		}
 		if (r.has_document()) {
-			result->_mtpDocument = r.vdocument;
 			result->_document = App::feedDocument(r.vdocument);
 		}
 		message = &r.vsend_message;
@@ -136,6 +134,9 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		if (result->_type == Type::Photo) {
 			result->sendData.reset(new internal::SendPhoto(result->_photo, result->_content_url, qs(r.vcaption)));
 		} else {
+			if (!result->_document) {
+
+			}
 			result->sendData.reset(new internal::SendFile(result->_document, result->_content_url, qs(r.vcaption)));
 		}
 		if (r.has_reply_markup()) {
@@ -460,18 +461,7 @@ void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgI
 		flags |= MTPDmessage::Flag::f_reply_markup;
 		markup = *_mtpKeyboard;
 	}
-	if (DocumentData *document = sendData->getSentDocument()) {
-		history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, document, sendData->getSentCaption(), markup);
-	} else if (PhotoData *photo = sendData->getSentPhoto()) {
-		history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, photo, sendData->getSentCaption(), markup);
-	} else {
-		internal::SendData::SentMTPMessageFields fields = sendData->getSentMessageFields(this);
-		if (!fields.entities.c_vector().v.isEmpty()) {
-			flags |= MTPDmessage::Flag::f_entities;
-		}
-		history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
-	}
-
+	sendData->addToHistory(this, history, flags, msgId, fromId, mtpDate, viaBotId, replyToId, markup);
 }
 
 bool Result::getLocationCoords(LocationCoords *outLocation) const {
