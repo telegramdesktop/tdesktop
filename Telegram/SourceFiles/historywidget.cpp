@@ -287,7 +287,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			int32 iItem = (_curHistory == _history ? _curItem : 0);
 			HistoryItem *item = block->items[iItem];
 
-			QRect historyRect = r.intersected(QRect(0, hdrawtop, width(), r.height()));
+			QRect historyRect = r.intersected(QRect(0, hdrawtop, width(), r.top() + r.height()));
 			int32 y = htop + block->y + item->y;
 			p.save();
 			p.translate(0, y);

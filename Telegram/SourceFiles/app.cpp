@@ -19,8 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "app.h"
 
+#include "lang.h"
+#include "dialogs/dialogs_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -2071,6 +2073,8 @@ namespace {
 		::cornersMap.clear();
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
+
+		Dialogs::Layout::clearStyleSheets();
 
 		clearAllImages();
 	}
