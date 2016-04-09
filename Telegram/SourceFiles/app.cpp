@@ -1521,7 +1521,7 @@ namespace {
 	DocumentData *document(const DocumentId &document) {
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
-			i = ::documentsData.insert(document, new DocumentData(document));
+			i = ::documentsData.insert(document, DocumentData::create(document));
 		}
 		return i.value();
 	}
@@ -1529,15 +1529,11 @@ namespace {
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
 		bool sentSticker = false;
 		if (convert) {
+			MediaKey oldKey = convert->mediaKey();
 			if (convert->id != document) {
 				DocumentsData::iterator i = ::documentsData.find(convert->id);
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
-				}
-
-				// inline bot sent gifs caching
-				if (!convert->voice() && !convert->isVideo()) {
-					Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				}
 
 				convert->id = document;
@@ -1545,28 +1541,31 @@ namespace {
 				sentSticker = (convert->sticker() != 0);
 			}
 			if (date) {
-				convert->access = access;
-				convert->date = date;
 				convert->setattributes(attributes);
+				convert->setRemoteLocation(dc, access);
+				convert->date = date;
 				convert->mime = mime;
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					updateImage(convert->thumb, thumb);
 				}
-				convert->dc = dc;
 				convert->size = size;
 				convert->recountIsImage();
 				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
 					convert->sticker()->loc = thumbLocation;
 				}
+
+				MediaKey newKey = convert->mediaKey();
+				if (newKey != oldKey) {
+					if (convert->voice()) {
+						Local::copyAudio(oldKey, newKey);
+					} else if (convert->sticker() || convert->isAnimation()) {
+						Local::copyStickerImage(oldKey, newKey);
+					}
+				}
 			}
 
 			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
 				Local::writeSavedGifs();
-			}
-
-			const FileLocation &loc(convert->location(true));
-			if (!loc.isEmpty()) {
-				Local::writeFileLocation(convert->mediaKey(), loc);
 			}
 		}
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
@@ -1575,7 +1574,11 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
+				result = DocumentData::create(document, dc, access, attributes);
+				result->date = date;
+				result->mime = mime;
+				result->thumb = thumb;
+				result->size = size;
 				result->recountIsImage();
 				if (result->sticker()) {
 					result->sticker()->loc = thumbLocation;
@@ -1585,14 +1588,15 @@ namespace {
 		} else {
 			result = i.value();
 			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
 				result->setattributes(attributes);
+				if (!result->isValid()) {
+					result->setRemoteLocation(dc, access);
+				}
+				result->date = date;
 				result->mime = mime;
 				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 					result->thumb = thumb;
 				}
-				result->dc = dc;
 				result->size = size;
 				result->recountIsImage();
 				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {

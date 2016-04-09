@@ -801,7 +801,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
-	bool loaded = _data->loaded() || Local::willStickerImageLoad(mediaKey(DocumentFileLocation, _data->dc, _data->id)), displayLoading = _data->displayLoading();
+	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey()), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -973,7 +973,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 }
 
 void LayoutOverviewDocument::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	bool loaded = _data->loaded() || Local::willStickerImageLoad(mediaKey(DocumentFileLocation, _data->dc, _data->id));
+	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey());
 
 	bool showPause = updateStatusText();
 
@@ -1014,7 +1014,7 @@ void LayoutOverviewDocument::getState(ClickHandlerPtr &link, HistoryCursorState 
 				return;
 			}
 		}
-		if (!_data->loading() && _data->access) {
+		if (!_data->loading() && _data->isValid()) {
 			if (loaded && rtlrect(0, st::linksBorder, nameleft, _height - st::linksBorder, _width).contains(x, y)) {
 				link = _namel;
 				return;

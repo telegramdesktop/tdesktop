@@ -986,22 +986,30 @@ VoiceData::~VoiceData() {
 	}
 }
 
-DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) : id(id)
-, type(FileDocument)
-, access(access)
-, date(date)
-, mime(mime)
-, thumb(thumb)
-, dc(dc)
-, size(size)
-, status(FileReady)
-, uploadOffset(0)
-, _additional(0)
-, _duration(-1)
-, _actionOnLoad(ActionOnLoadNone)
-, _loader(0) {
+DocumentAdditionalData::~DocumentAdditionalData() {
+}
+
+DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
+: id(id)
+, _dc(dc)
+, _access(accessHash)
+, _url(url) {
 	setattributes(attributes);
-	_location = Local::readFileLocation(mediaKey());
+	if (_dc && _access) {
+		_location = Local::readFileLocation(mediaKey());
+	}
+}
+
+DocumentData *DocumentData::create(DocumentId id) {
+	return new DocumentData(id, 0, 0, QString(), QVector<MTPDocumentAttribute>());
+}
+
+DocumentData *DocumentData::create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes) {
+	return new DocumentData(id, dc, accessHash, QString(), attributes);
+}
+
+DocumentData *DocumentData::create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes) {
+	return new DocumentData(id, 0, 0, url, attributes);
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1013,15 +1021,13 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		} break;
 		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
 			type = AnimatedDocument;
-			delete _additional;
-			_additional = 0;
+			_additional.clear();
 		} break;
 		case mtpc_documentAttributeSticker: {
 			const auto &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) {
 				type = StickerDocument;
-				StickerData *sticker = new StickerData();
-				_additional = sticker;
+				_additional = MakeUnique<StickerData>();
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
@@ -1041,12 +1047,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;
-					VoiceData *voice = new VoiceData();
-					_additional = voice;
+					_additional = MakeUnique<VoiceData>();
 				} else {
 					type = SongDocument;
-					SongData *song = new SongData();
-					_additional = song;
+					_additional = MakeUnique<SongData>();
 				}
 			}
 			if (voice()) {
@@ -1071,8 +1075,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
 			type = FileDocument;
-			delete _additional;
-			_additional = 0;
+			_additional.clear();
 		}
 	}
 }
@@ -1203,7 +1206,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
-			_loader->rpcClear();
+			_loader->stop();
 			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
@@ -1214,8 +1217,8 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 			}
 
 			_loader->deleteLater();
-			_loader->rpcClear();
-			_loader = 0;
+			_loader->stop();
+			_loader = nullptr;
 		}
 		notifyLayoutChanged();
 	}
@@ -1284,7 +1287,11 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
 		status = FileReady;
-		_loader = new mtpFileLoader(dc, id, access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+		if (!_access && !_url.isEmpty()) {
+			_loader = new webFileLoader(_url, toFile, fromCloud, autoLoading);
+		} else {
+			_loader = new mtpFileLoader(_dc, id, _access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+		}
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
@@ -1295,12 +1302,12 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	mtpFileLoader *l = _loader;
+	FileLoader *l = _loader;
 	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
-		l->rpcClear();
+		l->stop();
 
 		notifyLayoutChanged();
 	}
@@ -1418,13 +1425,27 @@ void DocumentData::recountIsImage() {
 	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
 }
 
-DocumentData::~DocumentData() {
-	delete _additional;
+void DocumentData::setRemoteLocation(int32 dc, uint64 access) {
+	_dc = dc;
+	_access = access;
+	if (isValid()) {
+		if (_location.check()) {
+			Local::writeFileLocation(mediaKey(), _location);
+		} else {
+			_location = Local::readFileLocation(mediaKey());
+		}
+	}
+}
 
+void DocumentData::setContentUrl(const QString &url) {
+	_url = url;
+}
+
+DocumentData::~DocumentData() {
 	if (loading()) {
 		_loader->deleteLater();
 		_loader->stop();
-		_loader = 0;
+		_loader = nullptr;
 	}
 }
 

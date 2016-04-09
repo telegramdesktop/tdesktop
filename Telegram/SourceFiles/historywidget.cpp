@@ -3422,7 +3422,10 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 
 void HistoryWidget::saveGif(DocumentData *doc) {
 	if (doc->isGifv() && cSavedGifs().indexOf(doc) != 0) {
-		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));
+		MTPInputDocument mtpInput = doc->mtpInput();
+		if (mtpInput.type() != mtpc_inputDocumentEmpty) {
+			MTP::send(MTPmessages_SaveGif(mtpInput, MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));
+		}
 	}
 }
 
@@ -7027,7 +7030,14 @@ void HistoryWidget::ReplyEditMessageDataCallback::call(ChannelData *channel, Msg
 }
 
 void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
-	if (!_history || !doc || !canSendMessages(_peer)) return;
+	if (!_history || !doc || !canSendMessages(_peer)) {
+		return;
+	}
+
+	MTPInputDocument mtpInput = doc->mtpInput();
+	if (mtpInput.type() == mtpc_inputDocumentEmpty) {
+		return;
+	}
 
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
@@ -7060,7 +7070,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	}
 	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, doc, caption, MTPnullMarkup);
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(mtpInput, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
 

@@ -954,6 +954,7 @@ enum DocumentType {
 };
 
 struct DocumentAdditionalData {
+	virtual ~DocumentAdditionalData();
 };
 
 struct StickerData : public DocumentAdditionalData {
@@ -989,9 +990,16 @@ struct VoiceData : public DocumentAdditionalData {
 
 bool fileIsImage(const QString &name, const QString &mime);
 
+namespace Serialize {
+class Document;
+} // namespace Serialize;
+
 class DocumentData {
 public:
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	static DocumentData *create(DocumentId id);
+	static DocumentData *create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes);
+	static DocumentData *create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
+
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void automaticLoad(const HistoryItem *item); // auto load sticker or video
@@ -1026,7 +1034,7 @@ public:
 	ImagePtr makeReplyPreview();
 
 	StickerData *sticker() {
-		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : nullptr;
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional.data()) : nullptr;
 	}
 	void checkSticker() {
 		StickerData *s = sticker();
@@ -1046,16 +1054,16 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument) ? static_cast<SongData*>(_additional) : nullptr;
+		return (type == SongDocument) ? static_cast<SongData*>(_additional.data()) : nullptr;
 	}
 	const SongData *song() const {
-		return (type == SongDocument) ? static_cast<const SongData*>(_additional) : nullptr;
+		return (type == SongDocument) ? static_cast<const SongData*>(_additional.data()) : nullptr;
 	}
 	VoiceData *voice() {
-		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : nullptr;
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.data()) : nullptr;
 	}
 	const VoiceData *voice() const {
-		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional) : nullptr;
+		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.data()) : nullptr;
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1064,7 +1072,7 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
-		return (type == SongDocument) ? !static_cast<SongData*>(_additional)->title.isEmpty() : false;
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional.data())->title.isEmpty() : false;
 	}
 	bool isVideo() const {
 		return (type == VideoDocument);
@@ -1080,41 +1088,59 @@ public:
 		_data = data;
 	}
 
+	void setRemoteLocation(int32 dc, uint64 access);
+	void setContentUrl(const QString &url);
+	bool isValid() const {
+		return (_dc != 0 && _access != 0) || !_url.isEmpty();
+	}
+	MTPInputDocument mtpInput() const {
+		if (_access) {
+			return MTP_inputDocument(MTP_long(id), MTP_long(_access));
+		}
+		return MTP_inputDocumentEmpty();
+	}
+
 	~DocumentData();
 
 	DocumentId id;
-	DocumentType type;
+	DocumentType type = FileDocument;
 	QSize dimensions;
-	uint64 access;
-	int32 date;
+	int32 date = 0;
 	QString name, mime;
 	ImagePtr thumb, replyPreview;
-	int32 dc;
-	int32 size;
+	int32 size = 0;
 
-	FileStatus status;
-	int32 uploadOffset;
+	FileStatus status = FileReady;
+	int32 uploadOffset = 0;
 
 	int32 md5[8];
 
 	MediaKey mediaKey() const {
-		return ::mediaKey(locationType(), dc, id);
+		return ::mediaKey(locationType(), _dc, id);
 	}
 
 private:
+	DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 
-	FileLocation _location;
-	QByteArray _data;
-	DocumentAdditionalData *_additional;
-	int32 _duration;
+	friend class Serialize::Document;
 
 	LocationType locationType() const {
 		return voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
 	}
 
-	ActionOnLoad _actionOnLoad;
+	// Two types of location: from MTProto by dc+access or from web by url
+	int32 _dc = 0;
+	uint64 _access = 0;
+	QString _url;
+
+	FileLocation _location;
+	QByteArray _data;
+	UniquePointer<DocumentAdditionalData> _additional;
+	int32 _duration = -1;
+
+	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
+	mutable FileLoader *_loader = nullptr;
 
 	void notifyLayoutChanged() const;
 

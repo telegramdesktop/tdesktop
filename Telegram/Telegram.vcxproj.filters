@@ -58,6 +58,9 @@
     <Filter Include="ui\toast">
       <UniqueIdentifier>{815de139-ef13-45d6-a131-a3556eefae55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="serialize">
+      <UniqueIdentifier>{e9244e0a-a3ae-43dc-8a72-fd7d14cee20b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1008,6 +1011,12 @@
     <ClCompile Include="SourceFiles\ui\toast\toast_widget.cpp">
       <Filter>ui\toast</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\serialize\serialize_document.cpp">
+      <Filter>serialize</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\serialize\serialize_common.cpp">
+      <Filter>serialize</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1123,6 +1132,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\toast\toast_widget.h">
       <Filter>ui\toast</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\serialize\serialize_document.h">
+      <Filter>serialize</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\serialize\serialize_common.h">
+      <Filter>serialize</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

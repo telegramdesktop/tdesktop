@@ -135,6 +135,7 @@ namespace Local {
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
+	void copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 

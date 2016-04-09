@@ -4606,7 +4606,7 @@ void HistoryDocument::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, 
 		}
 		height -= captioned->_caption.countHeight(_width - st::msgPadding.left() - st::msgPadding.right()) + st::msgPadding.bottom();
 	}
-	if (x >= 0 && y >= 0 && x < _width && y < height && !_data->loading() && !_data->uploading() && _data->access) {
+	if (x >= 0 && y >= 0 && x < _width && y < height && !_data->loading() && !_data->uploading() && _data->isValid()) {
 		lnk = _openl;
 		return;
 	}

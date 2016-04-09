@@ -179,7 +179,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 		cRefSavedGifs().remove(index);
 		Local::writeSavedGifs();
 
-		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(_data->id), MTP_long(_data->access)), MTP_bool(true)));
+		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
 	if (App::main()) emit App::main()->savedGifsUpdated();
 }

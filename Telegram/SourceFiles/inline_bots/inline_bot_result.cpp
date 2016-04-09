@@ -124,7 +124,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		message = &r.vsend_message;
 	} break;
 	}
-	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->access);
+	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->isValid());
 
 	if (!message) {
 		return UniquePointer<Result>();
