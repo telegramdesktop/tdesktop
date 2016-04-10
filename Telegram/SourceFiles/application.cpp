@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
-#include "style.h"
+#include "ui/style.h"
 
 #include "shortcuts.h"
 
@@ -690,7 +690,7 @@ AppClass::AppClass() : QObject()
 			cSetLang(languageDefault);
 		}
 	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()] + qsl(".strings"));
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
 		if (!loader.errors().isEmpty()) {
 			LOG(("Lang load errors: %1").arg(loader.errors()));
 		} else if (!loader.warnings().isEmpty()) {
@@ -835,7 +835,7 @@ void AppClass::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
 
 void AppClass::selfPhotoDone(const MTPphotos_Photo &result) {
 	if (!App::self()) return;
-	const MTPDphotos_photo &photo(result.c_photos_photo());
+	const auto &photo(result.c_photos_photo());
 	App::feedPhoto(photo.vphoto);
 	App::feedUsers(photo.vusers);
 	cancelPhotoUpdate(App::self()->id);
@@ -851,7 +851,7 @@ void AppClass::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 }
 
 bool AppClass::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);
@@ -1038,9 +1038,6 @@ void AppClass::checkMapVersion() {
 				_window->serviceNotification(versionFeatures);
 			}
 		}
-	}
-	if (cNeedConfigResave()) {
-		Local::writeUserSettings();
 	}
 }
 

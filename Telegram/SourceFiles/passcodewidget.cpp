@@ -20,14 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
+#include "ui/style.h"
 
 #include "localstorage.h"
 
 #include "passcodewidget.h"
 #include "window.h"
 #include "application.h"
-#include "gui/text.h"
+#include "ui/text.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))

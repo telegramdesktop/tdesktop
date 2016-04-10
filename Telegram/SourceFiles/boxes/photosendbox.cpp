@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "localstorage.h"
@@ -51,8 +51,8 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 	if (_file->photo.type() != mtpc_photoEmpty) {
 		_file->type = PreparePhoto;
 	} else if (_file->document.type() == mtpc_document) {
-		const MTPDdocument &document(_file->document.c_document());
-		const QVector<MTPDocumentAttribute> &attributes(document.vattributes.c_vector().v);
+		const auto &document(_file->document.c_document());
+		const auto &attributes(document.vattributes.c_vector().v);
 		for (int32 i = 0, l = attributes.size(); i < l; ++i) {
 			if (attributes.at(i).type() == mtpc_documentAttributeAnimated) {
 				_animated = true;
@@ -648,15 +648,15 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 		return;
 	}
 
-	MTPchannels_EditMessage::Flags flags = 0;
+	MTPmessages_EditMessage::Flags flags = 0;
 	if (_previewCancelled) {
-		flags |= MTPchannels_EditMessage::Flag::f_no_webpage;
+		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
 	MTPVector<MTPMessageEntity> sentEntities;
 	if (!sentEntities.c_vector().v.isEmpty()) {
-		flags |= MTPchannels_EditMessage::Flag::f_entities;
+		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	_saveRequestId = MTP::send(MTPchannels_EditMessage(MTP_flags(flags), item->history()->peer->asChannel()->inputChannel, MTP_int(item->id), MTP_string(_field->getLastText()), sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
+	_saveRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(flags), item->history()->peer->input, MTP_int(item->id), MTP_string(_field->getLastText()), MTPnullMarkup, sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
 }
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
@@ -668,7 +668,7 @@ void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 }
 
 bool EditCaptionBox::saveFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err = error.type();

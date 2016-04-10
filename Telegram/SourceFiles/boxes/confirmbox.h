@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 
 class InformBox;
-class ConfirmBox : public AbstractBox {
+class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -37,6 +37,10 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 	void updateLink();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
 
 public slots:
 
@@ -69,7 +73,6 @@ private:
 	void updateHover();
 
 	QPoint _lastMousePos;
-	TextLinkPtr _myLink;
 
 	BoxButton _confirm, _cancel;
 };
@@ -78,6 +81,23 @@ class InformBox : public ConfirmBox {
 public:
 	InformBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
 	}
+};
+
+class SharePhoneConfirmBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	SharePhoneConfirmBox(PeerData *recipient);
+
+signals:
+	void confirmed(PeerData *recipient);
+
+private slots:
+	void onConfirm();
+
+private:
+	PeerData *_recipient;
+
 };
 
 class ConfirmLinkBox : public ConfirmBox {

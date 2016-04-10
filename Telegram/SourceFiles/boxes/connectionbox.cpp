@@ -336,7 +336,6 @@ void AutoDownloadBox::onSave() {
 					i.value()->automaticLoadSettingsChanged();
 				}
 			}
-			Notify::automaticLoadSettingsChangedGif();
 		}
 		changed = true;
 	}

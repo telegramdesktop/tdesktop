@@ -56,7 +56,7 @@ if %BetaVersion% neq 0 (
     exit /b 1
   )
 )
-cd SourceFiles\
+cd Resources\
 if "%1" == "fast" (
   echo Skipping touching of telegram.qrc..
 ) else (

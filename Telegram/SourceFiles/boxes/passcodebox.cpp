@@ -284,34 +284,11 @@ void PasscodeBox::setPasswordDone(const MTPBool &result) {
 }
 
 bool PasscodeBox::setPasswordFail(const RPCError &error) {
-	if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
-	_setRequest = 0;
-	QString err = error.type();
-	if (err == "PASSWORD_HASH_INVALID") {
-		if (_oldPasscode.isHidden()) {
-			emit reloadPassword();
-			onClose();
-		} else {
-			onBadOldPasscode();
-		}
-	} else if (err == "NEW_PASSWORD_BAD") {
-		_newPasscode.setFocus();
-		_newPasscode.showError();
-		_newError = lang(lng_cloud_password_bad);
-		update();
-	} else if (err == "NEW_SALT_INVALID") {
-		emit reloadPassword();
-		onClose();
-	} else if (err == "EMAIL_INVALID") {
-		_emailError = lang(lng_cloud_password_bad_email);
-		_recoverEmail.setFocus();
-		_recoverEmail.showError();
-		update();
-	} else if (err == "EMAIL_UNCONFIRMED") {
-		Ui::showLayer(new InformBox(lang(lng_cloud_password_almost)));
-		emit reloadPassword();
-	} else if (mtpIsFlood(error)) {
+	if (MTP::isFloodError(error)) {
 		if (_oldPasscode.isHidden()) return false;
+
+		if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
+		_setRequest = 0;
 
 		_oldPasscode.selectAll();
 		_oldPasscode.setFocus();
@@ -321,6 +298,36 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 			_recover.hide();
 		}
 		update();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
+	_setRequest = 0;
+	QString err = error.type();
+	if (err == qstr("PASSWORD_HASH_INVALID")) {
+		if (_oldPasscode.isHidden()) {
+			emit reloadPassword();
+			onClose();
+		} else {
+			onBadOldPasscode();
+		}
+	} else if (err == qstr("NEW_PASSWORD_BAD")) {
+		_newPasscode.setFocus();
+		_newPasscode.showError();
+		_newError = lang(lng_cloud_password_bad);
+		update();
+	} else if (err == qstr("NEW_SALT_INVALID")) {
+		emit reloadPassword();
+		onClose();
+	} else if (err == qstr("EMAIL_INVALID")) {
+		_emailError = lang(lng_cloud_password_bad_email);
+		_recoverEmail.setFocus();
+		_recoverEmail.showError();
+		update();
+	} else if (err == qstr("EMAIL_UNCONFIRMED")) {
+		Ui::showLayer(new InformBox(lang(lng_cloud_password_almost)));
+		emit reloadPassword();
 	}
 	return true;
 }
@@ -404,8 +411,8 @@ void PasscodeBox::onSave(bool force) {
 			if (_oldPasscode.isHidden() || _newPasscode.isHidden()) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
-			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_string(_newSalt), MTP_string(newPasswordHash), MTP_string(hint), MTP_string(email)));
-			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
+			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(_newSalt), MTP_bytes(newPasswordHash), MTP_string(hint), MTP_string(email)));
+			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
 		}
 	} else {
 		cSetPasscodeBadTries(0);
@@ -490,7 +497,7 @@ void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
 }
 
 bool PasscodeBox::recoverStartFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_pattern = QString();
 	onClose();
@@ -587,30 +594,34 @@ void RecoverBox::codeSubmitDone(bool recover, const MTPauth_Authorization &resul
 }
 
 bool RecoverBox::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		_submitRequest = 0;
+		_error = lang(lng_flood_error);
+		update();
+		_recoverCode.showError();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	_submitRequest = 0;
 
 	const QString &err = error.type();
-	if (err == "PASSWORD_EMPTY") {
+	if (err == qstr("PASSWORD_EMPTY")) {
 		emit reloadPassword();
 		Ui::showLayer(new InformBox(lang(lng_cloud_password_removed)));
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_NA") {
+	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		onClose();
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_EXPIRED") {
+	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		emit recoveryExpired();
 		onClose();
 		return true;
-	} else if (err == "CODE_INVALID") {
+	} else if (err == qstr("CODE_INVALID")) {
 		_error = lang(lng_signin_wrong_code);
 		update();
 		_recoverCode.selectAll();
 		_recoverCode.setFocus();
-		_recoverCode.showError();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		_error = lang(lng_flood_error);
-		update();
 		_recoverCode.showError();
 		return true;
 	}

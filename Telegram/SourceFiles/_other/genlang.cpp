@@ -274,16 +274,11 @@ QString escapeCpp(const QByteArray &key, QString value) {
 				res.append('"');
 				instr = false;
 			}
-			res.append(' ').append('"');
-			QByteArray utf(QString(*ch).toUtf8());
-			for (const unsigned char *uch = (const unsigned char *)utf.constData(), *ue = (const unsigned char *)utf.constData() + utf.size(); uch != ue; ++uch) {
-				res.append('\\').append('x').append(QString("%1").arg(ushort(*uch), 2, 16, QChar('0')));
-			}
-			res.append('"');
+			res.append(' ').append('u').append('"').append('\\').append('x').append(QString("%1").arg(ch->unicode(), 4, 16, QChar('0'))).append('"');
 		} else {
 			if (ch->unicode() == '\\' || ch->unicode() == '\n' || ch->unicode() == '\r' || ch->unicode() == '"') {
 				if (!instr) {
-					res.append(' ').append('"');
+					res.append(' ').append('u').append('"');
 					instr = true;
 				}
 				res.append('\\');
@@ -303,7 +298,7 @@ QString escapeCpp(const QByteArray &key, QString value) {
 							res.append('"');
 							instr = false;
 						}
-						res.append(' ').append('"');
+						res.append(' ').append('u').append('"');
 						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 1)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 2)->unicode(), 2, 16, QChar('0')));
@@ -316,7 +311,7 @@ QString escapeCpp(const QByteArray &key, QString value) {
 				}
 			} else {
 				if (!instr) {
-					res.append(' ').append('"');
+					res.append(' ').append('u').append('"');
 					instr = true;
 				}
 				res.append(*ch);
@@ -437,7 +432,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 					if (!countedTags.isEmpty()) {
 						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-							const QVector<QString> &counted(*j);
+							const auto &counted(*j);
 							for (int k = 0, s = counted.size(); k < s; ++k) {
 								th << "\t" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << ",\n";
 							}
@@ -515,7 +510,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 					if (!countedTags.isEmpty()) {
 						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-							const QVector<QString> &counted(*j);
+							const auto &counted(*j);
 							for (int k = 0, s = counted.size(); k < s; ++k) {
 								tcpp << "\t\t\"" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << "\",\n";
 							}
@@ -539,7 +534,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 				QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 				if (!countedTags.isEmpty()) {
 					for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-						const QVector<QString> &counted(*j);
+						const auto &counted(*j);
 						for (int k = 0, s = counted.size(); k < s; ++k) {
 							writeCppKey(tcpp, keysOrder[i] + "__" + j.key() + QString::number(k).toUtf8(), counted[k]);
 						}

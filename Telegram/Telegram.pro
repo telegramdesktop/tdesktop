@@ -31,22 +31,22 @@ linux {
 
 style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
 style_auto_cpp.depends = FORCE
-style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_auto_cpp.depends = ./../../Telegram/Resources/style.txt
 
 style_auto_h.target = ./GeneratedFiles/style_auto.h
 style_auto_h.depends = FORCE
-style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_auto_h.depends = ./../../Telegram/Resources/style.txt
 
 style_classes_h.target = ./GeneratedFiles/style_classes.h
 style_classes_h.depends = FORCE
-style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
 
 numbers_cpp.target = ./GeneratedFiles/numbers.cpp
 numbers_cpp.depends = FORCE
-numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
 numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
@@ -108,11 +108,11 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
-	./SourceFiles/shortcuts.cpp \
+    ./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
-    ./SourceFiles/types.cpp \
+    ./SourceFiles/basic_types.cpp \
     ./SourceFiles/window.cpp \
     ./SourceFiles/mtproto/facade.cpp \
     ./SourceFiles/mtproto/auth_key.cpp \
@@ -128,23 +128,26 @@ SOURCES += \
     ./SourceFiles/mtproto/rpc_sender.cpp \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
-    ./SourceFiles/gui/animation.cpp \
-    ./SourceFiles/gui/boxshadow.cpp \
-    ./SourceFiles/gui/button.cpp \
-    ./SourceFiles/gui/popupmenu.cpp \
-    ./SourceFiles/gui/countryinput.cpp \
-    ./SourceFiles/gui/emoji_config.cpp \
-    ./SourceFiles/gui/filedialog.cpp \
-    ./SourceFiles/gui/flatbutton.cpp \
-    ./SourceFiles/gui/flatcheckbox.cpp \
-    ./SourceFiles/gui/flatinput.cpp \
-    ./SourceFiles/gui/flatlabel.cpp \
-    ./SourceFiles/gui/flattextarea.cpp \
-    ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/scrollarea.cpp \
-    ./SourceFiles/gui/style_core.cpp \
-    ./SourceFiles/gui/text.cpp \
-    ./SourceFiles/gui/twidget.cpp \
+    ./SourceFiles/ui/toast/toast.cpp \
+    ./SourceFiles/ui/toast/toast_manager.cpp \
+    ./SourceFiles/ui/toast/toast_widget.cpp \
+    ./SourceFiles/ui/animation.cpp \
+    ./SourceFiles/ui/boxshadow.cpp \
+    ./SourceFiles/ui/button.cpp \
+    ./SourceFiles/ui/popupmenu.cpp \
+    ./SourceFiles/ui/countryinput.cpp \
+    ./SourceFiles/ui/emoji_config.cpp \
+    ./SourceFiles/ui/filedialog.cpp \
+    ./SourceFiles/ui/flatbutton.cpp \
+    ./SourceFiles/ui/flatcheckbox.cpp \
+    ./SourceFiles/ui/flatinput.cpp \
+    ./SourceFiles/ui/flatlabel.cpp \
+    ./SourceFiles/ui/flattextarea.cpp \
+    ./SourceFiles/ui/images.cpp \
+    ./SourceFiles/ui/scrollarea.cpp \
+    ./SourceFiles/ui/style_core.cpp \
+    ./SourceFiles/ui/text.cpp \
+    ./SourceFiles/ui/twidget.cpp \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./GeneratedFiles/numbers.cpp \
@@ -165,6 +168,15 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
+    ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
+    ./SourceFiles/dialogs/dialogs_layout.cpp \
+    ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
+    ./SourceFiles/inline_bots/inline_bot_result.cpp \
+    ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
+    ./SourceFiles/serialize/serialize_common.cpp \
+    ./SourceFiles/serialize/serialize_document.cpp \
     ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
@@ -203,12 +215,11 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
-	./SourceFiles/shortcuts.h \
+    ./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
-    ./SourceFiles/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
-    ./SourceFiles/types.h \
+    ./SourceFiles/basic_types.h \
     ./SourceFiles/window.h \
     ./SourceFiles/mtproto/facade.h \
     ./SourceFiles/mtproto/auth_key.h \
@@ -225,23 +236,27 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
-    ./SourceFiles/gui/animation.h \
-    ./SourceFiles/gui/boxshadow.h \
-    ./SourceFiles/gui/button.h \
-    ./SourceFiles/gui/popupmenu.h \
-    ./SourceFiles/gui/countryinput.h \
-    ./SourceFiles/gui/emoji_config.h \
-    ./SourceFiles/gui/filedialog.h \
-    ./SourceFiles/gui/flatbutton.h \
-    ./SourceFiles/gui/flatcheckbox.h \
-    ./SourceFiles/gui/flatinput.h \
-    ./SourceFiles/gui/flatlabel.h \
-    ./SourceFiles/gui/flattextarea.h \
-    ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/scrollarea.h \
-    ./SourceFiles/gui/style_core.h \
-    ./SourceFiles/gui/text.h \
-    ./SourceFiles/gui/twidget.h \
+    ./SourceFiles/ui/toast/toast.h \
+    ./SourceFiles/ui/toast/toast_manager.h \
+    ./SourceFiles/ui/toast/toast_widget.h \
+    ./SourceFiles/ui/animation.h \
+    ./SourceFiles/ui/boxshadow.h \
+    ./SourceFiles/ui/button.h \
+    ./SourceFiles/ui/popupmenu.h \
+    ./SourceFiles/ui/countryinput.h \
+    ./SourceFiles/ui/emoji_config.h \
+    ./SourceFiles/ui/filedialog.h \
+    ./SourceFiles/ui/flatbutton.h \
+    ./SourceFiles/ui/flatcheckbox.h \
+    ./SourceFiles/ui/flatinput.h \
+    ./SourceFiles/ui/flatlabel.h \
+    ./SourceFiles/ui/flattextarea.h \
+    ./SourceFiles/ui/images.h \
+    ./SourceFiles/ui/scrollarea.h \
+    ./SourceFiles/ui/style.h \
+    ./SourceFiles/ui/style_core.h \
+    ./SourceFiles/ui/text.h \
+    ./SourceFiles/ui/twidget.h \
     ./GeneratedFiles/lang_auto.h \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \
@@ -262,6 +277,17 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
+    ./SourceFiles/dialogs/dialogs_common.h \
+    ./SourceFiles/dialogs/dialogs_indexed_list.h \
+    ./SourceFiles/dialogs/dialogs_layout.h \
+    ./SourceFiles/dialogs/dialogs_list.h \
+    ./SourceFiles/dialogs/dialogs_row.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.h \
+    ./SourceFiles/inline_bots/inline_bot_result.h \
+    ./SourceFiles/inline_bots/inline_bot_send_data.h \
+    ./SourceFiles/serialize/serialize_common.h \
+    ./SourceFiles/serialize/serialize_document.h \
     ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
@@ -345,16 +371,16 @@ LIBS += /usr/local/lib/libxkbcommon.a
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
-    ./SourceFiles/telegram.qrc \
-    ./SourceFiles/telegram_linux.qrc \
-    ./SourceFiles/telegram_emojis.qrc
+    ./Resources/telegram.qrc \
+    ./Resources/telegram_linux.qrc \
+    ./Resources/telegram_emojis.qrc
 
 OTHER_FILES += \
-    Resources/style_classes.txt \
-    Resources/style.txt \
-    Resources/lang.strings \
-    SourceFiles/langs/lang_it.strings \
-    SourceFiles/langs/lang_es.strings \
-    SourceFiles/langs/lang_de.strings \
-    SourceFiles/langs/lang_nl.strings \
-    SourceFiles/langs/lang_pt_BR.strings
+    ./Resources/style_classes.txt \
+    ./Resources/style.txt \
+    ./Resources/lang.strings \
+    ./Resources/langs/lang_it.strings \
+    ./Resources/langs/lang_es.strings \
+    ./Resources/langs/lang_de.strings \
+    ./Resources/langs/lang_nl.strings \
+    ./Resources/langs/lang_pt_BR.strings

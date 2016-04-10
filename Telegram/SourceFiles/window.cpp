@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "zip.h"
 
-#include "style.h"
+#include "ui/style.h"
 #include "lang.h"
 #include "shortcuts.h"
 #include "application.h"
@@ -364,23 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent)
-, _serviceHistoryRequest(0)
-, title(0)
-, _passcode(0)
-, intro(0)
-, main(0)
-, settings(0)
-, layerBg(0)
-, _stickerPreview(0)
-, _isActive(false)
-, _connecting(0)
-, _clearManager(0)
-, dragging(false)
-, _inactivePress(false)
-, _shouldLockAt(0)
-, _mediaView(0) {
-
+Window::Window(QWidget *parent) : PsMainWindow(parent) {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -791,7 +775,7 @@ PasscodeWidget *Window::passcodeWidget() {
 	return _passcode;
 }
 
-void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
+void Window::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
 	return lnk->peer() ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
 }
 
@@ -861,21 +845,42 @@ bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
 }
 
-void Window::ui_showStickerPreview(DocumentData *sticker) {
-	if (!sticker || ((!sticker->isAnimation() || !sticker->loaded()) && !sticker->sticker())) return;
-	if (!_stickerPreview) {
-		_stickerPreview = new StickerPreviewWidget(this);
-		resizeEvent(0);
+void Window::ui_showMediaPreview(DocumentData *document) {
+	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
+	if (!_mediaPreview) {
+		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
+		resizeEvent(nullptr);
 	}
-	if (_stickerPreview->isHidden()) {
+	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_stickerPreview->showPreview(sticker);
+	_mediaPreview->showPreview(document);
 }
 
-void Window::ui_hideStickerPreview() {
-	if (!_stickerPreview) return;
-	_stickerPreview->hidePreview();
+void Window::ui_showMediaPreview(PhotoData *photo) {
+	if (!photo) return;
+	if (!_mediaPreview) {
+		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
+		resizeEvent(nullptr);
+	}
+	if (_mediaPreview->isHidden()) {
+		fixOrder();
+	}
+	_mediaPreview->showPreview(photo);
+}
+
+void Window::ui_hideMediaPreview() {
+	if (!_mediaPreview) return;
+	_mediaPreview->hidePreview();
+}
+
+PeerData *Window::ui_getPeerForMouseAction() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		return _mediaView->ui_getPeerForMouseAction();
+	} else if (main) {
+		return main->ui_getPeerForMouseAction();
+	}
+	return nullptr;
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {
@@ -1031,7 +1036,7 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::MouseButtonRelease:
-		Ui::hideStickerPreview();
+		Ui::hideMediaPreview();
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
@@ -1053,8 +1058,8 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 
 	case QEvent::FileOpen:
 		if (obj == Application::instance()) {
-			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded();
-			if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
+			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
+			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url);
 				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
 					App::main()->openLocalUrl(cStartUrl());
@@ -1240,7 +1245,7 @@ void Window::layerFinishedHide(BackgroundWidget *was) {
 void Window::fixOrder() {
 	title->raise();
 	if (layerBg) layerBg->raise();
-	if (_stickerPreview) _stickerPreview->raise();
+	if (_mediaPreview) _mediaPreview->raise();
 	if (_connecting) _connecting->raise();
 }
 
@@ -1312,7 +1317,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
-	if (_stickerPreview) _stickerPreview->setGeometry(0, title->height(), width(), height() - title->height());
+	if (_mediaPreview) _mediaPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
@@ -1739,8 +1744,8 @@ void Window::notifyUpdateAllPhotos() {
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
-void Window::app_activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
-	link->onClick(button);
+void Window::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
+	handler->onClick(button);
 }
 
 void Window::notifyUpdateAll() {
@@ -1912,7 +1917,6 @@ void Window::updateIsActive(int timeout) {
 
 Window::~Window() {
     notifyClearFast();
-	deleteAndMark(_stickerPreview);
 	delete _clearManager;
 	delete _connecting;
 	delete _mediaView;

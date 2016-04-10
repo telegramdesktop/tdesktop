@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "basic_types.h"
 
 namespace _local_inner {
 
@@ -129,12 +129,13 @@ namespace Local {
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
 	bool willStickerImageLoad(const StorageKey &location);
-	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation);
+	bool copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
+	bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 

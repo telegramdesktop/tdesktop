@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "application.h"
@@ -99,21 +99,21 @@ void ApiWrap::resolveMessageDatas() {
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		const auto &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		const auto &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		const auto &d(msgs.c_messages_channelMessages());
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
@@ -169,8 +169,8 @@ void ApiWrap::processFullPeer(PeerData *peer, const MTPUserFull &result) {
 }
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req) {
-	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
-	const QVector<MTPChat> &vc(d.vchats.c_vector().v);
+	const auto &d(result.c_messages_chatFull());
+	const auto &vc(d.vchats.c_vector().v);
 	bool badVersion = false;
 	if (peer->isChat()) {
 		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
@@ -186,13 +186,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			LOG(("MTP Error: bad type in gotChatFull for chat: %1").arg(d.vfull_chat.type()));
 			return;
 		}
-		const MTPDchatFull &f(d.vfull_chat.c_chatFull());
+		const auto &f(d.vfull_chat.c_chatFull());
 		App::feedParticipants(f.vparticipants, false, false);
-		const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
+		const auto &v(f.vbot_info.c_vector().v);
 		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
 			switch (i->type()) {
 			case mtpc_botInfo: {
-				const MTPDbotInfo &b(i->c_botInfo());
+				const auto &b(i->c_botInfo());
 				UserData *user = App::userLoaded(b.vuser_id.v);
 				if (user) {
 					user->setBotInfo(*i);
@@ -218,7 +218,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
 			return;
 		}
-		const MTPDchannelFull &f(d.vfull_chat.c_channelFull());
+		const auto &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
 		channel->flagsFull = f.vflags.v;
@@ -257,11 +257,11 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				App::main()->peerUpdated(cfrom);
 			}
 		}
-		const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
+		const auto &v(f.vbot_info.c_vector().v);
 		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
 			switch (i->type()) {
 			case mtpc_botInfo: {
-				const MTPDbotInfo &b(i->c_botInfo());
+				const auto &b(i->c_botInfo());
 				UserData *user = App::userLoaded(b.vuser_id.v);
 				if (user) {
 					user->setBotInfo(*i);
@@ -321,7 +321,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
-	const MTPDuserFull &d(result.c_userFull());
+	const auto &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
@@ -351,7 +351,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_fullPeerRequests.remove(peer);
 	return true;
@@ -399,7 +399,7 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 	if ((needAdmins && adminsOutdated) || peer->lastParticipantsCountOutdated()) {
 		fromStart = true;
 	}
-	QMap<PeerData*, mtpRequestId>::iterator i = _participantsRequests.find(peer);
+	auto i = _participantsRequests.find(peer);
 	if (i != _participantsRequests.cend()) {
 		if (fromStart && i.value() < 0) { // was not loading from start
 			_participantsRequests.erase(i);
@@ -420,7 +420,7 @@ void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 
 	if (result.type() == mtpc_messages_chats) {
-		const QVector<MTPChat> &v(result.c_messages_chats().vchats.c_vector().v);
+		const auto &v(result.c_messages_chats().vchats.c_vector().v);
 		bool badVersion = false;
 		if (peer->isChat()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
@@ -458,7 +458,7 @@ void ApiWrap::gotUsers(const MTPVector<MTPUser> &result) {
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_peerRequests.remove(peer);
 	return true;
@@ -491,8 +491,8 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		peer->mgInfo->lastParticipantsStatus = MegagroupInfo::LastParticipantsUpToDate;
 	}
 
-	const MTPDchannels_channelParticipants &d(result.c_channels_channelParticipants());
-	const QVector<MTPChannelParticipant> &v(d.vparticipants.c_vector().v);
+	const auto &d(result.c_channels_channelParticipants());
+	const auto &v(d.vparticipants.c_vector().v);
 	App::feedUsers(d.vusers);
 	bool added = false, needBotsInfos = false;
 	int32 botStatus = peer->mgInfo->botStatus;
@@ -555,7 +555,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 }
 
 bool ApiWrap::lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	if (_participantsRequests.value(peer) == req || _participantsRequests.value(peer) == -req) {
 		_participantsRequests.remove(peer);
 	} else if (_botsRequests.value(peer) == req) {
@@ -578,27 +578,27 @@ void ApiWrap::gotSelfParticipant(ChannelData *channel, const MTPchannels_Channel
 		return;
 	}
 
-	const MTPDchannels_channelParticipant &p(result.c_channels_channelParticipant());
+	const auto &p(result.c_channels_channelParticipant());
 	App::feedUsers(p.vusers);
 
 	switch (p.vparticipant.type()) {
 	case mtpc_channelParticipantSelf: {
-		const MTPDchannelParticipantSelf &d(p.vparticipant.c_channelParticipantSelf());
+		const auto &d(p.vparticipant.c_channelParticipantSelf());
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
 	case mtpc_channelParticipantCreator: {
-		const MTPDchannelParticipantCreator &d(p.vparticipant.c_channelParticipantCreator());
+		const auto &d(p.vparticipant.c_channelParticipantCreator());
 		channel->inviter = MTP::authedId();
 		channel->inviteDate = date(MTP_int(channel->date));
 	} break;
 	case mtpc_channelParticipantModerator: {
-		const MTPDchannelParticipantModerator &d(p.vparticipant.c_channelParticipantModerator());
+		const auto &d(p.vparticipant.c_channelParticipantModerator());
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
 	case mtpc_channelParticipantEditor: {
-		const MTPDchannelParticipantEditor &d(p.vparticipant.c_channelParticipantEditor());
+		const auto &d(p.vparticipant.c_channelParticipantEditor());
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
@@ -609,7 +609,7 @@ void ApiWrap::gotSelfParticipant(ChannelData *channel, const MTPchannels_Channel
 }
 
 bool ApiWrap::gotSelfParticipantFail(ChannelData *channel, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("USER_NOT_PARTICIPANT")) {
 		channel->inviter = -1;
@@ -655,7 +655,7 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 }
 
 bool ApiWrap::kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	_kickRequests.remove(kick);
 	return true;
 }
@@ -680,10 +680,10 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	_stickerSetRequests.remove(setId);
 
 	if (result.type() != mtpc_messages_stickerSet) return;
-	const MTPDmessages_stickerSet &d(result.c_messages_stickerSet());
+	const auto &d(result.c_messages_stickerSet());
 
 	if (d.vset.type() != mtpc_stickerSet) return;
-	const MTPDstickerSet &s(d.vset.c_stickerSet());
+	const auto &s(d.vset.c_stickerSet());
 
 	Stickers::Sets &sets(Global::RefStickerSets());
 	auto it = sets.find(setId);
@@ -695,7 +695,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->title = stickerSetTitle(s);
 	it->flags = s.vflags.v;
 
-	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
+	const auto &d_docs(d.vdocuments.c_vector().v);
 	auto custom = sets.find(Stickers::CustomSetId);
 
 	StickerPack pack;
@@ -735,13 +735,13 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	} else {
 		it->stickers = pack;
 		it->emoji.clear();
-		const QVector<MTPStickerPack> &v(d.vpacks.c_vector().v);
+		const auto &v(d.vpacks.c_vector().v);
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).type() != mtpc_stickerPack) continue;
 
-			const MTPDstickerPack &pack(v.at(i).c_stickerPack());
+			const auto &pack(v.at(i).c_stickerPack());
 			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-				const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+				const auto &stickers(pack.vdocuments.c_vector().v);
 				StickerPack p;
 				p.reserve(stickers.size());
 				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
@@ -765,7 +765,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 }
 
 bool ApiWrap::gotStickerSetFail(uint64 setId, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_stickerSetRequests.remove(setId);
 	return true;
@@ -861,21 +861,21 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	const QVector<MTPMessage> *v = 0;
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		const auto &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		const auto &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		const auto &d(msgs.c_messages_channelMessages());
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
@@ -894,7 +894,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	if (!v) return;
 	QMap<uint64, int32> msgsIds; // copied from feedMsgs
 	for (int32 i = 0, l = v->size(); i < l; ++i) {
-		const MTPMessage &msg(v->at(i));
+		const auto &msg(v->at(i));
 		switch (msg.type()) {
 		case mtpc_message: msgsIds.insert((uint64(uint32(msg.c_message().vid.v)) << 32) | uint64(i), i); break;
 		case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;

@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "basic_types.h"
 
 namespace MTP {
 
@@ -349,7 +349,6 @@ static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer18),
 };
 static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 50;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -758,8 +757,9 @@ private:
 
 	friend MTPstring MTP_string(const string &v);
 	friend MTPstring MTP_string(const QString &v);
-	friend MTPstring MTP_string(const QByteArray &v);
 	friend MTPstring MTP_string(const char *v);
+
+	friend MTPstring MTP_bytes(const QByteArray &v);
 };
 inline MTPstring MTP_string(const string &v) {
 	return MTPstring(new MTPDstring(v));
@@ -767,16 +767,18 @@ inline MTPstring MTP_string(const string &v) {
 inline MTPstring MTP_string(const QString &v) {
 	return MTPstring(new MTPDstring(v));
 }
-inline MTPstring MTP_string(const QByteArray &v) {
-	return MTPstring(new MTPDstring(v));
-}
 inline MTPstring MTP_string(const char *v) {
 	return MTPstring(new MTPDstring(v));
 }
+MTPstring MTP_string(const QByteArray &v) = delete;
 typedef MTPBoxed<MTPstring> MTPString;
 
-typedef MTPstring MTPbytes;
-typedef MTPString MTPBytes;
+using MTPbytes = MTPstring;
+using MTPBytes = MTPBoxed<MTPbytes>;
+
+inline MTPbytes MTP_bytes(const QByteArray &v) {
+	return MTPbytes(new MTPDstring(v));
+}
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
 	return a.c_string().v == b.c_string().v;
@@ -1019,8 +1021,14 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message is attached to previous one when displaying the history
 	f_attach_to_previous = (1 << 25),
 
+	// message was sent from inline bot, need to re-set media when sent
+	f_from_inline_bot = (1 << 24),
+
+	// message has a switch inline keyboard button, need to return to inline
+	f_has_switch_inline_button = (1 << 23),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 25),
+	MIN_FIELD = (1 << 23),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 
@@ -1031,8 +1039,14 @@ enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
 	// markup just wants a text reply
 	f_force_reply = (1 << 29),
 
+	// markup keyboard is inline
+	f_inline = (1 << 28),
+
+	// markup has a switch inline keyboard button
+	f_has_switch_inline_button = (1 << 27),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 29),
+	MIN_FIELD = (1 << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
 

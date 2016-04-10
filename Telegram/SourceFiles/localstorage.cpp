@@ -19,22 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "localstorage.h"
 
 #include <openssl/evp.h>
+
+#include "serialize/serialize_document.h"
+#include "serialize/serialize_common.h"
 
 #include "mainwidget.h"
 #include "window.h"
 #include "lang.h"
 
 namespace {
-	enum StickerSetType {
-		StickerSetTypeEmpty     = 0,
-		StickerSetTypeID        = 1,
-		StickerSetTypeShortName = 2,
-	};
-
 	typedef quint64 FileKey;
 
 	static const char tdfMagic[] = { 'T', 'D', 'F', '$' };
@@ -148,10 +144,6 @@ namespace {
 
 	uint32 _dateTimeSize() {
 		return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
-	}
-
-	uint32 _stringSize(const QString &str) {
-		return sizeof(quint32) + str.size() * sizeof(ushort);
 	}
 
 	uint32 _bytearraySize(const QByteArray &arr) {
@@ -691,7 +683,7 @@ namespace {
 			quint32 size = 0;
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(), e = _fileLocations.cend(); i != e; ++i) {
 				// location + type + namelen + name
-				size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(i.value().name());
+				size += sizeof(quint64) * 2 + sizeof(quint32) + Serialize::stringSize(i.value().name());
 				if (AppVersion > 9013) {
 					// bookmark
 					size += _bytearraySize(i.value().bookmark());
@@ -701,7 +693,7 @@ namespace {
 			}
 
 			//end mark
-			size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(QString());
+			size += sizeof(quint64) * 2 + sizeof(quint32) + Serialize::stringSize(QString());
 			if (AppVersion > 9013) {
 				size += _bytearraySize(QByteArray());
 			}
@@ -716,7 +708,7 @@ namespace {
 			size += sizeof(quint32); // web files count
 			for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
 				// url + filekey + size
-				size += _stringSize(i.key()) + sizeof(quint64) + sizeof(qint32);
+				size += Serialize::stringSize(i.key()) + sizeof(quint64) + sizeof(qint32);
 			}
 
 			EncryptedDescriptor data(size);
@@ -1580,11 +1572,11 @@ namespace {
 		}
 
 		uint32 size = 16 * (sizeof(quint32) + sizeof(qint32));
-		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + _bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
+		size += sizeof(quint32) + Serialize::stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + _bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
-		size += sizeof(quint32) + _stringSize(cDialogLastPath());
+		size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 		size += sizeof(quint32) + 3 * sizeof(qint32);
 		if (!Global::HiddenPinnedMessages().isEmpty()) {
 			size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
@@ -2209,14 +2201,14 @@ namespace Local {
 		quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 		for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
-			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
+			size += sizeof(quint32) + Serialize::stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
 		}
-		size += sizeof(quint32) + _stringSize(cLangFile());
+		size += sizeof(quint32) + Serialize::stringSize(cLangFile());
 
 		size += sizeof(quint32) + sizeof(qint32);
 		if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
 			const ConnectionProxy &proxy(cConnectionProxy());
-			size += _stringSize(proxy.host) + sizeof(qint32) + _stringSize(proxy.user) + _stringSize(proxy.password);
+			size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 		}
 
 		size += sizeof(quint32) + sizeof(qint32) * 6;
@@ -2347,7 +2339,7 @@ namespace Local {
 				_writeMap(WriteMapFast);
 			}
 
-			EncryptedDescriptor data(sizeof(quint64) + _stringSize(msgDraft.text) + 2 * sizeof(qint32) + _stringSize(editDraft.text) + 2 * sizeof(qint32));
+			EncryptedDescriptor data(sizeof(quint64) + Serialize::stringSize(msgDraft.text) + 2 * sizeof(qint32) + Serialize::stringSize(editDraft.text) + 2 * sizeof(qint32));
 			data.stream << quint64(peer);
 			data.stream << msgDraft.text << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
 			data.stream << editDraft.text << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
@@ -2441,14 +2433,14 @@ namespace Local {
 		_readDraftCursors(peer, msgCursor, editCursor);
 
 		if (msgText.isEmpty() && !msgReplyTo) {
-			h->setMsgDraft(nullptr);
+			h->clearMsgDraft();
 		} else {
-			h->setMsgDraft(new HistoryDraft(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setMsgDraft(std_::make_unique<HistoryDraft>(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 		if (!editMsgId) {
-			h->setEditDraft(nullptr);
+			h->clearEditDraft();
 		} else {
-			h->setEditDraft(new HistoryEditDraft(editText, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(std_::make_unique<HistoryEditDraft>(editText, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 
@@ -2734,7 +2726,7 @@ namespace Local {
 			type = StorageFilePartial;
 		}
 		void clearInMap() {
-			StorageMap::iterator j = _stickerImagesMap.find(_location);
+			auto j = _stickerImagesMap.find(_location);
 			if (j != _stickerImagesMap.cend() && j->first == _key) {
 				clearKey(j.value().first, UserPath);
 				_storageStickersSize -= j.value().second;
@@ -2744,7 +2736,7 @@ namespace Local {
 	};
 
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
-		StorageMap::const_iterator j = _stickerImagesMap.constFind(location);
+		auto j = _stickerImagesMap.constFind(location);
 		if (j == _stickerImagesMap.cend() || !_localLoader) {
 			return 0;
 		}
@@ -2755,13 +2747,15 @@ namespace Local {
 		return _stickerImagesMap.constFind(location) != _stickerImagesMap.cend();
 	}
 
-	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
-		StorageMap::const_iterator i = _stickerImagesMap.constFind(oldLocation);
-		if (i != _stickerImagesMap.cend()) {
-			_stickerImagesMap.insert(newLocation, i.value());
-			_mapChanged = true;
-			_writeMap();
+	bool copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
+		auto i = _stickerImagesMap.constFind(oldLocation);
+		if (i == _stickerImagesMap.cend()) {
+			return false;
 		}
+		_stickerImagesMap.insert(newLocation, i.value());
+		_mapChanged = true;
+		_writeMap();
+		return true;
 	}
 
 	int32 hasStickers() {
@@ -2806,7 +2800,7 @@ namespace Local {
 			type = StorageFilePartial;
 		}
 		void clearInMap() {
-			StorageMap::iterator j = _audiosMap.find(_location);
+			auto j = _audiosMap.find(_location);
 			if (j != _audiosMap.cend() && j->first == _key) {
 				clearKey(j.value().first, UserPath);
 				_storageAudiosSize -= j.value().second;
@@ -2816,11 +2810,22 @@ namespace Local {
 	};
 
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
-		StorageMap::const_iterator j = _audiosMap.constFind(location);
+		auto j = _audiosMap.constFind(location);
 		if (j == _audiosMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
+	}
+
+	bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
+		auto i = _audiosMap.constFind(oldLocation);
+		if (i == _audiosMap.cend()) {
+			return false;
+		}
+		_audiosMap.insert(newLocation, i.value());
+		_mapChanged = true;
+		_writeMap();
+		return true;
 	}
 
 	int32 hasAudios() {
@@ -2833,7 +2838,7 @@ namespace Local {
 
 	qint32 _storageWebFileSize(const QString &url, qint32 rawlen) {
 		// fulllen + url + len + data
-		qint32 result = sizeof(uint32) + _stringSize(url) + sizeof(quint32) + rawlen;
+		qint32 result = sizeof(uint32) + Serialize::stringSize(url) + sizeof(quint32) + rawlen;
 		if (result & 0x0F) result += 0x10 - (result & 0x0F);
 		result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
 		return result;
@@ -2851,7 +2856,7 @@ namespace Local {
 		} else if (!overwrite) {
 			return;
 		}
-		EncryptedDescriptor data(_stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
+		EncryptedDescriptor data(Serialize::stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
 		data.stream << url << content;
 		FileWriteDescriptor file(i.value().first, UserPath);
 		file.writeEncrypted(data);
@@ -3012,23 +3017,6 @@ namespace Local {
 		}
 	}
 
-	void _writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
-		stream << qint32(loc.width()) << qint32(loc.height());
-		stream << qint32(loc.dc()) << quint64(loc.volume()) << qint32(loc.local()) << quint64(loc.secret());
-	}
-
-	uint32 _storageImageLocationSize() {
-		// width + height + dc + volume + local + secret
-		return sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
-	}
-
-	StorageImageLocation _readStorageImageLocation(FileReadDescriptor &from) {
-		qint32 thumbWidth, thumbHeight, thumbDc, thumbLocal;
-		quint64 thumbVolume, thumbSecret;
-		from.stream >> thumbWidth >> thumbHeight >> thumbDc >> thumbVolume >> thumbLocal >> thumbSecret;
-		return StorageImageLocation(thumbWidth, thumbHeight, thumbDc, thumbVolume, thumbLocal, thumbSecret);
-	}
-
 	void _writeStickerSet(QDataStream &stream, uint64 setId) {
 		auto it = Global::StickerSets().constFind(setId);
 		if (it == Global::StickerSets().cend()) return;
@@ -3043,21 +3031,7 @@ namespace Local {
 
 		stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << qint32(it->stickers.size()) << qint32(it->hash) << qint32(it->flags);
 		for (StickerPack::const_iterator j = it->stickers.cbegin(), e = it->stickers.cend(); j != e; ++j) {
-			DocumentData *doc = *j;
-			stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker()->alt;
-			switch (doc->sticker()->set.type()) {
-			case mtpc_inputStickerSetID: {
-				stream << qint32(StickerSetTypeID);
-			} break;
-			case mtpc_inputStickerSetShortName: {
-				stream << qint32(StickerSetTypeShortName);
-			} break;
-			case mtpc_inputStickerSetEmpty:
-			default: {
-				stream << qint32(StickerSetTypeEmpty);
-			} break;
-			}
-			_writeStorageImageLocation(stream, doc->sticker()->loc);
+			Serialize::Document::writeToStream(stream, *j);
 		}
 
 		if (AppVersion > 9018) {
@@ -3097,21 +3071,15 @@ namespace Local {
 				}
 
 				// id + access + title + shortName + stickersCount + hash + flags
-				size += sizeof(quint64) * 2 + _stringSize(i->title) + _stringSize(i->shortName) + sizeof(quint32) + sizeof(qint32) * 2;
+				size += sizeof(quint64) * 2 + Serialize::stringSize(i->title) + Serialize::stringSize(i->shortName) + sizeof(quint32) + sizeof(qint32) * 2;
 				for (StickerPack::const_iterator j = i->stickers.cbegin(), e = i->stickers.cend(); j != e; ++j) {
-					DocumentData *doc = *j;
-
-					// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt + type-of-set
-					size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker()->alt) + sizeof(qint32);
-
-					// loc
-					size += _storageImageLocationSize();
+					size += Serialize::Document::sizeInStream(*j);
 				}
 
 				if (AppVersion > 9018) {
 					size += sizeof(qint32); // emojiCount
 					for (StickersByEmojiMap::const_iterator j = i->emoji.cbegin(), e = i->emoji.cend(); j != e; ++j) {
-						size += _stringSize(emojiString(j.key())) + sizeof(qint32) + (j->size() * sizeof(quint64));
+						size += Serialize::stringSize(emojiString(j.key())) + sizeof(qint32) + (j->size() * sizeof(quint64));
 					}
 				}
 
@@ -3267,48 +3235,16 @@ namespace Local {
 
 			set.stickers.reserve(scnt);
 
-			QMap<uint64, bool> read;
+			Serialize::Document::StickerSetInfo info(setId, setAccess, setShortName);
+			OrderedSet<DocumentId> read;
 			for (int32 j = 0; j < scnt; ++j) {
-				quint64 id, access;
-				QString name, mime, alt;
-				qint32 date, dc, size, width, height, type, typeOfSet;
-				stickers.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type >> alt >> typeOfSet;
+				auto document = Serialize::Document::readStickerFromStream(stickers.stream, info);
+				if (!document || !document->sticker()) continue;
 
-				StorageImageLocation thumb(_readStorageImageLocation(stickers));
+				if (read.contains(document->id)) continue;
+				read.insert(document->id);
 
-				if (read.contains(id)) continue;
-				read.insert(id, true);
-
-				if (setId == Stickers::DefaultSetId || setId == Stickers::CustomSetId) {
-					typeOfSet = StickerSetTypeEmpty;
-				}
-
-				QVector<MTPDocumentAttribute> attributes;
-				if (!name.isEmpty()) attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
-				if (type == AnimatedDocument) {
-					attributes.push_back(MTP_documentAttributeAnimated());
-				} else if (type == StickerDocument) {
-					switch (typeOfSet) {
-					case StickerSetTypeID: {
-						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetID(MTP_long(setId), MTP_long(setAccess))));
-					} break;
-					case StickerSetTypeShortName: {
-						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetShortName(MTP_string(setShortName))));
-					} break;
-					case StickerSetTypeEmpty:
-					default: {
-						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
-					} break;
-					}
-				}
-				if (width > 0 && height > 0) {
-					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
-				}
-
-				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
-				if (!doc->sticker()) continue;
-
-				set.stickers.push_back(doc);
+				set.stickers.push_back(document);
 				++set.count;
 			}
 
@@ -3383,14 +3319,8 @@ namespace Local {
 			_writeMap();
 		} else {
 			quint32 size = sizeof(quint32); // count
-			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
-				DocumentData *doc = *i;
-
-				// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + duration
-				size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
-
-				// thumb
-				size += _storageImageLocationSize();
+			for_const (auto gif, saved) {
+				size += Serialize::Document::sizeInStream(gif);
 			}
 
 			if (!_savedGifsKey) {
@@ -3400,11 +3330,8 @@ namespace Local {
 			}
 			EncryptedDescriptor data(size);
 			data.stream << quint32(saved.size());
-			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
-				DocumentData *doc = *i;
-
-				data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << qint32(doc->duration());
-				_writeStorageImageLocation(data.stream, doc->thumb->location());
+			for_const (auto gif, saved) {
+				Serialize::Document::writeToStream(data.stream, gif);
 			}
 			FileWriteDescriptor file(_savedGifsKey);
 			file.writeEncrypted(data);
@@ -3428,35 +3355,15 @@ namespace Local {
 		quint32 cnt;
 		gifs.stream >> cnt;
 		saved.reserve(cnt);
-		QMap<uint64, NullType> read;
+		OrderedSet<DocumentId> read;
 		for (uint32 i = 0; i < cnt; ++i) {
-			quint64 id, access;
-			QString name, mime;
-			qint32 date, dc, size, width, height, type, duration;
-			gifs.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type >> duration;
+			DocumentData *document = Serialize::Document::readFromStream(gifs.stream);
+			if (!document || !document->isAnimation()) continue;
 
-			StorageImageLocation thumb(_readStorageImageLocation(gifs));
+			if (read.contains(document->id)) continue;
+			read.insert(document->id);
 
-			if (read.contains(id)) continue;
-			read.insert(id, NullType());
-
-			QVector<MTPDocumentAttribute> attributes;
-			if (!name.isEmpty()) attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
-			if (type == AnimatedDocument) {
-				attributes.push_back(MTP_documentAttributeAnimated());
-			}
-			if (width > 0 && height > 0) {
-				if (duration >= 0) {
-					attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(width), MTP_int(height)));
-				} else {
-					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
-				}
-			}
-
-			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
-			if (!doc->isAnimation()) continue;
-
-			saved.push_back(doc);
+			saved.push_back(document);
 		}
 	}
 
@@ -3522,12 +3429,12 @@ namespace Local {
 	}
 
 	uint32 _peerSize(PeerData *peer) {
-		uint32 result = sizeof(quint64) + sizeof(quint64) + _storageImageLocationSize();
+		uint32 result = sizeof(quint64) + sizeof(quint64) + Serialize::storageImageLocationSize();
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
 			// first + last + phone + username + access
-			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64);
+			result += Serialize::stringSize(user->firstName) + Serialize::stringSize(user->lastName) + Serialize::stringSize(user->phone) + Serialize::stringSize(user->username) + sizeof(quint64);
 
 			// flags
 			if (AppVersion >= 9012) {
@@ -3540,19 +3447,19 @@ namespace Local {
 			ChatData *chat = peer->asChat();
 
 			// name + count + date + version + admin + forbidden + left + invitationUrl
-			result += _stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(chat->invitationUrl);
+			result += Serialize::stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(chat->invitationUrl);
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
 			// name + access + date + version + forbidden + flags + invitationUrl
-			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
+			result += Serialize::stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
 
 	void _writePeer(QDataStream &stream, PeerData *peer) {
 		stream << quint64(peer->id) << quint64(peer->photoId);
-		_writeStorageImageLocation(stream, peer->photoLoc);
+		Serialize::writeStorageImageLocation(stream, peer->photoLoc);
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
@@ -3583,7 +3490,7 @@ namespace Local {
 		quint64 peerId = 0, photoId = 0;
 		from.stream >> peerId >> photoId;
 
-		StorageImageLocation photoLoc(_readStorageImageLocation(from));
+		StorageImageLocation photoLoc(Serialize::readStorageImageLocation(from.stream));
 
 		PeerData *result = App::peerLoaded(peerId);
 		bool wasLoaded = (result != nullptr);
@@ -3711,13 +3618,13 @@ namespace Local {
 			quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
 			for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e;  ++i) {
 				if (!i->first.isEmpty()) {
-					size += _stringSize(i->first) + sizeof(quint16);
+					size += Serialize::stringSize(i->first) + sizeof(quint16);
 					++writeCnt;
 				}
 			}
 			for (RecentHashtagPack::const_iterator i = search.cbegin(), e = search.cend(); i != e; ++i) {
 				if (!i->first.isEmpty()) {
-					size += _stringSize(i->first) + sizeof(quint16);
+					size += Serialize::stringSize(i->first) + sizeof(quint16);
 					++searchCnt;
 				}
 			}

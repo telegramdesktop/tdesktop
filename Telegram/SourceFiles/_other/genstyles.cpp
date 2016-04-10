@@ -383,7 +383,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace style {\n";
+			tout << "#pragma once\n\n#include \"ui/style.h\"\n\nnamespace style {\n";
 			for (int i = 0, l = byIndex.size(); i < l; ++i) {
 				ClassData &cls(byIndex[i]);
 				classes.insert(cls.name, cls);
@@ -1064,7 +1064,7 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 
 	string size, family;
 	int flags = 0;
-	bool sizepx;
+	bool sizepx = false;
 
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 (%2) while reading font() cons!").arg(type).arg(token.c_str()));
@@ -1544,7 +1544,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace st {\n";
+			tout << "#pragma once\n\n#include \"ui/style.h\"\n\nnamespace st {\n";
 			tcpp << "\
 /*\n\
 Created from \'/Resources/style.txt\' by \'/MetaStyle\' project\n\

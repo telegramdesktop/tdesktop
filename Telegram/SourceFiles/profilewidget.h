@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 class ProfileWidget;
-class ProfileInner : public TWidget, public RPCSender {
+class ProfileInner : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -32,17 +32,17 @@ public:
 
 	void peerUsernameChanged();
 
-	bool event(QEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	bool event(QEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void step_photo(float64 ms, bool timer);
 
@@ -65,6 +65,10 @@ public:
 	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
 
@@ -158,7 +162,7 @@ private:
 	Text _nameText;
 	QString _nameCache;
 	QString _phoneText;
-	TextLinkPtr _photoLink;
+	ClickHandlerPtr _photoLink;
 	FlatButton _uploadPhoto, _addParticipant;
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
@@ -270,6 +274,8 @@ public:
 		_inner.rpcClear();
 		RPCSender::rpcClear();
 	}
+
+	PeerData *ui_getPeerForMouseAction();
 
 	void clear();
 	~ProfileWidget();

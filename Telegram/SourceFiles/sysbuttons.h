@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/animation.h"
-#include "gui/button.h"
+#include "ui/animation.h"
+#include "ui/button.h"
 
 class Window;
 

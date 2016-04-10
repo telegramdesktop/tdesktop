@@ -125,7 +125,7 @@ namespace {
 	}
 
 	bool importFail(const RPCError &error, mtpRequestId req) {
-		if (mtpIsFlood(error)) return false;
+		if (isDefaultHandledError(error)) return false;
 
 		if (globalHandler.onFail && authedId()) (*globalHandler.onFail)(req, error); // auth import failed
 		return true;
@@ -140,13 +140,13 @@ namespace {
 			return;
 		}
 
-		const MTPDauth_exportedAuthorization &data(result.c_auth_exportedAuthorization());
+		const auto &data(result.c_auth_exportedAuthorization());
 		send(MTPauth_ImportAuthorization(data.vid, data.vbytes), rpcDone(importDone), rpcFail(importFail), i.value());
 		authExportRequests.remove(req);
 	}
 
 	bool exportFail(const RPCError &error, mtpRequestId req) {
-		if (mtpIsFlood(error)) return false;
+		if (isDefaultHandledError(error)) return false;
 
 		AuthExportRequests::const_iterator i = authExportRequests.constFind(req);
 		if (i != authExportRequests.cend()) {
@@ -159,7 +159,7 @@ namespace {
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
 		int32 code = error.code();
-		if (!mtpIsFlood(error) && err != qsl("AUTH_KEY_UNREGISTERED")) {
+		if (!isFloodError(error) && err != qstr("AUTH_KEY_UNREGISTERED")) {
 			int breakpoint = 0;
 		}
 		bool badGuestDC = (code == 400) && (err == qsl("FILE_ID_INVALID"));
@@ -262,7 +262,7 @@ namespace {
 			waiters.push_back(requestId);
 			if (badGuestDC) badGuestDCRequests.insert(requestId);
 			return true;
-		} else if (err == qsl("CONNECTION_NOT_INITED") || err == qsl("CONNECTION_LAYER_INVALID")) {
+		} else if (err == qstr("CONNECTION_NOT_INITED") || err == qstr("CONNECTION_LAYER_INVALID")) {
 			mtpRequest req;
 			{
 				QReadLocker locker(&requestMapLock);
@@ -290,7 +290,7 @@ namespace {
 				session->sendPrepared(req);
 			}
 			return true;
-		} else if (err == qsl("MSG_WAIT_FAILED")) {
+		} else if (err == qstr("MSG_WAIT_FAILED")) {
 			mtpRequest req;
 			{
 				QReadLocker locker(&requestMapLock);
@@ -570,7 +570,7 @@ void onSessionReset(int32 dcWithShift) {
 }
 
 bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
-	if (mtpIsFlood(err)) {
+	if (isDefaultHandledError(err)) {
 		if (onFail && (*onFail)(requestId, err)) return true;
 	}
 

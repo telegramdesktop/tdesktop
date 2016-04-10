@@ -43,6 +43,7 @@ addChildParentFlags('MTPDpeerNotifySettings', 'MTPDinputPeerNotifySettings');
 # each key flag of parentFlags should be a subset of the value flag here
 parentFlagsCheck = {};
 
+layer = '';
 funcs = 0
 types = 0;
 consts = 0
@@ -89,6 +90,9 @@ out.write('*/\n');
 out.write('#pragma once\n\n#include "mtproto/core_types.h"\n');
 with open('scheme.tl') as f:
   for line in f:
+    layerline = re.match(r'// LAYER (\d+)', line)
+    if (layerline):
+      layer = 'static constexpr mtpPrime CurrentLayer = ' + layerline.group(1) + ';';
     nocomment = re.match(r'^(.*?)//', line)
     if (nocomment):
       line = nocomment.group(1);
@@ -213,7 +217,7 @@ with open('scheme.tl') as f:
 
     if funcsNow:
       if (isTemplate != ''):
-        funcsText += '\ntemplate <class TQueryType>';
+        funcsText += '\ntemplate <typename TQueryType>';
       funcsText += '\nclass MTP' + name + ' { // RPC method \'' + nametype.group(1) + '\'\n'; # class
 
       funcsText += 'public:\n';
@@ -221,7 +225,7 @@ with open('scheme.tl') as f:
       prmsStr = [];
       prmsInit = [];
       prmsNames = [];
-      if (len(conditions)):
+      if (hasFlags != ''):
         funcsText += '\tenum class Flag : int32 {\n';
         maxbit = 0;
         parentFlagsCheck['MTP' + name] = {};
@@ -230,17 +234,19 @@ with open('scheme.tl') as f:
           parentFlagsCheck['MTP' + name][paramName] = conditions[paramName];
           maxbit = max(maxbit, int(conditions[paramName]));
         if (maxbit > 0):
-          funcsText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+          funcsText += '\n';
+        funcsText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
         funcsText += '\t};\n';
         funcsText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
         funcsText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
         funcsText += '\n';
-        for paramName in conditionsList:
-          if (paramName in trivialConditions):
-            funcsText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
-          else:
-            funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
-        funcsText += '\n';
+        if (len(conditions)):
+          for paramName in conditionsList:
+            if (paramName in trivialConditions):
+              funcsText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+            else:
+              funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+          funcsText += '\n';
 
       if (len(prms) > len(trivialConditions)):
         for paramName in prmsList:
@@ -497,7 +503,7 @@ for restype in typesList:
     readText = '';
     writeText = '';
 
-    if (len(conditions)):
+    if (hasFlags != ''):
       dataText += '\tenum class Flag : int32 {\n';
       maxbit = 0;
       parentFlagsCheck['MTPD' + name] = {};
@@ -506,17 +512,19 @@ for restype in typesList:
         parentFlagsCheck['MTPD' + name][paramName] = conditions[paramName];
         maxbit = max(maxbit, int(conditions[paramName]));
       if (maxbit > 0):
-        dataText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+        dataText += '\n';
+      dataText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
       dataText += '\t};\n';
       dataText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
       dataText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
       dataText += '\n';
-      for paramName in conditionsList:
-        if (paramName in trivialConditions):
-          dataText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
-        else:
-          dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
-      dataText += '\n';
+      if (len(conditions)):
+        for paramName in conditionsList:
+          if (paramName in trivialConditions):
+            dataText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+          else:
+            dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+        dataText += '\n';
 
     dataText += '\tMTPD' + name + '() {\n\t}\n'; # default constructor
     switchLines += '\t\tcase mtpc_' + name + ': '; # for by-type-id type constructor
@@ -771,6 +779,7 @@ for childName in parentFlagsList:
       print('Flag ' + flag + ' has different value in ' + parentName + ' which should be a flags-parent of ' + childName);
       error
   inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
+  inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
 
 # manual types added here
 textSerializeMethods += 'void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
@@ -853,7 +862,9 @@ textSerializeFull += '\t\t}\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 
-out.write('\n// Creator proxy class declaration\nnamespace MTP {\nnamespace internal {\n\nclass TypeCreator;\n\n} // namespace internal\n} // namespace MTP\n');
+out.write('\n// Creator current layer and proxy class declaration\n');
+out.write('namespace MTP {\nnamespace internal {\n\n' + layer + '\n\n');
+out.write('class TypeCreator;\n\n} // namespace internal\n} // namespace MTP\n');
 out.write('\n// Type id constants\nenum {\n' + ',\n'.join(enums) + '\n};\n');
 out.write('\n// Type forward declarations\n' + forwards);
 out.write('\n// Boxed types definitions\n' + forwTypedefs);

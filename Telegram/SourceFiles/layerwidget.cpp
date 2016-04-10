@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "window.h"
 #include "mainwidget.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : TWidget(parent)
 , w(w)
@@ -190,17 +190,14 @@ BackgroundWidget::~BackgroundWidget() {
 	}
 }
 
-StickerPreviewWidget::StickerPreviewWidget(QWidget *parent) : TWidget(parent)
+MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
 , a_shown(0, 0)
-, _a_shown(animation(this, &StickerPreviewWidget::step_shown))
-, _doc(0)
-, _gif(0)
-, _cacheStatus(CacheNotLoaded) {
+, _a_shown(animation(this, &MediaPreviewWidget::step_shown)) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 }
 
-void StickerPreviewWidget::paintEvent(QPaintEvent *e) {
+void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
 
@@ -216,11 +213,11 @@ void StickerPreviewWidget::paintEvent(QPaintEvent *e) {
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, draw);
 }
 
-void StickerPreviewWidget::resizeEvent(QResizeEvent *e) {
+void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 	update();
 }
 
-void StickerPreviewWidget::step_shown(float64 ms, bool timer) {
+void MediaPreviewWidget::step_shown(float64 ms, bool timer) {
 	float64 dt = ms / st::stickerPreviewDuration;
 	if (dt >= 1) {
 		_a_shown.stop();
@@ -232,79 +229,126 @@ void StickerPreviewWidget::step_shown(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void StickerPreviewWidget::showPreview(DocumentData *sticker) {
-	if (sticker && !sticker->isAnimation() && !sticker->sticker()) sticker = 0;
-	if (sticker) {
-		_cache = QPixmap();
-		if (isHidden() || _a_shown.animating()) {
-			if (isHidden()) show();
-			a_shown.start(1);
-			_a_shown.start();
-		} else {
-			update();
-		}
-	} else if (isHidden()) {
+void MediaPreviewWidget::showPreview(DocumentData *document) {
+	if (!document || (!document->isAnimation() && !document->sticker())) {
+		hidePreview();
 		return;
-	} else {
-		if (_gif) _cache = currentImage();
-		a_shown.start(0);
-		_a_shown.start();
 	}
-	_doc = sticker;
+
+	startShow();
+	_photo = nullptr;
+	_document = document;
+	resetGifAndCache();
+}
+
+void MediaPreviewWidget::showPreview(PhotoData *photo) {
+	if (!photo || photo->full->isNull()) {
+		hidePreview();
+		return;
+	}
+
+	startShow();
+	_photo = photo;
+	_document = nullptr;
+	resetGifAndCache();
+}
+
+void MediaPreviewWidget::startShow() {
+	_cache = QPixmap();
+	if (isHidden() || _a_shown.animating()) {
+		if (isHidden()) show();
+		a_shown.start(1);
+		_a_shown.start();
+	} else {
+		update();
+	}
+}
+
+void MediaPreviewWidget::hidePreview() {
+	if (isHidden()) {
+		return;
+	}
+	if (_gif) _cache = currentImage();
+	a_shown.start(0);
+	_a_shown.start();
+	_photo = nullptr;
+	_document = nullptr;
+	resetGifAndCache();
+}
+
+void MediaPreviewWidget::resetGifAndCache() {
 	if (_gif) {
 		if (gif()) {
 			delete _gif;
 		}
-		_gif = 0;
+		_gif = nullptr;
 	}
 	_cacheStatus = CacheNotLoaded;
+	_cachedSize = QSize();
 }
 
-void StickerPreviewWidget::hidePreview() {
-	showPreview(0);
-}
-
-QSize StickerPreviewWidget::currentDimensions() const {
-	if (!_doc) return QSize(_cache.width() / cIntRetinaFactor(), _cache.height() / cIntRetinaFactor());
-
-	QSize result(qMax(convertScale(_doc->dimensions.width()), 1), qMax(convertScale(_doc->dimensions.height()), 1));
-	if (gif() && _gif->ready()) {
-		result = QSize(qMax(convertScale(_gif->width()), 1), qMax(convertScale(_gif->height()), 1));
+QSize MediaPreviewWidget::currentDimensions() const {
+	if (!_cachedSize.isEmpty()) {
+		return _cachedSize;
 	}
-	if (result.width() > st::maxStickerSize) {
-		result.setHeight(qMax(qRound((st::maxStickerSize * result.height()) / result.width()), 1));
-		result.setWidth(st::maxStickerSize);
+	if (!_document && !_photo) {
+		_cachedSize = QSize(_cache.width() / cIntRetinaFactor(), _cache.height() / cIntRetinaFactor());
+		return _cachedSize;
 	}
-	if (result.height() > st::maxStickerSize) {
-		result.setWidth(qMax(qRound((st::maxStickerSize * result.width()) / result.height()), 1));
-		result.setHeight(st::maxStickerSize);
+
+	QSize result, box;
+	if (_photo) {
+		result = QSize(_photo->full->width(), _photo->full->height());
+		box = QSize(width() - 2 * st::boxVerticalMargin, height() - 2 * st::boxVerticalMargin);
+	} else {
+		result = _document->dimensions;
+		if (gif() && _gif->ready()) {
+			result = QSize(_gif->width(), _gif->height());
+		}
+		if (_document->sticker()) {
+			box = QSize(st::maxStickerSize, st::maxStickerSize);
+		} else {
+			box = QSize(2 * st::maxStickerSize, 2 * st::maxStickerSize);
+		}
+	}
+	result = QSize(qMax(convertScale(result.width()), 1), qMax(convertScale(result.height()), 1));
+	if (result.width() > box.width()) {
+		result.setHeight(qMax((box.width() * result.height()) / result.width(), 1));
+		result.setWidth(box.width());
+	}
+	if (result.height() > box.height()) {
+		result.setWidth(qMax((box.height() * result.width()) / result.height(), 1));
+		result.setHeight(box.height());
+	}
+	if (_photo) {
+		_cachedSize = result;
 	}
 	return result;
 }
 
-QPixmap StickerPreviewWidget::currentImage() const {
-	if (_doc) {
-		if (_doc->sticker()) {
+QPixmap MediaPreviewWidget::currentImage() const {
+	if (_document) {
+		if (_document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				_doc->checkSticker();
-				if (_doc->sticker()->img->isNull()) {
-					if (_cacheStatus != CacheThumbLoaded && _doc->thumb->loaded()) {
+				_document->checkSticker();
+				if (_document->sticker()->img->isNull()) {
+					if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 						QSize s = currentDimensions();
-						_cache = _doc->thumb->pixBlurred(s.width(), s.height());
+						_cache = _document->thumb->pixBlurred(s.width(), s.height());
 						_cacheStatus = CacheThumbLoaded;
 					}
 				} else {
 					QSize s = currentDimensions();
-					_cache = _doc->sticker()->img->pix(s.width(), s.height());
+					_cache = _document->sticker()->img->pix(s.width(), s.height());
 					_cacheStatus = CacheLoaded;
 				}
 			}
 		} else {
-			_doc->automaticLoad(0);
-			if (_doc->loaded()) {
+			_document->automaticLoad(nullptr);
+			if (_document->loaded()) {
 				if (!_gif && _gif != BadClipReader) {
-					StickerPreviewWidget *that = const_cast<StickerPreviewWidget*>(this);
-					that->_gif = new ClipReader(_doc->location(), _doc->data(), func(that, &StickerPreviewWidget::clipCallback));
+					MediaPreviewWidget *that = const_cast<MediaPreviewWidget*>(this);
+					that->_gif = new ClipReader(_document->location(), _document->data(), func(that, &MediaPreviewWidget::clipCallback));
 					if (gif()) _gif->setAutoplay();
 				}
 			}
@@ -312,17 +356,36 @@ QPixmap StickerPreviewWidget::currentImage() const {
 				QSize s = currentDimensions();
 				return _gif->current(s.width(), s.height(), s.width(), s.height(), getms());
 			}
-			if (_cacheStatus != CacheThumbLoaded && _doc->thumb->loaded()) {
+			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _doc->thumb->pixBlurred(s.width(), s.height());
+				_cache = _document->thumb->pixBlurred(s.width(), s.height());
 				_cacheStatus = CacheThumbLoaded;
 			}
 		}
+	} else if (_photo) {
+		if (_cacheStatus != CacheLoaded) {
+			if (_photo->full->loaded()) {
+				QSize s = currentDimensions();
+				LOG(("DIMENSIONS: %1 %2").arg(s.width()).arg(s.height()));
+				_cache = _photo->full->pix(s.width(), s.height());
+				_cacheStatus = CacheLoaded;
+			} else {
+				if (_cacheStatus != CacheThumbLoaded && _photo->thumb->loaded()) {
+					QSize s = currentDimensions();
+					LOG(("DIMENSIONS: %1 %2").arg(s.width()).arg(s.height()));
+					_cache = _photo->thumb->pixBlurred(s.width(), s.height());
+					_cacheStatus = CacheThumbLoaded;
+				}
+				_photo->thumb->load();
+				_photo->full->load();
+			}
+		}
+
 	}
 	return _cache;
 }
 
-void StickerPreviewWidget::clipCallback(ClipReaderNotification notification) {
+void MediaPreviewWidget::clipCallback(ClipReaderNotification notification) {
 	switch (notification) {
 	case ClipReaderReinit: {
 		if (gif() && _gif->state() == ClipError) {
@@ -346,5 +409,5 @@ void StickerPreviewWidget::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
-StickerPreviewWidget::~StickerPreviewWidget() {
+MediaPreviewWidget::~MediaPreviewWidget() {
 }

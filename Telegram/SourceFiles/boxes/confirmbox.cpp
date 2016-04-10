@@ -83,33 +83,30 @@ void ConfirmBox::mouseMoveEvent(QMouseEvent *e) {
 void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver()) {
-		textlnkDown(textlnkOver());
-		update();
-	}
+	ClickHandler::pressed();
 	return LayeredWidget::mousePressEvent(e);
 }
 
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver() && textlnkOver() == textlnkDown()) {
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
-		textlnkOver()->onClick(e->button());
+		App::activateClickHandler(activated, e->button());
 	}
-	textlnkDown(TextLinkPtr());
 }
 
 void ConfirmBox::leaveEvent(QEvent *e) {
-	if (_myLink) {
-		if (textlnkOver() == _myLink) {
-			textlnkOver(TextLinkPtr());
-			update();
-		}
-		_myLink = TextLinkPtr();
-		setCursor(style::cur_default);
-		update();
-	}
+	ClickHandler::clearActive(this);
+}
+
+void ConfirmBox::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	setCursor(active ? style::cur_pointer : style::cur_default);
+	update();
+}
+
+void ConfirmBox::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	update();
 }
 
 void ConfirmBox::updateLink() {
@@ -119,17 +116,12 @@ void ConfirmBox::updateLink() {
 
 void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
-	bool wasMy = (_myLink == textlnkOver());
+
 	textstyleSet(&st::boxTextStyle);
-	_myLink = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	ClickHandlerPtr handler = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), style::al_left);
 	textstyleRestore();
-	if (_myLink != textlnkOver()) {
-		if (wasMy || _myLink || rect().contains(m)) {
-			textlnkOver(_myLink);
-		}
-		setCursor(_myLink ? style::cur_pointer : style::cur_default);
-		update();
-	}
+
+	ClickHandler::setActive(handler, this);
 }
 
 void ConfirmBox::closePressed() {
@@ -174,6 +166,16 @@ void ConfirmBox::resizeEvent(QResizeEvent *e) {
 	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y());
 }
 
+SharePhoneConfirmBox::SharePhoneConfirmBox(PeerData *recipient)
+: ConfirmBox(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm))
+, _recipient(recipient) {
+	connect(this, SIGNAL(confirmed()), this, SLOT(onConfirm()));
+}
+
+void SharePhoneConfirmBox::onConfirm() {
+	emit confirmed(_recipient);
+}
+
 ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link))
 , _url(url) {
 	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
@@ -181,11 +183,7 @@ ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_th
 
 void ConfirmLinkBox::onOpenLink() {
 	Ui::hideLayer();
-	if (reMailStart().match(_url).hasMatch()) {
-		EmailLink(_url).onClick(Qt::LeftButton);
-	} else {
-		TextLink(_url).onClick(Qt::LeftButton);
-	}
+	UrlClickHandler::doOpen(_url);
 }
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
@@ -337,7 +335,7 @@ void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 }
 
 bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	Ui::hideLayer();
 	return true;
 }
@@ -433,7 +431,7 @@ void PinMessageBox::pinDone(const MTPUpdates &updates) {
 }
 
 bool PinMessageBox::pinFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	Ui::hideLayer();
 	return true;
 }

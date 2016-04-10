@@ -80,21 +80,21 @@ FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationT
 , _localTaskId(0) {
 }
 
-QByteArray FileLoader::imageFormat() const {
+QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
-		readImage();
+		readImage(shrinkBox);
 	}
 	return _imageFormat;
 }
 
-QPixmap FileLoader::imagePixmap() const {
+QPixmap FileLoader::imagePixmap(const QSize &shrinkBox) const {
 	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
-		readImage();
+		readImage(shrinkBox);
 	}
 	return _imagePixmap;
 }
 
-void FileLoader::readImage() const {
+void FileLoader::readImage(const QSize &shrinkBox) const {
 	QByteArray format;
 	switch (_type) {
 	case mtpc_storage_fileGif: format = "GIF"; break;
@@ -102,8 +102,12 @@ void FileLoader::readImage() const {
 	case mtpc_storage_filePng: format = "PNG"; break;
 	default: format = QByteArray(); break;
 	}
-	_imagePixmap = QPixmap::fromImage(App::readImage(_data, &format, false), Qt::ColorOnly);
-	if (!_imagePixmap.isNull()) {
+	QImage image = App::readImage(_data, &format, false);
+	if (!image.isNull()) {
+		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
+			image = image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		}
+		_imagePixmap = QPixmap::fromImage(image, Qt::ColorOnly);
 		_imageFormat = format;
 	}
 }
@@ -462,7 +466,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	--_queue->queries;
 	_requests.erase(i);
 
-	const MTPDupload_file &d(result.c_upload_file());
+	const auto &d(result.c_upload_file());
 	const string &bytes(d.vbytes.c_string().v);
 
 	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
@@ -549,7 +553,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	cancel(true);
 	return true;
@@ -816,7 +820,9 @@ WebLoadManager::WebLoadManager(QThread *thread) {
 	connect(this, SIGNAL(error(webFileLoader*)), _webLoadMainManager, SLOT(error(webFileLoader*)));
 
 	connect(&_manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
 	connect(&_manager, SIGNAL(sslErrors(QNetworkReply*,const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
+#endif
 }
 
 void WebLoadManager::append(webFileLoader *loader, const QString &url) {

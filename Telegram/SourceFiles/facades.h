@@ -24,8 +24,9 @@ class LayeredWidget;
 
 namespace App {
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo = 0);
 	bool insertBotCommand(const QString &cmd, bool specialGif = false);
+	void activateBotCommand(const HistoryItem *msg, int row, int col);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);
 	void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
@@ -35,16 +36,25 @@ namespace App {
 	void removeDialog(History *history);
 	void showSettings();
 
-	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+	void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 	void logOutDelayed();
 
 };
 
+namespace InlineBots {
+namespace Layout {
+
+class ItemBase;
+
+} // namespace Layout
+} // namespace InlineBots
+
 namespace Ui {
 
-	void showStickerPreview(DocumentData *sticker);
-	void hideStickerPreview();
+	void showMediaPreview(DocumentData *document);
+	void showMediaPreview(PhotoData *photo);
+	void hideMediaPreview();
 
 	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
 	void hideLayer(bool fast = false);
@@ -53,8 +63,8 @@ namespace Ui {
 	bool isInlineItemBeingChosen();
 
 	void repaintHistoryItem(const HistoryItem *item);
-	void repaintInlineItem(const LayoutInlineItem *layout);
-	bool isInlineItemVisible(const LayoutInlineItem *reader);
+	void repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
+	bool isInlineItemVisible(const InlineBots::Layout::ItemBase *reader);
 	void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
@@ -74,6 +84,7 @@ namespace Ui {
 	inline void showChatsListAsync() {
 		showPeerHistoryAsync(PeerId(0), 0);
 	}
+	PeerData *getPeerForMouseAction();
 
 	bool hideWindowNoQuit();
 
@@ -91,14 +102,16 @@ namespace Notify {
 	void botCommandsChanged(UserData *user);
 
 	void inlineBotRequesting(bool requesting);
+	void replyMarkupUpdated(const HistoryItem *item);
+	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+	bool switchInlineBotButtonReceived(const QString &query);
 
 	void migrateUpdated(PeerData *peer);
 
 	void clipStopperHidden(ClipStopperType type);
 
 	void historyItemLayoutChanged(const HistoryItem *item);
-
-	void automaticLoadSettingsChangedGif();
+	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 
 	// handle pending resize() / paint() on history items
 	void handlePendingHistoryUpdate();

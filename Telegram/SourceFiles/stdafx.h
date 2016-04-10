@@ -31,23 +31,23 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
 
-#include "types.h"
+#include "basic_types.h"
 #include "config.h"
 
 #include "mtproto/facade.h"
 
-#include "gui/style_core.h"
-#include "gui/twidget.h"
-#include "gui/animation.h"
-#include "gui/flatinput.h"
-#include "gui/flattextarea.h"
-#include "gui/flatbutton.h"
-#include "gui/boxshadow.h"
-#include "gui/popupmenu.h"
-#include "gui/scrollarea.h"
-#include "gui/images.h"
-#include "gui/text.h"
-#include "gui/flatlabel.h"
+#include "ui/style_core.h"
+#include "ui/twidget.h"
+#include "ui/animation.h"
+#include "ui/flatinput.h"
+#include "ui/flattextarea.h"
+#include "ui/flatbutton.h"
+#include "ui/boxshadow.h"
+#include "ui/popupmenu.h"
+#include "ui/scrollarea.h"
+#include "ui/images.h"
+#include "ui/text.h"
+#include "ui/flatlabel.h"
 
 #include "app.h"
 

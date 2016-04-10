@@ -36,16 +36,16 @@ public:
 	bool preloadLocal();
 	void preloadMore();
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
@@ -76,9 +76,9 @@ public:
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
-	// AbstractTooltipShower
-	virtual QString tooltipText() const;
-	virtual QPoint tooltipPos() const;
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 	~OverviewInner();
 
@@ -152,15 +152,15 @@ private:
 
 	int32 _rowsLeft, _rowWidth;
 
-	typedef QVector<LayoutItem*> Items;
+	typedef QVector<LayoutOverviewItemBase*> Items;
 	Items _items;
-	typedef QMap<HistoryItem*, LayoutMediaItem*> LayoutItems;
+	typedef QMap<HistoryItem*, LayoutMediaItemBase*> LayoutItems;
 	LayoutItems _layoutItems;
 	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
 	LayoutDates _layoutDates;
-	LayoutMediaItem *layoutPrepare(HistoryItem *item);
-	LayoutItem *layoutPrepare(const QDate &date, bool month);
-	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
+	LayoutMediaItemBase *layoutPrepare(HistoryItem *item);
+	LayoutOverviewItemBase *layoutPrepare(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, LayoutOverviewItemBase *item, int32 top);
 
 	FlatInput _search;
 	IconedButton _cancelSearch;
@@ -217,7 +217,7 @@ private:
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
-	TextLinkPtr _contextMenuLnk;
+	ClickHandlerPtr _contextMenuLnk;
 
 	MsgId _dragSelFrom, _dragSelTo;
 	int32 _dragSelFromIndex, _dragSelToIndex;

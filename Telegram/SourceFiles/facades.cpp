@@ -24,16 +24,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 
+#include "boxes/confirmbox.h"
+
 #include "layerwidget.h"
 #include "lang.h"
 
-Q_DECLARE_METATYPE(TextLinkPtr);
+Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
 
 namespace App {
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo) {
-		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
 	}
 
 	bool insertBotCommand(const QString &cmd, bool specialGif) {
@@ -41,8 +43,69 @@ namespace App {
 		return false;
 	}
 
+	void activateBotCommand(const HistoryItem *msg, int row, int col) {
+		const HistoryMessageReplyMarkup::Button *button = nullptr;
+		if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
+			if (row < markup->rows.size()) {
+				const auto &buttonRow(markup->rows.at(row));
+				if (col < buttonRow.size()) {
+					button = &buttonRow.at(col);
+				}
+			}
+		}
+		if (!button) return;
+
+		switch (button->type) {
+		case HistoryMessageReplyMarkup::Button::Default: {
+			// Copy string before passing it to the sending method
+			// because the original button can be destroyed inside.
+			MsgId replyTo = (msg->id > 0) ? msg->id : 0;
+			sendBotCommand(msg->history()->peer, QString(button->text), replyTo);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::Callback: {
+			if (MainWidget *m = main()) {
+				m->app_sendBotCallback(button, msg, row, col);
+			}
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::Url: {
+			auto url = QString::fromUtf8(button->data);
+			HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::RequestLocation: {
+			Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::RequestPhone: {
+			SharePhoneConfirmBox *box = new SharePhoneConfirmBox(msg->history()->peer);
+			box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
+			Ui::showLayer(box);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::SwitchInline: {
+			if (MainWidget *m = App::main()) {
+				if (UserData *bot = msg->history()->peer->asUser()) {
+					auto tryFastSwitch = [bot, &button]() -> bool {
+						if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
+							if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
+								return true;
+							}
+						}
+						return false;
+					};
+					if (!tryFastSwitch()) {
+						m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
+					}
+				}
+			}
+		} break;
+		}
+	}
+
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {
-		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
+		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel() && !inPeer->isMegagroup()) ? inPeer : 0);
 	}
 
 	void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
@@ -78,11 +141,11 @@ namespace App {
 		}
 	}
 
-	void activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
+	void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 		if (Window *w = wnd()) {
-			qRegisterMetaType<TextLinkPtr>();
+			qRegisterMetaType<ClickHandlerPtr>();
 			qRegisterMetaType<Qt::MouseButton>();
-			QMetaObject::invokeMethod(w, "app_activateTextLink", Qt::QueuedConnection, Q_ARG(TextLinkPtr, link), Q_ARG(Qt::MouseButton, button));
+			QMetaObject::invokeMethod(w, "app_activateClickHandler", Qt::QueuedConnection, Q_ARG(ClickHandlerPtr, handler), Q_ARG(Qt::MouseButton, button));
 		}
 	}
 
@@ -96,15 +159,21 @@ namespace App {
 
 namespace Ui {
 
-	void showStickerPreview(DocumentData *sticker) {
+	void showMediaPreview(DocumentData *document) {
 		if (Window *w = App::wnd()) {
-			w->ui_showStickerPreview(sticker);
+			w->ui_showMediaPreview(document);
 		}
 	}
 
-	void hideStickerPreview() {
+	void showMediaPreview(PhotoData *photo) {
 		if (Window *w = App::wnd()) {
-			w->ui_hideStickerPreview();
+			w->ui_showMediaPreview(photo);
+		}
+	}
+
+	void hideMediaPreview() {
+		if (Window *w = App::wnd()) {
+			w->ui_hideMediaPreview();
 		}
 	}
 
@@ -140,12 +209,12 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
 	}
 
-	void repaintInlineItem(const LayoutInlineItem *layout) {
+	void repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 		if (!layout) return;
 		if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
 	}
 
-	bool isInlineItemVisible(const LayoutInlineItem *layout) {
+	bool isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 		if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
 		return false;
 	}
@@ -164,6 +233,13 @@ namespace Ui {
 		if (MainWidget *m = App::main()) {
 			QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
 		}
+	}
+
+	PeerData *getPeerForMouseAction() {
+		if (Window *w = App::wnd()) {
+			return w->ui_getPeerForMouseAction();
+		}
+		return nullptr;
 	}
 
 	bool hideWindowNoQuit() {
@@ -202,6 +278,25 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_inlineBotRequesting(requesting);
 	}
 
+	void replyMarkupUpdated(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) {
+			m->notify_replyMarkupUpdated(item);
+		}
+	}
+
+	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+		if (MainWidget *m = App::main()) {
+			m->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
+		}
+	}
+
+	bool switchInlineBotButtonReceived(const QString &query) {
+		if (MainWidget *m = App::main()) {
+			return m->notify_switchInlineBotButtonReceived(query);
+		}
+		return false;
+	}
+
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
 	}
@@ -214,8 +309,8 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
 	}
 
-	void automaticLoadSettingsChangedGif() {
-		if (MainWidget *m = App::main()) m->notify_automaticLoadSettingsChangedGif();
+	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+		if (MainWidget *m = App::main()) m->notify_inlineItemLayoutChanged(layout);
 	}
 
 	void handlePendingHistoryUpdate() {
@@ -231,17 +326,17 @@ namespace Notify {
 }
 
 #define DefineReadOnlyVar(Namespace, Type, Name) const Type &Name() { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in " #Namespace "::" #Name, __FILE__, __LINE__); \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::" #Name, __FILE__, __LINE__); \
 	return Namespace##Data->Name; \
 }
 #define DefineRefVar(Namespace, Type, Name) DefineReadOnlyVar(Namespace, Type, Name) \
 Type &Ref##Name() { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in Global::Ref" #Name, __FILE__, __LINE__); \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::Ref" #Name, __FILE__, __LINE__); \
 	return Namespace##Data->Name; \
 }
 #define DefineVar(Namespace, Type, Name) DefineRefVar(Namespace, Type, Name) \
 void Set##Name(const Type &Name) { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in Global::Set" #Name, __FILE__, __LINE__); \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::Set" #Name, __FILE__, __LINE__); \
 	Namespace##Data->Name = Name; \
 }
 

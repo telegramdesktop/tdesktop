@@ -42,13 +42,13 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
 	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG0), ImagePtr(st::msgBG0)));
-	const QVector<MTPWallPaper> &v(result.c_vector().v);
+	const auto &v(result.c_vector().v);
 	for (int i = 0, l = v.size(); i < l; ++i) {
-		const MTPWallPaper w(v.at(i));
+		const auto &w(v.at(i));
 		switch (w.type()) {
 		case mtpc_wallPaper: {
-			const MTPDwallPaper &d(w.c_wallPaper());
-			const QVector<MTPPhotoSize> &sizes(d.vsizes.c_vector().v);
+			const auto &d(w.c_wallPaper());
+			const auto &sizes(d.vsizes.c_vector().v);
 			const MTPPhotoSize *thumb = 0, *full = 0;
 			int32 thumbLevel = -1, fullLevel = -1;
 			for (QVector<MTPPhotoSize>::const_iterator j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
@@ -56,14 +56,14 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 				int32 w = 0, h = 0;
 				switch (j->type()) {
 				case mtpc_photoSize: {
-					const string &s(j->c_photoSize().vtype.c_string().v);
+					const auto &s(j->c_photoSize().vtype.c_string().v);
 					if (s.size()) size = s[0];
 					w = j->c_photoSize().vw.v;
 					h = j->c_photoSize().vh.v;
 				} break;
 
 				case mtpc_photoCachedSize: {
-					const string &s(j->c_photoCachedSize().vtype.c_string().v);
+					const auto &s(j->c_photoCachedSize().vtype.c_string().v);
 					if (s.size()) size = s[0];
 					w = j->c_photoCachedSize().vw.v;
 					h = j->c_photoCachedSize().vh.v;
@@ -87,7 +87,7 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 		} break;
 
 		case mtpc_wallPaperSolid: {
-			const MTPDwallPaperSolid &d(w.c_wallPaperSolid());
+			const auto &d(w.c_wallPaperSolid());
 		} break;
 		}
 	}

@@ -291,7 +291,7 @@ namespace Shortcuts {
 		if (seq.isEmpty()) {
 			DataPtr->errors.push_back(qsl("Could not derive key sequence '%1'!").arg(keys));
 		} else {
-			QMap<QString, ShortcutCommands::Handler>::const_iterator it = DataPtr->commands.constFind(command);
+			auto it = DataPtr->commands.constFind(command);
 			if (it == DataPtr->commands.cend()) {
 				LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 			} else {

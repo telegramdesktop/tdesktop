@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "boxes/addcontactbox.h"
@@ -209,7 +209,7 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 				updateDownTime();
 			}
 		} else if (_over == OverFull && _song) {
-			if (HistoryItem *item = App::histItemById(_song.msgId)) {
+			if (HistoryItem *item = App::histItemById(_song.contextId)) {
 				App::main()->showMediaOverview(item->history()->peer, OverviewMusicFiles);
 			}
 		} else if (_over == OverRepeat) {
@@ -294,12 +294,12 @@ void PlayerWidget::updateControls() {
 
 void PlayerWidget::findCurrent() {
 	_index = -1;
-	if (!_history) return;
+	if (!_history || !_song.contextId.msg) return;
 
 	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewMusicFiles];
-	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.msgId.channel) {
+	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.contextId.channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
-			if (o->at(i) == _song.msgId.msg) {
+			if (o->at(i) == _song.contextId.msg) {
 				_index = i;
 				break;
 			}
@@ -325,7 +325,7 @@ void PlayerWidget::preloadNext() {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
 			DocumentData *d = document->getDocument();
 			if (!d->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
-				DocumentOpenLink::doOpen(d, ActionOnLoadNone);
+				DocumentOpenClickHandler::doOpen(d, ActionOnLoadNone);
 			}
 		}
 	}
@@ -351,9 +351,9 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewMusicFiles) {
 		_index = -1;
 		History *history = _msgmigrated ? _migrated : _history;
-		if (history->channelId() == _song.msgId.channel) {
+		if (history->channelId() == _song.contextId.channel && _song.contextId.msg) {
 			for (int i = 0, l = history->overview[OverviewMusicFiles].size(); i < l; ++i) {
-				if (history->overview[OverviewMusicFiles].at(i) == _song.msgId.msg) {
+				if (history->overview[OverviewMusicFiles].at(i) == _song.contextId.msg) {
 					_index = i;
 					preloadNext();
 					break;
@@ -596,7 +596,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	if (playing && _song != playing) {
 		songChanged = true;
 		_song = playing;
-		if (HistoryItem *item = App::histItemById(_song.msgId)) {
+		if (HistoryItem *item = App::histItemById(_song.contextId)) {
 			_history = item->history();
 			if (_history->peer->migrateFrom()) {
 				_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -608,7 +608,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 			}
 			findCurrent();
 		} else {
-			_history = 0;
+			_history = nullptr;
 			_msgmigrated = false;
 			_index = -1;
 		}
@@ -691,13 +691,16 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 
 	if (wasPlaying && playingState == AudioPlayerStoppedAtEnd) {
 		if (_repeat) {
-			startPlay(_song.msgId);
+			if (_song.song) {
+				audioPlayer()->play(_song);
+				updateState();
+			}
 		} else {
 			nextPressed();
 		}
 	}
 
 	if (songChanged) {
-		emit playerSongChanged(_song.msgId);
+		emit playerSongChanged(_song.contextId);
 	}
 }
