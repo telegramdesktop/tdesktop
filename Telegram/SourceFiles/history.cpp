@@ -6978,18 +6978,39 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 }
 
 void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
-	if (!markup && !(_flags & MTPDmessage::Flag::f_reply_markup)) return;
+	if (!markup) {
+		if (_flags & MTPDmessage::Flag::f_reply_markup) {
+			_flags &= ~MTPDmessage::Flag::f_reply_markup;
+			if (Has<HistoryMessageReplyMarkup>()) {
+				RemoveComponents(HistoryMessageReplyMarkup::Bit());
+			}
+			setPendingInitDimensions();
+			Notify::replyMarkupUpdated(this);
+		}
+		return;
+	}
 
 	// optimization: don't create markup component for the case
 	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
 	if (markup->type() == mtpc_replyKeyboardHide && markup->c_replyKeyboardHide().vflags.v == 0) {
+		bool changed = false;
 		if (Has<HistoryMessageReplyMarkup>()) {
 			RemoveComponents(HistoryMessageReplyMarkup::Bit());
+			changed = true;
+		}
+		if (!(_flags & MTPDmessage::Flag::f_reply_markup)) {
+			_flags |= MTPDmessage::Flag::f_reply_markup;
+			changed = true;
+		}
+		if (changed) {
 			setPendingInitDimensions();
 
 			Notify::replyMarkupUpdated(this);
 		}
 	} else {
+		if (!(_flags & MTPDmessage::Flag::f_reply_markup)) {
+			_flags |= MTPDmessage::Flag::f_reply_markup;
+		}
 		if (!Has<HistoryMessageReplyMarkup>()) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
 		}
