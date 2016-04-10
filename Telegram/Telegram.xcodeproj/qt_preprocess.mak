@@ -114,7 +114,7 @@ GeneratedFiles/qrc_telegram.cpp: Resources/telegram.qrc \
     Resources/art/fonts/OpenSans-Semibold.ttf \
 		Resources/art/newmsg.wav \
 		Resources/art/bg.jpg \
-		Resources/art/bg0.jpg \
+		Resources/art/bg0.png \
 		Resources/art/sprite.png \
 		Resources/art/sprite_125x.png \
 		Resources/art/sprite_150x.png \
@@ -123,11 +123,11 @@ GeneratedFiles/qrc_telegram.cpp: Resources/telegram.qrc \
 		Resources/art/icon256.png \
 		Resources/art/iconbig256.png \
 		Resources/art/chatcolor1.png \
-		Resources/art/chatcolor2.png
+		Resources/art/chatcolor2.png \
 		Resources/art/chatcolor3.png \
 		Resources/art/chatcolor4.png \
 		Resources/art/channelcolor1.png \
-		Resources/art/channelcolor2.png
+		Resources/art/channelcolor2.png \
 		Resources/art/channelcolor3.png \
 		Resources/art/channelcolor4.png \
 		Resources/art/usercolor1.png \
@@ -144,7 +144,7 @@ GeneratedFiles/qrc_telegram.cpp: Resources/telegram.qrc \
 		Resources/langs/lang_de.strings \
 		Resources/langs/lang_nl.strings \
 		Resources/langs/lang_pt_BR.strings \
-		Resources/langs/lang_ko.strings \
+		Resources/langs/lang_ko.strings
 	/usr/local/Qt-5.5.1/bin/rcc -name telegram Resources/telegram.qrc -o GeneratedFiles/qrc_telegram.cpp
 
 GeneratedFiles/qrc_telegram_emojis.cpp: Resources/telegram_emojis.qrc \

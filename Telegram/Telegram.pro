@@ -108,7 +108,7 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
-	./SourceFiles/shortcuts.cpp \
+    ./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
@@ -215,9 +215,8 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
-	./SourceFiles/shortcuts.h \
+    ./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
-    ./SourceFiles/gui/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
     ./SourceFiles/basic_types.h \
@@ -254,6 +253,7 @@ HEADERS += \
     ./SourceFiles/ui/flattextarea.h \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
+    ./SourceFiles/ui/style.h \
     ./SourceFiles/ui/style_core.h \
     ./SourceFiles/ui/text.h \
     ./SourceFiles/ui/twidget.h \

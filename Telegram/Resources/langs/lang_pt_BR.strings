@@ -602,7 +602,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_reply_to" = "Em resposta a";
 
 "lng_bot_share_location_unavailable" = "O compartilhamento de localização está atualmente indisponível no Telegram Desktop.";
-"lng_bot_inline_geo_unavailable" = "Esse bot requer o compartilhamento da localização\nIsso está indisponível no Telegram Desktop.";
+"lng_bot_inline_geo_unavailable" = "Esse bot requer compartilhamento de localização\nIsso não está disponível no Telegram Desktop.";
 "lng_bot_share_phone" = "Compartilhar Número de Telefone?";
 "lng_bot_share_phone_confirm" = "Compartilhar";
 

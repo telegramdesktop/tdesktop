@@ -87,6 +87,9 @@
 		07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */ = {isa = PBXBuildFile; fileRef = 07AF95F81AFD03C80060B057 /* telegram_mac.qrc */; };
 		07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B604301B46A0EC00CA29FE /* playerwidget.cpp */; };
 		07B604351B46A20900CA29FE /* moc_playerwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B604341B46A20900CA29FE /* moc_playerwidget.cpp */; };
+		07B817091CB9A235006F7869 /* dialogs_indexed_list.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B817021CB9A235006F7869 /* dialogs_indexed_list.cpp */; };
+		07B8170A1CB9A235006F7869 /* dialogs_layout.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B817041CB9A235006F7869 /* dialogs_layout.cpp */; };
+		07B8170B1CB9A235006F7869 /* dialogs_list.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B817061CB9A235006F7869 /* dialogs_list.cpp */; };
 		07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE850D1A2093C9008ACB9F /* localstorage.cpp */; };
 		07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE85111A20961F008ACB9F /* moc_localstorage.cpp */; };
 		07C7596F1B1F7E0000662169 /* autoupdater.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C7596D1B1F7E0000662169 /* autoupdater.cpp */; };
@@ -368,6 +371,14 @@
 		07B604301B46A0EC00CA29FE /* playerwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = playerwidget.cpp; path = SourceFiles/playerwidget.cpp; sourceTree = SOURCE_ROOT; };
 		07B604311B46A0EC00CA29FE /* playerwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = playerwidget.h; path = SourceFiles/playerwidget.h; sourceTree = SOURCE_ROOT; };
 		07B604341B46A20900CA29FE /* moc_playerwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_playerwidget.cpp; path = GeneratedFiles/Debug/moc_playerwidget.cpp; sourceTree = SOURCE_ROOT; };
+		07B817011CB9A235006F7869 /* dialogs_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_common.h; path = SourceFiles/dialogs/dialogs_common.h; sourceTree = SOURCE_ROOT; };
+		07B817021CB9A235006F7869 /* dialogs_indexed_list.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dialogs_indexed_list.cpp; path = SourceFiles/dialogs/dialogs_indexed_list.cpp; sourceTree = SOURCE_ROOT; };
+		07B817031CB9A235006F7869 /* dialogs_indexed_list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_indexed_list.h; path = SourceFiles/dialogs/dialogs_indexed_list.h; sourceTree = SOURCE_ROOT; };
+		07B817041CB9A235006F7869 /* dialogs_layout.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dialogs_layout.cpp; path = SourceFiles/dialogs/dialogs_layout.cpp; sourceTree = SOURCE_ROOT; };
+		07B817051CB9A235006F7869 /* dialogs_layout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_layout.h; path = SourceFiles/dialogs/dialogs_layout.h; sourceTree = SOURCE_ROOT; };
+		07B817061CB9A235006F7869 /* dialogs_list.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dialogs_list.cpp; path = SourceFiles/dialogs/dialogs_list.cpp; sourceTree = SOURCE_ROOT; };
+		07B817071CB9A235006F7869 /* dialogs_list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_list.h; path = SourceFiles/dialogs/dialogs_list.h; sourceTree = SOURCE_ROOT; };
+		07B817081CB9A235006F7869 /* dialogs_row.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_row.h; path = SourceFiles/dialogs/dialogs_row.h; sourceTree = SOURCE_ROOT; };
 		07BE850D1A2093C9008ACB9F /* localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = localstorage.cpp; path = SourceFiles/localstorage.cpp; sourceTree = SOURCE_ROOT; };
 		07BE850E1A2093C9008ACB9F /* localstorage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = localstorage.h; path = SourceFiles/localstorage.h; sourceTree = SOURCE_ROOT; };
 		07BE85111A20961F008ACB9F /* moc_localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localstorage.cpp; path = GeneratedFiles/Debug/moc_localstorage.cpp; sourceTree = SOURCE_ROOT; };
@@ -863,6 +874,21 @@
 			name = langs;
 			sourceTree = "<group>";
 		};
+		07B816FF1CB9A219006F7869 /* dialogs */ = {
+			isa = PBXGroup;
+			children = (
+				07B817011CB9A235006F7869 /* dialogs_common.h */,
+				07B817021CB9A235006F7869 /* dialogs_indexed_list.cpp */,
+				07B817031CB9A235006F7869 /* dialogs_indexed_list.h */,
+				07B817041CB9A235006F7869 /* dialogs_layout.cpp */,
+				07B817051CB9A235006F7869 /* dialogs_layout.h */,
+				07B817061CB9A235006F7869 /* dialogs_list.cpp */,
+				07B817071CB9A235006F7869 /* dialogs_list.h */,
+				07B817081CB9A235006F7869 /* dialogs_row.h */,
+			);
+			name = dialogs;
+			sourceTree = "<group>";
+		};
 		07C8FDF81CB66D80007A8702 /* inline_bots */ = {
 			isa = PBXGroup;
 			children = (
@@ -1030,12 +1056,13 @@
 			isa = PBXGroup;
 			children = (
 				ADC8DBF4C6F26E14C77F68B4 /* boxes */,
-				579DA7AEF5751DF4988869A0 /* ui */,
+				07B816FF1CB9A219006F7869 /* dialogs */,
 				07C8FDF81CB66D80007A8702 /* inline_bots */,
 				5E35A03E5F2C51353EBCBF00 /* intro */,
 				074968CB1A44D0B800394F46 /* langs */,
 				1A6AA22F4A758C4B5F5138FB /* mtproto */,
 				0702E99F1CB8D290007A7495 /* serialize */,
+				579DA7AEF5751DF4988869A0 /* ui */,
 				0764D5581ABAD6F900FBFEED /* apiwrap.cpp */,
 				0764D5591ABAD6F900FBFEED /* apiwrap.h */,
 				06E379415713F34B83F99C35 /* app.cpp */,
@@ -1786,11 +1813,13 @@
 				3F6EB1F5B98E704960FEA686 /* moc_scrollarea.cpp in Compile Sources */,
 				60CB4898955209B665E7B07D /* moc_twidget.cpp in Compile Sources */,
 				077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */,
+				07B8170A1CB9A235006F7869 /* dialogs_layout.cpp in Compile Sources */,
 				7062978F12EEA525893A5E6F /* moc_aboutbox.cpp in Compile Sources */,
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
 				075FEBEC1C82336D0003ECA3 /* shortcuts.cpp in Compile Sources */,
+				07B817091CB9A235006F7869 /* dialogs_indexed_list.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
@@ -1800,6 +1829,7 @@
 				07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */,
 				07DB674E1AD07C9200A51329 /* sessionsbox.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
+				07B8170B1CB9A235006F7869 /* dialogs_list.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,
 				9809A3AF1946D51ACB41D716 /* moc_photocropbox.cpp in Compile Sources */,
 				AC6C131416AEC557C854BA70 /* moc_photosendbox.cpp in Compile Sources */,

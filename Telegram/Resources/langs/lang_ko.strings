@@ -602,7 +602,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_reply_to" = "다음 유저에게 답장 :";
 
 "lng_bot_share_location_unavailable" = "죄송합니다, 위치 공유는 텔레그램 테스크탑에서는 현재 지원을 하고 있지 않습니다.";
-"lng_bot_inline_geo_unavailable" = "죄송합니다, 이 봇은 위치 공유가 필요합니다.\n텔레그램 테스크탑에서 현재 지원을 하고 있지 않습니다.";
+"lng_bot_inline_geo_unavailable" = "죄송합니다, 위치 공유는 텔레그램 테스크탑에서는 현재 지원을 하고 있지 않습니다.";
 "lng_bot_share_phone" = "전화번호를 공유하겠습니까?";
 "lng_bot_share_phone_confirm" = "공유";
 
