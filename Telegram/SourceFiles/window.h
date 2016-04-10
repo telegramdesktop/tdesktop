@@ -121,7 +121,7 @@ private:
 
 typedef QList<NotifyWindow*> NotifyWindows;
 
-class StickerPreviewWidget;
+class MediaPreviewWidget;
 
 class Window : public PsMainWindow {
 	Q_OBJECT
@@ -239,8 +239,9 @@ public:
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
-	void ui_showStickerPreview(DocumentData *sticker);
-	void ui_hideStickerPreview();
+	void ui_showMediaPreview(DocumentData *document);
+	void ui_showMediaPreview(PhotoData *photo);
+	void ui_hideMediaPreview();
 	PeerData *ui_getPeerForMouseAction();
 
 public slots:
@@ -306,33 +307,33 @@ private:
 
 	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
 	QVector<DelayedServiceMsg> _delayedServiceMsgs;
-	mtpRequestId _serviceHistoryRequest;
+	mtpRequestId _serviceHistoryRequest = 0;
 
-	TitleWidget *title;
-	PasscodeWidget *_passcode;
-	IntroWidget *intro;
-	MainWidget *main;
-	SettingsWidget *settings;
-	BackgroundWidget *layerBg;
-	StickerPreviewWidget *_stickerPreview;
+	TitleWidget *title = nullptr;
+	PasscodeWidget *_passcode = nullptr;
+	IntroWidget *intro = nullptr;
+	MainWidget *main = nullptr;
+	SettingsWidget *settings = nullptr;
+	BackgroundWidget *layerBg = nullptr;
+	UniquePointer<MediaPreviewWidget> _mediaPreview;
 
 	QTimer _isActiveTimer;
-	bool _isActive;
+	bool _isActive = false;
 
-	ConnectingWidget *_connecting;
+	ConnectingWidget *_connecting = nullptr;
 
-	Local::ClearManager *_clearManager;
+	Local::ClearManager *_clearManager = nullptr;
 
 	void clearWidgets();
 
-	bool dragging;
+	bool dragging = false;
 	QPoint dragStart;
 
-	bool _inactivePress;
+	bool _inactivePress = false;
 	QTimer _inactiveTimer;
 
 	SingleTimer _autoLockTimer;
-	uint64 _shouldLockAt;
+	uint64 _shouldLockAt = 0;
 
 	typedef QMap<MsgId, uint64> NotifyWhenMap;
 	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
@@ -355,7 +356,7 @@ private:
 
 	NotifyWindows notifyWindows;
 
-	MediaView *_mediaView;
+	MediaView *_mediaView = nullptr;
 };
 
 class PreLaunchWindow : public TWidget {

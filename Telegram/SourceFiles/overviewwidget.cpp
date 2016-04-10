@@ -2107,7 +2107,7 @@ int32 OverviewWidget::countBestScroll() const {
 		AudioPlayerState playingState = AudioPlayerStopped;
 		audioPlayer()->currentState(&playing, &playingState);
 		if (playing) {
-			int32 top = _inner.itemTop(playing.msgId);
+			int32 top = _inner.itemTop(playing.contextId);
 			if (top >= 0) {
 				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
 			}

@@ -19,15 +19,16 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "mainwidget.h"
+
 #include "ui/style.h"
 #include "lang.h"
-
 #include "boxes/addcontactbox.h"
 #include "fileuploader.h"
 #include "application.h"
 #include "window.h"
 #include "settingswidget.h"
-#include "mainwidget.h"
+#include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/contactsbox.h"
@@ -836,6 +837,10 @@ bool MainWidget::ui_isInlineItemBeingChosen() {
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	history.notify_historyItemLayoutChanged(item);
 	if (overview) overview->notify_historyItemLayoutChanged(item);
+}
+
+void MainWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+	history.notify_inlineItemLayoutChanged(layout);
 }
 
 void MainWidget::notify_handlePendingHistoryUpdate() {
@@ -1854,8 +1859,13 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
+	if (HistoryItem *item = App::histItemById(audioId.contextId)) {
 		Ui::repaintHistoryItem(item);
+	}
+	if (auto items = InlineBots::Layout::documentItems()) {
+		for (auto item : items->value(audioId.audio)) {
+			Ui::repaintInlineItem(item);
+		}
 	}
 }
 
@@ -1889,8 +1899,13 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 		}
 	}
 
-	if (HistoryItem *item = App::histItemById(songId.msgId)) {
+	if (HistoryItem *item = App::histItemById(songId.contextId)) {
 		Ui::repaintHistoryItem(item);
+	}
+	if (auto items = InlineBots::Layout::documentItems()) {
+		for (auto item : items->value(songId.song)) {
+			Ui::repaintInlineItem(item);
+		}
 	}
 }
 

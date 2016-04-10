@@ -149,15 +149,21 @@ namespace App {
 
 namespace Ui {
 
-	void showStickerPreview(DocumentData *sticker) {
+	void showMediaPreview(DocumentData *document) {
 		if (Window *w = App::wnd()) {
-			w->ui_showStickerPreview(sticker);
+			w->ui_showMediaPreview(document);
 		}
 	}
 
-	void hideStickerPreview() {
+	void showMediaPreview(PhotoData *photo) {
 		if (Window *w = App::wnd()) {
-			w->ui_hideStickerPreview();
+			w->ui_showMediaPreview(photo);
+		}
+	}
+
+	void hideMediaPreview() {
+		if (Window *w = App::wnd()) {
+			w->ui_hideMediaPreview();
 		}
 	}
 
@@ -290,6 +296,10 @@ namespace Notify {
 
 	void historyItemLayoutChanged(const HistoryItem *item) {
 		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
+	}
+
+	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+		if (MainWidget *m = App::main()) m->notify_inlineItemLayoutChanged(layout);
 	}
 
 	void handlePendingHistoryUpdate() {

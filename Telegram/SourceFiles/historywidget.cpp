@@ -6394,6 +6394,10 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	}
 }
 
+void HistoryWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+	_emojiPan.notify_inlineItemLayoutChanged(layout);
+}
+
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems()) {
 		updateListSize();

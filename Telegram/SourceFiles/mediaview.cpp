@@ -862,7 +862,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 
 void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_photo = 0;
-	_history = context ? context->history() : 0;
+	_history = context ? context->history() : nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
 			_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -910,7 +910,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_zoom = 0;
 
 	_caption = Text();
-	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : 0) {
+	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : nullptr) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
 			_caption.setText(st::mvCaptionFont, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
@@ -958,7 +958,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		stopGif();
 	}
 	_doc = doc;
-	_photo = 0;
+	_photo = nullptr;
 
 	_current = QPixmap();
 
@@ -1087,7 +1087,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	_from = item->authorOriginal();
+	if (_msgid && item) {
+		_from = item->authorOriginal();
+	} else {
+		_from = _user;
+	}
 	_full = 1;
 	updateControls();
 	if (isHidden()) {

@@ -353,6 +353,9 @@ public:
 
 	// If !box.isEmpty() then resize the image to fit in this box.
 	WebImage(const QString &url, QSize box = QSize());
+	WebImage(const QString &url, int width, int height);
+
+	void setSize(int width, int height);
 
 protected:
 
@@ -375,6 +378,7 @@ private:
 namespace internal {
 	Image *getImage(const QString &file, QByteArray format);
 	Image *getImage(const QString &url, QSize box);
+	Image *getImage(const QString &url, int width, int height);
 	Image *getImage(const QByteArray &filecontent, QByteArray format);
 	Image *getImage(const QPixmap &pixmap, QByteArray format);
 	Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
@@ -389,6 +393,8 @@ public:
 	ImagePtr(const QString &file, QByteArray format = QByteArray()) : Parent(internal::getImage(file, format)) {
 	}
 	ImagePtr(const QString &url, QSize box) : Parent(internal::getImage(url, box)) {
+	}
+	ImagePtr(const QString &url, int width, int height) : Parent(internal::getImage(url, width, height)) {
 	}
 	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(internal::getImage(filecontent, format)) {
 	}

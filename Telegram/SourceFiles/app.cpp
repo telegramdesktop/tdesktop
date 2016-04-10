@@ -1736,14 +1736,16 @@ namespace {
 	}
 
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
-		MsgsData *data = fetchMsgsData(channelId, false);
-		if (!data) return 0;
+		if (!itemId) return nullptr;
 
-		MsgsData::const_iterator i = data->constFind(itemId);
+		MsgsData *data = fetchMsgsData(channelId, false);
+		if (!data) return nullptr;
+
+		auto i = data->constFind(itemId);
 		if (i != data->cend()) {
 			return i.value();
 		}
-		return 0;
+		return nullptr;
 	}
 
 	void historyRegItem(HistoryItem *item) {

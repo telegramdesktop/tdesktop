@@ -84,7 +84,6 @@ RoundCorners documentCorners(int32 colorIndex);
 
 class PaintContextBase {
 public:
-
 	PaintContextBase(uint64 ms, bool selecting) : ms(ms), selecting(selecting) {
 	}
 	uint64 ms;

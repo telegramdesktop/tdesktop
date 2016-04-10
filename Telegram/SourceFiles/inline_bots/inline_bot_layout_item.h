@@ -37,6 +37,7 @@ public:
 		, lastRow(lastRow) {
 	}
 	bool paused, lastRow;
+
 };
 
 // this type used as a flag, we dynamic_cast<> to it
@@ -73,9 +74,10 @@ public:
 	DocumentData *getDocument() const;
 	PhotoData *getPhoto() const;
 
-	// Get document (possibly from InlineBots::Result) for
-	// showing sticker or GIF preview.
+	// Get document or photo (possibly from InlineBots::Result) for
+	// showing sticker / GIF / photo preview by long mouse press.
 	DocumentData *getPreviewDocument() const;
+	PhotoData *getPreviewPhoto() const;
 
 	virtual void preload() const;
 
@@ -113,5 +115,14 @@ protected:
 
 };
 
+using DocumentItems = QMap<DocumentData*, OrderedSet<ItemBase*>>;
+const DocumentItems *documentItems();
+
+namespace internal {
+
+void regDocumentItem(DocumentData *document, ItemBase *item);
+void unregDocumentItem(DocumentData *document, ItemBase *item);
+
+} // namespace internal
 } // namespace Layout
 } // namespace InlineBots

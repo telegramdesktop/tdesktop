@@ -19,9 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "structs.h"
+
 #include "ui/style.h"
 #include "lang.h"
-
+#include "inline_bots/inline_bot_layout_item.h"
 #include "history.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -853,10 +855,13 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	if (!data->date) return;
 
-	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-
-	bool playVoice = data->voice() && audioPlayer() && item;
-	bool playMusic = data->song() && audioPlayer() && item;
+	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : nullptr);
+	FullMsgId msgId;
+	if (item) {
+		msgId = item->fullId();
+	}
+	bool playVoice = data->voice() && audioPlayer();
+	bool playMusic = data->song() && audioPlayer();
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
@@ -864,10 +869,10 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+			if (playing == AudioMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewVoiceFiles);
 			} else {
-				AudioMsgId audio(data, item->fullId());
+				AudioMsgId audio(data, msgId);
 				audioPlayer()->play(audio);
 				if (App::main()) {
 					App::main()->audioPlayProgress(audio);
@@ -878,10 +883,10 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+			if (playing == SongMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewFiles);
 			} else {
-				SongMsgId song(data, item->fullId());
+				SongMsgId song(data, msgId);
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
@@ -896,8 +901,8 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 					App::wnd()->showDocument(data, item);
 				}
 			} else if (location.accessEnable()) {
-				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-					if (action == ActionOnLoadPlayInline && item->getMedia()) {
+				if (data->isAnimation() || QImageReader(location.name()).canRead()) {
+					if (action == ActionOnLoadPlayInline && item && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(data, item);
@@ -923,7 +928,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 		if (filename.isEmpty()) return;
 	}
 
-	data->save(filename, action, item ? item->fullId() : FullMsgId());
+	data->save(filename, action, msgId);
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
@@ -1133,17 +1138,17 @@ void DocumentData::performActionOnLoad() {
 
 	const FileLocation &loc(location(true));
 	QString already = loc.name();
-	HistoryItem *item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : 0;
-	bool showImage = !isVideo() && item && (size < MediaViewImageSizeLimit);
-	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && item;
-	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && item;
-	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item->getMedia();
+	HistoryItem *item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
+	bool showImage = !isVideo() && (size < MediaViewImageSizeLimit);
+	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
 	if (playVoice) {
 		if (loaded()) {
 			AudioMsgId playing;
 			AudioPlayerState state = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &state);
-			if (playing.msgId == _actionOnLoadMsgId && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewVoiceFiles);
 			} else {
 				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
@@ -1155,10 +1160,10 @@ void DocumentData::performActionOnLoad() {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+			if (playing == SongMsgId(this, _actionOnLoadMsgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewFiles);
 			} else {
-				SongMsgId song(this, item->fullId());
+				SongMsgId song(this, _actionOnLoadMsgId);
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
@@ -1185,7 +1190,7 @@ void DocumentData::performActionOnLoad() {
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
+					if (_actionOnLoad == ActionOnLoadPlayInline && item && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(this, item);
@@ -1320,6 +1325,12 @@ void DocumentData::notifyLayoutChanged() const {
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
 			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
+
+	if (auto items = InlineBots::Layout::documentItems()) {
+		for (auto item : items->value(const_cast<DocumentData*>(this))) {
+			Notify::inlineItemLayoutChanged(item);
 		}
 	}
 }

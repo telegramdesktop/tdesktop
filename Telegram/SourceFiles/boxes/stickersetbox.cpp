@@ -171,7 +171,7 @@ void StickerSetInner::mouseMoveEvent(QMouseEvent *e) {
 		int32 index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && index != _previewShown) {
 			_previewShown = index;
-			Ui::showStickerPreview(_pack.at(_previewShown));
+			Ui::showMediaPreview(_pack.at(_previewShown));
 		}
 	}
 }
@@ -184,7 +184,7 @@ void StickerSetInner::onPreview() {
 	int32 index = stickerFromGlobalPos(QCursor::pos());
 	if (index >= 0 && index < _pack.size()) {
 		_previewShown = index;
-		Ui::showStickerPreview(_pack.at(_previewShown));
+		Ui::showMediaPreview(_pack.at(_previewShown));
 	}
 }
 

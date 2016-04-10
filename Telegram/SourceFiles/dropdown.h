@@ -383,6 +383,7 @@ public:
 
 	uint64 currentSet(int yOffset) const;
 
+	void notify_inlineItemLayoutChanged(const InlineItem *layout);
 	void ui_repaintInlineItem(const InlineItem *layout);
 	bool ui_isInlineItemVisible(const InlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
@@ -607,6 +608,7 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();

@@ -129,6 +129,19 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		return UniquePointer<Result>();
 	}
 
+	// Ensure required media fields for layouts.
+	if (result->_type == Type::Photo) {
+		if (!result->_photo && result->_content_url.isEmpty()) {
+			return UniquePointer<Result>();
+		}
+		result->createPhoto();
+	} else if (result->_type == Type::File || result->_type == Type::Gif || result->_type == Type::Sticker) {
+		if (!result->_document && result->_content_url.isEmpty()) {
+			return UniquePointer<Result>();
+		}
+		result->createDocument();
+	}
+
 	switch (message->type()) {
 	case mtpc_botInlineMessageMediaAuto: {
 		const auto &r(message->c_botInlineMessageMediaAuto());
@@ -319,8 +332,9 @@ void Result::createPhoto() {
 	QSize mediumsize = shrinkToKeepAspect(_width, _height, 320, 320);
 	ImagePtr medium = ImagePtr(mediumsize.width(), mediumsize.height());
 
+	ImagePtr full = ImagePtr(_content_url, _width, _height);
 	uint64 photoId = rand_value<uint64>();
-	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, ImagePtr(_width, _height));
+	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, full);
 	_photo->thumb = _thumb;
 }
 

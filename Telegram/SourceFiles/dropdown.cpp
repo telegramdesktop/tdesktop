@@ -2046,6 +2046,19 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 	return until;
 }
 
+void StickerPanInner::notify_inlineItemLayoutChanged(const InlineItem *layout) {
+	if (_selected < 0 || !_showingInlineItems) {
+		return;
+	}
+
+	int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
+	if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
+		if (layout == _inlineRows.at(row).items.at(col)) {
+			updateSelected();
+		}
+	}
+}
+
 void StickerPanInner::ui_repaintInlineItem(const InlineItem *layout) {
 	uint64 ms = getms();
 	if (_lastScrolled + 100 <= ms) {
@@ -2279,8 +2292,11 @@ void StickerPanInner::updateSelected() {
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
 				if (row >= 0 && col >= 0) {
-					if (DocumentData *previewDocument = _inlineRows.at(row).items.at(col)->getPreviewDocument()) {
-						Ui::showStickerPreview(previewDocument);
+					auto layout = _inlineRows.at(row).items.at(col);
+					if (auto previewDocument = layout->getPreviewDocument()) {
+						Ui::showMediaPreview(previewDocument);
+					} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+						Ui::showMediaPreview(previewPhoto);
 					}
 				}
 			}
@@ -2366,7 +2382,7 @@ void StickerPanInner::updateSelected() {
 	if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 		_pressedSel = _selected;
 		if (newSel >= 0 && xNewSel < 0) {
-			Ui::showStickerPreview(_sets.at(newSelTab).pack.at(newSel % MatrixRowShift));
+			Ui::showMediaPreview(_sets.at(newSelTab).pack.at(newSel % MatrixRowShift));
 		}
 	}
 	if (startanim && !_a_selected.animating()) _a_selected.start();
@@ -2381,15 +2397,19 @@ void StickerPanInner::onPreview() {
 	if (_showingInlineItems) {
 		int32 row = _pressedSel / MatrixRowShift, col = _pressedSel % MatrixRowShift;
 		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
-			if (DocumentData *previewDocument = _inlineRows.at(row).items.at(col)->getPreviewDocument()) {
-				Ui::showStickerPreview(previewDocument);
+			auto layout = _inlineRows.at(row).items.at(col);
+			if (auto previewDocument = layout->getPreviewDocument()) {
+				Ui::showMediaPreview(previewDocument);
+				_previewShown = true;
+			} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+				Ui::showMediaPreview(previewPhoto);
 				_previewShown = true;
 			}
 		}
 	} else if (_pressedSel < MatrixRowShift * _sets.size()) {
 		int tab = (_pressedSel / MatrixRowShift), sel = _pressedSel % MatrixRowShift;
 		if (sel < _sets.at(tab).pack.size()) {
-			Ui::showStickerPreview(_sets.at(tab).pack.at(sel));
+			Ui::showMediaPreview(_sets.at(tab).pack.at(sel));
 			_previewShown = true;
 		}
 	}
@@ -3392,6 +3412,12 @@ void EmojiPan::stickersInstalled(uint64 setId) {
 	showStart();
 }
 
+void EmojiPan::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+	if (_stickersShown && !isHidden()) {
+		s_inner.notify_inlineItemLayoutChanged(layout);
+	}
+}
+
 void EmojiPan::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	if (_stickersShown && !isHidden()) {
 		s_inner.ui_repaintInlineItem(layout);
@@ -4233,7 +4259,7 @@ void MentionsInner::onUpdateSelected(bool force) {
 		if (_down >= 0 && _sel >= 0 && _down != _sel) {
 			_down = _sel;
 			if (_down >= 0 && _down < _srows->size()) {
-				Ui::showStickerPreview(_srows->at(_down));
+				Ui::showMediaPreview(_srows->at(_down));
 			}
 		}
 	}
@@ -4249,7 +4275,7 @@ void MentionsInner::onParentGeometryChanged() {
 
 void MentionsInner::onPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
-		Ui::showStickerPreview(_srows->at(_down));
+		Ui::showMediaPreview(_srows->at(_down));
 		_previewShown = true;
 	}
 }

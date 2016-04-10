@@ -66,15 +66,25 @@ int FileBase::content_height() const {
 }
 
 int FileBase::content_duration() const {
-	DocumentData *document = getShownDocument();
-	if (document->duration() > 0) {
-		return document->duration();
-	} else if (SongData *song = document->song()) {
-		if (song->duration) {
-			return song->duration;
+	if (DocumentData *document = getShownDocument()) {
+		if (document->duration() > 0) {
+			return document->duration();
+		} else if (SongData *song = document->song()) {
+			if (song->duration) {
+				return song->duration;
+			}
 		}
 	}
-	return 0;
+	return getResultDuration();
+}
+
+ImagePtr FileBase::content_thumb() const {
+	if (DocumentData *document = getShownDocument()) {
+		if (!document->thumb->isNull()) {
+			return document->thumb;
+		}
+	}
+	return getResultThumb();
 }
 
 Gif::Gif(Result *result) : FileBase(result) {
@@ -185,9 +195,6 @@ void Gif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCont
 		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
 		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
 		p.setOpacity(1);
-	}
-	if (!document->hasRemoteLocation()) {
-		p.fillRect(10, 10, 30, 30, QColor(255, 0, 0));
 	}
 }
 
@@ -477,9 +484,6 @@ void Photo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCo
 	} else {
 		p.drawPixmap(r.topLeft(), _thumb);
 	}
-	if (getShownPhoto()->full->toDelayedStorageImage()) {
-		p.fillRect(10, 10, 30, 30, QColor(255, 0, 0));
-	}
 }
 
 void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
@@ -560,7 +564,7 @@ Video::Video(Result *result) : FileBase(result)
 }
 
 void Video::initDimensions() {
-	bool withThumb = !getShownDocument()->thumb->isNull();
+	bool withThumb = !content_thumb()->isNull();
 
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
@@ -589,7 +593,7 @@ void Video::initDimensions() {
 void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 
-	bool withThumb = !getShownDocument()->thumb->isNull();
+	bool withThumb = !content_thumb()->isNull();
 	if (withThumb) {
 		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
 		if (_thumb.isNull()) {
@@ -636,7 +640,7 @@ void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 }
 
 void Video::prepareThumb(int32 width, int32 height) const {
-	ImagePtr thumb = getShownDocument()->thumb;
+	ImagePtr thumb = content_thumb();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -668,9 +672,11 @@ void CancelFileClickHandler::onClickImpl() const {
 
 File::File(Result *result) : FileBase(result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip) {
-//, _open(new OpenFileClickHandler(result))
-//, _cancel(new CancelFileClickHandler(result)) {
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
+, _open(new OpenFileClickHandler(result))
+, _cancel(new CancelFileClickHandler(result)) {
+	updateStatusText();
+	regDocumentItem(getShownDocument(), this);
 }
 
 void File::initDimensions() {
@@ -698,7 +704,7 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 			_animation->radial.start(document->progress());
 		}
 	}
-	bool showPause = false;// updateStatusText(parent);
+	bool showPause = updateStatusText();
 	bool radial = isRadialAnimation(context->ms);
 
 	QRect iconCircle = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
@@ -715,28 +721,26 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	p.drawEllipse(iconCircle);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
+	if (radial) {
+		QRect radialCircle(iconCircle.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::msgInBg);
+	}
+
 	style::sprite icon;
-	//if (bool showPause = false) {
-	//	icon = st::msgFileInPause;
-	//} else if (radial || content_loading()) {
-	//	icon = st::msgFileInCancel;
-	//} else if (loaded) {
-	//	//if (_data->song() || _data->voice()) {
-	//		icon = st::msgFileInPlay;
-	//	//} else if (_data->isImage()) {
-	//	//	icon = st::msgFileInImage;
-	//	//} else {
-	//	//	icon = st::msgFileInFile;
-	//	//}
-	//} else {
-	//	icon = st::msgFileInDownload;
-	//}
-	if (document->isImage()) {
-		icon = st::msgFileInImage;
-	} else if (document->voice() || document->song()) {
-		icon = st::msgFileInPlay;
+	if (showPause) {
+		icon = st::msgFileInPause;
+	} else if (radial || document->loading()) {
+		icon = st::msgFileInCancel;
+	} else if (document->loaded()) {
+		if (document->isImage()) {
+			icon = st::msgFileInImage;
+		} else if (document->voice() || document->song()) {
+			icon = st::msgFileInPlay;
+		} else {
+			icon = st::msgFileInFile;
+		}
 	} else {
-		icon = st::msgFileInFile;
+		icon = st::msgFileInDownload;
 	}
 	p.drawSpriteCenter(iconCircle, icon);
 
@@ -747,7 +751,12 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
 
 	p.setPen(st::inlineDescriptionFg);
-	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
+	if (_statusText.isEmpty()) {
+		_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
+	} else {
+		p.setFont(st::normalFont);
+		p.drawTextLeft(left, descriptionTop, _width, _statusText);
+	}
 
 	if (!context->lastRow) {
 		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
@@ -767,15 +776,22 @@ void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, in
 
 void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _open || p == _cancel) {
-		if (active && !getShownDocument()->loaded()) {
+		if (active) {
 			ensureAnimation();
 			_animation->a_thumbOver.start(1);
-			_animation->_a_thumbOver.start();
-		} else if (!active && _animation) {
+		} else {
+			if (!_animation) {
+				ensureAnimation();
+				_animation->a_thumbOver = anim::fvalue(1, 1);
+			}
 			_animation->a_thumbOver.start(0);
-			_animation->_a_thumbOver.start();
 		}
+		_animation->_a_thumbOver.start();
 	}
+}
+
+File::~File() {
+	unregDocumentItem(getShownDocument(), this);
 }
 
 void File::step_thumbOver(float64 ms, bool timer) {
@@ -797,7 +813,7 @@ void File::step_radial(uint64 ms, bool timer) {
 		Ui::repaintInlineItem(this);
 	} else {
 		DocumentData *document = getShownDocument();
-		_animation->radial.update(document->progress(), document->loaded(), ms);
+		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
 		if (!_animation->radial.animating()) {
 			checkAnimationFinished();
 		}
@@ -817,6 +833,83 @@ void File::checkAnimationFinished() {
 		if (getShownDocument()->loaded()) {
 			_animation.clear();
 		}
+	}
+}
+
+bool File::updateStatusText() const {
+	bool showPause = false;
+	int32 statusSize = 0, realDuration = 0;
+	DocumentData *document = getShownDocument();
+	if (document->status == FileDownloadFailed || document->status == FileUploadFailed) {
+		statusSize = FileStatusSizeFailed;
+	} else if (document->status == FileUploading) {
+		statusSize = document->uploadOffset;
+	} else if (document->loading()) {
+		statusSize = document->loadOffset();
+	} else if (document->loaded()) {
+		if (document->voice()) {
+			AudioMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			int64 playingPosition = 0, playingDuration = 0;
+			int32 playingFrequency = 0;
+			if (audioPlayer()) {
+				audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+			}
+
+			if (playing == AudioMsgId(document, FullMsgId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusSize = FileStatusSizeLoaded;
+			}
+		} else if (document->song()) {
+			SongMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			int64 playingPosition = 0, playingDuration = 0;
+			int32 playingFrequency = 0;
+			if (audioPlayer()) {
+				audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+			}
+
+			if (playing == SongMsgId(document, FullMsgId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusSize = FileStatusSizeLoaded;
+			}
+			if (!showPause && (playing == SongMsgId(document, FullMsgId())) && App::main() && App::main()->player()->seekingSong(playing)) {
+				showPause = true;
+			}
+		} else {
+			statusSize = FileStatusSizeLoaded;
+		}
+	} else {
+		statusSize = FileStatusSizeReady;
+	}
+	if (statusSize != _statusSize) {
+		int32 duration = document->song() ? document->song()->duration : (document->voice() ? document->voice()->duration : -1);
+		setStatusSize(statusSize, document->size, duration, realDuration);
+	}
+	return showPause;
+}
+
+void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
+	_statusSize = newSize;
+	if (_statusSize == FileStatusSizeReady) {
+//		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
+		_statusText = QString();
+	} else if (_statusSize == FileStatusSizeLoaded) {
+//		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
+		_statusText = QString();
+	} else if (_statusSize == FileStatusSizeFailed) {
+//		_statusText = lang(lng_attach_failed);
+		_statusText = QString();
+	} else if (_statusSize >= 0) {
+		_statusText = formatDownloadText(_statusSize, fullSize);
+	} else {
+		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
 	}
 }
 

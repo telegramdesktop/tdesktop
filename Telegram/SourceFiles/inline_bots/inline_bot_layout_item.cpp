@@ -67,6 +67,16 @@ DocumentData *ItemBase::getPreviewDocument() const {
 	return nullptr;
 }
 
+PhotoData *ItemBase::getPreviewPhoto() const {
+	if (_photo) {
+		return _photo;
+	}
+	if (_result) {
+		return _result->_photo;
+	}
+	return nullptr;
+}
+
 void ItemBase::preload() const {
 	if (_result) {
 		if (_result->_photo) {
@@ -178,6 +188,36 @@ QString ItemBase::getResultThumbLetter() const {
 	}
 	return QString();
 }
+
+namespace {
+
+NeverFreedPointer<DocumentItems> documentItemsMap;
+
+} // namespace
+
+const DocumentItems *documentItems() {
+	return documentItemsMap.data();
+}
+
+namespace internal {
+
+void regDocumentItem(DocumentData *document, ItemBase *item) {
+	documentItemsMap.makeIfNull();
+	(*documentItemsMap)[document].insert(item);
+}
+
+void unregDocumentItem(DocumentData *document, ItemBase *item) {
+	if (documentItemsMap) {
+		auto i = documentItemsMap->find(document);
+		if (i != documentItemsMap->cend()) {
+			if (i->remove(item) && i->isEmpty()) {
+				documentItemsMap->erase(i);
+			}
+		}
+	}
+}
+
+} // namespace internal
 
 } // namespace Layout
 } // namespace InlineBots

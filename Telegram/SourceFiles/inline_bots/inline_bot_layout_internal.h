@@ -38,8 +38,8 @@ protected:
 
 	int content_width() const;
 	int content_height() const;
-	FileLocation content_location() const;
 	int content_duration() const;
+	ImagePtr content_thumb() const;
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -244,16 +244,15 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
+	~File();
+
 private:
-
-	Text _title, _description;
-	ClickHandlerPtr _open, _cancel;
-
 	void step_thumbOver(float64 ms, bool timer);
 	void step_radial(uint64 ms, bool timer);
 
 	void ensureAnimation() const;
 	void checkAnimationFinished();
+	bool updateStatusText() const;
 
 	bool isRadialAnimation(uint64 ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
@@ -280,6 +279,19 @@ private:
 	};
 	mutable UniquePointer<AnimationData> _animation;
 
+	Text _title, _description;
+	ClickHandlerPtr _open, _cancel;
+
+	// >= 0 will contain download / upload string, _statusSize = loaded bytes
+	// < 0 will contain played string, _statusSize = -(seconds + 1) played
+	// 0x7FFFFFF0 will contain status for not yet downloaded file
+	// 0x7FFFFFF1 will contain status for already downloaded file
+	// 0x7FFFFFF2 will contain status for failed to download / upload file
+	mutable int32 _statusSize;
+	mutable QString _statusText;
+
+	// duration = -1 - no duration, duration = -2 - "GIF" duration
+	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
 };
 

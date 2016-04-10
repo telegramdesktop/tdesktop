@@ -30,7 +30,7 @@ namespace {
 	typedef QMap<QString, Image*> LocalImages;
 	LocalImages localImages;
 
-	typedef QMap<QString, Image*> WebImages;
+	typedef QMap<QString, WebImage*> WebImages;
 	WebImages webImages;
 
 	Image *blank() {
@@ -944,6 +944,14 @@ void DelayedStorageImage::cancel() {
 WebImage::WebImage(const QString &url, QSize box) : _url(url), _box(box), _size(0), _width(0), _height(0) {
 }
 
+WebImage::WebImage(const QString &url, int width, int height) : _url(url), _size(0), _width(width), _height(height) {
+}
+
+void WebImage::setSize(int width, int height) {
+	_width = width;
+	_height = height;
+}
+
 int32 WebImage::countWidth() const {
 	return _width;
 }
@@ -954,8 +962,7 @@ int32 WebImage::countHeight() const {
 
 void WebImage::setInformation(int32 size, int32 width, int32 height) {
 	_size = size;
-	_width = width;
-	_height = height;
+	setSize(width, height);
 }
 
 FileLoader *WebImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
@@ -988,6 +995,17 @@ Image *getImage(const QString &url, QSize box) {
 	auto i = webImages.constFind(key);
 	if (i == webImages.cend()) {
 		i = webImages.insert(key, new WebImage(url, box));
+	}
+	return i.value();
+}
+
+Image *getImage(const QString &url, int width, int height) {
+	QString key = url;
+	auto i = webImages.constFind(key);
+	if (i == webImages.cend()) {
+		i = webImages.insert(key, new WebImage(url, width, height));
+	} else {
+		i.value()->setSize(width, height);
 	}
 	return i.value();
 }

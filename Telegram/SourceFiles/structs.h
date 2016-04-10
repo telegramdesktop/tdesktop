@@ -1157,49 +1157,50 @@ VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
 struct SongMsgId {
-	SongMsgId() : song(0) {
+	SongMsgId() : song(nullptr) {
 	}
-	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), msgId(msgId) {
+	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), contextId(msgId) {
 	}
-	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), msgId(channelId, msgId) {
+	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), contextId(channelId, msgId) {
 	}
-	operator bool() const {
+	explicit operator bool() const {
 		return song;
 	}
 	DocumentData *song;
-	FullMsgId msgId;
+	FullMsgId contextId;
 
 };
 inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
-	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);
+	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.contextId < b.contextId);
 }
 inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
-	return a.song == b.song && a.msgId == b.msgId;
+	return a.song == b.song && a.contextId == b.contextId;
 }
 inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
 	return !(a == b);
 }
 
 struct AudioMsgId {
-	AudioMsgId() : audio(0) {
+	AudioMsgId() : audio(nullptr) {
 	}
-	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), contextId(msgId) {
 	}
-	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), contextId(channelId, msgId) {
 	}
-	operator bool() const {
+
+	explicit operator bool() const {
 		return audio;
 	}
 	DocumentData *audio;
-	FullMsgId msgId;
+	FullMsgId contextId;
 
 };
 
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.contextId < b.contextId);
 }
 inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.msgId == b.msgId;
+	return a.audio == b.audio && a.contextId == b.contextId;
 }
 inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);

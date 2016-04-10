@@ -364,23 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent)
-, _serviceHistoryRequest(0)
-, title(0)
-, _passcode(0)
-, intro(0)
-, main(0)
-, settings(0)
-, layerBg(0)
-, _stickerPreview(0)
-, _isActive(false)
-, _connecting(0)
-, _clearManager(0)
-, dragging(false)
-, _inactivePress(false)
-, _shouldLockAt(0)
-, _mediaView(0) {
-
+Window::Window(QWidget *parent) : PsMainWindow(parent) {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -861,21 +845,33 @@ bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
 }
 
-void Window::ui_showStickerPreview(DocumentData *sticker) {
-	if (!sticker || ((!sticker->isAnimation() || !sticker->loaded()) && !sticker->sticker())) return;
-	if (!_stickerPreview) {
-		_stickerPreview = new StickerPreviewWidget(this);
-		resizeEvent(0);
+void Window::ui_showMediaPreview(DocumentData *document) {
+	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
+	if (!_mediaPreview) {
+		_mediaPreview = MakeUnique<MediaPreviewWidget>(this);
+		resizeEvent(nullptr);
 	}
-	if (_stickerPreview->isHidden()) {
+	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_stickerPreview->showPreview(sticker);
+	_mediaPreview->showPreview(document);
 }
 
-void Window::ui_hideStickerPreview() {
-	if (!_stickerPreview) return;
-	_stickerPreview->hidePreview();
+void Window::ui_showMediaPreview(PhotoData *photo) {
+	if (!photo) return;
+	if (!_mediaPreview) {
+		_mediaPreview = MakeUnique<MediaPreviewWidget>(this);
+		resizeEvent(nullptr);
+	}
+	if (_mediaPreview->isHidden()) {
+		fixOrder();
+	}
+	_mediaPreview->showPreview(photo);
+}
+
+void Window::ui_hideMediaPreview() {
+	if (!_mediaPreview) return;
+	_mediaPreview->hidePreview();
 }
 
 PeerData *Window::ui_getPeerForMouseAction() {
@@ -1040,7 +1036,7 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::MouseButtonRelease:
-		Ui::hideStickerPreview();
+		Ui::hideMediaPreview();
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
@@ -1249,7 +1245,7 @@ void Window::layerFinishedHide(BackgroundWidget *was) {
 void Window::fixOrder() {
 	title->raise();
 	if (layerBg) layerBg->raise();
-	if (_stickerPreview) _stickerPreview->raise();
+	if (_mediaPreview) _mediaPreview->raise();
 	if (_connecting) _connecting->raise();
 }
 
@@ -1321,7 +1317,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
-	if (_stickerPreview) _stickerPreview->setGeometry(0, title->height(), width(), height() - title->height());
+	if (_mediaPreview) _mediaPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
@@ -1921,7 +1917,6 @@ void Window::updateIsActive(int timeout) {
 
 Window::~Window() {
     notifyClearFast();
-	deleteAndMark(_stickerPreview);
 	delete _clearManager;
 	delete _connecting;
 	delete _mediaView;

@@ -52,8 +52,9 @@ class ItemBase;
 
 namespace Ui {
 
-	void showStickerPreview(DocumentData *sticker);
-	void hideStickerPreview();
+	void showMediaPreview(DocumentData *document);
+	void showMediaPreview(PhotoData *photo);
+	void hideMediaPreview();
 
 	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
 	void hideLayer(bool fast = false);
@@ -110,6 +111,7 @@ namespace Notify {
 	void clipStopperHidden(ClipStopperType type);
 
 	void historyItemLayoutChanged(const HistoryItem *item);
+	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 
 	// handle pending resize() / paint() on history items
 	void handlePendingHistoryUpdate();
