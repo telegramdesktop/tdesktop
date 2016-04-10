@@ -1931,7 +1931,18 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *entry, bool resultsDeleted) {
 	_inlineBot = bot;
 	refreshSwitchPmButton(entry);
-	if (!entry || (entry->results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername()))) {
+	auto clearResults = [this, entry]() {
+		if (!entry) {
+			return true;
+		}
+		if (entry->results.isEmpty() && entry->switchPmText.isEmpty()) {
+			if (!_inlineBot || _inlineBot->username != cInlineGifBotUsername()) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (clearResults()) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 		}
@@ -3780,7 +3791,7 @@ bool EmojiPan::refreshInlineRows(int32 *added) {
 	auto i = _inlineCache.constFind(_inlineQuery);
 	const internal::InlineCacheEntry *entry = nullptr;
 	if (i != _inlineCache.cend()) {
-		if (!i.value()->results.isEmpty()) {
+		if (!i.value()->results.isEmpty() || !i.value()->switchPmText.isEmpty()) {
 			entry = i.value();
 		}
 		_inlineNextOffset = i.value()->nextOffset;
