@@ -72,8 +72,8 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right() - st::contactsCheckPosition.x() * 2 - st::contactsCheckIcon.pxWidth())
 , _aboutAllAdmins(st::boxTextFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::boxTextFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
-, _customList((membersFilter == MembersFilterRecent) ? UniquePointer<Dialogs::IndexedList>() : MakeUnique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
-, _contacts((membersFilter == MembersFilterRecent) ? App::main()->contactsList() : _customList.data())
+, _customList((membersFilter == MembersFilterRecent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _contacts((membersFilter == MembersFilterRecent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
 	if (membersFilter == MembersFilterAdmins) {
@@ -89,8 +89,8 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
-, _customList(MakeUnique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
-, _contacts(_customList.data())
+, _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	auto v = App::main()->dialogsList();
 	for_const (auto row, *v) {

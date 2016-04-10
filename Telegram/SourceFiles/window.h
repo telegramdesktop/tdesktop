@@ -315,7 +315,7 @@ private:
 	MainWidget *main = nullptr;
 	SettingsWidget *settings = nullptr;
 	BackgroundWidget *layerBg = nullptr;
-	UniquePointer<MediaPreviewWidget> _mediaPreview;
+	std_::unique_ptr<MediaPreviewWidget> _mediaPreview;
 
 	QTimer _isActiveTimer;
 	bool _isActive = false;

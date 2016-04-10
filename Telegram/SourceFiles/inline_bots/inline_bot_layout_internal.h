@@ -277,7 +277,7 @@ private:
 
 		RadialAnimation radial;
 	};
-	mutable UniquePointer<AnimationData> _animation;
+	mutable std_::unique_ptr<AnimationData> _animation;
 
 	Text _title, _description;
 	ClickHandlerPtr _open, _cancel;

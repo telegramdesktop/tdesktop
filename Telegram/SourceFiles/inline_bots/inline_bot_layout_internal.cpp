@@ -831,7 +831,7 @@ void File::ensureAnimation() const {
 void File::checkAnimationFinished() {
 	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
 		if (getShownDocument()->loaded()) {
-			_animation.clear();
+			_animation = nullptr;
 		}
 	}
 }

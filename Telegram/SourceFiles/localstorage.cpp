@@ -2435,12 +2435,12 @@ namespace Local {
 		if (msgText.isEmpty() && !msgReplyTo) {
 			h->clearMsgDraft();
 		} else {
-			h->setMsgDraft(MakeUnique<HistoryDraft>(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setMsgDraft(std_::make_unique<HistoryDraft>(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 		if (!editMsgId) {
 			h->clearEditDraft();
 		} else {
-			h->setEditDraft(MakeUnique<HistoryEditDraft>(editText, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(std_::make_unique<HistoryEditDraft>(editText, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 

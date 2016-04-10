@@ -1688,7 +1688,7 @@ void HistoryInner::onUpdateSelected() {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 			bool inText = false;
 			_botAbout->info->text.getState(lnk, inText, point.x() - _botAbout->rect.left() - st::msgPadding.left(), point.y() - _botAbout->rect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, _botAbout->width);
-			lnkhost = _botAbout.data();
+			lnkhost = _botAbout.get();
 			cursorState = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 		}
 	} else if (item) {
@@ -1903,7 +1903,7 @@ void HistoryInner::notifyIsBotChanged() {
 			App::api()->requestFullPeer(_peer);
 		}
 	} else {
-		_botAbout.clear();
+		_botAbout = nullptr;
 	}
 }
 
@@ -2270,7 +2270,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		_maximizeSize = !(markup->flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
 		_singleUse = _forceReply || (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
 
-		_impl.reset(markup->rows.isEmpty() ? nullptr : new ReplyKeyboard(to, MakeUnique<Style>(this, *_st)));
+		_impl.reset(markup->rows.isEmpty() ? nullptr : new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
 
 		updateStyle();
 		_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
@@ -2286,14 +2286,14 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		_maximizeSize = _singleUse = _forceReply = false;
 		_wasForMsgId = FullMsgId();
 		clearSelection();
-		_impl.clear();
+		_impl = nullptr;
 		return true;
 	}
 	return false;
 }
 
 bool BotKeyboard::hasMarkup() const {
-	return !_impl.isNull();
+	return _impl != nullptr;
 }
 
 bool BotKeyboard::forceReply() const {
@@ -2323,7 +2323,7 @@ void BotKeyboard::updateStyle(int32 w) {
 	int implWidth = ((w < 0) ? width() : w) - _st->margin - st::botKbScroll.width;
 	_st = _impl->isEnoughSpace(implWidth, st::botKbButton) ? &st::botKbButton : &st::botKbTinyButton;
 
-	_impl->setStyle(MakeUnique<Style>(this, *_st));
+	_impl->setStyle(std_::make_unique<Style>(this, *_st));
 }
 
 void BotKeyboard::clearSelection() {
@@ -3239,7 +3239,7 @@ void HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
 		}
 		History *h = App::history(bot->botInfo->inlineReturnPeerId);
 		auto text = '@' + bot->username + ' ' + query;
-		h->setMsgDraft(MakeUnique<HistoryDraft>(text, 0, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		h->setMsgDraft(std_::make_unique<HistoryDraft>(text, 0, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
 		if (h == _history) {
 			applyDraft();
 		} else {
@@ -3633,10 +3633,10 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		if (_editMsgId) {
-			_history->setEditDraft(MakeUnique<HistoryEditDraft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
+			_history->setEditDraft(std_::make_unique<HistoryEditDraft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
 		} else {
 			if (_replyToId || !_field.getLastText().isEmpty()) {
-				_history->setMsgDraft(MakeUnique<HistoryDraft>(_field, _replyToId, _previewCancelled));
+				_history->setMsgDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 			} else {
 				_history->clearMsgDraft();
 			}
@@ -5907,13 +5907,13 @@ void HistoryWidget::clearInlineBot() {
 void HistoryWidget::inlineBotChanged() {
 	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
 	if (isInlineBot && !_inlineBotCancel) {
-		_inlineBotCancel = MakeUnique<IconedButton>(this, st::inlineBotCancel);
-		connect(_inlineBotCancel.data(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
+		_inlineBotCancel = std_::make_unique<IconedButton>(this, st::inlineBotCancel);
+		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send.geometry());
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	} else if (!isInlineBot && _inlineBotCancel) {
-		_inlineBotCancel.clear();
+		_inlineBotCancel = nullptr;
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	}
@@ -7232,7 +7232,7 @@ void HistoryWidget::onReplyToMessage() {
 		if (auto msgDraft = _history->msgDraft()) {
 			msgDraft->msgId = to->id;
 		} else {
-			_history->setMsgDraft(MakeUnique<HistoryDraft>(QString(), to->id, MessageCursor(), false));
+			_history->setMsgDraft(std_::make_unique<HistoryDraft>(QString(), to->id, MessageCursor(), false));
 		}
 	} else {
 		_replyEditMsg = to;
@@ -7266,13 +7266,13 @@ void HistoryWidget::onEditMessage() {
 		delete box;
 
 		if (_replyToId || !_field.getLastText().isEmpty()) {
-			_history->setMsgDraft(MakeUnique<HistoryDraft>(_field, _replyToId, _previewCancelled));
+			_history->setMsgDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 		} else {
 			_history->clearMsgDraft();
 		}
 
 		QString text(textApplyEntities(to->originalText(), to->originalEntities()));
-		_history->setEditDraft(MakeUnique<HistoryEditDraft>(text, to->id, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(text, to->id, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
 		applyDraft(false);
 
 		_previewData = 0;

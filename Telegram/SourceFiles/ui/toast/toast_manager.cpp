@@ -47,10 +47,10 @@ Manager *Manager::instance() {
 	return _instance;
 }
 
-void Manager::addToast(UniquePointer<Instance> &&toast) {
+void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
 	_toasts.push_back(toast.release());
 	Instance *t = _toasts.back();
-	Widget *widget = t->_widget.data();
+	Widget *widget = t->_widget.get();
 
 	_toastByWidget.insert(widget, t);
 	connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(onToastWidgetDestroyed(QObject*)));

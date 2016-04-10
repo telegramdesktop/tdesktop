@@ -58,7 +58,7 @@ private:
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;
 	friend void Show(const Config &config);
-	UniquePointer<internal::Widget> _widget;
+	std_::unique_ptr<internal::Widget> _widget;
 
 };
 

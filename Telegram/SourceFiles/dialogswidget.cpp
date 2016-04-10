@@ -35,9 +35,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(parent)
-, dialogs(MakeUnique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
-, contactsNoDialogs(MakeUnique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
-, contacts(MakeUnique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
+, dialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
+, contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
+, contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _addContactLnk(this, lang(lng_add_contact_button))
 , _cancelSearchInPeer(this, st::btnCancelSearch) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
@@ -419,10 +419,10 @@ void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRo
 void DialogsInner::createDialog(History *history) {
 	bool creating = !history->inChatList();
 	if (creating) {
-		Dialogs::Row *mainRow = history->addToChatList(dialogs.data());
+		Dialogs::Row *mainRow = history->addToChatList(dialogs.get());
 		contactsNoDialogs->del(history->peer, mainRow);
 	}
-	RefPair(int32, movedFrom, int32, movedTo) = history->adjustByPosInChatsList(dialogs.data());
+	RefPair(int32, movedFrom, int32, movedTo) = history->adjustByPosInChatsList(dialogs.get());
 
 	emit dialogMoved(movedFrom, movedTo);
 
@@ -441,7 +441,7 @@ void DialogsInner::removeDialog(History *history) {
 	if (sel && sel->history() == history) {
 		sel = nullptr;
 	}
-	history->removeFromChatList(dialogs.data());
+	history->removeFromChatList(dialogs.get());
 	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
 	if (contacts->contains(history->peer->id)) {
@@ -1450,9 +1450,9 @@ void DialogsInner::destroyData() {
 	_filter.clear();
 	_searchedSel = _peopleSel = -1;
 	clearSearchResults();
-	contacts.clear();
-	contactsNoDialogs.clear();
-	dialogs.clear();
+	contacts = nullptr;
+	contactsNoDialogs = nullptr;
+	dialogs = nullptr;
 }
 
 void DialogsInner::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
@@ -1593,11 +1593,11 @@ void DialogsInner::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&out
 }
 
 Dialogs::IndexedList *DialogsInner::contactsList() {
-	return contacts.data();
+	return contacts.get();
 }
 
 Dialogs::IndexedList *DialogsInner::dialogsList() {
-	return dialogs.data();
+	return dialogs.get();
 }
 
 DialogsInner::FilteredDialogs &DialogsInner::filteredList() {

@@ -315,6 +315,98 @@ constexpr add_const_t<T> &as_const(T& t) noexcept {
 template <typename T>
 void as_const(const T&&) = delete;
 
+// This is not full unique_ptr, but at least with std interface.
+template <typename T>
+class unique_ptr {
+public:
+	constexpr unique_ptr() noexcept = default;
+	unique_ptr(const unique_ptr<T> &) = delete;
+	unique_ptr<T> &operator=(const unique_ptr<T> &) = delete;
+
+	constexpr unique_ptr(nullptr_t) {
+	}
+	unique_ptr<T> &operator=(nullptr_t) noexcept {
+		reset();
+		return (*this);
+	}
+
+	explicit unique_ptr(T *p) noexcept : _p(p) {
+	}
+
+	template <typename U>
+	unique_ptr(unique_ptr<U> &&other) noexcept : _p(other.release()) {
+	}
+	template <typename U>
+	unique_ptr<T> &operator=(unique_ptr<U> &&other) noexcept {
+		reset(other.release());
+		return (*this);
+	}
+	unique_ptr<T> &operator=(unique_ptr<T> &&other) noexcept {
+		if (this != &other) {
+			reset(other.release());
+		}
+		return (*this);
+	}
+
+	void swap(unique_ptr<T> &other) noexcept {
+		std::swap(_p, other._p);
+	}
+	~unique_ptr() noexcept {
+		delete _p;
+	}
+
+	T &operator*() const {
+		return (*get());
+	}
+	T *operator->() const noexcept {
+		return get();
+	}
+	T *get() const noexcept {
+		return _p;
+	}
+	explicit operator bool() const noexcept {
+		return get() != nullptr;
+	}
+
+	T *release() noexcept {
+		return getPointerAndReset(_p);
+	}
+
+	void reset(T *p = nullptr) noexcept {
+		T *old = _p;
+		_p = p;
+		if (old) {
+			delete old;
+		}
+	}
+
+private:
+	T *_p = nullptr;
+
+};
+
+template <typename T, typename... Args>
+inline unique_ptr<T> make_unique(Args&&... args) {
+	return unique_ptr<T>(new T(forward<Args>(args)...));
+}
+
+template <typename T>
+inline bool operator==(const unique_ptr<T> &a, nullptr_t) noexcept {
+	return !a;
+}
+template <typename T>
+inline bool operator==(nullptr_t, const unique_ptr<T> &b) noexcept {
+	return !b;
+}
+template <typename T>
+inline bool operator!=(const unique_ptr<T> &a, nullptr_t b) noexcept {
+	return !(a == b);
+}
+template <typename T>
+inline bool operator!=(nullptr_t a, const unique_ptr<T> &b) noexcept {
+	return !(a == b);
+}
+
 } // namespace std_
 
 #include "logs.h"
@@ -746,61 +838,6 @@ inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
 }
 
 #define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
-
-template <typename T>
-class UniquePointer {
-public:
-	explicit UniquePointer(T *p = nullptr) : _p(p) {
-	}
-	UniquePointer(const UniquePointer<T> &other) = delete;
-	UniquePointer &operator=(const UniquePointer<T> &other) = delete;
-	UniquePointer(UniquePointer<T> &&other) : _p(other.release()) {
-	}
-	UniquePointer &operator=(UniquePointer<T> &&other) {
-		std::swap(_p, other._p);
-		return *this;
-	}
-	template <typename U>
-	UniquePointer(UniquePointer<U> &&other) : _p(other.release()) {
-	}
-	T *data() const {
-		return _p;
-	}
-	T *release() {
-		return getPointerAndReset(_p);
-	}
-	void reset(T *p = nullptr) {
-		*this = UniquePointer<T>(p);
-	}
-	bool isNull() const {
-		return data() == nullptr;
-	}
-
-	void clear() {
-		reset();
-	}
-	T *operator->() const {
-		return data();
-	}
-	T &operator*() const {
-		t_assert(!isNull());
-		return *data();
-	}
-	explicit operator bool() const {
-		return !isNull();
-	}
-	~UniquePointer() {
-		delete data();
-	}
-
-private:
-	T *_p;
-
-};
-template <typename T, typename... Args>
-inline UniquePointer<T> MakeUnique(Args&&... args) {
-	return UniquePointer<T>(new T(std_::forward<Args>(args)...));
-}
 
 template <typename T, typename... Args>
 inline QSharedPointer<T> MakeShared(Args&&... args) {

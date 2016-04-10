@@ -1026,13 +1026,13 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		} break;
 		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
 			type = AnimatedDocument;
-			_additional.clear();
+			_additional = nullptr;
 		} break;
 		case mtpc_documentAttributeSticker: {
 			const auto &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) {
 				type = StickerDocument;
-				_additional = MakeUnique<StickerData>();
+				_additional = std_::make_unique<StickerData>();
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
@@ -1052,10 +1052,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;
-					_additional = MakeUnique<VoiceData>();
+					_additional = std_::make_unique<VoiceData>();
 				} else {
 					type = SongDocument;
-					_additional = MakeUnique<SongData>();
+					_additional = std_::make_unique<SongData>();
 				}
 			}
 			if (voice()) {
@@ -1080,7 +1080,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
 			type = FileDocument;
-			_additional.clear();
+			_additional = nullptr;
 		}
 	}
 }

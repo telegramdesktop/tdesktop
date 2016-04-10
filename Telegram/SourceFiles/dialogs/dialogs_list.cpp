@@ -27,11 +27,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 List::List(SortMode sortMode)
-: _last(MakeUnique<Row>(nullptr, nullptr, nullptr, 0))
-, _begin(_last.data())
-, _end(_last.data())
+: _last(std_::make_unique<Row>(nullptr, nullptr, nullptr, 0))
+, _begin(_last.get())
+, _end(_last.get())
 , _sortMode(sortMode)
-, _current(_last.data()) {
+, _current(_last.get()) {
 }
 
 void List::adjustCurrent(int32 y, int32 h) const {

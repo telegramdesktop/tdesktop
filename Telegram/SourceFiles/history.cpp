@@ -1969,7 +1969,7 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 		}
 	}
 
-	_buildingFrontBlock.clear();
+	_buildingFrontBlock = nullptr;
 	return block;
 }
 
@@ -2641,7 +2641,7 @@ int ReplyKeyboard::naturalHeight() const {
 }
 
 void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
-	t_assert(!_st.isNull());
+	t_assert(_st != nullptr);
 	t_assert(_width > 0);
 
 	_st->startPaint(p);
@@ -2815,7 +2815,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	flags = 0;
 	rows.clear();
-	inlineKeyboard.clear();
+	inlineKeyboard = nullptr;
 
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
@@ -6349,7 +6349,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 }
 
 void HistoryMessageReply::clearData(HistoryMessage *holder) {
-	_replyToVia.clear();
+	_replyToVia = nullptr;
 	if (replyToMsg) {
 		App::historyUnregDependency(holder, replyToMsg);
 		replyToMsg = nullptr;
@@ -6817,7 +6817,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
-			markup->inlineKeyboard.reset(new ReplyKeyboard(this, MakeUnique<KeyboardStyle>(st::msgBotKbButton)));
+			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std_::make_unique<KeyboardStyle>(st::msgBotKbButton)));
 		}
 
 		// if we have a text bubble we can resize it to fit the keyboard

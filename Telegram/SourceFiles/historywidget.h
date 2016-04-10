@@ -170,7 +170,7 @@ private:
 		HistoryInner *_parent;
 
 	};
-	UniquePointer<BotAbout> _botAbout;
+	std_::unique_ptr<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
 	ScrollArea *_scroll = nullptr;
@@ -362,7 +362,7 @@ private:
 	bool _forceReply = false;
 
 	QPoint _lastMousePos;
-	UniquePointer<ReplyKeyboard> _impl;
+	std_::unique_ptr<ReplyKeyboard> _impl;
 
 	class Style : public ReplyKeyboard::Style {
 	public:
@@ -1011,7 +1011,7 @@ private:
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
-	UniquePointer<IconedButton> _inlineBotCancel;
+	std_::unique_ptr<IconedButton> _inlineBotCancel;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 

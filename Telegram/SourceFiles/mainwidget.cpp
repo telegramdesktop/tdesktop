@@ -509,7 +509,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 		return false;
 	}
 	History *h = App::history(peer);
-	h->setMsgDraft(MakeUnique<HistoryDraft>(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
+	h->setMsgDraft(std_::make_unique<HistoryDraft>(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
 	h->clearEditDraft();
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {
@@ -527,7 +527,7 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 		return false;
 	}
 	History *h = App::history(peer);
-	h->setMsgDraft(MakeUnique<HistoryDraft>(botAndQuery, 0, MessageCursor(botAndQuery.size(), botAndQuery.size(), QFIXED_MAX), false));
+	h->setMsgDraft(std_::make_unique<HistoryDraft>(botAndQuery, 0, MessageCursor(botAndQuery.size(), botAndQuery.size(), QFIXED_MAX), false));
 	h->clearEditDraft();
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {

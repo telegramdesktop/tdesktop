@@ -1917,10 +1917,10 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton = MakeUnique<BoxButton>(this, QString(), st::switchPmButton);
+			_switchPmButton = std_::make_unique<BoxButton>(this, QString(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->move(st::inlineResultsLeft, st::emojiPanHeader);
-			connect(_switchPmButton.data(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+			connect(_switchPmButton.get(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
 		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
 		_switchPmStartToken = entry->switchPmStartToken;

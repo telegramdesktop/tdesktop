@@ -43,10 +43,10 @@ private:
 
 public:
 
-	// Constructor is public only for MakeUnique<>() to work.
+	// Constructor is public only for std::make_unique<>() to work.
 	// You should use create() static method instead.
 	explicit Result(const Creator &creator);
-	static UniquePointer<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
+	static std_::unique_ptr<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
 	Result(const Result &other) = delete;
 	Result &operator=(const Result &other) = delete;
 
@@ -112,11 +112,11 @@ private:
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 
-	UniquePointer<MTPReplyMarkup> _mtpKeyboard;
+	std_::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
 
 	ImagePtr _thumb, _locationThumb;
 
-	UniquePointer<internal::SendData> sendData;
+	std_::unique_ptr<internal::SendData> sendData;
 
 };
 Result *getResultFromLoader(FileLoader *loader);

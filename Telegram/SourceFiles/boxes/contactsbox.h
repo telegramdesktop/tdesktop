@@ -147,7 +147,7 @@ private:
 
 	int32 _time;
 
-	UniquePointer<Dialogs::IndexedList> _customList;
+	std_::unique_ptr<Dialogs::IndexedList> _customList;
 	Dialogs::IndexedList *_contacts = nullptr;
 	Dialogs::Row *_sel = nullptr;
 	QString _filter;

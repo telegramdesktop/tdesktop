@@ -1032,7 +1032,7 @@ public:
 	ImagePtr makeReplyPreview();
 
 	StickerData *sticker() {
-		return (type == StickerDocument) ? static_cast<StickerData*>(_additional.data()) : nullptr;
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional.get()) : nullptr;
 	}
 	void checkSticker() {
 		StickerData *s = sticker();
@@ -1052,16 +1052,16 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument) ? static_cast<SongData*>(_additional.data()) : nullptr;
+		return (type == SongDocument) ? static_cast<SongData*>(_additional.get()) : nullptr;
 	}
 	const SongData *song() const {
-		return (type == SongDocument) ? static_cast<const SongData*>(_additional.data()) : nullptr;
+		return (type == SongDocument) ? static_cast<const SongData*>(_additional.get()) : nullptr;
 	}
 	VoiceData *voice() {
-		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.data()) : nullptr;
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.get()) : nullptr;
 	}
 	const VoiceData *voice() const {
-		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.data()) : nullptr;
+		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.get()) : nullptr;
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1070,7 +1070,7 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
-		return (type == SongDocument) ? !static_cast<SongData*>(_additional.data())->title.isEmpty() : false;
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional.get())->title.isEmpty() : false;
 	}
 	bool isVideo() const {
 		return (type == VideoDocument);
@@ -1142,7 +1142,7 @@ private:
 
 	FileLocation _location;
 	QByteArray _data;
-	UniquePointer<DocumentAdditionalData> _additional;
+	std_::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;

@@ -848,7 +848,7 @@ bool Window::ui_isMediaViewShown() {
 void Window::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
-		_mediaPreview = MakeUnique<MediaPreviewWidget>(this);
+		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
 		resizeEvent(nullptr);
 	}
 	if (_mediaPreview->isHidden()) {
@@ -860,7 +860,7 @@ void Window::ui_showMediaPreview(DocumentData *document) {
 void Window::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
-		_mediaPreview = MakeUnique<MediaPreviewWidget>(this);
+		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
 		resizeEvent(nullptr);
 	}
 	if (_mediaPreview->isHidden()) {

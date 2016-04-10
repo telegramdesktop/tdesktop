@@ -463,7 +463,7 @@ private:
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb;
 
-	UniquePointer<BoxButton> _switchPmButton;
+	std_::unique_ptr<BoxButton> _switchPmButton;
 	QString _switchPmStartToken;
 
 	typedef QVector<InlineItem*> InlineItems;

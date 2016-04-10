@@ -170,7 +170,7 @@ private:
 	bool menuPeerMuted();
 	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
 
-	using DialogsList = UniquePointer<Dialogs::IndexedList>;
+	using DialogsList = std_::unique_ptr<Dialogs::IndexedList>;
 	DialogsList dialogs;
 	DialogsList contactsNoDialogs;
 	DialogsList contacts;

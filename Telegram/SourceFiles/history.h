@@ -350,12 +350,12 @@ public:
 	NotifyQueue notifies;
 
 	HistoryDraft *msgDraft() {
-		return _msgDraft.data();
+		return _msgDraft.get();
 	}
 	HistoryEditDraft *editDraft() {
-		return _editDraft.data();
+		return _editDraft.get();
 	}
-	void setMsgDraft(UniquePointer<HistoryDraft> &&draft) {
+	void setMsgDraft(std_::unique_ptr<HistoryDraft> &&draft) {
 		_msgDraft = std_::move(draft);
 	}
 	void takeMsgDraft(History *from) {
@@ -367,14 +367,14 @@ public:
 			from->clearMsgDraft();
 		}
 	}
-	void setEditDraft(UniquePointer<HistoryEditDraft> &&draft) {
+	void setEditDraft(std_::unique_ptr<HistoryEditDraft> &&draft) {
 		_editDraft = std_::move(draft);
 	}
 	void clearMsgDraft() {
-		_msgDraft.clear();
+		_msgDraft = nullptr;
 	}
 	void clearEditDraft() {
-		_editDraft.clear();
+		_editDraft = nullptr;
 	}
 	HistoryDraft *draft() {
 		return _editDraft ? editDraft() : msgDraft();
@@ -513,7 +513,7 @@ protected:
 	void startBuildingFrontBlock(int expectedItemsCount = 1);
 	HistoryBlock *finishBuildingFrontBlock(); // Returns the built block or nullptr if nothing was added.
 	bool isBuildingFrontBlock() const {
-		return !_buildingFrontBlock.isNull();
+		return _buildingFrontBlock != nullptr;
 	}
 
 private:
@@ -553,14 +553,14 @@ private:
 		int expectedItemsCount = 0; // optimization for block->items.reserve() call
 		HistoryBlock *block = nullptr;
 	};
-	UniquePointer<BuildingBlock> _buildingFrontBlock;
+	std_::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
-	UniquePointer<HistoryDraft> _msgDraft;
-	UniquePointer<HistoryEditDraft> _editDraft;
+	std_::unique_ptr<HistoryDraft> _msgDraft;
+	std_::unique_ptr<HistoryEditDraft> _editDraft;
 
  };
 
@@ -782,7 +782,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	~HistoryMessageReply() {
 		// clearData() should be called by holder
 		t_assert(replyToMsg == nullptr);
-		t_assert(_replyToVia.data() == nullptr);
+		t_assert(_replyToVia == nullptr);
 	}
 
 	bool updateData(HistoryMessage *holder, bool force = false);
@@ -816,7 +816,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int _maxReplyWidth = 0;
-	UniquePointer<HistoryMessageVia> _replyToVia;
+	std_::unique_ptr<HistoryMessageVia> _replyToVia;
 	int toWidth = 0;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
@@ -849,7 +849,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 	ButtonRows rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
-	UniquePointer<ReplyKeyboard> inlineKeyboard;
+	std_::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
 	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
 	int oldTop = -1;
@@ -900,7 +900,7 @@ public:
 		friend class ReplyKeyboard;
 
 	};
-	typedef UniquePointer<Style> StylePtr;
+	typedef std_::unique_ptr<Style> StylePtr;
 
 	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
@@ -1482,7 +1482,7 @@ protected:
 	}
 	const ReplyKeyboard *inlineReplyKeyboard() const {
 		if (auto markup = inlineReplyMarkup()) {
-			return markup->inlineKeyboard.data();
+			return markup->inlineKeyboard.get();
 		}
 		return nullptr;
 	}

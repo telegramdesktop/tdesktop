@@ -36,7 +36,7 @@ public:
 
 	static Manager *instance();
 
-	void addToast(UniquePointer<Instance> &&toast);
+	void addToast(std_::unique_ptr<Instance> &&toast);
 
 	~Manager();
 

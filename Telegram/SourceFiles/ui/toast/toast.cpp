@@ -29,16 +29,16 @@ namespace Ui {
 namespace Toast {
 
 Instance::Instance(const Config &config, QWidget *widgetParent, const Private &)
-	: _a_fade(animation(this, &Instance::step_fade))
-	, _hideAtMs(getms(true) + config.durationMs) {
-	_widget = MakeUnique<internal::Widget>(widgetParent, config);
+: _a_fade(animation(this, &Instance::step_fade))
+, _hideAtMs(getms(true) + config.durationMs) {
+	_widget = std_::make_unique<internal::Widget>(widgetParent, config);
 	_a_fade.start();
 }
 
 void Show(const Config &config) {
 	if (internal::Manager *manager = internal::Manager::instance()) {
 		if (Window *window = App::wnd()) {
-			auto toast = MakeUnique<Instance>(config, window, Instance::Private());
+			auto toast = std_::make_unique<Instance>(config, window, Instance::Private());
 			manager->addToast(std_::move(toast));
 		}
 	}
