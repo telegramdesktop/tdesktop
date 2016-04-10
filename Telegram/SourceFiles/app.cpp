@@ -2336,7 +2336,7 @@ namespace {
 			GifItems gifs = ::gifItems;
 			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
 				if (HistoryMedia *media = i.value()->getMedia()) {
-					media->stopInline(i.value());
+					media->stopInline();
 				}
 			}
 		}

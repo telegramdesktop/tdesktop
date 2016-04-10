@@ -1835,7 +1835,7 @@ void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
 void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 	if (HistoryItem *item = App::histItemById(channelId, msgId)) {
 		if (HistoryMedia *media = item->getMedia()) {
-			media->playInline(item, true);
+			media->playInline(true);
 		}
 	}
 }

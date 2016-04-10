@@ -687,7 +687,7 @@ int64 imageCacheSize() {
 void RemoteImage::doCheckload() const {
 	if (!amLoading() || !_loader->done()) return;
 
-	QPixmap data = _loader->imagePixmap();
+	QPixmap data = _loader->imagePixmap(shrinkBox());
 	if (data.isNull()) {
 		_loader->deleteLater();
 		_loader->stop();
@@ -699,7 +699,7 @@ void RemoteImage::doCheckload() const {
 		globalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 
-	_format = _loader->imageFormat();
+	_format = _loader->imageFormat(shrinkBox());
 	_data = data;
 	_saved = _loader->bytes();
 	const_cast<RemoteImage*>(this)->setInformation(_saved.size(), _data.width(), _data.height());
@@ -709,7 +709,7 @@ void RemoteImage::doCheckload() const {
 
 	_loader->deleteLater();
 	_loader->stop();
-	_loader = 0;
+	_loader = nullptr;
 
 	_forgot = false;
 }
@@ -738,7 +738,7 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 	if (amLoading()) {
 		_loader->deleteLater();
 		_loader->stop();
-		_loader = 0;
+		_loader = nullptr;
 	}
 	_saved = bytes;
 	_format = fmt;
@@ -827,13 +827,13 @@ int32 RemoteImage::loadOffset() const {
 }
 
 StorageImage::StorageImage(const StorageImageLocation &location, int32 size)
-	: _location(location)
-	, _size(size) {
+: _location(location)
+, _size(size) {
 }
 
 StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &bytes)
-	: _location(location)
-	, _size(bytes.size()) {
+: _location(location)
+, _size(bytes.size()) {
 	setData(bytes);
 	if (!_location.isNull()) {
 		Local::writeImage(storageKey(_location), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
@@ -954,14 +954,8 @@ int32 WebImage::countHeight() const {
 
 void WebImage::setInformation(int32 size, int32 width, int32 height) {
 	_size = size;
-	if (!_box.isEmpty()) {
-		QSize final = shrinkToKeepAspect(width, height, _box.width(), _box.height());
-		_width = final.width();
-		_height = final.height();
-	} else {
-		_width = width;
-		_height = height;
-	}
+	_width = width;
+	_height = height;
 }
 
 FileLoader *WebImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {

@@ -1101,6 +1101,12 @@ public:
 		return MTP_inputDocumentEmpty();
 	}
 
+	// When we have some client-side generated document
+	// (for example for displaying an external inline bot result)
+	// and it has downloaded data, we can collect that data from it
+	// to (this) received from the server "same" document.
+	void collectLocalData(DocumentData *local);
+
 	~DocumentData();
 
 	DocumentId id;

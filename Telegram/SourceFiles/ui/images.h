@@ -268,12 +268,17 @@ public:
 	void load(bool loadFirst = false, bool prior = true);
 	void loadEvenCancelled(bool loadFirst = false, bool prior = true);
 
-	virtual void setInformation(int32 size, int32 width, int32 height) = 0;
-	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) = 0;
-
 	~RemoteImage();
 
 protected:
+	// If after loading the image we need to shrink it to fit into a
+	// specific size, you can return this size here.
+	virtual QSize shrinkBox() const {
+		return QSize();
+	}
+	virtual void setInformation(int32 size, int32 width, int32 height) = 0;
+	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) = 0;
+
 	void checkload() const {
 		doCheckload();
 	}
@@ -294,14 +299,14 @@ public:
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
-	void setInformation(int32 size, int32 width, int32 height) override;
-	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
-
 	const StorageImageLocation &location() const override {
 		return _location;
 	}
 
 protected:
+	void setInformation(int32 size, int32 width, int32 height) override;
+	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
+
 	StorageImageLocation _location;
 	int32 _size;
 
@@ -349,10 +354,13 @@ public:
 	// If !box.isEmpty() then resize the image to fit in this box.
 	WebImage(const QString &url, QSize box = QSize());
 
+protected:
+
+	QSize shrinkBox() const override {
+		return _box;
+	}
 	void setInformation(int32 size, int32 width, int32 height) override;
 	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
-
-protected:
 
 	int32 countWidth() const override;
 	int32 countHeight() const override;

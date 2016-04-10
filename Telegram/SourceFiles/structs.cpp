@@ -1441,6 +1441,27 @@ void DocumentData::setContentUrl(const QString &url) {
 	_url = url;
 }
 
+void DocumentData::collectLocalData(DocumentData *local) {
+	if (local == this) return;
+
+	if (!local->_data.isEmpty()) {
+		_data = local->_data;
+		if (voice()) {
+			if (!Local::copyAudio(local->mediaKey(), mediaKey())) {
+				Local::writeAudio(mediaKey(), _data);
+			}
+		} else {
+			if (!Local::copyStickerImage(local->mediaKey(), mediaKey())) {
+				Local::writeStickerImage(mediaKey(), _data);
+			}
+		}
+	}
+	if (!local->_location.isEmpty()) {
+		_location = local->_location;
+		Local::writeFileLocation(mediaKey(), _location);
+	}
+}
+
 DocumentData::~DocumentData() {
 	if (loading()) {
 		_loader->deleteLater();

@@ -80,21 +80,21 @@ FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationT
 , _localTaskId(0) {
 }
 
-QByteArray FileLoader::imageFormat() const {
+QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
-		readImage();
+		readImage(shrinkBox);
 	}
 	return _imageFormat;
 }
 
-QPixmap FileLoader::imagePixmap() const {
+QPixmap FileLoader::imagePixmap(const QSize &shrinkBox) const {
 	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
-		readImage();
+		readImage(shrinkBox);
 	}
 	return _imagePixmap;
 }
 
-void FileLoader::readImage() const {
+void FileLoader::readImage(const QSize &shrinkBox) const {
 	QByteArray format;
 	switch (_type) {
 	case mtpc_storage_fileGif: format = "GIF"; break;
@@ -102,8 +102,12 @@ void FileLoader::readImage() const {
 	case mtpc_storage_filePng: format = "PNG"; break;
 	default: format = QByteArray(); break;
 	}
-	_imagePixmap = QPixmap::fromImage(App::readImage(_data, &format, false), Qt::ColorOnly);
-	if (!_imagePixmap.isNull()) {
+	QImage image = App::readImage(_data, &format, false);
+	if (!image.isNull()) {
+		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
+			image = image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		}
+		_imagePixmap = QPixmap::fromImage(image, Qt::ColorOnly);
 		_imageFormat = format;
 	}
 }

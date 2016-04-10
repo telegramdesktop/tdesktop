@@ -120,8 +120,8 @@ public:
 	const QByteArray &bytes() const {
 		return _data;
 	}
-	QByteArray imageFormat() const;
-	QPixmap imagePixmap() const;
+	QByteArray imageFormat(const QSize &shrinkBox = QSize()) const;
+	QPixmap imagePixmap(const QSize &shrinkBox = QSize()) const;
 	QString fileName() const {
 		return _fname;
 	}
@@ -176,6 +176,7 @@ signals:
 	void failed(FileLoader *loader, bool started);
 
 protected:
+	void readImage(const QSize &shrinkBox) const;
 
 	FileLoader *_prev, *_next;
 	int32 _priority;
@@ -210,7 +211,6 @@ protected:
 	TaskId _localTaskId;
 	mutable QByteArray _imageFormat;
 	mutable QPixmap _imagePixmap;
-	void readImage() const;
 
 };
 

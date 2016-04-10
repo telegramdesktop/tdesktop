@@ -2747,13 +2747,15 @@ namespace Local {
 		return _stickerImagesMap.constFind(location) != _stickerImagesMap.cend();
 	}
 
-	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
+	bool copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
 		auto i = _stickerImagesMap.constFind(oldLocation);
-		if (i != _stickerImagesMap.cend()) {
-			_stickerImagesMap.insert(newLocation, i.value());
-			_mapChanged = true;
-			_writeMap();
+		if (i == _stickerImagesMap.cend()) {
+			return false;
 		}
+		_stickerImagesMap.insert(newLocation, i.value());
+		_mapChanged = true;
+		_writeMap();
+		return true;
 	}
 
 	int32 hasStickers() {
@@ -2815,13 +2817,15 @@ namespace Local {
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
 	}
 
-	void copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
+	bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
 		auto i = _audiosMap.constFind(oldLocation);
-		if (i != _audiosMap.cend()) {
-			_audiosMap.insert(newLocation, i.value());
-			_mapChanged = true;
-			_writeMap();
+		if (i == _audiosMap.cend()) {
+			return false;
 		}
+		_audiosMap.insert(newLocation, i.value());
+		_mapChanged = true;
+		_writeMap();
+		return true;
 	}
 
 	int32 hasAudios() {

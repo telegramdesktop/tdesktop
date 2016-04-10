@@ -310,12 +310,14 @@ void Result::createPhoto() {
 	if (_photo) return;
 
 	if (_thumb_url.isEmpty()) {
-		QSize thumb = shrinkToKeepAspect(_width, _height, 100, 100);
-		_thumb = ImagePtr(thumb.width(), thumb.height());
+		QSize thumbsize = shrinkToKeepAspect(_width, _height, 100, 100);
+		_thumb = ImagePtr(thumbsize.width(), thumbsize.height());
 	} else {
-		_thumb = ImagePtr(_thumb_url, QSize(100, 100));
+		_thumb = ImagePtr(_thumb_url, QSize(320, 320));
 	}
-	ImagePtr medium = ImagePtr(_content_url, QSize(320, 320));
+//	ImagePtr medium = ImagePtr(_content_url, QSize(320, 320));
+	QSize mediumsize = shrinkToKeepAspect(_width, _height, 320, 320);
+	ImagePtr medium = ImagePtr(mediumsize.width(), mediumsize.height());
 
 	uint64 photoId = rand_value<uint64>();
 	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, ImagePtr(_width, _height));
