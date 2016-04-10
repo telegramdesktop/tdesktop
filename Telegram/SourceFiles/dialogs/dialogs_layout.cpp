@@ -117,14 +117,15 @@ void createCircleMask(int size) {
 	if (!unreadBadgeStyle->circle.isNull()) return;
 
 	unreadBadgeStyle->circle = QImage(size, size, QImage::Format::Format_Grayscale8);
+	{
+		QPainter pcircle(&unreadBadgeStyle->circle);
+		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		pcircle.fillRect(0, 0, size, size, QColor(0, 0, 0));
+		pcircle.setPen(Qt::NoPen);
+		pcircle.setBrush(QColor(255, 255, 255));
+		pcircle.drawEllipse(0, 0, size, size);
+	}
 	unreadBadgeStyle->circle.setDevicePixelRatio(cRetinaFactor());
-
-	QPainter pcircle(&unreadBadgeStyle->circle);
-	pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
-	pcircle.fillRect(0, 0, size, size, QColor(0, 0, 0));
-	pcircle.setPen(Qt::NoPen);
-	pcircle.setBrush(QColor(255, 255, 255));
-	pcircle.drawEllipse(0, 0, size, size);
 }
 
 QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
