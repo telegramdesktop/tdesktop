@@ -323,9 +323,9 @@ public:
 	unique_ptr(const unique_ptr<T> &) = delete;
 	unique_ptr<T> &operator=(const unique_ptr<T> &) = delete;
 
-	constexpr unique_ptr(nullptr_t) {
+	constexpr unique_ptr(std::nullptr_t) {
 	}
-	unique_ptr<T> &operator=(nullptr_t) noexcept {
+	unique_ptr<T> &operator=(std::nullptr_t) noexcept {
 		reset();
 		return (*this);
 	}
@@ -391,19 +391,19 @@ inline unique_ptr<T> make_unique(Args&&... args) {
 }
 
 template <typename T>
-inline bool operator==(const unique_ptr<T> &a, nullptr_t) noexcept {
+inline bool operator==(const unique_ptr<T> &a, std::nullptr_t) noexcept {
 	return !a;
 }
 template <typename T>
-inline bool operator==(nullptr_t, const unique_ptr<T> &b) noexcept {
+inline bool operator==(std::nullptr_t, const unique_ptr<T> &b) noexcept {
 	return !b;
 }
 template <typename T>
-inline bool operator!=(const unique_ptr<T> &a, nullptr_t b) noexcept {
+inline bool operator!=(const unique_ptr<T> &a, std::nullptr_t b) noexcept {
 	return !(a == b);
 }
 template <typename T>
-inline bool operator!=(nullptr_t a, const unique_ptr<T> &b) noexcept {
+inline bool operator!=(std::nullptr_t a, const unique_ptr<T> &b) noexcept {
 	return !(a == b);
 }
 
