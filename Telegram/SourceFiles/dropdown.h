@@ -614,7 +614,6 @@ public:
 	bool inlineResultsShown() const {
 		return s_inner.inlineResultsShown();
 	}
-	void notify_automaticLoadSettingsChangedGif();
 
 public slots:
 

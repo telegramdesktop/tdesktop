@@ -688,7 +688,6 @@ public:
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
-	void notify_automaticLoadSettingsChangedGif();
 	void notify_handlePendingHistoryUpdate();
 
 	void cmd_search();

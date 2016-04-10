@@ -118,14 +118,6 @@ PhotoData *ItemBase::getResultPhoto() const {
 	return _result ? _result->_photo : nullptr;
 }
 
-int ItemBase::getResultWidth() const {
-	return _result ? _result->_width : 0;
-}
-
-int ItemBase::getResultHeight() const {
-	return _result ? _result->_height : 0;
-}
-
 ImagePtr ItemBase::getResultThumb() const {
 	if (_result) {
 		if (_result->_photo && !_result->_photo->thumb->isNull()) {
@@ -185,10 +177,6 @@ QString ItemBase::getResultThumbLetter() const {
 		return _result->_title.at(0).toUpper();
 	}
 	return QString();
-}
-
-QString ItemBase::getResultContentType() const {
-	return _result->_content_type;
 }
 
 } // namespace Layout

@@ -111,8 +111,6 @@ namespace Notify {
 
 	void historyItemLayoutChanged(const HistoryItem *item);
 
-	void automaticLoadSettingsChangedGif();
-
 	// handle pending resize() / paint() on history items
 	void handlePendingHistoryUpdate();
 

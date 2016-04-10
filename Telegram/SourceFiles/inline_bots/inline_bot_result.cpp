@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "mtproto/file_download.h"
+#include "ui/filedialog.h"
 #include "mainwidget.h"
 
 namespace InlineBots {
@@ -103,8 +104,8 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		if (r.has_w()) result->_width = r.vw.v;
 		if (r.has_h()) result->_height = r.vh.v;
 		if (r.has_duration()) result->_duration = r.vduration.v;
-		if (!result->_thumb_url.isEmpty() && (result->_thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->_thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
-			result->_thumb = ImagePtr(result->_thumb_url);
+		if (!result->_thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) && !result->_thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+			result->_thumb_url = QString();
 		}
 		message = &r.vsend_message;
 	} break;
@@ -132,12 +133,11 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	case mtpc_botInlineMessageMediaAuto: {
 		const auto &r(message->c_botInlineMessageMediaAuto());
 		if (result->_type == Type::Photo) {
-			result->sendData.reset(new internal::SendPhoto(result->_photo, result->_content_url, qs(r.vcaption)));
+			result->createPhoto();
+			result->sendData.reset(new internal::SendPhoto(result->_photo, qs(r.vcaption)));
 		} else {
-			if (!result->_document) {
-
-			}
-			result->sendData.reset(new internal::SendFile(result->_document, result->_content_url, qs(r.vcaption)));
+			result->createDocument();
+			result->sendData.reset(new internal::SendFile(result->_document, qs(r.vcaption)));
 		}
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
@@ -194,6 +194,9 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		return UniquePointer<Result>();
 	}
 
+	if (result->_thumb->isNull() && !result->_thumb_url.isEmpty()) {
+		result->_thumb = ImagePtr(result->_thumb_url);
+	}
 	LocationCoords location;
 	if (result->getLocationCoords(&location)) {
 		int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
@@ -238,196 +241,11 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			return true;
 		}
 	}
-	if (_type == Type::Photo) {
-		if (_thumb->loaded()) {
-			return true;
-		} else if (!_thumb->loading()) {
-			_thumb->loadEvenCancelled();
-			Ui::repaintInlineItem(layout);
-		}
-	} else if (_type == Type::Gif) {
-		if (loaded()) {
-			return true;
-		} else if (loading()) {
-			cancelFile();
-			Ui::repaintInlineItem(layout);
-		} else {
-			saveFile(QString(), LoadFromCloudOrLocal, false);
-			Ui::repaintInlineItem(layout);
-		}
-	} else {
-		return true;
-	}
-	return false;
-}
-
-void Result::automaticLoadGif() {
-	if (loaded() || _type != Type::Gif) {
-		return;
-	}
-	if (_content_type != qstr("video/mp4") && _content_type != qstr("image/gif")) {
-		return;
-	}
-
-	if (_loader != CancelledWebFileLoader) {
-		// if load at least anywhere
-		bool loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
-		saveFile(QString(), loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
-	}
-}
-
-void Result::automaticLoadSettingsChangedGif() {
-	if (loaded() || _loader != CancelledWebFileLoader) return;
-	_loader = nullptr;
-}
-
-void Result::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded()) {
-		return;
-	}
-
-	if (_loader == CancelledWebFileLoader) _loader = nullptr;
-	if (_loader) {
-		if (!_loader->setFileName(toFile)) {
-			cancelFile();
-			_loader = nullptr;
-		}
-	}
-
-	if (_loader) {
-		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
-	} else {
-		_loader = new webFileLoader(_content_url, toFile, fromCloud, autoLoading);
-		regLoader(_loader, this);
-
-		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(inlineResultLoadProgress(FileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(FileLoader*, bool)), App::main(), SLOT(inlineResultLoadFailed(FileLoader*, bool)));
-		_loader->start();
-	}
-}
-
-void Result::openFile() {
-	//if (loaded()) {
-	//	bool playVoice = data->voice() && audioPlayer() && item;
-	//	bool playMusic = data->song() && audioPlayer() && item;
-	//	bool playAnimation = data->isAnimation() && item && item->getMedia();
-	//	const FileLocation &location(data->location(true));
-	//	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
-	//		if (playVoice) {
-	//			AudioMsgId playing;
-	//			AudioPlayerState playingState = AudioPlayerStopped;
-	//			audioPlayer()->currentState(&playing, &playingState);
-	//			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-	//				audioPlayer()->pauseresume(OverviewVoiceFiles);
-	//			} else {
-	//				AudioMsgId audio(data, item->fullId());
-	//				audioPlayer()->play(audio);
-	//				if (App::main()) {
-	//					App::main()->audioPlayProgress(audio);
-	//					App::main()->mediaMarkRead(data);
-	//				}
-	//			}
-	//		} else if (playMusic) {
-	//			SongMsgId playing;
-	//			AudioPlayerState playingState = AudioPlayerStopped;
-	//			audioPlayer()->currentState(&playing, &playingState);
-	//			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-	//				audioPlayer()->pauseresume(OverviewFiles);
-	//			} else {
-	//				SongMsgId song(data, item->fullId());
-	//				audioPlayer()->play(song);
-	//				if (App::main()) App::main()->documentPlayProgress(song);
-	//			}
-	//		} else if (data->voice() || data->isVideo()) {
-	//			psOpenFile(location.name());
-	//			if (App::main()) App::main()->mediaMarkRead(data);
-	//		} else if (data->size < MediaViewImageSizeLimit) {
-	//			if (!data->data().isEmpty() && playAnimation) {
-	//				if (action == ActionOnLoadPlayInline && item->getMedia()) {
-	//					item->getMedia()->playInline(item);
-	//				} else {
-	//					App::wnd()->showDocument(data, item);
-	//				}
-	//			} else if (location.accessEnable()) {
-	//				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-	//					if (action == ActionOnLoadPlayInline && item->getMedia()) {
-	//						item->getMedia()->playInline(item);
-	//					} else {
-	//						App::wnd()->showDocument(data, item);
-	//					}
-	//				} else {
-	//					psOpenFile(location.name());
-	//				}
-	//				location.accessDisable();
-	//			} else {
-	//				psOpenFile(location.name());
-	//			}
-	//		} else {
-	//			psOpenFile(location.name());
-	//		}
-	//		return;
-	//	}
-	//}
-
-	//QString filename = documentSaveFilename(data);
-	//if (filename.isEmpty()) return;
-	//if (!data->saveToCache()) {
-	//	filename = documentSaveFilename(data);
-	//	if (filename.isEmpty()) return;
-	//}
-
-	//saveFile()
-	//data->save(filename, action, item ? item->fullId() : FullMsgId());
-}
-
-void Result::cancelFile() {
-	if (!loading()) return;
-
-	unregLoader(_loader);
-
-	webFileLoader *l = _loader;
-	_loader = CancelledWebFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->stop();
-	}
-}
-
-QByteArray Result::data() const {
-	return _data;
-}
-
-bool Result::loading() const {
-	return _loader && _loader != CancelledWebFileLoader;
-}
-
-bool Result::loaded() const {
-	if (loading() && _loader->done()) {
-		unregLoader(_loader);
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = CancelledWebFileLoader;
-		} else {
-			Result *that = const_cast<Result*>(this);
-			that->_data = _loader->bytes();
-
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = nullptr;
-		}
-	}
-	return !_data.isEmpty();
-}
-
-bool Result::displayLoading() const {
-	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : false;
+	return true;
 }
 
 void Result::forget() {
 	_thumb->forget();
-	_data.clear();
 	if (_document) {
 		_document->forget();
 	}
@@ -436,8 +254,20 @@ void Result::forget() {
 	}
 }
 
-float64 Result::progress() const {
-	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);	return false;
+void Result::openFile() {
+	if (_document) {
+		DocumentOpenClickHandler(_document).onClick(Qt::LeftButton);
+	} else if (_photo) {
+		PhotoOpenClickHandler(_photo).onClick(Qt::LeftButton);
+	}
+}
+
+void Result::cancelFile() {
+	if (_document) {
+		DocumentCancelClickHandler(_document).onClick(Qt::LeftButton);
+	} else if (_photo) {
+		PhotoCancelClickHandler(_photo).onClick(Qt::LeftButton);
+	}
 }
 
 bool Result::hasThumbDisplay() const {
@@ -476,8 +306,66 @@ QString Result::getLayoutDescription() const {
 	return sendData->getLayoutDescription(this);
 }
 
+void Result::createPhoto() {
+	if (_photo) return;
+
+	if (_thumb_url.isEmpty()) {
+		QSize thumb = shrinkToKeepAspect(_width, _height, 100, 100);
+		_thumb = ImagePtr(thumb.width(), thumb.height());
+	} else {
+		_thumb = ImagePtr(_thumb_url, QSize(100, 100));
+	}
+	ImagePtr medium = ImagePtr(_content_url, QSize(320, 320));
+
+	uint64 photoId = rand_value<uint64>();
+	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, ImagePtr(_width, _height));
+	_photo->thumb = _thumb;
+}
+
+void Result::createDocument() {
+	if (_document) return;
+
+	uint64 docId = rand_value<uint64>();
+
+	if (!_thumb_url.isEmpty()) {
+		_thumb = ImagePtr(_thumb_url, QSize(90, 90));
+	}
+
+	QString mime = _content_type;
+
+	QVector<MTPDocumentAttribute> attributes;
+	QSize dimensions(_width, _height);
+	if (_type == Type::Gif) {
+		const char *filename = (mime == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif");
+		attributes.push_back(MTP_documentAttributeFilename(MTP_string(filename)));
+		attributes.push_back(MTP_documentAttributeAnimated());
+		attributes.push_back(MTP_documentAttributeVideo(MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
+	} else if (_type == Type::Video) {
+		attributes.push_back(MTP_documentAttributeVideo(MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
+	} else if (_type == Type::Audio) {
+		MTPDdocumentAttributeAudio::Flags flags = 0;
+		if (mime == qstr("audio/ogg")) {
+			flags |= MTPDdocumentAttributeAudio::Flag::f_voice;
+		} else {
+			QStringList p = mimeTypeForName(mime).globPatterns();
+			QString pattern = p.isEmpty() ? QString() : p.front();
+			QString extension = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
+			QString filename = filedialogDefaultName(qsl("inline"), extension, QString(), true);
+			attributes.push_back(MTP_documentAttributeFilename(MTP_string(filename)));
+		}
+		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTPbytes()));
+	}
+
+	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(0), MTP_photoSizeEmpty(MTP_string("")), MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+
+	_document = App::feedDocument(document);
+	_document->setContentUrl(_content_url);
+	if (!_thumb->isNull()) {
+		_document->thumb = _thumb;
+	}
+}
+
 Result::~Result() {
-	cancelFile();
 }
 
 } // namespace InlineBots

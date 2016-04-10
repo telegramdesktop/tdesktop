@@ -34,7 +34,7 @@ namespace {
 	WebImages webImages;
 
 	Image *blank() {
-		static Image *img = getImage(qsl(":/gui/art/blank.gif"), "GIF");
+		static Image *img = internal::getImage(qsl(":/gui/art/blank.gif"), "GIF");
 		return img;
 	}
 
@@ -60,7 +60,7 @@ ImagePtr::ImagePtr() : Parent(blank()) {
 }
 
 ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def) :
-	Parent((location.type() == mtpc_fileLocation) ? (Image*)(getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
+	Parent((location.type() == mtpc_fileLocation) ? (Image*)(internal::getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
 }
 
 Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
@@ -661,41 +661,6 @@ Image::~Image() {
 	}
 }
 
-Image *getImage(const QString &file, QByteArray format) {
-	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive) || file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-		QString key = file;
-		WebImages::const_iterator i = webImages.constFind(key);
-		if (i == webImages.cend()) {
-			i = webImages.insert(key, new WebImage(file));
-		}
-		return i.value();
-	} else {
-		QFileInfo f(file);
-		QString key = qsl("//:%1//:%2//:").arg(f.size()).arg(f.lastModified().toTime_t()) + file;
-		LocalImages::const_iterator i = localImages.constFind(key);
-		if (i == localImages.cend()) {
-			i = localImages.insert(key, new Image(file, format));
-		}
-		return i.value();
-	}
-}
-
-Image *getImage(const QByteArray &filecontent, QByteArray format) {
-	return new Image(filecontent, format);
-}
-
-Image *getImage(const QPixmap &pixmap, QByteArray format) {
-	return new Image(pixmap, format);
-}
-
-Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
-	return new Image(filecontent, format, pixmap);
-}
-
-Image *getImage(int32 width, int32 height) {
-	return new DelayedStorageImage(width, height);
-}
-
 void clearStorageImages() {
 	for (StorageImages::const_iterator i = storageImages.cbegin(), e = storageImages.cend(); i != e; ++i) {
 		delete i.value();
@@ -976,33 +941,7 @@ void DelayedStorageImage::cancel() {
 	StorageImage::cancel();
 }
 
-StorageImage *getImage(const StorageImageLocation &location, int32 size) {
-	StorageKey key(storageKey(location));
-	StorageImages::const_iterator i = storageImages.constFind(key);
-	if (i == storageImages.cend()) {
-		i = storageImages.insert(key, new StorageImage(location, size));
-	}
-	return i.value();
-}
-
-StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes) {
-	StorageKey key(storageKey(location));
-	StorageImages::const_iterator i = storageImages.constFind(key);
-    if (i == storageImages.cend()) {
-        QByteArray bytesArr(bytes);
-        i = storageImages.insert(key, new StorageImage(location, bytesArr));
-	} else if (!i.value()->loaded()) {
-        QByteArray bytesArr(bytes);
-        i.value()->setData(bytesArr);
-		if (!location.isNull()) {
-			Local::writeImage(key, StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
-		}
-	}
-	return i.value();
-}
-
-
-WebImage::WebImage(const QString &url) : _url(url), _size(0), _width(0), _height(0) {
+WebImage::WebImage(const QString &url, QSize box) : _url(url), _box(box), _size(0), _width(0), _height(0) {
 }
 
 int32 WebImage::countWidth() const {
@@ -1015,13 +954,92 @@ int32 WebImage::countHeight() const {
 
 void WebImage::setInformation(int32 size, int32 width, int32 height) {
 	_size = size;
-	_width = width;
-	_height = height;
+	if (!_box.isEmpty()) {
+		QSize final = shrinkToKeepAspect(width, height, _box.width(), _box.height());
+		_width = final.width();
+		_height = final.height();
+	} else {
+		_width = width;
+		_height = height;
+	}
 }
 
 FileLoader *WebImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
 	return new webFileLoader(_url, QString(), fromCloud, autoLoading);
 }
+
+namespace internal {
+
+Image *getImage(const QString &file, QByteArray format) {
+	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive) || file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+		QString key = file;
+		WebImages::const_iterator i = webImages.constFind(key);
+		if (i == webImages.cend()) {
+			i = webImages.insert(key, new WebImage(file));
+		}
+		return i.value();
+	} else {
+		QFileInfo f(file);
+		QString key = qsl("//:%1//:%2//:").arg(f.size()).arg(f.lastModified().toTime_t()) + file;
+		LocalImages::const_iterator i = localImages.constFind(key);
+		if (i == localImages.cend()) {
+			i = localImages.insert(key, new Image(file, format));
+		}
+		return i.value();
+	}
+}
+
+Image *getImage(const QString &url, QSize box) {
+	QString key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
+	auto i = webImages.constFind(key);
+	if (i == webImages.cend()) {
+		i = webImages.insert(key, new WebImage(url, box));
+	}
+	return i.value();
+}
+
+Image *getImage(const QByteArray &filecontent, QByteArray format) {
+	return new Image(filecontent, format);
+}
+
+Image *getImage(const QPixmap &pixmap, QByteArray format) {
+	return new Image(pixmap, format);
+}
+
+Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
+	return new Image(filecontent, format, pixmap);
+}
+
+Image *getImage(int32 width, int32 height) {
+	return new DelayedStorageImage(width, height);
+}
+
+StorageImage *getImage(const StorageImageLocation &location, int32 size) {
+	StorageKey key(storageKey(location));
+	StorageImages::const_iterator i = storageImages.constFind(key);
+	if (i == storageImages.cend()) {
+		i = storageImages.insert(key, new StorageImage(location, size));
+	}
+	return i.value();
+}
+
+StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes) {
+	StorageKey key(storageKey(location));
+	StorageImages::const_iterator i = storageImages.constFind(key);
+	if (i == storageImages.cend()) {
+		QByteArray bytesArr(bytes);
+		i = storageImages.insert(key, new StorageImage(location, bytesArr));
+	} else if (!i.value()->loaded()) {
+		QByteArray bytesArr(bytes);
+		i.value()->setData(bytesArr);
+		if (!location.isNull()) {
+			Local::writeImage(key, StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+		}
+	}
+	return i.value();
+}
+
+} // namespace internal
 
 ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark) : _bookmark(bookmark), _failed(_bookmark ? !_bookmark->enable() : false) {
 }

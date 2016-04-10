@@ -38,15 +38,7 @@ protected:
 
 	int content_width() const;
 	int content_height() const;
-	bool content_loading() const;
-	bool content_displayLoading() const;
-	bool content_loaded() const;
-	float64 content_progress() const;
-	void content_automaticLoad() const;
-	void content_forget();
 	FileLocation content_location() const;
-	QByteArray content_data() const;
-	ImagePtr content_thumb() const;
 	int content_duration() const;
 };
 
@@ -150,11 +142,6 @@ private:
 	PhotoData *getShownPhoto() const;
 
 	QSize countFrameSize() const;
-
-	int content_width() const;
-	int content_height() const;
-	bool content_loaded() const;
-	void content_forget();
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded = false;

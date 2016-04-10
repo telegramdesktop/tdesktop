@@ -1088,8 +1088,11 @@ public:
 
 	void setRemoteLocation(int32 dc, uint64 access);
 	void setContentUrl(const QString &url);
+	bool hasRemoteLocation() const {
+		return (_dc != 0 && _access != 0);
+	}
 	bool isValid() const {
-		return (_dc != 0 && _access != 0) || !_url.isEmpty();
+		return hasRemoteLocation() || !_url.isEmpty();
 	}
 	MTPInputDocument mtpInput() const {
 		if (_access) {

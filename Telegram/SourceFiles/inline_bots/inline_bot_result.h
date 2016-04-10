@@ -61,18 +61,9 @@ public:
 	// inline bot result. If it returns true you need to send this result.
 	bool onChoose(Layout::ItemBase *layout);
 
-	void automaticLoadGif();
-	void automaticLoadSettingsChangedGif();
-	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
+	void forget();
 	void openFile();
 	void cancelFile();
-
-	QByteArray data() const;
-	bool loading() const;
-	bool loaded() const;
-	bool displayLoading() const;
-	void forget();
-	float64 progress() const;
 
 	bool hasThumbDisplay() const;
 
@@ -86,6 +77,7 @@ public:
 	~Result();
 
 private:
+	void createPhoto();
 	void createDocument();
 
 	enum class Type {
@@ -125,9 +117,6 @@ private:
 	ImagePtr _thumb, _locationThumb;
 
 	UniquePointer<internal::SendData> sendData;
-
-	QByteArray _data;
-	mutable webFileLoader *_loader = nullptr;
 
 };
 Result *getResultFromLoader(FileLoader *loader);

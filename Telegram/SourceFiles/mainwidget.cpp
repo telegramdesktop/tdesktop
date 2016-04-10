@@ -838,10 +838,6 @@ void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	if (overview) overview->notify_historyItemLayoutChanged(item);
 }
 
-void MainWidget::notify_automaticLoadSettingsChangedGif() {
-	history.notify_automaticLoadSettingsChangedGif();
-}
-
 void MainWidget::notify_handlePendingHistoryUpdate() {
 	history.notify_handlePendingHistoryUpdate();
 }

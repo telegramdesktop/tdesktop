@@ -95,8 +95,6 @@ public:
 protected:
 	DocumentData *getResultDocument() const;
 	PhotoData *getResultPhoto() const;
-	int getResultWidth() const;
-	int getResultHeight() const;
 	ImagePtr getResultThumb() const;
 	QPixmap getResultContactAvatar(int width, int height) const;
 	int getResultDuration() const;
@@ -104,7 +102,6 @@ protected:
 	ClickHandlerPtr getResultUrlHandler() const;
 	ClickHandlerPtr getResultContentUrlHandler() const;
 	QString getResultThumbLetter() const;
-	QString getResultContentType() const;
 
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;

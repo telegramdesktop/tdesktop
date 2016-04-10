@@ -6394,10 +6394,6 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	}
 }
 
-void HistoryWidget::notify_automaticLoadSettingsChangedGif() {
-	_emojiPan.notify_automaticLoadSettingsChangedGif();
-}
-
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems()) {
 		updateListSize();

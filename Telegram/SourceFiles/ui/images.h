@@ -231,12 +231,6 @@ private:
 
 };
 
-Image *getImage(const QString &file, QByteArray format);
-Image *getImage(const QByteArray &filecontent, QByteArray format);
-Image *getImage(const QPixmap &pixmap, QByteArray format);
-Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
-Image *getImage(int32 width, int32 height);
-
 typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
@@ -300,10 +294,10 @@ public:
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
-	virtual void setInformation(int32 size, int32 width, int32 height);
-	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+	void setInformation(int32 size, int32 width, int32 height) override;
+	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
 
-	virtual const StorageImageLocation &location() const {
+	const StorageImageLocation &location() const override {
 		return _location;
 	}
 
@@ -311,8 +305,8 @@ protected:
 	StorageImageLocation _location;
 	int32 _size;
 
-	virtual int32 countWidth() const;
-	virtual int32 countHeight() const;
+	int32 countWidth() const override;
+	int32 countHeight() const override;
 
 };
 
@@ -349,52 +343,61 @@ private:
 
 };
 
-StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
-StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
-Image *getImage(int32 width, int32 height, const MTPFileLocation &location);
-
 class WebImage : public RemoteImage {
 public:
 
-	WebImage(const QString &url);
+	// If !box.isEmpty() then resize the image to fit in this box.
+	WebImage(const QString &url, QSize box = QSize());
 
-	virtual void setInformation(int32 size, int32 width, int32 height);
-	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+	void setInformation(int32 size, int32 width, int32 height) override;
+	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
 
 protected:
 
-	virtual int32 countWidth() const;
-	virtual int32 countHeight() const;
+	int32 countWidth() const override;
+	int32 countHeight() const override;
 
 private:
 	QString _url;
+	QSize _box;
 	int32 _size, _width, _height;
 
 };
 
-WebImage *getImage(const QUrl &url);
+namespace internal {
+	Image *getImage(const QString &file, QByteArray format);
+	Image *getImage(const QString &url, QSize box);
+	Image *getImage(const QByteArray &filecontent, QByteArray format);
+	Image *getImage(const QPixmap &pixmap, QByteArray format);
+	Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
+	Image *getImage(int32 width, int32 height);
+	StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
+	StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
+} // namespace internal
 
 class ImagePtr : public ManagedPtr<Image> {
 public:
 	ImagePtr();
-	ImagePtr(const QString &file, QByteArray format = QByteArray()) : Parent(getImage(file, format)) {
+	ImagePtr(const QString &file, QByteArray format = QByteArray()) : Parent(internal::getImage(file, format)) {
 	}
-	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(getImage(filecontent, format)) {
+	ImagePtr(const QString &url, QSize box) : Parent(internal::getImage(url, box)) {
 	}
-	ImagePtr(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) : Parent(getImage(filecontent, format, pixmap)) {
+	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(internal::getImage(filecontent, format)) {
 	}
-	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
+	ImagePtr(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) : Parent(internal::getImage(filecontent, format, pixmap)) {
 	}
-	ImagePtr(const StorageImageLocation &location, int32 size = 0) : Parent(getImage(location, size)) {
+	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(internal::getImage(pixmap, format)) {
 	}
-	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(getImage(location, bytes)) {
+	ImagePtr(const StorageImageLocation &location, int32 size = 0) : Parent(internal::getImage(location, size)) {
+	}
+	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(internal::getImage(location, bytes)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
-	ImagePtr(int32 width, int32 height) : Parent(getImage(width, height)) {
+	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {
 	}
 };
 
-inline QSize resizeKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {
+inline QSize shrinkToKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {
 	int32 w = qMax(width, 1), h = qMax(height, 1);
 	if (w * toheight > h * towidth) {
 		h = qRound(h * towidth / float64(w));

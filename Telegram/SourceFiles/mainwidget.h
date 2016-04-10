@@ -465,7 +465,6 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
-	void notify_automaticLoadSettingsChangedGif();
 	void notify_handlePendingHistoryUpdate();
 
 	void cmd_search();

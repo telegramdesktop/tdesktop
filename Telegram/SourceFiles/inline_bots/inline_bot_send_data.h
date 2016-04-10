@@ -55,17 +55,6 @@ public:
 	virtual QString getLayoutTitle(const Result *owner) const;
 	virtual QString getLayoutDescription(const Result *owner) const;
 
-protected:
-
-	ImagePtr getResultThumb(const Result *owner) const;
-	int getResultWidth(const Result *owner) const;
-	int getResultHeight(const Result *owner) const;
-	QString getResultMime(const Result *owner) const;
-	QVector<MTPDocumentAttribute> prepareResultAttributes(const Result *owner) const;
-
-	void setResultDocument(const Result *owner, DocumentData *document) const;
-	void setResultPhoto(const Result *owner, PhotoData *photo) const;
-
 };
 
 // This class implements addHistory() for most of the types hiding
@@ -191,14 +180,13 @@ private:
 // Message with photo.
 class SendPhoto : public SendData {
 public:
-	SendPhoto(PhotoData *photo, const QString &url, const QString &caption)
+	SendPhoto(PhotoData *photo, const QString &caption)
 		: _photo(photo)
-		, _url(url)
 		, _caption(caption) {
 	}
 
 	bool isValid() const override {
-		return _photo || !_url.isEmpty();
+		return _photo != nullptr;
 	}
 
 	void addToHistory(const Result *owner, History *history,
@@ -207,21 +195,20 @@ public:
 
 private:
 	PhotoData *_photo;
-	QString _url, _caption;
+	QString _caption;
 
 };
 
 // Message with file.
 class SendFile : public SendData {
 public:
-	SendFile(DocumentData *document, const QString &url, const QString &caption)
+	SendFile(DocumentData *document, const QString &caption)
 		: _document(document)
-		, _url(url)
 		, _caption(caption) {
 	}
 
 	bool isValid() const override {
-		return _document || !_url.isEmpty();
+		return _document != nullptr;
 	}
 
 	void addToHistory(const Result *owner, History *history,
@@ -230,7 +217,7 @@ public:
 
 private:
 	DocumentData *_document;
-	QString _url, _caption;
+	QString _caption;
 
 };
 

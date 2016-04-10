@@ -3412,14 +3412,6 @@ bool EmojiPan::ui_isInlineItemBeingChosen() {
 	return false;
 }
 
-void EmojiPan::notify_automaticLoadSettingsChangedGif() {
-	for_const (const internal::InlineCacheEntry *entry, _inlineCache) {
-		for_const (InlineBots::Result *l, entry->results) {
-			l->automaticLoadSettingsChangedGif();
-		}
-	}
-}
-
 void EmojiPan::showAll() {
 	if (_stickersShown) {
 		s_scroll.show();
