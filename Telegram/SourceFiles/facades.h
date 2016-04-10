@@ -104,7 +104,7 @@ namespace Notify {
 	void inlineBotRequesting(bool requesting);
 	void replyMarkupUpdated(const HistoryItem *item);
 	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
-	void switchInlineBotButtonReceived(const QString &query);
+	bool switchInlineBotButtonReceived(const QString &query);
 
 	void migrateUpdated(PeerData *peer);
 

@@ -87,7 +87,17 @@ namespace App {
 		case HistoryMessageReplyMarkup::Button::SwitchInline: {
 			if (MainWidget *m = App::main()) {
 				if (UserData *bot = msg->history()->peer->asUser()) {
-					m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
+					auto tryFastSwitch = [bot, &button]() -> bool {
+						if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
+							if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
+								return true;
+							}
+						}
+						return false;
+					};
+					if (!tryFastSwitch()) {
+						m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
+					}
 				}
 			}
 		} break;
@@ -280,10 +290,11 @@ namespace Notify {
 		}
 	}
 
-	void switchInlineBotButtonReceived(const QString &query) {
+	bool switchInlineBotButtonReceived(const QString &query) {
 		if (MainWidget *m = App::main()) {
-			m->notify_switchInlineBotButtonReceived(query);
+			return m->notify_switchInlineBotButtonReceived(query);
 		}
+		return false;
 	}
 
 	void migrateUpdated(PeerData *peer) {

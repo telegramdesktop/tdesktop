@@ -2265,12 +2265,17 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		_wasForMsgId = FullMsgId(to->channelId(), to->id);
 		clearSelection();
 
-		auto markup = to->Get<HistoryMessageReplyMarkup>();
-		_forceReply = markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-		_maximizeSize = !(markup->flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
-		_singleUse = _forceReply || (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
+		auto markupFlags = to->replyKeyboardFlags();
+		_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+		_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
+		_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
 
-		_impl.reset(markup->rows.isEmpty() ? nullptr : new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
+		_impl = nullptr;
+		if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
+			if (!markup->rows.isEmpty()) {
+				_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
+			}
+		}
 
 		updateStyle();
 		_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
@@ -3229,23 +3234,24 @@ void HistoryWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldK
 	}
 }
 
-void HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
-	if (!_peer) {
-		return;
-	}
-	if (UserData *bot = _peer->asUser()) {
-		if (!bot->botInfo || !bot->botInfo->inlineReturnPeerId) {
-			return;
+bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
+	if (UserData *bot = _peer ? _peer->asUser() : nullptr) {
+		PeerId toPeerId = bot->botInfo ? bot->botInfo->inlineReturnPeerId : 0;
+		if (!toPeerId) {
+			return false;
 		}
-		History *h = App::history(bot->botInfo->inlineReturnPeerId);
+		bot->botInfo->inlineReturnPeerId = 0;
+		History *h = App::history(toPeerId);
 		auto text = '@' + bot->username + ' ' + query;
 		h->setMsgDraft(std_::make_unique<HistoryDraft>(text, 0, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
 		if (h == _history) {
 			applyDraft();
 		} else {
-			Ui::showPeerHistory(bot->botInfo->inlineReturnPeerId, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(toPeerId, ShowAtUnreadMsgId);
 		}
+		return true;
 	}
+	return false;
 }
 
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {

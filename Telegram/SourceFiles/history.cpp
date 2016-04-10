@@ -2574,16 +2574,20 @@ void ReplyKeyboard::resize(int width, int height) {
 	for (ButtonRow &row : _rows) {
 		int s = row.size();
 
-		float64 widthForText = _width - ((s - 1) * _st->buttonSkip() + s * 2 * _st->buttonPadding()), widthOfText = 0.;
+		int widthForText = _width - ((s - 1) * _st->buttonSkip());
+		int widthOfText = 0;
 		for_const (const Button &button, row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
+			widthForText -= _st->minButtonWidth(button.type);
 		}
+		bool exact = (widthForText == widthOfText);
 
-		float64 x = 0, coef = widthForText / widthOfText;
+		float64 x = 0;
 		for (Button &button : row) {
-			float64 tw = widthForText / float64(s), w = 2 * _st->buttonPadding() + tw;
+			int buttonw = qMax(button.text.maxWidth(), 1);
+			float64 textw = exact ? buttonw : (widthForText / float64(s));
 			float64 minw = _st->minButtonWidth(button.type);
-			if (w < minw) w = minw;
+			float64 w = minw + qMax(textw, 0.);
 
 			int rectx = static_cast<int>(std::floor(x));
 			int rectw = static_cast<int>(std::floor(x + w)) - rectx;
@@ -2591,7 +2595,7 @@ void ReplyKeyboard::resize(int width, int height) {
 			if (rtl()) button.rect.setX(_width - button.rect.x() - button.rect.width());
 			x += w + _st->buttonSkip();
 
-			button.link->setFullDisplayed(tw >= button.text.maxWidth());
+			button.link->setFullDisplayed(textw >= buttonw);
 		}
 		y += buttonHeight;
 	}
@@ -2625,9 +2629,9 @@ int ReplyKeyboard::naturalWidth() const {
 	auto markup = _item->Get<HistoryMessageReplyMarkup>();
 	for_const (const ButtonRow &row, _rows) {
 		int rowSize = row.size();
-		int rowWidth = (rowSize - 1) * _st->buttonSkip() + rowSize * 2 * _st->buttonPadding();
-		for_const(const Button &button, row) {
-			rowWidth += qMax(button.text.maxWidth(), 1);
+		int rowWidth = (rowSize - 1) * _st->buttonSkip();
+		for_const (const Button &button, row) {
+			rowWidth += qMax(button.text.maxWidth(), 1) + _st->minButtonWidth(button.type);
 		}
 		if (rowWidth > result) {
 			result = rowWidth;
@@ -2753,7 +2757,7 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &
 	}
 
 	int tx = rect.x(), tw = rect.width();
-	if (tw > st::botKbFont->elidew + _st->padding * 2) {
+	if (tw >= st::botKbFont->elidew + _st->padding * 2) {
 		tx += _st->padding;
 		tw -= _st->padding * 2;
 	} else if (tw > st::botKbFont->elidew) {
@@ -6510,7 +6514,7 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	case Button::Callback: iconWidth = st::msgInvSendingImg.pxWidth(); break;
 	}
 	if (iconWidth > 0) {
-		result = std::min(result, iconWidth + 2 * int(st::msgBotKbIconPadding));
+		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
 	}
 	return result;
 }

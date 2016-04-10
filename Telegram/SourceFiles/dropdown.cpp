@@ -3835,7 +3835,7 @@ int32 EmojiPan::showInlineRows(bool newResults) {
 	if (clear) {
 		if (!hidden && hideOnNoInlineResults()) {
 			hideAnimated();
-		} else {
+		} else if (!_hiding) {
 			_cache = QPixmap(); // clear after refreshInlineRows()
 		}
 	} else {
