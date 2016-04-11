@@ -195,6 +195,7 @@ public slots:
 	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
+	void onSwitchWorkMode();
 	void onSwitchTestMode();
 
 	void killDownloadSessions();

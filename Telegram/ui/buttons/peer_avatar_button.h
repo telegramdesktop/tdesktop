@@ -20,20 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Dialogs {
+#include "ui/button.h"
+#include "ui/style.h"
+#include "structs.h"
 
-class Row;
-using RowsByLetter = QMap<QChar, Row*>;
+class PeerAvatarButton : public Button {
+public:
+	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+	void setPeer(PeerData *peer) {
+		_peer = peer;
+		update();
+	}
+	void paintEvent(QPaintEvent *e);
 
-enum class SortMode {
-	Date = 0x00,
-	Name = 0x01,
-	Add  = 0x02,
+private:
+	PeerData *_peer;
+	const style::PeerAvatarButton &_st;
+
 };
-
-enum class Mode {
-	All       = 0x00,
-	Important = 0x01,
-};
-
-} // namespace Dialogs

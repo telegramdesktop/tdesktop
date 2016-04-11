@@ -962,6 +962,15 @@ void AppClass::onSwitchDebugMode() {
 	}
 }
 
+void AppClass::onSwitchWorkMode() {
+	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
+	Global::SetDialogsMode(Dialogs::Mode::All);
+	Local::writeUserSettings();
+	cSetRestarting(true);
+	cSetRestartingToSettings(true);
+	App::quit();
+}
+
 void AppClass::onSwitchTestMode() {
 	if (cTestMode()) {
 		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();

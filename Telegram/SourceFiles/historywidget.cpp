@@ -3270,7 +3270,7 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 				showHistory(peer->migrateTo()->id, (_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId, true);
 			} else if ((_migrated ? _migrated->peer : 0) != peer->migrateFrom()) {
 				History *migrated = peer->migrateFrom() ? App::history(peer->migrateFrom()->id) : 0;
-				if (_migrated || (migrated && migrated->unreadCount > 0)) {
+				if (_migrated || (migrated && migrated->unreadCount() > 0)) {
 					showHistory(peer->id, peer->migrateFrom() ? _showAtMsgId : ((_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) ? ShowAtUnreadMsgId : _showAtMsgId), true);
 				} else {
 					_migrated = migrated;
@@ -3831,7 +3831,7 @@ void HistoryWidget::updateFieldSubmitSettings() {
 void HistoryWidget::updateNotifySettings() {
 	if (!_peer || !_peer->isChannel()) return;
 
-	_muteUnmute.setText(lang(_history->mute ? lng_channel_unmute : lng_channel_mute));
+	_muteUnmute.setText(lang(_history->mute() ? lng_channel_unmute : lng_channel_mute));
 	if (_peer->notify != UnknownNotifySettings) {
 		_silent.setChecked(_peer->notify != EmptyNotifySettings && (_peer->notify->flags & MTPDpeerNotifySettings::Flag::f_silent));
 		if (_silent.isHidden() && hasSilentToggle()) {
@@ -4211,7 +4211,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			}
 		} else {
 			App::wnd()->notifySchedule(history, item);
-			history->setUnreadCount(history->unreadCount + 1);
+			history->setUnreadCount(history->unreadCount() + 1);
 		}
 	} else {
 		if (_history == history) {
@@ -4220,7 +4220,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			}
 		}
 		App::wnd()->notifySchedule(history, item);
-		history->setUnreadCount(history->unreadCount + 1);
+		history->setUnreadCount(history->unreadCount() + 1);
 	}
 }
 
@@ -4339,7 +4339,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 		_firstLoadRequest = 0;
 		if (_history->loadedAtTop()) {
-			if (_history->unreadCount > count) {
+			if (_history->unreadCount() > count) {
 				_history->setUnreadCount(count);
 			}
 			if (_history->isEmpty() && count > 0) {
@@ -4373,7 +4373,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			}
 			_firstLoadRequest = 0;
 			if (_history->loadedAtTop()) {
-				if (_history->unreadCount > count) {
+				if (_history->unreadCount() > count) {
 					_history->setUnreadCount(count);
 				}
 				if (_history->isEmpty() && count > 0) {
@@ -4429,12 +4429,12 @@ void HistoryWidget::firstLoadMessages() {
 	PeerData *from = _peer;
 	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
-		if (_migrated && _migrated->unreadCount) {
+		if (_migrated && _migrated->unreadCount()) {
 			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
 			from = _migrated->peer;
 			offset = -loadCount / 2;
 			offset_id = _migrated->inboxReadBefore;
-		} else if (_history->unreadCount) {
+		} else if (_history->unreadCount()) {
 			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
 			offset = -loadCount / 2;
 			offset_id = _history->inboxReadBefore;
@@ -4552,11 +4552,11 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	PeerData *from = _peer;
 	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
-		if (_migrated && _migrated->unreadCount) {
+		if (_migrated && _migrated->unreadCount()) {
 			from = _migrated->peer;
 			offset = -loadCount / 2;
 			offset_id = _migrated->inboxReadBefore;
-		} else if (_history->unreadCount) {
+		} else if (_history->unreadCount()) {
 			offset = -loadCount / 2;
 			offset_id = _history->inboxReadBefore;
 		} else {
@@ -4872,7 +4872,7 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 }
 
 void HistoryWidget::onMuteUnmute() {
-	App::main()->updateNotifySetting(_peer, _history->mute ? NotifySettingSetNotify : NotifySettingSetMuted);
+	App::main()->updateNotifySetting(_peer, _history->mute() ? NotifySettingSetNotify : NotifySettingSetMuted);
 }
 
 void HistoryWidget::onBroadcastSilentChange() {
@@ -6720,10 +6720,10 @@ void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> 
 }
 
 void HistoryWidget::countHistoryShowFrom() {
-	if (_migrated && _showAtMsgId == ShowAtUnreadMsgId && _migrated->unreadCount) {
+	if (_migrated && _showAtMsgId == ShowAtUnreadMsgId && _migrated->unreadCount()) {
 		_migrated->updateShowFrom();
 	}
-	if ((_migrated && _migrated->showFrom) || _showAtMsgId != ShowAtUnreadMsgId || !_history->unreadCount) {
+	if ((_migrated && _migrated->showFrom) || _showAtMsgId != ShowAtUnreadMsgId || !_history->unreadCount()) {
 		_history->showFrom = 0;
 		return;
 	}

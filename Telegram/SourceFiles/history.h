@@ -65,6 +65,9 @@ public:
 	int32 unreadBadge() const {
 		return _unreadFull - (cIncludeMuted() ? 0 : _unreadMuted);
 	}
+	int32 unreadMutedCount() const {
+		return _unreadMuted;
+	}
 	bool unreadOnlyMuted() const {
 		return cIncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
 	}
@@ -249,7 +252,13 @@ public:
 
 	HistoryItem *lastImportantMessage() const;
 
+	int unreadCount() const {
+		return _unreadCount;
+	}
 	void setUnreadCount(int newUnreadCount, bool psUpdate = true);
+	bool mute() const {
+		return _mute;
+	}
 	void setMute(bool newMute);
 	void getNextShowFrom(HistoryBlock *block, int i);
 	void addUnreadBar();
@@ -266,18 +275,18 @@ public:
 	void fixLastMessage(bool wasAtBottom);
 
 	void setChatsListDate(const QDateTime &date);
-	QPair<int32, int32> adjustByPosInChatsList(Dialogs::IndexedList *indexed);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
-	bool inChatList() const {
-		return !_chatListLinks.isEmpty();
+	QPair<int32, int32> adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
+	bool inChatList(Dialogs::Mode list) const {
+		return !chatListLinks(list).isEmpty();
 	}
-	int posInChatList() const;
-	Dialogs::Row *addToChatList(Dialogs::IndexedList *indexed);
-	void removeFromChatList(Dialogs::IndexedList *indexed);
-	void removeChatListEntryByLetter(QChar letter);
-	void addChatListEntryByLetter(QChar letter, Dialogs::Row *row);
+	int posInChatList(Dialogs::Mode list) const;
+	Dialogs::Row *addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
+	void removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
+	void removeChatListEntryByLetter(Dialogs::Mode list, QChar letter);
+	void addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row);
 	void updateChatListEntry() const;
 
 	MsgId minMsgId() const;
@@ -334,7 +343,6 @@ public:
 	int width = 0;
 	int height = 0;
 	int32 msgCount = 0;
-	int32 unreadCount = 0;
 	MsgId inboxReadBefore = 1;
 	MsgId outboxReadBefore = 1;
 	HistoryItem *showFrom = nullptr;
@@ -411,8 +419,6 @@ protected:
 	void countScrollTopItem(int top);
 
 public:
-
-	bool mute;
 
 	bool lastKeyboardInited = false;
 	bool lastKeyboardUsed = false;
@@ -536,11 +542,19 @@ private:
 		return ~QFlags<Flags::enum_type>(f);
 	}
 	Flags _flags;
+	bool _mute;
+	int32 _unreadCount = 0;
 
-	Dialogs::RowsByLetter _chatListLinks;
-	Dialogs::Row *mainChatListLink() const {
-		auto it = _chatListLinks.constFind(0);
-		t_assert(it != _chatListLinks.cend());
+	Dialogs::RowsByLetter _chatListLinks[2];
+	Dialogs::RowsByLetter &chatListLinks(Dialogs::Mode list) {
+		return _chatListLinks[static_cast<int>(list)];
+	}
+	const Dialogs::RowsByLetter &chatListLinks(Dialogs::Mode list) const {
+		return _chatListLinks[static_cast<int>(list)];
+	}
+	Dialogs::Row *mainChatListLink(Dialogs::Mode list) const {
+		auto it = chatListLinks(list).constFind(0);
+		t_assert(it != chatListLinks(list).cend());
 		return it.value();
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)

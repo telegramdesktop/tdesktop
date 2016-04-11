@@ -260,7 +260,8 @@ public:
 
 	void createDialog(History *history);
 	void removeDialog(History *history);
-	void dlgUpdated(Dialogs::Row *row = nullptr);
+	void dlgUpdated();
+	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 
 	void windowShown();
@@ -467,6 +468,7 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
+	void notify_historyMuteUpdated(History *history);
 	void notify_handlePendingHistoryUpdate();
 
 	void cmd_search();

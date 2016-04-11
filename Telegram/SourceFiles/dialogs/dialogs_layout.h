@@ -33,6 +33,8 @@ public:
 	static void paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground);
 };
 
+void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground);
+
 // This will be moved somewhere outside as soon as anyone starts using that.
 class StyleSheet {
 public:

@@ -886,6 +886,8 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
+dlgImportantHeight: 37px;
+
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;

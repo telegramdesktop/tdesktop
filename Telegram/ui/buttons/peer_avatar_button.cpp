@@ -18,22 +18,18 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "ui/buttons/peer_avatar_button.h"
 
-namespace Dialogs {
+PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : Button(parent)
+, _peer(peer)
+, _st(st) {
+	resize(_st.size, _st.size);
+}
 
-class Row;
-using RowsByLetter = QMap<QChar, Row*>;
-
-enum class SortMode {
-	Date = 0x00,
-	Name = 0x01,
-	Add  = 0x02,
-};
-
-enum class Mode {
-	All       = 0x00,
-	Important = 0x01,
-};
-
-} // namespace Dialogs
+void PeerAvatarButton::paintEvent(QPaintEvent *e) {
+	if (_peer) {
+		Painter p(this);
+		_peer->paintUserpic(p, _st.photoSize, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2);
+	}
+}

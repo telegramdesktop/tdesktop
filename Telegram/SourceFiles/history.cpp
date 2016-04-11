@@ -104,7 +104,7 @@ void historyInit() {
 
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
-, mute(isNotifyMuted(peer->notify)) {
+, _mute(isNotifyMuted(peer->notify)) {
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
 	}
@@ -1683,7 +1683,7 @@ void History::updateShowFrom() {
 
 MsgId History::inboxRead(MsgId upTo) {
 	if (upTo < 0) return upTo;
-	if (unreadCount) {
+	if (unreadCount()) {
 		if (upTo && loadedAtBottom()) App::main()->historyToDown(this);
 		setUnreadCount(upTo ? countUnread(upTo) : 0);
 	}
@@ -1739,7 +1739,7 @@ HistoryItem *History::lastImportantMessage() const {
 }
 
 void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
-	if (unreadCount != newUnreadCount) {
+	if (_unreadCount != newUnreadCount) {
 		if (newUnreadCount == 1) {
 			if (loadedAtBottom()) showFrom = lastImportantMessage();
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
@@ -1747,18 +1747,18 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 			showFrom = nullptr;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		}
-		if (inChatList()) {
-			App::histories().unreadIncrement(newUnreadCount - unreadCount, mute);
-			if (psUpdate && (!mute || cIncludeMuted()) && App::wnd()) {
+		if (inChatList(Dialogs::Mode::All)) {
+			App::histories().unreadIncrement(newUnreadCount - _unreadCount, mute());
+			if (psUpdate && (!mute() || cIncludeMuted()) && App::wnd()) {
 				App::wnd()->updateCounter();
 			}
 		}
-		unreadCount = newUnreadCount;
+		_unreadCount = newUnreadCount;
 		if (unreadBar) {
-			int32 count = unreadCount;
+			int32 count = _unreadCount;
 			if (peer->migrateTo()) {
 				if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-					count += h->unreadCount;
+					count += h->unreadCount();
 				}
 			}
 			if (count > 0) {
@@ -1771,11 +1771,14 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 }
 
  void History::setMute(bool newMute) {
-	if (mute != newMute) {
-		mute = newMute;
-		if (inChatList() && unreadCount) {
-			App::histories().unreadMuteChanged(unreadCount, newMute);
-			if (App::wnd()) App::wnd()->updateCounter();
+	if (_mute != newMute) {
+		_mute = newMute;
+		if (inChatList(Dialogs::Mode::All)) {
+			if (_unreadCount) {
+				App::histories().unreadMuteChanged(_unreadCount, newMute);
+				if (App::wnd()) App::wnd()->updateCounter();
+			}
+			Notify::historyMuteUpdated(this);
 		}
 		updateChatListEntry();
 	}
@@ -1881,12 +1884,12 @@ void History::getNextScrollTopItem(HistoryBlock *block, int32 i) {
 }
 
 void History::addUnreadBar() {
-	if (unreadBar || !showFrom || showFrom->detached() || !unreadCount) return;
+	if (unreadBar || !showFrom || showFrom->detached() || !unreadCount()) return;
 
-	int32 count = unreadCount;
+	int32 count = unreadCount();
 	if (peer->migrateTo()) {
 		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-			count += h->unreadCount;
+			count += h->unreadCount();
 		}
 	}
 	showFrom->setUnreadBarCount(count);
@@ -2014,12 +2017,12 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 	if (msgId == ShowAtUnreadMsgId) {
 		if (peer->migrateFrom()) { // old group history
 			if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
-				if (h->unreadCount) {
+				if (h->unreadCount()) {
 					return h->isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 				}
 			}
 		}
-		if (unreadCount) {
+		if (unreadCount()) {
 			if (!isEmpty()) {
 				return (loadedAtTop() || minMsgId() <= inboxReadBefore) && (loadedAtBottom() || maxMsgId() >= inboxReadBefore);
 			}
@@ -2045,7 +2048,7 @@ void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScro
 	}
 	if (msgId == ShowAtUnreadMsgId && peer->migrateFrom()) {
 		if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
-			if (h->unreadCount) {
+			if (h->unreadCount()) {
 				clear(true);
 				h->getReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 				return;
@@ -2084,12 +2087,12 @@ void History::setLastMessage(HistoryItem *msg) {
 }
 
 void History::setChatsListDate(const QDateTime &date) {
-	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || !_chatListLinks.isEmpty()));
-	if (peer->migrateTo() && _chatListLinks.isEmpty()) {
+	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || inChatList(Dialogs::Mode::All)));
+	if (peer->migrateTo() && !inChatList(Dialogs::Mode::All)) {
 		updateDialog = false;
 	}
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
-		if (!updateDialog || !_chatListLinks.isEmpty()) {
+		if (!updateDialog || !inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}
@@ -2225,61 +2228,64 @@ void History::clearOnDestroy() {
 	clearBlocks(false);
 }
 
-QPair<int32, int32> History::adjustByPosInChatsList(Dialogs::IndexedList *indexed) {
+QPair<int32, int32> History::adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
 	t_assert(indexed != nullptr);
-	Dialogs::Row *lnk = mainChatListLink();
+	Dialogs::Row *lnk = mainChatListLink(list);
 	int32 movedFrom = lnk->pos() * st::dlgHeight;
-	indexed->adjustByPos(_chatListLinks);
+	indexed->adjustByPos(chatListLinks(list));
 	int32 movedTo = lnk->pos() * st::dlgHeight;
 	return qMakePair(movedFrom, movedTo);
 }
 
-int History::posInChatList() const {
-	return mainChatListLink()->pos();
+int History::posInChatList(Dialogs::Mode list) const {
+	return mainChatListLink(list)->pos();
 }
 
-Dialogs::Row *History::addToChatList(Dialogs::IndexedList *indexed) {
+Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
 	t_assert(indexed != nullptr);
-	if (!inChatList()) {
-		_chatListLinks = indexed->addToEnd(this);
-		if (unreadCount) {
-			App::histories().unreadIncrement(unreadCount, mute);
+	if (!inChatList(list)) {
+		chatListLinks(list) = indexed->addToEnd(this);
+		if (list == Dialogs::Mode::All && unreadCount()) {
+			App::histories().unreadIncrement(unreadCount(), mute());
 			if (App::wnd()) App::wnd()->updateCounter();
 		}
 	}
-	return mainChatListLink();
+	return mainChatListLink(list);
 }
 
-void History::removeFromChatList(Dialogs::IndexedList *indexed) {
+void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
 	t_assert(indexed != nullptr);
-	if (inChatList()) {
+	if (inChatList(list)) {
 		indexed->del(peer);
-		_chatListLinks.clear();
-		if (unreadCount) {
-			App::histories().unreadIncrement(-unreadCount, mute);
+		chatListLinks(list).clear();
+		if (list == Dialogs::Mode::All && unreadCount()) {
+			App::histories().unreadIncrement(-unreadCount(), mute());
 			if (App::wnd()) App::wnd()->updateCounter();
 		}
 	}
 }
 
-void History::removeChatListEntryByLetter(QChar letter) {
+void History::removeChatListEntryByLetter(Dialogs::Mode list, QChar letter) {
 	t_assert(letter != 0);
-	if (inChatList()) {
-		_chatListLinks.remove(letter);
+	if (inChatList(list)) {
+		chatListLinks(list).remove(letter);
 	}
 }
 
-void History::addChatListEntryByLetter(QChar letter, Dialogs::Row *row) {
+void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row) {
 	t_assert(letter != 0);
-	if (inChatList()) {
-		_chatListLinks.insert(letter, row);
+	if (inChatList(list)) {
+		chatListLinks(list).insert(letter, row);
 	}
 }
 
 void History::updateChatListEntry() const {
 	if (MainWidget *m = App::main()) {
-		if (inChatList()) {
-			m->dlgUpdated(mainChatListLink());
+		if (inChatList(Dialogs::Mode::All)) {
+			m->dlgUpdated(Dialogs::Mode::All, mainChatListLink(Dialogs::Mode::All));
+			if (inChatList(Dialogs::Mode::Important)) {
+				m->dlgUpdated(Dialogs::Mode::Important, mainChatListLink(Dialogs::Mode::Important));
+			}
 		}
 	}
 }
@@ -2986,8 +2992,8 @@ void HistoryItem::destroy() {
 		history()->clearLastKeyboard();
 		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
-	if ((!out() || isPost()) && unread() && history()->unreadCount > 0) {
-		history()->setUnreadCount(history()->unreadCount - 1);
+	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
+		history()->setUnreadCount(history()->unreadCount() - 1);
 	}
 	Global::RefPendingRepaintItems().remove(this);
 	delete this;

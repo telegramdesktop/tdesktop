@@ -71,72 +71,85 @@ void IndexedList::adjustByPos(const RowsByLetter &links) {
 	}
 }
 
-
 void IndexedList::peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	t_assert(_sortMode != SortMode::Date);
 	if (_sortMode == SortMode::Name) {
-		Row *mainRow = _list.adjustByName(peer);
-		if (!mainRow) return;
-
-		History *history = mainRow->history();
-
-		PeerData::NameFirstChars toRemove = oldChars, toAdd;
-		for_const (auto ch, peer->chars) {
-			auto j = toRemove.find(ch);
-			if (j == toRemove.cend()) {
-				toAdd.insert(ch);
-			} else {
-				toRemove.erase(j);
-				if (auto list = _index.value(ch)) {
-					list->adjustByName(peer);
-				}
-			}
-		}
-		for_const (auto ch, toRemove) {
-			if (auto list = _index.value(ch)) {
-				list->del(peer->id, mainRow);
-			}
-		}
-		if (!toAdd.isEmpty()) {
-			for_const (auto ch, toAdd) {
-				auto j = _index.find(ch);
-				if (j == _index.cend()) {
-					j = _index.insert(ch, new List(_sortMode));
-				}
-				j.value()->addByName(history);
-			}
-		}
+		adjustByName(peer, oldNames, oldChars);
 	} else {
-		auto mainRow = _list.getRow(peer->id);
-		if (!mainRow) return;
+		adjustNames(Dialogs::Mode::All, peer, oldNames, oldChars);
+	}
+}
 
-		History *history = mainRow->history();
+void IndexedList::peerNameChanged(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	t_assert(_sortMode == SortMode::Date);
+	adjustNames(list, peer, oldNames, oldChars);
+}
 
-		PeerData::NameFirstChars toRemove = oldChars, toAdd;
-		for_const (auto ch, peer->chars) {
-			auto j = toRemove.find(ch);
-			if (j == toRemove.cend()) {
-				toAdd.insert(ch);
-			} else {
-				toRemove.erase(j);
-			}
-		}
-		for_const (auto ch, toRemove) {
-			if (_sortMode == SortMode::Date) {
-				history->removeChatListEntryByLetter(ch);
-			}
+void IndexedList::adjustByName(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	Row *mainRow = _list.adjustByName(peer);
+	if (!mainRow) return;
+
+	History *history = mainRow->history();
+
+	PeerData::NameFirstChars toRemove = oldChars, toAdd;
+	for_const (auto ch, peer->chars) {
+		auto j = toRemove.find(ch);
+		if (j == toRemove.cend()) {
+			toAdd.insert(ch);
+		} else {
+			toRemove.erase(j);
 			if (auto list = _index.value(ch)) {
-				list->del(peer->id, mainRow);
+				list->adjustByName(peer);
 			}
 		}
+	}
+	for_const (auto ch, toRemove) {
+		if (auto list = _index.value(ch)) {
+			list->del(peer->id, mainRow);
+		}
+	}
+	if (!toAdd.isEmpty()) {
 		for_const (auto ch, toAdd) {
 			auto j = _index.find(ch);
 			if (j == _index.cend()) {
 				j = _index.insert(ch, new List(_sortMode));
 			}
-			Row *row = j.value()->addToEnd(history);
-			if (_sortMode == SortMode::Date) {
-				history->addChatListEntryByLetter(ch, row);
-			}
+			j.value()->addByName(history);
+		}
+	}
+}
+
+void IndexedList::adjustNames(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	auto mainRow = _list.getRow(peer->id);
+	if (!mainRow) return;
+
+	History *history = mainRow->history();
+
+	PeerData::NameFirstChars toRemove = oldChars, toAdd;
+	for_const (auto ch, peer->chars) {
+		auto j = toRemove.find(ch);
+		if (j == toRemove.cend()) {
+			toAdd.insert(ch);
+		} else {
+			toRemove.erase(j);
+		}
+	}
+	for_const (auto ch, toRemove) {
+		if (_sortMode == SortMode::Date) {
+			history->removeChatListEntryByLetter(list, ch);
+		}
+		if (auto list = _index.value(ch)) {
+			list->del(peer->id, mainRow);
+		}
+	}
+	for_const (auto ch, toAdd) {
+		auto j = _index.find(ch);
+		if (j == _index.cend()) {
+			j = _index.insert(ch, new List(_sortMode));
+		}
+		Row *row = j.value()->addToEnd(history);
+		if (_sortMode == SortMode::Date) {
+			history->addChatListEntryByLetter(list, ch, row);
 		}
 	}
 }

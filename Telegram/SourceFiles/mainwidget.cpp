@@ -844,6 +844,10 @@ void MainWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBa
 	history.notify_inlineItemLayoutChanged(layout);
 }
 
+void MainWidget::notify_historyMuteUpdated(History *history) {
+	dialogs.notify_historyMuteUpdated(history);
+}
+
 void MainWidget::notify_handlePendingHistoryUpdate() {
 	history.notify_handlePendingHistoryUpdate();
 }
@@ -1509,7 +1513,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 }
 
 void MainWidget::readServerHistory(History *hist, bool force) {
-	if (!hist || (!force && !hist->unreadCount)) return;
+	if (!hist || (!force && !hist->unreadCount())) return;
 
 	MsgId upTo = hist->inboxRead(0);
 	if (hist->isChannel() && !hist->peer->asChannel()->amIn()) {
@@ -2665,11 +2669,15 @@ QRect MainWidget::historyRect() const {
 	return r;
 }
 
-void MainWidget::dlgUpdated(Dialogs::Row *row) {
-	if (row) {
-		dialogs.dlgUpdated(row);
-	} else if (_peerInStack) {
+void MainWidget::dlgUpdated() {
+	if (_peerInStack) {
 		dialogs.dlgUpdated(App::history(_peerInStack->id), _msgIdInStack);
+	}
+}
+
+void MainWidget::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
+	if (row) {
+		dialogs.dlgUpdated(list, row);
 	}
 }
 
@@ -3113,7 +3121,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 				h->setLastMessage(item);
 			}
 			int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
-			if (unreadCount >= h->unreadCount) {
+			if (unreadCount >= h->unreadCount()) {
 				h->setUnreadCount(unreadCount, false);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}

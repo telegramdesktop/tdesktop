@@ -170,41 +170,48 @@ void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted) {
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), unreadBadgeStyle->right[index]);
 }
 
+void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool active, bool muted, int *outAvailableWidth) {
+	int unreadWidth = st::dlgUnreadFont->width(text);
+	int unreadRectWidth = unreadWidth + 2 * st::dlgUnreadPaddingHor;
+	int unreadRectHeight = st::dlgUnreadHeight;
+	accumulate_max(unreadRectWidth, unreadRectHeight);
+
+	int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
+	int unreadRectTop =top;
+	if (outAvailableWidth) {
+		*outAvailableWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
+	}
+
+	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), active, muted);
+
+	p.setFont(st::dlgUnreadFont);
+	p.setPen(active ? st::dlgActiveUnreadColor : st::dlgUnreadColor);
+	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dlgUnreadTop + st::dlgUnreadFont->ascent, text);
+}
+
 } // namepsace
 
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto history = row->history();
 	auto item = history->lastMsg;
 	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, w, active, history, item](int nameleft, int namewidth) {
-		int32 lastWidth = namewidth, unread = history->unreadCount;
+		int32 unread = history->unreadCount();
 		if (history->peer->migrateFrom()) {
 			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
-				unread += h->unreadCount;
+				unread += h->unreadCount();
 			}
 		}
+		int availableWidth = namewidth;
 		int texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
 		if (unread) {
-			QString unreadStr = QString::number(unread);
-			int unreadWidth = st::dlgUnreadFont->width(unreadStr);
-			int unreadRectWidth = unreadWidth + 2 * st::dlgUnreadPaddingHor;
-			int unreadRectHeight = st::dlgUnreadHeight;
-			accumulate_max(unreadRectWidth, unreadRectHeight);
-
-			int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-			int unreadRectTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
-			lastWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
-
-			paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), active, history->mute);
-
-			p.setFont(st::dlgUnreadFont);
-			p.setPen(active ? st::dlgActiveUnreadColor : st::dlgUnreadColor);
-			p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dlgUnreadTop + st::dlgUnreadFont->ascent, unreadStr);
+			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
+			paintUnreadCount(p, QString::number(unread), unreadTop, w, active, history->mute(), &availableWidth);
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
+			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
 		} else {
 			p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
-			history->typingText.drawElided(p, nameleft, texttop, lastWidth);
+			history->typingText.drawElided(p, nameleft, texttop, availableWidth);
 		}
 	});
 }
@@ -216,6 +223,28 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool 
 		int lastWidth = namewidth, texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
 	});
+}
+
+void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground) {
+	p.fillRect(0, 0, w, st::dlgImportantHeight, selected ? st::dlgHoverBG : st::white);
+	if (onlyBackground) {
+		return;
+	}
+
+	p.setFont(st::semiboldFont);
+	p.setPen(st::black);
+
+	int unreadTop = (st::dlgImportantHeight - st::dlgUnreadHeight) / 2;
+	bool mutedHidden = (current == Dialogs::Mode::Important);
+	QString text = mutedHidden ? qsl("Show all chats") : qsl("Hide muted chats");
+	int textBaseline = unreadTop + st::dlgUnreadTop + st::dlgUnreadFont->ascent;
+	p.drawText(st::dlgPaddingHor, textBaseline, text);
+
+	if (mutedHidden) {
+		if (int32 unread = App::histories().unreadMutedCount()) {
+			paintUnreadCount(p, QString::number(unread), unreadTop, w, false, true, nullptr);
+		}
+	}
 }
 
 namespace {

@@ -90,6 +90,7 @@ private:
 		Gif,
 		Article,
 		Contact,
+		Geo,
 		Venue,
 	};
 
