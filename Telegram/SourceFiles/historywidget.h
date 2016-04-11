@@ -347,6 +347,10 @@ public:
 
 public slots:
 
+	void onParentScrolled();
+
+private slots:
+
 	void updateSelected();
 
 private:

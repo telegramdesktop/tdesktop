@@ -3734,6 +3734,9 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
 			Ui::showLayer(new ContactsBox(peer->asUser()));
+		} else if (peer->isUser() && peer->asUser()->botInfo) {
+			// Always open bot chats, even from mention links.
+			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
 		} else {
 			showPeerProfile(peer);
 		}
