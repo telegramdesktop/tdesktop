@@ -893,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Visuele verbeteringen";
+"lng_new_version_text" = "BOTS 2.0\n\n— Maak kennis met BOT API 2.0, onze grootste update voor het bot-platform sinds juni 2015.\n— Nieuwe Inline-keyboards met terugroep-functie, 'Open URL' of 'omschakelen naar inline'-knoppen voor een nog betere integratie.\n— Bots kunnen nu berichten bijwerken, direct tijdens je interactie met hen.\n— Inline-bots kunnen nu alle bijlagen sturen die worden ondersteund door Telegram (video's, muziek, stickers, bestanden, etc.).\n— Probeer deze voorbeeldbots uit voor een voorproefje: @music, @sticker, @youtube, @foursquare\n\nMeer over de nieuwe bots: {link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

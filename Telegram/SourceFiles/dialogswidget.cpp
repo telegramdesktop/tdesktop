@@ -596,7 +596,7 @@ void DialogsInner::leaveEvent(QEvent *e) {
 
 void DialogsInner::clearSelection() {
 	_selByMouse = false;
-	if (_sel || _filteredSel >= 0 || _hashtagSel >= 0 || _searchedSel >= 0 || _peopleSel >= 0) {
+	if (_importantSwitchSel || _sel || _filteredSel >= 0 || _hashtagSel >= 0 || _searchedSel >= 0 || _peopleSel >= 0) {
 		updateSelectedRow();
 		_sel = nullptr;
 		_importantSwitchSel = false;

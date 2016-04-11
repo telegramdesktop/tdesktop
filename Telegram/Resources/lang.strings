@@ -892,7 +892,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Visual improvements";
+"lng_new_version_text" = "BOTS 2.0\n\n— Introducing Bot API 2.0, the biggest update to our bot platform since June 2015.\n— Bots can now update existing messages on the fly as you interact with them.\n— New Inline keyboards with callback, 'open URL' or 'switch to inline mode' buttons help create seamless interfaces.\n— Inline bots can now send all attachments supported by Telegram (videos, music, stickers, locations, etc.).\n— Try out these sample bots to see what's coming your way soon: @music, @sticker, @youtube, @foursquare\n\nMore info: {link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
