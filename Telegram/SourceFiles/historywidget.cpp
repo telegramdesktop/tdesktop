@@ -2348,6 +2348,13 @@ QString BotKeyboard::tooltipText() const {
 	return QString();
 }
 
+void BotKeyboard::onParentScrolled() {
+	// Holding scrollarea can fire scrolled() event from a resize() call before
+	// the resizeEvent() is called, which prepares _impl for updateSelected() call.
+	// Calling updateSelecteD() without delay causes _impl->getState() before _impl->resize().
+	QMetaObject::invokeMethod(this, "updateSelected", Qt::QueuedConnection);
+}
+
 void BotKeyboard::updateSelected() {
 	PopupTooltip::Show(1000, this);
 
@@ -2810,7 +2817,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_kbScroll.setWidget(&_keyboard);
 	_kbScroll.hide();
 
-	connect(&_kbScroll, SIGNAL(scrolled()), &_keyboard, SLOT(updateSelected()));
+	connect(&_kbScroll, SIGNAL(scrolled()), &_keyboard, SLOT(onParentScrolled()));
 
 	updateScrollColors();
 
