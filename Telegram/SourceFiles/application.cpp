@@ -1034,10 +1034,10 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9040) {
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
 //				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");
 				versionFeatures = langNewVersionText();
-			} else if (Local::oldMapVersion() < 9040) {
+			} else if (Local::oldMapVersion() < 9041) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
