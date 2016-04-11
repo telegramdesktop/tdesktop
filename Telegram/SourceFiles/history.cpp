@@ -2587,7 +2587,8 @@ void ReplyKeyboard::resize(int width, int height) {
 			int buttonw = qMax(button.text.maxWidth(), 1);
 			float64 textw = exact ? buttonw : (widthForText / float64(s));
 			float64 minw = _st->minButtonWidth(button.type);
-			float64 w = minw + qMax(textw, 0.);
+			float64 w = minw + textw;
+			accumulate_max(w, 2 * float64(_st->buttonPadding()));
 
 			int rectx = static_cast<int>(std::floor(x));
 			int rectw = static_cast<int>(std::floor(x + w)) - rectx;

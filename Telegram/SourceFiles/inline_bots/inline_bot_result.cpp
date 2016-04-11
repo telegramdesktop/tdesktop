@@ -67,6 +67,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		result->insert(qsl("photo"), Result::Type::Photo);
 		result->insert(qsl("video"), Result::Type::Video);
 		result->insert(qsl("audio"), Result::Type::Audio);
+		result->insert(qsl("voice"), Result::Type::Audio);
 		result->insert(qsl("sticker"), Result::Type::Sticker);
 		result->insert(qsl("file"), Result::Type::File);
 		result->insert(qsl("gif"), Result::Type::Gif);

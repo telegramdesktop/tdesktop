@@ -751,9 +751,14 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
 
 	p.setPen(st::inlineDescriptionFg);
-	if (_statusText.isEmpty()) {
-		_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
-	} else {
+	bool drawStatusSize = true;
+	if (_statusSize == FileStatusSizeReady || _statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeFailed) {
+		if (!_description.isEmpty()) {
+			_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
+			drawStatusSize = false;
+		}
+	}
+	if (drawStatusSize) {
 		p.setFont(st::normalFont);
 		p.drawTextLeft(left, descriptionTop, _width, _statusText);
 	}
@@ -898,14 +903,11 @@ bool File::updateStatusText() const {
 void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
 	_statusSize = newSize;
 	if (_statusSize == FileStatusSizeReady) {
-//		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-		_statusText = QString();
+		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
 	} else if (_statusSize == FileStatusSizeLoaded) {
-//		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-		_statusText = QString();
+		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
 	} else if (_statusSize == FileStatusSizeFailed) {
-//		_statusText = lang(lng_attach_failed);
-		_statusText = QString();
+		_statusText = lang(lng_attach_failed);
 	} else if (_statusSize >= 0) {
 		_statusText = formatDownloadText(_statusSize, fullSize);
 	} else {
