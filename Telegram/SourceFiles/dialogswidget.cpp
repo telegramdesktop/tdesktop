@@ -456,14 +456,15 @@ void DialogsInner::createDialog(History *history) {
 			}
 		}
 	}
-	RefPair(int32, movedFrom, int32, movedTo) = changed;
 
-	emit dialogMoved(movedFrom, movedTo);
+	int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
+	int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
+	emit dialogMoved(from, to);
 
 	if (creating) {
 		refresh();
-	} else if (_state == DefaultState && movedFrom != movedTo) {
-		update(0, dialogsOffset() + qMin(movedFrom, movedTo), fullWidth(), qAbs(movedFrom - movedTo) + st::dlgHeight);
+	} else if (_state == DefaultState && changed.movedFrom != changed.movedTo) {
+		update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dlgHeight);
 	}
 }
 
@@ -1162,14 +1163,15 @@ void DialogsInner::notify_historyMuteUpdated(History *history) {
 		if (Global::DialogsMode() != Dialogs::Mode::Important) {
 			return;
 		}
-		RefPair(int32, movedFrom, int32, movedTo) = changed;
 
-		emit dialogMoved(movedFrom, movedTo);
+		int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
+		int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
+		emit dialogMoved(from, to);
 
 		if (creating) {
 			refresh();
-		} else if (_state == DefaultState && movedFrom != movedTo) {
-			update(0, dialogsOffset() + qMin(movedFrom, movedTo), fullWidth(), qAbs(movedFrom - movedTo) + st::dlgHeight);
+		} else if (_state == DefaultState && changed.movedFrom != changed.movedTo) {
+			update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dlgHeight);
 		}
 	}
 }

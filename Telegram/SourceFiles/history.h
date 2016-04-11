@@ -278,7 +278,11 @@ public:
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
-	QPair<int32, int32> adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
+	struct PositionInChatListChange {
+		int movedFrom;
+		int movedTo;
+	};
+	PositionInChatListChange adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
 	bool inChatList(Dialogs::Mode list) const {
 		return !chatListLinks(list).isEmpty();
 	}

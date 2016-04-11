@@ -2228,13 +2228,13 @@ void History::clearOnDestroy() {
 	clearBlocks(false);
 }
 
-QPair<int32, int32> History::adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
+History::PositionInChatListChange History::adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
 	t_assert(indexed != nullptr);
 	Dialogs::Row *lnk = mainChatListLink(list);
-	int32 movedFrom = lnk->pos() * st::dlgHeight;
+	int32 movedFrom = lnk->pos();
 	indexed->adjustByPos(chatListLinks(list));
-	int32 movedTo = lnk->pos() * st::dlgHeight;
-	return qMakePair(movedFrom, movedTo);
+	int32 movedTo = lnk->pos();
+	return { movedFrom, movedTo };
 }
 
 int History::posInChatList(Dialogs::Mode list) const {
