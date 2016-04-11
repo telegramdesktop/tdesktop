@@ -34,7 +34,13 @@ public:
 	RowsByLetter addToEnd(History *history);
 	Row *addByName(History *history);
 	void adjustByPos(const RowsByLetter &links);
+
+	// For sortMode != SortMode::Date
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+
+	//For sortMode == SortMode::Date
+	void peerNameChanged(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+
 	void del(const PeerData *peer, Row *replacedBy = nullptr);
 	void clear();
 
@@ -71,6 +77,9 @@ public:
 	iterator find(int y, int h) { return all().find(y, h); }
 
 private:
+	void adjustByName(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void adjustNames(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+
 	SortMode _sortMode;
 	List _list;
 	using Index = QMap<QChar, List*>;

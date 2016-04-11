@@ -55,7 +55,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _forward(this, lang(lng_selected_forward), st::topBarActionButton)
 , _delete(this, lang(lng_selected_delete), st::topBarActionButton)
 , _selectionButtonsWidth(_clearSelection.width() + _forward.width() + _delete.width()), _forwardDeleteWidth(qMax(_forward.textWidth(), _delete.textWidth()))
-, _info(this, lang(lng_topbar_info), st::topBarButton)
+, _info(this, nullptr, st::infoButton)
 , _edit(this, lang(lng_profile_edit_contact), st::topBarButton)
 , _leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton)
 , _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
@@ -362,6 +362,7 @@ void TopBarWidget::showAll() {
 		}
 		if (h && !o && !p && _clearSelection.isHidden()) {
 			if (Adaptive::OneColumn()) {
+				_info.setPeer(h);
 				_info.show();
 			} else {
 				_info.hide();
@@ -841,6 +842,10 @@ void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void MainWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
 	history.notify_inlineItemLayoutChanged(layout);
+}
+
+void MainWidget::notify_historyMuteUpdated(History *history) {
+	dialogs.notify_historyMuteUpdated(history);
 }
 
 void MainWidget::notify_handlePendingHistoryUpdate() {
@@ -1397,17 +1402,35 @@ void executeParsedCommand(const QString &command) {
 	if (command == qsl("new_version_text")) {
 		App::wnd()->serviceNotification(langNewVersionText());
 	} else if (command == qsl("all_new_version_texts")) {
+
+#define NEW_VER_TAG lt_link
+#define NEW_VER_TAG_VALUE "https://telegram.org/blog/bots-2-0"
+
+#ifdef NEW_VER_TAG
+#define NEW_VER_KEY lng_new_version_text__tagged
+#define NEW_VER_POSTFIX .tag(NEW_VER_TAG, QString::fromUtf8(NEW_VER_TAG_VALUE))
+#else
+#define NEW_VER_KEY lng_new_version_text
+#define NEW_VER_POSTFIX
+#endif
+
 		for (int i = 0; i < languageCount; ++i) {
 			LangLoaderResult result;
 			if (i) {
-				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name, lng_new_version_text));
+				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name, NEW_VER_KEY));
 				result = loader.found();
 			} else {
 				result.insert(lng_language_name, langOriginal(lng_language_name));
-				result.insert(lng_new_version_text, langOriginal(lng_new_version_text));
+				result.insert(NEW_VER_KEY, langOriginal(NEW_VER_KEY));
 			}
-			App::wnd()->serviceNotification(result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")) + qsl(":\n\n") + result.value(lng_new_version_text, qsl("--none--")));
+			App::wnd()->serviceNotification(result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")) + qsl(":\n\n") + LangString(result.value(NEW_VER_KEY, qsl("--none--")))NEW_VER_POSTFIX);
 		}
+
+#undef NEW_VER_POSTFIX
+#undef NEW_VER_KEY
+#undef NEW_VER_TAG_VALUE
+#undef NEW_VER_TAG
+
 	}
 }
 } // namespace
@@ -1508,7 +1531,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 }
 
 void MainWidget::readServerHistory(History *hist, bool force) {
-	if (!hist || (!force && !hist->unreadCount)) return;
+	if (!hist || (!force && !hist->unreadCount())) return;
 
 	MsgId upTo = hist->inboxRead(0);
 	if (hist->isChannel() && !hist->peer->asChannel()->amIn()) {
@@ -2664,11 +2687,15 @@ QRect MainWidget::historyRect() const {
 	return r;
 }
 
-void MainWidget::dlgUpdated(Dialogs::Row *row) {
-	if (row) {
-		dialogs.dlgUpdated(row);
-	} else if (_peerInStack) {
+void MainWidget::dlgUpdated() {
+	if (_peerInStack) {
 		dialogs.dlgUpdated(App::history(_peerInStack->id), _msgIdInStack);
+	}
+}
+
+void MainWidget::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
+	if (row) {
+		dialogs.dlgUpdated(list, row);
 	}
 }
 
@@ -3112,7 +3139,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 				h->setLastMessage(item);
 			}
 			int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
-			if (unreadCount >= h->unreadCount) {
+			if (unreadCount >= h->unreadCount()) {
 				h->setUnreadCount(unreadCount, false);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}

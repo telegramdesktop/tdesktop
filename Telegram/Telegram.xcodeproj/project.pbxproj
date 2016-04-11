@@ -119,6 +119,7 @@
 		07DE92AA1AA4928200A18F6F /* moc_autolockbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A91AA4928200A18F6F /* moc_autolockbox.cpp */; };
 		07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92AB1AA4928B00A18F6F /* moc_passcodebox.cpp */; };
 		07DE92AE1AA4928B00A18F6F /* moc_passcodewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92AC1AA4928B00A18F6F /* moc_passcodewidget.cpp */; };
+		07E373941CBBC11000934F77 /* peer_avatar_button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E373921CBBC11000934F77 /* peer_avatar_button.cpp */; };
 		0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* facade.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F7872E39EA570249D420912 /* moc_introwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A37C7E516201B0264A4CDA38 /* moc_introwidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		113AA97DEE7847C7D2DCFF71 /* logs.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 974DB34EEB8F83B91614C0B0 /* logs.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -433,6 +434,8 @@
 		07DE92A91AA4928200A18F6F /* moc_autolockbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_autolockbox.cpp; path = GeneratedFiles/Debug/moc_autolockbox.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92AB1AA4928B00A18F6F /* moc_passcodebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_passcodebox.cpp; path = GeneratedFiles/Debug/moc_passcodebox.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92AC1AA4928B00A18F6F /* moc_passcodewidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_passcodewidget.cpp; path = GeneratedFiles/Debug/moc_passcodewidget.cpp; sourceTree = SOURCE_ROOT; };
+		07E373921CBBC11000934F77 /* peer_avatar_button.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = peer_avatar_button.cpp; path = SourceFiles/ui/buttons/peer_avatar_button.cpp; sourceTree = SOURCE_ROOT; };
+		07E373931CBBC11000934F77 /* peer_avatar_button.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = peer_avatar_button.h; path = SourceFiles/ui/buttons/peer_avatar_button.h; sourceTree = SOURCE_ROOT; };
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/ui/boxshadow.cpp; sourceTree = "<absolute>"; };
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
@@ -905,6 +908,15 @@
 			name = toast;
 			sourceTree = "<group>";
 		};
+		07E373901CBBBFDE00934F77 /* buttons */ = {
+			isa = PBXGroup;
+			children = (
+				07E373921CBBC11000934F77 /* peer_avatar_button.cpp */,
+				07E373931CBBC11000934F77 /* peer_avatar_button.h */,
+			);
+			name = buttons;
+			sourceTree = "<group>";
+		};
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
@@ -982,6 +994,7 @@
 		579DA7AEF5751DF4988869A0 /* ui */ = {
 			isa = PBXGroup;
 			children = (
+				07E373901CBBBFDE00934F77 /* buttons */,
 				07C8FE071CB80884007A8702 /* toast */,
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
@@ -1785,6 +1798,7 @@
 				6A8BC88AB464B92706EFE6FF /* moc_countryinput.cpp in Compile Sources */,
 				0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */,
 				07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */,
+				07E373941CBBC11000934F77 /* peer_avatar_button.cpp in Compile Sources */,
 				B0B88EFE444C0DE673389418 /* moc_flatbutton.cpp in Compile Sources */,
 				1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */,
 				565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */,
@@ -1869,7 +1883,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.40;
+				CURRENT_PROJECT_VERSION = 0.9.41;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1888,7 +1902,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.9.40;
+				CURRENT_PROJECT_VERSION = 0.9.41;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1916,10 +1930,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.40;
+				CURRENT_PROJECT_VERSION = 0.9.41;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.40;
+				DYLIB_CURRENT_VERSION = 0.9.41;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -2058,10 +2072,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.40;
+				CURRENT_PROJECT_VERSION = 0.9.41;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.40;
+				DYLIB_CURRENT_VERSION = 0.9.41;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				FRAMEWORK_SEARCH_PATHS = "";

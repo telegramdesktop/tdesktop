@@ -214,7 +214,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 	default: {
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			if (_userpic->isNull()) {
+			if (_userpic.v() == userDefPhoto(colorIndex).v()) {
 				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
 			}
 		} else {

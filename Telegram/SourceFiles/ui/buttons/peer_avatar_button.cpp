@@ -18,44 +18,18 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "ui/buttons/peer_avatar_button.h"
 
-#include "lang.h"
+PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : Button(parent)
+, _peer(peer)
+, _st(st) {
+	resize(_st.size, _st.size);
+}
 
-class LangLoaderRequest : public QMap <LangKey, bool> {
-public:
-	LangLoaderRequest() {
+void PeerAvatarButton::paintEvent(QPaintEvent *e) {
+	if (_peer) {
+		Painter p(this);
+		_peer->paintUserpic(p, _st.photoSize, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2);
 	}
-	LangLoaderRequest(LangKey key1) {
-		insert(key1, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2) {
-		insert(key1, true);
-		insert(key2, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2, LangKey key3) {
-		insert(key1, true);
-		insert(key2, true);
-		insert(key3, true);
-	}
-};
-
-using LangLoaderResult = QMap<LangKey, LangString>;
-class LangLoaderPlain : public LangLoader {
-public:
-	LangLoaderPlain(const QString &file, const LangLoaderRequest &request = LangLoaderRequest());
-
-	LangLoaderResult found() const {
-		return result;
-	}
-
-protected:
-	QString file;
-	LangLoaderRequest request;
-
-	bool readKeyValue(const char *&from, const char *end);
-
-	bool readingAll;
-	LangLoaderResult result;
-
-};
+}

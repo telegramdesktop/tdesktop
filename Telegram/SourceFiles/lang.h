@@ -143,7 +143,7 @@ inline LangString langDateTimeFull(const QDateTime &date) {
 }
 
 inline LangString langNewVersionText() {
-	return lang(lng_new_version_text).trimmed();
+	return lng_new_version_text(lt_link, qsl("https://telegram.org/blog/bots-2-0"));
 }
 
 class LangLoader {

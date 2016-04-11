@@ -886,6 +886,8 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
+dlgImportantHeight: 37px;
+
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;
@@ -2515,3 +2517,8 @@ toastFg: #FFF;
 toastPadding: margins(19px, 13px, 19px, 12px);
 toastFadeInDuration: 200;
 toastFadeOutDuration: 1000;
+
+infoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
+}

@@ -1757,7 +1757,7 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 , _about(_aboutWidth)
 , _aboutHeight(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 
 	refresh();

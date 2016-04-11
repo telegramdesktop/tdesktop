@@ -893,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 비주얼 향상";
+"lng_new_version_text" = "봇 API 2.0\n\n— 봇 API 2.0을 소개합니다, 2015년 6월 이후로 가장 큰 봇 플랫폼 업데이트입니다.\n— 봇을 활용하여  기존 송신한 메시지에 대한 업데이트가 가능합니다.\n— 새로운 Inline 키보드를 소개합니다, 콜백, URL열기 혹은 inline모드 전환 버튼으로 매끄러운 인터페이스를 도와줍니다.\n— Inline 봇은 텔레그램에서 활용 가능한 모든 첨부파일을 전송 할 수 있습니다. (비디오, 음악, 스티커, 파일등)\n— 샘플 봇을 활용하여 미리 업데이트 기능을 활용해보세요 : @music, @sticker, @youtoube, @foursquare\n\n봇에 대한 자세한 설명: {link}";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

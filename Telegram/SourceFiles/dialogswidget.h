@@ -54,10 +54,6 @@ public:
 
 	void contactsReceived(const QVector<MTPContact> &contacts);
 
-	int32 filteredOffset() const;
-	int32 peopleOffset() const;
-	int32 searchedOffset() const;
-
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -65,14 +61,11 @@ public:
 	void leaveEvent(QEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
-	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
-	void searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const;
-
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
 	void createDialog(History *history);
-	void dlgUpdated(Dialogs::Row *row);
+	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 	void removeDialog(History *history);
 
@@ -125,6 +118,7 @@ public:
 	void updateNotifySettings(PeerData *peer);
 
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
+	void notify_historyMuteUpdated(History *history);
 
 	~DialogsInner();
 
@@ -165,17 +159,34 @@ protected:
 
 private:
 
+	int dialogsOffset() const;
+	int filteredOffset() const;
+	int peopleOffset() const;
+	int searchedOffset() const;
+
+	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool active, bool selected, bool onlyBackground) const;
+	void searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const;
+
+	void clearSelection();
 	void clearSearchResults(bool clearPeople = true);
 	void updateSelectedRow(PeerData *peer = 0);
 	bool menuPeerMuted();
 	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
 
+	Dialogs::IndexedList *shownDialogs() const {
+		return (Global::DialogsMode() == Dialogs::Mode::Important) ? importantDialogs.get() : dialogs.get();
+	}
+
 	using DialogsList = std_::unique_ptr<Dialogs::IndexedList>;
 	DialogsList dialogs;
+	DialogsList importantDialogs;
+
 	DialogsList contactsNoDialogs;
 	DialogsList contacts;
-	Dialogs::Row *sel = nullptr;
-	bool selByMouse = false;
+
+	bool _importantSwitchSel = false;
+	Dialogs::Row *_sel = nullptr;
+	bool _selByMouse = false;
 
 	QString _filter, _hashtagFilter;
 
@@ -244,7 +255,7 @@ public:
 
 	void loadDialogs();
 	void createDialog(History *history);
-	void dlgUpdated(Dialogs::Row *row);
+	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 
 	void dialogsToUp();
@@ -276,6 +287,7 @@ public:
 	}
 
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
+	void notify_historyMuteUpdated(History *history);
 
 signals:
 

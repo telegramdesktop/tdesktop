@@ -1183,7 +1183,7 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 , _saveTitleRequestId(0)
 , _saveDescriptionRequestId(0)
 , _saveSignRequestId(0) {
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
 	setMouseTracking(true);
 

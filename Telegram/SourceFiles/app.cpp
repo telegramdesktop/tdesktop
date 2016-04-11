@@ -557,7 +557,7 @@ namespace {
 								if (!h->isEmpty()) {
 									h->clear(true);
 								}
-								if (hto->inChatList() && h->inChatList()) {
+								if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
 									App::removeDialog(h);
 								}
 							}
@@ -1137,8 +1137,8 @@ namespace {
 			} else {
 				if (channelHistory) {
 					channelHistory->messageWithIdDeleted(i->v);
-					if (channelHistory->unreadCount > 0 && i->v >= channelHistory->inboxReadBefore) {
-						channelHistory->setUnreadCount(channelHistory->unreadCount - 1);
+					if (channelHistory->unreadCount() > 0 && i->v >= channelHistory->inboxReadBefore) {
+						channelHistory->setUnreadCount(channelHistory->unreadCount() - 1);
 					}
 				}
 			}

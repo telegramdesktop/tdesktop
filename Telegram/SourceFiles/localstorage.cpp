@@ -552,65 +552,66 @@ namespace {
 	};
 
 	enum {
-		dbiKey = 0x00,
-		dbiUser = 0x01,
-		dbiDcOptionOld = 0x02,
-		dbiChatSizeMax = 0x03,
-		dbiMutePeer = 0x04,
-		dbiSendKey = 0x05,
-		dbiAutoStart = 0x06,
-		dbiStartMinimized = 0x07,
-		dbiSoundNotify = 0x08,
-		dbiWorkMode = 0x09,
-		dbiSeenTrayTooltip = 0x0a,
-		dbiDesktopNotify = 0x0b,
-		dbiAutoUpdate = 0x0c,
-		dbiLastUpdateCheck = 0x0d,
-		dbiWindowPosition = 0x0e,
-		dbiConnectionType = 0x0f,
+		dbiKey                  = 0x00,
+		dbiUser                 = 0x01,
+		dbiDcOptionOld          = 0x02,
+		dbiChatSizeMax          = 0x03,
+		dbiMutePeer             = 0x04,
+		dbiSendKey              = 0x05,
+		dbiAutoStart            = 0x06,
+		dbiStartMinimized       = 0x07,
+		dbiSoundNotify          = 0x08,
+		dbiWorkMode             = 0x09,
+		dbiSeenTrayTooltip      = 0x0a,
+		dbiDesktopNotify        = 0x0b,
+		dbiAutoUpdate           = 0x0c,
+		dbiLastUpdateCheck      = 0x0d,
+		dbiWindowPosition       = 0x0e,
+		dbiConnectionType       = 0x0f,
 		// 0x10 reserved
-		dbiDefaultAttach = 0x11,
-		dbiCatsAndDogs = 0x12,
-		dbiReplaceEmojis = 0x13,
-		dbiAskDownloadPath = 0x14,
-		dbiDownloadPathOld = 0x15,
-		dbiScale = 0x16,
-		dbiEmojiTabOld = 0x17,
-		dbiRecentEmojisOld = 0x18,
-		dbiLoggedPhoneNumber = 0x19,
-		dbiMutedPeers = 0x1a,
+		dbiDefaultAttach        = 0x11,
+		dbiCatsAndDogs          = 0x12,
+		dbiReplaceEmojis        = 0x13,
+		dbiAskDownloadPath      = 0x14,
+		dbiDownloadPathOld      = 0x15,
+		dbiScale                = 0x16,
+		dbiEmojiTabOld          = 0x17,
+		dbiRecentEmojisOld      = 0x18,
+		dbiLoggedPhoneNumber    = 0x19,
+		dbiMutedPeers           = 0x1a,
 		// 0x1b reserved
-		dbiNotifyView = 0x1c,
-		dbiSendToMenu = 0x1d,
-		dbiCompressPastedImage = 0x1e,
-		dbiLang = 0x1f,
-		dbiLangFile = 0x20,
-		dbiTileBackground = 0x21,
-		dbiAutoLock = 0x22,
-		dbiDialogLastPath = 0x23,
-		dbiRecentEmojis = 0x24,
-		dbiEmojiVariants = 0x25,
-		dbiRecentStickers = 0x26,
-		dbiDcOption = 0x27,
-		dbiTryIPv6 = 0x28,
-		dbiSongVolume = 0x29,
+		dbiNotifyView           = 0x1c,
+		dbiSendToMenu           = 0x1d,
+		dbiCompressPastedImage  = 0x1e,
+		dbiLang                 = 0x1f,
+		dbiLangFile             = 0x20,
+		dbiTileBackground       = 0x21,
+		dbiAutoLock             = 0x22,
+		dbiDialogLastPath       = 0x23,
+		dbiRecentEmojis         = 0x24,
+		dbiEmojiVariants        = 0x25,
+		dbiRecentStickers       = 0x26,
+		dbiDcOption             = 0x27,
+		dbiTryIPv6              = 0x28,
+		dbiSongVolume           = 0x29,
 		dbiWindowsNotifications = 0x30,
-		dbiIncludeMuted = 0x31,
-		dbiMegagroupSizeMax = 0x32,
-		dbiDownloadPath = 0x33,
-		dbiAutoDownload = 0x34,
-		dbiSavedGifsLimit = 0x35,
-		dbiShowingSavedGifs = 0x36,
-		dbiAutoPlay = 0x37,
-		dbiAdaptiveForWide = 0x38,
+		dbiIncludeMuted         = 0x31,
+		dbiMegagroupSizeMax     = 0x32,
+		dbiDownloadPath         = 0x33,
+		dbiAutoDownload         = 0x34,
+		dbiSavedGifsLimit       = 0x35,
+		dbiShowingSavedGifs     = 0x36,
+		dbiAutoPlay             = 0x37,
+		dbiAdaptiveForWide      = 0x38,
 		dbiHiddenPinnedMessages = 0x39,
+		dbiDialogsMode          = 0x40,
 
-		dbiEncryptedWithSalt = 333,
-		dbiEncrypted = 444,
+		dbiEncryptedWithSalt    = 333,
+		dbiEncrypted            = 444,
 
 		// 500-600 reserved
 
-		dbiVersion = 666,
+		dbiVersion              = 666,
 	};
 
 
@@ -979,6 +980,22 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetAutoPlayGif(gif == 1);
+		} break;
+
+		case dbiDialogsMode: {
+			qint32 enabled, modeInt;
+			stream >> enabled >> modeInt;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetDialogsModeEnabled(enabled == 1);
+			Dialogs::Mode mode = Dialogs::Mode::All;
+			if (enabled) {
+				mode = static_cast<Dialogs::Mode>(modeInt);
+				if (mode != Dialogs::Mode::All && mode != Dialogs::Mode::Important) {
+					mode = Dialogs::Mode::All;
+				}
+			}
+			Global::SetDialogsMode(mode);
 		} break;
 
 		case dbiIncludeMuted: {
@@ -1578,6 +1595,7 @@ namespace {
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 		size += sizeof(quint32) + 3 * sizeof(qint32);
+		size += sizeof(quint32) + 2 * sizeof(qint32);
 		if (!Global::HiddenPinnedMessages().isEmpty()) {
 			size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
 		}
@@ -1601,6 +1619,7 @@ namespace {
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
 		data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
+		data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 		data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 
 		{

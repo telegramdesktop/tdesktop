@@ -20,42 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "lang.h"
+#include "ui/button.h"
+#include "ui/style.h"
+#include "structs.h"
 
-class LangLoaderRequest : public QMap <LangKey, bool> {
+class PeerAvatarButton : public Button {
 public:
-	LangLoaderRequest() {
+	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+	void setPeer(PeerData *peer) {
+		_peer = peer;
+		update();
 	}
-	LangLoaderRequest(LangKey key1) {
-		insert(key1, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2) {
-		insert(key1, true);
-		insert(key2, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2, LangKey key3) {
-		insert(key1, true);
-		insert(key2, true);
-		insert(key3, true);
-	}
-};
+	void paintEvent(QPaintEvent *e);
 
-using LangLoaderResult = QMap<LangKey, LangString>;
-class LangLoaderPlain : public LangLoader {
-public:
-	LangLoaderPlain(const QString &file, const LangLoaderRequest &request = LangLoaderRequest());
-
-	LangLoaderResult found() const {
-		return result;
-	}
-
-protected:
-	QString file;
-	LangLoaderRequest request;
-
-	bool readKeyValue(const char *&from, const char *end);
-
-	bool readingAll;
-	LangLoaderResult result;
+private:
+	PeerData *_peer;
+	const style::PeerAvatarButton &_st;
 
 };
