@@ -128,6 +128,7 @@ SOURCES += \
     ./SourceFiles/mtproto/rpc_sender.cpp \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
+    ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
     ./SourceFiles/ui/toast/toast.cpp \
     ./SourceFiles/ui/toast/toast_manager.cpp \
     ./SourceFiles/ui/toast/toast_widget.cpp \
@@ -236,6 +237,7 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
+    ./SourceFiles/ui/buttons/peer_avatar_button.h \
     ./SourceFiles/ui/toast/toast.h \
     ./SourceFiles/ui/toast/toast_manager.h \
     ./SourceFiles/ui/toast/toast_widget.h \

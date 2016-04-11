@@ -731,7 +731,7 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 		icon = st::msgFileInPause;
 	} else if (radial || document->loading()) {
 		icon = st::msgFileInCancel;
-	} else if (document->loaded()) {
+	} else if (true || document->loaded()) {
 		if (document->isImage()) {
 			icon = st::msgFileInImage;
 		} else if (document->voice() || document->song()) {

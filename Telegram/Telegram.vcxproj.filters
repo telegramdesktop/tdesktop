@@ -64,6 +64,9 @@
     <Filter Include="dialogs">
       <UniqueIdentifier>{405e59c2-0800-4f73-b975-1749c8c36e87}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ui\buttons">
+      <UniqueIdentifier>{24292a88-6707-4070-b2d2-8b53acd5cdd0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1029,6 +1032,9 @@
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp">
       <Filter>dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="ui\buttons\peer_avatar_button.cpp">
+      <Filter>ui\buttons</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1407,6 +1413,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\toast\toast_manager.h">
       <Filter>ui\toast</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ui\buttons\peer_avatar_button.h">
+      <Filter>ui\buttons</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

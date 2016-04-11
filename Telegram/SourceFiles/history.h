@@ -518,6 +518,9 @@ protected:
 
 private:
 
+	// After adding a new history slice check the lastMsg and newLoaded.
+	void checkLastMsg();
+
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),
 		f_pending_resize            = (1 << 1),

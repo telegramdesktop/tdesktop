@@ -2515,3 +2515,8 @@ toastFg: #FFF;
 toastPadding: margins(19px, 13px, 19px, 12px);
 toastFadeInDuration: 200;
 toastFadeOutDuration: 1000;
+
+infoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
+}

@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profilewidget.h"
 #include "overviewwidget.h"
 #include "playerwidget.h"
+#include "ui/buttons/peer_avatar_button.h"
 
 class Window;
 class ApiWrap;
@@ -111,7 +112,7 @@ private:
 	FlatButton _forward, _delete;
 	int32 _selectionButtonsWidth, _forwardDeleteWidth;
 
-	FlatButton _info;
+	PeerAvatarButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
 

@@ -55,7 +55,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _forward(this, lang(lng_selected_forward), st::topBarActionButton)
 , _delete(this, lang(lng_selected_delete), st::topBarActionButton)
 , _selectionButtonsWidth(_clearSelection.width() + _forward.width() + _delete.width()), _forwardDeleteWidth(qMax(_forward.textWidth(), _delete.textWidth()))
-, _info(this, lang(lng_topbar_info), st::topBarButton)
+, _info(this, nullptr, st::infoButton)
 , _edit(this, lang(lng_profile_edit_contact), st::topBarButton)
 , _leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton)
 , _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
@@ -362,6 +362,7 @@ void TopBarWidget::showAll() {
 		}
 		if (h && !o && !p && _clearSelection.isHidden()) {
 			if (Adaptive::OneColumn()) {
+				_info.setPeer(h);
 				_info.show();
 			} else {
 				_info.hide();

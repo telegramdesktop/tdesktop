@@ -74,6 +74,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		result->insert(qsl("article"), Result::Type::Article);
 		result->insert(qsl("contact"), Result::Type::Contact);
 		result->insert(qsl("venue"), Result::Type::Venue);
+		result->insert(qsl("geo"), Result::Type::Geo);
 		return result.release();
 	})() };
 

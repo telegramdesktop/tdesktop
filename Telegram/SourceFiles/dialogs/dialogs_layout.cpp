@@ -182,6 +182,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 				unread += h->unreadCount;
 			}
 		}
+		int texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
 		if (unread) {
 			QString unreadStr = QString::number(unread);
 			int unreadWidth = st::dlgUnreadFont->width(unreadStr);
@@ -190,7 +191,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			accumulate_max(unreadRectWidth, unreadRectHeight);
 
 			int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-			int unreadRectTop = st::dlgHeight - st::dlgPaddingVer - unreadRectHeight;
+			int unreadRectTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
 			lastWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
 
 			paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), active, history->mute);
@@ -200,10 +201,10 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dlgUnreadTop + st::dlgUnreadFont->ascent, unreadStr);
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
+			item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
 		} else {
 			p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
-			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth);
+			history->typingText.drawElided(p, nameleft, texttop, lastWidth);
 		}
 	});
 }
@@ -212,8 +213,8 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool 
 	auto item = row->item();
 	auto history = item->history();
 	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, row, active, item](int nameleft, int namewidth) {
-		int32 lastWidth = namewidth;
-		item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
+		int lastWidth = namewidth, texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
+		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
 	});
 }
 

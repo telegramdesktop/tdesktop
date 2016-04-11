@@ -1566,7 +1566,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		asChannelHistory()->checkJoinedMessage();
 		asChannelHistory()->checkMaxReadMessageDate();
 	}
-	if (newLoaded && !lastMsg) setLastMessage(lastImportantMessage());
+	checkLastMsg();
 }
 
 void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed) {
@@ -1574,7 +1574,9 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	if (slice.isEmpty()) {
 		newLoaded = true;
-		if (!lastMsg) setLastMessage(lastImportantMessage());
+		if (!lastMsg) {
+			setLastMessage(lastImportantMessage());
+		}
 	}
 
 	t_assert(!isBuildingFrontBlock());
@@ -1632,6 +1634,17 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	}
 
 	if (isChannel()) asChannelHistory()->checkJoinedMessage();
+	checkLastMsg();
+}
+
+void History::checkLastMsg() {
+	if (lastMsg) {
+		if (!newLoaded && !lastMsg->detached() && (!isChannel() || asChannelHistory()->onlyImportant())) {
+			newLoaded = true;
+		}
+	} else if (newLoaded) {
+		setLastMessage(lastImportantMessage());
+	}
 }
 
 int History::countUnread(MsgId upTo) {

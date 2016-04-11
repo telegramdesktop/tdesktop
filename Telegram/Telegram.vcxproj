@@ -1165,8 +1165,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ui\buttons\peer_avatar_button.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CustomBuild Include="ui\buttons\peer_avatar_button.h" />
     <CustomBuild Include="SourceFiles\pspecific_winrt.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing pspecific_winrt.h...</Message>

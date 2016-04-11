@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "Getting Link Info...";
 
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
-"lng_topbar_info" = "Info";
 "lng_profile_about_section" = "About";
 "lng_profile_description_section" = "Description";
 "lng_profile_settings_section" = "Settings";
@@ -898,6 +897,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+// Not used
+
+"lng_topbar_info" = "Info";
 
 // Wnd specific
 
