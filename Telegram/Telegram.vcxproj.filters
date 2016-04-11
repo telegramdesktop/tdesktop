@@ -1032,7 +1032,7 @@
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp">
       <Filter>dialogs</Filter>
     </ClCompile>
-    <ClCompile Include="ui\buttons\peer_avatar_button.cpp">
+    <ClCompile Include="SourceFiles\ui\buttons\peer_avatar_button.cpp">
       <Filter>ui\buttons</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1171,6 +1171,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\dialogs\dialogs_row.h">
       <Filter>dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\peer_avatar_button.h">
+      <Filter>ui\buttons</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1413,9 +1416,6 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\toast\toast_manager.h">
       <Filter>ui\toast</Filter>
-    </CustomBuild>
-    <CustomBuild Include="ui\buttons\peer_avatar_button.h">
-      <Filter>ui\buttons</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
