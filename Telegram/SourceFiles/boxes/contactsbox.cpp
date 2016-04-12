@@ -1095,7 +1095,7 @@ void ContactsInner::selectSkip(int32 dir) {
 			for (auto i = _contacts->cfind(_sel), end = _contacts->cend(); i != end && contactData(*i)->inchat; ++i) {
 				_sel = *i;
 			}
-			if (contactData(_sel)->inchat) {
+			if (_sel && contactData(_sel)->inchat) {
 				_sel = nullptr;
 			}
 			if (!_sel) {
@@ -1114,11 +1114,13 @@ void ContactsInner::selectSkip(int32 dir) {
 			if (_byUsernameSel < 0) {
 				if (!_contacts->isEmpty()) {
 					if (!_newItemSel && !_sel) _sel = *(_contacts->cend() - 1);
-					for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->inchat; --i) {
-						_sel = *i;
-					}
-					if (contactData(_sel)->inchat) {
-						_sel = nullptr;
+					if (_sel) {
+						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->inchat; --i) {
+							_sel = *i;
+						}
+						if (contactData(_sel)->inchat) {
+							_sel = nullptr;
+						}
 					}
 				}
 			}

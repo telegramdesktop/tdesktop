@@ -4713,7 +4713,7 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	MTPmessages_EditMessage::Flags sendFlags = 0;
+	MTPmessages_EditMessage::Flags sendFlags = MTPmessages_EditMessage::Flag::f_message;
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
