@@ -26,13 +26,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/style.h"
 #include "lang.h"
 #include "application.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "dialogswidget.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "localstorage.h"
+#include "apiwrap.h"
 
 DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(parent)
 , dialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))

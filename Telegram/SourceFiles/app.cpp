@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <libexif/exif-data.h>
 #endif
 #include "localstorage.h"
-
+#include "apiwrap.h"
 #include "numbers.h"
 
 namespace {
@@ -146,23 +146,29 @@ namespace App {
 		return AppClass::app();
 	}
 
-	Window *wnd() {
+	MainWindow *wnd() {
 		return AppClass::wnd();
 	}
 
 	MainWidget *main() {
-		Window *w(wnd());
-		return w ? w->mainWidget() : 0;
+		if (auto w = wnd()) {
+			return w->mainWidget();
+		}
+		return nullptr;
 	}
 
 	SettingsWidget *settings() {
-		Window *w(wnd());
-		return w ? w->settingsWidget() : 0;
+		if (auto w = wnd()) {
+			return w->settingsWidget();
+		}
+		return nullptr;
 	}
 
 	bool passcoded() {
-		Window *w(wnd());
-		return w ? w->passcodeWidget() : 0;
+		if (auto w = wnd()) {
+			return w->passcodeWidget();
+		}
+		return false;
 	}
 
 	FileUploader *uploader() {
@@ -181,7 +187,7 @@ namespace {
 		if (audioPlayer()) {
 			audioPlayer()->stopAndClear();
 		}
-		if (Window *w = wnd()) {
+		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
 			w->setupIntro(true);
@@ -196,7 +202,7 @@ namespace {
 		globalNotifyChatsPtr = UnknownNotifySettings;
 		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
-		if (Window *w = wnd()) {
+		if (auto w = wnd()) {
 			w->getTitle()->updateBackButton();
 			w->updateTitleStatus();
 			w->getTitle()->resizeEvent(0);

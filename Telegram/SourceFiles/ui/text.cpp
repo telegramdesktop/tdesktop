@@ -21,13 +21,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "text.h"
 
-#include "lang.h"
+#include <private/qharfbuzz_p.h>
 
+#include "core/click_handler_types.h"
+#include "lang.h"
 #include "pspecific.h"
 #include "boxes/confirmbox.h"
-#include "window.h"
-
-#include <private/qharfbuzz_p.h>
+#include "mainwindow.h"
 
 namespace {
 
@@ -55,47 +55,6 @@ namespace {
 	inline QFixed _blockRBearing(const ITextBlock *b) {
 		return (b->type() == TextBlockTText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
-}
-
-ClickHandlerHost::~ClickHandlerHost() {
-	ClickHandler::hostDestroyed(this);
-}
-
-NeverFreedPointer<ClickHandlerPtr> ClickHandler::_active;
-NeverFreedPointer<ClickHandlerPtr> ClickHandler::_pressed;
-ClickHandlerHost *ClickHandler::_activeHost = nullptr;
-ClickHandlerHost *ClickHandler::_pressedHost = nullptr;
-
-bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
-	if ((_active && (*_active == p)) || (!_active && !p)) {
-		return false;
-	}
-
-	// emit clickHandlerActiveChanged only when there is no
-	// other pressed click handler currently, if there is
-	// this method will be called when it is unpressed
-	if (_active && *_active) {
-		bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
-		ClickHandlerPtr wasactive = *_active;
-		(*_active).clear();
-		if (_activeHost) {
-			if (emitClickHandlerActiveChanged) {
-				_activeHost->clickHandlerActiveChanged(wasactive, false);
-			}
-			_activeHost = nullptr;
-		}
-	}
-	if (p) {
-		_active.makeIfNull();
-		*_active = p;
-		if ((_activeHost = host)) {
-			bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
-			if (emitClickHandlerActiveChanged) {
-				_activeHost->clickHandlerActiveChanged(*_active, true);
-			}
-		}
-	}
-	return true;
 }
 
 const QRegularExpression &reDomain() {
@@ -951,113 +910,6 @@ namespace {
 		}
 		++stop;
 		start = stop;
-	}
-}
-
-QString UrlClickHandler::copyToClipboardContextItem() const {
-	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
-}
-
-namespace {
-
-QString tryConvertUrlToLocal(const QString &url) {
-	QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
-	if (telegramMeGroup.hasMatch()) {
-		return qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
-	} else if (telegramMeStickers.hasMatch()) {
-		return qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
-	} else if (telegramMeShareUrl.hasMatch()) {
-		return qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
-	} else if (telegramMeUser.hasMatch()) {
-		QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
-		if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
-			postParam = qsl("&post=") + telegramMeUser.captured(3);
-		}
-		return qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
-	}
-	return url;
-}
-
-} // namespace
-
-void UrlClickHandler::doOpen(QString url) {
-	PopupTooltip::Hide();
-
-	if (isEmail(url)) {
-		QUrl u(qstr("mailto:") + url);
-		if (!QDesktopServices::openUrl(u)) {
-			psOpenFile(u.toString(QUrl::FullyEncoded), true);
-		}
-		return;
-	}
-
-	url = tryConvertUrlToLocal(url);
-
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		App::openLocalUrl(url);
-	} else {
-		QDesktopServices::openUrl(url);
-	}
-}
-
-void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	QString u = url();
-
-	u = tryConvertUrlToLocal(u);
-
-	if (u.startsWith(qstr("tg://"))) {
-		App::openLocalUrl(u);
-	} else {
-		Ui::showLayer(new ConfirmLinkBox(u));
-	}
-}
-
-QString LocationClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_link);
-}
-
-void LocationClickHandler::onClick(Qt::MouseButton button) const {
-	if (!psLaunchMaps(_coords)) {
-		QDesktopServices::openUrl(_text);
-	}
-}
-
-void LocationClickHandler::setup() {
-	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
-	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
-}
-
-QString MentionClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_mention);
-}
-
-void MentionClickHandler::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
-	}
-}
-
-QString HashtagClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_hashtag);
-}
-
-void HashtagClickHandler::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
-	}
-}
-
-void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (PeerData *peer = Ui::getPeerForMouseAction()) {
-			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(peer, _cmd);
-		} else {
-			App::insertBotCommand(_cmd);
-		}
 	}
 }
 

@@ -30,12 +30,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "passcodewidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "fileuploader.h"
 #include "audio.h"
 #include "localstorage.h"
+#include "apiwrap.h"
+#include "window/top_bar_widget.h"
+#include "playerwidget.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -1489,7 +1492,7 @@ void HistoryInner::updateSize() {
 
 void HistoryInner::enterEvent(QEvent *e) {
 	dragActionUpdate(QCursor::pos());
-	return QWidget::enterEvent(e);
+//	return QWidget::enterEvent(e);
 }
 
 void HistoryInner::leaveEvent(QEvent *e) {
@@ -1522,6 +1525,7 @@ void HistoryInner::adjustCurrent(int32 y) const {
 }
 
 void HistoryInner::adjustCurrent(int32 y, History *history) const {
+	t_assert(!history->isEmpty());
 	_curHistory = history;
 	if (_curBlock >= history->blocks.size()) {
 		_curBlock = history->blocks.size() - 1;
@@ -5333,10 +5337,10 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 		if (answerData.has_message()) {
 			if (answerData.is_alert()) {
 				Ui::showLayer(new InformBox(qs(answerData.vmessage)));
-			} else {
+			} else if (App::wnd()) {
 				Ui::Toast::Config toast;
 				toast.text = qs(answerData.vmessage);
-				Ui::Toast::Show(toast);
+				Ui::Toast::Show(App::wnd(), toast);
 			}
 		}
 	}

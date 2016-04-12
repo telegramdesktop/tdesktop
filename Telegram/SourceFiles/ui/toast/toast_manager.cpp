@@ -21,30 +21,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/toast/toast_manager.h"
 
+#include "application.h"
 #include "ui/toast/toast_widget.h"
-#include "window.h"
 
 namespace Ui {
 namespace Toast {
 namespace internal {
 
-Manager *Manager::_instance = nullptr;
+namespace {
 
-Manager::Manager(QObject *parent) : QObject(parent) {
-	t_assert(_instance == nullptr);
-	_instance = this;
+NeverFreedPointer<QMap<QObject*, Manager*>> _managers;
 
+} // namespace
+
+Manager::Manager(QWidget *parent) : QObject(parent) {
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimeout()));
 	connect(parent, SIGNAL(resized()), this, SLOT(onParentResized()));
 }
 
-Manager *Manager::instance() {
-	if (!_instance) {
-		if (Window *w = App::wnd()) {
-			_instance = new Manager(w);
-		}
+Manager *Manager::instance(QWidget *parent) {
+	_managers.makeIfNull();
+	auto i = _managers->constFind(parent);
+	if (i == _managers->cend()) {
+		i = _managers->insert(parent, new Manager(parent));
 	}
-	return _instance;
+	return i.value();
 }
 
 void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
@@ -115,7 +116,7 @@ void Manager::startNextHideTimer() {
 }
 
 Manager::~Manager() {
-	_instance = nullptr;
+	_managers->remove(parent());
 }
 
 } // namespace internal

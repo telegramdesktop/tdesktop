@@ -28,7 +28,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "photocropbox.h"
 #include "ui/filedialog.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
+#include "apiwrap.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
 , _user(0)

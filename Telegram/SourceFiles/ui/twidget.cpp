@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "application.h"
-#include "window.h"
+#include "mainwindow.h"
 
 namespace Fonts {
 

@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "lang.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "profilewidget.h"
 #include "boxes/addcontactbox.h"
@@ -30,6 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/contactsbox.h"
 #include "ui/filedialog.h"
+#include "apiwrap.h"
+#include "window/top_bar_widget.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer) : TWidget(0)
 , _profile(profile)

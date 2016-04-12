@@ -2396,17 +2396,8 @@ void initImageLinkManager();
 void reinitImageLinkManager();
 void deinitImageLinkManager();
 
-struct LocationData {
-	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
-	}
-
-	LocationCoords coords;
-	ImagePtr thumb;
-	bool loading;
-
-	void load();
-};
-
+struct LocationCoords;
+struct LocationData;
 class LocationManager : public QObject {
 	Q_OBJECT
 public:

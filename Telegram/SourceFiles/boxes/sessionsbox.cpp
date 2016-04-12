@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "sessionsbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "countries.h"
 #include "confirmbox.h"

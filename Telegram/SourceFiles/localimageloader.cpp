@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/photosendbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "lang.h"
 #include "boxes/confirmbox.h"
 

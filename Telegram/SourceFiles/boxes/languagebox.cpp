@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "languagebox.h"
 #include "confirmbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "langloaderplain.h"
 

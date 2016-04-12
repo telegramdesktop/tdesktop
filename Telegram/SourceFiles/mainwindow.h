@@ -123,12 +123,12 @@ typedef QList<NotifyWindow*> NotifyWindows;
 
 class MediaPreviewWidget;
 
-class Window : public PsMainWindow {
+class MainWindow : public PsMainWindow {
 	Q_OBJECT
 
 public:
-	Window(QWidget *parent = 0);
-	~Window();
+	MainWindow(QWidget *parent = 0);
+	~MainWindow();
 
 	void init();
 	void firstShow();

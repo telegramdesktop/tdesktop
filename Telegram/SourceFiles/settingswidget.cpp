@@ -41,9 +41,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/stickersetbox.h"
 #include "langloaderplain.h"
 #include "ui/filedialog.h"
-
+#include "apiwrap.h"
 #include "autoupdater.h"
-
 #include "localstorage.h"
 
 Slider::Slider(QWidget *parent, const style::slider &st, int32 count, int32 sel) : QWidget(parent),
@@ -291,9 +290,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_downloadPathEdit, SIGNAL(clicked()), this, SLOT(onDownloadPathEdit()));
 	connect(&_downloadPathClear, SIGNAL(clicked()), this, SLOT(onDownloadPathClear()));
 	switch (App::wnd()->tempDirState()) {
-	case Window::TempDirEmpty: _tempDirClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _tempDirClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _tempDirClearState = TempDirClearing; break;
+	case MainWindow::TempDirEmpty: _tempDirClearState = TempDirEmpty; break;
+	case MainWindow::TempDirExists: _tempDirClearState = TempDirExists; break;
+	case MainWindow::TempDirRemoving: _tempDirClearState = TempDirClearing; break;
 	}
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
@@ -302,9 +301,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
 	switch (App::wnd()->localStorageState()) {
-	case Window::TempDirEmpty: _storageClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _storageClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
+	case MainWindow::TempDirEmpty: _storageClearState = TempDirEmpty; break;
+	case MainWindow::TempDirExists: _storageClearState = TempDirExists; break;
+	case MainWindow::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
 
 	// chat background
@@ -1836,7 +1835,7 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 	update();
 }
 
-SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
+SettingsWidget::SettingsWidget(MainWindow *parent) : TWidget(parent)
 , _a_show(animation(this, &SettingsWidget::step_show))
 , _scroll(this, st::setScroll)
 , _inner(this)

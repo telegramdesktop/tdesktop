@@ -22,15 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/boxshadow.h"
-
 #include "dropdown.h"
-
-enum DragState {
-	DragStateNone       = 0x00,
-	DragStateFiles      = 0x01,
-	DragStatePhotoFiles = 0x02,
-	DragStateImage      = 0x03,
-};
+#include "history/history_common.h"
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {

@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window.h"
+#include "mainwindow.h"
 #include "pspecific.h"
 
 class UpdateChecker;
@@ -153,7 +153,7 @@ public:
 	~AppClass();
 
 	static AppClass *app();
-	static Window *wnd();
+	static MainWindow *wnd();
 	static MainWidget *main();
 
 	FileUploader *uploader();
@@ -212,7 +212,7 @@ private:
 
 	uint64 _lastActionTime;
 
-	Window *_window;
+	MainWindow *_window;
 	FileUploader *_uploader;
 	Translator *_translator;
 

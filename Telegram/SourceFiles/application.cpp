@@ -718,7 +718,7 @@ AppClass::AppClass() : QObject()
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
-	_window = new Window();
+	_window = new MainWindow();
 	_window->createWinId();
 	_window->init();
 
@@ -1053,7 +1053,7 @@ void AppClass::checkMapVersion() {
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
-	if (Window *w = _window) {
+	if (auto w = _window) {
 		_window = 0;
 		delete w;
 	}
@@ -1086,7 +1086,7 @@ AppClass *AppClass::app() {
 	return AppObject;
 }
 
-Window *AppClass::wnd() {
+MainWindow *AppClass::wnd() {
 	return AppObject ? AppObject->_window : 0;
 }
 

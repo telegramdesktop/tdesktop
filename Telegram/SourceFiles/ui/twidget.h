@@ -156,12 +156,12 @@ void rtlupdate(int x, int y, int w, int h) { \
 	update(myrtlrect(x, y, w, h)); \
 } \
 protected: \
-void enterEvent(QEvent *e) { \
+void enterEvent(QEvent *e) override { \
 	TWidget *p(tparent()); \
 	if (p) p->leaveToChildEvent(e); \
 	return QWidget::enterEvent(e); \
 } \
-void leaveEvent(QEvent *e) { \
+void leaveEvent(QEvent *e) override { \
 	TWidget *p(tparent()); \
 	if (p) p->enterFromChildEvent(e); \
 	return QWidget::leaveEvent(e); \
@@ -172,8 +172,7 @@ class TWidget : public QWidget {
 	T_WIDGET
 
 public:
-
-	TWidget(QWidget *parent = 0) : QWidget(parent) {
+	TWidget(QWidget *parent = nullptr) : QWidget(parent) {
 	}
 	bool event(QEvent *e) {
 		return QWidget::event(e);
@@ -184,8 +183,6 @@ public:
 	}
 
 	bool inFocusChain() const;
-
-private:
 
 };
 
@@ -227,5 +224,46 @@ private slots:
 private:
 	bool _pending;
 	const char *_member;
+
+};
+
+// A simple wrap around T* to explicitly state ownership
+template <typename T>
+class ChildWidget {
+public:
+	ChildWidget(std::nullptr_t) : _widget(nullptr) {
+	}
+	// No default constructor, but constructors with at least
+	// one argument are simply make functions.
+	template <typename Parent, typename... Args>
+	ChildWidget(Parent &&parent, Args&&... args) : _widget(new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
+	}
+
+	ChildWidget(const ChildWidget<T> &other) = delete;
+	ChildWidget<T> &operator=(const ChildWidget<T> &other) = delete;
+
+	ChildWidget<T> &operator=(std::nullptr_t) {
+		_widget = nullptr;
+		return *this;
+	}
+	ChildWidget<T> &operator=(T *widget) {
+		_widget = widget;
+		return *this;
+	}
+
+	T *operator->() const {
+		return _widget;
+	}
+	T &operator*() const {
+		return *_widget;
+	}
+
+	// So we can pass this pointer to methods like connect().
+	operator T*() const {
+		return _widget;
+	}
+
+private:
+	T *_widget;
 
 };

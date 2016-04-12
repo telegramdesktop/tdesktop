@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
 #include "ui/text.h"
 

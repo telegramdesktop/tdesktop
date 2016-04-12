@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
+#include "playerwidget.h"
 
 namespace InlineBots {
 namespace Layout {

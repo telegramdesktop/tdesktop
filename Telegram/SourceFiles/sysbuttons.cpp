@@ -111,7 +111,7 @@ void SysBtn::step_color(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-MinimizeBtn::MinimizeBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysMin), wnd(window) {
+MinimizeBtn::MinimizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMin), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -119,7 +119,7 @@ void MinimizeBtn::onClick() {
 	wnd->setWindowState(Qt::WindowMinimized);
 }
 
-MaximizeBtn::MaximizeBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysMax), wnd(window) {
+MaximizeBtn::MaximizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMax), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -127,7 +127,7 @@ void MaximizeBtn::onClick() {
 	wnd->setWindowState(Qt::WindowMaximized);
 }
 
-RestoreBtn::RestoreBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysRes), wnd(window) {
+RestoreBtn::RestoreBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysRes), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -135,7 +135,7 @@ void RestoreBtn::onClick() {
 	wnd->setWindowState(Qt::WindowNoState);
 }
 
-CloseBtn::CloseBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysCls), wnd(window) {
+CloseBtn::CloseBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysCls), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -143,7 +143,7 @@ void CloseBtn::onClick() {
 	wnd->close();
 }
 
-UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : SysBtn(parent, st::sysUpd, text), wnd(window) {
+UpdateBtn::UpdateBtn(QWidget *parent, MainWindow *window, const QString &text) : SysBtn(parent, st::sysUpd, text), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -161,7 +161,7 @@ void UpdateBtn::onClick() {
 	App::quit();
 }
 
-LockBtn::LockBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysLock), wnd(window) {
+LockBtn::LockBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysLock), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 

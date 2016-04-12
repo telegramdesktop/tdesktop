@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 #include "passcodewidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
 #include "ui/text.h"
 

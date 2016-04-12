@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "localstorage.h"
 #include "lang.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 

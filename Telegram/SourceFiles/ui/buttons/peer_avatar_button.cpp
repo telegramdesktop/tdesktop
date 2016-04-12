@@ -21,6 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/buttons/peer_avatar_button.h"
 
+#include "structs.h"
+
+namespace Ui {
+
 PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : Button(parent)
 , _peer(peer)
 , _st(st) {
@@ -33,3 +37,5 @@ void PeerAvatarButton::paintEvent(QPaintEvent *e) {
 		_peer->paintUserpic(p, _st.photoSize, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2);
 	}
 }
+
+} // namespace Ui

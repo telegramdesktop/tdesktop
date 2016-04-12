@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-#include "window.h"
+#include "mainwindow.h"
 
 #include "zip.h"
 
@@ -364,7 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent) {
+MainWindow::MainWindow(QWidget *parent) : PsMainWindow(parent) {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -400,7 +400,7 @@ Window::Window(QWidget *parent) : PsMainWindow(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-void Window::inactivePress(bool inactive) {
+void MainWindow::inactivePress(bool inactive) {
 	_inactivePress = inactive;
 	if (_inactivePress) {
 		_inactiveTimer.start(200);
@@ -409,15 +409,15 @@ void Window::inactivePress(bool inactive) {
 	}
 }
 
-bool Window::inactivePress() const {
+bool MainWindow::inactivePress() const {
 	return _inactivePress;
 }
 
-void Window::onInactiveTimer() {
+void MainWindow::onInactiveTimer() {
 	inactivePress(false);
 }
 
-void Window::stateChanged(Qt::WindowState state) {
+void MainWindow::stateChanged(Qt::WindowState state) {
 	psUserActionDone();
 
 	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
@@ -429,7 +429,7 @@ void Window::stateChanged(Qt::WindowState state) {
 	psSavePosition(state);
 }
 
-void Window::init() {
+void MainWindow::init() {
 	psInitFrameless();
 	setWindowIcon(wndIcon);
 
@@ -446,7 +446,7 @@ void Window::init() {
     psInitSize();
 }
 
-void Window::firstShow() {
+void MainWindow::firstShow() {
 #ifdef Q_OS_WIN
 	trayIconMenu = new PopupMenu();
 	trayIconMenu->deleteOnHide(false);
@@ -472,11 +472,11 @@ void Window::firstShow() {
 	updateTrayMenu();
 }
 
-QWidget *Window::filedialogParent() {
+QWidget *MainWindow::filedialogParent() {
 	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView : (QWidget*)this;
 }
 
-void Window::clearWidgets() {
+void MainWindow::clearWidgets() {
 	Ui::hideLayer(true);
 	if (_passcode) {
 		_passcode->hide();
@@ -511,7 +511,7 @@ void Window::clearWidgets() {
 	updateGlobalMenu();
 }
 
-QPixmap Window::grabInner() {
+QPixmap MainWindow::grabInner() {
 	QPixmap result;
 	if (settings) {
 		result = myGrab(settings);
@@ -525,7 +525,7 @@ QPixmap Window::grabInner() {
 	return result;
 }
 
-void Window::clearPasscode() {
+void MainWindow::clearPasscode() {
 	if (!_passcode) return;
 
 	QPixmap bg = grabInner();
@@ -546,7 +546,7 @@ void Window::clearPasscode() {
 	updateGlobalMenu();
 }
 
-void Window::setupPasscode(bool anim) {
+void MainWindow::setupPasscode(bool anim) {
 	QPixmap bg = grabInner();
 
 	if (_passcode) {
@@ -570,7 +570,7 @@ void Window::setupPasscode(bool anim) {
 	updateGlobalMenu();
 }
 
-void Window::checkAutoLockIn(int msec) {
+void MainWindow::checkAutoLockIn(int msec) {
 	if (_autoLockTimer.isActive()) {
 		int remain = _autoLockTimer.remainingTime();
 		if (remain > 0 && remain <= msec) return;
@@ -578,7 +578,7 @@ void Window::checkAutoLockIn(int msec) {
 	_autoLockTimer.start(msec);
 }
 
-void Window::checkAutoLock() {
+void MainWindow::checkAutoLock() {
 	if (!cHasPasscode() || App::passcoded()) return;
 
 	App::app()->checkLocalTime();
@@ -591,7 +591,7 @@ void Window::checkAutoLock() {
 	}
 }
 
-void Window::setupIntro(bool anim) {
+void MainWindow::setupIntro(bool anim) {
 	cSetContactsReceived(false);
 	cSetDialogsReceived(false);
 	if (intro && !intro->isHidden() && !main) return;
@@ -616,11 +616,11 @@ void Window::setupIntro(bool anim) {
 	}
 }
 
-void Window::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
+void MainWindow::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
 	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
 }
 
-void Window::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
+void MainWindow::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
 	History *h = (main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : 0;
 	if (!h || (!force && h->isEmpty())) {
 		_delayedServiceMsgs.push_back(DelayedServiceMsg(msg, media));
@@ -630,7 +630,7 @@ void Window::serviceNotification(const QString &msg, const MTPMessageMedia &medi
 	main->serviceNotification(msg, media);
 }
 
-void Window::showDelayedServiceMsgs() {
+void MainWindow::showDelayedServiceMsgs() {
 	QVector<DelayedServiceMsg> toAdd = _delayedServiceMsgs;
 	_delayedServiceMsgs.clear();
 	for (QVector<DelayedServiceMsg>::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
@@ -638,7 +638,7 @@ void Window::showDelayedServiceMsgs() {
 	}
 }
 
-void Window::sendServiceHistoryRequest() {
+void MainWindow::sendServiceHistoryRequest() {
 	if (!main || !main->started() || _delayedServiceMsgs.isEmpty() || _serviceHistoryRequest) return;
 
 	UserData *user = App::userLoaded(ServiceUserId);
@@ -649,7 +649,7 @@ void Window::sendServiceHistoryRequest() {
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
-void Window::setupMain(bool anim, const MTPUser *self) {
+void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	QPixmap bg = anim ? grabInner() : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
@@ -673,14 +673,14 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 	_mediaView = new MediaView();
 }
 
-void Window::updateCounter() {
+void MainWindow::updateCounter() {
 	if (!Global::started() || App::quitting()) return;
 
 	psUpdateCounter();
 	title->updateCounter();
 }
 
-void Window::showSettings() {
+void MainWindow::showSettings() {
 	if (_passcode) return;
 
 	if (isHidden()) showFromTray();
@@ -705,7 +705,7 @@ void Window::showSettings() {
 	fixOrder();
 }
 
-void Window::hideSettings(bool fast) {
+void MainWindow::hideSettings(bool fast) {
 	if (!settings || _passcode) return;
 
 	if (fast) {
@@ -738,14 +738,14 @@ void Window::hideSettings(bool fast) {
 	fixOrder();
 }
 
-void Window::mtpStateChanged(int32 dc, int32 state) {
+void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 	if (dc == MTP::maindc()) {
 		updateTitleStatus();
 		if (settings) settings->updateConnectionType();
 	}
 }
 
-void Window::updateTitleStatus() {
+void MainWindow::updateTitleStatus() {
 	int32 state = MTP::dcstate();
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
@@ -759,48 +759,48 @@ void Window::updateTitleStatus() {
 	}
 }
 
-IntroWidget *Window::introWidget() {
+IntroWidget *MainWindow::introWidget() {
 	return intro;
 }
 
-MainWidget *Window::mainWidget() {
+MainWidget *MainWindow::mainWidget() {
 	return main;
 }
 
-SettingsWidget *Window::settingsWidget() {
+SettingsWidget *MainWindow::settingsWidget() {
 	return settings;
 }
 
-PasscodeWidget *Window::passcodeWidget() {
+PasscodeWidget *MainWindow::passcodeWidget() {
 	return _passcode;
 }
 
-void Window::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
+void MainWindow::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
 	return lnk->peer() ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
 }
 
-void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
+void MainWindow::showPhoto(PhotoData *photo, HistoryItem *item) {
 	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Window::showPhoto(PhotoData *photo, PeerData *peer) {
+void MainWindow::showPhoto(PhotoData *photo, PeerData *peer) {
 	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Window::showDocument(DocumentData *doc, HistoryItem *item) {
+void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
 	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
+void MainWindow::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 	if (box) {
 		bool fast = (options.testFlag(ForceFastShowLayer)) || Ui::isLayerShown();
 		if (layerBg) {
@@ -837,15 +837,15 @@ void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 	}
 }
 
-bool Window::ui_isLayerShown() {
+bool MainWindow::ui_isLayerShown() {
 	return !!layerBg;
 }
 
-bool Window::ui_isMediaViewShown() {
+bool MainWindow::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
 }
 
-void Window::ui_showMediaPreview(DocumentData *document) {
+void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
 		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
@@ -857,7 +857,7 @@ void Window::ui_showMediaPreview(DocumentData *document) {
 	_mediaPreview->showPreview(document);
 }
 
-void Window::ui_showMediaPreview(PhotoData *photo) {
+void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
 		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
@@ -869,12 +869,12 @@ void Window::ui_showMediaPreview(PhotoData *photo) {
 	_mediaPreview->showPreview(photo);
 }
 
-void Window::ui_hideMediaPreview() {
+void MainWindow::ui_hideMediaPreview() {
 	if (!_mediaPreview) return;
 	_mediaPreview->hidePreview();
 }
 
-PeerData *Window::ui_getPeerForMouseAction() {
+PeerData *MainWindow::ui_getPeerForMouseAction() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		return _mediaView->ui_getPeerForMouseAction();
 	} else if (main) {
@@ -883,7 +883,7 @@ PeerData *Window::ui_getPeerForMouseAction() {
 	return nullptr;
 }
 
-void Window::showConnecting(const QString &text, const QString &reconnect) {
+void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
 	} else {
@@ -895,11 +895,11 @@ void Window::showConnecting(const QString &text, const QString &reconnect) {
 	if (settings) settings->update();
 }
 
-bool Window::connectingVisible() const {
+bool MainWindow::connectingVisible() const {
 	return _connecting && !_connecting->isHidden();
 }
 
-void Window::hideConnecting() {
+void MainWindow::hideConnecting() {
 	if (_connecting) {
 		_connecting->deleteLater();
 		_connecting = 0;
@@ -907,18 +907,18 @@ void Window::hideConnecting() {
 	if (settings) settings->update();
 }
 
-bool Window::historyIsActive() const {
+bool MainWindow::historyIsActive() const {
     return isActive(false) && main && main->historyIsActive() && (!settings || !settings->isVisible());
 }
 
-void Window::checkHistoryActivation() {
+void MainWindow::checkHistoryActivation() {
 	if (main && MTP::authedId() && historyIsActive()) {
 		main->historyWasRead();
 	}
     QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 }
 
-void Window::layerHidden() {
+void MainWindow::layerHidden() {
 	if (layerBg) {
 		layerBg->hide();
 		layerBg->deleteLater();
@@ -928,7 +928,7 @@ void Window::layerHidden() {
 	setInnerFocus();
 }
 
-void Window::hideMediaview() {
+void MainWindow::hideMediaview() {
     if (_mediaView && !_mediaView->isHidden()) {
         _mediaView->hide();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
@@ -939,13 +939,13 @@ void Window::hideMediaview() {
     }
 }
 
-bool Window::contentOverlapped(const QRect &globalRect) {
+bool MainWindow::contentOverlapped(const QRect &globalRect) {
 	if (main && main->contentOverlapped(globalRect)) return true;
 	if (layerBg && layerBg->contentOverlapped(globalRect)) return true;
 	return false;
 }
 
-void Window::setInnerFocus() {
+void MainWindow::setInnerFocus() {
 	if (layerBg && layerBg->canSetFocus()) {
 		layerBg->setInnerFocus();
 	} else if (_passcode) {
@@ -957,11 +957,11 @@ void Window::setInnerFocus() {
 	}
 }
 
-QRect Window::clientRect() const {
+QRect MainWindow::clientRect() const {
 	return QRect(0, st::titleHeight, width(), height() - st::titleHeight);
 }
 
-QRect Window::photoRect() const {
+QRect MainWindow::photoRect() const {
 	if (settings) {
 		return settings->geometry();
 	} else if (main) {
@@ -973,15 +973,15 @@ QRect Window::photoRect() const {
 	return QRect(0, 0, 0, 0);
 }
 
-void Window::wStartDrag(QMouseEvent *e) {
+void MainWindow::wStartDrag(QMouseEvent *e) {
 	dragStart = e->globalPos() - frameGeometry().topLeft();
 	dragging = true;
 }
 
-void Window::paintEvent(QPaintEvent *e) {
+void MainWindow::paintEvent(QPaintEvent *e) {
 }
 
-HitTestType Window::hitTest(const QPoint &p) const {
+HitTestType MainWindow::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
 
 	const int32 raw = psResizeRowWidth();
@@ -1015,11 +1015,11 @@ HitTestType Window::hitTest(const QPoint &p) const {
 	return HitTestNone;
 }
 
-QRect Window::iconRect() const {
+QRect MainWindow::iconRect() const {
 	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
 }
 
-bool Window::eventFilter(QObject *obj, QEvent *e) {
+bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::MouseButtonPress:
 	case QEvent::KeyPress:
@@ -1088,7 +1088,7 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 	return PsMainWindow::eventFilter(obj, e);
 }
 
-void Window::mouseMoveEvent(QMouseEvent *e) {
+void MainWindow::mouseMoveEvent(QMouseEvent *e) {
 	if (e->buttons() & Qt::LeftButton) {
 		if (dragging) {
 			if (windowState().testFlag(Qt::WindowMaximized)) {
@@ -1104,11 +1104,11 @@ void Window::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void Window::mouseReleaseEvent(QMouseEvent *e) {
+void MainWindow::mouseReleaseEvent(QMouseEvent *e) {
 	dragging = false;
 }
 
-bool Window::minimizeToTray() {
+bool MainWindow::minimizeToTray() {
     if (App::quitting() || !psHasTrayIcon()) return false;
 
 	hide();
@@ -1123,7 +1123,7 @@ bool Window::minimizeToTray() {
 	return true;
 }
 
-void Window::updateTrayMenu(bool force) {
+void MainWindow::updateTrayMenu(bool force) {
     if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
     bool active = isActive(false);
@@ -1153,25 +1153,25 @@ void Window::updateTrayMenu(bool force) {
     psTrayMenuUpdated();
 }
 
-void Window::onShowAddContact() {
+void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
 	if (main) main->showAddContact();
 }
 
-void Window::onShowNewGroup() {
+void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
 	if (main) Ui::showLayer(new GroupInfoBox(CreatingGroupGroup, false), KeepOtherLayers);
 }
 
-void Window::onShowNewChannel() {
+void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
 	if (main) Ui::showLayer(new GroupInfoBox(CreatingGroupChannel, false), KeepOtherLayers);
 }
 
-void Window::onLogout() {
+void MainWindow::onLogout() {
 	if (isHidden()) showFromTray();
 
 	ConfirmBox *box = new ConfirmBox(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton);
@@ -1179,7 +1179,7 @@ void Window::onLogout() {
 	Ui::showLayer(box);
 }
 
-void Window::onLogoutSure() {
+void MainWindow::onLogoutSure() {
 	if (MTP::authedId()) {
 		App::logOut();
 	} else {
@@ -1187,17 +1187,17 @@ void Window::onLogoutSure() {
 	}
 }
 
-void Window::updateGlobalMenu() {
+void MainWindow::updateGlobalMenu() {
 #ifdef Q_OS_MAC
 	psMacUpdateMenu();
 #endif
 }
 
-void Window::quitFromTray() {
+void MainWindow::quitFromTray() {
 	App::quit();
 }
 
-void Window::activate() {
+void MainWindow::activate() {
 	bool wasHidden = !isVisible();
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
@@ -1211,45 +1211,45 @@ void Window::activate() {
 	}
 }
 
-void Window::noIntro(IntroWidget *was) {
+void MainWindow::noIntro(IntroWidget *was) {
 	if (was == intro) {
 		intro = 0;
 	}
 }
 
-void Window::noSettings(SettingsWidget *was) {
+void MainWindow::noSettings(SettingsWidget *was) {
 	if (was == settings) {
 		settings = 0;
 	}
 	checkHistoryActivation();
 }
 
-void Window::noMain(MainWidget *was) {
+void MainWindow::noMain(MainWidget *was) {
 	if (was == main) {
 		main = 0;
 	}
 }
 
-void Window::noBox(BackgroundWidget *was) {
+void MainWindow::noBox(BackgroundWidget *was) {
 	if (was == layerBg) {
 		layerBg = 0;
 	}
 }
 
-void Window::layerFinishedHide(BackgroundWidget *was) {
+void MainWindow::layerFinishedHide(BackgroundWidget *was) {
 	if (was == layerBg) {
 		QTimer::singleShot(0, this, SLOT(layerHidden()));
 	}
 }
 
-void Window::fixOrder() {
+void MainWindow::fixOrder() {
 	title->raise();
 	if (layerBg) layerBg->raise();
 	if (_mediaPreview) _mediaPreview->raise();
 	if (_connecting) _connecting->raise();
 }
 
-void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
+void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
         QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
         QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
@@ -1258,7 +1258,7 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	}
 }
 
-void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
+void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) && isActive(false)) return;
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
@@ -1272,7 +1272,7 @@ void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 	}
 }
 
-void Window::toggleDisplayNotifyFromTray() {
+void MainWindow::toggleDisplayNotifyFromTray() {
 	if (App::passcoded()) {
 		if (!isActive()) showFromTray();
 		Ui::showLayer(new InformBox(lang(lng_passcode_need_unblock)));
@@ -1290,7 +1290,7 @@ void Window::toggleDisplayNotifyFromTray() {
 	}
 }
 
-void Window::closeEvent(QCloseEvent *e) {
+void MainWindow::closeEvent(QCloseEvent *e) {
 	if (MTP::authedId() && !Sandbox::isSavingSession() && Ui::hideWindowNoQuit()) {
 		e->ignore();
 	} else {
@@ -1298,11 +1298,11 @@ void Window::closeEvent(QCloseEvent *e) {
 	}
 }
 
-TitleWidget *Window::getTitle() {
+TitleWidget *MainWindow::getTitle() {
 	return title;
 }
 
-void Window::resizeEvent(QResizeEvent *e) {
+void MainWindow::resizeEvent(QResizeEvent *e) {
 	if (!title) return;
 
 	Adaptive::Layout layout = Adaptive::OneColumnLayout;
@@ -1322,7 +1322,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
 
-void Window::updateAdaptiveLayout() {
+void MainWindow::updateAdaptiveLayout() {
 	title->updateAdaptiveLayout();
 	if (main) main->updateAdaptiveLayout();
 	if (settings) settings->updateAdaptiveLayout();
@@ -1330,25 +1330,25 @@ void Window::updateAdaptiveLayout() {
 	if (layerBg) layerBg->updateAdaptiveLayout();
 }
 
-bool Window::needBackButton() {
+bool MainWindow::needBackButton() {
 	return !!settings;
 }
 
-Window::TempDirState Window::tempDirState() {
+MainWindow::TempDirState MainWindow::tempDirState() {
 	if (_clearManager && _clearManager->hasTask(Local::ClearManagerDownloads)) {
 		return TempDirRemoving;
 	}
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
 }
 
-Window::TempDirState Window::localStorageState() {
+MainWindow::TempDirState MainWindow::localStorageState() {
 	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
 	return (Local::hasImages() || Local::hasStickers() || Local::hasWebFiles() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
 }
 
-void Window::tempDirDelete(int task) {
+void MainWindow::tempDirDelete(int task) {
 	if (_clearManager) {
 		if (_clearManager->addTask(task)) {
 			return;
@@ -1364,7 +1364,7 @@ void Window::tempDirDelete(int task) {
 	_clearManager->start();
 }
 
-void Window::onClearFinished(int task, void *manager) {
+void MainWindow::onClearFinished(int task, void *manager) {
 	if (manager && manager == _clearManager) {
 		_clearManager->deleteLater();
 		_clearManager = 0;
@@ -1372,7 +1372,7 @@ void Window::onClearFinished(int task, void *manager) {
 	emit tempDirCleared(task);
 }
 
-void Window::onClearFailed(int task, void *manager) {
+void MainWindow::onClearFailed(int task, void *manager) {
 	if (manager && manager == _clearManager) {
 		_clearManager->deleteLater();
 		_clearManager = 0;
@@ -1380,7 +1380,7 @@ void Window::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void Window::notifySchedule(History *history, HistoryItem *item) {
+void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quitting() || !history->currentNotification() || !main) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
@@ -1451,11 +1451,11 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 	}
 }
 
-void Window::notifyFire() {
+void MainWindow::notifyFire() {
 	notifyShowNext();
 }
 
-void Window::notifyClear(History *history) {
+void MainWindow::notifyClear(History *history) {
 	if (!history) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
 			(*i)->unlinkHistory();
@@ -1480,7 +1480,7 @@ void Window::notifyClear(History *history) {
 	notifyShowNext();
 }
 
-void Window::notifyClearFast() {
+void MainWindow::notifyClearFast() {
 	notifyWaiters.clear();
 	notifySettingWaiters.clear();
 	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
@@ -1492,7 +1492,7 @@ void Window::notifyClearFast() {
 	notifyWhenAlerts.clear();
 }
 
-void Window::notifySettingGot() {
+void MainWindow::notifySettingGot() {
 	int32 t = unixtime();
 	for (NotifyWaiters::iterator i = notifySettingWaiters.begin(); i != notifySettingWaiters.end();) {
 		History *history = i.key();
@@ -1534,7 +1534,7 @@ void Window::notifySettingGot() {
 	notifyShowNext();
 }
 
-void Window::notifyShowNext(NotifyWindow *remove) {
+void MainWindow::notifyShowNext(NotifyWindow *remove) {
 	if (App::quitting()) return;
 
 	int32 count = NotifyWindowsCount;
@@ -1711,7 +1711,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 	}
 }
 
-void Window::notifyItemRemoved(HistoryItem *item) {
+void MainWindow::notifyItemRemoved(HistoryItem *item) {
 	if (cCustomNotifies()) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
 			(*i)->itemRemoved(item);
@@ -1719,7 +1719,7 @@ void Window::notifyItemRemoved(HistoryItem *item) {
 	}
 }
 
-void Window::notifyStopHiding() {
+void MainWindow::notifyStopHiding() {
     if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->stopHiding();
@@ -1727,7 +1727,7 @@ void Window::notifyStopHiding() {
     }
 }
 
-void Window::notifyStartHiding() {
+void MainWindow::notifyStartHiding() {
     if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->startHiding();
@@ -1735,7 +1735,7 @@ void Window::notifyStartHiding() {
     }
 }
 
-void Window::notifyUpdateAllPhotos() {
+void MainWindow::notifyUpdateAllPhotos() {
     if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->updatePeerPhoto();
@@ -1744,11 +1744,11 @@ void Window::notifyUpdateAllPhotos() {
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
-void Window::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
+void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 	handler->onClick(button);
 }
 
-void Window::notifyUpdateAll() {
+void MainWindow::notifyUpdateAll() {
 	if (cCustomNotifies()) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
 			(*i)->updateNotifyDisplay();
@@ -1757,7 +1757,7 @@ void Window::notifyUpdateAll() {
 	psClearNotifies();
 }
 
-void Window::notifyActivateAll() {
+void MainWindow::notifyActivateAll() {
 	if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             psActivateNotify(*i);
@@ -1765,11 +1765,11 @@ void Window::notifyActivateAll() {
     }
 }
 
-QImage Window::iconLarge() const {
+QImage MainWindow::iconLarge() const {
 	return iconbig256;
 }
 
-void Window::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
+void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
 	QPainter p(&img);
 
 	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
@@ -1807,7 +1807,7 @@ void Window::placeSmallCounter(QImage &img, int size, int count, style::color bg
 
 }
 
-QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallIcon) {
+QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool smallIcon) {
 	bool layer = false;
 	if (size < 0) {
 		size = -size;
@@ -1874,7 +1874,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 	return img;
 }
 
-void Window::sendPaths() {
+void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
 	hideMediaview();
 	if (settings) {
@@ -1887,35 +1887,35 @@ void Window::sendPaths() {
 	}
 }
 
-void Window::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+void MainWindow::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (main) main->mediaOverviewUpdated(peer, type);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->mediaOverviewUpdated(peer, type);
 }
 
-void Window::documentUpdated(DocumentData *doc) {
+void MainWindow::documentUpdated(DocumentData *doc) {
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->documentUpdated(doc);
 }
 
-void Window::changingMsgId(HistoryItem *row, MsgId newId) {
+void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (main) main->changingMsgId(row, newId);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->changingMsgId(row, newId);
 }
 
-bool Window::isActive(bool cached) const {
+bool MainWindow::isActive(bool cached) const {
 	if (cached) return _isActive;
 	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
-void Window::updateIsActive(int timeout) {
+void MainWindow::updateIsActive(int timeout) {
 	if (timeout) return _isActiveTimer.start(timeout);
 	_isActive = isActive(false);
 	if (main) main->updateOnline();
 }
 
-Window::~Window() {
+MainWindow::~MainWindow() {
     notifyClearFast();
 	delete _clearManager;
 	delete _connecting;

@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "title.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
@@ -49,7 +49,7 @@ void TitleHider::setLevel(float64 level) {
 	update();
 }
 
-TitleWidget::TitleWidget(Window *window) : TWidget(window)
+TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 , wnd(window)
 , hideLevel(0)
 , hider(0)

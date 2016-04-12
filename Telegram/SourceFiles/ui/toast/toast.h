@@ -33,7 +33,7 @@ struct Config {
 	QString text;
 	int durationMs = DefaultDuration;
 };
-void Show(const Config &config);
+void Show(QWidget *parent, const Config &config);
 
 class Instance {
 	struct Private {
@@ -57,7 +57,7 @@ private:
 
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;
-	friend void Show(const Config &config);
+	friend void Show(QWidget *parent, const Config &config);
 	std_::unique_ptr<internal::Widget> _widget;
 
 };
