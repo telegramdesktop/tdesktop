@@ -648,7 +648,7 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 		return;
 	}
 
-	MTPmessages_EditMessage::Flags flags = 0;
+	MTPmessages_EditMessage::Flags flags = MTPmessages_EditMessage::Flag::f_message;
 	if (_previewCancelled) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
