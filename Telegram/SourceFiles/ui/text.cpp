@@ -923,7 +923,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _breakEverywhere(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
+	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t) {
 	}
 
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
@@ -987,7 +987,7 @@ public:
 		}
 	}
 
-	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, uint16 selectedFrom = 0, uint16 selectedTo = 0) {
+	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection = { 0, 0 }) {
 		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
@@ -1005,8 +1005,7 @@ public:
 		if (_elideLast) {
 			_yToElide = _yTo;
 		}
-		_selectedFrom = selectedFrom;
-		_selectedTo = selectedTo;
+		_selection = selection;
 		_wLeft = _w = w;
 		_str = _t->_text.unicode();
 
@@ -1173,14 +1172,13 @@ public:
 		if (_lineStart < _t->_text.size()) {
 			if (!drawLine(_t->_text.size(), e, e)) return;
 		}
-		if (_getSymbol) {
-			*_getSymbol = _t->_text.size();
-			*_getSymbolAfter = false;
-			*_getSymbolUpon = false;
+		if (!_p && _lookupSymbol) {
+			_lookupResult.symbol = _t->_text.size();
+			_lookupResult.afterSymbol = false;
 		}
 	}
 
-	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) {
+	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) {
 		if (lines <= 0 || _t->isNull()) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
@@ -1189,48 +1187,45 @@ public:
 			_elideRemoveFromEnd = removeFromEnd;
 		}
 		_breakEverywhere = breakEverywhere;
-		draw(left, top, w, align, yFrom, yTo);
+		draw(left, top, w, align, yFrom, yTo, selection);
 	}
 
-	const ClickHandlerPtr &link(int32 x, int32 y, int32 w, style::align align) {
-		static StaticNeverFreedPointer<ClickHandlerPtr> zero(new ClickHandlerPtr());
-
-		_lnkX = x;
-		_lnkY = y;
-		_lnkResult = zero.data();
-		if (!_t->isNull() && _lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
-			draw(0, 0, w, align, _lnkY, _lnkY + 1);
-		}
-		return *_lnkResult;
-	}
-
-	void getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align, bool breakEverywhere) {
-		lnk.clear();
-		inText = false;
-
-		if (!_t->isNull() && x >= 0 && x < w && y >= 0) {
-			_lnkX = x;
-			_lnkY = y;
-			_lnkResult = &lnk;
-			_inTextFlag = &inText;
-			_breakEverywhere = breakEverywhere;
-			draw(0, 0, w, align, _lnkY, _lnkY + 1);
-			lnk = *_lnkResult;
-		}
-	}
-
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 w, style::align align) {
-		symbol = 0;
-		after = false;
-		upon = false;
+	Text::StateResult getState(int x, int y, int w, Text::StateRequest request) {
 		if (!_t->isNull() && y >= 0) {
-			_lnkX = x;
-			_lnkY = y;
-			_getSymbol = &symbol;
-			_getSymbolAfter = &after;
-			_getSymbolUpon = &upon;
-			draw(0, 0, w, align, _lnkY, _lnkY + 1);
+			_lookupRequest = request;
+			_lookupX = x;
+			_lookupY = y;
+
+			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
+			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
+			_lookupLink = (_lookupRequest.flags & Text::StateRequest::Flag::LookupLink);
+			if (_lookupSymbol || (_lookupX >= 0 && _lookupX < w)) {
+				draw(0, 0, w, _lookupRequest.align, _lookupY, _lookupY + 1);
+			}
 		}
+		return _lookupResult;
+	}
+
+	Text::StateResult getStateElided(int x, int y, int w, Text::StateRequestElided request) {
+		if (!_t->isNull() && y >= 0 && request.lines > 0) {
+			_lookupRequest = request;
+			_lookupX = x;
+			_lookupY = y;
+
+			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
+			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
+			_lookupLink = (_lookupRequest.flags & Text::StateRequest::Flag::LookupLink);
+			if (_lookupSymbol || (_lookupX >= 0 && _lookupX < w)) {
+				int yTo = _lookupY + 1;
+				if (yTo < 0 || (request.lines - 1) * _t->_font->height < yTo) {
+					yTo = request.lines * _t->_font->height;
+					_elideLast = true;
+					_elideRemoveFromEnd = request.removeFromEnd;
+				}
+				draw(0, 0, w, _lookupRequest.align, _lookupY, _lookupY + 1);
+			}
+		}
+		return _lookupResult;
 	}
 
 	const QPen &blockPen(ITextBlock *block) {
@@ -1288,34 +1283,44 @@ public:
 			x += _wLeft;
 		}
 
-		if (_getSymbol) {
-			if (_lnkX < x) {
-				if (_parDirection == Qt::RightToLeft) {
-					*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
-					*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
-					*_getSymbolUpon = ((_lnkX >= _x) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
-				} else {
-					*_getSymbol = _lineStart;
-					*_getSymbolAfter = false;
-					*_getSymbolUpon = ((_lnkX >= _x) && (_lineStart > 0)) ? true : false;
+		if (!_p) {
+			if (_lookupX < x) {
+				if (_lookupSymbol) {
+					if (_parDirection == Qt::RightToLeft) {
+						_lookupResult.symbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
+						_lookupResult.afterSymbol = (_lineEnd > _lineStart) ? true : false;
+//						_lookupResult.uponSymbol = ((_lookupX >= _x) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
+					} else {
+						_lookupResult.symbol = _lineStart;
+						_lookupResult.afterSymbol = false;
+//						_lookupResult.uponSymbol = ((_lookupX >= _x) && (_lineStart > 0)) ? true : false;
+					}
 				}
+				if (_lookupLink) {
+					_lookupResult.link.clear();
+				}
+				_lookupResult.uponSymbol = false;
 				return false;
-			} else if (_lnkX >= x + (_w - _wLeft)) {
+			} else if (_lookupX >= x + (_w - _wLeft)) {
 				if (_parDirection == Qt::RightToLeft) {
-					*_getSymbol = _lineStart;
-					*_getSymbolAfter = false;
-					*_getSymbolUpon = ((_lnkX < _x + _w) && (_lineStart > 0)) ? true : false;
+					_lookupResult.symbol = _lineStart;
+					_lookupResult.afterSymbol = false;
+//					_lookupResult.uponSymbol = ((_lookupX < _x + _w) && (_lineStart > 0)) ? true : false;
 				} else {
-					*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
-					*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
-					*_getSymbolUpon = ((_lnkX < _x + _w) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
+					_lookupResult.symbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
+					_lookupResult.afterSymbol = (_lineEnd > _lineStart) ? true : false;
+//					_lookupResult.uponSymbol = ((_lookupX < _x + _w) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
 				}
+				if (_lookupLink) {
+					_lookupResult.link.clear();
+				}
+				_lookupResult.uponSymbol = false;
 				return false;
 			}
 		}
 
-		bool selectFromStart = (_selectedTo > _lineStart) && (_lineStart > 0) && (_selectedFrom <= _lineStart);
-		bool selectTillEnd = (_selectedTo >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selectedFrom < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
+		bool selectFromStart = (_selection.to > _lineStart) && (_lineStart > 0) && (_selection.from <= _lineStart);
+		bool selectTillEnd = (_selection.to >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selection.from < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
 
 		if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 			if (x > _x) {
@@ -1409,52 +1414,48 @@ public:
 			}
 			if (si.analysis.flags >= QScriptAnalysis::TabOrObject) {
 				TextBlockType _type = currentBlock->type();
-				if (_lnkResult && _lnkX >= x && _lnkX < x + si.width) {
-					if (currentBlock->lnkIndex() && _lnkY >= _y + _yDelta && _lnkY < _y + _yDelta + _fontHeight) {
-						_lnkResult = &_t->_links.at(currentBlock->lnkIndex() - 1);
-					}
-					if (_inTextFlag && _type != TextBlockTSkip) {
-						*_inTextFlag = true;
-					}
-					return false;
-				} else if (_getSymbol && _lnkX >= x && _lnkX < x + si.width) {
-					if (_type == TextBlockTSkip) {
-						if (_parDirection == Qt::RightToLeft) {
-							*_getSymbol = _lineStart;
-							*_getSymbolAfter = false;
-							*_getSymbolUpon = false;
-						} else {
-							*_getSymbol = (trimmedLineEnd > _lineStart) ? (trimmedLineEnd - 1) : _lineStart;
-							*_getSymbolAfter = (trimmedLineEnd > _lineStart) ? true : false;
-							*_getSymbolUpon = false;
+				if (!_p && _lookupX >= x && _lookupX < x + si.width) { // _lookupRequest
+					if (_lookupLink) {
+						if (currentBlock->lnkIndex() && _lookupY >= _y + _yDelta && _lookupY < _y + _yDelta + _fontHeight) {
+							_lookupResult.link = _t->_links.at(currentBlock->lnkIndex() - 1);
 						}
-						return false;
 					}
-					const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
-					if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space) {
-						if (rtl) {
-							if (_lnkX < x + (si.width - currentBlock->f_width())) {
-								*_getSymbol = (chTo - 1 - _str); // up to ending space, included, rtl
-								*_getSymbolAfter = (_lnkX < x + (si.width - currentBlock->f_width()) / 2) ? true : false;
-								*_getSymbolUpon = true;
-								return false;
+					if (_type != TextBlockTSkip) {
+						_lookupResult.uponSymbol = true;
+					}
+					if (_lookupSymbol) {
+						if (_type == TextBlockTSkip) {
+							if (_parDirection == Qt::RightToLeft) {
+								_lookupResult.symbol = _lineStart;
+								_lookupResult.afterSymbol = false;
+							} else {
+								_lookupResult.symbol = (trimmedLineEnd > _lineStart) ? (trimmedLineEnd - 1) : _lineStart;
+								_lookupResult.afterSymbol = (trimmedLineEnd > _lineStart) ? true : false;
 							}
-						} else if (_lnkX >= x + currentBlock->f_width()) {
-							*_getSymbol = (chTo - 1 - _str); // up to ending space, inclided, ltr
-							*_getSymbolAfter = (_lnkX >= x + currentBlock->f_width() + (currentBlock->f_rpadding() / 2)) ? true : false;
-							*_getSymbolUpon = true;
 							return false;
 						}
-						--chTo;
-					}
-					if (_lnkX < x + (rtl ? (si.width - currentBlock->f_width()) : 0) + (currentBlock->f_width() / 2)) {
-						*_getSymbol = ((rtl && chTo > chFrom) ? (chTo - 1) : chFrom) - _str;
-						*_getSymbolAfter = (rtl && chTo > chFrom) ? true : false;
-						*_getSymbolUpon = true;
-					} else {
-						*_getSymbol = ((rtl || chTo <= chFrom) ? chFrom : (chTo - 1)) - _str;
-						*_getSymbolAfter = (rtl || chTo <= chFrom) ? false : true;
-						*_getSymbolUpon = true;
+						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
+						if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space) {
+							if (rtl) {
+								if (_lookupX < x + (si.width - currentBlock->f_width())) {
+									_lookupResult.symbol = (chTo - 1 - _str); // up to ending space, included, rtl
+									_lookupResult.afterSymbol = (_lookupX < x + (si.width - currentBlock->f_width()) / 2) ? true : false;
+									return false;
+								}
+							} else if (_lookupX >= x + currentBlock->f_width()) {
+								_lookupResult.symbol = (chTo - 1 - _str); // up to ending space, inclided, ltr
+								_lookupResult.afterSymbol = (_lookupX >= x + currentBlock->f_width() + (currentBlock->f_rpadding() / 2)) ? true : false;
+								return false;
+							}
+							--chTo;
+						}
+						if (_lookupX < x + (rtl ? (si.width - currentBlock->f_width()) : 0) + (currentBlock->f_width() / 2)) {
+							_lookupResult.symbol = ((rtl && chTo > chFrom) ? (chTo - 1) : chFrom) - _str;
+							_lookupResult.afterSymbol = (rtl && chTo > chFrom) ? true : false;
+						} else {
+							_lookupResult.symbol = ((rtl || chTo <= chFrom) ? chFrom : (chTo - 1)) - _str;
+							_lookupResult.afterSymbol = (rtl || chTo <= chFrom) ? false : true;
+						}
 					}
 					return false;
 				} else if (_p && _type == TextBlockTEmoji) {
@@ -1462,15 +1463,15 @@ public:
 					if (rtl) {
 						glyphX += (si.width - currentBlock->f_width());
 					}
-					if (_localFrom + si.position < _selectedTo) {
+					if (_localFrom + si.position < _selection.to) {
 						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
-						if (_localFrom + si.position >= _selectedFrom) { // could be without space
-							if (chTo == chFrom || (chTo - 1)->unicode() != QChar::Space || _selectedTo >= (chTo - _str)) {
+						if (_localFrom + si.position >= _selection.from) { // could be without space
+							if (chTo == chFrom || (chTo - 1)->unicode() != QChar::Space || _selection.to >= (chTo - _str)) {
 								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _textStyle->selectBg->b);
 							} else { // or with space
 								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _textStyle->selectBg->b);
 							}
-						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selectedFrom) {
+						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selection.from) {
 							if (rtl) { // rtl space only
 								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _textStyle->selectBg->b);
 							} else { // ltr space only
@@ -1504,54 +1505,52 @@ public:
 			for (int g = glyphsStart; g < glyphsEnd; ++g)
 				itemWidth += glyphs.effectiveAdvance(g);
 
-			if (_lnkResult && _lnkX >= x && _lnkX < x + itemWidth) {
-				if (currentBlock->lnkIndex() && _lnkY >= _y + _yDelta && _lnkY < _y + _yDelta + _fontHeight) {
-					_lnkResult = &_t->_links.at(currentBlock->lnkIndex() - 1);
-				}
-				if (_inTextFlag) {
-					*_inTextFlag = true;
-				}
-				return false;
-			} else if (_getSymbol && _lnkX >= x && _lnkX < x + itemWidth) {
-				QFixed tmpx = rtl ? (x + itemWidth) : x;
-				for (int ch = 0, g, itemL = itemEnd - itemStart; ch < itemL;) {
-					g = logClusters[itemStart - si.position + ch];
-					QFixed gwidth = glyphs.effectiveAdvance(g);
-					 // ch2 - glyph end, ch - glyph start, (ch2 - ch) - how much chars it takes
-					int ch2 = ch + 1;
-					while ((ch2 < itemL) && (g == logClusters[itemStart - si.position + ch2])) {
-						++ch2;
+			if (!_p && _lookupX >= x && _lookupX < x + itemWidth) { // _lookupRequest
+				if (_lookupLink) {
+					if (currentBlock->lnkIndex() && _lookupY >= _y + _yDelta && _lookupY < _y + _yDelta + _fontHeight) {
+						_lookupResult.link = _t->_links.at(currentBlock->lnkIndex() - 1);
 					}
-					for (int charsCount = (ch2 - ch); ch < ch2; ++ch) {
-						QFixed shift1 = QFixed(2 * (charsCount - (ch2 - ch)) + 2) * gwidth / QFixed(2 * charsCount),
-						       shift2 = QFixed(2 * (charsCount - (ch2 - ch)) + 1) * gwidth / QFixed(2 * charsCount);
-						if ((rtl && _lnkX >= tmpx - shift1) ||
-							(!rtl && _lnkX < tmpx + shift1)) {
-							*_getSymbol = _localFrom + itemStart + ch;
-							if ((rtl && _lnkX >= tmpx - shift2) ||
-								(!rtl && _lnkX < tmpx + shift2)) {
-								*_getSymbolAfter = false;
-							} else {
-								*_getSymbolAfter = true;
+				}
+				_lookupResult.uponSymbol = true;
+				if (_lookupSymbol) {
+					QFixed tmpx = rtl ? (x + itemWidth) : x;
+					for (int ch = 0, g, itemL = itemEnd - itemStart; ch < itemL;) {
+						g = logClusters[itemStart - si.position + ch];
+						QFixed gwidth = glyphs.effectiveAdvance(g);
+						// ch2 - glyph end, ch - glyph start, (ch2 - ch) - how much chars it takes
+						int ch2 = ch + 1;
+						while ((ch2 < itemL) && (g == logClusters[itemStart - si.position + ch2])) {
+							++ch2;
+						}
+						for (int charsCount = (ch2 - ch); ch < ch2; ++ch) {
+							QFixed shift1 = QFixed(2 * (charsCount - (ch2 - ch)) + 2) * gwidth / QFixed(2 * charsCount),
+								shift2 = QFixed(2 * (charsCount - (ch2 - ch)) + 1) * gwidth / QFixed(2 * charsCount);
+							if ((rtl && _lookupX >= tmpx - shift1) ||
+								(!rtl && _lookupX < tmpx + shift1)) {
+								_lookupResult.symbol = _localFrom + itemStart + ch;
+								if ((rtl && _lookupX >= tmpx - shift2) ||
+									(!rtl && _lookupX < tmpx + shift2)) {
+									_lookupResult.afterSymbol = false;
+								} else {
+									_lookupResult.afterSymbol = true;
+								}
+								return false;
 							}
-							*_getSymbolUpon = true;
-							return false;
+						}
+						if (rtl) {
+							tmpx -= gwidth;
+						} else {
+							tmpx += gwidth;
 						}
 					}
-					if (rtl) {
-						tmpx -= gwidth;
+					if (itemEnd > itemStart) {
+						_lookupResult.symbol = _localFrom + itemEnd - 1;
+						_lookupResult.afterSymbol = true;
 					} else {
-						tmpx += gwidth;
+						_lookupResult.symbol = _localFrom + itemStart;
+						_lookupResult.afterSymbol = false;
 					}
 				}
-				if (itemEnd > itemStart) {
-					*_getSymbol = _localFrom + itemEnd - 1;
-					*_getSymbolAfter = true;
-				} else {
-					*_getSymbol = _localFrom + itemStart;
-					*_getSymbolAfter = false;
-				}
-				*_getSymbolUpon = true;
 				return false;
 			} else if (_p) {
 #ifndef TDESKTOP_WINRT // temp
@@ -1564,12 +1563,12 @@ public:
 				gf.justified = false;
 				gf.initWithScriptItem(si);
 #endif // !TDESKTOP_WINRT
-				if (_localFrom + itemStart < _selectedTo && _localFrom + itemEnd > _selectedFrom) {
+				if (_localFrom + itemStart < _selection.to && _localFrom + itemEnd > _selection.from) {
 					QFixed selX = x, selWidth = itemWidth;
-					if (_localFrom + itemEnd > _selectedTo || _localFrom + itemStart < _selectedFrom) {
+					if (_localFrom + itemEnd > _selection.to || _localFrom + itemStart < _selection.from) {
 						selWidth = 0;
 						int itemL = itemEnd - itemStart;
-						int selStart = _selectedFrom - (_localFrom + itemStart), selEnd = _selectedTo - (_localFrom + itemStart);
+						int selStart = _selection.from - (_localFrom + itemStart), selEnd = _selection.to - (_localFrom + itemStart);
 						if (selStart < 0) selStart = 0;
 						if (selEnd > itemL) selEnd = itemL;
 						for (int ch = 0, g; ch < selEnd;) {
@@ -1675,6 +1674,7 @@ public:
 				if (_wLeft < si.width) {
 					lineText = lineText.mid(0, currentBlock->from() - _localFrom) + _Elide;
 					lineLength = currentBlock->from() + _Elide.size() - _lineStart;
+					_selection.to = std::min({ _selection.to, currentBlock->from() });
 					setElideBidi(currentBlock->from(), _Elide.size());
 					elideSaveBlock(blockIndex - 1, _endBlock, currentBlock->from(), elideWidth);
 					return;
@@ -1706,6 +1706,7 @@ public:
 						if (lineText.size() <= pos || repeat > 3) {
 							lineText += _Elide;
 							lineLength = _localFrom + pos + _Elide.size() - _lineStart;
+							_selection.to = std::min({ _selection.to, uint16(_localFrom + pos) });
 							setElideBidi(_localFrom + pos, _Elide.size());
 							_blocksSize = blockIndex;
 							_endBlock = nextBlock;
@@ -1724,7 +1725,8 @@ public:
 			}
 		}
 
-		int32 elideStart = _lineStart + lineText.length();
+		int32 elideStart = _localFrom + lineText.size();
+		_selection.to = std::min({ _selection.to, uint16(elideStart) });
 		setElideBidi(elideStart, _Elide.size());
 
 		lineText += _Elide;
@@ -2369,13 +2371,14 @@ private:
 
 	QPainter *_p;
 	const Text *_t;
-	bool _elideLast, _breakEverywhere;
-	int32 _elideRemoveFromEnd;
+	bool _elideLast = false;
+	bool _breakEverywhere = false;
+	int32 _elideRemoveFromEnd = 0;
 	style::align _align;
 	QPen _originalPen;
 	int32 _yFrom, _yTo, _yToElide;
-	uint16 _selectedFrom, _selectedTo;
-	const QChar *_str;
+	TextSelection _selection = { 0, 0 };
+	const QChar *_str = nullptr;
 
 	// current paragraph data
 	Text::TextBlocks::const_iterator _parStartBlock;
@@ -2393,18 +2396,18 @@ private:
 	// elided hack support
 	int32 _blocksSize;
 	int32 _elideSavedIndex;
-	ITextBlock *_elideSavedBlock;
+	ITextBlock *_elideSavedBlock = nullptr;
 
 	int32 _lineStart, _localFrom;
 	int32 _lineStartBlock;
 
 	// link and symbol resolve
-	QFixed _lnkX;
-	int32 _lnkY;
-	const ClickHandlerPtr *_lnkResult;
-	bool *_inTextFlag;
-	uint16 *_getSymbol;
-	bool *_getSymbolAfter, *_getSymbolUpon;
+	QFixed _lookupX = 0;
+	int _lookupY = 0;
+	bool _lookupSymbol = false;
+	bool _lookupLink = false;
+	Text::StateRequest _lookupRequest;
+	Text::StateResult _lookupResult;
 
 };
 
@@ -2935,36 +2938,32 @@ void Text::replaceFont(style::font f) {
 	_font = f;
 }
 
-void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, uint16 selectedFrom, uint16 selectedTo) const {
+void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.draw(left, top, w, align, yFrom, yTo, selectedFrom, selectedTo);
+	p.draw(left, top, w, align, yFrom, yTo, selection);
 }
 
-void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) const {
+void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere);
+	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 }
 
-const ClickHandlerPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {
+Text::StateResult Text::getState(int x, int y, int width, StateRequest request) const {
 	TextPainter p(0, this);
-	return p.link(x, y, width, align);
+	return p.getState(x, y, width, request);
 }
 
-void Text::getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align, bool breakEverywhere) const {
+Text::StateResult Text::getStateElided(int x, int y, int width, StateRequestElided request) const {
 	TextPainter p(0, this);
-	p.getState(lnk, inText, x, y, width, align, breakEverywhere);
+	return p.getStateElided(x, y, width, request);
 }
 
-void Text::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align) const {
-	TextPainter p(0, this);
-	p.getSymbol(symbol, after, upon, x, y, width, align);
-}
-
-uint32 Text::adjustSelection(uint16 from, uint16 to, TextSelectType selectType) const {
+TextSelection Text::adjustSelection(TextSelection selection, TextSelectType selectType) const {
+	uint16 from = selection.from, to = selection.to;
 	if (from < _text.size() && from <= to) {
-		if (to > _text.size()) to = _text.size() - 1;
+		if (to > _text.size()) to = _text.size();
 		if (selectType == TextSelectParagraphs) {
 			if (!chIsParagraphSeparator(_text.at(from))) {
 				while (from > 0 && !chIsParagraphSeparator(_text.at(from - 1))) {
@@ -2997,10 +2996,10 @@ uint32 Text::adjustSelection(uint16 from, uint16 to, TextSelectType selectType) 
 			}
 		}
 	}
-	return (from << 16) | to;
+	return { from, to };
 }
 
-QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode mode) const {
+QString Text::original(TextSelection selection, ExpandLinksMode mode) const {
 	QString result, emptyurl;
 	result.reserve(_text.size());
 
@@ -3013,7 +3012,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode m
 				const ClickHandlerPtr &lnk(_links.at(lnkIndex - 1));
 				const QString &url = (mode == ExpandLinksNone || !lnk) ? emptyurl : lnk->text();
 
-				int32 rangeFrom = qMax(int32(selectedFrom), lnkFrom), rangeTo = qMin(blockFrom, int32(selectedTo));
+				int32 rangeFrom = qMax(int32(selection.from), lnkFrom), rangeTo = qMin(blockFrom, int32(selection.to));
 
 				if (rangeTo > rangeFrom) {
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
@@ -3043,7 +3042,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode m
 		if (type == TextBlockTSkip) continue;
 
 		if (!blockLnkIndex) {
-			int32 rangeFrom = qMax(selectedFrom, (*i)->from()), rangeTo = qMin(selectedTo, uint16((*i)->from() + TextPainter::_blockLength(this, i, e)));
+			int32 rangeFrom = qMax(selection.from, (*i)->from()), rangeTo = qMin(selection.to, uint16((*i)->from() + TextPainter::_blockLength(this, i, e)));
 			if (rangeTo > rangeFrom) {
 				result += _text.midRef(rangeFrom, rangeTo - rangeFrom);
 			}

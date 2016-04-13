@@ -131,7 +131,7 @@ void Date::initDimensions() {
 	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
 }
 
-void Date::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
 		p.setFont(st::semiboldFont);
@@ -159,7 +159,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Photo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	bool good = _data->loaded();
 	if (!good) {
 		_data->medium->automaticLoad(_parent);
@@ -230,7 +230,7 @@ int32 Video::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
 
 	_data->automaticLoad(_parent);
@@ -397,7 +397,7 @@ void Voice::initDimensions() {
 	_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::lineWidth;
 }
 
-void Voice::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -515,9 +515,9 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 	}
 	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
 		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
-			bool inText = false;
-			_details.getStateLeft(link, inText, x - nameleft, y - statustop, _width, _width);
-			cursor = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+			auto textState = _details.getStateLeft(x - nameleft, y - statustop, _width, _width);
+			link = textState.link;
+			cursor = textState.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
 		}
 	}
 	if (hasPoint(x, y) && !link && !_data->loading()) {
@@ -615,7 +615,7 @@ void Document::initDimensions() {
 	}
 }
 
-void Document::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -1027,7 +1027,7 @@ int32 Link::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Link::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
 	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {

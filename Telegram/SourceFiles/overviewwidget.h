@@ -158,7 +158,7 @@ private:
 	ChannelId _channel;
 
 	bool _selMode;
-	uint32 itemSelectedValue(int32 index) const;
+	TextSelection itemSelectedValue(int32 index) const;
 
 	int32 _rowsLeft, _rowWidth;
 
@@ -209,7 +209,7 @@ private:
 	// selection support, like in HistoryWidget
 	Qt::CursorShape _cursor;
 	HistoryCursorState _cursorState;
-	typedef QMap<MsgId, uint32> SelectedItems;
+	using SelectedItems = QMap<MsgId, TextSelection>;
 	SelectedItems _selected;
 	enum DragAction {
 		NoDrag = 0x00,

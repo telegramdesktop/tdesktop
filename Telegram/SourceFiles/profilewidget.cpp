@@ -1120,9 +1120,9 @@ void ProfileInner::updateSelected() {
 
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	bool inText = false;
 	if (!_about.isEmpty() && lp.y() >= _aboutTop && lp.y() < _aboutTop + _aboutHeight && lp.x() >= _left && lp.x() < _left + _width) {
-		_about.getState(lnk, inText, lp.x() - _left, lp.y() - _aboutTop, _width);
+		auto textState = _about.getState(lp.x() - _left, lp.y() - _aboutTop, _width);
+		lnk = textState.link;
 		lnkhost = this;
 	}
 	ClickHandler::setActive(lnk, lnkhost);

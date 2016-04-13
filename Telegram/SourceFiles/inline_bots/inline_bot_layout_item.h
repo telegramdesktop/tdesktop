@@ -58,7 +58,7 @@ public:
 	//ItemBase(PhotoData *photo) : _photo(photo) {
 	//}
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const = 0;
+	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
 
 	virtual void setPosition(int32 position);
 	int32 position() const;

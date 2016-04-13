@@ -125,7 +125,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 	if (App::main()) emit App::main()->savedGifsUpdated();
 }
 
-void Gif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	DocumentData *document = getShownDocument();
 	document->automaticLoad(nullptr);
 
@@ -381,7 +381,7 @@ void Sticker::preload() const {
 	}
 }
 
-void Sticker::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	bool loaded = getShownDocument()->loaded();
 
 	float64 over = _a_over.isNull() ? (_active ? 1 : 0) : _a_over.current();
@@ -473,7 +473,7 @@ void Photo::initDimensions() {
 	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
 }
 
-void Photo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Photo::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int32 height = st::inlineMediaHeight;
 	QSize frame = countFrameSize();
 
@@ -591,7 +591,7 @@ void Video::initDimensions() {
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
-void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 
 	bool withThumb = !content_thumb()->isNull();
@@ -694,7 +694,7 @@ void File::initDimensions() {
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
-void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void File::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int32 left = st::msgFileSize + st::inlineThumbSkip;
 
 	DocumentData *document = getShownDocument();
@@ -942,7 +942,7 @@ int32 Contact::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Contact::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
 
 	left = st::msgFileSize + st::inlineThumbSkip;
@@ -1051,7 +1051,7 @@ int32 Article::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Article::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
 	if (_withThumb) {
 		left = st::inlineThumbSize + st::inlineThumbSkip;

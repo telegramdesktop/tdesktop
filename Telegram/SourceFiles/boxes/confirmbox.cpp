@@ -119,10 +119,10 @@ void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 
 	textstyleSet(&st::boxTextStyle);
-	ClickHandlerPtr handler = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), style::al_left);
+	auto state = _text.getStateLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width());
 	textstyleRestore();
 
-	ClickHandler::setActive(handler, this);
+	ClickHandler::setActive(state.link, this);
 }
 
 void ConfirmBox::closePressed() {

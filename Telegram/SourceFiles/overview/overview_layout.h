@@ -38,7 +38,7 @@ class ItemBase;
 class AbstractItem : public LayoutItemBase {
 public:
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const = 0;
+	virtual void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const = 0;
 
 	virtual ItemBase *toMediaItem() {
 		return nullptr;
@@ -164,7 +164,7 @@ public:
 	Date(const QDate &date, bool month);
 
 	void initDimensions() override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 
 private:
 	QDate _date;
@@ -178,7 +178,7 @@ public:
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
@@ -196,7 +196,7 @@ public:
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 protected:
@@ -229,7 +229,7 @@ public:
 	Voice(DocumentData *voice, HistoryItem *parent);
 
 	void initDimensions() override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 protected:
@@ -263,7 +263,7 @@ public:
 	Document(DocumentData *document, HistoryItem *parent);
 
 	void initDimensions() override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	virtual DocumentData *getDocument() const override {
@@ -308,7 +308,7 @@ public:
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:

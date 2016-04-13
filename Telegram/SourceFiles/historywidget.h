@@ -174,7 +174,7 @@ private:
 	bool _firstLoading = false;
 
 	style::cursor _cursor = style::cur_default;
-	typedef QMap<HistoryItem*, uint32> SelectedItems;
+	using SelectedItems = QMap<HistoryItem*, TextSelection>;
 	SelectedItems _selected;
 	void applyDragSelection();
 	void applyDragSelection(SelectedItems *toItems) const;

@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const uint32 FullSelection = 0xFFFFFFFF;
+static constexpr TextSelection FullSelection = { 0xFFFF, 0xFFFF };
 
 extern TextParseOptions _textNameOptions, _textDlgOptions;
 extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;

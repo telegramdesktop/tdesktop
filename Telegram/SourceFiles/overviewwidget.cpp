@@ -566,8 +566,8 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		if (_dragSelFrom && _dragSelTo) {
 			applyDragSelection();
 		} else if (!_selected.isEmpty() && !_dragWasInactive) {
-			uint32 sel = _selected.cbegin().value();
-			if (sel != FullSelection && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
+			auto sel = _selected.cbegin().value();
+			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
 				App::main()->activate();
 			}
@@ -782,7 +782,7 @@ bool OverviewInner::preloadLocal() {
 	return true;
 }
 
-uint32 OverviewInner::itemSelectedValue(int32 index) const {
+TextSelection OverviewInner::itemSelectedValue(int32 index) const {
 	int32 selfrom = -1, selto = -1;
 	if (_dragSelFromIndex >= 0 && _dragSelToIndex >= 0) {
 		selfrom = _dragSelToIndex;
@@ -790,7 +790,7 @@ uint32 OverviewInner::itemSelectedValue(int32 index) const {
 	}
 	if (_items.at(index)->toMediaItem()) { // draw item
 		if (index >= _dragSelToIndex && index <= _dragSelFromIndex && _dragSelToIndex >= 0) {
-			return (_dragSelecting && _items.at(index)->msgId() > 0) ? FullSelection : 0;
+			return (_dragSelecting && _items.at(index)->msgId() > 0) ? FullSelection : TextSelection{ 0, 0 };
 		} else if (!_selected.isEmpty()) {
 			SelectedItems::const_iterator j = _selected.constFind(complexMsgId(_items.at(index)->getItem()));
 			if (j != _selected.cend()) {
@@ -798,7 +798,7 @@ uint32 OverviewInner::itemSelectedValue(int32 index) const {
 			}
 		}
 	}
-	return 0;
+	return { 0, 0 };
 }
 
 void OverviewInner::paintEvent(QPaintEvent *e) {
@@ -1010,7 +1010,7 @@ void OverviewInner::onUpdateSelected() {
 			if (_mousedItem == _dragItem && lnk && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 				bool afterSymbol = false, uponSymbol = false;
 				uint16 second = 0;
-				_selected[_dragItem] = 0;
+				_selected[_dragItem] = { 0, 0 };
 				updateDragSelection(0, -1, 0, -1, false);
 			} else if (canSelectMany) {
 				bool selectingDown = (_reversed ? (_mousedItemIndex < _dragItemIndex) : (_mousedItemIndex > _dragItemIndex)) || (_mousedItemIndex == _dragItemIndex && ((_type == OverviewPhotos || _type == OverviewVideos) ? (_dragStartPos.x() < m.x()) : (_dragStartPos.y() < m.y())));
@@ -1729,7 +1729,7 @@ void OverviewInner::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (_selectedMsgId == oldId) _selectedMsgId = newId;
 	for (SelectedItems::iterator i = _selected.begin(), e = _selected.end(); i != e; ++i) {
 		if (i.key() == oldId) {
-			uint32 sel = i.value();
+			auto sel = i.value();
 			_selected.erase(i);
 			_selected.insert(newId, sel);
 			break;

@@ -1349,7 +1349,7 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 				int w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
-					item->paint(p, r.translated(-left, -top), 0, &context);
+					item->paint(p, r.translated(-left, -top), &context);
 					p.translate(-left, -top);
 				}
 				left += w;

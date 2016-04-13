@@ -344,6 +344,23 @@ enum TextSelectType {
 	TextSelectParagraphs = 0x03,
 };
 
+struct TextSelection {
+	constexpr TextSelection() : from(0), to(0) {
+	}
+	constexpr TextSelection(uint16 from, uint16 to) : from(from), to(to) {
+	}
+	uint16 from : 16;
+	uint16 to : 16;
+};
+inline bool operator==(TextSelection a, TextSelection b) {
+	return a.from == b.from && a.to == b.to;
+}
+inline bool operator!=(TextSelection a, TextSelection b) {
+	return !(a == b);
+}
+
+static constexpr TextSelection AllTextSelection = { 0, 0xFFFF };
+
 typedef QPair<QString, QString> TextCustomTag; // open str and close str
 typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 
@@ -381,34 +398,55 @@ public:
 
 	void replaceFont(style::font f); // does not recount anything, use at your own risk!
 
-	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const;
-	void drawLeft(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
-		draw(p, rtl() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selectedFrom, selectedTo);
+	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const;
+	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const;
+	void drawLeft(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
+		draw(p, rtl() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selection);
 	}
-	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
-		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
+	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
+		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
-	void drawRight(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
-		draw(p, rtl() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selectedFrom, selectedTo);
+	void drawRight(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
+		draw(p, rtl() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selection);
 	}
-	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
-		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
+	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
+		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
 
-	const ClickHandlerPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
-	const ClickHandlerPtr &linkLeft(int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
-		return link(rtl() ? (outerw - x - width) : x, y, width, align);
+	struct StateRequest {
+		enum class Flag {
+			BreakEverywhere = 0x01,
+			LookupSymbol    = 0x02,
+			LookupLink      = 0x04,
+		};
+		Q_DECLARE_FLAGS(Flags, Flag);
+
+		style::align align = style::al_left;
+		Flags flags = Flag::LookupLink;
+	};
+	struct StateResult {
+		ClickHandlerPtr link;
+		bool uponSymbol = false;
+		bool afterSymbol = false;
+		uint16 symbol = 0;
+	};
+	StateResult getState(int x, int y, int width, StateRequest request = StateRequest()) const;
+	StateResult getStateLeft(int x, int y, int width, int outerw, StateRequest request = StateRequest()) const {
+		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
-	void getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left, bool breakEverywhere = false) const;
-	void getStateLeft(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left, bool breakEverywhere = false) const {
-		return getState(lnk, inText, rtl() ? (outerw - x - width) : x, y, width, align, breakEverywhere);
+	struct StateRequestElided : public StateRequest {
+		StateRequestElided() = default;
+		StateRequestElided(const StateRequest &other) : StateRequest(other) {
+		}
+		int lines = 1;
+		int removeFromEnd = 0;
+	};
+	StateResult getStateElided(int x, int y, int width, StateRequestElided request = StateRequestElided()) const;
+	StateResult getStateElidedLeft(int x, int y, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
+		return getStateElided(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
-	void getSymbolLeft(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
-		return getSymbol(symbol, after, upon, rtl() ? (outerw - x - width) : x, y, width, align);
-	}
-	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType selectType) const;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
 
 	bool isEmpty() const {
 		return _text.isEmpty();
@@ -416,12 +454,15 @@ public:
 	bool isNull() const {
 		return !_font;
 	}
+	int length() const {
+		return _text.size();
+	}
 	enum ExpandLinksMode {
 		ExpandLinksNone,
 		ExpandLinksShortened,
 		ExpandLinksAll,
 	};
-	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, ExpandLinksMode mode = ExpandLinksShortened) const;
+	QString original(TextSelection selection = { 0, 0xFFFF }, ExpandLinksMode mode = ExpandLinksShortened) const;
 	EntitiesInText originalEntities() const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
@@ -474,6 +515,17 @@ private:
 	friend class TextPainter;
 
 };
+inline TextSelection snapSelection(int from, int to) {
+	return { static_cast<uint16>(snap(from, 0, 0xFFFF)), static_cast<uint16>(snap(to, 0, 0xFFFF)) };
+}
+inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+	int len = byText.length();
+	return snapSelection(int(selection.from) + len, int(selection.to) + len);
+}
+inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+	int len = byText.length();
+	return snapSelection(int(selection.from) - len, int(selection.to) - len);
+}
 
 void initLinkSets();
 const QSet<int32> &validProtocols();
