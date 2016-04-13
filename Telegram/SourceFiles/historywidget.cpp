@@ -8047,7 +8047,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.drawText(left, st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
 		p.setPen((((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
-		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left -_fieldBarCancel.width() - st::msgReplyPadding.right());
+		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel.width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgInDateFg);

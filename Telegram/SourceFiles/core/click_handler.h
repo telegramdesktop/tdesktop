@@ -130,7 +130,8 @@ public:
 	static void hostDestroyed(ClickHandlerHost *host) {
 		if (_activeHost == host) {
 			_activeHost = nullptr;
-		} else if (_pressedHost == host) {
+		}
+		if (_pressedHost == host) {
 			_pressedHost = nullptr;
 		}
 	}
