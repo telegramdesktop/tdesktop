@@ -79,6 +79,9 @@
     <Filter Include="overview">
       <UniqueIdentifier>{ddcc5634-90e7-4815-ba86-a3db539f4774}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ui\text">
+      <UniqueIdentifier>{850c3d13-024a-4ef3-a6b7-b546e67cca48}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -972,9 +975,6 @@
     <ClCompile Include="SourceFiles\ui\style_core.cpp">
       <Filter>ui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\ui\text.cpp">
-      <Filter>ui</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\ui\twidget.cpp">
       <Filter>ui</Filter>
     </ClCompile>
@@ -1067,6 +1067,15 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\overview\overview_layout.cpp">
       <Filter>overview</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text.cpp">
+      <Filter>ui\text</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text_entity.cpp">
+      <Filter>ui\text</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text_block.cpp">
+      <Filter>ui\text</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1175,9 +1184,6 @@
     <ClInclude Include="SourceFiles\ui\style_core.h">
       <Filter>ui</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\ui\text.h">
-      <Filter>ui</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\ui\toast\toast.h">
       <Filter>ui\toast</Filter>
     </ClInclude>
@@ -1219,6 +1225,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\overview\overview_layout.h">
       <Filter>overview</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text.h">
+      <Filter>ui\text</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text_entity.h">
+      <Filter>ui\text</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text_block.h">
+      <Filter>ui\text</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

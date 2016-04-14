@@ -957,7 +957,6 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 							if (p->asUser()->botInfo->cantJoinGroups) continue;
 						}
 						if (_channel) {
-							if (_channel->isMegagroup() && _membersFilter == MembersFilterAdmins) continue;
 							if (!_channel->isMegagroup() && _membersFilter != MembersFilterAdmins) continue;
 						}
 					}

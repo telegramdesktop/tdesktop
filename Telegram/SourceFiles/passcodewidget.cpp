@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "application.h"
-#include "ui/text.h"
+#include "ui/text/text.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))

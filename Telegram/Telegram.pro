@@ -129,6 +129,9 @@ SOURCES += \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
+    ./SourceFiles/ui/text/text.cpp \
+    ./SourceFiles/ui/text/text_block.cpp \
+    ./SourceFiles/ui/text/text_entity.cpp \
     ./SourceFiles/ui/toast/toast.cpp \
     ./SourceFiles/ui/toast/toast_manager.cpp \
     ./SourceFiles/ui/toast/toast_widget.cpp \
@@ -147,7 +150,6 @@ SOURCES += \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/style_core.cpp \
-    ./SourceFiles/ui/text.cpp \
     ./SourceFiles/ui/twidget.cpp \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
@@ -238,6 +240,9 @@ HEADERS += \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
+    ./SourceFiles/ui/text/text.h \
+    ./SourceFiles/ui/text/text_block.h \
+    ./SourceFiles/ui/text/text_entity.h \
     ./SourceFiles/ui/toast/toast.h \
     ./SourceFiles/ui/toast/toast_manager.h \
     ./SourceFiles/ui/toast/toast_widget.h \
@@ -257,7 +262,6 @@ HEADERS += \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/style.h \
     ./SourceFiles/ui/style_core.h \
-    ./SourceFiles/ui/text.h \
     ./SourceFiles/ui/twidget.h \
     ./GeneratedFiles/lang_auto.h \
     ./GeneratedFiles/style_auto.h \

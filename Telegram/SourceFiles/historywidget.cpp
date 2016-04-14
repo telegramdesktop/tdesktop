@@ -1066,7 +1066,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				QString contextMenuText = item->selectedText(FullSelection);
-				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || (msg->getMedia()->type() != MediaTypeSticker && msg->getMedia()->type() != MediaTypeGif))) {
+				if (!contextMenuText.isEmpty() && msg && !msg->getMedia()) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}

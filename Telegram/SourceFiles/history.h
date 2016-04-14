@@ -1082,6 +1082,14 @@ private:
 
 };
 
+
+namespace internal {
+
+TextSelection unshiftSelection(TextSelection selection, const Text &byText);
+TextSelection shiftSelection(TextSelection selection, const Text &byText);
+
+} // namespace internal
+
 class HistoryItem : public HistoryElem, public Composer, public ClickHandlerHost {
 public:
 
@@ -1539,10 +1547,10 @@ protected:
 	}
 
 	TextSelection toMediaSelection(TextSelection selection) const {
-		return unshiftSelection(selection, _text);
+		return internal::unshiftSelection(selection, _text);
 	}
 	TextSelection fromMediaSelection(TextSelection selection) const {
-		return shiftSelection(selection, _text);
+		return internal::shiftSelection(selection, _text);
 	}
 
 	Text _text = { int(st::msgMinWidth) };
@@ -1640,8 +1648,8 @@ public:
 	HistoryMedia &operator=(const HistoryMedia &other) = delete;
 
 	virtual HistoryMediaType type() const = 0;
-	virtual const QString inDialogsText() const = 0;
-	virtual const QString inHistoryText() const = 0;
+	virtual QString inDialogsText() const = 0;
+	virtual QString selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(int x, int y) const {
 		return (x >= 0 && y >= 0 && x < _width && y < _height);
@@ -1871,8 +1879,8 @@ public:
 		return _caption.adjustSelection(selection, type);
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	PhotoData *photo() const {
 		return _data;
@@ -1948,8 +1956,8 @@ public:
 		return _caption.adjustSelection(selection, type);
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -2068,8 +2076,8 @@ public:
 		return selection;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2152,8 +2160,8 @@ public:
 		return _caption.adjustSelection(selection, type);
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2250,8 +2258,8 @@ public:
 		return true;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -2319,8 +2327,8 @@ public:
 		return true;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	void attachToParent() override;
 	void detachFromParent() override;
@@ -2384,8 +2392,8 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -2433,10 +2441,10 @@ public:
 
 private:
 	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return unshiftSelection(selection, _title);
+		return internal::unshiftSelection(selection, _title);
 	}
 	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return shiftSelection(selection, _title);
+		return internal::shiftSelection(selection, _title);
 	}
 
 	WebPageData *_data;
@@ -2515,8 +2523,8 @@ public:
 		return p == _link;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
 		if (!_title.isEmpty() || !_description.isEmpty()) {
@@ -2533,10 +2541,10 @@ public:
 
 private:
 	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return unshiftSelection(selection, _title);
+		return internal::unshiftSelection(selection, _title);
 	}
 	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return shiftSelection(selection, _title);
+		return internal::shiftSelection(selection, _title);
 	}
 
 	LocationData *_data;
