@@ -155,12 +155,13 @@ public:
 		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
 	struct StateRequestElided : public StateRequest {
-		StateRequestElided() = default;
-		StateRequestElided(const StateRequest &other) : StateRequest(other) {
+        StateRequestElided() {
+        }
+        StateRequestElided(const StateRequest &other) : StateRequest(other) {
 		}
 		int lines = 1;
 		int removeFromEnd = 0;
-	};
+    };
 	StateResult getStateElided(int x, int y, int width, StateRequestElided request = StateRequestElided()) const;
 	StateResult getStateElidedLeft(int x, int y, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
 		return getStateElided(rtl() ? (outerw - x - width) : x, y, width, request);
