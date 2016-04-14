@@ -52,6 +52,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -177,6 +178,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -245,6 +247,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -387,29 +390,14 @@ GeneratedFiles/Debug/moc_localimageloader.cpp: SourceFiles/localimageloader.h
 GeneratedFiles/Debug/moc_localstorage.cpp: SourceFiles/localstorage.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/localstorage.h -o GeneratedFiles/Debug/moc_localstorage.cpp
 
-GeneratedFiles/Debug/moc_mainwidget.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
-		SourceFiles/ui/flatbutton.h \
-		SourceFiles/ui/button.h \
-		SourceFiles/ui/twidget.h \
-		SourceFiles/ui/flatcheckbox.h \
-		SourceFiles/ui/animation.h \
-		SourceFiles/core/basic_types.h \
-		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
-		SourceFiles/logs.h \
-		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
-		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
-		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
-		SourceFiles/dialogswidget.h \
-		SourceFiles/historywidget.h \
-		SourceFiles/localimageloader.h \
-		SourceFiles/ui/boxshadow.h \
-		SourceFiles/dropdown.h \
-		SourceFiles/overviewwidget.h \
-		SourceFiles/profilewidget.h \
+GeneratedFiles/Debug/moc_mainwidget.cpp: SourceFiles/localimageloader.h \
+		SourceFiles/history/history_common.h \
 		SourceFiles/mainwidget.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mainwidget.h -o GeneratedFiles/Debug/moc_mainwidget.cpp
+
+GeneratedFiles/Debug/moc_top_bar_widget.cpp: SourceFiles/ui/twidget.h \
+		SourceFiles/window/top_bar_widget.h
+	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/window/top_bar_widget.h -o GeneratedFiles/Debug/moc_top_bar_widget.cpp
 
 GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/ui/flatbutton.h \
 		SourceFiles/ui/button.h \

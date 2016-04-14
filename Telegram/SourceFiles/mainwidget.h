@@ -37,7 +37,6 @@ class TopBarWidget;
 
 class MainWindow;
 class ApiWrap;
-class MainWidget;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
@@ -550,12 +549,12 @@ private:
 
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
-	ChildWidget<ProfileWidget> _profile = nullptr;
-	ChildWidget<OverviewWidget> _overview = nullptr;
+	ChildWidget<ProfileWidget> _profile = { nullptr };
+	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
-	ChildWidget<HistoryHider> _hider = nullptr;
+	ChildWidget<HistoryHider> _hider = { nullptr };
 	StackItems _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;

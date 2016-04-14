@@ -138,6 +138,9 @@ public:
 		};
 		Q_DECLARE_FLAGS(Flags, Flag);
 
+		StateRequest() {
+		}
+
 		style::align align = style::al_left;
 		Flags flags = Flag::LookupLink;
 	};

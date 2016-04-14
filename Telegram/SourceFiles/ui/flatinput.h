@@ -31,14 +31,14 @@ public:
 
 	FlatInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void focusInEvent(QFocusEvent *e);
-	void focusOutEvent(QFocusEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void notaBene();
 
@@ -52,8 +52,8 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 
-	QSize sizeHint() const;
-	QSize minimumSizeHint() const;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 	void customUpDown(bool isCustom);
 	const QString &getLastText() const {
@@ -507,14 +507,14 @@ public:
 
 	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void focusInEvent(QFocusEvent *e);
-	void focusOutEvent(QFocusEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void showError();
 
@@ -528,8 +528,8 @@ public:
 	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
-	QSize sizeHint() const;
-	QSize minimumSizeHint() const;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 	void customUpDown(bool isCustom);
 	const QString &getLastText() const {

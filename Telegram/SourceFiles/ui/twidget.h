@@ -174,7 +174,7 @@ class TWidget : public QWidget {
 public:
 	TWidget(QWidget *parent = nullptr) : QWidget(parent) {
 	}
-	bool event(QEvent *e) {
+	bool event(QEvent *e) override {
 		return QWidget::event(e);
 	}
 	virtual void grabStart() {
@@ -233,6 +233,7 @@ class ChildWidget {
 public:
 	ChildWidget(std::nullptr_t) : _widget(nullptr) {
 	}
+
 	// No default constructor, but constructors with at least
 	// one argument are simply make functions.
 	template <typename Parent, typename... Args>

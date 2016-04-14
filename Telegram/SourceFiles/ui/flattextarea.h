@@ -35,16 +35,16 @@ public:
 
 	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 
-	bool viewportEvent(QEvent *e);
+	bool viewportEvent(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void focusInEvent(QFocusEvent *e);
-	void focusOutEvent(QFocusEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void dropEvent(QDropEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);
@@ -62,8 +62,8 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 
-	QSize sizeHint() const;
-	QSize minimumSizeHint() const;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 	EmojiPtr getSingleEmoji() const;
 	QString getMentionHashtagBotCommandPart(bool &start) const;
@@ -82,9 +82,9 @@ public:
 	void parseLinks();
 	QStringList linksList() const;
 
-	void insertFromMimeData(const QMimeData *source);
+	void insertFromMimeData(const QMimeData *source) override;
 
-	QMimeData *createMimeDataFromSelection() const;
+	QMimeData *createMimeDataFromSelection() const override;
 
 	enum class SubmitSettings {
 		None,
@@ -125,7 +125,7 @@ protected:
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 
-	QVariant loadResource(int type, const QUrl &name);
+	QVariant loadResource(int type, const QUrl &name) override;
 
 	void checkContentHeight();
 

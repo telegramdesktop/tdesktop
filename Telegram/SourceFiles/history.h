@@ -2901,12 +2901,12 @@ public:
 		return _create(history, newItem, date);
 	}
 
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	QString selectedText(uint32 selection) const {
+	QString selectedText(TextSelection selection) const override {
 		return QString();
 	}
-	HistoryItemType type() const {
+	HistoryItemType type() const override {
 		return HistoryItemGroup;
 	}
 	void uniteWith(MsgId minId, MsgId maxId, int32 count);
@@ -2950,13 +2950,13 @@ public:
 		return _create(history, wasMinId, date);
 	}
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	QString selectedText(uint32 selection) const {
+	QString selectedText(TextSelection selection) const override {
 		return QString();
 	}
-	HistoryItemType type() const {
+	HistoryItemType type() const override {
 		return HistoryItemCollapse;
 	}
 	MsgId wasMinId() const {
