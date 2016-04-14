@@ -1028,7 +1028,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		}
 	}
 
-	if (App::wnd()) App::wnd()->updateCounter();
+	Notify::unreadCounterUpdated();
 	if (!_sel && !shownDialogs()->isEmpty()) {
 		_sel = *shownDialogs()->cbegin();
 		_importantSwitchSel = false;
@@ -1936,7 +1936,7 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
 				if (d.vunread_count.v >= h->unreadCount()) {
-					h->setUnreadCount(d.vunread_count.v, false);
+					h->setUnreadCount(d.vunread_count.v);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
@@ -1954,14 +1954,13 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
 				int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
 				if (unreadCount >= h->unreadCount()) {
-					h->setUnreadCount(unreadCount, false);
+					h->setUnreadCount(unreadCount);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
 		} break;
 		}
 	}
-	if (App::wnd()) App::wnd()->updateCounter();
 }
 
 void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req) {

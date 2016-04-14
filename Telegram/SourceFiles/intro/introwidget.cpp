@@ -35,45 +35,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/text/text.h"
 
-namespace {
-	IntroWidget *signalEmitOn = 0;
-	QString countryForReg;
-	void gotNearestDC(const MTPNearestDc &result) {
-		const auto &nearest(result.c_nearestDc());
-		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
-		MTP::setdc(result.c_nearestDc().vnearest_dc.v, true);
-		if (countryForReg != nearest.vcountry.c_string().v.c_str()) {
-			countryForReg = nearest.vcountry.c_string().v.c_str();
-			emit signalEmitOn->countryChanged();
-		}
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		Sandbox::startUpdateCheck();
-#endif
-	}
-}
-
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
-, _langChangeTo(0)
 , _a_stage(animation(this, &IntroWidget::step_stage))
-, _cacheHideIndex(0)
-, _cacheShowIndex(0)
 , _a_show(animation(this, &IntroWidget::step_show))
-, _callStatus({ CallDisabled, 0 })
-, _registered(false)
-, _hasRecovery(false)
-, _codeByTelegram(false)
-, _back(this, st::setClose)
-, _backFrom(0)
-, _backTo(0) {
+, _back(this, st::setClose) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(&_back, SIGNAL(clicked()), this, SLOT(onBack()));
 	_back.hide();
 
-	countryForReg = psCurrentCountry();
+	_countryForReg = psCurrentCountry();
 
-	MTP::send(MTPhelp_GetNearestDc(), rpcDone(gotNearestDC));
-	signalEmitOn = this;
+	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&IntroWidget::gotNearestDC));
 
 	_stepHistory.push_back(new IntroStart(this));
 	_back.raise();
@@ -86,6 +59,10 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 	cSetPasswordRecovered(false);
 
 	_back.move(st::setClosePos.x(), st::setClosePos.y());
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandbox::startUpdateCheck();
+#endif
 }
 
 void IntroWidget::langChangeTo(int32 langId) {
@@ -171,6 +148,16 @@ void IntroWidget::pushStep(IntroStep *step, MoveType type) {
 	_stepHistory.back()->hide();
 
 	historyMove(type);
+}
+
+void IntroWidget::gotNearestDC(const MTPNearestDc &result) {
+	const auto &nearest(result.c_nearestDc());
+	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
+	MTP::setdc(result.c_nearestDc().vnearest_dc.v, true);
+	if (_countryForReg != nearest.vcountry.c_string().v.c_str()) {
+		_countryForReg = nearest.vcountry.c_string().v.c_str();
+		emit countryChanged();
+	}
 }
 
 QPixmap IntroWidget::grabStep(int skip) {
@@ -297,7 +284,7 @@ QRect IntroWidget::innerRect() const {
 }
 
 QString IntroWidget::currentCountry() const {
-	return countryForReg;
+	return _countryForReg;
 }
 
 void IntroWidget::setPhone(const QString &phone, const QString &phone_hash, bool registered) {

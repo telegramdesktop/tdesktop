@@ -57,9 +57,7 @@ void MacPrivate::activeSpaceChanged() {
 }
 
 void MacPrivate::darkModeChanged() {
-	if (App::wnd()) {
-		App::wnd()->updateCounter();
-	}
+	Notify::unreadCounterUpdated();
 }
 
 void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {

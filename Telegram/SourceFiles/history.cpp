@@ -325,9 +325,7 @@ void ChannelHistory::insertCollapseItem(MsgId wasMinId) {
 			HistoryItem *item = block->items.at(itemIndex);
 			if (insertAfter || item->id > wasMinId || (item->id == wasMinId && !item->isImportant())) {
 				_collapseMessage = HistoryCollapse::create((History*)this, wasMinId, item->date);
-				if (!addNewInTheMiddle(_collapseMessage, blockIndex, itemIndex)) {
-					_collapseMessage = 0;
-				}
+				addNewInTheMiddle(_collapseMessage, blockIndex, itemIndex);
 				return;
 			} else if (item->id == wasMinId && item->isImportant()) {
 				insertAfter = true;
@@ -663,16 +661,19 @@ void ChannelHistory::switchMode() {
 	checkJoinedMessage();
 }
 
-void ChannelHistory::cleared() {
-	_collapseMessage = 0;
-	_joinedMessage = 0;
+void ChannelHistory::cleared(bool leaveItems) {
+	_collapseMessage = nullptr;
+	_joinedMessage = nullptr;
+	if (!leaveItems) {
+		_otherList.clear();
+	}
 }
 
 HistoryGroup *ChannelHistory::findGroup(MsgId msgId) const { // find message group using binary search
 	if (!_onlyImportant) return findGroupInOther(msgId);
 
 	HistoryBlock *block = findGroupBlock(msgId);
-	if (!block) return 0;
+	if (!block) return nullptr;
 
 	int32 itemIndex = 0;
 	if (block->items.size() > 1) for (int32 minItem = 0, maxItem = block->items.size();;) {
@@ -698,10 +699,14 @@ HistoryGroup *ChannelHistory::findGroup(MsgId msgId) const { // find message gro
 		}
 	}
 
-	HistoryItem *item = block->items.at(itemIndex);
-	if (item->type() != HistoryItemGroup) return 0;
-	HistoryGroup *result = static_cast<HistoryGroup*>(item);
-	return (result->minId() < msgId && result->maxId() > msgId) ? result : 0;
+	auto item = block->items.at(itemIndex);
+	if (item->type() == HistoryItemGroup) {
+		auto result = static_cast<HistoryGroup*>(item);
+		if (result->minId() < msgId && result->maxId() > msgId) {
+			return result;
+		}
+	}
+	return nullptr;
 }
 
 HistoryBlock *ChannelHistory::findGroupBlock(MsgId msgId) const { // find block with message group using binary search
@@ -838,7 +843,7 @@ History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 
 	Map::const_iterator i = map.constFind(peerId);
 	if (i == map.cend()) {
 		i = map.insert(peerId, peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId)));
-		i.value()->setUnreadCount(unreadCount, false);
+		i.value()->setUnreadCount(unreadCount);
 		i.value()->inboxReadBefore = maxInboxRead + 1;
 	}
 	return i.value();
@@ -846,18 +851,17 @@ History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 
 
 void Histories::clear() {
 	App::historyClearMsgs();
-	for (Map::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
-		delete i.value();
+
+	Map temp;
+	std::swap(temp, map);
+	for_const (auto history, temp) {
+		delete history;
 	}
-	Global::RefPendingRepaintItems().clear();
 
 	_unreadFull = _unreadMuted = 0;
-	if (App::wnd()) {
-		App::wnd()->updateCounter();
-	}
+	Notify::unreadCounterUpdated();
 	App::historyClearItems();
 	typing.clear();
-	map.clear();
 }
 
 void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action) {
@@ -1742,7 +1746,7 @@ HistoryItem *History::lastImportantMessage() const {
 	return nullptr;
 }
 
-void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
+void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount != newUnreadCount) {
 		if (newUnreadCount == 1) {
 			if (loadedAtBottom()) showFrom = lastImportantMessage();
@@ -1753,8 +1757,8 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 		}
 		if (inChatList(Dialogs::Mode::All)) {
 			App::histories().unreadIncrement(newUnreadCount - _unreadCount, mute());
-			if (psUpdate && (!mute() || cIncludeMuted()) && App::wnd()) {
-				App::wnd()->updateCounter();
+			if (!mute() || cIncludeMuted()) {
+				Notify::unreadCounterUpdated();
 			}
 		}
 		_unreadCount = newUnreadCount;
@@ -1780,7 +1784,7 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 		if (inChatList(Dialogs::Mode::All)) {
 			if (_unreadCount) {
 				App::histories().unreadMuteChanged(_unreadCount, newMute);
-				if (App::wnd()) App::wnd()->updateCounter();
+				Notify::unreadCounterUpdated();
 			}
 			Notify::historyMuteUpdated(this);
 		}
@@ -2179,6 +2183,15 @@ void History::clear(bool leaveItems) {
 	}
 	if (!leaveItems) {
 		setLastMessage(nullptr);
+		notifies.clear();
+		auto &pending = Global::RefPendingRepaintItems();
+		for (auto i = pending.begin(); i != pending.end();) {
+			if ((*i)->history() == this) {
+				i = pending.erase(i);
+			} else {
+				++i;
+			}
+		}
 	}
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		if (!overview[i].isEmpty() || !overviewIds[i].isEmpty()) {
@@ -2199,6 +2212,10 @@ void History::clear(bool leaveItems) {
 		lastKeyboardInited = false;
 	} else {
 		setUnreadCount(0);
+		if (peer->isMegagroup()) {
+			peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		}
+		clearLastKeyboard();
 	}
 	setPendingResize();
 
@@ -2209,7 +2226,7 @@ void History::clear(bool leaveItems) {
 		peer->asChat()->lastAuthors.clear();
 		peer->asChat()->markupSenders.clear();
 	} else if (isChannel()) {
-		asChannelHistory()->cleared();
+		asChannelHistory()->cleared(leaveItems);
 		if (isMegagroup()) {
 			peer->asChannel()->mgInfo->markupSenders.clear();
 		}
@@ -2251,7 +2268,7 @@ Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *i
 		chatListLinks(list) = indexed->addToEnd(this);
 		if (list == Dialogs::Mode::All && unreadCount()) {
 			App::histories().unreadIncrement(unreadCount(), mute());
-			if (App::wnd()) App::wnd()->updateCounter();
+			Notify::unreadCounterUpdated();
 		}
 	}
 	return mainChatListLink(list);
@@ -2264,7 +2281,7 @@ void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *index
 		chatListLinks(list).clear();
 		if (list == Dialogs::Mode::All && unreadCount()) {
 			App::histories().unreadIncrement(-unreadCount(), mute());
-			if (App::wnd()) App::wnd()->updateCounter();
+			Notify::unreadCounterUpdated();
 		}
 	}
 }
@@ -2994,6 +3011,7 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 }
 
 void HistoryItem::destroy() {
+	// All this must be done for all items manually in History::clear(false)!
 	bool wasAtBottom = history()->loadedAtBottom();
 	_history->removeNotification(this);
 	detach();

@@ -56,7 +56,7 @@ private:
 	QLocalServer _localServer;
 	QLocalSocket _localSocket;
 	LocalClients _localClients;
-	bool _secondInstance;
+	bool _secondInstance = false;
 
 	void singleInstanceChecked();
 
@@ -98,10 +98,10 @@ public slots:
 private:
 
 	SingleTimer _updateCheckTimer;
-	QNetworkReply *_updateReply;
+	QNetworkReply *_updateReply = nullptr;
 	QNetworkAccessManager _updateManager;
-	QThread *_updateThread;
-	UpdateChecker *_updateChecker;
+	QThread *_updateThread = nullptr;
+	UpdateChecker *_updateChecker = nullptr;
 
 #endif
 };
@@ -202,6 +202,7 @@ public slots:
 	void onAppStateChanged(Qt::ApplicationState state);
 
 	void call_handleHistoryUpdate();
+	void call_handleUnreadCounterUpdate();
 
 private:
 

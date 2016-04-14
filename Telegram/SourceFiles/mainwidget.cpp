@@ -113,6 +113,10 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	setFocus();
 
 	_api->init();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandbox::startUpdateCheck();
+#endif
 }
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
@@ -1205,8 +1209,8 @@ void MainWidget::stopAnimActive() {
 	_history->stopAnimActive();
 }
 
-void MainWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
-	_history->sendBotCommand(peer, cmd, replyTo);
+void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
+	_history->sendBotCommand(peer, bot, cmd, replyTo);
 }
 
 void MainWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {
@@ -2781,7 +2785,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			}
 			int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
 			if (unreadCount >= h->unreadCount()) {
-				h->setUnreadCount(unreadCount, false);
+				h->setUnreadCount(unreadCount);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}
 			if (d.vunread_count.v >= h->asChannelHistory()->unreadCountAll) {
@@ -3212,9 +3216,6 @@ void MainWidget::start(const MTPUser &user) {
 
 	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandbox::startUpdateCheck();
-#endif
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 	if (!cStartUrl().isEmpty()) {

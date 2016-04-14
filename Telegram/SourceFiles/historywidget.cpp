@@ -2260,8 +2260,7 @@ void BotKeyboard::enterEvent(QEvent *e) {
 }
 
 void BotKeyboard::leaveEvent(QEvent *e) {
-	_lastMousePos = QPoint(-1, -1);
-	updateSelected();
+	clearSelection();
 }
 
 void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
@@ -2275,44 +2274,43 @@ void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
-	if (to && to->definesReplyKeyboard()) {
-		if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
-			return false;
+	if (!to || !to->definesReplyKeyboard()) {
+		if (_wasForMsgId.msg) {
+			_maximizeSize = _singleUse = _forceReply = false;
+			_wasForMsgId = FullMsgId();
+			_impl = nullptr;
+			return true;
 		}
-
-		_wasForMsgId = FullMsgId(to->channelId(), to->id);
-		clearSelection();
-
-		auto markupFlags = to->replyKeyboardFlags();
-		_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-		_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
-		_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
-
-		_impl = nullptr;
-		if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-			if (!markup->rows.isEmpty()) {
-				_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
-			}
-		}
-
-		updateStyle();
-		_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
-		if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-		if (height() != _height) {
-			resize(width(), _height);
-		} else {
-			resizeEvent(0);
-		}
-		return true;
+		return false;
 	}
-	if (_wasForMsgId.msg) {
-		_maximizeSize = _singleUse = _forceReply = false;
-		_wasForMsgId = FullMsgId();
-		clearSelection();
-		_impl = nullptr;
-		return true;
+
+	if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
+		return false;
 	}
-	return false;
+
+	_wasForMsgId = FullMsgId(to->channelId(), to->id);
+
+	auto markupFlags = to->replyKeyboardFlags();
+	_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+	_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
+	_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
+
+	_impl = nullptr;
+	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
+		if (!markup->rows.isEmpty()) {
+			_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
+		}
+	}
+
+	updateStyle();
+	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
+	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
+	if (height() != _height) {
+		resize(width(), _height);
+	} else {
+		resizeEvent(nullptr);
+	}
+	return true;
 }
 
 bool BotKeyboard::hasMarkup() const {
@@ -2351,7 +2349,10 @@ void BotKeyboard::updateStyle(int32 w) {
 
 void BotKeyboard::clearSelection() {
 	if (_impl) {
-		_impl->clearSelection();
+		if (ClickHandler::setActive(ClickHandlerPtr(), this)) {
+			PopupTooltip::Hide();
+			setCursor(style::cur_default);
+		}
 	}
 }
 
@@ -2908,7 +2909,7 @@ void HistoryWidget::onStickersUpdated() {
 
 void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 	if (str.at(0) == '/') { // bot command
-		App::sendBotCommand(_peer, str);
+		App::sendBotCommand(_peer, nullptr, str);
 		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
 	} else {
 		_field.onMentionHashtagOrBotCommandInsert(str);
@@ -4852,7 +4853,7 @@ void HistoryWidget::onBotStart() {
 
 	QString token = _peer->asUser()->botInfo->startToken;
 	if (token.isEmpty()) {
-		sendBotCommand(_peer, qsl("/start"), 0);
+		sendBotCommand(_peer, _peer->asUser(), qsl("/start"), 0);
 	} else {
 		uint64 randomId = rand_value<uint64>();
 		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
@@ -5286,14 +5287,15 @@ void HistoryWidget::stopRecording(bool send) {
 	_a_record.start();
 }
 
-void HistoryWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
+void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
 	if (!_peer || _peer != peer) return;
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
-	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
+	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
+		bot = nullptr;
+	}
 	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {

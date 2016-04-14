@@ -1768,22 +1768,22 @@ namespace {
 
 	void historyItemDetached(HistoryItem *item) {
 		if (::hoveredItem == item) {
-			hoveredItem(0);
+			hoveredItem(nullptr);
 		}
 		if (::pressedItem == item) {
-			pressedItem(0);
+			pressedItem(nullptr);
 		}
 		if (::hoveredLinkItem == item) {
-			hoveredLinkItem(0);
+			hoveredLinkItem(nullptr);
 		}
 		if (::pressedLinkItem == item) {
-			pressedLinkItem(0);
+			pressedLinkItem(nullptr);
 		}
 		if (::contextItem == item) {
-			contextItem(0);
+			contextItem(nullptr);
 		}
 		if (::mousedItem == item) {
-			mousedItem(0);
+			mousedItem(nullptr);
 		}
 		if (App::wnd()) {
 			App::wnd()->notifyItemRemoved(item);

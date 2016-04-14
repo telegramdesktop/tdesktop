@@ -575,7 +575,7 @@ void ProfileInner::onBotSettings() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(_peerUser, '/' + cmd);
+			App::sendBotCommand(_peerUser, _peerUser, '/' + cmd);
 			return;
 		}
 	}
@@ -589,7 +589,7 @@ void ProfileInner::onBotHelp() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(_peerUser, '/' + cmd);
+			App::sendBotCommand(_peerUser, _peerUser, '/' + cmd);
 			return;
 		}
 	}

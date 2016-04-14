@@ -255,7 +255,7 @@ public:
 	int unreadCount() const {
 		return _unreadCount;
 	}
-	void setUnreadCount(int newUnreadCount, bool psUpdate = true);
+	void setUnreadCount(int newUnreadCount);
 	bool mute() const {
 		return _mute;
 	}
@@ -642,7 +642,7 @@ private:
 	HistoryItem *findPrevItem(HistoryItem *item) const;
 	void switchMode();
 
-	void cleared();
+	void cleared(bool leaveItems);
 
 	bool _onlyImportant;
 
@@ -2637,7 +2637,7 @@ public:
 		HistoryItem::clickHandlerActiveChanged(p, active);
 	}
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
-		if (_media) _media->clickHandlerActiveChanged(p, pressed);
+		if (_media) _media->clickHandlerPressedChanged(p, pressed);
 		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 

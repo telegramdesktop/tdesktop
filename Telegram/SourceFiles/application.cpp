@@ -90,14 +90,7 @@ namespace {
 
 AppClass *AppObject = 0;
 
-Application::Application(int &argc, char **argv) : QApplication(argc, argv)
-, _secondInstance(false)
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _updateReply(0)
-, _updateThread(0)
-, _updateChecker(0)
-#endif
-{
+Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -903,6 +896,12 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 
 void AppClass::call_handleHistoryUpdate() {
 	Notify::handlePendingHistoryUpdate();
+}
+
+void AppClass::call_handleUnreadCounterUpdate() {
+	if (auto w = App::wnd()) {
+		w->updateUnreadCounter();
+	}
 }
 
 void AppClass::killDownloadSessions() {

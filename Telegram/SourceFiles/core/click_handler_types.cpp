@@ -124,8 +124,14 @@ void HashtagClickHandler::onClick(Qt::MouseButton button) const {
 void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		if (PeerData *peer = Ui::getPeerForMouseAction()) {
+			UserData *bot = peer->isUser() ? peer->asUser() : nullptr;
+			if (auto item = App::hoveredLinkItem()) {
+				if (!bot) {
+					bot = item->fromOriginal()->asUser(); // may return nullptr
+				}
+			}
 			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(peer, _cmd);
+			App::sendBotCommand(peer, bot, _cmd);
 		} else {
 			App::insertBotCommand(_cmd);
 		}

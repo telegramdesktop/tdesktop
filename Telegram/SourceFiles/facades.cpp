@@ -33,12 +33,16 @@ Q_DECLARE_METATYPE(Qt::MouseButton);
 
 namespace App {
 
-void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
-	if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
+void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
+	if (auto m = main()) {
+		m->sendBotCommand(peer, bot, cmd, replyTo);
+	}
 }
 
 bool insertBotCommand(const QString &cmd, bool specialGif) {
-	if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
+	if (auto m = main()) {
+		return m->insertBotCommand(cmd, specialGif);
+	}
 	return false;
 }
 
@@ -59,7 +63,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
-		sendBotCommand(msg->history()->peer, QString(button->text), replyTo);
+		sendBotCommand(msg->history()->peer, msg->fromOriginal()->asUser(), QString(button->text), replyTo);
 	} break;
 
 	case HistoryMessageReplyMarkup::Button::Callback: {
@@ -326,6 +330,10 @@ void handlePendingHistoryUpdate() {
 	Global::RefPendingRepaintItems().clear();
 }
 
+void unreadCounterUpdated() {
+	Global::RefHandleUnreadCounterUpdate().call();
+}
+
 } // namespace Notify
 
 #define DefineReadOnlyVar(Namespace, Type, Name) const Type &Name() { \
@@ -479,6 +487,7 @@ namespace internal {
 struct Data {
 	uint64 LaunchId = 0;
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
+	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
 
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
@@ -541,6 +550,7 @@ void finish() {
 
 DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
+DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
 
 DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);

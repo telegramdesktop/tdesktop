@@ -1515,7 +1515,7 @@ void SettingsInner::onSoundNotify() {
 
 void SettingsInner::onIncludeMuted() {
 	cSetIncludeMuted(_includeMuted.checked());
-	if (App::wnd()) App::wnd()->updateCounter();
+	Notify::unreadCounterUpdated();
 	Local::writeUserSettings();
 }
 

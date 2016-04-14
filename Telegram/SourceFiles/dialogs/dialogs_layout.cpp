@@ -132,10 +132,10 @@ QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
 	int a = color->c.alpha() + 1;
 	int fg_r = color->c.red() * a, fg_g = color->c.green() * a, fg_b = color->c.blue() * a, fg_a = 255 * a;
 
-	QImage result(size, size, QImage::Format_ARGB32_Premultiplied);
+	QImage result(half, size, QImage::Format_ARGB32_Premultiplied);
 	uchar *bits = result.bits(), *maskbits = unreadBadgeStyle->circle.bits();
 	int bpl = result.bytesPerLine(), maskbpl = unreadBadgeStyle->circle.bytesPerLine();
-	for (int x = 0; x < size; ++x) {
+	for (int x = 0; x < half; ++x) {
 		for (int y = 0; y < size; ++y) {
 			int s = y * bpl + (x * 4);
 			int o = maskbits[y * maskbpl + x + xoffset] + 1;

@@ -155,9 +155,9 @@ public:
 		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
 	struct StateRequestElided : public StateRequest {
-        StateRequestElided() {
-        }
-        StateRequestElided(const StateRequest &other) : StateRequest(other) {
+		StateRequestElided() {
+		}
+		StateRequestElided(const StateRequest &other) : StateRequest(other) {
 		}
 		int lines = 1;
 		int removeFromEnd = 0;

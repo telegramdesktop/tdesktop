@@ -673,11 +673,11 @@ void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	_mediaView = new MediaView();
 }
 
-void MainWindow::updateCounter() {
+void MainWindow::updateUnreadCounter() {
 	if (!Global::started() || App::quitting()) return;
 
-	psUpdateCounter();
 	title->updateCounter();
+	psUpdateCounter();
 }
 
 void MainWindow::showSettings() {
@@ -1180,11 +1180,7 @@ void MainWindow::onLogout() {
 }
 
 void MainWindow::onLogoutSure() {
-	if (MTP::authedId()) {
-		App::logOut();
-	} else {
-		setupIntro(true);
-	}
+	App::logOut();
 }
 
 void MainWindow::updateGlobalMenu() {
@@ -1254,7 +1250,7 @@ void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
         QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
         QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
         activate();
-		updateCounter();
+		Notify::unreadCounterUpdated();
 	}
 }
 

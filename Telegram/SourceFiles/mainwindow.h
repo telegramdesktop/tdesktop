@@ -228,6 +228,8 @@ public:
 	bool isActive(bool cached = true) const;
 	void hideMediaview();
 
+	void updateUnreadCounter();
+
 	bool contentOverlapped(const QRect &globalRect);
 	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
 		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
@@ -250,7 +252,6 @@ public slots:
 	void stateChanged(Qt::WindowState state);
 
 	void checkHistoryActivation();
-	void updateCounter();
 
 	void checkAutoLock();
 
