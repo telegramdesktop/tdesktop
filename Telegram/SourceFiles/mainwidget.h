@@ -372,6 +372,8 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
+	void closePlayer();
+
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -422,7 +424,6 @@ public slots:
 	void documentPlayProgress(const SongMsgId &songId);
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
-	void hidePlayer();
 
 	void dialogsCancelled();
 

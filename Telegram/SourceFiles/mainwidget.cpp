@@ -100,7 +100,7 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	App::wnd()->getTitle()->updateBackButton();
 	_topBar->hide();
 
-	_player->hide();
+	_player->hidePlayer();
 
 	orderWidgets();
 
@@ -1558,12 +1558,14 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	if (playing == songId) {
 		_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
 
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing && !_a_show.animating()) {
-			if (_player->isHidden()) {
-				_player->clearSelection();
-				_player->show();
-				_playerHeight = _contentScrollAddToY = _player->height();
-				resizeEvent(0);
+		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+			if (!_player->isOpened()) {
+				_player->openPlayer();
+				if (_player->isHidden() && !_a_show.animating()) {
+					_player->showPlayer();
+					_playerHeight = _contentScrollAddToY = _player->height();
+					resizeEvent(0);
+				}
 			}
 		}
 	}
@@ -1578,12 +1580,15 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	}
 }
 
-void MainWidget::hidePlayer() {
-	if (!_player->isHidden()) {
-		_player->hide();
-		_contentScrollAddToY = -_player->height();
-		_playerHeight = 0;
-		resizeEvent(0);
+void MainWidget::closePlayer() {
+	if (_player->isOpened()) {
+		_player->closePlayer();
+		if (!_player->isHidden() && !_a_show.animating()) {
+			_player->hidePlayer();
+			_contentScrollAddToY = -_player->height();
+			_playerHeight = 0;
+			resizeEvent(0);
+		}
 	}
 }
 
@@ -2477,8 +2482,10 @@ void MainWidget::hideAll() {
 	}
 	_topBar->hide();
 	_mediaType->hide();
-	_player->hide();
-	_playerHeight = 0;
+	if (_player->isOpened() && !_player->isHidden()) {
+		_player->hidePlayer();
+		_playerHeight = 0;
+	}
 }
 
 void MainWidget::showAll() {
@@ -2538,20 +2545,9 @@ void MainWidget::showAll() {
 			_topBar->show();
 		}
 	}
-	if (audioPlayer()) {
-		SongMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
-		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-		if (playing) {
-			_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
-			if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				_player->clearSelection();
-				_player->show();
-				_playerHeight = _player->height();
-			}
-		}
+	if (_player->isOpened() && _player->isHidden()) {
+		_player->showPlayer();
+		_playerHeight = _player->height();
 	}
 	resizeEvent(0);
 
