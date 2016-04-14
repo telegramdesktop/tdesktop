@@ -80,6 +80,9 @@ unix {
 }
 
 SOURCES += \
+    ./GeneratedFiles/lang_auto.cpp \
+    ./GeneratedFiles/style_auto.cpp \
+    ./GeneratedFiles/numbers.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -112,8 +115,40 @@ SOURCES += \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
-    ./SourceFiles/basic_types.cpp \
-    ./SourceFiles/window.cpp \
+    ./SourceFiles/mainwindow.cpp \
+    ./SourceFiles/boxes/aboutbox.cpp \
+    ./SourceFiles/boxes/abstractbox.cpp \
+    ./SourceFiles/boxes/addcontactbox.cpp \
+    ./SourceFiles/boxes/autolockbox.cpp \
+    ./SourceFiles/boxes/backgroundbox.cpp \
+    ./SourceFiles/boxes/confirmbox.cpp \
+    ./SourceFiles/boxes/connectionbox.cpp \
+    ./SourceFiles/boxes/contactsbox.cpp \
+    ./SourceFiles/boxes/downloadpathbox.cpp \
+    ./SourceFiles/boxes/emojibox.cpp \
+    ./SourceFiles/boxes/languagebox.cpp \
+    ./SourceFiles/boxes/passcodebox.cpp \
+    ./SourceFiles/boxes/photocropbox.cpp \
+    ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/sessionsbox.cpp \
+    ./SourceFiles/boxes/stickersetbox.cpp \
+    ./SourceFiles/boxes/usernamebox.cpp \
+    ./SourceFiles/core/basic_types.cpp \
+    ./SourceFiles/core/click_handler.cpp \
+    ./SourceFiles/core/click_handler_types.cpp \
+    ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
+    ./SourceFiles/dialogs/dialogs_layout.cpp \
+    ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
+    ./SourceFiles/inline_bots/inline_bot_result.cpp \
+    ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
+    ./SourceFiles/intro/introwidget.cpp \
+    ./SourceFiles/intro/introcode.cpp \
+    ./SourceFiles/intro/introphone.cpp \
+    ./SourceFiles/intro/intropwdcheck.cpp \
+    ./SourceFiles/intro/introsignup.cpp \
+    ./SourceFiles/intro/introstart.cpp \
     ./SourceFiles/mtproto/facade.cpp \
     ./SourceFiles/mtproto/auth_key.cpp \
     ./SourceFiles/mtproto/connection.cpp \
@@ -128,6 +163,9 @@ SOURCES += \
     ./SourceFiles/mtproto/rpc_sender.cpp \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
+    ./SourceFiles/overview/overview_layout.cpp \
+    ./SourceFiles/serialize/serialize_common.cpp \
+    ./SourceFiles/serialize/serialize_document.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
     ./SourceFiles/ui/text/text.cpp \
     ./SourceFiles/ui/text/text_block.cpp \
@@ -151,43 +189,12 @@ SOURCES += \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/style_core.cpp \
     ./SourceFiles/ui/twidget.cpp \
-    ./GeneratedFiles/lang_auto.cpp \
-    ./GeneratedFiles/style_auto.cpp \
-    ./GeneratedFiles/numbers.cpp \
-    ./SourceFiles/boxes/aboutbox.cpp \
-    ./SourceFiles/boxes/abstractbox.cpp \
-    ./SourceFiles/boxes/addcontactbox.cpp \
-    ./SourceFiles/boxes/autolockbox.cpp \
-    ./SourceFiles/boxes/backgroundbox.cpp \
-    ./SourceFiles/boxes/confirmbox.cpp \
-    ./SourceFiles/boxes/connectionbox.cpp \
-    ./SourceFiles/boxes/contactsbox.cpp \
-    ./SourceFiles/boxes/downloadpathbox.cpp \
-    ./SourceFiles/boxes/emojibox.cpp \
-    ./SourceFiles/boxes/languagebox.cpp \
-    ./SourceFiles/boxes/passcodebox.cpp \
-    ./SourceFiles/boxes/photocropbox.cpp \
-    ./SourceFiles/boxes/photosendbox.cpp \
-    ./SourceFiles/boxes/sessionsbox.cpp \
-    ./SourceFiles/boxes/stickersetbox.cpp \
-    ./SourceFiles/boxes/usernamebox.cpp \
-    ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
-    ./SourceFiles/dialogs/dialogs_layout.cpp \
-    ./SourceFiles/dialogs/dialogs_list.cpp \
-    ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
-    ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
-    ./SourceFiles/inline_bots/inline_bot_result.cpp \
-    ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
-    ./SourceFiles/serialize/serialize_common.cpp \
-    ./SourceFiles/serialize/serialize_document.cpp \
-    ./SourceFiles/intro/introwidget.cpp \
-    ./SourceFiles/intro/introcode.cpp \
-    ./SourceFiles/intro/introphone.cpp \
-    ./SourceFiles/intro/intropwdcheck.cpp \
-    ./SourceFiles/intro/introsignup.cpp \
-    ./SourceFiles/intro/introstart.cpp
+    ./SourceFiles/window/top_bar_widget.cpp
 
 HEADERS += \
+    ./GeneratedFiles/lang_auto.h \
+    ./GeneratedFiles/style_auto.h \
+    ./GeneratedFiles/style_classes.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -222,8 +229,43 @@ HEADERS += \
     ./SourceFiles/structs.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
-    ./SourceFiles/basic_types.h \
-    ./SourceFiles/window.h \
+    ./SourceFiles/mainwindow.h \
+    ./SourceFiles/boxes/aboutbox.h \
+    ./SourceFiles/boxes/abstractbox.h \
+    ./SourceFiles/boxes/addcontactbox.h \
+    ./SourceFiles/boxes/autolockbox.h \
+    ./SourceFiles/boxes/backgroundbox.h \
+    ./SourceFiles/boxes/confirmbox.h \
+    ./SourceFiles/boxes/connectionbox.h \
+    ./SourceFiles/boxes/contactsbox.h \
+    ./SourceFiles/boxes/downloadpathbox.h \
+    ./SourceFiles/boxes/emojibox.h \
+    ./SourceFiles/boxes/languagebox.h \
+    ./SourceFiles/boxes/passcodebox.h \
+    ./SourceFiles/boxes/photocropbox.h \
+    ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/sessionsbox.h \
+    ./SourceFiles/boxes/stickersetbox.h \
+    ./SourceFiles/boxes/usernamebox.h \
+    ./SourceFiles/core/basic_types.h \
+    ./SourceFiles/core/click_handler.h \
+    ./SourceFiles/core/click_handler_types.h \
+    ./SourceFiles/dialogs/dialogs_common.h \
+    ./SourceFiles/dialogs/dialogs_indexed_list.h \
+    ./SourceFiles/dialogs/dialogs_layout.h \
+    ./SourceFiles/dialogs/dialogs_list.h \
+    ./SourceFiles/dialogs/dialogs_row.h \
+    ./SourceFiles/history/history_common.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.h \
+    ./SourceFiles/inline_bots/inline_bot_result.h \
+    ./SourceFiles/inline_bots/inline_bot_send_data.h \
+    ./SourceFiles/intro/introwidget.h \
+    ./SourceFiles/intro/introcode.h \
+    ./SourceFiles/intro/introphone.h \
+    ./SourceFiles/intro/intropwdcheck.h \
+    ./SourceFiles/intro/introsignup.h \
+    ./SourceFiles/intro/introstart.h \
     ./SourceFiles/mtproto/facade.h \
     ./SourceFiles/mtproto/auth_key.h \
     ./SourceFiles/mtproto/connection.h \
@@ -238,7 +280,10 @@ HEADERS += \
     ./SourceFiles/mtproto/rpc_sender.h \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
+    ./SourceFiles/overview/overview_layout.h \
     ./SourceFiles/pspecific.h \
+    ./SourceFiles/serialize/serialize_common.h \
+    ./SourceFiles/serialize/serialize_document.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
     ./SourceFiles/ui/text/text.h \
     ./SourceFiles/ui/text/text_block.h \
@@ -263,43 +308,7 @@ HEADERS += \
     ./SourceFiles/ui/style.h \
     ./SourceFiles/ui/style_core.h \
     ./SourceFiles/ui/twidget.h \
-    ./GeneratedFiles/lang_auto.h \
-    ./GeneratedFiles/style_auto.h \
-    ./GeneratedFiles/style_classes.h \
-    ./SourceFiles/boxes/aboutbox.h \
-    ./SourceFiles/boxes/abstractbox.h \
-    ./SourceFiles/boxes/addcontactbox.h \
-    ./SourceFiles/boxes/autolockbox.h \
-    ./SourceFiles/boxes/backgroundbox.h \
-    ./SourceFiles/boxes/confirmbox.h \
-    ./SourceFiles/boxes/connectionbox.h \
-    ./SourceFiles/boxes/contactsbox.h \
-    ./SourceFiles/boxes/downloadpathbox.h \
-    ./SourceFiles/boxes/emojibox.h \
-    ./SourceFiles/boxes/languagebox.h \
-    ./SourceFiles/boxes/passcodebox.h \
-    ./SourceFiles/boxes/photocropbox.h \
-    ./SourceFiles/boxes/photosendbox.h \
-    ./SourceFiles/boxes/sessionsbox.h \
-    ./SourceFiles/boxes/stickersetbox.h \
-    ./SourceFiles/boxes/usernamebox.h \
-    ./SourceFiles/dialogs/dialogs_common.h \
-    ./SourceFiles/dialogs/dialogs_indexed_list.h \
-    ./SourceFiles/dialogs/dialogs_layout.h \
-    ./SourceFiles/dialogs/dialogs_list.h \
-    ./SourceFiles/dialogs/dialogs_row.h \
-    ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
-    ./SourceFiles/inline_bots/inline_bot_layout_item.h \
-    ./SourceFiles/inline_bots/inline_bot_result.h \
-    ./SourceFiles/inline_bots/inline_bot_send_data.h \
-    ./SourceFiles/serialize/serialize_common.h \
-    ./SourceFiles/serialize/serialize_document.h \
-    ./SourceFiles/intro/introwidget.h \
-    ./SourceFiles/intro/introcode.h \
-    ./SourceFiles/intro/introphone.h \
-    ./SourceFiles/intro/intropwdcheck.h \
-    ./SourceFiles/intro/introsignup.h \
-    ./SourceFiles/intro/introstart.h
+    ./SourceFiles/window/top_bar_widget.h
 
 win32 {
 SOURCES += \
