@@ -20,20 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
+
 #include "ui/style.h"
-
 #include "shortcuts.h"
-
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "langloaderplain.h"
-
 #include "localstorage.h"
-
 #include "autoupdater.h"
 
 namespace {
@@ -1034,8 +1030,8 @@ void AppClass::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");
-				versionFeatures = langNewVersionText();
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
+//				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9041) {
 				versionFeatures = langNewVersionText();
 			} else {
