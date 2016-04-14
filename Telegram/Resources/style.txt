@@ -886,6 +886,8 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
+dlgImportantHeight: 37px;
+
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;
@@ -950,8 +952,9 @@ dlgUnreadColor: #FFF;
 dlgUnreadBG: #6fc766;
 dlgUnreadMutedBG: #bbb;
 dlgUnreadFont: font(12px bold);
+dlgUnreadHeight: 19px;
+dlgUnreadTop: 1px;
 dlgUnreadPaddingHor: 5px;
-dlgUnreadPaddingVer: 1px;
 dlgUnreadRadius: 2px;
 dlgBG: #FFF;
 dlgHoverBG: #f5f5f5;
@@ -1052,8 +1055,8 @@ msgMinWidth: 190px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 6px, 53px, 2px);
-msgMarginTopAttached: 2px;
+msgMargin: margins(13px, 10px, 53px, 2px);
+msgMarginTopAttached: 3px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #fff;
@@ -1085,11 +1088,27 @@ msgInReplyBarColor: #2fa9e2;
 msgOutReplyBarSelColor: #4da79f;
 msgInReplyBarSelColor: #2fa9e2;
 
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbOverOpacity: 0.1;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
+//msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
+//msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
+msgBotKbSwitchPmIcon: sprite(188px, 348px, 10px, 10px);
+msgBotKbButton: botKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 9px, 80px, 5px);
+msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
 msgColor: #000;
 msgDateColor: #000;
@@ -1473,6 +1492,11 @@ replyCancel: iconedButton(btnDefIconed) {
 	width: 49px;
 	height: 49px;
 }
+inlineBotCancel: iconedButton(replyCancel) {
+	height: 46px;
+	iconPos: point(-1px, 16px); // < 0 means draw in the center of the button
+	downIconPos: point(-1px, 17px);
+}
 forwardIcon: sprite(368px, 197px, 24px, 24px);
 
 historyScroll: flatScroll(scrollDef) {
@@ -1527,6 +1551,7 @@ reportSpamBg: #fffffff0;
 newMsgSound: ':/gui/art/newmsg.wav';
 
 unreadBarHeight: 32px;
+unreadBarMargin: 8px;
 unreadBarFont: semiboldFont;
 unreadBarBG: #fcfbfa;
 unreadBarBorder: shadowColor;
@@ -2097,16 +2122,16 @@ verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
 verifiedCheckPos: point(4px, 2px);
 
 botKbDuration: 200;
-botKbBg: #f7f7f7;
-botKbOverBg: #e8ecef;
-botKbDownBg: #dfe3e6;
-botKbColor: #8a8a8f;
-botKbFont: font(16px);
+botKbBg: #edf1f5;
+botKbOverBg: #d8e2ec;
+botKbDownBg: #d8e2ec;
+botKbColor: #4b565f;
+botKbFont: font(15px semibold);
 botKbButton: botKeyboardButton {
 	margin: 10px;
 	padding: 10px;
-	height: 36px;
-	textTop: 8px;
+	height: 38px;
+	textTop: 9px;
 	downTextTop: 9px;
 }
 botKbTinyButton: botKeyboardButton {
@@ -2114,11 +2139,16 @@ botKbTinyButton: botKeyboardButton {
 	padding: 3px;
 	height: 25px;
 	textTop: 2px;
-	downTextTop: 3px;
+	downTextTop: 2px;
 }
 botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
+}
+switchPmButton: BoxButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
 }
 
 minPhotoSize: 100px;
@@ -2460,7 +2490,7 @@ linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
 
-inlineResultsLeft: 15px;
+inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
@@ -2469,10 +2499,26 @@ inlineDescriptionFg: #8a8a8a;
 inlineRowMargin: 6px;
 inlineRowBorder: linksBorder;
 inlineRowBorderFg: linksBorderFg;
+inlineRowFileNameTop: 2px;
+inlineRowFileDescriptionTop: 23px;
 inlineResultsMinWidth: 64px;
 inlineDurationMargin: 3px;
 
 editTextArea: InputArea(defaultInputArea) {
 	textMargins: margins(1px, 6px, 1px, 4px);
 	heightMax: 256px;
+}
+
+toastFont: normalFont;
+toastMaxWidth: 480px;
+toastMinMargin: 13px;
+toastBg: medviewSaveMsg;
+toastFg: #FFF;
+toastPadding: margins(19px, 13px, 19px, 12px);
+toastFadeInDuration: 200;
+toastFadeOutDuration: 1000;
+
+infoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
 }

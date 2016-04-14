@@ -361,8 +361,8 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 	} else if (status == WaitingTcp) {
 		tcpTimeoutTimer.stop();
 		try {
-			MTPResPQ res_pq = readPQFakeReply(data);
-			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
+			auto res_pq = readPQFakeReply(data);
+			const auto &res_pq_data(res_pq.c_resPQ());
 			if (res_pq_data.vnonce == tcpNonce) {
 				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingTcp;

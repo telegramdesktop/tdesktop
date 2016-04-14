@@ -21,8 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-#include "gui/flatinput.h"
+#include "ui/flatbutton.h"
+#include "ui/flatinput.h"
 #include "intro/introwidget.h"
 
 class CodeInput final : public FlatInput {

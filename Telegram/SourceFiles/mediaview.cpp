@@ -23,17 +23,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mediaview.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 namespace {
-	class SaveMsgLink : public ITextLink {
-		TEXT_LINK_CLASS(SaveMsgLink)
-
+	class SaveMsgClickHandler : public ClickHandler {
 	public:
 
-		SaveMsgLink(MediaView *view) : _view(view) {
+		SaveMsgClickHandler(MediaView *view) : _view(view) {
 		}
 
 		void onClick(Qt::MouseButton button) const {
@@ -123,7 +121,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
-	_saveMsgText.setLink(1, TextLinkPtr(new SaveMsgLink(this)));
+	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
 
 	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush));
 
@@ -478,6 +476,15 @@ MediaView::~MediaView() {
 	deleteAndMark(_menu);
 }
 
+void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
+	update(QRegion(_saveMsg) + _captionRect);
+}
+void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
+	update(QRegion(_saveMsg) + _captionRect);
+}
+
 void MediaView::showSaveMsgFile() {
 	psShowInFolder(_saveMsgFilename);
 }
@@ -565,7 +572,7 @@ void MediaView::onSaveAs() {
 			if (_doc->data().isEmpty()) location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveLink::doSave(_doc, true);
+				DocumentSaveClickHandler::doSave(_doc, true);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -594,7 +601,7 @@ void MediaView::onDocClick() {
 	if (_doc->loading()) {
 		onSaveCancel();
 	} else {
-		DocumentOpenLink::doOpen(_doc, ActionOnLoadNone);
+		DocumentOpenClickHandler::doOpen(_doc, ActionOnLoadNone);
 		if (_doc->loading() && !_docRadial.animating()) {
 			_docRadial.start(_doc->progress());
 		}
@@ -624,6 +631,10 @@ void MediaView::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
+PeerData *MediaView::ui_getPeerForMouseAction() {
+	return _history ? _history->peer : nullptr;
+}
+
 void MediaView::onDownload() {
 	if (cAskDownloadPath()) {
 		return onSaveAs();
@@ -649,7 +660,7 @@ void MediaView::onDownload() {
 			location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveLink::doSave(_doc);
+				DocumentSaveClickHandler::doSave(_doc);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -851,7 +862,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 
 void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_photo = 0;
-	_history = context ? context->history() : 0;
+	_history = context ? context->history() : nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
 			_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -899,7 +910,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_zoom = 0;
 
 	_caption = Text();
-	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : 0) {
+	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : nullptr) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
 			_caption.setText(st::mvCaptionFont, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
@@ -947,7 +958,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		stopGif();
 	}
 	_doc = doc;
-	_photo = 0;
+	_photo = nullptr;
 
 	_current = QPixmap();
 
@@ -1076,7 +1087,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	_from = item->authorOriginal();
+	if (_msgid && item) {
+		_from = item->authorOriginal();
+	} else {
+		_from = _user;
+	}
 	_full = 1;
 	updateControls();
 	if (isHidden()) {
@@ -1631,13 +1646,11 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 	if (_menu || !_receiveMouse) return;
 
-	if (textlnkDown() != textlnkOver()) {
-		textlnkDown(textlnkOver());
-	}
+	ClickHandler::pressed();
 
 	if (e->button() == Qt::LeftButton) {
 		_down = OverNone;
-		if (!textlnkDown()) {
+		if (!ClickHandler::getPressed()) {
 			if (_over == OverLeftNav && _index >= 0) {
 				moveToNext(-1);
 				_lastAction = e->pos();
@@ -1766,13 +1779,17 @@ bool MediaView::updateOverState(OverState newState) {
 }
 
 void MediaView::updateOver(QPoint pos) {
-	TextLinkPtr lnk;
-	bool inText;
+	ClickHandlerPtr lnk;
+	ClickHandlerHost *lnkhost = nullptr;
 
 	if (_saveMsgStarted && _saveMsg.contains(pos)) {
-        _saveMsgText.getState(lnk, inText, pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+		auto textState = _saveMsgText.getState(pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+		lnk = textState.link;
+		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
-		_caption.getState(lnk, inText, pos.x() - _captionRect.x(), pos.y() - _captionRect.y(), _captionRect.width());
+		auto textState = _caption.getState(pos.x() - _captionRect.x(), pos.y() - _captionRect.y(), _captionRect.width());
+		lnk = textState.link;
+		lnkhost = this;
 	}
 
 	// retina
@@ -1783,11 +1800,7 @@ void MediaView::updateOver(QPoint pos) {
 		pos.setY(pos.y() - 1);
 	}
 
-	if (lnk != textlnkOver()) {
-		textlnkOver(lnk);
-		setCursor((textlnkOver() || textlnkDown()) ? style::cur_pointer : style::cur_default);
-		update(QRegion(_saveMsg) + _captionRect);
-	}
+	ClickHandler::setActive(lnk, lnkhost);
 
 	if (_pressed || _dragging) return;
 
@@ -1816,21 +1829,12 @@ void MediaView::updateOver(QPoint pos) {
 
 void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	updateOver(e->pos());
-	TextLinkPtr lnk = textlnkDown();
-	textlnkDown(TextLinkPtr());
-	if (lnk && textlnkOver() == lnk) {
-		if (reHashtag().match(lnk->encoded()).hasMatch() && _history && _history->isChannel() && !_history->isMegagroup()) {
-			App::wnd()->hideMediaview();
-			App::searchByHashtag(lnk->encoded(), _history->peer);
-		} else {
-			if (reBotCommand().match(lnk->encoded()).hasMatch() && _history) {
-				App::wnd()->hideMediaview();
-				Ui::showPeerHistory(_history, ShowAtTheEndMsgId);
-			}
-			lnk->onClick(e->button());
-		}
+
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+		App::activateClickHandler(activated, e->button());
 		return;
 	}
+
 	if (_over == OverName && _down == OverName) {
 		if (App::wnd() && _from) {
 			close();
@@ -2080,14 +2084,14 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 	const QVector<MTPPhoto> *v = 0;
 	switch (photos.type()) {
 	case mtpc_photos_photos: {
-		const MTPDphotos_photos &d(photos.c_photos_photos());
+		const auto &d(photos.c_photos_photos());
 		App::feedUsers(d.vusers);
 		v = &d.vphotos.c_vector().v;
 		u->photosCount = 0;
 	} break;
 
 	case mtpc_photos_photosSlice: {
-		const MTPDphotos_photosSlice &d(photos.c_photos_photosSlice());
+		const auto &d(photos.c_photos_photosSlice());
 		App::feedUsers(d.vusers);
 		u->photosCount = d.vcount.v;
 		v = &d.vphotos.c_vector().v;
@@ -2112,7 +2116,7 @@ void MediaView::deletePhotosDone(const MTPVector<MTPlong> &result) {
 }
 
 bool MediaView::deletePhotosFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	return true;
 }

@@ -28,7 +28,7 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	typedef SharedCallback2<void, ChannelData*, MsgId> RequestMessageDataCallback;
+	typedef SharedCallback<void, ChannelData*, MsgId> RequestMessageDataCallback;
 	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback);
 
 	void requestFullPeer(PeerData *peer);
@@ -69,7 +69,7 @@ private:
 	struct MessageDataRequest {
 		MessageDataRequest() : req(0) {
 		}
-		typedef SharedCallback2<void, ChannelData*, MsgId>::Ptr CallbackPtr;
+		typedef SharedCallback<void, ChannelData*, MsgId>::Ptr CallbackPtr;
 		typedef QList<CallbackPtr> Callbacks;
 		mtpRequestId req;
 		Callbacks callbacks;

@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
+#include "ui/style.h"
 
 #include "localstorage.h"
 
@@ -31,15 +31,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
-#include "gui/text.h"
+#include "ui/text.h"
 
 namespace {
 	IntroWidget *signalEmitOn = 0;
 	QString countryForReg;
 	void gotNearestDC(const MTPNearestDc &result) {
-		const MTPDnearestDc &nearest(result.c_nearestDc());
+		const auto &nearest(result.c_nearestDc());
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
 		MTP::setdc(result.c_nearestDc().vnearest_dc.v, true);
 		if (countryForReg != nearest.vcountry.c_string().v.c_str()) {

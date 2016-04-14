@@ -150,7 +150,7 @@ namespace {
 	void configLoaded(const MTPConfig &result) {
 		loadingConfig = false;
 
-		const MTPDconfig &data(result.c_config());
+		const auto &data(result.c_config());
 
 		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
@@ -177,7 +177,7 @@ namespace {
 		configLoader()->done();
 	}
 	bool configFailed(const RPCError &error) {
-		if (mtpIsFlood(error)) return false;
+		if (MTP::isDefaultHandledError(error)) return false;
 
 		loadingConfig = false;
 		LOG(("MTP Error: failed to get config!"));
@@ -194,7 +194,7 @@ void updateDcOptions(const QVector<MTPDcOption> &options) {
 			opts = Global::DcOptions();
 		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			const MTPDdcOption &optData(i->c_dcOption());
+			const auto &optData(i->c_dcOption());
 			int32 id = optData.vid.v, idWithShift = MTP::shiftDcId(id, optData.vflags.v);
 			if (already.constFind(idWithShift) == already.cend()) {
 				already.insert(idWithShift);
@@ -264,7 +264,7 @@ void ConfigLoader::enumDC() {
 	OrderedSet<int32> dcs;
 	{
 		QReadLocker lock(dcOptionsMutex());
-		const MTP::DcOptions &options(Global::DcOptions());
+		const auto &options(Global::DcOptions());
 		for (auto i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			dcs.insert(MTP::bareDcId(i.key()));
 		}

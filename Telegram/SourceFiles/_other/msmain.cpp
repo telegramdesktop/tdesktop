@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtCore/QDir>
 
 int main(int argc, char *argv[]) {
-	QString classes_in("style_classes.txt"), classes_out("style_classes.h"), styles_in("style.txt"), styles_out("style_auto.h"), path_to_sprites("./SourceFiles/art/");
+	QString classes_in("style_classes.txt"), classes_out("style_classes.h"), styles_in("style.txt"), styles_out("style_auto.h"), path_to_sprites("./Resources/art/");
 	for (int i = 0; i < argc; ++i) {
 		if (string("-classes_in") == argv[i]) {
 			if (++i < argc) classes_in = argv[i];

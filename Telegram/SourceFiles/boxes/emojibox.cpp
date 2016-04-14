@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "emojibox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 namespace {
 	// copied from genemoji.cpp

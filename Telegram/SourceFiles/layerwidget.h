@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/boxshadow.h"
+#include "ui/boxshadow.h"
 
 class LayeredWidget : public TWidget {
 	Q_OBJECT
@@ -106,32 +106,36 @@ private:
 	BoxShadow shadow;
 };
 
-class StickerPreviewWidget : public TWidget {
+class MediaPreviewWidget : public TWidget {
 	Q_OBJECT
 
 public:
 
-	StickerPreviewWidget(QWidget *parent);
+	MediaPreviewWidget(QWidget *parent);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
 	void step_shown(float64 ms, bool timer);
 
-	void showPreview(DocumentData *sticker);
+	void showPreview(DocumentData *document);
+	void showPreview(PhotoData *photo);
 	void hidePreview();
 
-	~StickerPreviewWidget();
+	~MediaPreviewWidget();
 
 private:
 
 	QSize currentDimensions() const;
 	QPixmap currentImage() const;
+	void startShow();
+	void resetGifAndCache();
 
 	anim::fvalue a_shown;
 	Animation _a_shown;
-	DocumentData *_doc;
-	ClipReader *_gif;
+	DocumentData *_document = nullptr;
+	PhotoData *_photo = nullptr;
+	ClipReader *_gif = nullptr;
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
@@ -143,7 +147,8 @@ private:
 		CacheThumbLoaded,
 		CacheLoaded,
 	};
-	mutable CacheStatus _cacheStatus;
+	mutable CacheStatus _cacheStatus = CacheNotLoaded;
 	mutable QPixmap _cache;
+	mutable QSize _cachedSize;
 
 };

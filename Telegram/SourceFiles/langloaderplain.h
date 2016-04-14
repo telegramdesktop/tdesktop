@@ -40,10 +40,9 @@ public:
 	}
 };
 
-typedef QMap<LangKey, QString> LangLoaderResult;
+using LangLoaderResult = QMap<LangKey, LangString>;
 class LangLoaderPlain : public LangLoader {
 public:
-
 	LangLoaderPlain(const QString &file, const LangLoaderRequest &request = LangLoaderRequest());
 
 	LangLoaderResult found() const {
@@ -51,7 +50,6 @@ public:
 	}
 
 protected:
-
 	QString file;
 	LangLoaderRequest request;
 

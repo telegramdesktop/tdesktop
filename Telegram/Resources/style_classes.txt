@@ -405,3 +405,8 @@ InputField {
 	iconSprite: sprite;
 	iconPosition: point;
 }
+
+PeerAvatarButton {
+	size: number;
+	photoSize: number;
+}

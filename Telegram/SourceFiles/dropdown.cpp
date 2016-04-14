@@ -19,19 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "dropdown.h"
-#include "historywidget.h"
-
-#include "localstorage.h"
-#include "lang.h"
-
-#include "window.h"
-#include "apiwrap.h"
-#include "mainwidget.h"
 
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
+#include "inline_bots/inline_bot_result.h"
+#include "inline_bots/inline_bot_layout_item.h"
+#include "historywidget.h"
+#include "localstorage.h"
+#include "lang.h"
+#include "mainwindow.h"
+#include "apiwrap.h"
+#include "mainwidget.h"
 
 Dropdown::Dropdown(QWidget *parent, const style::dropdown &st) : TWidget(parent)
 , _ignore(false)
@@ -456,6 +455,8 @@ void DragArea::step_appearance(float64 ms, bool timer) {
 	}
 	if (timer) update();
 }
+
+namespace internal {
 
 EmojiColorPicker::EmojiColorPicker() : TWidget()
 , _ignoreShow(false)
@@ -941,6 +942,8 @@ void EmojiPanInner::selectEmoji(EmojiPtr emoji) {
 }
 
 void EmojiPanInner::onShowPicker() {
+	if (_pickerSel < 0) return;
+
 	int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 	if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 		int32 y = 0;
@@ -1191,6 +1194,13 @@ void EmojiPanInner::step_selected(uint64 ms, bool timer) {
 	if (_animations.isEmpty()) _a_selected.stop();
 }
 
+void InlineCacheEntry::clearResults() {
+	for_const (const InlineBots::Result *result, results) {
+		delete result;
+	}
+	results.clear();
+}
+
 void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 	clearSelection(true);
 
@@ -1256,6 +1266,9 @@ int32 StickerPanInner::countHeight(bool plain) {
 	int result = 0, minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
 	if (_showingInlineItems) {
 		result = st::emojiPanHeader;
+		if (_switchPmButton) {
+			result += _switchPmButton->height() + st::inlineResultsSkip;
+		}
 		for (int i = 0, l = _inlineRows.count(); i < l; ++i) {
 			result += _inlineRows.at(i).height;
 		}
@@ -1268,6 +1281,12 @@ int32 StickerPanInner::countHeight(bool plain) {
 		}
 	}
 	return qMax(minLastH, result) + st::stickerPanPadding;
+}
+
+StickerPanInner::~StickerPanInner() {
+	clearInlineRows(true);
+	deleteUnusedGifLayouts();
+	deleteUnusedInlineLayouts();
 }
 
 QRect StickerPanInner::stickerRect(int tab, int sel) {
@@ -1309,26 +1328,34 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	InlinePaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
+	InlineBots::Layout::PaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
 
-	int32 top = st::emojiPanHeader;
-	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
-	for (int32 row = 0, rows = _inlineRows.size(); row < rows; ++row) {
+	int top = st::emojiPanHeader;
+	if (_switchPmButton) {
+		top += _switchPmButton->height() + st::inlineResultsSkip;
+	}
+
+	int fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
+	for (int row = 0, rows = _inlineRows.size(); row < rows; ++row) {
 		const InlineRow &inlineRow(_inlineRows.at(row));
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
-			int32 left = st::inlineResultsLeft;
+			int left = st::inlineResultsLeft;
 			if (row == rows - 1) context.lastRow = true;
-			for (int32 col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
+			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
-				int32 w = inlineRow.items.at(col)->width();
+				const InlineItem *item = inlineRow.items.at(col);
+				int w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
-					inlineRow.items.at(col)->paint(p, r.translated(-left, -top), 0, &context);
+					item->paint(p, r.translated(-left, -top), &context);
 					p.translate(-left, -top);
 				}
-				left += w + st::inlineResultsSkip;
+				left += w;
+				if (item->hasRightSkip()) {
+					left += st::inlineResultsSkip;
+				}
 			}
 		}
 		top += inlineRow.height;
@@ -1413,8 +1440,7 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	_pressedSel = _selected;
-	textlnkDown(textlnkOver());
-	_linkDown = _linkOver;
+	ClickHandler::pressed();
 	_previewTimer.start(QApplication::startDragTime());
 }
 
@@ -1422,10 +1448,9 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	int32 pressed = _pressedSel;
-	TextLinkPtr down(_linkDown);
 	_pressedSel = -1;
-	_linkDown.reset();
-	textlnkDown(TextLinkPtr());
+
+	ClickHandlerPtr activated = ClickHandler::unpressed();
 
 	_lastMousePos = e->globalPos();
 	updateSelected();
@@ -1435,71 +1460,36 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_selected < 0 || _selected != pressed || _linkOver != down) return;
+	if (_selected < 0 || _selected != pressed || (_showingInlineItems && !activated)) return;
 	if (_showingInlineItems) {
-		int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
-			if (down) {
-				if (down->type() == qstr("SendInlineItemLink") && e->button() == Qt::LeftButton) {
-					LayoutInlineItem *item = _inlineRows.at(row).items.at(col);
-					PhotoData *photo = item->photo();
-					DocumentData *doc = item->document();
-					InlineResult *result = item->result();
-					if (doc) {
-						if (doc->loaded()) {
-							emit selected(doc);
-						} else if (doc->loading()) {
-							doc->cancel();
-						} else {
-							DocumentOpenLink::doOpen(doc, ActionOnLoadNone);
-						}
-					} else if (photo) {
-						if (photo->medium->loaded() || photo->thumb->loaded()) {
-							emit selected(photo);
-						} else if (!photo->medium->loading()) {
-							photo->thumb->loadEvenCancelled();
-							photo->medium->loadEvenCancelled();
-						}
-					} else if (result) {
-						if (result->type == qstr("gif")) {
-							if (result->doc) {
-								if (result->doc->loaded()) {
-									emit selected(result, _inlineBot);
-								} else if (result->doc->loading()) {
-									result->doc->cancel();
-								} else {
-									DocumentOpenLink::doOpen(result->doc, ActionOnLoadNone);
-								}
-							} else if (result->loaded()) {
-								emit selected(result, _inlineBot);
-							} else if (result->loading()) {
-								result->cancelFile();
-								Ui::repaintInlineItem(item);
-							} else {
-								result->saveFile(QString(), LoadFromCloudOrLocal, false);
-								Ui::repaintInlineItem(item);
-							}
-						} else if (result->type == qstr("photo")) {
-							if (result->photo) {
-								if (result->photo->medium->loaded() || result->photo->thumb->loaded()) {
-									emit selected(result, _inlineBot);
-								} else if (!result->photo->medium->loading()) {
-									result->photo->thumb->loadEvenCancelled();
-									result->photo->medium->loadEvenCancelled();
-								}
-							} else if (result->thumb->loaded()) {
-								emit selected(result, _inlineBot);
-							} else if (!result->thumb->loading()) {
-								result->thumb->loadEvenCancelled();
-								Ui::repaintInlineItem(item);
-							}
-						} else {
-							emit selected(result, _inlineBot);
-						}
-					}
-				} else {
-					down->onClick(e->button());
-				}
+		if (!dynamic_cast<InlineBots::Layout::SendClickHandler*>(activated.data())) {
+			App::activateClickHandler(activated, e->button());
+			return;
+		}
+		int row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
+		if (row >= _inlineRows.size() || col >= _inlineRows.at(row).items.size()) {
+			return;
+		}
+
+		InlineItem *item = _inlineRows.at(row).items.at(col);
+		if (PhotoData *photo = item->getPhoto()) {
+			if (photo->medium->loaded() || photo->thumb->loaded()) {
+				emit selected(photo);
+			} else if (!photo->medium->loading()) {
+				photo->thumb->loadEvenCancelled();
+				photo->medium->loadEvenCancelled();
+			}
+		} else if (DocumentData *document = item->getDocument()) {
+			if (document->loaded()) {
+				emit selected(document);
+			} else if (document->loading()) {
+				document->cancel();
+			} else {
+				DocumentOpenClickHandler::doOpen(document, ActionOnLoadNone);
+			}
+		} else if (InlineResult *inlineResult = item->getResult()) {
+			if (inlineResult->onChoose(item)) {
+				emit selected(inlineResult, _inlineBot);
 			}
 		}
 		return;
@@ -1578,11 +1568,7 @@ void StickerPanInner::clearSelection(bool fast) {
 			if (_selected >= 0) {
 				int32 srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
 				t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-				if (_linkOver) {
-					_inlineRows.at(srow).items.at(scol)->linkOut(_linkOver);
-					_linkOver = TextLinkPtr();
-					textlnkOver(_linkOver);
-				}
+				ClickHandler::clearActive(_inlineRows.at(srow).items.at(scol));
 				setCursor(style::cur_default);
 			}
 			_selected = _pressedSel = -1;
@@ -1618,17 +1604,23 @@ void StickerPanInner::clearSelection(bool fast) {
 
 void StickerPanInner::hideFinish(bool completely) {
 	if (completely) {
+		auto itemForget = [](const InlineItem *item) {
+			if (DocumentData *document = item->getDocument()) {
+				document->forget();
+			}
+			if (PhotoData *photo = item->getPhoto()) {
+				photo->forget();
+			}
+			if (InlineResult *result = item->getResult()) {
+				result->forget();
+			}
+		};
 		clearInlineRows(false);
-		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-			i.value()->document()->forget();
+		for_const (InlineItem *item, _gifLayouts) {
+			itemForget(item);
 		}
-		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-			if (i.value()->result()->doc) {
-				i.value()->result()->doc->forget();
-			}
-			if (i.value()->result()->photo) {
-				i.value()->result()->photo->forget();
-			}
+		for_const (InlineItem *item, _inlineLayouts) {
+			itemForget(item);
 		}
 	}
 	if (_setGifCommand && _showingSavedGifs) {
@@ -1664,7 +1656,7 @@ void StickerPanInner::refreshStickers() {
 }
 
 bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
-	LayoutInlineItem *layout = 0;
+	InlineItem *layout = nullptr;
 	if (savedGif) {
 		layout = layoutPrepareSavedGif(savedGif, (_inlineRows.size() * MatrixRowShift) + row.items.size());
 	} else if (result) {
@@ -1673,23 +1665,28 @@ bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 	if (!layout) return false;
 
 	layout->preload();
-	if (inlineRowFinalize(row, sumWidth, layout->fullLine())) {
+	if (inlineRowFinalize(row, sumWidth, layout->isFullLine())) {
 		layout->setPosition(_inlineRows.size() * MatrixRowShift);
 	}
-	row.items.push_back(layout);
+
 	sumWidth += layout->maxWidth();
+	if (!row.items.isEmpty() && row.items.back()->hasRightSkip()) {
+		sumWidth += st::inlineResultsSkip;
+	}
+
+	row.items.push_back(layout);
 	return true;
 }
 
 bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force) {
 	if (row.items.isEmpty()) return false;
 
-	bool full = (row.items.size() >= SavedGifsMaxPerRow);
-	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - (row.items.size() - 1) * st::inlineResultsSkip);
+	bool full = (row.items.size() >= InlineItemsMaxPerRow);
+	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
 	if (full || big || force) {
 		_inlineRows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
 		row = InlineRow();
-		row.items.reserve(SavedGifsMaxPerRow);
+		row.items.reserve(InlineItemsMaxPerRow);
 		sumWidth = 0;
 		return true;
 	}
@@ -1708,7 +1705,7 @@ void StickerPanInner::refreshSavedGifs() {
 			} else {
 				_inlineRows.reserve(saved.size());
 				InlineRow row;
-				row.items.reserve(SavedGifsMaxPerRow);
+				row.items.reserve(InlineItemsMaxPerRow);
 				int32 sumWidth = 0;
 				for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
 					inlineRowsAddItem(*i, 0, row, sumWidth);
@@ -1730,7 +1727,7 @@ void StickerPanInner::refreshSavedGifs() {
 
 void StickerPanInner::inlineBotChanged() {
 	_setGifCommand = false;
-	refreshInlineRows(0, InlineResults(), true);
+	refreshInlineRows(nullptr, nullptr, true);
 	deleteUnusedInlineLayouts();
 }
 
@@ -1752,37 +1749,33 @@ void StickerPanInner::clearInlineRows(bool resultsDeleted) {
 	_inlineRows.clear();
 }
 
-LayoutInlineGif *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
-	GifLayouts::const_iterator i = _gifLayouts.constFind(doc);
+InlineItem *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
+	auto i = _gifLayouts.constFind(doc);
 	if (i == _gifLayouts.cend()) {
-		i = _gifLayouts.insert(doc, new LayoutInlineGif(0, doc, true));
-		i.value()->initDimensions();
+		if (auto layout = InlineItem::createLayoutGif(doc)) {
+			i = _gifLayouts.insert(doc, layout.release());
+			i.value()->initDimensions();
+		} else {
+			return nullptr;
+		}
 	}
-	if (!i.value()->maxWidth()) return 0;
+	if (!i.value()->maxWidth()) return nullptr;
 
 	i.value()->setPosition(position);
 	return i.value();
 }
 
-LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
-	InlineLayouts::const_iterator i = _inlineLayouts.constFind(result);
+InlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
+	auto i = _inlineLayouts.constFind(result);
 	if (i == _inlineLayouts.cend()) {
-		LayoutInlineItem *layout = 0;
-		if (result->type == qstr("gif")) {
-			layout = new LayoutInlineGif(result, 0, false);
-		} else if (result->type == qstr("photo")) {
-			layout = new LayoutInlinePhoto(result, 0);
-		} else if (result->type == qstr("video")) {
-			layout = new LayoutInlineWebVideo(result);
-		} else if (result->type == qstr("article")) {
-			layout = new LayoutInlineArticle(result, _inlineWithThumb);
+		if (auto layout = InlineItem::createLayout(result, _inlineWithThumb)) {
+			i = _inlineLayouts.insert(result, layout.release());
+			i.value()->initDimensions();
+		} else {
+			return nullptr;
 		}
-		if (!layout) return 0;
-
-		i = _inlineLayouts.insert(result, layout);
-		layout->initDimensions();
 	}
-	if (!i.value()->maxWidth()) return 0;
+	if (!i.value()->maxWidth()) return nullptr;
 
 	i.value()->setPosition(position);
 	return i.value();
@@ -1790,8 +1783,8 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 
 void StickerPanInner::deleteUnusedGifLayouts() {
 	if (_inlineRows.isEmpty() || !_showingSavedGifs) { // delete all
-		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-			delete i.value();
+		for_const (const InlineItem *item, _gifLayouts) {
+			delete item;
 		}
 		_gifLayouts.clear();
 	} else {
@@ -1808,8 +1801,8 @@ void StickerPanInner::deleteUnusedGifLayouts() {
 
 void StickerPanInner::deleteUnusedInlineLayouts() {
 	if (_inlineRows.isEmpty() || _showingSavedGifs) { // delete all
-		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-			delete i.value();
+		for_const (const InlineItem *item, _inlineLayouts) {
+			delete item;
 		}
 		_inlineLayouts.clear();
 	} else {
@@ -1826,11 +1819,11 @@ void StickerPanInner::deleteUnusedInlineLayouts() {
 
 StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int32 sumWidth) {
 	int32 count = row.items.size();
-	t_assert(count <= SavedGifsMaxPerRow);
+	t_assert(count <= InlineItemsMaxPerRow);
 
 	// enumerate items in the order of growing maxWidth()
 	// for that sort item indices by maxWidth()
-	int indices[SavedGifsMaxPerRow];
+	int indices[InlineItemsMaxPerRow];
 	for (int i = 0; i < count; ++i) {
 		indices[i] = i;
 	}
@@ -1839,7 +1832,7 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 	});
 
 	row.height = 0;
-	int availw = width() - st::inlineResultsLeft - st::inlineResultsSkip * (count - 1);
+	int availw = width() - st::inlineResultsLeft;
 	for (int i = 0; i < count; ++i) {
 		int index = indices[i];
 		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
@@ -1848,6 +1841,10 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 		if (sumWidth) {
 			availw -= actualw;
 			sumWidth -= row.items.at(index)->maxWidth();
+			if (index > 0 && row.items.at(index - 1)->hasRightSkip()) {
+				availw -= st::inlineResultsSkip;
+				sumWidth -= st::inlineResultsSkip;
+			}
 		}
 	}
 	return row;
@@ -1914,9 +1911,38 @@ void StickerPanInner::clearInlineRowsPanel() {
 	clearInlineRows(false);
 }
 
-int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted) {
+void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
+	if (!entry || entry->switchPmText.isEmpty()) {
+		_switchPmButton.reset();
+		_switchPmStartToken.clear();
+	} else {
+		if (!_switchPmButton) {
+			_switchPmButton = std_::make_unique<BoxButton>(this, QString(), st::switchPmButton);
+			_switchPmButton->show();
+			_switchPmButton->move(st::inlineResultsLeft, st::emojiPanHeader);
+			connect(_switchPmButton.get(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+		}
+		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
+		_switchPmStartToken = entry->switchPmStartToken;
+	}
+	update();
+}
+
+int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *entry, bool resultsDeleted) {
 	_inlineBot = bot;
-	if (results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername())) {
+	refreshSwitchPmButton(entry);
+	auto clearResults = [this, entry]() {
+		if (!entry) {
+			return true;
+		}
+		if (entry->results.isEmpty() && entry->switchPmText.isEmpty()) {
+			if (!_inlineBot || _inlineBot->username != cInlineGifBotUsername()) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (clearResults()) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 		}
@@ -1933,15 +1959,15 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 	_showingSavedGifs = false;
 	_settings.hide();
 
-	int32 count = results.size(), from = validateExistingInlineRows(results), added = 0;
+	int32 count = entry->results.size(), from = validateExistingInlineRows(entry->results), added = 0;
 
 	if (count) {
 		_inlineRows.reserve(count);
 		InlineRow row;
-		row.items.reserve(SavedGifsMaxPerRow);
+		row.items.reserve(InlineItemsMaxPerRow);
 		int32 sumWidth = 0;
 		for (int32 i = from; i < count; ++i) {
-			if (inlineRowsAddItem(0, results.at(i), row, sumWidth)) {
+			if (inlineRowsAddItem(0, entry->results.at(i), row, sumWidth)) {
 				++added;
 			}
 		}
@@ -1963,7 +1989,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 	int32 count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	for (; until < count;) {
-		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->result() != results.at(until)) {
+		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->getResult() != results.at(until)) {
 			break;
 		}
 		++until;
@@ -2011,7 +2037,7 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 	if (_inlineRows.isEmpty()) {
 		_inlineWithThumb = false;
 		for (int32 i = until; i < count; ++i) {
-			if (!results.at(i)->thumb->isNull()) {
+			if (results.at(i)->hasThumbDisplay()) {
 				_inlineWithThumb = true;
 				break;
 			}
@@ -2020,7 +2046,20 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 	return until;
 }
 
-void StickerPanInner::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void StickerPanInner::notify_inlineItemLayoutChanged(const InlineItem *layout) {
+	if (_selected < 0 || !_showingInlineItems) {
+		return;
+	}
+
+	int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
+	if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
+		if (layout == _inlineRows.at(row).items.at(col)) {
+			updateSelected();
+		}
+	}
+}
+
+void StickerPanInner::ui_repaintInlineItem(const InlineItem *layout) {
 	uint64 ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
@@ -2029,7 +2068,7 @@ void StickerPanInner::ui_repaintInlineItem(const LayoutInlineItem *layout) {
 	}
 }
 
-bool StickerPanInner::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool StickerPanInner::ui_isInlineItemVisible(const InlineItem *layout) {
 	int32 position = layout->position();
 	if (!_showingInlineItems || position < 0) return false;
 
@@ -2189,19 +2228,26 @@ void StickerPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
 }
 
 void StickerPanInner::updateSelected() {
-	if (_pressedSel >= 0 && !_previewShown) return;
+	if (_pressedSel >= 0 && !_previewShown) {
+		return;
+	}
 
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
 
 	if (_showingInlineItems) {
-		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft, sy = p.y() - st::emojiPanHeader;
-		int32 row = -1, col = -1, sel = -1;
-		TextLinkPtr lnk;
+		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft;
+		int sy = p.y() - st::emojiPanHeader;
+		if (_switchPmButton) {
+			sy -= _switchPmButton->height() + st::inlineResultsSkip;
+		}
+		int row = -1, col = -1, sel = -1;
+		ClickHandlerPtr lnk;
+		ClickHandlerHost *lnkhost = nullptr;
 		HistoryCursorState cursor = HistoryDefaultCursorState;
 		if (sy >= 0) {
 			row = 0;
-			for (int32 rows = _inlineRows.size(); row < rows; ++row) {
+			for (int rows = _inlineRows.size(); row < rows; ++row) {
 				if (sy < _inlineRows.at(row).height) {
 					break;
 				}
@@ -2216,11 +2262,15 @@ void StickerPanInner::updateSelected() {
 				if (sx < width) {
 					break;
 				}
-				sx -= width + st::inlineResultsSkip;
+				sx -= width;
+				if (inlineItems.at(col)->hasRightSkip()) {
+					sx -= st::inlineResultsSkip;
+				}
 			}
 			if (col < inlineItems.size()) {
 				sel = row * MatrixRowShift + col;
 				inlineItems.at(col)->getState(lnk, cursor, sx, sy);
+				lnkhost = inlineItems.at(col);
 			} else {
 				row = col = -1;
 			}
@@ -2241,28 +2291,18 @@ void StickerPanInner::updateSelected() {
 			}
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
-				if (row >= 0 && col >= 0 && _inlineRows.at(row).items.at(col)->document()) {
-					Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->document());
+				if (row >= 0 && col >= 0) {
+					auto layout = _inlineRows.at(row).items.at(col);
+					if (auto previewDocument = layout->getPreviewDocument()) {
+						Ui::showMediaPreview(previewDocument);
+					} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+						Ui::showMediaPreview(previewPhoto);
+					}
 				}
 			}
 		}
-		if (_linkOver != lnk) {
-			if (_linkOver && srow >= 0 && scol >= 0) {
-				t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-				_inlineRows.at(srow).items.at(scol)->linkOut(_linkOver);
-				Ui::repaintInlineItem(_inlineRows.at(srow).items.at(scol));
-			}
-			if ((_linkOver && !lnk) || (!_linkOver && lnk)) {
-				setCursor(lnk ? style::cur_pointer : style::cur_default);
-			}
-			_linkOver = lnk;
-			textlnkOver(lnk);
-			if (_linkOver && row >= 0 && col >= 0) {
-				t_assert(row >= 0 && row < _inlineRows.size() && col >= 0 && col < _inlineRows.at(row).items.size());
-				_inlineRows.at(row).items.at(col)->linkOver(_linkOver);
-				Ui::repaintInlineItem(_inlineRows.at(row).items.at(col));
-			}
-
+		if (ClickHandler::setActive(lnk, lnkhost)) {
+			setCursor(lnk ? style::cur_pointer : style::cur_default);
 		}
 		return;
 	}
@@ -2342,7 +2382,7 @@ void StickerPanInner::updateSelected() {
 	if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 		_pressedSel = _selected;
 		if (newSel >= 0 && xNewSel < 0) {
-			Ui::showStickerPreview(_sets.at(newSelTab).pack.at(newSel % MatrixRowShift));
+			Ui::showMediaPreview(_sets.at(newSelTab).pack.at(newSel % MatrixRowShift));
 		}
 	}
 	if (startanim && !_a_selected.animating()) _a_selected.start();
@@ -2356,14 +2396,20 @@ void StickerPanInner::onPreview() {
 	if (_pressedSel < 0) return;
 	if (_showingInlineItems) {
 		int32 row = _pressedSel / MatrixRowShift, col = _pressedSel % MatrixRowShift;
-		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size() && _inlineRows.at(row).items.at(col)->document() && _inlineRows.at(row).items.at(col)->document()->loaded()) {
-			Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->document());
-			_previewShown = true;
+		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
+			auto layout = _inlineRows.at(row).items.at(col);
+			if (auto previewDocument = layout->getPreviewDocument()) {
+				Ui::showMediaPreview(previewDocument);
+				_previewShown = true;
+			} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+				Ui::showMediaPreview(previewPhoto);
+				_previewShown = true;
+			}
 		}
 	} else if (_pressedSel < MatrixRowShift * _sets.size()) {
 		int tab = (_pressedSel / MatrixRowShift), sel = _pressedSel % MatrixRowShift;
 		if (sel < _sets.at(tab).pack.size()) {
-			Ui::showStickerPreview(_sets.at(tab).pack.at(sel));
+			Ui::showMediaPreview(_sets.at(tab).pack.at(sel));
 			_previewShown = true;
 		}
 	}
@@ -2377,6 +2423,13 @@ void StickerPanInner::onUpdateInlineItems() {
 		update();
 	} else {
 		_updateInlineItems.start(_lastScrolled + 100 - ms);
+	}
+}
+
+void StickerPanInner::onSwitchPm() {
+	if (_inlineBot && _inlineBot->botInfo) {
+		_inlineBot->botInfo->startToken = _switchPmStartToken;
+		Ui::showPeerHistory(_inlineBot, ShowAndStartBotMsgId);
 	}
 }
 
@@ -2578,6 +2631,8 @@ void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
+} // namespace internal
+
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _maxHeight(st::emojiPanMaxHeight)
 , _contentMaxHeight(st::emojiPanMaxHeight)
@@ -2672,7 +2727,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(&e_inner, SIGNAL(selected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
 	connect(&s_inner, SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
 	connect(&s_inner, SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
-	connect(&s_inner, SIGNAL(selected(InlineResult*,UserData*)), this, SIGNAL(inlineResultSelected(InlineResult*,UserData*)));
+	connect(&s_inner, SIGNAL(selected(InlineBots::Result*,UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)));
 
 	connect(&s_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
 
@@ -2812,7 +2867,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					i += _iconsX.current() / int(st::rbEmoji.width);
 					x -= _iconsX.current() % int(st::rbEmoji.width);
 					for (int32 l = qMin(_icons.size(), i + 8 - skip); i < l; ++i) {
-						const StickerIcon &s(_icons.at(i));
+						const internal::StickerIcon &s(_icons.at(i));
 						s.sticker->thumb->load();
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
 
@@ -3357,13 +3412,19 @@ void EmojiPan::stickersInstalled(uint64 setId) {
 	showStart();
 }
 
-void EmojiPan::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void EmojiPan::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
+	if (_stickersShown && !isHidden()) {
+		s_inner.notify_inlineItemLayoutChanged(layout);
+	}
+}
+
+void EmojiPan::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	if (_stickersShown && !isHidden()) {
 		s_inner.ui_repaintInlineItem(layout);
 	}
 }
 
-bool EmojiPan::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool EmojiPan::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 	if (_stickersShown && !isHidden()) {
 		return s_inner.ui_isInlineItemVisible(layout);
 	}
@@ -3375,14 +3436,6 @@ bool EmojiPan::ui_isInlineItemBeingChosen() {
 		return s_inner.ui_isInlineItemBeingChosen();
 	}
 	return false;
-}
-
-void EmojiPan::notify_automaticLoadSettingsChangedGif() {
-	for (InlineCache::const_iterator i = _inlineCache.cbegin(), ei = _inlineCache.cend(); i != ei; ++i) {
-		for (InlineResults::const_iterator j = i.value()->results.cbegin(), ej = i.value()->results.cend(); j != ej; ++j) {
-			(*j)->automaticLoadSettingsChangedGif();
-		}
-	}
 }
 
 void EmojiPan::showAll() {
@@ -3439,7 +3492,7 @@ void EmojiPan::onTabChange() {
 	e_inner.showEmojiPack(newTab);
 }
 
-void EmojiPan::updatePanelsPositions(const QVector<EmojiPanel*> &panels, int32 st) {
+void EmojiPan::updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int32 st) {
 	for (int32 i = 0, l = panels.size(); i < l; ++i) {
 		int32 y = panels.at(i)->wantedY() - st;
 		if (y < 0) {
@@ -3631,7 +3684,7 @@ void EmojiPan::inlineBotChanged() {
 	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
 	_inlineRequestId = 0;
 	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
-	_inlineBot = 0;
+	_inlineBot = nullptr;
 	for (InlineCache::const_iterator i = _inlineCache.cbegin(), e = _inlineCache.cend(); i != e; ++i) {
 		delete i.value();
 	}
@@ -3650,86 +3703,28 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	bool adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
-		const MTPDmessages_botResults &d(result.c_messages_botResults());
-		const QVector<MTPBotInlineResult> &v(d.vresults.c_vector().v);
+		const auto &d(result.c_messages_botResults());
+		const auto &v(d.vresults.c_vector().v);
 		uint64 queryId(d.vquery_id.v);
 
 		if (!adding) {
-			it = _inlineCache.insert(_inlineQuery, new InlineCacheEntry());
+			it = _inlineCache.insert(_inlineQuery, new internal::InlineCacheEntry());
 		}
 		it.value()->nextOffset = qs(d.vnext_offset);
+		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
+			const auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
+			it.value()->switchPmText = qs(switchPm.vtext);
+			it.value()->switchPmStartToken = qs(switchPm.vstart_param);
+		}
 
-		int32 count = v.size(), added = 0;
-		if (count) {
+		if (int count = v.size()) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
-		for (int32 i = 0; i < count; ++i) {
-			InlineResult *result = new InlineResult(queryId);
-			const MTPBotInlineMessage *message = 0;
-			switch (v.at(i).type()) {
-			case mtpc_botInlineMediaResultPhoto: {
-				const MTPDbotInlineMediaResultPhoto &r(v.at(i).c_botInlineMediaResultPhoto());
-				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
-				result->photo = App::feedPhoto(r.vphoto);
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botInlineMediaResultDocument: {
-				const MTPDbotInlineMediaResultDocument &r(v.at(i).c_botInlineMediaResultDocument());
-				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
-				result->doc = App::feedDocument(r.vdocument);
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botInlineResult: {
-				const MTPDbotInlineResult &r(v.at(i).c_botInlineResult());
-				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
-				result->title = r.has_title() ? qs(r.vtitle) : QString();
-				result->description = r.has_description() ? qs(r.vdescription) : QString();
-				result->url = r.has_url() ? qs(r.vurl) : QString();
-				result->thumb_url = r.has_thumb_url() ? qs(r.vthumb_url) : QString();
-				result->content_type = r.has_content_type() ? qs(r.vcontent_type) : QString();
-				result->content_url = r.has_content_url() ? qs(r.vcontent_url) : QString();
-				result->width = r.has_w() ? r.vw.v : 0;
-				result->height = r.has_h() ? r.vh.v : 0;
-				result->duration = r.has_duration() ? r.vduration.v : 0;
-				if (!result->thumb_url.isEmpty() && (result->thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
-					result->thumb = ImagePtr(result->thumb_url);
-				}
-				message = &r.vsend_message;
-			} break;
-			}
-			bool badAttachment = (result->photo && !result->photo->access) || (result->doc && !result->doc->access);
-
-			if (!message) {
-				delete result;
-				continue;
-			}
-			switch (message->type()) {
-			case mtpc_botInlineMessageMediaAuto: {
-				const MTPDbotInlineMessageMediaAuto &r(message->c_botInlineMessageMediaAuto());
-				result->caption = qs(r.vcaption);
-			} break;
-
-			case mtpc_botInlineMessageText: {
-				const MTPDbotInlineMessageText &r(message->c_botInlineMessageText());
-				result->message = qs(r.vmessage);
-				if (r.has_entities()) result->entities = entitiesFromMTP(r.ventities.c_vector().v);
-				result->noWebPage = r.is_no_webpage();
-			} break;
-
-			default: {
-				badAttachment = true;
-			} break;
-			}
-
-			bool canSend = (result->photo || result->doc || !result->message.isEmpty() || (!result->content_url.isEmpty() && (result->type == qstr("gif") || result->type == qstr("photo"))));
-			if (result->type.isEmpty() || badAttachment || !canSend) {
-				delete result;
-			} else {
+		int added = 0;
+		for_const (const auto &res, v) {
+			if (auto result = InlineBots::Result::create(queryId, res)) {
 				++added;
-				it.value()->results.push_back(result);
+				it.value()->results.push_back(result.release());
 			}
 		}
 
@@ -3747,20 +3742,27 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 }
 
 bool EmojiPan::inlineResultsFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
-
+	// show error?
 	Notify::inlineBotRequesting(false);
 	_inlineRequestId = 0;
 	return true;
 }
 
-void EmojiPan::queryInlineBot(UserData *bot, QString query) {
+void EmojiPan::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 	bool force = false;
+	_inlineQueryPeer = peer;
 	if (bot != _inlineBot) {
 		inlineBotChanged();
 		_inlineBot = bot;
 		force = true;
+		//if (_inlineBot->isBotInlineGeo()) {
+		//	Ui::showLayer(new InformBox(lang(lng_bot_inline_geo_unavailable)));
+		//}
 	}
+	//if (_inlineBot && _inlineBot->isBotInlineGeo()) {
+	//	return;
+	//}
+
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {
 			MTP::cancel(_inlineRequestId);
@@ -3779,7 +3781,7 @@ void EmojiPan::queryInlineBot(UserData *bot, QString query) {
 }
 
 void EmojiPan::onInlineRequest() {
-	if (_inlineRequestId || !_inlineBot) return;
+	if (_inlineRequestId || !_inlineBot || !_inlineQueryPeer) return;
 	_inlineQuery = _inlineNextQuery;
 
 	QString nextOffset;
@@ -3789,7 +3791,8 @@ void EmojiPan::onInlineRequest() {
 		if (nextOffset.isEmpty()) return;
 	}
 	Notify::inlineBotRequesting(true);
-	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(_inlineBot->inputUser, MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
+	MTPmessages_GetInlineBotResults::Flags flags = 0;
+	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(flags), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 
 void EmojiPan::onEmptyInlineRows() {
@@ -3803,16 +3806,18 @@ void EmojiPan::onEmptyInlineRows() {
 }
 
 bool EmojiPan::refreshInlineRows(int32 *added) {
-	bool clear = true;
-	InlineCache::const_iterator i = _inlineCache.constFind(_inlineQuery);
+	auto i = _inlineCache.constFind(_inlineQuery);
+	const internal::InlineCacheEntry *entry = nullptr;
 	if (i != _inlineCache.cend()) {
-		clear = i.value()->results.isEmpty();
+		if (!i.value()->results.isEmpty() || !i.value()->switchPmText.isEmpty()) {
+			entry = i.value();
+		}
 		_inlineNextOffset = i.value()->nextOffset;
 	}
-	if (clear) prepareShowHideCache();
-	int32 result = s_inner.refreshInlineRows(_inlineBot, clear ? InlineResults() : i.value()->results, false);
+	if (!entry) prepareShowHideCache();
+	int32 result = s_inner.refreshInlineRows(_inlineBot, entry, false);
 	if (added) *added = result;
-	return !clear;
+	return (entry != nullptr);
 }
 
 int32 EmojiPan::showInlineRows(bool newResults) {
@@ -3830,7 +3835,7 @@ int32 EmojiPan::showInlineRows(bool newResults) {
 	if (clear) {
 		if (!hidden && hideOnNoInlineResults()) {
 			hideAnimated();
-		} else {
+		} else if (!_hiding) {
 			_cache = QPixmap(); // clear after refreshInlineRows()
 		}
 	} else {
@@ -4254,7 +4259,7 @@ void MentionsInner::onUpdateSelected(bool force) {
 		if (_down >= 0 && _sel >= 0 && _down != _sel) {
 			_down = _sel;
 			if (_down >= 0 && _down < _srows->size()) {
-				Ui::showStickerPreview(_srows->at(_down));
+				Ui::showMediaPreview(_srows->at(_down));
 			}
 		}
 	}
@@ -4270,7 +4275,7 @@ void MentionsInner::onParentGeometryChanged() {
 
 void MentionsInner::onPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
-		Ui::showStickerPreview(_srows->at(_down));
+		Ui::showMediaPreview(_srows->at(_down));
 		_previewShown = true;
 	}
 }
@@ -4501,7 +4506,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			if (_channel->mgInfo->bots.isEmpty()) {
 				if (!_channel->mgInfo->botStatus && App::api()) App::api()->requestBots(_channel);
 			} else {
-				for_const (auto *user, _channel->mgInfo->bots) {
+				for_const (auto user, _channel->mgInfo->bots) {
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;

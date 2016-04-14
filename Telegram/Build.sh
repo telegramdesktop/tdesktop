@@ -192,7 +192,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   DropboxSymbolsPath="./../../../Dropbox/Telegram/symbols"
 
   if [ "$FastParam" != "fast" ]; then
-    touch "./SourceFiles/telegram.qrc"
+    touch "./Resources/telegram.qrc"
   fi
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 

@@ -19,18 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "shortcuts.h"
 
-#include "window.h"
+#include "mainwindow.h"
 #include "passcodewidget.h"
 #include "mainwidget.h"
+#include "playerwidget.h"
 
 namespace ShortcutCommands {
 	typedef void(*Handler)();
 
 	void lock_telegram() {
-		if (Window *w = App::wnd()) {
+		if (auto w = App::wnd()) {
 			if (App::passcoded()) {
 				w->passcodeWidget()->onSubmit();
 			} else if (cHasPasscode()) {
@@ -40,7 +40,7 @@ namespace ShortcutCommands {
 	}
 
 	void minimize_telegram() {
-		if (Window *w = App::wnd()) {
+		if (auto w = App::wnd()) {
 			if (cWorkMode() == dbiwmTrayOnly) {
 				w->minimizeToTray();
 			} else {
@@ -51,8 +51,8 @@ namespace ShortcutCommands {
 
 	void close_telegram() {
 		if (!Ui::hideWindowNoQuit()) {
-			if (Window *w = App::wnd()) {
-				App::wnd()->close();
+			if (auto w = App::wnd()) {
+				w->close();
 			}
 		}
 	}
@@ -289,7 +289,7 @@ namespace Shortcuts {
 		if (seq.isEmpty()) {
 			DataPtr->errors.push_back(qsl("Could not derive key sequence '%1'!").arg(keys));
 		} else {
-			QMap<QString, ShortcutCommands::Handler>::const_iterator it = DataPtr->commands.constFind(command);
+			auto it = DataPtr->commands.constFind(command);
 			if (it == DataPtr->commands.cend()) {
 				LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 			} else {

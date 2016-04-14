@@ -6,7 +6,14 @@
 /Telegram/SourceFiles/art/grid_200x.png
 /Telegram/SourceFiles/art/sprite_125x.png
 /Telegram/SourceFiles/art/sprite_150x.png
+/Telegram/Resources/art/grid.png
+/Telegram/Resources/art/grid_125x.png
+/Telegram/Resources/art/grid_150x.png
+/Telegram/Resources/art/grid_200x.png
+/Telegram/Resources/art/sprite_125x.png
+/Telegram/Resources/art/sprite_150x.png
 /Telegram/*.user
+*.vcxproj.user
 *.suo
 *.sdf
 *.opensdf

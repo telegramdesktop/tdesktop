@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
+#include "ui/style.h"
 
 #include "application.h"
 
@@ -28,20 +28,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introcode.h"
 
 namespace {
-	class SignUpLink : public ITextLink {
-		TEXT_LINK_CLASS(SignUpLink)
-
+	class SignUpClickHandler : public LeftButtonClickHandler {
 	public:
-
-		SignUpLink(IntroPhone *widget) : _widget(widget) {
+		SignUpClickHandler(IntroPhone *widget) : _widget(widget) {
 		}
 
-		void onClick(Qt::MouseButton) const {
+	protected:
+		void onClickImpl() const override {
 			_widget->toSignUp();
 		}
 
 	private:
 		IntroPhone *_widget;
+
 	};
 }
 
@@ -71,7 +70,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
 	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_signup.setLink(1, TextLinkPtr(new SignUpLink(this)));
+	_signup.setLink(1, MakeShared<SignUpClickHandler>(this));
 	_signup.hide();
 
 	_signupCache = myGrab(&_signup);
@@ -223,7 +222,7 @@ void IntroPhone::onCheckRequest() {
 void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 	stopCheck();
 
-	const MTPDauth_checkedPhone &d(result.c_auth_checkedPhone());
+	const auto &d(result.c_auth_checkedPhone());
 	if (mtpIsTrue(d.vphone_registered)) {
 		disableAll();
 		showError(QString());
@@ -249,7 +248,7 @@ void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 		return;
 	}
 
-	const MTPDauth_sentCode &d(result.c_auth_sentCode());
+	const auto &d(result.c_auth_sentCode());
 	switch (d.vtype.type()) {
 	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true); break;
 	case mtpc_auth_sentCodeTypeSms:
@@ -276,15 +275,20 @@ void IntroPhone::toSignUp() {
 }
 
 bool IntroPhone::phoneSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		sentRequest = 0;
+		showError(lang(lng_flood_error));
+		enableAll(true);
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	stopCheck();
 	sentRequest = 0;
 	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID") { // show error
+	if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showError(lang(lng_bad_phone));
-		enableAll(true);
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
 		enableAll(true);
 		return true;
 	}

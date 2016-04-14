@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "aboutbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "autoupdater.h"
 #include "boxes/confirmbox.h"
@@ -139,7 +139,7 @@ void AboutBox::dropEvent(QDropEvent *e) {
 QString telegramFaqLink() {
 	QString result = qsl("https://telegram.org/faq");
 	if (cLang() > languageDefault && cLang() < languageCount) {
-		const char *code = LanguageCodes[cLang()];
+		const char *code = LanguageCodes[cLang()].c_str();
 		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
 			result += qsl("/") + code;
 		} else if (qstr("pt_BR") == code) {

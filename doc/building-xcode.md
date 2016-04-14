@@ -90,10 +90,6 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
     make
     sudo make install
 
-####zlib 1.2.8
-
-Using the system lib
-
 ####libexif 0.6.20
 #####Get the source code
 
@@ -177,7 +173,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 In Terminal go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run:
 
-    ./configure --enable-static
+    CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure --enable-static
     make
     sudo make install
 
@@ -235,7 +231,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd gyp
     ./setup.py build
-    sudo setup.py install
+    sudo ./setup.py install
     cd ..
 
 #####Build crashpad

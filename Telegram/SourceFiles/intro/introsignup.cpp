@@ -20,9 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
-
-#include "gui/filedialog.h"
+#include "ui/style.h"
+#include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
 
 #include "application.h"
@@ -253,7 +252,7 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	first.setDisabled(false);
 	last.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -262,11 +261,27 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 }
 
 bool IntroSignup::nameSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		first.setDisabled(false);
+		last.setDisabled(false);
+		showError(lang(lng_flood_error));
+		if (_invertOrder) {
+			first.setFocus();
+		} else {
+			last.setFocus();
+		}
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	stopCheck();
 	first.setDisabled(false);
 	last.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID" || err == "PHONE_CODE_EXPIRED" || err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID" || err == "PHONE_NUMBER_OCCUPIED") {
+	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
+		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
+		err == qstr("PHONE_NUMBER_OCCUPIED")) {
 		intro()->onBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
@@ -276,14 +291,6 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 	} else if (err == "LASTNAME_INVALID") {
 		showError(lang(lng_bad_name));
 		last.setFocus();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		if (_invertOrder) {
-			first.setFocus();
-		} else {
-			last.setFocus();
-		}
 		return true;
 	}
 	if (cDebug()) { // internal server error
