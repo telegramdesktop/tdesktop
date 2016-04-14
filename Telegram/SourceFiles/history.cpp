@@ -2626,10 +2626,10 @@ void ReplyKeyboard::resize(int width, int height) {
 }
 
 bool ReplyKeyboard::isEnoughSpace(int width, const style::botKeyboardButton &st) const {
-	for_const (const ButtonRow &row, _rows) {
+	for_const (const auto &row, _rows) {
 		int s = row.size();
 		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
-		for_const (const Button &button, row) {
+		for_const (const auto &button, row) {
 			widthLeft -= qMax(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
 				if (row.size() > 3) {
@@ -2648,18 +2648,15 @@ void ReplyKeyboard::setStyle(StylePtr &&st) {
 }
 
 int ReplyKeyboard::naturalWidth() const {
-	int result = 0;
+	auto result = 0;
+	for_const (const auto &row, _rows) {
+		auto rowMaxButtonWidth = 0;
+		for_const (const auto &button, row) {
+			accumulate_max(rowMaxButtonWidth, qMax(button.text.maxWidth(), 1) + _st->minButtonWidth(button.type));
+		}
 
-	auto markup = _item->Get<HistoryMessageReplyMarkup>();
-	for_const (const ButtonRow &row, _rows) {
-		int rowSize = row.size();
-		int rowWidth = (rowSize - 1) * _st->buttonSkip();
-		for_const (const Button &button, row) {
-			rowWidth += qMax(button.text.maxWidth(), 1) + _st->minButtonWidth(button.type);
-		}
-		if (rowWidth > result) {
-			result = rowWidth;
-		}
+		auto rowSize = row.size();
+		accumulate_max(result, rowSize * rowMaxButtonWidth + (rowSize - 1) * _st->buttonSkip());
 	}
 	return result;
 }
