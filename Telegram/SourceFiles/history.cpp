@@ -2944,6 +2944,24 @@ void HistoryMediaPtr::reset(HistoryMedia *p) {
 	}
 }
 
+namespace internal {
+
+TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+	if (selection == FullSelection) {
+		return selection;
+	}
+	return ::unshiftSelection(selection, byText);
+}
+
+TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+	if (selection == FullSelection) {
+		return selection;
+	}
+	return ::shiftSelection(selection, byText);
+}
+
+} // namespace internal
+
 HistoryItem::HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from) : HistoryElem()
 , y(0)
 , id(msgId)
@@ -3242,28 +3260,42 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, cons
 }
 
 namespace {
-	int32 documentMaxStatusWidth(DocumentData *document) {
-		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
-		if (SongData *song = document->song()) {
-			result = qMax(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
-			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
-		} else if (VoiceData *voice = document->voice()) {
-			result = qMax(result, st::normalFont->width(formatPlayedText(voice->duration, voice->duration)));
-			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(voice->duration, document->size)));
-		} else if (document->isVideo()) {
-			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(document->duration(), document->size)));
-		} else {
-			result = qMax(result, st::normalFont->width(formatSizeText(document->size)));
-		}
-		return result;
-	}
 
-	int32 gifMaxStatusWidth(DocumentData *document) {
-		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
-		result = qMax(result, st::normalFont->width(formatGifAndSizeText(document->size)));
-		return result;
+int32 documentMaxStatusWidth(DocumentData *document) {
+	int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
+	if (SongData *song = document->song()) {
+		result = qMax(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
+		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
+	} else if (VoiceData *voice = document->voice()) {
+		result = qMax(result, st::normalFont->width(formatPlayedText(voice->duration, voice->duration)));
+		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(voice->duration, document->size)));
+	} else if (document->isVideo()) {
+		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(document->duration(), document->size)));
+	} else {
+		result = qMax(result, st::normalFont->width(formatSizeText(document->size)));
 	}
+	return result;
 }
+
+int32 gifMaxStatusWidth(DocumentData *document) {
+	int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
+	result = qMax(result, st::normalFont->width(formatGifAndSizeText(document->size)));
+	return result;
+}
+
+QString captionedSelectedText(const QString &attachType, const Text &caption, TextSelection selection) {
+	if (selection != FullSelection) {
+		return caption.original(selection, Text::ExpandLinksAll);
+	}
+	QString result;
+	result.reserve(5 + attachType.size() + caption.length());
+	result.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
+	if (!caption.isEmpty()) {
+		result.append(qstr("\n")).append(caption.original(AllTextSelection));
+	}
+	return result;
+}
+} // namespace
 
 void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _savel || p == _cancell) {
@@ -3681,12 +3713,12 @@ void HistoryPhoto::detachFromParent() {
 	App::unregPhotoItem(_data, _parent);
 }
 
-const QString HistoryPhoto::inDialogsText() const {
+QString HistoryPhoto::inDialogsText() const {
 	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(AllTextSelection, Text::ExpandLinksNone);
 }
 
-const QString HistoryPhoto::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_photo) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(AllTextSelection, Text::ExpandLinksAll))) + qsl(" ]");
+QString HistoryPhoto::selectedText(TextSelection selection) const {
+	return captionedSelectedText(lang(lng_in_dlg_photo), _caption, selection);
 }
 
 ImagePtr HistoryPhoto::replyPreview() {
@@ -3902,7 +3934,7 @@ HistoryTextState HistoryVideo::getState(int x, int y, HistoryStateRequest reques
 			int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
 			height -= _caption.countHeight(captionw) + st::msgPadding.bottom();
 			if (x >= st::msgPadding.left() && y >= height && x < st::msgPadding.left() + captionw && y < _height) {
-				result = _caption.getState(x - st::msgPadding.left(), y - height, captionw);
+				result = _caption.getState(x - st::msgPadding.left(), y - height, captionw, request.forText());
 			}
 			height -= st::mediaCaptionSkip;
 		}
@@ -3927,12 +3959,12 @@ void HistoryVideo::setStatusSize(int32 newSize) const {
 	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration(), 0);
 }
 
-const QString HistoryVideo::inDialogsText() const {
+QString HistoryVideo::inDialogsText() const {
 	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(AllTextSelection, Text::ExpandLinksNone);
 }
 
-const QString HistoryVideo::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_video) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(AllTextSelection, Text::ExpandLinksAll))) + qsl(" ]");
+QString HistoryVideo::selectedText(TextSelection selection) const {
+	return captionedSelectedText(lang(lng_in_dlg_video), _caption, selection);
 }
 
 void HistoryVideo::updateStatusText() const {
@@ -4404,7 +4436,7 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 	return result;
 }
 
-const QString HistoryDocument::inDialogsText() const {
+QString HistoryDocument::inDialogsText() const {
 	QString result;
 	if (Has<HistoryDocumentVoice>()) {
 		result = lang(lng_in_dlg_audio);
@@ -4425,26 +4457,24 @@ const QString HistoryDocument::inDialogsText() const {
 	return result;
 }
 
-const QString HistoryDocument::inHistoryText() const {
-	QString result;
+QString HistoryDocument::selectedText(TextSelection selection) const {
+	const Text emptyCaption;
+	const Text *caption = &emptyCaption;
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+		caption = &captioned->_caption;
+	}
+	QString attachType = lang(lng_in_dlg_file);
 	if (Has<HistoryDocumentVoice>()) {
-		result = lang(lng_in_dlg_audio);
+		attachType = lang(lng_in_dlg_audio);
 	} else if (_data->song()) {
-		result = lang(lng_in_dlg_audio_file);
-	} else {
-		result = lang(lng_in_dlg_file);
+		attachType = lang(lng_in_dlg_audio_file);
 	}
 	if (auto named = Get<HistoryDocumentNamed>()) {
 		if (!named->_name.isEmpty()) {
-			result.append(qsl(" : ")).append(named->_name);
+			attachType.append(qstr(" : ")).append(named->_name);
 		}
 	}
-	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		if (!captioned->_caption.isEmpty()) {
-			result.append(qsl(", ")).append(captioned->_caption.original(AllTextSelection, Text::ExpandLinksAll));
-		}
-	}
-	return qsl("[ ") + result.append(qsl(" ]"));
+	return captionedSelectedText(attachType, *caption, selection);
 }
 
 void HistoryDocument::setStatusSize(int32 newSize, qint64 realDuration) const {
@@ -4878,12 +4908,12 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 	return result;
 }
 
-const QString HistoryGif::inDialogsText() const {
+QString HistoryGif::inDialogsText() const {
 	return qsl("GIF") + (_caption.isEmpty() ? QString() : (' ' + _caption.original(AllTextSelection, Text::ExpandLinksNone)));
 }
 
-const QString HistoryGif::inHistoryText() const {
-	return qsl("[ GIF ") + (_caption.isEmpty() ? QString() : (_caption.original(AllTextSelection, Text::ExpandLinksAll) + ' ')) + qsl(" ]");
+QString HistoryGif::selectedText(TextSelection selection) const {
+	return captionedSelectedText(qsl("GIF"), _caption, selection);
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {
@@ -5195,11 +5225,14 @@ HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest requ
 	return result;
 }
 
-const QString HistorySticker::inDialogsText() const {
+QString HistorySticker::inDialogsText() const {
 	return _emoji.isEmpty() ? lang(lng_in_dlg_sticker) : lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
 }
 
-const QString HistorySticker::inHistoryText() const {
+QString HistorySticker::selectedText(TextSelection selection) const {
+	if (selection != FullSelection) {
+		return QString();
+	}
 	return qsl("[ ") + inDialogsText() + qsl(" ]");
 }
 
@@ -5377,12 +5410,15 @@ HistoryTextState HistoryContact::getState(int x, int y, HistoryStateRequest requ
 	return result;
 }
 
-const QString HistoryContact::inDialogsText() const {
+QString HistoryContact::inDialogsText() const {
 	return lang(lng_in_dlg_contact);
 }
 
-const QString HistoryContact::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" : ") + _name.original() + qsl(", ") + _phone + qsl(" ]");
+QString HistoryContact::selectedText(TextSelection selection) const {
+	if (selection != FullSelection) {
+		return QString();
+	}
+	return qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" ]\n") + _name.original() + '\n' + _phone;
 }
 
 void HistoryContact::attachToParent() {
@@ -5895,12 +5931,22 @@ void HistoryWebPage::detachFromParent() {
 	if (_attach) _attach->detachFromParent();
 }
 
-const QString HistoryWebPage::inDialogsText() const {
+QString HistoryWebPage::inDialogsText() const {
 	return QString();
 }
 
-const QString HistoryWebPage::inHistoryText() const {
-	return QString();
+QString HistoryWebPage::selectedText(TextSelection selection) const {
+	if (selection == FullSelection) {
+		return QString();
+	}
+	auto titleResult = _title.original(selection, Text::ExpandLinksAll);
+	auto descriptionResult = _description.original(toDescriptionSelection(selection), Text::ExpandLinksAll);
+	if (titleResult.isEmpty()) {
+		return descriptionResult;
+	} else if (descriptionResult.isEmpty()) {
+		return titleResult;
+	}
+	return titleResult + '\n' + descriptionResult;
 }
 
 ImagePtr HistoryWebPage::replyPreview() {
@@ -6263,6 +6309,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest request) const {
 	HistoryTextState result;
+	auto symbolAdd = 0;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
@@ -6286,6 +6333,8 @@ HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest req
 			if (y >= skipy && y < skipy + titleh) {
 				result = _title.getStateLeft(x - skipx - st::msgPadding.left(), y - skipy, textw, _width, request.forText());
 				return result;
+			} else if (y >= skipy + titleh) {
+				symbolAdd += _title.length();
 			}
 			skipy += titleh;
 		}
@@ -6293,8 +6342,8 @@ HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest req
 			auto descriptionh = qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 			if (y >= skipy && y < skipy + descriptionh) {
 				result = _description.getStateLeft(x - skipx - st::msgPadding.left(), y - skipy, textw, _width, request.forText());
-				if (!_title.isEmpty()) result.symbol += _title.length();
-				return result;
+			} else if (y >= skipy + descriptionh) {
+				symbolAdd += _description.length();
 			}
 			skipy += descriptionh;
 		}
@@ -6311,9 +6360,8 @@ HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest req
 		if (inDate) {
 			result.cursor = HistoryInDateCursorState;
 		}
-
-		return result;
 	}
+	result.symbol += symbolAdd;
 	return result;
 }
 
@@ -6329,12 +6377,25 @@ TextSelection HistoryLocation::adjustSelection(TextSelection selection, TextSele
 	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
-const QString HistoryLocation::inDialogsText() const {
-	return lang(lng_maps_point);
+QString HistoryLocation::inDialogsText() const {
+	return _title.isEmpty() ? lang(lng_maps_point) : _title.original(AllTextSelection);
 }
 
-const QString HistoryLocation::inHistoryText() const {
-	return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + _link->text() + qsl(" ]");
+QString HistoryLocation::selectedText(TextSelection selection) const {
+	if (selection == FullSelection) {
+		auto result = qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n");
+		auto info = selectedText(AllTextSelection);
+		if (!info.isEmpty()) result.append(info).append('\n');
+		return result + _link->text();
+	}
+	auto titleResult = _title.original(selection);
+	auto descriptionResult = _description.original(toDescriptionSelection(selection));
+	if (titleResult.isEmpty()) {
+		return descriptionResult;
+	} else if (descriptionResult.isEmpty()) {
+		return titleResult;
+	}
+	return titleResult + '\n' + descriptionResult;
 }
 
 int32 HistoryLocation::fullWidth() const {
@@ -7044,12 +7105,21 @@ void HistoryMessage::eraseFromOverview() {
 }
 
 QString HistoryMessage::selectedText(TextSelection selection) const {
-	QString result;
-	if (_media && selection == FullSelection) {
-		QString text = _text.original(AllTextSelection, Text::ExpandLinksAll), mediaText = _media->inHistoryText();
-		result = text.isEmpty() ? mediaText : (mediaText.isEmpty() ? text : (text + ' ' + mediaText));
+	QString result, textResult, mediaResult;
+	if (selection == FullSelection) {
+		textResult = _text.original(AllTextSelection, Text::ExpandLinksAll);
 	} else {
-		result = _text.original((selection == FullSelection) ? AllTextSelection : selection, Text::ExpandLinksAll);
+		textResult = _text.original(selection, Text::ExpandLinksAll);
+	}
+	if (_media) {
+		mediaResult = _media->selectedText(toMediaSelection(selection));
+	}
+	if (textResult.isEmpty()) {
+		result = mediaResult;
+	} else if (mediaResult.isEmpty()) {
+		result = textResult;
+	} else {
+		result = textResult + qstr("\n\n") + mediaResult;
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {

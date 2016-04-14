@@ -17,7 +17,7 @@
  */
 #pragma once
 
-#include "text.h"
+#include "ui/text/text.h"
 
 class PopupMenu : public TWidget {
 	Q_OBJECT

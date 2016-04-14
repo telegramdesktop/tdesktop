@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "inline_bots/inline_bot_layout_item.h"
-#include "ui/text.h"
+#include "ui/text/text.h"
 
 namespace InlineBots {
 namespace Layout {

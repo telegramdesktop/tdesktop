@@ -457,7 +457,7 @@
 		111BBEE3D1432C3B517FD539 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qdds.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qdds.pri"; sourceTree = "<absolute>"; };
 		120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = contactsbox.h; path = SourceFiles/boxes/contactsbox.h; sourceTree = "<absolute>"; };
 		1292B92B4848460640F6A391 /* telegram.qrc */ = {isa = PBXFileReference; lastKnownFileType = text; name = telegram.qrc; path = Resources/telegram.qrc; sourceTree = "<absolute>"; };
-		135FD3715BFDC50AD7B00E04 /* text.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = text.cpp; path = SourceFiles/ui/text.cpp; sourceTree = "<absolute>"; };
+		135FD3715BFDC50AD7B00E04 /* text.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = text.cpp; path = SourceFiles/ui/text/text.cpp; sourceTree = "<absolute>"; };
 		143405635D04698F421A12EA /* aboutbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = aboutbox.h; path = SourceFiles/boxes/aboutbox.h; sourceTree = "<absolute>"; };
 		14437BFDCD58FF1742EF1B35 /* photocropbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = photocropbox.h; path = SourceFiles/boxes/photocropbox.h; sourceTree = "<absolute>"; };
 		152B8D1BCECEB7B0C77E073C /* introwidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introwidget.h; path = SourceFiles/intro/introwidget.h; sourceTree = "<absolute>"; };
@@ -570,7 +570,7 @@
 		6D50D70712776D7ED3B00E5C /* facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = facade.cpp; path = SourceFiles/mtproto/facade.cpp; sourceTree = "<absolute>"; };
 		6E1859D714E4471E053D90C9 /* scrollarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = scrollarea.cpp; path = SourceFiles/ui/scrollarea.cpp; sourceTree = "<absolute>"; };
 		6E67D23B15FC4B628DB2E0B2 /* /usr/local/Qt-5.5.1/mkspecs/qdevice.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/qdevice.pri"; sourceTree = "<absolute>"; };
-		6E8FD0ED1B60D43929944CD2 /* text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text.h; sourceTree = "<absolute>"; };
+		6E8FD0ED1B60D43929944CD2 /* text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text/text.h; sourceTree = "<absolute>"; };
 		710C982FC773400941B3AFBC /* dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dropdown.cpp; path = SourceFiles/dropdown.cpp; sourceTree = "<absolute>"; };
 		723F90793B2C195E2CCB2233 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };

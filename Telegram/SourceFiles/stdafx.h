@@ -46,7 +46,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/popupmenu.h"
 #include "ui/scrollarea.h"
 #include "ui/images.h"
-#include "ui/text.h"
+#include "ui/text/text.h"
 #include "ui/flatlabel.h"
 
 #include "app.h"
