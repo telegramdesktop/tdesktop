@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "layerwidget.h"
 #include "application.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "ui/filedialog.h"
 

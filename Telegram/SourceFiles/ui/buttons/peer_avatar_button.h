@@ -22,7 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/button.h"
 #include "ui/style.h"
-#include "structs.h"
+
+class PeerData;
+
+namespace Ui {
 
 class PeerAvatarButton : public Button {
 public:
@@ -38,3 +41,5 @@ private:
 	const style::PeerAvatarButton &_st;
 
 };
+
+} // namespace Ui

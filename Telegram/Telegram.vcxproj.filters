@@ -67,6 +67,21 @@
     <Filter Include="ui\buttons">
       <UniqueIdentifier>{24292a88-6707-4070-b2d2-8b53acd5cdd0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core">
+      <UniqueIdentifier>{162feb92-08a4-4abf-9936-79c389d4fcb9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="history">
+      <UniqueIdentifier>{39b5a449-928d-4add-9610-95c03878d52f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="window">
+      <UniqueIdentifier>{0192d4a5-ecf0-4076-937a-d3a08443e543}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="overview">
+      <UniqueIdentifier>{ddcc5634-90e7-4815-ba86-a3db539f4774}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ui\text">
+      <UniqueIdentifier>{850c3d13-024a-4ef3-a6b7-b546e67cca48}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -97,9 +112,6 @@
       <Filter>Generated Files</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\app.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\dialogswidget.cpp">
@@ -176,15 +188,6 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\langloaderplain.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_window.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_window.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_window.cpp">
-      <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_title.cpp">
       <Filter>Generated Files\Deploy</Filter>
@@ -825,18 +828,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\basic_types.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_basic_types.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_basic_types.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_basic_types.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\inline_bots\inline_bot_result.cpp">
       <Filter>inline_bots</Filter>
     </ClCompile>
@@ -984,9 +975,6 @@
     <ClCompile Include="SourceFiles\ui\style_core.cpp">
       <Filter>ui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\ui\text.cpp">
-      <Filter>ui</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\ui\twidget.cpp">
       <Filter>ui</Filter>
     </ClCompile>
@@ -1034,6 +1022,60 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\ui\buttons\peer_avatar_button.cpp">
       <Filter>ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\top_bar_widget.cpp">
+      <Filter>window</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_top_bar_widget.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_mainwindow.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mainwindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mainwindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mainwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_top_bar_widget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_top_bar_widget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\core\click_handler.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\core\basic_types.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_basic_types.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_basic_types.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_basic_types.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\core\click_handler_types.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\overview\overview_layout.cpp">
+      <Filter>overview</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text.cpp">
+      <Filter>ui\text</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text_entity.cpp">
+      <Filter>ui\text</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\text\text_block.cpp">
+      <Filter>ui\text</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1142,9 +1184,6 @@
     <ClInclude Include="SourceFiles\ui\style_core.h">
       <Filter>ui</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\ui\text.h">
-      <Filter>ui</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\ui\toast\toast.h">
       <Filter>ui\toast</Filter>
     </ClInclude>
@@ -1175,15 +1214,33 @@
     <ClInclude Include="SourceFiles\ui\buttons\peer_avatar_button.h">
       <Filter>ui\buttons</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\history\history_common.h">
+      <Filter>history</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\click_handler.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\click_handler_types.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\overview\overview_layout.h">
+      <Filter>overview</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text.h">
+      <Filter>ui\text</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text_entity.h">
+      <Filter>ui\text</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\text\text_block.h">
+      <Filter>ui\text</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mainwidget.h">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\window.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\dialogswidget.h">
@@ -1378,9 +1435,6 @@
     <CustomBuild Include="SourceFiles\facades.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\basic_types.h">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\animation.h">
       <Filter>ui</Filter>
     </CustomBuild>
@@ -1416,6 +1470,15 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\toast\toast_manager.h">
       <Filter>ui\toast</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\window\top_bar_widget.h">
+      <Filter>window</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mainwindow.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\core\basic_types.h">
+      <Filter>core</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

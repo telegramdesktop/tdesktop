@@ -19,41 +19,21 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "playerwidget.h"
+
+#include "shortcuts.h"
 #include "ui/style.h"
 #include "lang.h"
-
 #include "boxes/addcontactbox.h"
 #include "application.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "playerwidget.h"
 #include "mainwidget.h"
-
 #include "localstorage.h"
-
 #include "audio.h"
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
-, _prevAvailable(false)
-, _nextAvailable(false)
-, _fullAvailable(false)
-, _over(OverNone)
-, _down(OverNone)
-, _downCoord(0)
-, _downFrequency(AudioVoiceMsgFrequency)
-, _downProgress(0.)
 , _a_state(animation(this, &PlayerWidget::step_state))
-, _msgmigrated(false)
-, _index(-1)
-, _migrated(0)
-, _history(0)
-, _timeWidth(0)
-, _repeat(false)
-, _showPause(false)
-, _position(0)
-, _duration(0)
-, _loaded(0)
-, a_progress(0., 0.)
-, a_loadProgress(0., 0.)
 , _a_progress(animation(this, &PlayerWidget::step_progress))
 , _sideShadow(this, st::shadowColor) {
 	resize(st::wndMinWidth, st::playerHeight);
@@ -372,6 +352,29 @@ bool PlayerWidget::seekingSong(const SongMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
 
+void PlayerWidget::openPlayer() {
+	_playerOpened = true;
+	Shortcuts::enableMediaShortcuts();
+}
+
+bool PlayerWidget::isOpened() const {
+	return _playerOpened;
+}
+
+void PlayerWidget::closePlayer() {
+	_playerOpened = false;
+	Shortcuts::disableMediaShortcuts();
+}
+
+void PlayerWidget::showPlayer() {
+	TWidget::show();
+}
+
+void PlayerWidget::hidePlayer() {
+	clearSelection();
+	TWidget::hide();
+}
+
 void PlayerWidget::step_state(uint64 ms, bool timer) {
 	for (StateAnimations::iterator i = _stateAnimations.begin(); i != _stateAnimations.cend();) {
 		int32 over = qAbs(i.key());
@@ -463,7 +466,7 @@ void PlayerWidget::mouseReleaseEvent(QMouseEvent *e) {
 		}
 		update();
 	} else if (_down == OverClose && _over == OverClose) {
-		stopPressed();
+		closePressed();
 	}
 	_down = OverNone;
 }
@@ -545,7 +548,11 @@ void PlayerWidget::stopPressed() {
 	if (!_song || isHidden()) return;
 
 	audioPlayer()->stop(OverviewFiles);
-	if (App::main()) App::main()->hidePlayer();
+}
+
+void PlayerWidget::closePressed() {
+	stopPressed();
+	if (App::main()) App::main()->closePlayer();
 }
 
 void PlayerWidget::resizeEvent(QResizeEvent *e) {

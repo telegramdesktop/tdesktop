@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "inline_bots/inline_bot_layout_item.h"
-#include "ui/text.h"
+#include "ui/text/text.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -70,7 +70,7 @@ public:
 		return true;
 	}
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
@@ -135,7 +135,7 @@ public:
 		return true;
 	}
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
@@ -165,7 +165,7 @@ public:
 	}
 	void preload() const override;
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
@@ -190,7 +190,7 @@ public:
 
 	void initDimensions() override;
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
@@ -238,7 +238,7 @@ public:
 
 	void initDimensions() override;
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
@@ -302,7 +302,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
@@ -321,7 +321,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:

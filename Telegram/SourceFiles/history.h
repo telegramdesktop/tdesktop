@@ -255,7 +255,7 @@ public:
 	int unreadCount() const {
 		return _unreadCount;
 	}
-	void setUnreadCount(int newUnreadCount, bool psUpdate = true);
+	void setUnreadCount(int newUnreadCount);
 	bool mute() const {
 		return _mute;
 	}
@@ -642,7 +642,7 @@ private:
 	HistoryItem *findPrevItem(HistoryItem *item) const;
 	void switchMode();
 
-	void cleared();
+	void cleared(bool leaveItems);
 
 	bool _onlyImportant;
 
@@ -729,13 +729,43 @@ protected:
 
 };
 
-class HistoryMessage; // dynamic_cast optimize
+class HistoryMessage;
 
 enum HistoryCursorState {
 	HistoryDefaultCursorState,
 	HistoryInTextCursorState,
 	HistoryInDateCursorState,
 	HistoryInForwardedCursorState,
+};
+
+struct HistoryTextState {
+	HistoryTextState() = default;
+	HistoryTextState(const Text::StateResult &state)
+		: cursor(state.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState)
+		, link(state.link)
+		, afterSymbol(state.afterSymbol)
+		, symbol(state.symbol) {
+	}
+	HistoryTextState &operator=(const Text::StateResult &state) {
+		cursor = state.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
+		link = state.link;
+		afterSymbol = state.afterSymbol;
+		symbol = state.symbol;
+		return *this;
+	}
+	HistoryCursorState cursor = HistoryDefaultCursorState;
+	ClickHandlerPtr link;
+	bool afterSymbol = false;
+	uint16 symbol = 0;
+};
+
+struct HistoryStateRequest {
+	Text::StateRequest::Flags flags = Text::StateRequest::Flag::LookupLink;
+	Text::StateRequest forText() const {
+		Text::StateRequest result;
+		result.flags = flags;
+		return result;
+	}
 };
 
 enum InfoDisplayType {
@@ -936,7 +966,7 @@ public:
 	int naturalHeight() const;
 
 	void paint(Painter &p, const QRect &clip) const;
-	void getState(ClickHandlerPtr &lnk, int x, int y) const;
+	ClickHandlerPtr getState(int x, int y) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
@@ -1052,6 +1082,14 @@ private:
 
 };
 
+
+namespace internal {
+
+TextSelection unshiftSelection(TextSelection selection, const Text &byText);
+TextSelection shiftSelection(TextSelection selection, const Text &byText);
+
+} // namespace internal
+
 class HistoryItem : public HistoryElem, public Composer, public ClickHandlerHost {
 public:
 
@@ -1068,7 +1106,7 @@ public:
 		}
 		return resizeGetHeight_(width);
 	}
-	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
+	virtual void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const = 0;
 
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
@@ -1216,17 +1254,11 @@ public:
 	virtual bool hasPoint(int x, int y) const {
 		return false;
 	}
-	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const {
-		lnk.clear();
-		state = HistoryDefaultCursorState;
-	}
-	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const { // from text
-		upon = hasPoint(x, y);
-		symbol = upon ? 0xFFFF : 0;
-		after = false;
-	}
-	virtual uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
-		return (from << 16) | to;
+
+	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
+
+	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
+		return selection;
 	}
 
 	// ClickHandlerHost interface
@@ -1251,7 +1283,7 @@ public:
 	}
 	virtual void previousItemChanged();
 
-	virtual QString selectedText(uint32 selection) const {
+	virtual QString selectedText(TextSelection selection) const {
 		return qsl("[-]");
 	}
 	virtual QString inDialogsText() const {
@@ -1514,6 +1546,13 @@ protected:
 		return const_cast<ReplyKeyboard*>(static_cast<const HistoryItem*>(this)->inlineReplyKeyboard());
 	}
 
+	TextSelection toMediaSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, _text);
+	}
+	TextSelection fromMediaSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, _text);
+	}
+
 	Text _text = { int(st::msgMinWidth) };
 	int32 _textWidth, _textHeight;
 
@@ -1609,8 +1648,8 @@ public:
 	HistoryMedia &operator=(const HistoryMedia &other) = delete;
 
 	virtual HistoryMediaType type() const = 0;
-	virtual const QString inDialogsText() const = 0;
-	virtual const QString inHistoryText() const = 0;
+	virtual QString inDialogsText() const = 0;
+	virtual QString selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(int x, int y) const {
 		return (x >= 0 && y >= 0 && x < _width && y < _height);
@@ -1624,8 +1663,8 @@ public:
 		_width = qMin(width, _maxw);
 		return _height;
 	}
-	virtual void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const = 0;
-	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const = 0;
+	virtual void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const = 0;
+	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
 
 	// if we are in selecting items mode perhaps we want to
 	// toggle selection instead of activating the pressed link
@@ -1634,6 +1673,10 @@ public:
 	// if we press and drag on this media should we drag the item
 	virtual bool dragItem() const {
 		return false;
+	}
+
+	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
+		return selection;
 	}
 
 	// if we press and drag this link should we drag the item
@@ -1829,11 +1872,15 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+		return _caption.adjustSelection(selection, type);
+	}
+
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	PhotoData *photo() const {
 		return _data;
@@ -1902,11 +1949,15 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+		return _caption.adjustSelection(selection, type);
+	}
+
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -2015,11 +2066,18 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+			return captioned->_caption.adjustSelection(selection, type);
+		}
+		return selection;
+	}
+
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2095,11 +2153,15 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+		return _caption.adjustSelection(selection, type);
+	}
+
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2183,8 +2245,8 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -2196,8 +2258,8 @@ public:
 		return true;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -2255,8 +2317,8 @@ public:
 
 	void initDimensions() override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -2265,8 +2327,8 @@ public:
 		return true;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	void attachToParent() override;
 	void detachFromParent() override;
@@ -2318,8 +2380,10 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
@@ -2328,8 +2392,8 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -2376,6 +2440,13 @@ public:
 	~HistoryWebPage();
 
 private:
+	TextSelection toDescriptionSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, _title);
+	}
+	TextSelection fromDescriptionSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, _title);
+	}
+
 	WebPageData *_data;
 	ClickHandlerPtr _openl;
 	HistoryMedia *_attach;
@@ -2396,17 +2467,8 @@ void initImageLinkManager();
 void reinitImageLinkManager();
 void deinitImageLinkManager();
 
-struct LocationData {
-	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
-	}
-
-	LocationCoords coords;
-	ImagePtr thumb;
-	bool loading;
-
-	void load();
-};
-
+struct LocationCoords;
+struct LocationData;
 class LocationManager : public QObject {
 	Q_OBJECT
 public:
@@ -2449,8 +2511,10 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int32 width) override;
 
-	void draw(Painter &p, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return p == _link;
@@ -2459,8 +2523,8 @@ public:
 		return p == _link;
 	}
 
-	const QString inDialogsText() const override;
-	const QString inHistoryText() const override;
+	QString inDialogsText() const override;
+	QString selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
 		if (!_title.isEmpty() || !_description.isEmpty()) {
@@ -2476,6 +2540,13 @@ public:
 	}
 
 private:
+	TextSelection toDescriptionSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, _title);
+	}
+	TextSelection fromDescriptionSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, _title);
+	}
+
 	LocationData *_data;
 	Text _title, _description;
 	ClickHandlerPtr _link;
@@ -2547,7 +2618,7 @@ public:
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void setViewsCount(int32 count) override;
 	void setId(MsgId newId) override;
-	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -2556,12 +2627,9 @@ public:
 	bool hasPoint(int x, int y) const override;
 	bool pointInTime(int32 right, int32 bottom, int x, int y, InfoDisplayType type) const override;
 
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const override;
-	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const override {
-		return _text.adjustSelection(from, to, type);
-	}
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
@@ -2569,7 +2637,7 @@ public:
 		HistoryItem::clickHandlerActiveChanged(p, active);
 	}
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
-		if (_media) _media->clickHandlerActiveChanged(p, pressed);
+		if (_media) _media->clickHandlerPressedChanged(p, pressed);
 		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 
@@ -2582,7 +2650,7 @@ public:
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview();
 
-	QString selectedText(uint32 selection) const override;
+	QString selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
 	HistoryMedia *getMedia() const override;
 	void setText(const QString &text, const EntitiesInText &entities) override;
@@ -2772,12 +2840,12 @@ public:
 
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
 	bool hasPoint(int x, int y) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const override;
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const override;
-	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const override {
-		return _text.adjustSelection(from, to, type);
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+		return _text.adjustSelection(selection, type);
 	}
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
@@ -2798,7 +2866,7 @@ public:
 	bool serviceMsg() const override {
 		return true;
 	}
-	QString selectedText(uint32 selection) const override;
+	QString selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
 	QString inReplyText() const override;
 
@@ -2833,16 +2901,12 @@ public:
 		return _create(history, newItem, date);
 	}
 
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const;
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const {
-		symbol = 0xFFFF;
-		after = false;
-		upon = false;
-	}
-	QString selectedText(uint32 selection) const {
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	QString selectedText(TextSelection selection) const override {
 		return QString();
 	}
-	HistoryItemType type() const {
+	HistoryItemType type() const override {
 		return HistoryItemGroup;
 	}
 	void uniteWith(MsgId minId, MsgId maxId, int32 count);
@@ -2886,17 +2950,13 @@ public:
 		return _create(history, wasMinId, date);
 	}
 
-	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y) const;
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const {
-		symbol = 0xFFFF;
-		after = false;
-		upon = false;
-	}
-	QString selectedText(uint32 selection) const {
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	QString selectedText(TextSelection selection) const override {
 		return QString();
 	}
-	HistoryItemType type() const {
+	HistoryItemType type() const override {
 		return HistoryItemCollapse;
 	}
 	MsgId wasMinId() const {

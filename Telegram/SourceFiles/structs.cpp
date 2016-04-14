@@ -28,11 +28,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "ui/filedialog.h"
-
+#include "apiwrap.h"
 #include "boxes/confirmbox.h"
-
 #include "audio.h"
 #include "localstorage.h"
 

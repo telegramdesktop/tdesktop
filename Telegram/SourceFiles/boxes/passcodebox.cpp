@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "passcodebox.h"
 #include "confirmbox.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "localstorage.h"
 

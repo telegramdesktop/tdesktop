@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "backgroundbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "settingswidget.h"
 
 BackgroundInner::BackgroundInner() :

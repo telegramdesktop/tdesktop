@@ -20,107 +20,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "apiwrap.h"
-#include "dialogswidget.h"
-#include "historywidget.h"
-#include "profilewidget.h"
-#include "overviewwidget.h"
-#include "playerwidget.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "localimageloader.h"
+#include "history/history_common.h"
 
-class Window;
+namespace Dialogs {
+class Row;
+} // namespace Dialogs
+
+namespace Ui {
+class PeerAvatarButton;
+} // namespace Ui
+
+namespace Window {
+class TopBarWidget;
+} // namespace Window
+
+class MainWindow;
 class ApiWrap;
-class MainWidget;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
 class ProfileWidget;
 class OverviewWidget;
 class PlayerWidget;
-
-namespace Dialogs {
-class Row;
-} // namespace Dialogs
-
-class TopBarWidget : public TWidget {
-	Q_OBJECT
-
-public:
-
-	TopBarWidget(MainWidget *w);
-
-	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_appearance(float64 ms, bool timer);
-	void enableShadow(bool enable = true);
-
-	void startAnim();
-    void stopAnim();
-	void showAll();
-	void showSelected(uint32 selCount, bool canDelete = false);
-
-	void updateAdaptiveLayout();
-
-	FlatButton *mediaTypeButton();
-
-	void grabStart() override {
-		_sideShadow.hide();
-	}
-	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
-	}
-
-public slots:
-
-	void onForwardSelection();
-	void onDeleteSelection();
-	void onClearSelection();
-	void onInfoClicked();
-	void onAddContact();
-	void onEdit();
-	void onDeleteContact();
-	void onDeleteContactSure();
-	void onDeleteAndExit();
-	void onDeleteAndExitSure();
-	void onSearch();
-
-signals:
-
-	void clicked();
-
-private:
-
-	MainWidget *main();
-	anim::fvalue a_over;
-	Animation _a_appearance;
-
-	PeerData *_selPeer;
-	uint32 _selCount;
-	bool _canDelete;
-	QString _selStr;
-	int32 _selStrLeft, _selStrWidth;
-
-    bool _animating;
-
-	FlatButton _clearSelection;
-	FlatButton _forward, _delete;
-	int32 _selectionButtonsWidth, _forwardDeleteWidth;
-
-	PeerAvatarButton _info;
-	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
-	FlatButton _mediaType;
-
-	IconedButton _search;
-
-	PlainShadow _sideShadow;
-
-};
+class HistoryHider;
+class Dropdown;
 
 enum StackItemType {
 	HistoryStackItem,
@@ -220,7 +144,7 @@ class MainWidget : public TWidget, public RPCSender {
 
 public:
 
-	MainWidget(Window *window);
+	MainWidget(MainWindow *window);
 
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -230,7 +154,7 @@ public:
 	bool needBackButton();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	TopBarWidget *topBar();
+	Window::TopBarWidget *topBar();
 
 	PlayerWidget *player();
 	int contentScrollAddToY() const;
@@ -365,7 +289,7 @@ public:
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
-	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -448,6 +372,8 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
+	void closePlayer();
+
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -498,7 +424,6 @@ public slots:
 	void documentPlayProgress(const SongMsgId &songId);
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
-	void hidePlayer();
 
 	void dialogsCancelled();
 
@@ -623,14 +548,14 @@ private:
 
 	int _dialogsWidth = st::dlgMinWidth;
 
-	DialogsWidget dialogs;
-	HistoryWidget history;
-	ProfileWidget* profile = nullptr;
-	OverviewWidget* overview = nullptr;
-	PlayerWidget _player;
-	TopBarWidget _topBar;
+	ChildWidget<DialogsWidget> _dialogs;
+	ChildWidget<HistoryWidget> _history;
+	ChildWidget<ProfileWidget> _profile = { nullptr };
+	ChildWidget<OverviewWidget> _overview = { nullptr };
+	ChildWidget<PlayerWidget> _player;
+	ChildWidget<Window::TopBarWidget> _topBar;
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
-	HistoryHider *_hider = nullptr;
+	ChildWidget<HistoryHider> _hider = { nullptr };
 	StackItems _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;
@@ -638,7 +563,7 @@ private:
 	int _playerHeight = 0;
 	int _contentScrollAddToY = 0;
 
-	Dropdown _mediaType;
+	ChildWidget<Dropdown> _mediaType;
 	int32 _mediaTypeMask = 0;
 
 	int32 updDate = 0;
@@ -711,8 +636,8 @@ private:
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
-	App::WallPaper *_background = nullptr;
+	std_::unique_ptr<App::WallPaper> _background;
 
-	ApiWrap *_api;
+	std_::unique_ptr<ApiWrap> _api;
 
 };

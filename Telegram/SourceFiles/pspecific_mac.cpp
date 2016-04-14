@@ -40,7 +40,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = AppClass::wnd();
+			auto wnd = AppClass::wnd();
 			if (!wnd) return false;
 
 			return wnd->psFilterNativeEvent(message);
@@ -57,9 +57,7 @@ void MacPrivate::activeSpaceChanged() {
 }
 
 void MacPrivate::darkModeChanged() {
-	if (App::wnd()) {
-		App::wnd()->updateCounter();
-	}
+	Notify::unreadCounterUpdated();
 }
 
 void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {

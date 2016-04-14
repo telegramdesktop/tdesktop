@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "lang.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "profilewidget.h"
 #include "boxes/addcontactbox.h"
@@ -30,6 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/contactsbox.h"
 #include "ui/filedialog.h"
+#include "apiwrap.h"
+#include "window/top_bar_widget.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer) : TWidget(0)
 , _profile(profile)
@@ -573,7 +575,7 @@ void ProfileInner::onBotSettings() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(_peerUser, '/' + cmd);
+			App::sendBotCommand(_peerUser, _peerUser, '/' + cmd);
 			return;
 		}
 	}
@@ -587,7 +589,7 @@ void ProfileInner::onBotHelp() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(_peerUser, '/' + cmd);
+			App::sendBotCommand(_peerUser, _peerUser, '/' + cmd);
 			return;
 		}
 	}
@@ -1118,9 +1120,9 @@ void ProfileInner::updateSelected() {
 
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	bool inText = false;
 	if (!_about.isEmpty() && lp.y() >= _aboutTop && lp.y() < _aboutTop + _aboutHeight && lp.x() >= _left && lp.x() < _left + _width) {
-		_about.getState(lnk, inText, lp.x() - _left, lp.y() - _aboutTop, _width);
+		auto textState = _about.getState(lp.x() - _left, lp.y() - _aboutTop, _width);
+		lnk = textState.link;
 		lnkhost = this;
 	}
 	ClickHandler::setActive(lnk, lnkhost);

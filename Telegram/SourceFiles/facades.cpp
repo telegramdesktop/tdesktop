@@ -20,12 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-#include "window.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-
+#include "core/click_handler_types.h"
 #include "boxes/confirmbox.h"
-
 #include "layerwidget.h"
 #include "lang.h"
 
@@ -34,12 +33,16 @@ Q_DECLARE_METATYPE(Qt::MouseButton);
 
 namespace App {
 
-void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
-	if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
+void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
+	if (auto m = main()) {
+		m->sendBotCommand(peer, bot, cmd, replyTo);
+	}
 }
 
 bool insertBotCommand(const QString &cmd, bool specialGif) {
-	if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
+	if (auto m = main()) {
+		return m->insertBotCommand(cmd, specialGif);
+	}
 	return false;
 }
 
@@ -60,7 +63,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
-		sendBotCommand(msg->history()->peer, QString(button->text), replyTo);
+		sendBotCommand(msg->history()->peer, msg->fromOriginal()->asUser(), QString(button->text), replyTo);
 	} break;
 
 	case HistoryMessageReplyMarkup::Button::Callback: {
@@ -136,13 +139,13 @@ void removeDialog(History *history) {
 }
 
 void showSettings() {
-	if (Window *w = wnd()) {
+	if (auto w = wnd()) {
 		w->showSettings();
 	}
 }
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	if (Window *w = wnd()) {
+	if (auto w = wnd()) {
 		qRegisterMetaType<ClickHandlerPtr>();
 		qRegisterMetaType<Qt::MouseButton>();
 		QMetaObject::invokeMethod(w, "app_activateClickHandler", Qt::QueuedConnection, Q_ARG(ClickHandlerPtr, handler), Q_ARG(Qt::MouseButton, button));
@@ -150,7 +153,7 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 }
 
 void logOutDelayed() {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		QMetaObject::invokeMethod(w, "onLogoutSure", Qt::QueuedConnection);
 	}
 }
@@ -160,25 +163,25 @@ void logOutDelayed() {
 namespace Ui {
 
 void showMediaPreview(DocumentData *document) {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		w->ui_showMediaPreview(document);
 	}
 }
 
 void showMediaPreview(PhotoData *photo) {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		w->ui_showMediaPreview(photo);
 	}
 }
 
 void hideMediaPreview() {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		w->ui_hideMediaPreview();
 	}
 }
 
 void showLayer(LayeredWidget *box, ShowLayerOptions options) {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		w->ui_showLayer(box, options);
 	} else {
 		delete box;
@@ -186,16 +189,16 @@ void showLayer(LayeredWidget *box, ShowLayerOptions options) {
 }
 
 void hideLayer(bool fast) {
-	if (Window *w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+	if (auto w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
 }
 
 bool isLayerShown() {
-	if (Window *w = App::wnd()) return w->ui_isLayerShown();
+	if (auto w = App::wnd()) return w->ui_isLayerShown();
 	return false;
 }
 
 bool isMediaViewShown() {
-	if (Window *w = App::wnd()) return w->ui_isMediaViewShown();
+	if (auto w = App::wnd()) return w->ui_isMediaViewShown();
 	return false;
 }
 
@@ -236,7 +239,7 @@ void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
 }
 
 PeerData *getPeerForMouseAction() {
-	if (Window *w = App::wnd()) {
+	if (auto w = App::wnd()) {
 		return w->ui_getPeerForMouseAction();
 	}
 	return nullptr;
@@ -244,7 +247,7 @@ PeerData *getPeerForMouseAction() {
 
 bool hideWindowNoQuit() {
 	if (!App::quitting()) {
-		if (Window *w = App::wnd()) {
+		if (auto w = App::wnd()) {
 			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 				return w->minimizeToTray();
 			} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -325,6 +328,10 @@ void handlePendingHistoryUpdate() {
 		Ui::repaintHistoryItem(item);
 	}
 	Global::RefPendingRepaintItems().clear();
+}
+
+void unreadCounterUpdated() {
+	Global::RefHandleUnreadCounterUpdate().call();
 }
 
 } // namespace Notify
@@ -480,6 +487,7 @@ namespace internal {
 struct Data {
 	uint64 LaunchId = 0;
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
+	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
 
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
@@ -542,6 +550,7 @@ void finish() {
 
 DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
+DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
 
 DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);

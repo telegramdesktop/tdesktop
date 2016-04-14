@@ -20,6 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Overview {
+namespace Layout {
+
+class AbstractItem;
+class ItemBase;
+class Date;
+
+} // namespace Layout
+} // namespace Overview
+
 class OverviewWidget;
 class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender {
 	Q_OBJECT
@@ -148,19 +158,19 @@ private:
 	ChannelId _channel;
 
 	bool _selMode;
-	uint32 itemSelectedValue(int32 index) const;
+	TextSelection itemSelectedValue(int32 index) const;
 
 	int32 _rowsLeft, _rowWidth;
 
-	typedef QVector<LayoutOverviewItemBase*> Items;
+	typedef QVector<Overview::Layout::AbstractItem*> Items;
 	Items _items;
-	typedef QMap<HistoryItem*, LayoutMediaItemBase*> LayoutItems;
+	typedef QMap<HistoryItem*, Overview::Layout::ItemBase*> LayoutItems;
 	LayoutItems _layoutItems;
-	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
+	typedef QMap<int32, Overview::Layout::Date*> LayoutDates;
 	LayoutDates _layoutDates;
-	LayoutMediaItemBase *layoutPrepare(HistoryItem *item);
-	LayoutOverviewItemBase *layoutPrepare(const QDate &date, bool month);
-	int32 setLayoutItem(int32 index, LayoutOverviewItemBase *item, int32 top);
+	Overview::Layout::ItemBase *layoutPrepare(HistoryItem *item);
+	Overview::Layout::AbstractItem *layoutPrepare(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
 	FlatInput _search;
 	IconedButton _cancelSearch;
@@ -199,7 +209,7 @@ private:
 	// selection support, like in HistoryWidget
 	Qt::CursorShape _cursor;
 	HistoryCursorState _cursorState;
-	typedef QMap<MsgId, uint32> SelectedItems;
+	using SelectedItems = QMap<MsgId, TextSelection>;
 	SelectedItems _selected;
 	enum DragAction {
 		NoDrag = 0x00,

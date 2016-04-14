@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "usernamebox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 UsernameBox::UsernameBox() : AbstractBox(st::boxWidth),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),

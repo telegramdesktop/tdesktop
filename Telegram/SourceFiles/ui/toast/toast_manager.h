@@ -34,7 +34,7 @@ public:
 	Manager(const Manager &other) = delete;
 	Manager &operator=(const Manager &other) = delete;
 
-	static Manager *instance();
+	static Manager *instance(QWidget *parent);
 
 	void addToast(std_::unique_ptr<Instance> &&toast);
 
@@ -46,7 +46,7 @@ private slots:
 	void onToastWidgetParentResized();
 
 private:
-	Manager(QObject *parent);
+	Manager(QWidget *parent);
 	void startNextHideTimer();
 
 	SingleTimer _hideTimer;
@@ -55,8 +55,6 @@ private:
 	QMultiMap<uint64, Instance*> _toastByHideTime;
 	QMap<Widget*, Instance*> _toastByWidget;
 	QList<Instance*> _toasts;
-
-	static Manager *_instance;
 
 };
 

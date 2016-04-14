@@ -488,7 +488,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = App::wnd();
+			auto wnd = App::wnd();
 			if (!wnd) return false;
 
 			return false;

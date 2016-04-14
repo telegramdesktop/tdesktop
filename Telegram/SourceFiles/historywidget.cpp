@@ -30,12 +30,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "passcodewidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "fileuploader.h"
 #include "audio.h"
 #include "localstorage.h"
+#include "apiwrap.h"
+#include "window/top_bar_widget.h"
+#include "playerwidget.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -249,11 +252,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.save();
 			p.translate(0, y);
 			if (r.y() < y + item->height()) while (y < drawToY) {
-				uint32 sel = 0;
+				TextSelection sel;
 				if (y >= selfromy && y < seltoy) {
-					sel = (_dragSelecting && !item->serviceMsg() && item->id > 0) ? FullSelection : 0;
+					if (_dragSelecting && !item->serviceMsg() && item->id > 0) {
+						sel = FullSelection;
+					}
 				} else if (hasSel) {
-					SelectedItems::const_iterator i = _selected.constFind(item);
+					auto i = _selected.constFind(item);
 					if (i != selEnd) {
 						sel = i.value();
 					}
@@ -294,11 +299,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			while (y < drawToY) {
 				int32 h = item->height();
 				if (historyRect.y() < y + h && hdrawtop < y + h) {
-					uint32 sel = 0;
+					TextSelection sel;
 					if (y >= selfromy && y < seltoy) {
-						sel = (_dragSelecting && !item->serviceMsg() && item->id > 0) ? FullSelection : 0;
+						if (_dragSelecting && !item->serviceMsg() && item->id > 0) {
+							sel = FullSelection;
+						}
 					} else if (hasSel) {
-						SelectedItems::const_iterator i = _selected.constFind(item);
+						auto i = _selected.constFind(item);
 						if (i != selEnd) {
 							sel = i.value();
 						}
@@ -585,19 +592,20 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		}
 	}
 	if (_dragAction == NoDrag && _dragItem) {
-		bool afterDragSymbol, uponSymbol;
-		uint16 symbol;
+		HistoryTextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
-			_dragItem->getSymbol(symbol, afterDragSymbol, uponSymbol, _dragStartPos.x(), _dragStartPos.y());
-			if (uponSymbol) {
-				uint32 selStatus = (symbol << 16) | symbol;
+			HistoryStateRequest request;
+			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+			if (dragState.cursor == HistoryInTextCursorState) {
+				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 					if (!_selected.isEmpty()) {
 						repaintItem(_selected.cbegin().key());
 						_selected.clear();
 					}
 					_selected.insert(_dragItem, selStatus);
-					_dragSymbol = symbol;
+					_dragSymbol = dragState.symbol;
 					_dragAction = Selecting;
 					_dragSelType = TextSelectParagraphs;
 					dragActionUpdate(_dragPos);
@@ -605,12 +613,14 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				}
 			}
 		} else if (App::pressedItem()) {
-			_dragItem->getSymbol(symbol, afterDragSymbol, uponSymbol, _dragStartPos.x(), _dragStartPos.y());
+			HistoryStateRequest request;
+			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
 		}
 		if (_dragSelType != TextSelectParagraphs) {
 			if (App::pressedItem()) {
-				_dragSymbol = symbol;
-				bool uponSelected = uponSymbol;
+				_dragSymbol = dragState.symbol;
+				bool uponSelected = (dragState.cursor == HistoryInTextCursorState);
 				if (uponSelected) {
 					if (_selected.isEmpty() ||
 						_selected.cbegin().value() == FullSelection ||
@@ -618,7 +628,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 					) {
 						uponSelected = false;
 					} else {
-						uint16 selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
+						uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
 						if (_dragSymbol < selFrom || _dragSymbol >= selTo) {
 							uponSelected = false;
 						}
@@ -630,8 +640,8 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia()) || _dragCursorState == HistoryInDateCursorState) {
 						_dragAction = PrepareDrag; // start sticker drag or by-date drag
 					} else {
-						if (afterDragSymbol) ++_dragSymbol;
-						uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
+						if (dragState.afterSymbol) ++_dragSymbol;
+						TextSelection selStatus = { _dragSymbol, _dragSymbol };
 						if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 							if (!_selected.isEmpty()) {
 								repaintItem(_selected.cbegin().key());
@@ -672,12 +682,13 @@ void HistoryInner::onDragExec() {
 
 	bool uponSelected = false;
 	if (_dragItem) {
-		bool afterDragSymbol;
-		uint16 symbol;
 		if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			uponSelected = _selected.contains(_dragItem);
 		} else {
-			_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
+			HistoryStateRequest request;
+			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			auto dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+			uponSelected = (dragState.cursor == HistoryInTextCursorState);
 			if (uponSelected) {
 				if (_selected.isEmpty() ||
 					_selected.cbegin().value() == FullSelection ||
@@ -685,8 +696,8 @@ void HistoryInner::onDragExec() {
 					) {
 					uponSelected = false;
 				} else {
-					uint16 selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
-					if (symbol < selFrom || symbol >= selTo) {
+					uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
+					if (dragState.symbol < selFrom || dragState.symbol >= selTo) {
 						uponSelected = false;
 					}
 				}
@@ -838,8 +849,8 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 			applyDragSelection();
 			_dragSelFrom = _dragSelTo = 0;
 		} else if (!_selected.isEmpty() && !_dragWasInactive) {
-			uint32 sel = _selected.cbegin().value();
-			if (sel != FullSelection && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
+			auto sel = _selected.cbegin().value();
+			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
 				if (App::wnd()) App::wnd()->setInnerFocus();
 			}
@@ -864,15 +875,15 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 
 	dragActionStart(e->globalPos(), e->button());
 	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection))) && _dragSelType == TextSelectLetters && _dragItem) {
-		bool afterDragSymbol, uponSelected;
-		uint16 symbol;
-		_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
-		if (uponSelected) {
-			_dragSymbol = symbol;
+		HistoryStateRequest request;
+		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		auto dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+		if (dragState.cursor == HistoryInTextCursorState) {
+			_dragSymbol = dragState.symbol;
 			_dragSelType = TextSelectWords;
 			if (_dragAction == NoDrag) {
 				_dragAction = Selecting;
-				uint32 selStatus = (symbol << 16) | symbol;
+				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (!_selected.isEmpty()) {
 					repaintItem(_selected.cbegin().key());
 					_selected.clear();
@@ -912,13 +923,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				isUponSelected = -2;
 			}
 		} else {
-			uint16 symbol, selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
+			uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
 			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
 				QPoint mousePos(mapMouseToItem(mapFromGlobal(_dragPos), App::mousedItem()));
-				bool afterDragSymbol, uponSymbol;
-				App::mousedItem()->getSymbol(symbol, afterDragSymbol, uponSymbol, mousePos.x(), mousePos.y());
-				if (uponSymbol && symbol >= selFrom && symbol < selTo) {
+				HistoryStateRequest request;
+				request.flags |= Text::StateRequest::Flag::LookupSymbol;
+				auto dragState = App::mousedItem()->getState(mousePos.x(), mousePos.y(), request);
+				if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
 					isUponSelected = 1;
 				}
 			}
@@ -1054,7 +1066,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				QString contextMenuText = item->selectedText(FullSelection);
-				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || (msg->getMedia()->type() != MediaTypeSticker && msg->getMedia()->type() != MediaTypeGif))) {
+				if (!contextMenuText.isEmpty() && msg && !msg->getMedia()) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
@@ -1489,7 +1501,7 @@ void HistoryInner::updateSize() {
 
 void HistoryInner::enterEvent(QEvent *e) {
 	dragActionUpdate(QCursor::pos());
-	return QWidget::enterEvent(e);
+//	return QWidget::enterEvent(e);
 }
 
 void HistoryInner::leaveEvent(QEvent *e) {
@@ -1522,6 +1534,7 @@ void HistoryInner::adjustCurrent(int32 y) const {
 }
 
 void HistoryInner::adjustCurrent(int32 y, History *history) const {
+	t_assert(!history->isEmpty());
 	_curHistory = history;
 	if (_curBlock >= history->blocks.size()) {
 		_curBlock = history->blocks.size() - 1;
@@ -1681,57 +1694,13 @@ void HistoryInner::onUpdateSelected() {
 		dragActionCancel();
 	}
 
-	ClickHandlerPtr lnk;
+	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	HistoryCursorState cursorState = HistoryDefaultCursorState;
+	bool selectingText = (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection);
 	if (point.y() < _historyOffset) {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
-			bool inText = false;
-			_botAbout->info->text.getState(lnk, inText, point.x() - _botAbout->rect.left() - st::msgPadding.left(), point.y() - _botAbout->rect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, _botAbout->width);
+			dragState = _botAbout->info->text.getState(point.x() - _botAbout->rect.left() - st::msgPadding.left(), point.y() - _botAbout->rect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, _botAbout->width);
 			lnkhost = _botAbout.get();
-			cursorState = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
-		}
-	} else if (item) {
-		item->getState(lnk, cursorState, m.x(), m.y());
-		lnkhost = item;
-		if (!lnk && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
-			if (HistoryMessage *msg = item->toHistoryMessage()) {
-				if (msg->hasFromPhoto()) {
-					enumerateUserpics([&lnk, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
-						// stop enumeration if the userpic is above our point
-						if (userpicTop + st::msgPhotoSize <= point.y()) {
-							return false;
-						}
-
-						// stop enumeration if we've found a userpic under the cursor
-						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-							lnk = message->from()->openLink();
-							lnkhost = message;
-							return false;
-						}
-						return true;
-					});
-				}
-			}
-		}
-	}
-	bool lnkChanged = ClickHandler::setActive(lnk, lnkhost);
-	if (lnkChanged || cursorState != _dragCursorState) {
-		PopupTooltip::Hide();
-	}
-	if (lnk || cursorState == HistoryInDateCursorState || cursorState == HistoryInForwardedCursorState) {
-		PopupTooltip::Show(1000, this);
-	}
-
-	Qt::CursorShape cur = style::cur_default;
-	if (_dragAction == NoDrag) {
-		_dragCursorState = cursorState;
-		if (lnk) {
-			cur = style::cur_pointer;
-		} else if (_dragCursorState == HistoryInTextCursorState && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
-			cur = style::cur_text;
-		} else if (_dragCursorState == HistoryInDateCursorState) {
-//			cur = style::cur_cross;
 		}
 	} else if (item) {
 		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
@@ -1742,19 +1711,68 @@ void HistoryInner::onUpdateSelected() {
 				_dragAction = Selecting;
 			}
 		}
+
+		HistoryStateRequest request;
 		if (_dragAction == Selecting) {
-			bool canSelectMany = (_history != 0);
-			if (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
-				bool afterSymbol, uponSymbol;
-				uint16 second;
-				_dragItem->getSymbol(second, afterSymbol, uponSymbol, m.x(), m.y());
-				if (afterSymbol && _dragSelType == TextSelectLetters) ++second;
-				uint32 selState = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
+			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		} else {
+			selectingText = false;
+		}
+		dragState = item->getState(m.x(), m.y(), request);
+		lnkhost = item;
+		if (!dragState.link && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->hasFromPhoto()) {
+					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
+						// stop enumeration if the userpic is above our point
+						if (userpicTop + st::msgPhotoSize <= point.y()) {
+							return false;
+						}
+
+						// stop enumeration if we've found a userpic under the cursor
+						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							dragState.link = message->from()->openLink();
+							lnkhost = message;
+							return false;
+						}
+						return true;
+					});
+				}
+			}
+		}
+	}
+	bool lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	if (lnkChanged || dragState.cursor != _dragCursorState) {
+		PopupTooltip::Hide();
+	}
+	if (dragState.link || dragState.cursor == HistoryInDateCursorState || dragState.cursor == HistoryInForwardedCursorState) {
+		PopupTooltip::Show(1000, this);
+	}
+
+	Qt::CursorShape cur = style::cur_default;
+	if (_dragAction == NoDrag) {
+		_dragCursorState = dragState.cursor;
+		if (dragState.link) {
+			cur = style::cur_pointer;
+		} else if (_dragCursorState == HistoryInTextCursorState && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
+			cur = style::cur_text;
+		} else if (_dragCursorState == HistoryInDateCursorState) {
+//			cur = style::cur_cross;
+		}
+	} else if (item) {
+		if (_dragAction == Selecting) {
+			bool canSelectMany = (_history != nullptr);
+			if (selectingText) {
+				uint16 second = dragState.symbol;
+				if (dragState.afterSymbol && _dragSelType == TextSelectLetters) {
+					++second;
+				}
+				auto selState = _dragItem->adjustSelection({ qMin(second, _dragSymbol), qMax(second, _dragSymbol) }, _dragSelType);
 				if (_selected[_dragItem] != selState) {
 					_selected[_dragItem] = selState;
 					repaintItem(_dragItem);
 				}
-				if (!_wasSelectedText && (selState == FullSelection || (selState & 0xFFFF) != ((selState >> 16) & 0xFFFF))) {
+				if (!_wasSelectedText && (selState == FullSelection || selState.from != selState.to)) {
 					_wasSelectedText = true;
 					setFocus();
 				}
@@ -2005,7 +2023,7 @@ QString HistoryInner::tooltipText() const {
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
 			if (HistoryMessageForwarded *fwd = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
-				return fwd->_text.original(0, 0xFFFF, Text::ExpandLinksNone);
+				return fwd->_text.original(AllTextSelection, Text::ExpandLinksNone);
 			}
 		}
 	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {
@@ -2242,8 +2260,7 @@ void BotKeyboard::enterEvent(QEvent *e) {
 }
 
 void BotKeyboard::leaveEvent(QEvent *e) {
-	_lastMousePos = QPoint(-1, -1);
-	updateSelected();
+	clearSelection();
 }
 
 void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
@@ -2257,44 +2274,43 @@ void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
-	if (to && to->definesReplyKeyboard()) {
-		if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
-			return false;
+	if (!to || !to->definesReplyKeyboard()) {
+		if (_wasForMsgId.msg) {
+			_maximizeSize = _singleUse = _forceReply = false;
+			_wasForMsgId = FullMsgId();
+			_impl = nullptr;
+			return true;
 		}
-
-		_wasForMsgId = FullMsgId(to->channelId(), to->id);
-		clearSelection();
-
-		auto markupFlags = to->replyKeyboardFlags();
-		_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-		_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
-		_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
-
-		_impl = nullptr;
-		if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-			if (!markup->rows.isEmpty()) {
-				_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
-			}
-		}
-
-		updateStyle();
-		_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
-		if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-		if (height() != _height) {
-			resize(width(), _height);
-		} else {
-			resizeEvent(0);
-		}
-		return true;
+		return false;
 	}
-	if (_wasForMsgId.msg) {
-		_maximizeSize = _singleUse = _forceReply = false;
-		_wasForMsgId = FullMsgId();
-		clearSelection();
-		_impl = nullptr;
-		return true;
+
+	if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
+		return false;
 	}
-	return false;
+
+	_wasForMsgId = FullMsgId(to->channelId(), to->id);
+
+	auto markupFlags = to->replyKeyboardFlags();
+	_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+	_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
+	_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
+
+	_impl = nullptr;
+	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
+		if (!markup->rows.isEmpty()) {
+			_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
+		}
+	}
+
+	updateStyle();
+	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
+	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
+	if (height() != _height) {
+		resize(width(), _height);
+	} else {
+		resizeEvent(nullptr);
+	}
+	return true;
 }
 
 bool BotKeyboard::hasMarkup() const {
@@ -2333,7 +2349,10 @@ void BotKeyboard::updateStyle(int32 w) {
 
 void BotKeyboard::clearSelection() {
 	if (_impl) {
-		_impl->clearSelection();
+		if (ClickHandler::setActive(ClickHandlerPtr(), this)) {
+			PopupTooltip::Hide();
+			setCursor(style::cur_default);
+		}
 	}
 }
 
@@ -2363,11 +2382,10 @@ void BotKeyboard::updateSelected() {
 	QPoint p(mapFromGlobal(_lastMousePos));
 	int x = rtl() ? st::botKbScroll.width : _st->margin;
 
-	ClickHandlerPtr lnk;
-	_impl->getState(lnk, p.x() - x, p.y() - _st->margin);
-	if (ClickHandler::setActive(lnk, this)) {
+	auto link = _impl->getState(p.x() - x, p.y() - _st->margin);
+	if (ClickHandler::setActive(link, this)) {
 		PopupTooltip::Hide();
-		setCursor(lnk ? style::cur_pointer : style::cur_default);
+		setCursor(link ? style::cur_pointer : style::cur_default);
 	}
 }
 
@@ -2891,7 +2909,7 @@ void HistoryWidget::onStickersUpdated() {
 
 void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 	if (str.at(0) == '/') { // bot command
-		App::sendBotCommand(_peer, str);
+		App::sendBotCommand(_peer, nullptr, str);
 		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
 	} else {
 		_field.onMentionHashtagOrBotCommandInsert(str);
@@ -4835,7 +4853,7 @@ void HistoryWidget::onBotStart() {
 
 	QString token = _peer->asUser()->botInfo->startToken;
 	if (token.isEmpty()) {
-		sendBotCommand(_peer, qsl("/start"), 0);
+		sendBotCommand(_peer, _peer->asUser(), qsl("/start"), 0);
 	} else {
 		uint64 randomId = rand_value<uint64>();
 		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
@@ -5269,14 +5287,15 @@ void HistoryWidget::stopRecording(bool send) {
 	_a_record.start();
 }
 
-void HistoryWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
+void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
 	if (!_peer || _peer != peer) return;
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
-	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
+	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
+		bot = nullptr;
+	}
 	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
@@ -5333,10 +5352,10 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 		if (answerData.has_message()) {
 			if (answerData.is_alert()) {
 				Ui::showLayer(new InformBox(qs(answerData.vmessage)));
-			} else {
+			} else if (App::wnd()) {
 				Ui::Toast::Config toast;
 				toast.text = qs(answerData.vmessage);
-				Ui::Toast::Show(toast);
+				Ui::Toast::Show(App::wnd(), toast);
 			}
 		}
 	}
@@ -5923,6 +5942,7 @@ void HistoryWidget::inlineBotChanged() {
 		_inlineBotCancel = std_::make_unique<IconedButton>(this, st::inlineBotCancel);
 		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send.geometry());
+		_attachEmoji.raise();
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	} else if (!isInlineBot && _inlineBotCancel) {
@@ -8043,7 +8063,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.drawText(left, st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
 		p.setPen((((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
-		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left -_fieldBarCancel.width() - st::msgReplyPadding.right());
+		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel.width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgInDateFg);

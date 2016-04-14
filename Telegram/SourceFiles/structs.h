@@ -1312,3 +1312,65 @@ struct MessageCursor {
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
 	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
 }
+
+struct LocationCoords {
+	LocationCoords() : lat(0), lon(0) {
+	}
+	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	}
+	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+	}
+	float64 lat, lon;
+};
+inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat == b.lat) && (a.lon == b.lon);
+}
+inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
+}
+inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	uint h1 = qHash(t.lat, seed);
+	uint h2 = qHash(t.lon, seed);
+	return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
+}
+
+struct LocationData {
+	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
+	}
+
+	LocationCoords coords;
+	ImagePtr thumb;
+	bool loading;
+
+	void load();
+};
+
+class LocationClickHandler : public ClickHandler {
+public:
+	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
+		setup();
+	}
+	QString copyToClipboardContextItem() const override;
+
+	void copyToClipboard() const override {
+		if (!_text.isEmpty()) {
+			QApplication::clipboard()->setText(_text);
+		}
+	}
+
+	QString tooltip() const override {
+		return QString();
+	}
+
+	QString text() const override {
+		return _text;
+	}
+	void onClick(Qt::MouseButton button) const override;
+
+private:
+
+	void setup();
+	LocationCoords _coords;
+	QString _text;
+
+};

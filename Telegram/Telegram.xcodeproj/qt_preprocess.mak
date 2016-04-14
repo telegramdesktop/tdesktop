@@ -52,11 +52,12 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
-	 GeneratedFiles/Debug/moc_window.cpp\
+	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_facade.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
@@ -177,11 +178,12 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
-	 GeneratedFiles/Debug/moc_window.cpp\
+	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_facade.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
@@ -245,11 +247,12 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
+	 GeneratedFiles/Debug/moc_top_bar_widget.cpp\
 	 GeneratedFiles/Debug/moc_settingswidget.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
-	 GeneratedFiles/Debug/moc_window.cpp\
+	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_facade.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
@@ -294,7 +297,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_intropwdcheck.cpp\
 	 GeneratedFiles/Debug/moc_introsignup.cpp\
 	 GeneratedFiles/Debug/moc_pspecific_mac.cpp
-GeneratedFiles/Debug/moc_apiwrap.cpp: SourceFiles/basic_types.h \
+GeneratedFiles/Debug/moc_apiwrap.cpp: SourceFiles/core/basic_types.h \
 		SourceFiles/logs.h \
 		SourceFiles/apiwrap.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/apiwrap.h -o GeneratedFiles/Debug/moc_apiwrap.cpp
@@ -302,12 +305,12 @@ GeneratedFiles/Debug/moc_apiwrap.cpp: SourceFiles/basic_types.h \
 GeneratedFiles/Debug/moc_application.cpp: ../../Libraries/QtStatic/qtbase/include/QtNetwork/QLocalSocket \
 		../../Libraries/QtStatic/qtbase/include/QtNetwork/QLocalServer \
 		../../Libraries/QtStatic/qtbase/include/QtNetwork/QNetworkReply \
-		SourceFiles/window.h \
+		SourceFiles/mainwindow.h \
 		SourceFiles/title.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		SourceFiles/sysbuttons.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -323,7 +326,7 @@ GeneratedFiles/Debug/moc_application.cpp: ../../Libraries/QtStatic/qtbase/includ
 		SourceFiles/application.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/application.h -o GeneratedFiles/Debug/moc_application.cpp
 
-GeneratedFiles/Debug/moc_audio.cpp: SourceFiles/basic_types.h \
+GeneratedFiles/Debug/moc_audio.cpp: SourceFiles/core/basic_types.h \
 		SourceFiles/audio.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
@@ -331,7 +334,7 @@ GeneratedFiles/Debug/moc_audio.cpp: SourceFiles/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/audio.h -o GeneratedFiles/Debug/moc_audio.cpp
 
-GeneratedFiles/Debug/moc_autoupdater.cpp: SourceFiles/basic_types.h \
+GeneratedFiles/Debug/moc_autoupdater.cpp: SourceFiles/core/basic_types.h \
 		SourceFiles/autoupdater.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
@@ -387,29 +390,14 @@ GeneratedFiles/Debug/moc_localimageloader.cpp: SourceFiles/localimageloader.h
 GeneratedFiles/Debug/moc_localstorage.cpp: SourceFiles/localstorage.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/localstorage.h -o GeneratedFiles/Debug/moc_localstorage.cpp
 
-GeneratedFiles/Debug/moc_mainwidget.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
-		SourceFiles/ui/flatbutton.h \
-		SourceFiles/ui/button.h \
-		SourceFiles/ui/twidget.h \
-		SourceFiles/ui/flatcheckbox.h \
-		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
-		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
-		SourceFiles/logs.h \
-		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
-		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
-		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
-		SourceFiles/dialogswidget.h \
-		SourceFiles/historywidget.h \
-		SourceFiles/localimageloader.h \
-		SourceFiles/ui/boxshadow.h \
-		SourceFiles/dropdown.h \
-		SourceFiles/overviewwidget.h \
-		SourceFiles/profilewidget.h \
+GeneratedFiles/Debug/moc_mainwidget.cpp: SourceFiles/localimageloader.h \
+		SourceFiles/history/history_common.h \
 		SourceFiles/mainwidget.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mainwidget.h -o GeneratedFiles/Debug/moc_mainwidget.cpp
+
+GeneratedFiles/Debug/moc_top_bar_widget.cpp: SourceFiles/ui/twidget.h \
+		SourceFiles/window/top_bar_widget.h
+	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/window/top_bar_widget.h -o GeneratedFiles/Debug/moc_top_bar_widget.cpp
 
 GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/ui/flatbutton.h \
 		SourceFiles/ui/button.h \
@@ -417,7 +405,7 @@ GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/ui/flatbutton.h \
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -431,7 +419,7 @@ GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/ui/flatbutton.h \
 
 GeneratedFiles/Debug/moc_sysbuttons.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -445,7 +433,7 @@ GeneratedFiles/Debug/moc_sysbuttons.cpp: ../../Libraries/QtStatic/qtbase/include
 GeneratedFiles/Debug/moc_title.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		SourceFiles/sysbuttons.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -455,18 +443,18 @@ GeneratedFiles/Debug/moc_title.cpp: ../../Libraries/QtStatic/qtbase/include/QtWi
 		SourceFiles/title.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/title.h -o GeneratedFiles/Debug/moc_title.cpp
 
-GeneratedFiles/Debug/moc_basic_types.cpp: SourceFiles/basic_types.h \
+GeneratedFiles/Debug/moc_basic_types.cpp: SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer
-	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/basic_types.h -o GeneratedFiles/Debug/moc_basic_types.cpp
+	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/core/basic_types.h -o GeneratedFiles/Debug/moc_basic_types.cpp
 
-GeneratedFiles/Debug/moc_window.cpp: SourceFiles/title.h \
+GeneratedFiles/Debug/moc_mainwindow.cpp: SourceFiles/title.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		SourceFiles/sysbuttons.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -481,8 +469,8 @@ GeneratedFiles/Debug/moc_window.cpp: SourceFiles/title.h \
 		SourceFiles/pspecific_winrt.h \
 		SourceFiles/passcodewidget.h \
 		SourceFiles/ui/boxshadow.h \
-		SourceFiles/window.h
-	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/window.h -o GeneratedFiles/Debug/moc_window.cpp
+		SourceFiles/mainwindow.h
+	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mainwindow.h -o GeneratedFiles/Debug/moc_mainwindow.cpp
 
 GeneratedFiles/Debug/moc_facade.cpp: SourceFiles/mtproto/session.h \
 		SourceFiles/mtproto/connection.h \
@@ -491,7 +479,7 @@ GeneratedFiles/Debug/moc_facade.cpp: SourceFiles/mtproto/session.h \
 		SourceFiles/mtproto/connection_http.h \
 		SourceFiles/mtproto/connection_tcp.h \
 		SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -504,7 +492,7 @@ GeneratedFiles/Debug/moc_facade.cpp: SourceFiles/mtproto/session.h \
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/facade.h -o GeneratedFiles/Debug/moc_facade.cpp
 
 GeneratedFiles/Debug/moc_connection.cpp: SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -514,7 +502,7 @@ GeneratedFiles/Debug/moc_connection.cpp: SourceFiles/mtproto/core_types.h \
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/connection.h -o GeneratedFiles/Debug/moc_connection.cpp
 
 GeneratedFiles/Debug/moc_connection_abstract.cpp: SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -524,7 +512,7 @@ GeneratedFiles/Debug/moc_connection_abstract.cpp: SourceFiles/mtproto/core_types
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/connection_abstract.h -o GeneratedFiles/Debug/moc_connection_abstract.cpp
 
 GeneratedFiles/Debug/moc_connection_auto.cpp: SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -534,7 +522,7 @@ GeneratedFiles/Debug/moc_connection_auto.cpp: SourceFiles/mtproto/core_types.h \
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/connection_auto.h -o GeneratedFiles/Debug/moc_connection_auto.cpp
 
 GeneratedFiles/Debug/moc_connection_http.cpp: SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -544,7 +532,7 @@ GeneratedFiles/Debug/moc_connection_http.cpp: SourceFiles/mtproto/core_types.h \
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/connection_http.h -o GeneratedFiles/Debug/moc_connection_http.cpp
 
 GeneratedFiles/Debug/moc_connection_tcp.cpp: SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -565,7 +553,7 @@ GeneratedFiles/Debug/moc_session.cpp: SourceFiles/mtproto/connection.h \
 		SourceFiles/mtproto/connection_http.h \
 		SourceFiles/mtproto/connection_tcp.h \
 		SourceFiles/mtproto/core_types.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/scheme_auto.h \
@@ -576,7 +564,7 @@ GeneratedFiles/Debug/moc_session.cpp: SourceFiles/mtproto/connection.h \
 		SourceFiles/mtproto/session.h
 	/usr/local/Qt-5.3.2/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.3.2/mkspecs/macx-clang -I. -I/usr/local/Qt-5.3.2/include/QtGui/5.3.2/QtGui -I/usr/local/Qt-5.3.2/include/QtCore/5.3.2/QtCore -I/usr/local/Qt-5.3.2/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.3.2/include -I/usr/local/Qt-5.3.2/include/QtMultimedia -I/usr/local/Qt-5.3.2/include/QtWidgets -I/usr/local/Qt-5.3.2/include/QtNetwork -I/usr/local/Qt-5.3.2/include/QtGui -I/usr/local/Qt-5.3.2/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/session.h -o GeneratedFiles/Debug/moc_session.cpp
 
-GeneratedFiles/Debug/moc_animation.cpp: SourceFiles/basic_types.h \
+GeneratedFiles/Debug/moc_animation.cpp: SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -604,7 +592,7 @@ GeneratedFiles/Debug/moc_countryinput.cpp: ../../Libraries/QtStatic/qtbase/inclu
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -624,7 +612,7 @@ GeneratedFiles/Debug/moc_flatbutton.cpp: SourceFiles/ui/button.h \
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -646,7 +634,7 @@ GeneratedFiles/Debug/moc_flatinput.cpp: ../../Libraries/QtStatic/qtbase/include/
 		GeneratedFiles/style_classes.h \
 		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -665,7 +653,7 @@ GeneratedFiles/Debug/moc_flattextarea.cpp: ../../Libraries/QtStatic/qtbase/inclu
 		GeneratedFiles/style_classes.h \
 		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -721,7 +709,7 @@ GeneratedFiles/Debug/moc_connectionbox.cpp: SourceFiles/boxes/abstractbox.h \
 		GeneratedFiles/style_classes.h \
 		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -742,7 +730,7 @@ GeneratedFiles/Debug/moc_downloadpathbox.cpp: SourceFiles/boxes/abstractbox.h \
 		GeneratedFiles/style_classes.h \
 		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -799,7 +787,7 @@ GeneratedFiles/Debug/moc_introwidget.cpp: ../../Libraries/QtStatic/qtbase/includ
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -816,7 +804,7 @@ GeneratedFiles/Debug/moc_introcode.cpp: ../../Libraries/QtStatic/qtbase/include/
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -836,7 +824,7 @@ GeneratedFiles/Debug/moc_introphone.cpp: ../../Libraries/QtStatic/qtbase/include
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -860,7 +848,7 @@ GeneratedFiles/Debug/moc_intropwdcheck.cpp: ../../Libraries/QtStatic/qtbase/incl
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
@@ -884,7 +872,7 @@ GeneratedFiles/Debug/moc_introsignup.cpp: ../../Libraries/QtStatic/qtbase/includ
 		SourceFiles/ui/twidget.h \
 		SourceFiles/ui/flatcheckbox.h \
 		SourceFiles/ui/animation.h \
-		SourceFiles/basic_types.h \
+		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
