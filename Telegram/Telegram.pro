@@ -339,6 +339,15 @@ CONFIG(release, debug|release) {
     QMAKE_LFLAGS_RELEASE -= -O1
     QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic
 }
+# Linux 32bit fails Release link with Link-Time Optimization: virtual memory exhausted
+unix {
+    !contains(QMAKE_TARGET.arch, x86_64) {
+        CONFIG(release, debug|release) {
+            QMAKE_CXXFLAGS_RELEASE -= -flto
+            QMAKE_LFLAGS_RELEASE -= -flto
+        }
+    }
+}
 CONFIG(debug, debug|release) {
 	QMAKE_LFLAGS_DEBUG += -g -rdynamic
 }
