@@ -1591,7 +1591,7 @@ public:
 				if (_wLeft < si.width) {
 					lineText = lineText.mid(0, currentBlock->from() - _localFrom) + _Elide;
 					lineLength = currentBlock->from() + _Elide.size() - _lineStart;
-					_selection.to = std::min({ _selection.to, currentBlock->from() });
+					_selection.to = _selection.to = qMin(_selection.to, currentBlock->from());
 					setElideBidi(currentBlock->from(), _Elide.size());
 					elideSaveBlock(blockIndex - 1, _endBlock, currentBlock->from(), elideWidth);
 					return;
@@ -1623,7 +1623,7 @@ public:
 						if (lineText.size() <= pos || repeat > 3) {
 							lineText += _Elide;
 							lineLength = _localFrom + pos + _Elide.size() - _lineStart;
-							_selection.to = std::min({ _selection.to, uint16(_localFrom + pos) });
+							_selection.to = qMin(_selection.to, uint16(_localFrom + pos));
 							setElideBidi(_localFrom + pos, _Elide.size());
 							_blocksSize = blockIndex;
 							_endBlock = nextBlock;
@@ -1643,7 +1643,7 @@ public:
 		}
 
 		int32 elideStart = _localFrom + lineText.size();
-		_selection.to = std::min({ _selection.to, uint16(elideStart) });
+		_selection.to = qMin(_selection.to, uint16(elideStart));
 		setElideBidi(elideStart, _Elide.size());
 
 		lineText += _Elide;
