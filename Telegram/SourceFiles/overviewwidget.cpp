@@ -21,14 +21,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "lang.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "overviewwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "application.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
+#include "playerwidget.h"
+#include "window/top_bar_widget.h"
+#include "overview/overview_layout.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -214,7 +217,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		const QVector<MTPMessage> *messages = 0;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			const MTPDmessages_messages &d(result.c_messages_messages());
+			const auto &d(result.c_messages_messages());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -222,7 +225,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+			const auto &d(result.c_messages_messagesSlice());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -230,7 +233,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			const auto &d(result.c_messages_channelMessages());
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -286,7 +289,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 }
 
 bool OverviewInner::searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;
@@ -333,7 +336,7 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 	}
 
 	index += delta;
-	while (index >= 0 && index < _items.size() && !_items.at(index)->toLayoutMediaItem()) {
+	while (index >= 0 && index < _items.size() && !_items.at(index)->toMediaItem()) {
 		index += (delta > 0) ? 1 : -1;
 	}
 	if (index < 0 || index >= _items.size()) {
@@ -354,7 +357,7 @@ void OverviewInner::repaintItem(MsgId itemId, int32 itemIndex) {
 			int32 row = (_photosToAdd + shownAtIndex) / _photosInRow, col = (_photosToAdd + shownAtIndex) % _photosInRow;
 			update(int32(col * w), _marginTop + int32(row * vsize), qCeil(w), vsize);
 		} else {
-			int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
+			int32 top = _items.at(itemIndex)->Get<Overview::Layout::Info>()->top;
 			if (_reversed) top = _height - top;
 			update(_rowsLeft, _marginTop + top, _rowWidth, _items.at(itemIndex)->height());
 		}
@@ -474,12 +477,7 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	dragActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
-	if (textlnkDown() != textlnkOver()) {
-		repaintItem(App::pressedLinkItem());
-		textlnkDown(textlnkOver());
-		App::pressedLinkItem(App::hoveredLinkItem());
-		repaintItem(App::pressedLinkItem());
-	}
+	ClickHandler::pressed();
 
 	_dragAction = NoDrag;
 	_dragItem = _mousedItem;
@@ -487,11 +485,11 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	_dragStartPos = mapMouseToItem(mapFromGlobal(screenPos), _dragItem, _dragItemIndex);
 	_dragWasInactive = App::wnd()->inactivePress();
 	if (_dragWasInactive) App::wnd()->inactivePress(false);
-	if (textlnkDown() && _selected.isEmpty()) {
+	if (ClickHandler::getPressed() && _selected.isEmpty()) {
 		_dragAction = PrepareDrag;
 	} else if (!_selected.isEmpty()) {
 		if (_selected.cbegin().value() == FullSelection) {
-			if (_selected.constFind(_dragItem) != _selected.cend() && textlnkDown()) {
+			if (_selected.constFind(_dragItem) != _selected.cend() && ClickHandler::getPressed()) {
 				_dragAction = PrepareDrag; // start items drag
 			} else {
 				_dragAction = PrepareSelect; // start items select
@@ -499,27 +497,8 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (_dragAction == NoDrag && _dragItem) {
-		bool afterDragSymbol = false , uponSymbol = false;
-		uint16 symbol = 0;
 		if (!_dragWasInactive) {
-			if (textlnkDown()) {
-				_dragSymbol = symbol;
-				uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
-				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
-					if (!_selected.isEmpty()) {
-						repaintItem(_selected.cbegin().key(), -1);
-						_selected.clear();
-					}
-					_selected.insert(_dragItem, selStatus);
-					_dragAction = Selecting;
-					repaintItem(_dragItem, _dragItemIndex);
-					_overview->updateTopBarSelection();
-				} else {
-					_dragAction = PrepareSelect;
-				}
-			} else {
-				_dragAction = PrepareSelect; // start items select
-			}
+			_dragAction = PrepareSelect;
 		}
 	}
 
@@ -541,31 +520,22 @@ void OverviewInner::dragActionCancel() {
 }
 
 void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
-	TextLinkPtr needClick;
-
 	dragActionUpdate(screenPos);
 
-	if (textlnkOver()) {
-		if (textlnkDown() == textlnkOver() && _dragAction != Dragging && !_selMode) {
-			needClick = textlnkDown();
-		}
+	ClickHandlerPtr activated = ClickHandler::unpressed();
+	if (_dragAction == Dragging || _selMode) {
+		activated.clear();
 	}
-	if (textlnkDown()) {
-		repaintItem(App::pressedLinkItem());
-		textlnkDown(TextLinkPtr());
-		App::pressedLinkItem(0);
-		if (!textlnkOver() && _cursor != style::cur_default) {
-			_cursor = style::cur_default;
-			setCursor(_cursor);
-		}
+	if (!ClickHandler::getActive() && _cursor != style::cur_default) {
+		_cursor = style::cur_default;
+		setCursor(_cursor);
 	}
-	if (needClick) {
-		DEBUG_LOG(("Will click link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
+	if (activated) {
 		dragActionCancel();
-		App::activateTextLink(needClick, button);
+		App::activateClickHandler(activated, button);
 		return;
 	}
-	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
+	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i == _selected.cend() && itemMsgId(_dragItem) > 0) {
 			if (_selected.size() < MaxSelectedItems) {
@@ -578,7 +548,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 			_selected.erase(i);
 		}
 		repaintItem(_dragItem, _dragItemIndex);
-	} else if (_dragAction == PrepareDrag && !needClick && !_dragWasInactive && button != Qt::RightButton) {
+	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullSelection) {
 			_selected.erase(i);
@@ -596,8 +566,8 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		if (_dragSelFrom && _dragSelTo) {
 			applyDragSelection();
 		} else if (!_selected.isEmpty() && !_dragWasInactive) {
-			uint32 sel = _selected.cbegin().value();
-			if (sel != FullSelection && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
+			auto sel = _selected.cbegin().value();
+			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
 				App::main()->activate();
 			}
@@ -619,16 +589,17 @@ void OverviewInner::onDragExec() {
 			uponSelected = false;
 		}
 	}
+	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
 	QString sel;
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
 		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn();
-	} else if (textlnkDown()) {
-		sel = textlnkDown()->encoded();
-		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-//			urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-		}
+	} else if (pressedHandler) {
+		sel = pressedHandler->dragText();
+		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
+		//}
 	}
 	if (!sel.isEmpty() || forwardSelected) {
 		updateDragSelection(0, -1, 0, -1, false);
@@ -647,19 +618,22 @@ void OverviewInner::onDragExec() {
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
-		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
-		QLatin1String lnkType = (textlnkDown() && pressedLnkItem) ? textlnkDown()->type() : qstr("");
-		bool lnkPhoto = (lnkType == qstr("PhotoLink")),
-			lnkVideo = (lnkType == qstr("VideoOpenLink")),
-			lnkAudio = (lnkType == qstr("AudioOpenLink")),
-			lnkDocument = (lnkType == qstr("DocumentOpenLink") || lnkType == qstr("GifOpenLink"));
-		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
+		QString forwardMimeType;
+		HistoryMedia *pressedMedia = nullptr;
+		if (HistoryItem *pressedLnkItem = App::pressedLinkItem()) {
+			if ((pressedMedia = pressedLnkItem->getMedia())) {
+				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
+					forwardMimeType = qsl("application/x-td-forward-pressed-link");
+				}
+			}
+		}
+		if (!forwardMimeType.isEmpty()) {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
 			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
-			if (lnkDocument) {
-				QString filepath = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->filepath(DocumentData::FilePathResolveChecked);
+			if (DocumentData *document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
+				QString filepath = document->filepath(DocumentData::FilePathResolveChecked);
 				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
 					urls.push_back(QUrl::fromLocalFile(filepath));
@@ -727,7 +701,7 @@ QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
 		p.setX(p.x() - int32(col * w) - st::overviewPhotoSkip);
 		p.setY(p.y() - _marginTop - row * (_rowWidth + st::overviewPhotoSkip) - st::overviewPhotoSkip);
 	} else {
-		int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
+		int32 top = _items.at(itemIndex)->Get<Overview::Layout::Info>()->top;
 		if (_reversed) top = _height - top;
 		p.setY(p.y() - _marginTop - top);
 	}
@@ -763,7 +737,7 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 		int32 itemIndex = -1;
 		fixItemIndex(itemIndex, (msgId.channel == _channel) ? msgId.msg : ((_migrated && msgId.channel == _migrated->channelId()) ? -msgId.msg : 0));
 		if (itemIndex >= 0) {
-			int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
+			int32 top = _items.at(itemIndex)->Get<Overview::Layout::Info>()->top;
 			if (_reversed) top = _height - top;
 			return _marginTop + top;
 		}
@@ -808,15 +782,15 @@ bool OverviewInner::preloadLocal() {
 	return true;
 }
 
-uint32 OverviewInner::itemSelectedValue(int32 index) const {
+TextSelection OverviewInner::itemSelectedValue(int32 index) const {
 	int32 selfrom = -1, selto = -1;
 	if (_dragSelFromIndex >= 0 && _dragSelToIndex >= 0) {
 		selfrom = _dragSelToIndex;
 		selto = _dragSelFromIndex;
 	}
-	if (_items.at(index)->toLayoutMediaItem()) { // draw item
+	if (_items.at(index)->toMediaItem()) { // draw item
 		if (index >= _dragSelToIndex && index <= _dragSelFromIndex && _dragSelToIndex >= 0) {
-			return (_dragSelecting && _items.at(index)->msgId() > 0) ? FullSelection : 0;
+			return (_dragSelecting && _items.at(index)->msgId() > 0) ? FullSelection : TextSelection{ 0, 0 };
 		} else if (!_selected.isEmpty()) {
 			SelectedItems::const_iterator j = _selected.constFind(complexMsgId(_items.at(index)->getItem()));
 			if (j != _selected.cend()) {
@@ -824,7 +798,7 @@ uint32 OverviewInner::itemSelectedValue(int32 index) const {
 			}
 		}
 	}
-	return 0;
+	return { 0, 0 };
 }
 
 void OverviewInner::paintEvent(QPaintEvent *e) {
@@ -838,7 +812,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		p.setClipRect(r);
 	}
 	uint64 ms = getms();
-	OverviewPaintContext context(ms, _selMode);
+	Overview::Layout::PaintContext context(ms, _selMode);
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
@@ -883,15 +857,15 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		int32 y = 0, w = _rowWidth;
 		for (int32 j = 0, l = _items.size(); j < l; ++j) {
 			int32 i = _reversed ? (l - j - 1) : j, nexti = _reversed ? (i - 1) : (i + 1);
-			int32 nextItemTop = (j + 1 == l) ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<OverviewItemInfo>()->top();
+			int32 nextItemTop = (j + 1 == l) ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<Overview::Layout::Info>()->top;
 			if (_reversed) nextItemTop = _height - nextItemTop;
 			if (_marginTop + nextItemTop > r.top()) {
-				OverviewItemInfo *info = _items.at(i)->Get<OverviewItemInfo>();
-				int32 curY = info->top();
+				auto info = _items.at(i)->Get<Overview::Layout::Info>();
+				int32 curY = info->top;
 				if (_reversed) curY = _height - curY;
 				if (_marginTop + curY >= r.y() + r.height()) break;
 
-				context.isAfterDate = (j > 0) ? !_items.at(j - 1)->toLayoutMediaItem() : false;
+				context.isAfterDate = (j > 0) ? !_items.at(j - 1)->toMediaItem() : false;
 				p.translate(0, curY - y);
 				_items.at(i)->paint(p, r.translated(-_rowsLeft, -_marginTop - curY), itemSelectedValue(i), &context);
 				y = curY;
@@ -901,7 +875,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 }
 
 void OverviewInner::mouseMoveEvent(QMouseEvent *e) {
-	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && (textlnkDown() || _dragAction != NoDrag)) {
+	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && _dragAction != NoDrag) {
 		mouseReleaseEvent(e);
 	}
 	dragActionUpdate(e->globalPos());
@@ -913,7 +887,8 @@ void OverviewInner::onUpdateSelected() {
 	QPoint mousePos(mapFromGlobal(_dragPos));
 	QPoint m(_overview->clampMousePosition(mousePos));
 
-	TextLinkPtr lnk;
+	ClickHandlerPtr lnk;
+	ClickHandlerHost *lnkhost = nullptr;
 	HistoryItem *item = 0;
 	int32 index = -1;
 	int32 newsel = 0;
@@ -936,11 +911,12 @@ void OverviewInner::onUpdateSelected() {
 			upon = false;
 		}
 		if (i >= 0) {
-			if (LayoutMediaItem *media = _items.at(i)->toLayoutMediaItem()) {
+			if (auto media = _items.at(i)->toMediaItem()) {
 				item = media->getItem();
 				index = i;
 				if (upon) {
 					media->getState(lnk, cursorState, m.x() - col * w - st::overviewPhotoSkip, m.y() - _marginTop - row * vsize - st::overviewPhotoSkip);
+					lnkhost = media;
 				}
 			}
 		}
@@ -948,23 +924,23 @@ void OverviewInner::onUpdateSelected() {
 		for (int32 j = 0, l = _items.size(); j < l; ++j) {
 			bool lastItem = (j + 1 == l);
 			int32 i = _reversed ? (l - j - 1) : j, nexti = _reversed ? (i - 1) : (i + 1);
-			int32 nextItemTop = lastItem ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<OverviewItemInfo>()->top();
+			int32 nextItemTop = lastItem ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<Overview::Layout::Info>()->top;
 			if (_reversed) nextItemTop = _height - nextItemTop;
 			if (_marginTop + nextItemTop > m.y() || lastItem) {
-				int32 top = _items.at(i)->Get<OverviewItemInfo>()->top();
+				int32 top = _items.at(i)->Get<Overview::Layout::Info>()->top;
 				if (_reversed) top = _height - top;
-				if (!_items.at(i)->toLayoutMediaItem()) { // day item
+				if (!_items.at(i)->toMediaItem()) { // day item
 					int32 h = _items.at(i)->height();
 					bool beforeItem = (_marginTop + top + h / 2) >= m.y();
 					if (_reversed) beforeItem = !beforeItem;
 					if (i > 0 && (beforeItem || i == _items.size() - 1)) {
 						--i;
-						if (!_items.at(i)->toLayoutMediaItem()) break; // wtf
-						top = _items.at(i)->Get<OverviewItemInfo>()->top();
+						if (!_items.at(i)->toMediaItem()) break; // wtf
+						top = _items.at(i)->Get<Overview::Layout::Info>()->top;
 					} else if (i < _items.size() - 1 && (!beforeItem || !i)) {
 						++i;
-						if (!_items.at(i)->toLayoutMediaItem()) break; // wtf
-						top = _items.at(i)->Get<OverviewItemInfo>()->top();
+						if (!_items.at(i)->toMediaItem()) break; // wtf
+						top = _items.at(i)->Get<Overview::Layout::Info>()->top;
 					} else {
 						break; // wtf
 					}
@@ -972,10 +948,11 @@ void OverviewInner::onUpdateSelected() {
 					j = _reversed ? (l - i - 1) : i;
 				}
 
-				if (LayoutMediaItem *media = _items.at(i)->toLayoutMediaItem()) {
+				if (auto media = _items.at(i)->toMediaItem()) {
 					item = media->getItem();
 					index = i;
 					media->getState(lnk, cursorState, m.x() - _rowsLeft, m.y() - _marginTop - top);
+					lnkhost = media;
 				}
 				break;
 			}
@@ -989,37 +966,15 @@ void OverviewInner::onUpdateSelected() {
 	m = mapMouseToItem(m, _mousedItem, _mousedItemIndex);
 
 	Qt::CursorShape cur = style::cur_default;
-	bool lnkChanged = false;
-	if (lnk != textlnkOver()) {
-		lnkChanged = true;
-		if (textlnkOver()) {
-			if (HistoryItem *item = App::hoveredLinkItem()) {
-				MsgId itemId = complexMsgId(item);
-				int32 itemIndex = oldMousedItemIndex;
-				fixItemIndex(itemIndex, itemId);
-				if (itemIndex >= 0) {
-					_items.at(itemIndex)->linkOut(textlnkOver());
-					repaintItem(itemId, itemIndex);
-				}
-			}
-		}
-		textlnkOver(lnk);
+	bool lnkChanged = ClickHandler::setActive(lnk, lnkhost);
+	if (lnkChanged) {
 		PopupTooltip::Hide();
-		App::hoveredLinkItem(lnk ? item : 0);
-		if (textlnkOver()) {
-			if (item && index >= 0) {
-				_items.at(index)->linkOver(textlnkOver());
-				repaintItem(complexMsgId(item), index);
-			}
-		}
-	} else {
-		App::mousedItem(item);
 	}
+	App::mousedItem(item);
 	if (_mousedItem != oldMousedItem) {
-		lnkChanged = true;
+		PopupTooltip::Hide();
 		if (oldMousedItem) repaintItem(oldMousedItem, oldMousedItemIndex);
 		if (item) repaintItem(item);
-		PopupTooltip::Hide();
 	}
 	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
 		PopupTooltip::Hide();
@@ -1050,13 +1005,12 @@ void OverviewInner::onUpdateSelected() {
 				_dragAction = Selecting;
 			}
 		}
-		cur = textlnkDown() ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
 			bool canSelectMany = (_peer != 0);
 			if (_mousedItem == _dragItem && lnk && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 				bool afterSymbol = false, uponSymbol = false;
 				uint16 second = 0;
-				_selected[_dragItem] = 0;
+				_selected[_dragItem] = { 0, 0 };
 				updateDragSelection(0, -1, 0, -1, false);
 			} else if (canSelectMany) {
 				bool selectingDown = (_reversed ? (_mousedItemIndex < _dragItemIndex) : (_mousedItemIndex > _dragItemIndex)) || (_mousedItemIndex == _dragItemIndex && ((_type == OverviewPhotos || _type == OverviewVideos) ? (_dragStartPos.x() < m.x()) : (_dragStartPos.y() < m.y())));
@@ -1123,7 +1077,7 @@ void OverviewInner::onUpdateSelected() {
 		} else if (_dragAction == Dragging) {
 		}
 
-		if (textlnkDown()) {
+		if (ClickHandler::getPressed()) {
 			cur = style::cur_pointer;
 		} else if (_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 			if (!_dragSelFrom || !_dragSelTo) {
@@ -1148,13 +1102,12 @@ QPoint OverviewInner::tooltipPos() const {
 }
 
 QString OverviewInner::tooltipText() const {
-	TextLinkPtr lnk = textlnkOver();
-	if (lnk && !lnk->fullDisplayed()) {
-		return lnk->readable();
-	} else if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
+	if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
 		if (HistoryItem *item = App::histItemById(itemChannel(_mousedItem), itemMsgId(_mousedItem))) {
 			return item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 		}
+	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {
+		return lnk->tooltip();
 	}
 	return QString();
 }
@@ -1208,14 +1161,10 @@ void OverviewInner::leaveEvent(QEvent *e) {
 		repaintItem(_selectedMsgId, -1);
 		_selectedMsgId = 0;
 	}
-	if (textlnkOver()) {
-		repaintItem(App::hoveredLinkItem());
-		textlnkOver(TextLinkPtr());
-		App::hoveredLinkItem(0);
-		if (!textlnkDown() && _cursor != style::cur_default) {
-			_cursor = style::cur_default;
-			setCursor(_cursor);
-		}
+	ClickHandler::clearActive();
+	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
+		_cursor = style::cur_default;
+		setCursor(_cursor);
 	}
 	return QWidget::leaveEvent(e);
 }
@@ -1264,9 +1213,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_contextMenuLnk = textlnkOver();
-	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
+	_contextMenuLnk = ClickHandler::getActive();
+	PhotoClickHandler *lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLnk.data());
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
 	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
 	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
@@ -1310,16 +1259,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_menu = new PopupMenu();
-		QLatin1String linktype = _contextMenuLnk ? _contextMenuLnk->type() : qstr("");
-		if (linktype == qstr("TextLink") || linktype == qstr("LocationLink")) {
-			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("EmailLink")) {
-			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("MentionLink")) {
-			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("HashtagLink")) {
-			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else {
+		QString copyToClipboardContextItem = _contextMenuLnk ? _contextMenuLnk->copyToClipboardContextItem() : QString();
+		if (!copyToClipboardContextItem.isEmpty()) {
+			_menu->addAction(copyToClipboardContextItem, this, SLOT(copyContextUrl()))->setEnabled(true);
 		}
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
@@ -1386,7 +1328,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
 			int32 h = _items.at(i)->resizeGetHeight(_rowWidth);
 			if (resize) {
-				_items.at(i)->Get<OverviewItemInfo>()->setTop(_height + (_reversed ? h : 0));
+				_items.at(i)->Get<Overview::Layout::Info>()->top = _height + (_reversed ? h : 0);
 				_height += h;
 			}
 		}
@@ -1447,9 +1389,8 @@ void OverviewInner::setSelectMode(bool enabled) {
 }
 
 void OverviewInner::copyContextUrl() {
-	QString enc = _contextMenuLnk ? _contextMenuLnk->encoded() : QString();
-	if (!enc.isEmpty()) {
-		QApplication::clipboard()->setText(enc);
+	if (_contextMenuLnk) {
+		_contextMenuLnk->copyToClipboard();
 	}
 }
 
@@ -1494,14 +1435,14 @@ void OverviewInner::selectMessage() {
 }
 
 void OverviewInner::cancelContextDownload() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
 	if (lnkDocument) {
 		lnkDocument->document()->cancel();
 	}
 }
 
 void OverviewInner::showContextInFolder() {
-	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
 		QString filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
 			psShowInFolder(filepath);
@@ -1510,8 +1451,8 @@ void OverviewInner::showContextInFolder() {
 }
 
 void OverviewInner::saveContextFile() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
+	if (lnkDocument) DocumentSaveClickHandler::doSave(lnkDocument->document(), true);
 }
 
 bool OverviewInner::onSearchMessages(bool searchCache) {
@@ -1694,7 +1635,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = layoutPrepare(item);
+			auto layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			setLayoutItem(index, layout, 0);
@@ -1720,17 +1661,17 @@ void OverviewInner::mediaOverviewUpdated() {
 			if (allGood) {
 				if (_items.size() > index && complexMsgId(_items.at(index)->getItem()) == msgid) {
 					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->Get<OverviewItemInfo>()->top();
+					top = _items.at(index)->Get<Overview::Layout::Info>()->top;
 					if (!_reversed) {
 						top += _items.at(index)->height();
 					}
 					++index;
 					continue;
 				}
-				if (_items.size() > index + 1 && !_items.at(index)->toLayoutMediaItem() && complexMsgId(_items.at(index + 1)->getItem()) == msgid) { // day item
+				if (_items.size() > index + 1 && !_items.at(index)->toMediaItem() && complexMsgId(_items.at(index + 1)->getItem()) == msgid) { // day item
 					++index;
 					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->Get<OverviewItemInfo>()->top();
+					top = _items.at(index)->Get<Overview::Layout::Info>()->top;
 					if (!_reversed) {
 						top += _items.at(index)->height();
 					}
@@ -1740,7 +1681,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = layoutPrepare(item);
+			auto layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			if (withDates) {
@@ -1788,7 +1729,7 @@ void OverviewInner::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (_selectedMsgId == oldId) _selectedMsgId = newId;
 	for (SelectedItems::iterator i = _selected.begin(), e = _selected.end(); i != e; ++i) {
 		if (i.key() == oldId) {
-			uint32 sel = i.value();
+			auto sel = i.value();
 			_selected.erase(i);
 			_selected.insert(newId, sel);
 			break;
@@ -1857,7 +1798,7 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 			if (history == _migrated) msgid = -msgid;
 			for (int32 i = 0, l = _items.size(); i != l; ++i) {
 				if (complexMsgId(_items.at(i)->getItem()) == msgid) {
-					int32 top = _items.at(i)->Get<OverviewItemInfo>()->top();
+					int32 top = _items.at(i)->Get<Overview::Layout::Info>()->top;
 					if (_reversed) top = _height - top;
 					update(_rowsLeft, _marginTop + top, _rowWidth, _items.at(i)->height());
 					break;
@@ -1902,68 +1843,68 @@ void OverviewInner::recountMargins() {
 	}
 }
 
-LayoutMediaItem *OverviewInner::layoutPrepare(HistoryItem *item) {
-	if (!item) return 0;
+Overview::Layout::ItemBase *OverviewInner::layoutPrepare(HistoryItem *item) {
+	if (!item) return nullptr;
 
 	LayoutItems::const_iterator i = _layoutItems.cend();
 	HistoryMedia *media = item->getMedia();
 	if (_type == OverviewPhotos) {
 		if (media && media->type() == MediaTypePhoto) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewPhoto(static_cast<HistoryPhoto*>(media)->photo(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Photo(static_cast<HistoryPhoto*>(media)->photo(), item));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewVideos) {
 		if (media && media->type() == MediaTypeVideo) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewVideo(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Video(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewVoiceFiles) {
 		if (media && (media->type() == MediaTypeVoiceFile)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewVoice(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Voice(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewFiles || _type == OverviewMusicFiles) {
 		if (media && (media->type() == MediaTypeFile || media->type() == MediaTypeMusicFile || media->type() == MediaTypeGif)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewDocument(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Document(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewLinks) {
 		if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-			i = _layoutItems.insert(item, new LayoutOverviewLink(media, item));
+			i = _layoutItems.insert(item, new Overview::Layout::Link(media, item));
 			i.value()->initDimensions();
 		}
 	}
-	return (i == _layoutItems.cend()) ? 0 : i.value();
+	return (i == _layoutItems.cend()) ? nullptr : i.value();
 }
 
-LayoutItem *OverviewInner::layoutPrepare(const QDate &date, bool month) {
+Overview::Layout::AbstractItem *OverviewInner::layoutPrepare(const QDate &date, bool month) {
 	int32 key = date.year() * 100 + date.month();
 	if (!month) key = key * 100 + date.day();
 	LayoutDates::const_iterator i = _layoutDates.constFind(key);
 	if (i == _layoutDates.cend()) {
-		i = _layoutDates.insert(key, new LayoutOverviewDate(date, month));
+		i = _layoutDates.insert(key, new Overview::Layout::Date(date, month));
 		i.value()->initDimensions();
 	}
 	return i.value();
 }
 
-int32 OverviewInner::setLayoutItem(int32 index, LayoutItem *item, int32 top) {
+int32 OverviewInner::setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top) {
 	if (_items.size() > index) {
 		_items[index] = item;
 	} else {
 		_items.push_back(item);
 	}
 	int32 h = item->resizeGetHeight(_rowWidth);
-	if (OverviewItemInfo *info = item->Get<OverviewItemInfo>()) {
-		info->setTop(top + (_reversed ? h : 0));
+	if (auto info = item->Get<Overview::Layout::Info>()) {
+		info->top = top + (_reversed ? h : 0);
 	}
 	return h;
 }
@@ -2169,7 +2110,7 @@ int32 OverviewWidget::countBestScroll() const {
 		AudioPlayerState playingState = AudioPlayerStopped;
 		audioPlayer()->currentState(&playing, &playingState);
 		if (playing) {
-			int32 top = _inner.itemTop(playing.msgId);
+			int32 top = _inner.itemTop(playing.contextId);
 			if (top >= 0) {
 				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
 			}

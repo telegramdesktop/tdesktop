@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/twidget.h"
-#include "gui/boxshadow.h"
+#include "ui/twidget.h"
+#include "ui/boxshadow.h"
 
 class Dropdown : public TWidget {
 	Q_OBJECT
@@ -157,8 +157,31 @@ private:
 
 };
 
-class EmojiPanel;
-static const int EmojiColorsCount = 5;
+namespace InlineBots {
+namespace Layout {
+class ItemBase;
+} // namespace Layout
+class Result;
+} // namespace InlineBots
+
+namespace internal {
+
+constexpr int InlineItemsMaxPerRow = 5;
+constexpr int EmojiColorsCount = 5;
+
+using InlineResult = InlineBots::Result;
+using InlineResults = QList<InlineBots::Result*>;
+using InlineItem = InlineBots::Layout::ItemBase;
+
+struct InlineCacheEntry {
+	~InlineCacheEntry() {
+		clearResults();
+	}
+	QString nextOffset;
+	QString switchPmText, switchPmStartToken;
+	InlineResults results; // owns this results list
+	void clearResults();
+};
 
 class EmojiColorPicker : public TWidget {
 	Q_OBJECT
@@ -222,6 +245,7 @@ private:
 
 };
 
+class EmojiPanel;
 class EmojiPanInner : public TWidget {
 	Q_OBJECT
 
@@ -344,7 +368,7 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
-	int32 refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
+	int refreshInlineRows(UserData *bot, const InlineCacheEntry *results, bool resultsDeleted);
 	void refreshRecent();
 	void inlineBotChanged();
 	void hideInlineRowsPanel();
@@ -359,8 +383,9 @@ public:
 
 	uint64 currentSet(int yOffset) const;
 
-	void ui_repaintInlineItem(const LayoutInlineItem *layout);
-	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	void notify_inlineItemLayoutChanged(const InlineItem *layout);
+	void ui_repaintInlineItem(const InlineItem *layout);
+	bool ui_isInlineItemVisible(const InlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
 
 	bool inlineResultsShown() const {
@@ -368,24 +393,21 @@ public:
 	}
 	int32 countHeight(bool plain = false);
 
-	~StickerPanInner() {
-		clearInlineRows(true);
-		deleteUnusedGifLayouts();
-		deleteUnusedInlineLayouts();
-	}
+	~StickerPanInner();
 
-public slots:
+private slots:
 
 	void updateSelected();
 	void onSettings();
 	void onPreview();
 	void onUpdateInlineItems();
+	void onSwitchPm();
 
 signals:
 
 	void selected(DocumentData *sticker);
 	void selected(PhotoData *photo);
-	void selected(InlineResult *result, UserData *bot);
+	void selected(InlineBots::Result *result, UserData *bot);
 
 	void removing(quint64 setId);
 
@@ -406,12 +428,14 @@ private:
 	void paintInlineItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
 
-	int32 _maxHeight;
+	void refreshSwitchPmButton(const InlineCacheEntry *entry);
 
 	void appendSet(uint64 setId);
 
 	void selectEmoji(EmojiPtr emoji);
 	QRect stickerRect(int tab, int sel);
+
+	int32 _maxHeight;
 
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _animations;
@@ -439,7 +463,10 @@ private:
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb;
 
-	typedef QVector<LayoutInlineItem*> InlineItems;
+	std_::unique_ptr<BoxButton> _switchPmButton;
+	QString _switchPmStartToken;
+
+	typedef QVector<InlineItem*> InlineItems;
 	struct InlineRow {
 		InlineRow() : height(0) {
 		}
@@ -450,13 +477,13 @@ private:
 	InlineRows _inlineRows;
 	void clearInlineRows(bool resultsDeleted);
 
-	typedef QMap<DocumentData*, LayoutInlineGif*> GifLayouts;
+	using GifLayouts = QMap<DocumentData*, InlineItem*>;
 	GifLayouts _gifLayouts;
-	LayoutInlineGif *layoutPrepareSavedGif(DocumentData *doc, int32 position);
+	InlineItem *layoutPrepareSavedGif(DocumentData *doc, int32 position);
 
-	typedef QMap<InlineResult*, LayoutInlineItem*> InlineLayouts;
+	using InlineLayouts = QMap<InlineResult*, InlineItem*>;
 	InlineLayouts _inlineLayouts;
-	LayoutInlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
+	InlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
 	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
 	bool inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
@@ -469,7 +496,6 @@ private:
 	int32 validateExistingInlineRows(const InlineResults &results);
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
-	TextLinkPtr _linkOver, _linkDown;
 
 	LinkButton _settings;
 
@@ -532,6 +558,8 @@ protected:
 
 };
 
+} // namespace internal
+
 class EmojiPan : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -567,7 +595,7 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
-	void queryInlineBot(UserData *bot, QString query);
+	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
 	void clearInlineBot();
 
 	bool overlaps(const QRect &globalRect) {
@@ -580,14 +608,14 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-	void ui_repaintInlineItem(const LayoutInlineItem *layout);
-	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
+	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
+	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 
 	bool inlineResultsShown() const {
 		return s_inner.inlineResultsShown();
 	}
-	void notify_automaticLoadSettingsChangedGif();
 
 public slots:
 
@@ -622,7 +650,7 @@ signals:
 	void emojiSelected(EmojiPtr emoji);
 	void stickerSelected(DocumentData *sticker);
 	void photoSelected(PhotoData *photo);
-	void inlineResultSelected(InlineResult *result, UserData *bot);
+	void inlineResultSelected(InlineBots::Result *result, UserData *bot);
 
 	void updateStickers();
 
@@ -642,7 +670,7 @@ private:
 	void updateIcons();
 
 	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
-	void updatePanelsPositions(const QVector<EmojiPanel*> &panels, int32 st);
+	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int32 st);
 
 	void showAll();
 	void hideAll();
@@ -661,7 +689,7 @@ private:
 	BoxShadow _shadow;
 
 	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
-	QList<StickerIcon> _icons;
+	QList<internal::StickerIcon> _icons;
 	QVector<float64> _iconHovers;
 	int32 _iconOver, _iconSel, _iconDown;
 	bool _iconsDragging;
@@ -681,33 +709,20 @@ private:
 	Animation _a_slide;
 
 	ScrollArea e_scroll;
-	EmojiPanInner e_inner;
-	QVector<EmojiPanel*> e_panels;
-	EmojiSwitchButton e_switch;
+	internal::EmojiPanInner e_inner;
+	QVector<internal::EmojiPanel*> e_panels;
+	internal::EmojiSwitchButton e_switch;
 	ScrollArea s_scroll;
-	StickerPanInner s_inner;
-	QVector<EmojiPanel*> s_panels;
-	EmojiSwitchButton s_switch;
+	internal::StickerPanInner s_inner;
+	QVector<internal::EmojiPanel*> s_panels;
+	internal::EmojiSwitchButton s_switch;
 
 	uint64 _removingSetId;
 
 	QTimer _saveConfigTimer;
 
 	// inline bots
-	struct InlineCacheEntry {
-		~InlineCacheEntry() {
-			clearResults();
-		}
-		QString nextOffset;
-		InlineResults results;
-		void clearResults() {
-			for (int32 i = 0, l = results.size(); i < l; ++i) {
-				delete results.at(i);
-			}
-			results.clear();
-		}
-	};
-	typedef QMap<QString, InlineCacheEntry*> InlineCache;
+	typedef QMap<QString, internal::InlineCacheEntry*> InlineCache;
 	InlineCache _inlineCache;
 	QTimer _inlineRequestTimer;
 
@@ -717,6 +732,7 @@ private:
 	void recountContentMaxHeight();
 	bool refreshInlineRows(int32 *added = 0);
 	UserData *_inlineBot;
+	PeerData *_inlineQueryPeer = nullptr;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId;
 	void inlineResultsDone(const MTPmessages_BotResults &result);

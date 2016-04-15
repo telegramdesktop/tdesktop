@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9040;
-static const wchar_t *AppVersionStr = L"0.9.40";
-static const bool DevVersion = false;
-//#define BETA_VERSION (9034004ULL) // just comment this line to build public version
+static const int32 AppVersion = 9043;
+static const wchar_t *AppVersionStr = L"0.9.43";
+static const bool DevVersion = true;
+//#define BETA_VERSION (9040128ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -139,7 +139,6 @@ enum {
 	EmojiPanRowsPerPage = 6,
 	StickerPanPerRow = 5,
 	StickerPanRowsPerPage = 4,
-	SavedGifsMaxPerRow = 4,
 	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
@@ -296,7 +295,7 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #else
 static const char *BetaPrivateKey = "";
 #undef BETA_VERSION
-#define BETA_VERSION 0
+#define BETA_VERSION (0)
 #endif
 
 inline const char *cApiDeviceModel() {

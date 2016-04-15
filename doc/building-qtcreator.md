@@ -147,7 +147,7 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    OPENSSL_LIBS='/usr/local/ssl/lib/libssl.a /usr/local/ssl/lib/libcrypto.a' ./configure -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
+    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
     make -j4
     sudo make -j4 install
 

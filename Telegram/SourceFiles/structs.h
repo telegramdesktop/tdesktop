@@ -118,9 +118,7 @@ inline PeerId peerFromMessage(const MTPmessage &msg) {
 inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
 	case mtpc_message: return msg.c_message().vflags.v;
-
-	// dirty type hack :( we assume that MTPDmessage::Flags has the same flags and perhaps more
-	case mtpc_messageService: return MTPDmessage::Flags(QFlag(msg.c_messageService().vflags.v));
+	case mtpc_messageService: return mtpCastFlags(msg.c_messageService().vflags.v);
 	}
 	return 0;
 }
@@ -156,16 +154,17 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	return a.channel < b.channel;
 }
 
-static const MsgId StartClientMsgId = -0x7FFFFFFF;
-static const MsgId EndClientMsgId = -0x40000000;
-inline bool isClientMsgId(MsgId id) {
+constexpr const MsgId StartClientMsgId = -0x7FFFFFFF;
+constexpr const MsgId EndClientMsgId = -0x40000000;
+inline constexpr bool isClientMsgId(MsgId id) {
 	return id >= StartClientMsgId && id < EndClientMsgId;
 }
-static const MsgId ShowAtTheEndMsgId = -0x40000000;
-static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
-static const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
-static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
-static const MsgId ShowAtUnreadMsgId = 0;
+constexpr const MsgId ShowAtTheEndMsgId = -0x40000000;
+constexpr const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+constexpr const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
+constexpr const MsgId ShowAndStartBotMsgId = -0x3FFFFFD;
+constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
+constexpr const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
 	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), mute(0), sound("default") {
@@ -213,22 +212,40 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
+class PeerClickHandler : public LeftButtonClickHandler {
+public:
+	PeerClickHandler(PeerData *peer) : _peer(peer) {
+	}
+	PeerData *peer() const {
+		return _peer;
+	}
+
+private:
+	PeerData *_peer;
+
+};
+
+class PeerOpenClickHandler : public PeerClickHandler {
+public:
+	using PeerClickHandler::PeerClickHandler;
+protected:
+	void onClickImpl() const override;
+};
+
 class UserData;
 class ChatData;
 class ChannelData;
+
 class PeerData {
 protected:
-
 	PeerData(const PeerId &id);
 	PeerData(const PeerData &other) = delete;
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-
 	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
-			delete notify;
-			notify = UnknownNotifySettings;
+			deleteAndMark(notify);
 		}
 	}
 
@@ -269,8 +286,6 @@ public:
 	int32 bareId() const {
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
-
-	TextLinkPtr lnk;
 
 	QString name;
 	Text nameText;
@@ -315,28 +330,23 @@ public:
 		return QString();
 	}
 
-protected:
+	const ClickHandlerPtr &openLink() {
+		if (!_openLink) {
+			_openLink.reset(new PeerOpenClickHandler(this));
+		}
+		return _openLink;
+	}
 
+protected:
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
+
+private:
+	ClickHandlerPtr _openLink;
+
 };
 
 static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;
-
-class PeerLink : public ITextLink {
-	TEXT_LINK_CLASS(PeerLink)
-
-public:
-	PeerLink(PeerData *peer) : _peer(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-};
 
 class BotCommand {
 public:
@@ -362,16 +372,16 @@ private:
 };
 
 struct BotInfo {
-	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
-	}
-	bool inited;
-	bool readsAllHistory, cantJoinGroups;
-	int version;
+	bool inited = false;
+	bool readsAllHistory = false;
+	bool cantJoinGroups = false;
+	int version = 0;
 	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
-	Text text; // description
+	Text text = Text{ int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken;
+	PeerId inlineReturnPeerId = 0;
 };
 
 enum UserBlockedStatus {
@@ -402,6 +412,9 @@ public:
 	MTPDuser::Flags flags = { 0 };
 	bool isVerified() const {
 		return flags & MTPDuser::Flag::f_verified;
+	}
+	bool isBotInlineGeo() const {
+		return flags & MTPDuser::Flag::f_bot_inline_geo;
 	}
 	bool canWrite() const {
 		return access != UserNoAccess;
@@ -438,7 +451,6 @@ private:
 	QString _restrictionReason;
 
 };
-static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
 class ChatData : public PeerData {
 public:
@@ -885,13 +897,10 @@ private:
 
 };
 
-class PhotoLink : public ITextLink {
-	TEXT_LINK_CLASS(PhotoLink)
-
+class PhotoClickHandler : public LeftButtonClickHandler {
 public:
-	PhotoLink(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
+	PhotoClickHandler(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
 	}
-	void onClick(Qt::MouseButton button) const;
 	PhotoData *photo() const {
 		return _photo;
 	}
@@ -905,24 +914,25 @@ private:
 
 };
 
-class PhotoSaveLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoSaveLink)
-
+class PhotoOpenClickHandler : public PhotoClickHandler {
 public:
-	PhotoSaveLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class PhotoCancelLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoCancelLink)
-
+class PhotoSaveClickHandler : public PhotoClickHandler {
 public:
-	PhotoCancelLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
+};
 
+class PhotoCancelClickHandler : public PhotoClickHandler {
+public:
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum FileStatus {
@@ -942,6 +952,7 @@ enum DocumentType {
 };
 
 struct DocumentAdditionalData {
+	virtual ~DocumentAdditionalData();
 };
 
 struct StickerData : public DocumentAdditionalData {
@@ -977,9 +988,16 @@ struct VoiceData : public DocumentAdditionalData {
 
 bool fileIsImage(const QString &name, const QString &mime);
 
+namespace Serialize {
+class Document;
+} // namespace Serialize;
+
 class DocumentData {
 public:
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	static DocumentData *create(DocumentId id);
+	static DocumentData *create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes);
+	static DocumentData *create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
+
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void automaticLoad(const HistoryItem *item); // auto load sticker or video
@@ -1014,13 +1032,13 @@ public:
 	ImagePtr makeReplyPreview();
 
 	StickerData *sticker() {
-		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional.get()) : nullptr;
 	}
 	void checkSticker() {
 		StickerData *s = sticker();
 		if (!s) return;
 
-		automaticLoad(0);
+		automaticLoad(nullptr);
 		if (s->img->isNull() && loaded()) {
 			if (_data.isEmpty()) {
 				const FileLocation &loc(location(true));
@@ -1034,16 +1052,16 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
+		return (type == SongDocument) ? static_cast<SongData*>(_additional.get()) : nullptr;
 	}
 	const SongData *song() const {
-		return (type == SongDocument) ? static_cast<const SongData*>(_additional) : 0;
+		return (type == SongDocument) ? static_cast<const SongData*>(_additional.get()) : nullptr;
 	}
 	VoiceData *voice() {
-		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.get()) : nullptr;
 	}
 	const VoiceData *voice() const {
-		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional) : 0;
+		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.get()) : nullptr;
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1052,7 +1070,7 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
-		return (type == SongDocument) ? !static_cast<SongData*>(_additional)->title.isEmpty() : false;
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional.get())->title.isEmpty() : false;
 	}
 	bool isVideo() const {
 		return (type == VideoDocument);
@@ -1068,41 +1086,68 @@ public:
 		_data = data;
 	}
 
+	void setRemoteLocation(int32 dc, uint64 access);
+	void setContentUrl(const QString &url);
+	bool hasRemoteLocation() const {
+		return (_dc != 0 && _access != 0);
+	}
+	bool isValid() const {
+		return hasRemoteLocation() || !_url.isEmpty();
+	}
+	MTPInputDocument mtpInput() const {
+		if (_access) {
+			return MTP_inputDocument(MTP_long(id), MTP_long(_access));
+		}
+		return MTP_inputDocumentEmpty();
+	}
+
+	// When we have some client-side generated document
+	// (for example for displaying an external inline bot result)
+	// and it has downloaded data, we can collect that data from it
+	// to (this) received from the server "same" document.
+	void collectLocalData(DocumentData *local);
+
 	~DocumentData();
 
 	DocumentId id;
-	DocumentType type;
+	DocumentType type = FileDocument;
 	QSize dimensions;
-	uint64 access;
-	int32 date;
+	int32 date = 0;
 	QString name, mime;
 	ImagePtr thumb, replyPreview;
-	int32 dc;
-	int32 size;
+	int32 size = 0;
 
-	FileStatus status;
-	int32 uploadOffset;
+	FileStatus status = FileReady;
+	int32 uploadOffset = 0;
 
 	int32 md5[8];
 
 	MediaKey mediaKey() const {
-		return ::mediaKey(locationType(), dc, id);
+		return ::mediaKey(locationType(), _dc, id);
 	}
 
 private:
+	DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 
-	FileLocation _location;
-	QByteArray _data;
-	DocumentAdditionalData *_additional;
-	int32 _duration;
+	friend class Serialize::Document;
 
 	LocationType locationType() const {
 		return voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
 	}
 
-	ActionOnLoad _actionOnLoad;
+	// Two types of location: from MTProto by dc+access or from web by url
+	int32 _dc = 0;
+	uint64 _access = 0;
+	QString _url;
+
+	FileLocation _location;
+	QByteArray _data;
+	std_::unique_ptr<DocumentAdditionalData> _additional;
+	int32 _duration = -1;
+
+	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
+	mutable FileLoader *_loader = nullptr;
 
 	void notifyLayoutChanged() const;
 
@@ -1112,59 +1157,58 @@ VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
 struct SongMsgId {
-	SongMsgId() : song(0) {
+	SongMsgId() : song(nullptr) {
 	}
-	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), msgId(msgId) {
+	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), contextId(msgId) {
 	}
-	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), msgId(channelId, msgId) {
+	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), contextId(channelId, msgId) {
 	}
-	operator bool() const {
+	explicit operator bool() const {
 		return song;
 	}
 	DocumentData *song;
-	FullMsgId msgId;
+	FullMsgId contextId;
 
 };
 inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
-	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);
+	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.contextId < b.contextId);
 }
 inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
-	return a.song == b.song && a.msgId == b.msgId;
+	return a.song == b.song && a.contextId == b.contextId;
 }
 inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
 	return !(a == b);
 }
 
 struct AudioMsgId {
-	AudioMsgId() : audio(0) {
+	AudioMsgId() : audio(nullptr) {
 	}
-	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), contextId(msgId) {
 	}
-	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), contextId(channelId, msgId) {
 	}
-	operator bool() const {
+
+	explicit operator bool() const {
 		return audio;
 	}
 	DocumentData *audio;
-	FullMsgId msgId;
+	FullMsgId contextId;
 
 };
 
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.contextId < b.contextId);
 }
 inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.msgId == b.msgId;
+	return a.audio == b.audio && a.contextId == b.contextId;
 }
 inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);
 }
 
-class DocumentLink : public ITextLink {
-	TEXT_LINK_CLASS(DocumentLink)
-
+class DocumentClickHandler : public LeftButtonClickHandler {
 public:
-	DocumentLink(DocumentData *document) : _document(document) {
+	DocumentClickHandler(DocumentData *document) : _document(document) {
 	}
 	DocumentData *document() const {
 		return _document;
@@ -1175,56 +1219,34 @@ private:
 
 };
 
-class DocumentSaveLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentSaveLink)
-
+class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
-	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doSave(DocumentData *document, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class DocumentOpenLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentOpenLink)
-
+class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
-	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doOpen(DocumentData *document, ActionOnLoad action = ActionOnLoadOpen);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class VoiceSaveLink : public DocumentOpenLink {
-	TEXT_LINK_CLASS(VoiceSaveLink)
-
+class GifOpenClickHandler : public DocumentOpenClickHandler {
 public:
-	VoiceSaveLink(DocumentData *document) : DocumentOpenLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentOpenClickHandler::DocumentOpenClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class GifOpenLink : public DocumentOpenLink {
-	TEXT_LINK_CLASS(GifOpenLink)
-
+class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
-	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class DocumentCancelLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentCancelLink)
-
-public:
-	DocumentCancelLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentClickHandler::DocumentClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum WebPageType {
@@ -1241,7 +1263,7 @@ inline WebPageType toWebPageType(const QString &type) {
 }
 
 struct WebPageData {
-	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
+	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), DocumentData *doc = nullptr, PhotoData *photo = nullptr, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
 
 	void forget() {
 		if (photo) photo->forget();
@@ -1253,58 +1275,10 @@ struct WebPageData {
 	int32 duration;
 	QString author;
 	PhotoData *photo;
-	DocumentData *doc;
+	DocumentData *document;
 	int32 pendingTill;
 
 };
-
-class InlineResult {
-public:
-	InlineResult(uint64 queryId)
-		: queryId(queryId)
-		, doc(0)
-		, photo(0)
-		, width(0)
-		, height(0)
-		, duration(0)
-		, noWebPage(false)
-		, _loader(0) {
-	}
-	uint64 queryId;
-	QString id, type;
-	DocumentData *doc;
-	PhotoData *photo;
-	QString title, description, url, thumb_url;
-	QString content_type, content_url;
-	int32 width, height, duration;
-
-	QString message; // botContextMessageText
-	bool noWebPage; //currently not used
-	EntitiesInText entities;
-	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
-
-	ImagePtr thumb;
-
-	void automaticLoadGif();
-	void automaticLoadSettingsChangedGif();
-	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
-	void cancelFile();
-
-	QByteArray data() const;
-	bool loading() const;
-	bool loaded() const;
-	bool displayLoading() const;
-	void forget();
-	float64 progress() const;
-
-	~InlineResult();
-
-private:
-	QByteArray _data;
-	mutable webFileLoader *_loader;
-
-};
-typedef QList<InlineResult*> InlineResults;
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();
@@ -1338,3 +1312,63 @@ struct MessageCursor {
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
 	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
 }
+
+struct LocationCoords {
+	LocationCoords() : lat(0), lon(0) {
+	}
+	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	}
+	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+	}
+	float64 lat, lon;
+};
+inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat == b.lat) && (a.lon == b.lon);
+}
+inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
+}
+inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
+}
+
+struct LocationData {
+	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
+	}
+
+	LocationCoords coords;
+	ImagePtr thumb;
+	bool loading;
+
+	void load();
+};
+
+class LocationClickHandler : public ClickHandler {
+public:
+	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
+		setup();
+	}
+	QString copyToClipboardContextItem() const override;
+
+	void copyToClipboard() const override {
+		if (!_text.isEmpty()) {
+			QApplication::clipboard()->setText(_text);
+		}
+	}
+
+	QString tooltip() const override {
+		return QString();
+	}
+
+	QString text() const override {
+		return _text;
+	}
+	void onClick(Qt::MouseButton button) const override;
+
+private:
+
+	void setup();
+	LocationCoords _coords;
+	QString _text;
+
+};

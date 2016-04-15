@@ -28,6 +28,12 @@ namespace Shortcuts {
 	bool launch(int shortcutId);
 	bool launch(const QString &command);
 
+	// Media shortcuts are not enabled by default, because other
+	// applications also use them. They are enabled only when
+	// the in-app player is active and disabled back after.
+	void enableMediaShortcuts();
+	void disableMediaShortcuts();
+
 	void finish();
 
 }

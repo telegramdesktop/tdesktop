@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "sessionsbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "countries.h"
 #include "confirmbox.h"
@@ -166,7 +166,7 @@ void SessionsInner::terminateDone(uint64 hash, const MTPBool &result) {
 }
 
 bool SessionsInner::terminateFail(uint64 hash, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	TerminateButtons::iterator i = _terminateButtons.find(hash);
 	if (i != _terminateButtons.end()) {
@@ -181,7 +181,7 @@ void SessionsInner::terminateAllDone(const MTPBool &result) {
 }
 
 bool SessionsInner::terminateAllFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	emit allTerminated();
 	return true;
 }
@@ -294,14 +294,14 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	int32 availOther = availCurrent - st::sessionTerminate.iconPos.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
-	const QVector<MTPAuthorization> &v(result.c_account_authorizations().vauthorizations.c_vector().v);
+	const auto &v(result.c_account_authorizations().vauthorizations.c_vector().v);
 	int32 l = v.size();
 	if (l > 1) _list.reserve(l - 1);
 
 	const CountriesByISO2 &countries(countriesByISO2());
 
 	for (int32 i = 0; i < l; ++i) {
-		const MTPDauthorization &d(v.at(i).c_authorization());
+		const auto &d(v.at(i).c_authorization());
 		SessionData data;
 		data.hash = d.vhash.v;
 

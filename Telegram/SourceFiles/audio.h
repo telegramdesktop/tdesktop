@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "core/basic_types.h"
 
 void audioInit();
 bool audioWorks();

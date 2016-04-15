@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "Getting Link Info...";
 
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
-"lng_topbar_info" = "Info";
 "lng_profile_about_section" = "About";
 "lng_profile_description_section" = "Description";
 "lng_profile_settings_section" = "Settings";
@@ -601,6 +600,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In reply to";
 
+"lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
+"lng_bot_inline_geo_unavailable" = "Sorry, this bot requires location sharing.\nIt is not available in Telegram Desktop.";
+"lng_bot_share_phone" = "Share Phone Number?";
+"lng_bot_share_phone_confirm" = "Share";
+
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
@@ -685,8 +689,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact_channel" = "Sorry, you can only add mutual contacts\nto channels at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
-"lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of the privacy settings.";
-"lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of the privacy settings.";
+"lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
+"lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
 "lng_cant_do_this" = "Sorry, this action is unavailable.";
 
 "lng_send_button" = "Send";
@@ -810,6 +814,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Forwarded message|# forwarded messages}";
 "lng_forwarding_from" = "{user} and {count:_not_used_|# other|# others}";
 "lng_forwarding_from_two" = "{user} and {second_user}";
+"lng_inline_switch_choose" = "Choose conversation...";
+"lng_inline_switch_cant" = "Sorry, no way to write here :(";
 
 "lng_share_cant" = "Sorry, no way to share here :(";
 "lng_reply_cant" = "Sorry, no way to reply to an old message in supergroup :(";
@@ -886,11 +892,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Visual improvements";
+"lng_new_version_text" = "BOTS 2.0\n\n— Introducing Bot API 2.0, the biggest update to our bot platform since June 2015.\n— Bots can now update existing messages on the fly as you interact with them.\n— New Inline keyboards with callback, 'open URL' or 'switch to inline mode' buttons help create seamless interfaces.\n— Inline bots can now send all attachments supported by Telegram (videos, music, stickers, locations, etc.).\n— Try out these sample bots to see what's coming your way soon: @music, @sticker, @youtube, @foursquare\n\nMore info: {link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+// Not used
+
+"lng_topbar_info" = "Info";
 
 // Wnd specific
 

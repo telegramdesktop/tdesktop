@@ -19,8 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "app.h"
 
+#include "lang.h"
+#include "dialogs/dialogs_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -29,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <libexif/exif-data.h>
 #endif
 #include "localstorage.h"
-
+#include "apiwrap.h"
 #include "numbers.h"
 
 namespace {
@@ -54,12 +56,6 @@ namespace {
 
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
-
-	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
-	ReplyMarkups replyMarkups;
-	ReplyMarkup zeroMarkup(qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
-	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
-	ChannelReplyMarkups channelReplyMarkups;
 
 	PhotoItems photoItems;
 	DocumentItems documentItems;
@@ -111,9 +107,6 @@ namespace {
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
 
-	typedef QMap<FileLoader*, InlineResult*> InlineResultLoaders;
-	InlineResultLoaders inlineResultLoaders;
-
 	style::color _msgServiceBg;
 	style::color _msgServiceSelectBg;
 	style::color _historyScrollBarColor;
@@ -153,23 +146,29 @@ namespace App {
 		return AppClass::app();
 	}
 
-	Window *wnd() {
+	MainWindow *wnd() {
 		return AppClass::wnd();
 	}
 
 	MainWidget *main() {
-		Window *w(wnd());
-		return w ? w->mainWidget() : 0;
+		if (auto w = wnd()) {
+			return w->mainWidget();
+		}
+		return nullptr;
 	}
 
 	SettingsWidget *settings() {
-		Window *w(wnd());
-		return w ? w->settingsWidget() : 0;
+		if (auto w = wnd()) {
+			return w->settingsWidget();
+		}
+		return nullptr;
 	}
 
 	bool passcoded() {
-		Window *w(wnd());
-		return w ? w->passcodeWidget() : 0;
+		if (auto w = wnd()) {
+			return w->passcodeWidget();
+		}
+		return false;
 	}
 
 	FileUploader *uploader() {
@@ -188,7 +187,7 @@ namespace {
 		if (audioPlayer()) {
 			audioPlayer()->stopAndClear();
 		}
-		if (Window *w = wnd()) {
+		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
 			w->setupIntro(true);
@@ -203,7 +202,7 @@ namespace {
 		globalNotifyChatsPtr = UnknownNotifySettings;
 		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
-		if (Window *w = wnd()) {
+		if (auto w = wnd()) {
 			w->getTitle()->updateBackButton();
 			w->updateTitleStatus();
 			w->getTitle()->resizeEvent(0);
@@ -365,16 +364,16 @@ namespace {
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated) {
         UserData *data = 0;
-		const QVector<MTPUser> &v(users.c_vector().v);
+		const auto &v(users.c_vector().v);
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPuser &user(*i);
+			const auto &user(*i);
             data = 0;
 			bool wasContact = false, minimal = false;
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			switch (user.type()) {
 			case mtpc_userEmpty: {
-				const MTPDuserEmpty &d(user.c_userEmpty());
+				const auto &d(user.c_userEmpty());
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
@@ -390,7 +389,7 @@ namespace {
 				data->contact = -1;
 			} break;
 			case mtpc_user: {
-				const MTPDuser &d(user.c_user());
+				const auto &d(user.c_user());
 				minimal = d.is_min();
 
 				PeerId peer(peerFromUser(d.vid.v));
@@ -523,14 +522,14 @@ namespace {
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated) {
 		PeerData *data = 0;
-		const QVector<MTPChat> &v(chats.c_vector().v);
+		const auto &v(chats.c_vector().v);
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPchat &chat(*i);
+			const auto &chat(*i);
 			data = 0;
 			bool minimal = false;
 			switch (chat.type()) {
 			case mtpc_chat: {
-				const MTPDchat &d(chat.c_chat());
+				const auto &d(chat.c_chat());
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
@@ -542,7 +541,7 @@ namespace {
 				cdata->date = d.vdate.v;
 
 				if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
-					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
+					const auto &c(d.vmigrated_to.c_inputChannel());
 					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
 					if (!channel->mgInfo) {
 						channel->flags |= MTPDchannel::Flag::f_megagroup;
@@ -564,7 +563,7 @@ namespace {
 								if (!h->isEmpty()) {
 									h->clear(true);
 								}
-								if (hto->inChatList() && h->inChatList()) {
+								if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
 									App::removeDialog(h);
 								}
 							}
@@ -589,7 +588,7 @@ namespace {
 				}
 			} break;
 			case mtpc_chatForbidden: {
-				const MTPDchatForbidden &d(chat.c_chatForbidden());
+				const auto &d(chat.c_chatForbidden());
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
@@ -605,7 +604,7 @@ namespace {
 				cdata->isForbidden = true;
 			} break;
 			case mtpc_channel: {
-				const MTPDchannel &d(chat.c_channel());
+				const auto &d(chat.c_channel());
 
 				PeerId peer(peerFromChannel(d.vid.v));
 				minimal = d.is_min();
@@ -645,7 +644,7 @@ namespace {
 				cdata->setPhoto(d.vphoto);
 			} break;
 			case mtpc_channelForbidden: {
-				const MTPDchannelForbidden &d(chat.c_channelForbidden());
+				const auto &d(chat.c_channelForbidden());
 
 				PeerId peer(peerFromChannel(d.vid.v));
 				data = App::channel(peer);
@@ -687,18 +686,18 @@ namespace {
 		ChatData *chat = 0;
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
-			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
+			const auto &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
 			chat->invalidateParticipants();
 		} break;
 
 		case mtpc_chatParticipants: {
-			const MTPDchatParticipants &d(p.c_chatParticipants());
+			const auto &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
-				const QVector<MTPChatParticipant> &v(d.vparticipants.c_vector().v);
+				const auto &v(d.vparticipants.c_vector().v);
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
@@ -708,17 +707,17 @@ namespace {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
 					case mtpc_chatParticipantCreator: {
-						const MTPDchatParticipantCreator &p(i->c_chatParticipantCreator());
+						const auto &p(i->c_chatParticipantCreator());
 						uid = p.vuser_id.v;
 						chat->creator = uid;
 					} break;
 					case mtpc_chatParticipantAdmin: {
-						const MTPDchatParticipantAdmin &p(i->c_chatParticipantAdmin());
+						const auto &p(i->c_chatParticipantAdmin());
 						uid = p.vuser_id.v;
 						inviter = p.vinviter_id.v;
 					} break;
 					case mtpc_chatParticipant: {
-						const MTPDchatParticipant &p(i->c_chatParticipant());
+						const auto &p(i->c_chatParticipant());
 						uid = p.vuser_id.v;
 						inviter = p.vinviter_id.v;
 					} break;
@@ -968,7 +967,7 @@ namespace {
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
 
@@ -988,15 +987,7 @@ namespace {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-			if (existing->history()->textCachedFor == existing) {
-				existing->history()->textCachedFor = 0;
-			}
-			if (App::main()) {
-				App::main()->dlgUpdated(existing->history(), existing->id);
-			}
+			existing->applyEdition(m);
 		}
 	}
 
@@ -1030,10 +1021,10 @@ namespace {
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
 		QMap<uint64, int32> msgsIds;
 		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
-			const MTPMessage &msg(msgs.at(i));
+			const auto &msg(msgs.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
-				const MTPDmessage &d(msg.c_message());
+				const auto &d(msg.c_message());
 				bool needToAdd = true;
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
 					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
@@ -1061,17 +1052,17 @@ namespace {
 	ImagePtr image(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
-			const MTPDphotoSize &d(size.c_photoSize());
+			const auto &d(size.c_photoSize());
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
+				const auto &l(d.vlocation.c_fileLocation());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {
-			const MTPDphotoCachedSize &d(size.c_photoCachedSize());
+			const auto &d(size.c_photoCachedSize());
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
-				const string &s(d.vbytes.c_string().v);
+				const auto &l(d.vlocation.c_fileLocation());
+				const auto &s(d.vbytes.c_string().v);
 				QByteArray bytes(s.data(), s.size());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
@@ -1086,7 +1077,7 @@ namespace {
 
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc) {
 		if (loc.type() == mtpc_fileLocation) {
-			const MTPDfileLocation &l(loc.c_fileLocation());
+			const auto &l(loc.c_fileLocation());
 			return StorageImageLocation(w, h, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
 		}
 		return StorageImageLocation(w, h, 0, 0, 0, 0);
@@ -1095,11 +1086,11 @@ namespace {
 	StorageImageLocation imageLocation(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
-			const MTPDphotoSize &d(size.c_photoSize());
+			const auto &d(size.c_photoSize());
 			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		case mtpc_photoCachedSize: {
-			const MTPDphotoCachedSize &d(size.c_photoCachedSize());
+			const auto &d(size.c_photoCachedSize());
 			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		}
@@ -1152,8 +1143,8 @@ namespace {
 			} else {
 				if (channelHistory) {
 					channelHistory->messageWithIdDeleted(i->v);
-					if (channelHistory->unreadCount > 0 && i->v >= channelHistory->inboxReadBefore) {
-						channelHistory->setUnreadCount(channelHistory->unreadCount - 1);
+					if (channelHistory->unreadCount() > 0 && i->v >= channelHistory->inboxReadBefore) {
+						channelHistory->setUnreadCount(channelHistory->unreadCount() - 1);
 					}
 				}
 			}
@@ -1166,9 +1157,9 @@ namespace {
 	}
 
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated) {
-		const QVector<MTPcontacts_Link> &v(links.c_vector().v);
+		const auto &v(links.c_vector().v);
 		for (QVector<MTPcontacts_Link>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPDcontacts_link &dv(i->c_contacts_link());
+			const auto &dv(i->c_contacts_link());
 			UserData *user = feedUsers(MTP_vector<MTPUser>(1, dv.vuser), false);
 			MTPint userId(MTP_int(0));
 			switch (dv.vuser.type()) {
@@ -1301,7 +1292,7 @@ namespace {
 		}
 		switch (photo.type()) {
 		case mtpc_photo: {
-			const MTPDphoto &ph(photo.c_photo());
+			const auto &ph(photo.c_photo());
 			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
 		} break;
 		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
@@ -1310,7 +1301,7 @@ namespace {
 	}
 
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
-		const QVector<MTPPhotoSize> &sizes(photo.vsizes.c_vector().v);
+		const auto &sizes(photo.vsizes.c_vector().v);
 		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
 		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
@@ -1365,7 +1356,7 @@ namespace {
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
-			const MTPDdocument &d(document.c_document());
+			const auto &d(document.c_document());
 			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
@@ -1538,7 +1529,7 @@ namespace {
 	DocumentData *document(const DocumentId &document) {
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
-			i = ::documentsData.insert(document, new DocumentData(document));
+			i = ::documentsData.insert(document, DocumentData::create(document));
 		}
 		return i.value();
 	}
@@ -1546,15 +1537,11 @@ namespace {
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
 		bool sentSticker = false;
 		if (convert) {
+			MediaKey oldKey = convert->mediaKey();
 			if (convert->id != document) {
 				DocumentsData::iterator i = ::documentsData.find(convert->id);
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
-				}
-
-				// inline bot sent gifs caching
-				if (!convert->voice() && !convert->isVideo()) {
-					Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				}
 
 				convert->id = document;
@@ -1562,28 +1549,31 @@ namespace {
 				sentSticker = (convert->sticker() != 0);
 			}
 			if (date) {
-				convert->access = access;
-				convert->date = date;
 				convert->setattributes(attributes);
+				convert->setRemoteLocation(dc, access);
+				convert->date = date;
 				convert->mime = mime;
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					updateImage(convert->thumb, thumb);
 				}
-				convert->dc = dc;
 				convert->size = size;
 				convert->recountIsImage();
 				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
 					convert->sticker()->loc = thumbLocation;
 				}
+
+				MediaKey newKey = convert->mediaKey();
+				if (newKey != oldKey) {
+					if (convert->voice()) {
+						Local::copyAudio(oldKey, newKey);
+					} else if (convert->sticker() || convert->isAnimation()) {
+						Local::copyStickerImage(oldKey, newKey);
+					}
+				}
 			}
 
 			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
 				Local::writeSavedGifs();
-			}
-
-			const FileLocation &loc(convert->location(true));
-			if (!loc.isEmpty()) {
-				Local::writeFileLocation(convert->mediaKey(), loc);
 			}
 		}
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
@@ -1592,7 +1582,11 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
+				result = DocumentData::create(document, dc, access, attributes);
+				result->date = date;
+				result->mime = mime;
+				result->thumb = thumb;
+				result->size = size;
 				result->recountIsImage();
 				if (result->sticker()) {
 					result->sticker()->loc = thumbLocation;
@@ -1602,14 +1596,15 @@ namespace {
 		} else {
 			result = i.value();
 			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
 				result->setattributes(attributes);
+				if (!result->isValid()) {
+					result->setRemoteLocation(dc, access);
+				}
+				result->date = date;
 				result->mime = mime;
 				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 					result->thumb = thumb;
 				}
-				result->dc = dc;
 				result->size = size;
 				result->recountIsImage();
 				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
@@ -1631,7 +1626,7 @@ namespace {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				WebPagesData::iterator i = webPagesData.find(convert->id);
@@ -1648,7 +1643,7 @@ namespace {
 				convert->title = title;
 				convert->description = description;
 				convert->photo = photo;
-				convert->doc = doc;
+				convert->document = document;
 				convert->duration = duration;
 				convert->author = author;
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
@@ -1662,7 +1657,7 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, doc, duration, author, (pendingTill >= -1) ? pendingTill : -1);
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, document, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0 && api()) {
 					api()->requestWebPageDelayed(result);
 				}
@@ -1679,7 +1674,7 @@ namespace {
 					result->title = title;
 					result->description = description;
 					result->photo = photo;
-					result->doc = doc;
+					result->document = document;
 					result->duration = duration;
 					result->author = author;
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
@@ -1715,7 +1710,7 @@ namespace {
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
 		if (photo.type() == mtpc_userProfilePhoto) {
-			const MTPDuserProfilePhoto &uphoto(photo.c_userProfilePhoto());
+			const auto &uphoto(photo.c_userProfilePhoto());
 
 			QVector<MTPPhotoSize> photoSizes;
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
@@ -1747,14 +1742,16 @@ namespace {
 	}
 
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
-		MsgsData *data = fetchMsgsData(channelId, false);
-		if (!data) return 0;
+		if (!itemId) return nullptr;
 
-		MsgsData::const_iterator i = data->constFind(itemId);
+		MsgsData *data = fetchMsgsData(channelId, false);
+		if (!data) return nullptr;
+
+		auto i = data->constFind(itemId);
 		if (i != data->cend()) {
 			return i.value();
 		}
-		return 0;
+		return nullptr;
 	}
 
 	void historyRegItem(HistoryItem *item) {
@@ -1771,22 +1768,22 @@ namespace {
 
 	void historyItemDetached(HistoryItem *item) {
 		if (::hoveredItem == item) {
-			hoveredItem(0);
+			hoveredItem(nullptr);
 		}
 		if (::pressedItem == item) {
-			pressedItem(0);
+			pressedItem(nullptr);
 		}
 		if (::hoveredLinkItem == item) {
-			hoveredLinkItem(0);
+			hoveredLinkItem(nullptr);
 		}
 		if (::pressedLinkItem == item) {
-			pressedLinkItem(0);
+			pressedLinkItem(nullptr);
 		}
 		if (::contextItem == item) {
-			contextItem(0);
+			contextItem(nullptr);
 		}
 		if (::mousedItem == item) {
-			mousedItem(0);
+			mousedItem(nullptr);
 		}
 		if (App::wnd()) {
 			App::wnd()->notifyItemRemoved(item);
@@ -1854,8 +1851,6 @@ namespace {
 		}
 
 		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
-		replyMarkups.clear();
-		channelReplyMarkups.clear();
 	}
 
 	void historyClearItems() {
@@ -2023,6 +2018,7 @@ namespace {
 			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(BlackCorners, st::msgRadius, st::black);
+		prepareCorners(WhiteCorners, st::msgRadius, st::white);
 		prepareCorners(ServiceCorners, st::msgRadius, st::msgServiceBg);
 		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);
@@ -2051,8 +2047,8 @@ namespace {
 	}
 
 	void clearHistories() {
-		textlnkOver(TextLinkPtr());
-		textlnkDown(TextLinkPtr());
+		ClickHandler::clearActive();
+		ClickHandler::unpressed();
 
 		histories().clear();
 
@@ -2085,6 +2081,8 @@ namespace {
 		::cornersMap.clear();
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
+
+		Dialogs::Layout::clearStyleSheets();
 
 		clearAllImages();
 	}
@@ -2346,7 +2344,7 @@ namespace {
 			GifItems gifs = ::gifItems;
 			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
 				if (HistoryMedia *media = i.value()->getMedia()) {
-					media->stopInline(i.value());
+					media->stopInline();
 				}
 			}
 		}
@@ -2389,106 +2387,6 @@ namespace {
 			}
 		}
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
-	}
-
-	void regInlineResultLoader(FileLoader *loader, InlineResult *result) {
-		::inlineResultLoaders.insert(loader, result);
-	}
-
-	void unregInlineResultLoader(FileLoader *loader) {
-		::inlineResultLoaders.remove(loader);
-	}
-
-	InlineResult *inlineResultFromLoader(FileLoader *loader) {
-		InlineResultLoaders::const_iterator i = ::inlineResultLoaders.find(loader);
-		return (i == ::inlineResultLoaders.cend()) ? 0 : i.value();
-	}
-
-	inline void insertReplyMarkup(ChannelId channelId, MsgId msgId, const ReplyMarkup &markup) {
-		if (channelId == NoChannel) {
-			replyMarkups.insert(msgId, markup);
-		} else {
-			channelReplyMarkups[channelId].insert(msgId, markup);
-		}
-	}
-
-	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup) {
-		ReplyMarkup data;
-		ReplyMarkup::Commands &commands(data.commands);
-		switch (markup.type()) {
-		case mtpc_replyKeyboardMarkup: {
-			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
-			data.flags = d.vflags.v;
-
-			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
-			if (!v.isEmpty()) {
-				commands.reserve(v.size());
-				for (int32 i = 0, l = v.size(); i < l; ++i) {
-					switch (v.at(i).type()) {
-					case mtpc_keyboardButtonRow: {
-						const MTPDkeyboardButtonRow &r(v.at(i).c_keyboardButtonRow());
-						const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
-						if (!b.isEmpty()) {
-							QList<QString> btns;
-							btns.reserve(b.size());
-							for (int32 j = 0, s = b.size(); j < s; ++j) {
-								switch (b.at(j).type()) {
-								case mtpc_keyboardButton: {
-									btns.push_back(qs(b.at(j).c_keyboardButton().vtext));
-								} break;
-								}
-							}
-							if (!btns.isEmpty()) commands.push_back(btns);
-						}
-					} break;
-					}
-				}
-				if (!commands.isEmpty()) {
-					insertReplyMarkup(channelId, msgId, data);
-				}
-			}
-		} break;
-
-		case mtpc_replyKeyboardHide: {
-			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
-			if (d.vflags.v) {
-				insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
-			}
-		} break;
-
-		case mtpc_replyKeyboardForceReply: {
-			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
-			insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply));
-		} break;
-		}
-	}
-
-	void clearReplyMarkup(ChannelId channelId, MsgId msgId) {
-		if (channelId == NoChannel) {
-			replyMarkups.remove(msgId);
-		} else {
-			ChannelReplyMarkups::iterator i = channelReplyMarkups.find(channelId);
-			if (i != channelReplyMarkups.cend()) {
-				i->remove(msgId);
-				if (i->isEmpty()) {
-					channelReplyMarkups.erase(i);
-				}
-			}
-		}
-	}
-
-	inline const ReplyMarkup &replyMarkup(const ReplyMarkups &markups, MsgId msgId) {
-		ReplyMarkups::const_iterator i = markups.constFind(msgId);
-		if (i == markups.cend()) return zeroMarkup;
-		return i.value();
-	}
-	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId) {
-		if (channelId == NoChannel) {
-			return replyMarkup(replyMarkups, msgId);
-		}
-		ChannelReplyMarkups::const_iterator j = channelReplyMarkups.constFind(channelId);
-		if (j == channelReplyMarkups.cend()) return zeroMarkup;
-		return replyMarkup(*j, msgId);
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {

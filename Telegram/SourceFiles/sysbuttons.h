@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/animation.h"
-#include "gui/button.h"
+#include "ui/animation.h"
+#include "ui/button.h"
 
-class Window;
+class MainWindow;
 
 class SysBtn : public Button {
 	Q_OBJECT
@@ -62,7 +62,7 @@ class MinimizeBtn : public SysBtn {
 
 public:
 
-	MinimizeBtn(QWidget *parent, Window *window);
+	MinimizeBtn(QWidget *parent, MainWindow *window);
 
 public slots:
 
@@ -70,7 +70,7 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };
 
 class MaximizeBtn : public SysBtn {
@@ -78,7 +78,7 @@ class MaximizeBtn : public SysBtn {
 
 public:
 
-	MaximizeBtn(QWidget *parent, Window *window);
+	MaximizeBtn(QWidget *parent, MainWindow *window);
 
 public slots:
 
@@ -86,7 +86,7 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };
 
 class RestoreBtn : public SysBtn {
@@ -94,7 +94,7 @@ class RestoreBtn : public SysBtn {
 
 public:
 
-	RestoreBtn(QWidget *parent, Window *window);
+	RestoreBtn(QWidget *parent, MainWindow *window);
 
 public slots:
 
@@ -102,7 +102,7 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };
 
 class CloseBtn : public SysBtn {
@@ -110,7 +110,7 @@ class CloseBtn : public SysBtn {
 
 public:
 
-	CloseBtn(QWidget *parent, Window *window);
+	CloseBtn(QWidget *parent, MainWindow *window);
 
 public slots:
 
@@ -118,7 +118,7 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };
 
 class UpdateBtn : public SysBtn {
@@ -126,7 +126,7 @@ class UpdateBtn : public SysBtn {
 
 public:
 
-	UpdateBtn(QWidget *parent, Window *window, const QString &text = QString());
+	UpdateBtn(QWidget *parent, MainWindow *window, const QString &text = QString());
 
 public slots:
 
@@ -134,7 +134,7 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };
 
 class LockBtn : public SysBtn {
@@ -142,7 +142,7 @@ class LockBtn : public SysBtn {
 
 public:
 
-	LockBtn(QWidget *parent, Window *window);
+	LockBtn(QWidget *parent, MainWindow *window);
 
 public slots:
 
@@ -150,5 +150,5 @@ public slots:
 
 private:
 
-	Window *wnd;
+	MainWindow *wnd;
 };

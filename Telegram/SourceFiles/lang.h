@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const char *LanguageCodes[] = {
+constexpr const str_const LanguageCodes[] = {
 	"en",
 	"it",
 	"es",
@@ -29,7 +29,7 @@ static const char *LanguageCodes[] = {
 	"pt_BR",
 	"ko",
 };
-static constexpr int languageTest = -1, languageDefault = 0, languageCount = arraysize(LanguageCodes);
+constexpr const int languageTest = -1, languageDefault = 0, languageCount = arraysize(LanguageCodes);
 
 class LangString : public QString {
 public:
@@ -143,7 +143,7 @@ inline LangString langDateTimeFull(const QDateTime &date) {
 }
 
 inline LangString langNewVersionText() {
-	return lang(lng_new_version_text).trimmed();
+	return lng_new_version_text(lt_link, qsl("https://telegram.org/blog/bots-2-0"));
 }
 
 class LangLoader {

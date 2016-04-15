@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
+#include "ui/style.h"
 
 #include "application.h"
 
@@ -37,7 +37,7 @@ IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 	if (cLang() == languageDefault) {
 		int32 l = Sandbox::LangSystem();
 		if (l != languageDefault) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l] + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l].c_str() + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
 				_changeLang.setText(text);

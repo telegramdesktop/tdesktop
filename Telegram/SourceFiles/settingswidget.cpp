@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "boxes/aboutbox.h"
@@ -40,10 +40,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/sessionsbox.h"
 #include "boxes/stickersetbox.h"
 #include "langloaderplain.h"
-#include "gui/filedialog.h"
-
+#include "ui/filedialog.h"
+#include "apiwrap.h"
 #include "autoupdater.h"
-
 #include "localstorage.h"
 
 Slider::Slider(QWidget *parent, const style::slider &st, int32 count, int32 sel) : QWidget(parent),
@@ -205,7 +204,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _showSessions(this, lang(lng_settings_show_sessions))
 , _askQuestion(this, lang(lng_settings_ask_question))
 , _telegramFAQ(this, lang(lng_settings_faq))
-, _logOut(this, lang(lng_settings_logout), st::btnLogout)
+, _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
 	if (self()) {
 		self()->loadUserpic();
@@ -215,7 +214,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
-		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		if (selfPhoto && selfPhoto->date) {
+			_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
+		}
 		App::api()->requestFullPeer(self());
 		onReloadPassword();
 
@@ -289,9 +290,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_downloadPathEdit, SIGNAL(clicked()), this, SLOT(onDownloadPathEdit()));
 	connect(&_downloadPathClear, SIGNAL(clicked()), this, SLOT(onDownloadPathClear()));
 	switch (App::wnd()->tempDirState()) {
-	case Window::TempDirEmpty: _tempDirClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _tempDirClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _tempDirClearState = TempDirClearing; break;
+	case MainWindow::TempDirEmpty: _tempDirClearState = TempDirEmpty; break;
+	case MainWindow::TempDirExists: _tempDirClearState = TempDirExists; break;
+	case MainWindow::TempDirRemoving: _tempDirClearState = TempDirClearing; break;
 	}
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
@@ -300,9 +301,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
 	switch (App::wnd()->localStorageState()) {
-	case Window::TempDirEmpty: _storageClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _storageClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
+	case MainWindow::TempDirEmpty: _storageClearState = TempDirEmpty; break;
+	case MainWindow::TempDirExists: _storageClearState = TempDirExists; break;
+	case MainWindow::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
 
 	// chat background
@@ -354,13 +355,13 @@ void SettingsInner::peerUpdated(PeerData *data) {
 		if (self()->photoId && self()->photoId != UnknownPeerPhotoId) {
 			PhotoData *selfPhoto = App::photo(self()->photoId);
 			if (selfPhoto->date) {
-				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+				_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 			} else {
-				_photoLink = TextLinkPtr();
+				_photoLink.clear();
 				App::api()->requestFullPeer(self());
 			}
 		} else {
-			_photoLink = TextLinkPtr();
+			_photoLink.clear();
 		}
 
 		if (_nameCache != self()->name) {
@@ -822,14 +823,22 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			} else {
 				Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
 			}
-			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? "Enabled file download logging" : "Disabled file download logging"));
+			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
 		} else if (str == qstr("crashplease")) {
 			t_assert(!"Crashed in Settings!");
+		} else if (str == qstr("workmode")) {
+			QString text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
+			auto box = std_::make_unique<ConfirmBox>(text);
+			connect(box.get(), SIGNAL(confirmed()), App::app(), SLOT(onSwitchWorkMode()));
+			Ui::showLayer(box.release());
+			from = size;
+			break;
 		} else if (
 			qsl("debugmode").startsWith(str) ||
 			qsl("testmode").startsWith(str) ||
 			qsl("loadlang").startsWith(str) ||
 			qsl("debugfiles").startsWith(str) ||
+			qsl("workmode").startsWith(str) ||
 			qsl("crashplease").startsWith(str)) {
 			break;
 		}
@@ -941,9 +950,9 @@ void SettingsInner::onFullPeerUpdated(PeerData *peer) {
 
 	PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 	} else {
-		_photoLink = TextLinkPtr();
+		_photoLink.clear();
 	}
 }
 
@@ -952,7 +961,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 
 	switch (result.type()) {
 	case mtpc_account_noPassword: {
-		const MTPDaccount_noPassword &d(result.c_account_noPassword());
+		const auto &d(result.c_account_noPassword());
 		_curPasswordSalt = QByteArray();
 		_hasPasswordRecovery = false;
 		_curPasswordHint = QString();
@@ -962,7 +971,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 	} break;
 
 	case mtpc_account_password: {
-		const MTPDaccount_password &d(result.c_account_password());
+		const auto &d(result.c_account_password());
 		_curPasswordSalt = qba(d.vcurrent_salt);
 		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
 		_curPasswordHint = qs(d.vhint);
@@ -985,7 +994,7 @@ void SettingsInner::offPasswordDone(const MTPBool &result) {
 }
 
 bool SettingsInner::offPasswordFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	onReloadPassword();
 	return true;
@@ -1181,7 +1190,7 @@ void SettingsInner::supportGot(const MTPhelp_Support &support) {
 	if (!App::main()) return;
 
 	if (support.type() == mtpc_help_support) {
-		const MTPDhelp_support &d(support.c_help_support());
+		const auto &d(support.c_help_support());
 		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 		Ui::showPeerHistory(u, ShowAtUnreadMsgId);
 		App::wnd()->hideSettings();
@@ -1363,8 +1372,8 @@ void SettingsInner::onPasswordOff() {
 
 //		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
 		MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
-		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
@@ -1507,7 +1516,7 @@ void SettingsInner::onSoundNotify() {
 
 void SettingsInner::onIncludeMuted() {
 	cSetIncludeMuted(_includeMuted.checked());
-	if (App::wnd()) App::wnd()->updateCounter();
+	Notify::unreadCounterUpdated();
 	Local::writeUserSettings();
 }
 
@@ -1831,7 +1840,7 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 	update();
 }
 
-SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
+SettingsWidget::SettingsWidget(MainWindow *parent) : TWidget(parent)
 , _a_show(animation(this, &SettingsWidget::step_show))
 , _scroll(this, st::setScroll)
 , _inner(this)

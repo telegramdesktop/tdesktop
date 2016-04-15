@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "core/basic_types.h"
 
 class AppClass;
-class Window;
+class MainWindow;
 class MainWidget;
 class SettingsWidget;
 class ApiWrap;
@@ -44,19 +44,11 @@ typedef QHash<ClipReader*, HistoryItem*> GifItems;
 typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
-struct ReplyMarkup {
-	ReplyMarkup(MTPDreplyKeyboardMarkup::Flags flags = 0) : flags(flags) {
-	}
-	typedef QList<QList<QString> > Commands;
-	Commands commands;
-	MTPDreplyKeyboardMarkup::Flags flags;
-};
-
 class LayeredWidget;
 
 namespace App {
 	AppClass *app();
-	Window *wnd();
+	MainWindow *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();
 	bool passcoded();
@@ -266,14 +258,6 @@ namespace App {
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);
 	void updateMuted();
-
-	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
-	void unregInlineResultLoader(FileLoader *loader);
-	InlineResult *inlineResultFromLoader(FileLoader *loader);
-
-	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
-	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
-	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY

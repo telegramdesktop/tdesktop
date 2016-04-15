@@ -506,7 +506,7 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 		if (current->file.isEmpty() && current->data.isEmpty()) {
 			setStoppedState(current);
 			if (!song.song->loading()) {
-				DocumentOpenLink::doOpen(song.song);
+				DocumentOpenClickHandler::doOpen(song.song);
 			}
 		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;

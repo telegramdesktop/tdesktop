@@ -21,33 +21,50 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #define NOMINMAX // no min() and max() macro declarations
 #define __HUGE
-#define __STDC_FORMAT_MACROS // fix breakpad for mac
+
+// Fix Google Breakpad build for Mac App Store version
+#ifdef Q_OS_MAC
+#define __STDC_FORMAT_MACROS
+#endif // Q_OS_MAC
 
 #ifdef __cplusplus
 
 #include <cmath>
 
+// False positive warning in clang for QMap member function value:
+// const T QMap<Key, T>::value(const Key &akey, const T &adefaultValue)
+// fires with "Returning address of local temporary object" which is not true.
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-stack-address"
+#endif // __clang__
+
 #include <QtCore/QtCore>
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif // __clang__
+
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
 
-#include "types.h"
+#include "core/basic_types.h"
 #include "config.h"
 
 #include "mtproto/facade.h"
 
-#include "gui/style_core.h"
-#include "gui/twidget.h"
-#include "gui/animation.h"
-#include "gui/flatinput.h"
-#include "gui/flattextarea.h"
-#include "gui/flatbutton.h"
-#include "gui/boxshadow.h"
-#include "gui/popupmenu.h"
-#include "gui/scrollarea.h"
-#include "gui/images.h"
-#include "gui/text.h"
-#include "gui/flatlabel.h"
+#include "ui/style_core.h"
+#include "ui/twidget.h"
+#include "ui/animation.h"
+#include "ui/flatinput.h"
+#include "ui/flattextarea.h"
+#include "ui/flatbutton.h"
+#include "ui/boxshadow.h"
+#include "ui/popupmenu.h"
+#include "ui/scrollarea.h"
+#include "ui/images.h"
+#include "ui/text/text.h"
+#include "ui/flatlabel.h"
 
 #include "app.h"
 
