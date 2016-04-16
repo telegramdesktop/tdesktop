@@ -18,26 +18,30 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#include "codegen/common/logging.h"
 
-#include "codegen/style/generator.h"
+#include <iostream>
+#include <QtCore/QDir>
 
-using namespace codegen::style;
+namespace codegen {
+namespace common {
+namespace {
 
-int main(int argc, char *argv[]) {
-	QCoreApplication app(argc, argv);
-
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
-	}
-
-	Generator generator(filepath, rebuildOtherFiles);
-	return generator.process();
+std::string relativeLocalPath(const QString &filepath) {
+	auto name = QFile::encodeName(QDir().relativeFilePath(filepath));
+	return name.constData();
 }
+
+} // namespace
+
+LogStream logError(int code, const QString &filepath, int line) {
+	std::cerr << relativeLocalPath(filepath);
+	if (line > 0) {
+		std::cerr << '(' << line << ')';
+	}
+	std::cerr << ": error " << code << ": ";
+	return LogStream(std::cerr);
+}
+
+} // namespace common
+} // namespace codegen

@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-defaultFontFamily: 'Open Sans';
-semibold: 'Open Sans Semibold';
+defaultFontFamily: "Open Sans";
+semibold: "Open Sans Semibold";
 
 fsize: 13px;
 normalFont: font(fsize);
 semiboldFont: font(fsize semibold);
 
-spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
 emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
@@ -1116,8 +1115,8 @@ msgLinkColor: #2a6dc2;
 msgPressedLinkColor: #004bad;
 msgSkip: 40px;
 msgPtr: 8px;
-msgBG: ':/gui/art/bg.jpg';
-msgBG0: ':/gui/art/bg0.png';
+msgBG: ":/gui/art/bg.jpg";
+msgBG0: ":/gui/art/bg0.png";
 
 msgCheckPos: point(3px, 1px);
 msgSendingImg: sprite(260px, 20px, 20px, 20px);
@@ -1548,7 +1547,7 @@ reportSpamButton: flatButton(reportSpamHide) {
 reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;
 
-newMsgSound: ':/gui/art/newmsg.wav';
+newMsgSound: ":/gui/art/newmsg.wav";
 
 unreadBarHeight: 32px;
 unreadBarMargin: 8px;

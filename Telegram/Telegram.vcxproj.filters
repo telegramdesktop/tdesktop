@@ -1535,4 +1535,9 @@
       <Filter>Version</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <CodegenStyleItem Include="Resources\all_files.style">
+      <Filter>Resources</Filter>
+    </CodegenStyleItem>
+  </ItemGroup>
 </Project>

@@ -18,26 +18,37 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#include "codegen/common/checked_utf8_string.h"
 
-#include "codegen/style/generator.h"
+#include <iostream>
+#include <QtCore/QTextCodec>
 
-using namespace codegen::style;
+#include "codegen/common/const_utf8_string.h"
 
-int main(int argc, char *argv[]) {
-	QCoreApplication app(argc, argv);
+namespace codegen {
+namespace common {
 
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
+CheckedUtf8String::CheckedUtf8String(const char *string, int size) {
+	if (size < 0) {
+		size = strlen(string);
+	}
+	if (!size) { // Valid empty string
+		return;
 	}
 
-	Generator generator(filepath, rebuildOtherFiles);
-	return generator.process();
+	QTextCodec::ConverterState state;
+	QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+	string_ = codec->toUnicode(string, size, &state);
+	if (state.invalidChars > 0) {
+		valid_ = false;
+	}
 }
+
+CheckedUtf8String::CheckedUtf8String(const QByteArray &string) : CheckedUtf8String(string.constData(), string.size()) {
+}
+
+CheckedUtf8String::CheckedUtf8String(const ConstUtf8String &string) : CheckedUtf8String(string.data(), string.size()) {
+}
+
+} // namespace common
+} // namespace codegen

@@ -11,7 +11,23 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\clean_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\logging.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\generator.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\tokenized_file.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file_reader.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\const_utf8_string.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\logging.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\generator.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\tokenized_file.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4DF8176-4DEF-4859-962F-B497E3E7A323}</ProjectGuid>
@@ -41,11 +57,12 @@
     <_ProjectFileVersion>14.0.24730.2</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)$(Platform)\codegen\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)$(Platform)\codegen\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -53,8 +70,11 @@
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);.\..\..\..\SourceFiles;$(QTDIR)\include\QtCore;.\..\%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalOptions>/w44062 /wd4127 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -71,8 +91,9 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalOptions>/w44062 /wd4127 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

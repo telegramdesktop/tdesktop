@@ -2378,8 +2378,12 @@
     <None Include="Telegram.xcodeproj\qt_preprocess.mak" />
     <None Include="Version" />
   </ItemGroup>
+  <ItemGroup>
+    <CodegenStyleItem Include="Resources\all_files.style" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="build\vc\codegen_style\codegen_style.targets" />
   </ImportGroup>
   <ProjectExtensions>
     <VisualStudio>

@@ -18,26 +18,33 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#pragma once
 
-#include "codegen/style/generator.h"
+#include <memory>
+#include <QtCore/QString>
 
-using namespace codegen::style;
+namespace codegen {
+namespace style {
 
-int main(int argc, char *argv[]) {
-	QCoreApplication app(argc, argv);
+class TokenizedFile;
 
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
-	}
+// Walks through a file, parses it and parses dependency files if necessary.
+class Generator {
+public:
+	Generator(const QString &filepath, bool rebuildDependencies);
+	Generator(const Generator &other) = delete;
+	Generator &operator=(const Generator &other) = delete;
 
-	Generator generator(filepath, rebuildOtherFiles);
-	return generator.process();
-}
+	// Returns 0 on success.
+	int process();
+
+	~Generator();
+
+private:
+	std::unique_ptr<TokenizedFile> file_;
+	bool rebuild_;
+
+};
+
+} // namespace style
+} // namespace codegen

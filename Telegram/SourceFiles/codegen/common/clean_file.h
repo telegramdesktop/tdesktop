@@ -18,26 +18,49 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#pragma once
 
-#include "codegen/style/generator.h"
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
+#include <QtCore/QVector>
 
-using namespace codegen::style;
+#include "codegen/common/logging.h"
 
-int main(int argc, char *argv[]) {
-	QCoreApplication app(argc, argv);
+namespace codegen {
+namespace common {
 
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
+// Reads a file removing all C-style comments.
+class CleanFile {
+public:
+	CleanFile(const QString &filepath);
+	CleanFile(const CleanFile &other) = delete;
+	CleanFile &operator=(const CleanFile &other) = delete;
+
+	bool read();
+
+	const char *data() const {
+		return content_.constData();
+	}
+	const char *end() const {
+		return content_.constEnd();
 	}
 
-	Generator generator(filepath, rebuildOtherFiles);
-	return generator.process();
-}
+	static constexpr int MaxSize = 10 * 1024 * 1024;
+
+	// Log error to std::cerr with 'code' at line number 'line' in data().
+	LogStream logError(int code, int line) const;
+
+private:
+	QString filepath_;
+
+	QByteArray content_;
+	//struct Comment {
+	//	int offset;
+	//	QByteArray content;
+	//};
+	//QVector<Comment> comments_;
+
+};
+
+} // namespace common
+} // namespace codegen

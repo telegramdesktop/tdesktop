@@ -18,26 +18,40 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#pragma once
 
-#include "codegen/style/generator.h"
+#include <QtCore/QString>
 
-using namespace codegen::style;
+class QByteArray;
 
-int main(int argc, char *argv[]) {
-	QCoreApplication app(argc, argv);
+namespace codegen {
+namespace common {
 
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
+class ConstUtf8String;
+
+// Parses a char sequence to a QString using UTF-8 codec.
+// You can check for invalid UTF-8 sequence by isValid() method.
+class CheckedUtf8String {
+public:
+	CheckedUtf8String(const CheckedUtf8String &other) = default;
+	CheckedUtf8String &operator=(const CheckedUtf8String &other) = default;
+
+	CheckedUtf8String(const char *string, int size = -1);
+	CheckedUtf8String(const QByteArray &string);
+	CheckedUtf8String(const ConstUtf8String &string);
+
+	bool isValid() const {
+		return valid_;
+	}
+	const QString &toString() const {
+		return string_;
 	}
 
-	Generator generator(filepath, rebuildOtherFiles);
-	return generator.process();
-}
+private:
+	QString string_;
+	bool valid_ = true;
+
+};
+
+} // namespace common
+} // namespace codegen

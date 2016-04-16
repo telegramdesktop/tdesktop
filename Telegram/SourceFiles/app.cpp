@@ -1994,10 +1994,19 @@ namespace {
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
 		if (!::sprite) {
+			QString spriteFilePostfix;
+			if (cRetina() || cScale() == dbisTwo) {
+				spriteFilePostfix = qsl("_200x");
+			} else if (cScale() == dbisOneAndQuarter) {
+				spriteFilePostfix = qsl("_125x");
+			} else if (cScale() == dbisOneAndHalf) {
+				spriteFilePostfix = qsl("_150x");
+			}
+			QString spriteFile = qsl(":/gui/art/sprite") + spriteFilePostfix + qsl(".png");
 			if (rtl()) {
-				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
+				::sprite = new QPixmap(QPixmap::fromImage(QImage(spriteFile).mirrored(true, false)));
 			} else {
-				::sprite = new QPixmap(st::spriteFile);
+				::sprite = new QPixmap(spriteFile);
 			}
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
