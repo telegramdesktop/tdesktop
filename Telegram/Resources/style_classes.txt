@@ -26,7 +26,7 @@ textStyle {
 	monoFg: color;
 	selectBg: color;
 	selectOverlay: color;
-	lineHeight: number;
+	lineHeight: pixels;
 }
 
 linkButton {
@@ -42,7 +42,7 @@ sysButton {
 	img: sprite;
 	color: color;
 	overColor: color;
-	duration: number;
+	duration: int;
 }
 
 flatButton {
@@ -54,16 +54,16 @@ flatButton {
 	overBgColor: color;
 	downBgColor: color;
 
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 
-	textTop: number;
-	overTextTop: number;
-	downTextTop: number;
+	textTop: pixels;
+	overTextTop: pixels;
+	downTextTop: pixels;
 
 	font: font;
 	overFont: font;
-	duration: number;
+	duration: int;
 	cursor: cursor;
 }
 
@@ -76,17 +76,17 @@ iconedButton {
 	color: color;
 	bgColor: color;
 	overBgColor: color;
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 	font: font;
 
-	opacity: number;
-	overOpacity: number;
+	opacity: double;
+	overOpacity: double;
 
 	textPos: point;
 	downTextPos: point;
 
-	duration: number;
+	duration: int;
 	cursor: cursor;
 }
 
@@ -95,12 +95,12 @@ flatCheckbox {
 	bgColor: color;
 	disColor: color;
 
-	width: number;
-	height: number;
-	textTop: number;
-	textLeft: number;
+	width: pixels;
+	height: pixels;
+	textTop: pixels;
+	textLeft: pixels;
 	font: font;
-	duration: number;
+	duration: int;
 	bgFunc: transition;
 	cursor: cursor;
 
@@ -120,8 +120,8 @@ flatInput {
 	textColor: color;
 	bgColor: color;
 	bgActive: color;
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 	textMrg: margins;
 	align: align;
 	font: font;
@@ -130,7 +130,7 @@ flatInput {
 	imgRect: sprite;
 	imgPos: point;
 
-	borderWidth: number;
+	borderWidth: pixels;
 	borderColor: color;
 	borderActive: color;
 	borderError: color;
@@ -139,8 +139,8 @@ flatInput {
 	phFocusColor: color;
 	phPos: point;
 	phAlign: align;
-	phShift: number;
-	phDuration: number;
+	phShift: pixels;
+	phDuration: int;
 	phLeftFunc: transition;
 	phAlphaFunc: transition;
 	phColorFunc: transition;
@@ -149,7 +149,7 @@ flatInput {
 flatTextarea {
 	textColor: color;
 	bgColor: color;
-	width: number;
+	width: pixels;
 	textMrg: margins;
 	align: align;
 	font: font;
@@ -159,8 +159,8 @@ flatTextarea {
 	phFocusColor: color;
 	phPos: point;
 	phAlign: align;
-	phShift: number;
-	phDuration: number;
+	phShift: pixels;
+	phDuration: int;
 	phLeftFunc: transition;
 	phAlphaFunc: transition;
 	phColorFunc: transition;
@@ -172,26 +172,26 @@ flatScroll {
 	barOverColor: color;
 	bgOverColor: color;
 
-	round: number;
+	round: pixels;
 
-	width: number;
-	minHeight: number;
-	deltax: number;
-	deltat: number;
-	deltab: number;
+	width: pixels;
+	minHeight: pixels;
+	deltax: pixels;
+	deltat: pixels;
+	deltab: pixels;
 
-	topsh: number;
-	bottomsh: number;
+	topsh: pixels;
+	bottomsh: pixels;
 	shColor: color;
 
-	duration: number;
-	hiding: number;
+	duration: int;
+	hiding: int;
 }
 
 countryInput {
-	width: number;
-	height: number;
-	top: number;
+	width: pixels;
+	height: pixels;
+	top: pixels;
 	bgColor: color;
 	ptrSize: size;
 	textMrg: margins;
@@ -201,53 +201,53 @@ countryInput {
 
 slider {
 	color: color;
-	thikness: number;
+	thikness: pixels;
 
-	width: number;
+	width: pixels;
 	bar: sprite;
 }
 
 flatLabel {
 	font: font;
-	minWidth: number;
-	width: number;
+	minWidth: pixels;
+	width: pixels;
 	align: align;
 }
 
 switcher {
-	border: number;
+	border: pixels;
 	borderColor: color;
 
 	bgColor: color;
 	bgHovered: color;
 	bgActive: color;
 
-	height: number;
+	height: pixels;
 
 	font: font;
 	textColor: color;
 	activeColor: color;
 
-	duration: number;
+	duration: int;
 }
 
 dropdown {
-	border: number;
+	border: pixels;
 	borderColor: color;
 
 	padding: margins;
 	shadow: sprite;
-	shadowShift: number;
+	shadowShift: pixels;
 
-	duration: number;
-	width: number;
+	duration: int;
+	width: pixels;
 }
 
 PopupMenu {
-	skip: number;
+	skip: pixels;
 
 	shadow: sprite;
-	shadowShift: number;
+	shadowShift: pixels;
 
 	itemBg: color;
 	itemBgOver: color;
@@ -261,15 +261,15 @@ PopupMenu {
 	itemFont: font;
 
 	separatorPadding: margins;
-	separatorWidth: number;
+	separatorWidth: pixels;
 	separatorFg: color;
 
 	arrow: sprite;
 
-	duration: number;
+	duration: int;
 
-	widthMin: number;
-	widthMax: number;
+	widthMin: pixels;
+	widthMax: pixels;
 }
 
 Tooltip {
@@ -280,18 +280,18 @@ Tooltip {
 	textPadding: margins;
 
 	shift: point;
-	skip: number;
+	skip: pixels;
 
-	widthMax: number;
-	linesMax: number;
+	widthMax: pixels;
+	linesMax: int;
 }
 
 botKeyboardButton {
-	margin: number;
-	padding: number;
-	height: number;
-	textTop: number;
-	downTextTop: number;
+	margin: pixels;
+	padding: pixels;
+	height: pixels;
+	textTop: pixels;
+	downTextTop: pixels;
 }
 
 BoxButton {
@@ -300,13 +300,13 @@ BoxButton {
 	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
 	textBgOver: color;
 
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 
-	textTop: number;
+	textTop: pixels;
 
 	font: font;
-	duration: number;
+	duration: int;
 }
 
 Checkbox {
@@ -317,16 +317,16 @@ Checkbox {
 	checkFgOver: color;
 	checkFgActive: color;
 
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 
 	textPosition: point;
-	diameter: number;
-	thickness: number;
+	diameter: pixels;
+	thickness: pixels;
 	checkIcon: sprite;
 
 	font: font;
-	duration: number;
+	duration: int;
 }
 
 Radiobutton {
@@ -337,16 +337,16 @@ Radiobutton {
 	checkFgOver: color;
 	checkFgActive: color;
 
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 
 	textPosition: point;
-	diameter: number;
-	thickness: number;
-	checkSkip: number;
+	diameter: pixels;
+	thickness: pixels;
+	checkSkip: pixels;
 
 	font: font;
-	duration: number;
+	duration: int;
 }
 
 InputArea {
@@ -357,23 +357,23 @@ InputArea {
 	placeholderFgActive: color;
 	placeholderMargins: margins;
 	placeholderAlign: align;
-	placeholderShift: number;
+	placeholderShift: pixels;
 
-	duration: number;
+	duration: int;
 
 	borderFg: color;
 	borderFgActive: color;
 	borderFgError: color;
 
-	border: number;
-	borderActive: number;
-	borderError: number;
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
 
 	font: font;
 
-	width: number;
-	heightMin: number;
-	heightMax: number;
+	width: pixels;
+	heightMin: pixels;
+	heightMax: pixels;
 }
 
 InputField {
@@ -385,28 +385,28 @@ InputField {
 	placeholderFgActive: color;
 	placeholderMargins: margins;
 	placeholderAlign: align;
-	placeholderShift: number;
+	placeholderShift: pixels;
 
-	duration: number;
+	duration: int;
 
 	borderFg: color;
 	borderFgActive: color;
 	borderFgError: color;
 
-	border: number;
-	borderActive: number;
-	borderError: number;
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
 
 	font: font;
 
-	width: number;
-	height: number;
+	width: pixels;
+	height: pixels;
 
 	iconSprite: sprite;
 	iconPosition: point;
 }
 
 PeerAvatarButton {
-	size: number;
-	photoSize: number;
+	size: pixels;
+	photoSize: pixels;
 }

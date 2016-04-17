@@ -21,59 +21,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtCore/QString>
-#include <QtCore/QStringList>
+#include <QtCore/QList>
+#include <QtCore/QMap>
+#include "codegen/style/structure_types.h"
 
 namespace codegen {
 namespace style {
 namespace structure {
-
-// List of names, like overview.document.bg
-using FullName = QStringList;
-
-enum class TypeTag {
-	Invalid,
-	Int,
-	Double,
-	Pixels,
-	String,
-	Color,
-	Point,
-	Sprite,
-	Size,
-	Transition,
-	Cursor,
-	Align,
-	Margins,
-	Font,
-	Struct,
-};
-
-struct Type {
-	TypeTag tag;
-	FullName name; // only for type == ClassType::Struct
-
-	explicit operator bool() const {
-		return (tag != TypeTag::Invalid);
-	}
-};
-inline bool operator==(const Type &a, const Type &b) {
-	return (a.tag == b.tag) && (a.name == b.name);
-}
-inline bool operator!=(const Type &a, const Type &b) {
-	return !(a == b);
-}
-
-struct Variable;
-struct Value {
-	Type type;
-	QString data; // for plain types
-	QList<Variable> fields; // for struct types
-	FullName copy; // for copies of existing named values
-
-	explicit operator bool() const {
-		return !data.isEmpty() || !fields.isEmpty() || !copy.isEmpty();
-	}
-};
 
 struct Variable {
 	FullName name;
@@ -107,6 +61,8 @@ struct Module {
 	QList<Module> includes;
 	QList<Struct> structs;
 	QList<Variable> variables;
+	QMap<QString, int> structsByName;
+	QMap<QString, int> variablesByName;
 
 	explicit operator bool() const {
 		return !fullpath.isEmpty();

@@ -37,6 +37,9 @@
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp">
       <Filter>src\style</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\structure_types.cpp">
+      <Filter>src\style</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\generator.h">
@@ -67,6 +70,9 @@
       <Filter>src\style</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h">
+      <Filter>src\style</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure_types.h">
       <Filter>src\style</Filter>
     </ClInclude>
   </ItemGroup>

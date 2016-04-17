@@ -385,7 +385,7 @@ btnDefIconed: iconedButton {
 	font: font(fsize);
 
 	opacity: 0.78;
-	overOpacity: 1;
+	overOpacity: 1.;
 
 	textPos: point(0px, 0px);
 	downTextPos: point(0px, 0px);
@@ -433,7 +433,7 @@ titleBackButton: iconedButton(btnDefIconed) {
 	width: -30px;
 	height: 39px;
 
-	opacity: 1;
+	opacity: 1.;
 	cursor: cursor(default);
 
 	textPos: point(23px, 10px);
@@ -2189,7 +2189,7 @@ mvDropdown: dropdown(dropdownDef) {
 	shadow: sprite(0px, 0px, 0px, 0px);
 	padding: margins(11px, 12px, 11px, 12px);
 
-	border: 0;
+	border: 0px;
 	width: 182px;
 }
 mvButton: iconedButton(btnDefIconed) {
@@ -2197,8 +2197,8 @@ mvButton: iconedButton(btnDefIconed) {
 	overBgColor: #505050;
 	font: font(fsize);
 
-	opacity: 1;
-	overOpacity: 1;
+	opacity: 1.;
+	overOpacity: 1.;
 
 	width: -32px;
 	height: 36px;
@@ -2298,21 +2298,22 @@ overviewFileExtFont: font(18px semibold);
 
 // Mac specific
 
-macAccessory: size(450, 90);
+macAccessoryWidth: 450.;
+macAccessoryHeight: 90.;
 macEnableFilterAdd: 2;
 macEnableFilterTop: 5;
 macSelectorTop: 6;
 macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
-macCautionIconSize: size(16, 16);
+macCautionIconSize: 16;
 
 btnContext: iconedButton(btnDefIconed) {
 	bgColor: white;
 	overBgColor: btnWhiteHover;
 	font: font(14px);
 
-	opacity: 1;
-	overOpacity: 1;
+	opacity: 1.;
+	overOpacity: 1.;
 
 	width: -32px;
 	height: 36px;
@@ -2399,8 +2400,8 @@ passcodeSkip: 31px;
 
 mentionHeight: 40px;
 mentionScroll: flatScroll(scrollDef) {
-	topsh: 0;
-	bottomsh: 0;
+	topsh: 0px;
+	bottomsh: 0px;
 }
 mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
@@ -2420,7 +2421,7 @@ sessionsHeight: 440px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
-sessionPadding: margins(21px, 10px, 21px, 0);
+sessionPadding: margins(21px, 10px, 21px, 0px);
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;

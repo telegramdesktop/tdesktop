@@ -19,6 +19,7 @@
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\options.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\main.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\structure_types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.h" />
@@ -31,6 +32,7 @@
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\options.h" />
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure.h" />
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure_types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4DF8176-4DEF-4859-962F-B497E3E7A323}</ProjectGuid>

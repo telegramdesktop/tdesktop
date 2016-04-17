@@ -36,7 +36,7 @@ public:
 	}
 	explicit LogStream(std::ostream &stream) : stream_(&stream) {
 	}
-	LogStream(LogStream &&other) : stream_(other.stream_) {
+	LogStream(LogStream &&other) : stream_(other.stream_), final_(other.final_) {
 		other.final_ = false;
 	}
 	std::ostream *stream() const {

@@ -147,5 +147,11 @@ private:
 
 };
 
+LogStream operator<<(LogStream &&stream, BasicTokenizedFile::Token::Type type);
+template <>
+LogStream operator<< <BasicTokenizedFile::Token::Type>(LogStream &&stream, BasicTokenizedFile::Token::Type &&value) = delete;
+template <>
+LogStream operator<< <const BasicTokenizedFile::Token::Type&>(LogStream &&stream, const BasicTokenizedFile::Token::Type &value) = delete;
+
 } // namespace common
 } // namespace codegen

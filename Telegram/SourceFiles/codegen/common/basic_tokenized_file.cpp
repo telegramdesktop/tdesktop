@@ -249,6 +249,32 @@ void BasicTokenizedFile::skipWhitespaces() {
 	tokenStart_ = reader_.currentPtr();
 }
 
+LogStream operator<<(LogStream &&stream, BasicTokenizedFile::Token::Type type) {
+	const char *value = "'invalid'";
+	switch (type) {
+	case Type::Invalid: break;
+	case Type::Int: value = "'int'"; break;
+	case Type::Double: value = "'double'"; break;
+	case Type::String: value = "'string'"; break;
+	case Type::LeftParenthesis: value = "'('"; break;
+	case Type::RightParenthesis: value = "')'"; break;
+	case Type::LeftBrace: value = "'{'"; break;
+	case Type::RightBrace: value = "'}'"; break;
+	case Type::LeftBracket: value = "'['"; break;
+	case Type::RightBracket: value = "']'"; break;
+	case Type::Colon: value = "':'"; break;
+	case Type::Semicolon: value = "';'"; break;
+	case Type::Comma: value = "','"; break;
+	case Type::Dot: value = "'.'"; break;
+	case Type::Number: value = "'#'"; break;
+	case Type::Plus: value = "'+'"; break;
+	case Type::Minus: value = "'-'"; break;
+	case Type::Equals: value = "'='"; break;
+	case Type::Name: value = "'identifier'"; break;
+	}
+	return std::forward<LogStream>(stream) << value;
+}
+
 LogStream BasicTokenizedFile::logError(int code) const {
 	return reader_.logError(code, lineNumber_);
 }

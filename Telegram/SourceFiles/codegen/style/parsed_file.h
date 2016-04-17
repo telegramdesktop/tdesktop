@@ -78,6 +78,7 @@ private:
 	structure::Value defaultConstructedStruct(const structure::FullName &name);
 	void applyStructParent(structure::Value &result, const structure::FullName &parentName);
 	bool readStructValueInner(structure::Value &result);
+	bool assignStructField(structure::Value &result, const structure::Variable &field);
 	bool readStructParents(structure::Value &result);
 
 	// Simple methods for reading value types.
@@ -94,6 +95,18 @@ private:
 	structure::Value readMarginsValue();
 	structure::Value readFontValue();
 	structure::Value readCopyValue();
+
+	// Returns nullptr if there is no such struct in result_ or any of included modules.
+	const structure::Struct *findStruct(const structure::FullName &name);
+	const structure::Struct *findStructInModule(const structure::FullName &name, const structure::Module &module);
+
+	// Returns nullptr if there is no such variable in result_ or any of included modules.
+	const structure::Variable *findVariable(const structure::FullName &name);
+	const structure::Variable *findVariableInModule(const structure::FullName &name, const structure::Module &module);
+
+	// Read next token and fire unexpected token error if it is not of "type".
+	using BasicToken = common::BasicTokenizedFile::Token;
+	BasicToken assertNextToken(BasicToken::Type type);
 
 	// Look through include directories in options_ and find absolute include path.
 	Options includedOptions(const QString &filepath);
