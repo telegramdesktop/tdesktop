@@ -16,7 +16,8 @@
     <ClCompile Include="..\..\..\SourceFiles\codegen\common\clean_file.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\common\logging.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\generator.cpp" />
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\tokenized_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\options.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -27,7 +28,9 @@
     <ClInclude Include="..\..\..\SourceFiles\codegen\common\const_utf8_string.h" />
     <ClInclude Include="..\..\..\SourceFiles\codegen\common\logging.h" />
     <ClInclude Include="..\..\..\SourceFiles\codegen\style\generator.h" />
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\tokenized_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\options.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4DF8176-4DEF-4859-962F-B497E3E7A323}</ProjectGuid>

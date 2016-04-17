@@ -24,31 +24,35 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtCore/QString>
 #include <QtCore/QFileInfo>
 #include "codegen/common/basic_tokenized_file.h"
+#include "codegen/style/options.h"
+#include "codegen/style/structure.h"
 
 namespace codegen {
 namespace style {
 
-// Parses a file as a list of tokens.
-class TokenizedFile {
+// Parses an input file to the internal struct.
+class ParsedFile {
 public:
-	TokenizedFile(const QString &filepath);
-	TokenizedFile(const TokenizedFile &other) = delete;
-	TokenizedFile &operator=(const TokenizedFile &other) = delete;
+	ParsedFile(const Options &options);
+	ParsedFile(const ParsedFile &other) = delete;
+	ParsedFile &operator=(const ParsedFile &other) = delete;
 
-	using ConstUtf8String = common::ConstUtf8String;
 	struct Token {
 		enum class Type {
 			Invalid,
 
-			Using,
+			Using,             // value: file path
 
-			DefineStruct,
-			DefineField,
-			FieldType,
+			DefineStructStart, // value: struct name
+			DefineStructField, // value: struct field name
+			StructFieldType,   // value: struct field type name
+			DefineStructEnd,
 
-			DefineVariable,
-			Struct,
-			StructParent,
+			DefineVariable,    // value: variable name
+			StructStart,       // value: struct name
+			StructParent,      // value: variable parent name
+			VariableField,     // value: variable field name
+			StructEnd,
 
 			Int,
 			Double,
@@ -72,27 +76,29 @@ public:
 		}
 	};
 
-	bool read() {
-		return file_.read();
-	}
-	bool atEnd() const {
-		return file_.atEnd();
-	}
+	bool read();
 
-	Token getToken();
-	bool putBack();
-	bool failed() const {
-		return file_.failed();
-	}
-
-	// Log error to std::cerr with 'code' at the current position in file.
-	common::LogStream logError(int code) const {
-		return file_.logError(code);
+	const structure::Module &data() const {
+		return result_;
 	}
 
 private:
-	using Type = Token::Type;
-	Type readToken();
+
+	bool failed() const {
+		return failed_ || file_.failed();
+	}
+
+	// Log error to std::cerr with 'code' at the current position in file.
+	common::LogStream logError(int code) {
+		failed_ = true;
+		return file_.logError(code);
+	}
+	common::LogStream logErrorUnexpectedToken(const std::string &expected = std::string()) {
+		failed_ = true;
+		return file_.logErrorUnexpectedToken(expected);
+	}
+
+	Token readToken();
 
 	// State value defines what are we waiting next.
 	enum class State {
@@ -106,20 +112,33 @@ private:
 	};
 
 	// Helper methods for readToken() being in specific State.
-	Type readInDefault();
-	Type readInStructStarted();
-	Type readInStructFieldName();
-	Type readInVariable();
-	Type readInVariableParents();
-	Type readInVariableStarted();
-	Type readInVariableChild();
+	Token readInDefault();
+	Token readInStructStarted();
+	Token readInStructFieldName();
+	Token readInVariable();
+	Token readInVariableParents();
+	Token readInVariableStarted();
+	Token readInVariableChild();
 
-	Type saveToken(Type type, const QString &value = QString());
+	Token readNumericToken();
+	Token readValueToken();
+	Token readColorToken();
+	Token readPointToken();
+	Token readSpriteToken();
+	Token readSizeToken();
+	Token readTransitionToken();
+	Token readCursorToken();
+	Token readAlignToken();
+	Token readMarginsToken();
+	Token readFontToken();
 
 	common::BasicTokenizedFile file_;
-	QList<Token> tokens_;
-	int currentToken_ = 0;
+	Options options_;
+
+	bool failed_ = false;
 	State state_ = State::Default;
+
+	structure::Module result_;
 
 };
 

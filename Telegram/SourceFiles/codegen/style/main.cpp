@@ -22,22 +22,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtCore/QTimer>
 
 #include "codegen/style/generator.h"
+#include "codegen/style/options.h"
 
 using namespace codegen::style;
 
 int main(int argc, char *argv[]) {
 	QCoreApplication app(argc, argv);
 
-	QString filepath;
-	bool rebuildOtherFiles = false;
-	for (const auto &arg : app.arguments()) {
-		if (arg == "--rebuild") {
-			rebuildOtherFiles = true;
-		} else {
-			filepath = arg;
-		}
+	Options options = parseOptions();
+	if (options.inputPath.isEmpty()) {
+		return -1;
 	}
 
-	Generator generator(filepath, rebuildOtherFiles);
+	Generator generator(options);
 	return generator.process();
 }

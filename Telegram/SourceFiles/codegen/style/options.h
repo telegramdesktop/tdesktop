@@ -18,47 +18,23 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "codegen/style/generator.h"
+#pragma once
 
-#include <QtGui/QImage>
-#include "codegen/style/parsed_file.h"
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
 namespace codegen {
 namespace style {
-namespace {
 
-} // namespace
+struct Options {
+	QStringList includePaths = { "." };
+	QString outputPath = ".";
+	QString inputPath;
+	bool rebuildDependencies = false;
+};
 
-Generator::Generator(const Options &options)
-: parser_(std::make_unique<ParsedFile>(options))
-, options_(options) {
-
-}
-
-int Generator::process() {
-	if (!parser_->read()) {
-		return -1;
-	}
-
-	const auto &result = parser_->data();
-	if (!write(result)) {
-		return -1;
-	}
-	if (options_.rebuildDependencies) {
-		for (auto included : result.includes) {
-			if (!write(included)) {
-				return -1;
-			}
-		}
-	}
-	return 0;
-}
-
-bool Generator::write(const structure::Module &) const {
-	return true;
-}
-
-Generator::~Generator() = default;
+// Parsing failed if inputPath is empty in the result.
+Options parseOptions();
 
 } // namespace style
 } // namespace codegen

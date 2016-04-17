@@ -22,16 +22,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <QtCore/QString>
+#include <QtCore/QStringList>
+
+#include "codegen/style/options.h"
 
 namespace codegen {
 namespace style {
-
-class TokenizedFile;
+namespace structure {
+struct Module;
+} // namespace structure
+class ParsedFile;
 
 // Walks through a file, parses it and parses dependency files if necessary.
 class Generator {
 public:
-	Generator(const QString &filepath, bool rebuildDependencies);
+	Generator(const Options &options);
 	Generator(const Generator &other) = delete;
 	Generator &operator=(const Generator &other) = delete;
 
@@ -41,8 +46,14 @@ public:
 	~Generator();
 
 private:
-	std::unique_ptr<TokenizedFile> file_;
-	bool rebuild_;
+	bool write(const structure::Module &module) const;
+
+	std::unique_ptr<ParsedFile> parser_;
+	const Options &options_;
+
+	// List of files we need to generate with other instance of Generator.
+	// It is not empty only if rebuild_ flag is true.
+	QStringList dependenciesToGenerate_;
 
 };
 

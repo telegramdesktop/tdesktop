@@ -31,7 +31,10 @@
     <ClCompile Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.cpp">
       <Filter>src\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\tokenized_file.cpp">
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\options.cpp">
+      <Filter>src\style</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp">
       <Filter>src\style</Filter>
     </ClCompile>
   </ItemGroup>
@@ -57,7 +60,13 @@
     <ClInclude Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.h">
       <Filter>src\common</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\tokenized_file.h">
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\options.h">
+      <Filter>src\style</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure.h">
+      <Filter>src\style</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h">
       <Filter>src\style</Filter>
     </ClInclude>
   </ItemGroup>

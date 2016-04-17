@@ -148,18 +148,18 @@ Type BasicTokenizedFile::uniteLastTokens(Type type) {
 }
 
 Type BasicTokenizedFile::readNameOrNumber() {
-	bool onlyDigits = true;
 	while (!reader_.atEnd()) {
 		if (!isDigitChar(reader_.currentChar())) {
-			onlyDigits = false;
 			break;
 		}
 		reader_.skipChar();
 	}
+	bool onlyDigits = true;
 	while (!reader_.atEnd()) {
 		if (!isNameChar(reader_.currentChar())) {
 			break;
 		}
+		onlyDigits = false;
 		reader_.skipChar();
 	}
 	return saveToken(onlyDigits ? Type::Int : Type::Name);

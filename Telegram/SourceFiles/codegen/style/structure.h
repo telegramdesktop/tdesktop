@@ -18,47 +18,70 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "codegen/style/generator.h"
+#pragma once
 
-#include <QtGui/QImage>
-#include "codegen/style/parsed_file.h"
+#include <QtCore/QString>
+#include <QtCore/QList>
+#include <QtCore/QStringList>
 
 namespace codegen {
 namespace style {
-namespace {
+namespace structure {
 
-} // namespace
+// List of names, like overview.document.bg
+using FullName = QStringList;
 
-Generator::Generator(const Options &options)
-: parser_(std::make_unique<ParsedFile>(options))
-, options_(options) {
+enum class TypeTag {
+	Int,
+	Double,
+	Pixels,
+	String,
+	Color,
+	Point,
+	Sprite,
+	Size,
+	Transition,
+	Cursor,
+	Align,
+	Margins,
+	Font,
+	Struct,
+};
 
-}
+struct Type {
+	TypeTag tag;
+	FullName name; // only for type == ClassType::Struct
+};
 
-int Generator::process() {
-	if (!parser_->read()) {
-		return -1;
-	}
+struct Variable;
+struct Value {
+	QString data; // for plain types
+	QList<Variable> fields; // for struct types
+};
 
-	const auto &result = parser_->data();
-	if (!write(result)) {
-		return -1;
-	}
-	if (options_.rebuildDependencies) {
-		for (auto included : result.includes) {
-			if (!write(included)) {
-				return -1;
-			}
-		}
-	}
-	return 0;
-}
+struct Variable {
+	FullName name;
+	Type type;
+	Value value;
+};
 
-bool Generator::write(const structure::Module &) const {
-	return true;
-}
+struct StructField {
+	FullName name;
+	Type type;
+};
 
-Generator::~Generator() = default;
+struct Struct {
+	FullName name;
+	QList<StructField> fields;
+};
 
+struct Module {
+	QString fullpath;
+	QList<Module> includes;
+	QList<Struct> structs;
+	QList<Variable> variables;
+};
+
+} // namespace structure
 } // namespace style
 } // namespace codegen
