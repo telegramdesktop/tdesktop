@@ -21,8 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <memory>
-#include <QtCore/QString>
 #include <QtCore/QMap>
+#include <QtCore/QString>
 #include <QtCore/QList>
 
 #include "codegen/common/const_utf8_string.h"
@@ -89,7 +89,7 @@ public:
 
 	// Log error to std::cerr with 'code' at the current position in file.
 	LogStream logError(int code) const;
-	LogStream logErrorUnexpectedToken(const std::string &expected = std::string()) const;
+	LogStream logErrorUnexpectedToken() const;
 
 	~BasicTokenizedFile();
 

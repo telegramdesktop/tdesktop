@@ -21,8 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <memory>
-#include <QtCore/QString>
-#include <QtCore/QFileInfo>
+#include <string>
 #include "codegen/common/basic_tokenized_file.h"
 #include "codegen/style/options.h"
 #include "codegen/style/structure.h"
@@ -36,45 +35,6 @@ public:
 	ParsedFile(const Options &options);
 	ParsedFile(const ParsedFile &other) = delete;
 	ParsedFile &operator=(const ParsedFile &other) = delete;
-
-	struct Token {
-		enum class Type {
-			Invalid,
-
-			Using,             // value: file path
-
-			DefineStructStart, // value: struct name
-			DefineStructField, // value: struct field name
-			StructFieldType,   // value: struct field type name
-			DefineStructEnd,
-
-			DefineVariable,    // value: variable name
-			StructStart,       // value: struct name
-			StructParent,      // value: variable parent name
-			VariableField,     // value: variable field name
-			StructEnd,
-
-			Int,
-			Double,
-			Pixels,
-			String,
-			Color,
-			Point,
-			Sprite,
-			Size,
-			Transition,
-			Cursor,
-			Align,
-			Margins,
-			Font,
-		};
-		Type type;
-		QString value;
-
-		explicit operator bool() const {
-			return type != Type::Invalid;
-		}
-	};
 
 	bool read();
 
@@ -93,52 +53,74 @@ private:
 		failed_ = true;
 		return file_.logError(code);
 	}
-	common::LogStream logErrorUnexpectedToken(const std::string &expected = std::string()) {
+	common::LogStream logErrorUnexpectedToken() {
 		failed_ = true;
-		return file_.logErrorUnexpectedToken(expected);
+		return file_.logErrorUnexpectedToken();
+	}
+	common::LogStream logErrorTypeMismatch();
+	common::LogStream logAssert(bool assertion) {
+		if (!assertion) {
+			return logError(common::kErrorInternal) << "internal - ";
+		}
+		return common::LogStream(common::LogStream::Null);
 	}
 
-	Token readToken();
+	// Helper methods for context-dependent reading.
+	structure::Module readIncluded();
+	structure::Struct readStruct(const QString &name);
+	structure::Variable readVariable(const QString &name);
 
-	// State value defines what are we waiting next.
-	enum class State {
-		Default, // [ using | struct name | variable name | end ]
-		StructStarted, // [ struct field name | struct end ]
-		StructFieldName, // [ struct field type ]
-		Variable, // [ struct name | variable value ]
-		VariableParents, // [ variable parent name | variable start ]
-		VariableStarted, // [ variable field name | variable end]
-		VariableChild, // [ variable child value ]
-	};
+	structure::StructField readStructField(const QString &name);
+	structure::Type readType();
+	structure::Value readValue();
 
-	// Helper methods for readToken() being in specific State.
-	Token readInDefault();
-	Token readInStructStarted();
-	Token readInStructFieldName();
-	Token readInVariable();
-	Token readInVariableParents();
-	Token readInVariableStarted();
-	Token readInVariableChild();
+	structure::Value readStructValue();
+	structure::Value defaultConstructedStruct(const structure::FullName &name);
+	void applyStructParent(structure::Value &result, const structure::FullName &parentName);
+	bool readStructValueInner(structure::Value &result);
+	bool readStructParents(structure::Value &result);
 
-	Token readNumericToken();
-	Token readValueToken();
-	Token readColorToken();
-	Token readPointToken();
-	Token readSpriteToken();
-	Token readSizeToken();
-	Token readTransitionToken();
-	Token readCursorToken();
-	Token readAlignToken();
-	Token readMarginsToken();
-	Token readFontToken();
+	// Simple methods for reading value types.
+	structure::Value readPositiveValue();
+	structure::Value readNumericValue();
+	structure::Value readStringValue();
+	structure::Value readColorValue();
+	structure::Value readPointValue();
+	structure::Value readSpriteValue();
+	structure::Value readSizeValue();
+	structure::Value readTransitionValue();
+	structure::Value readCursorValue();
+	structure::Value readAlignValue();
+	structure::Value readMarginsValue();
+	structure::Value readFontValue();
+	structure::Value readCopyValue();
+
+	// Look through include directories in options_ and find absolute include path.
+	Options includedOptions(const QString &filepath);
+
+	// Compose context-dependent full name.
+	structure::FullName composeFullName(const QString &name);
 
 	common::BasicTokenizedFile file_;
 	Options options_;
-
 	bool failed_ = false;
-	State state_ = State::Default;
-
 	structure::Module result_;
+
+	QMap<std::string, structure::Type> typeNames_ = {
+		{ "int"       , { structure::TypeTag::Int } },
+		{ "double"    , { structure::TypeTag::Double } },
+		{ "pixels"    , { structure::TypeTag::Pixels } },
+		{ "string"    , { structure::TypeTag::String } },
+		{ "color"     , { structure::TypeTag::Color } },
+		{ "point"     , { structure::TypeTag::Point } },
+		{ "sprite"    , { structure::TypeTag::Sprite } },
+		{ "size"      , { structure::TypeTag::Size } },
+		{ "transition", { structure::TypeTag::Transition } },
+		{ "cursor"    , { structure::TypeTag::Cursor } },
+		{ "align"     , { structure::TypeTag::Align } },
+		{ "margins"   , { structure::TypeTag::Margins } },
+		{ "font"      , { structure::TypeTag::Font } },
+	};
 
 };
 

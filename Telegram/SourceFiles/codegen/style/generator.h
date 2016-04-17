@@ -22,8 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <QtCore/QString>
-#include <QtCore/QStringList>
-
+//#include "codegen/common/qstringlist_safe.h"
 #include "codegen/style/options.h"
 
 namespace codegen {

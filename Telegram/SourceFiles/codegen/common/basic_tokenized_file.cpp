@@ -45,7 +45,7 @@ bool isNameChar(char ch) {
 }
 
 bool isWhitespaceChar(char ch) {
-	return (ch == '\n' || ch == ' ' || ch == '\t');
+	return (ch == '\n' || ch == '\r' || ch == ' ' || ch == '\t');
 }
 
 Token invalidToken() {
@@ -224,7 +224,7 @@ Type BasicTokenizedFile::readString() {
 Type BasicTokenizedFile::readSingleLetter() {
 	auto type = singleLetterTokens_.value(reader_.currentChar(), Type::Invalid);
 	if (type == Type::Invalid) {
-		reader_.logError(kErrorIncorrectToken, lineNumber_) << "incorrect token '" << reader_.currentChar() << "'.";
+		reader_.logError(kErrorIncorrectToken, lineNumber_) << "incorrect token '" << reader_.currentChar() << "'";
 		return Type::Invalid;
 	}
 
@@ -253,16 +253,12 @@ LogStream BasicTokenizedFile::logError(int code) const {
 	return reader_.logError(code, lineNumber_);
 }
 
-LogStream BasicTokenizedFile::logErrorUnexpectedToken(const std::string &expected) const {
-	std::string expectedTail;
-	if (!expected.empty()) {
-		expectedTail = ", expected " + expected;
-	}
+LogStream BasicTokenizedFile::logErrorUnexpectedToken() const {
 	if (currentToken_ < tokens_.size()) {
 		auto token = tokens_.at(currentToken_).original.toStdString();
-		return logError(kErrorUnexpectedToken) << "unexpected token '" << token << '\'' << expectedTail << '.';
+		return logError(kErrorUnexpectedToken) << "unexpected token '" << token << "', expected ";
 	}
-	return logError(kErrorUnexpectedToken) << "unexpected token" << expectedTail << '.';
+	return logError(kErrorUnexpectedToken) << "unexpected token, expected ";
 }
 
 BasicTokenizedFile::~BasicTokenizedFile() = default;

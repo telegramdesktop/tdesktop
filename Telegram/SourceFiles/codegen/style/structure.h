@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtCore/QString>
-#include <QtCore/QList>
 #include <QtCore/QStringList>
 
 namespace codegen {
@@ -32,6 +31,7 @@ namespace structure {
 using FullName = QStringList;
 
 enum class TypeTag {
+	Invalid,
 	Int,
 	Double,
 	Pixels,
@@ -51,28 +51,55 @@ enum class TypeTag {
 struct Type {
 	TypeTag tag;
 	FullName name; // only for type == ClassType::Struct
+
+	explicit operator bool() const {
+		return (tag != TypeTag::Invalid);
+	}
 };
+inline bool operator==(const Type &a, const Type &b) {
+	return (a.tag == b.tag) && (a.name == b.name);
+}
+inline bool operator!=(const Type &a, const Type &b) {
+	return !(a == b);
+}
 
 struct Variable;
 struct Value {
+	Type type;
 	QString data; // for plain types
 	QList<Variable> fields; // for struct types
+	FullName copy; // for copies of existing named values
+
+	explicit operator bool() const {
+		return !data.isEmpty() || !fields.isEmpty() || !copy.isEmpty();
+	}
 };
 
 struct Variable {
 	FullName name;
-	Type type;
 	Value value;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
 };
 
 struct StructField {
 	FullName name;
 	Type type;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
 };
 
 struct Struct {
 	FullName name;
 	QList<StructField> fields;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
 };
 
 struct Module {
@@ -80,6 +107,10 @@ struct Module {
 	QList<Module> includes;
 	QList<Struct> structs;
 	QList<Variable> variables;
+
+	explicit operator bool() const {
+		return !fullpath.isEmpty();
+	}
 };
 
 } // namespace structure

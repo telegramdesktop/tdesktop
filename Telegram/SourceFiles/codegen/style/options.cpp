@@ -40,8 +40,8 @@ using common::logError;
 Options parseOptions() {
 	Options result;
 	auto args(QCoreApplication::instance()->arguments());
-	for (auto i = args.cbegin(), e = args.cend(); i != e; ++i) {
-		const auto &arg(*i);
+	for (int i = 1, count = args.size(); i < count; ++i) { // skip first
+		const auto &arg(args.at(i));
 
 		// Rebuild all dependencies
 		if (arg == "--rebuild") {
@@ -49,22 +49,22 @@ Options parseOptions() {
 
 		// Include paths
 		} else if (arg == "-I") {
-			if (++i == e) {
+			if (++i == count) {
 				logError(kErrorIncludePathExpected, "Command Line") << "include path expected after -I";
 				return Options();
 			} else {
-				result.includePaths.push_back(*i);
+				result.includePaths.push_back(args.at(i));
 			}
 		} else if (arg.startsWith("-I")) {
 			result.includePaths.push_back(arg.mid(2));
 
 		// Output path
 		} else if (arg == "-o") {
-			if (++i == e) {
+			if (++i == count) {
 				logError(kErrorOutputPathExpected, "Command Line") << "output path expected after -o";
 				return Options();
 			} else {
-				result.outputPath = *i;
+				result.outputPath = args.at(i);
 			}
 		} else if (arg.startsWith("-o")) {
 			result.outputPath = arg.mid(2);
