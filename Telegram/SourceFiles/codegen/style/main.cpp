@@ -19,21 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
 
-#include "codegen/style/generator.h"
 #include "codegen/style/options.h"
-
-using namespace codegen::style;
+#include "codegen/style/processor.h"
 
 int main(int argc, char *argv[]) {
 	QCoreApplication app(argc, argv);
 
-	Options options = parseOptions();
+	auto options = codegen::style::parseOptions();
 	if (options.inputPath.isEmpty()) {
 		return -1;
 	}
 
-	Generator generator(options);
-	return generator.process();
+	codegen::style::Processor processor(options);
+	return processor.launch();
 }

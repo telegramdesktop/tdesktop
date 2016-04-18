@@ -22,36 +22,53 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <QtCore/QString>
-#include "codegen/style/options.h"
+#include <QtCore/QSet>
+#include "codegen/common/cpp_file.h"
+#include "codegen/style/structure_types.h"
 
 namespace codegen {
 namespace style {
 namespace structure {
-struct Module;
+class Module;
 } // namespace structure
-class ParsedFile;
 
-// Walks through a file, parses it and parses dependency files if necessary.
 class Generator {
 public:
-	Generator(const Options &options);
+	Generator(const structure::Module &module, const QString &destBasePath, const common::ProjectInfo &project);
 	Generator(const Generator &other) = delete;
 	Generator &operator=(const Generator &other) = delete;
 
-	// Returns 0 on success.
-	int process();
-
-	~Generator();
+	bool writeHeader();
+	bool writeSource();
 
 private:
-	bool write(const structure::Module &module) const;
+	QString typeToString(structure::Type type) const;
+	QString typeToDefaultValue(structure::Type type) const;
+	QString valueAssignmentCode(structure::Value value) const;
 
-	std::unique_ptr<ParsedFile> parser_;
-	const Options &options_;
+	bool writeHeaderStyleNamespace();
+	bool writeStructsDefinitions();
+	bool writeRefsDeclarations();
 
-	// List of files we need to generate with other instance of Generator.
-	// It is not empty only if rebuild_ flag is true.
-	QStringList dependenciesToGenerate_;
+	bool writeIncludesInSource();
+	bool writeVariableDefinitions();
+	bool writeRefsDefinition();
+	bool writeVariableInit();
+	bool writePxValues();
+	bool writeFontFamilyValues();
+
+	bool collectUniqueValues();
+
+	const structure::Module &module_;
+	QString basePath_, baseName_;
+	const common::ProjectInfo &project_;
+	std::unique_ptr<common::CppFile> source_, header_;
+
+	QMap<int, bool> pxValues_;
+	QMap<std::string, int> fontFamilyValues_;
+
+	std::vector<int> scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
+	std::vector<const char *>scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 };
 

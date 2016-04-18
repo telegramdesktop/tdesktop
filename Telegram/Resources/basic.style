@@ -18,8 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-defaultFontFamily: 'Open Sans';
-semibold: 'Open Sans Semibold';
+using "Resources/basic_types.style";
+
+semibold: "Open Sans Semibold";
 
 fsize: 13px;
 normalFont: font(fsize);
@@ -383,7 +384,7 @@ btnDefIconed: iconedButton {
 	font: font(fsize);
 
 	opacity: 0.78;
-	overOpacity: 1;
+	overOpacity: 1.;
 
 	textPos: point(0px, 0px);
 	downTextPos: point(0px, 0px);
@@ -431,7 +432,7 @@ titleBackButton: iconedButton(btnDefIconed) {
 	width: -30px;
 	height: 39px;
 
-	opacity: 1;
+	opacity: 1.;
 	cursor: cursor(default);
 
 	textPos: point(23px, 10px);
@@ -1115,8 +1116,8 @@ msgLinkColor: #2a6dc2;
 msgPressedLinkColor: #004bad;
 msgSkip: 40px;
 msgPtr: 8px;
-msgBG: ':/gui/art/bg.jpg';
-msgBG0: ':/gui/art/bg0.png';
+msgBG: ":/gui/art/bg.jpg";
+msgBG0: ":/gui/art/bg0.png";
 
 msgCheckPos: point(3px, 1px);
 msgSendingImg: sprite(260px, 20px, 20px, 20px);
@@ -1547,7 +1548,7 @@ reportSpamButton: flatButton(reportSpamHide) {
 reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;
 
-newMsgSound: ':/gui/art/newmsg.wav';
+newMsgSound: ":/gui/art/newmsg.wav";
 
 unreadBarHeight: 32px;
 unreadBarMargin: 8px;
@@ -2187,7 +2188,7 @@ mvDropdown: dropdown(dropdownDef) {
 	shadow: sprite(0px, 0px, 0px, 0px);
 	padding: margins(11px, 12px, 11px, 12px);
 
-	border: 0;
+	border: 0px;
 	width: 182px;
 }
 mvButton: iconedButton(btnDefIconed) {
@@ -2195,8 +2196,8 @@ mvButton: iconedButton(btnDefIconed) {
 	overBgColor: #505050;
 	font: font(fsize);
 
-	opacity: 1;
-	overOpacity: 1;
+	opacity: 1.;
+	overOpacity: 1.;
 
 	width: -32px;
 	height: 36px;
@@ -2296,8 +2297,8 @@ overviewFileExtFont: font(18px semibold);
 
 // Mac specific
 
-macAccessoryWidth: 450;
-macAccessoryHeight: 90;
+macAccessoryWidth: 450.;
+macAccessoryHeight: 90.;
 macEnableFilterAdd: 2;
 macEnableFilterTop: 5;
 macSelectorTop: 6;
@@ -2310,8 +2311,8 @@ btnContext: iconedButton(btnDefIconed) {
 	overBgColor: btnWhiteHover;
 	font: font(14px);
 
-	opacity: 1;
-	overOpacity: 1;
+	opacity: 1.;
+	overOpacity: 1.;
 
 	width: -32px;
 	height: 36px;
@@ -2398,8 +2399,8 @@ passcodeSkip: 31px;
 
 mentionHeight: 40px;
 mentionScroll: flatScroll(scrollDef) {
-	topsh: 0;
-	bottomsh: 0;
+	topsh: 0px;
+	bottomsh: 0px;
 }
 mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
@@ -2419,7 +2420,7 @@ sessionsHeight: 440px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
-sessionPadding: margins(21px, 10px, 21px, 0);
+sessionPadding: margins(21px, 10px, 21px, 0px);
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;

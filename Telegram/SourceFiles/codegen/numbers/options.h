@@ -20,6 +20,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/style_core.h"
-#include "GeneratedFiles/styles/style_basic_types.h"
-#include "GeneratedFiles/styles/style_basic.h"
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+
+namespace codegen {
+namespace numbers {
+
+struct Options {
+	QString outputPath = ".";
+	QString inputPath;
+};
+
+// Parsing failed if inputPath is empty in the result.
+Options parseOptions();
+
+} // namespace numbers
+} // namespace codegen

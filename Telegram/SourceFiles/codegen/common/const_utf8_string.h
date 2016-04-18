@@ -31,7 +31,7 @@ namespace common {
 // Not null-terminated! It does not hold any ownership.
 class ConstUtf8String {
 public:
-	ConstUtf8String(const char *string, int size = -1) : string_(string) {
+	explicit ConstUtf8String(const char *string, int size = -1) : string_(string) {
 		if (size < 0) {
 			size = strlen(string);
 		}

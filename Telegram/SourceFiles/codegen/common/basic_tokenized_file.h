@@ -36,7 +36,7 @@ class LogStream;
 // Interface for reading a cleaned from comments file by basic tokens.
 class BasicTokenizedFile {
 public:
-	BasicTokenizedFile(const QString &filepath);
+	explicit BasicTokenizedFile(const QString &filepath);
 	BasicTokenizedFile(const BasicTokenizedFile &other) = delete;
 	BasicTokenizedFile &operator=(const BasicTokenizedFile &other) = delete;
 

@@ -18,40 +18,49 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "codegen/numbers/parsed_file.h"
 
-#include <QtCore/QString>
+#include <iostream>
+#include <QtCore/QMap>
+#include <QtCore/QDir>
+#include <QtCore/QRegularExpression>
+#include "codegen/common/basic_tokenized_file.h"
+#include "codegen/common/logging.h"
 
-class QByteArray;
+using BasicToken = codegen::common::BasicTokenizedFile::Token;
+using BasicType = BasicToken::Type;
 
 namespace codegen {
-namespace common {
+namespace numbers {
+namespace {
 
-class ConstUtf8String;
+} // namespace
 
-// Parses a char sequence to a QString using UTF-8 codec.
-// You can check for invalid UTF-8 sequence by isValid() method.
-class CheckedUtf8String {
-public:
-	CheckedUtf8String(const CheckedUtf8String &other) = default;
-	CheckedUtf8String &operator=(const CheckedUtf8String &other) = default;
+ParsedFile::ParsedFile(const Options &options)
+: file_(options.inputPath)
+, options_(options) {
+}
 
-	explicit CheckedUtf8String(const char *string, int size = -1);
-	explicit CheckedUtf8String(const QByteArray &string);
-	explicit CheckedUtf8String(const ConstUtf8String &string);
-
-	bool isValid() const {
-		return valid_;
-	}
-	const QString &toString() const {
-		return string_;
+bool ParsedFile::read() {
+	if (!file_.read()) {
+		return false;
 	}
 
-private:
-	QString string_;
-	bool valid_ = true;
+	auto filepath = QFileInfo(options_.inputPath).absoluteFilePath();
+	do {
+		if (auto startToken = file_.getToken(BasicType::Name)) {
+		}
+		if (file_.atEnd()) {
+			break;
+		}
+		logErrorUnexpectedToken() << "numbers rule";
+	} while (!failed());
 
-};
+	if (failed()) {
+		result_.data.clear();
+	}
+	return !failed();
+}
 
-} // namespace common
+} // namespace numbers
 } // namespace codegen

@@ -32,6 +32,9 @@ using BasicType = BasicToken::Type;
 
 namespace codegen {
 namespace style {
+
+using structure::logFullName;
+
 namespace {
 
 constexpr int kErrorInIncluded         = 801;
@@ -65,7 +68,7 @@ bool isValidColor(const QString &str) {
 
 uchar readHexUchar(QChar ch) {
 	auto code = ch.unicode();
-	return (code >= '0' && code <= '9') ? ((code - '0') & 0xFF) : ((code - 'a') & 0xFF);
+	return (code >= '0' && code <= '9') ? ((code - '0') & 0xFF) : ((code + 10 - 'a') & 0xFF);
 }
 
 uchar readHexUchar(QChar char1, QChar char2) {
@@ -95,10 +98,6 @@ structure::data::color convertIntColor(int r, int g, int b, int a) {
 	return { uchar(r & 0xFF), uchar(g & 0xFF), uchar(b & 0xFF), uchar(a & 0xFF) };
 }
 
-std::string logFullName(const structure::FullName &name) {
-	return name.join('.').toStdString();
-}
-
 std::string logType(const structure::Type &type) {
 	if (type.tag == structure::TypeTag::Struct) {
 		return "struct " + logFullName(type.name);
@@ -119,10 +118,6 @@ std::string logType(const structure::Type &type) {
 		{ structure::TypeTag::Font      , "font" },
 	};
 	return builtInTypes->value(type.tag, "invalid");
-}
-
-QString fullNameKey(const structure::FullName &name) {
-	return name.join('.');
 }
 
 bool validateAnsiString(const QString &value) {
@@ -158,67 +153,61 @@ bool ParsedFile::read() {
 		return false;
 	}
 
-	bool noErrors = false;
+	auto filepath = QFileInfo(options_.inputPath).absoluteFilePath();
+	module_ = std::make_unique<structure::Module>(filepath);
 	do {
 		if (auto startToken = file_.getToken(BasicType::Name)) {
 			if (tokenValue(startToken) == "using") {
 				if (auto includedResult = readIncluded()) {
-					result_.includes.push_back(includedResult);
+					module_->addIncluded(std::move(includedResult));
 					continue;
 				}
 			} else if (auto braceOpen = file_.getToken(BasicType::LeftBrace)) {
 				if (auto structResult = readStruct(tokenValue(startToken))) {
-					if (findStruct(structResult.name)) {
-						logError(kErrorAlreadyDefined) << "struct '" << logFullName(structResult.name) << "' already defined";
-						break;
+					if (module_->addStruct(structResult)) {
+						continue;
 					}
-					result_.structsByName.insert(fullNameKey(structResult.name), result_.structs.size());
-					result_.structs.push_back(structResult);
-					continue;
+					logError(kErrorAlreadyDefined) << "struct '" << logFullName(structResult.name) << "' already defined";
+					break;
 				}
 			} else if (auto colonToken = file_.getToken(BasicType::Colon)) {
 				if (auto variableResult = readVariable(tokenValue(startToken))) {
-					if (findVariable(variableResult.name)) {
-						logError(kErrorAlreadyDefined) << "variable '" << logFullName(variableResult.name) << "' already defined";
-						break;
+					if (module_->addVariable(variableResult)) {
+						continue;
 					}
-					result_.variablesByName.insert(fullNameKey(variableResult.name), result_.variables.size());
-					result_.variables.push_back(variableResult);
-					continue;
+					logError(kErrorAlreadyDefined) << "variable '" << logFullName(variableResult.name) << "' already defined";
+					break;
 				}
 			}
 		}
-		if (!file_.atEnd()) {
-			logErrorUnexpectedToken() << "using keyword, or struct definition, or variable definition";
-		} else {
-			noErrors = !failed();
+		if (file_.atEnd()) {
 			break;
 		}
+		logErrorUnexpectedToken() << "using keyword, or struct definition, or variable definition";
 	} while (!failed());
 
-	if (noErrors) {
-		result_.fullpath = QFileInfo(options_.inputPath).absoluteFilePath();
+	if (failed()) {
+		module_ = nullptr;
 	}
-	return noErrors;
+	return !failed();
 }
 
 common::LogStream ParsedFile::logErrorTypeMismatch() {
 	return logError(kErrorTypeMismatch) << "type mismatch: ";
 }
 
-structure::Module ParsedFile::readIncluded() {
-	structure::Module result;
+ParsedFile::ModulePtr ParsedFile::readIncluded() {
 	if (auto usingFile = assertNextToken(BasicType::String)) {
 		if (assertNextToken(BasicType::Semicolon)) {
 			ParsedFile included(includedOptions(tokenValue(usingFile)));
 			if (included.read()) {
-				result = included.data();
+				return included.getResult();
 			} else {
 				logError(kErrorInIncluded) << "error while parsing '" << tokenValue(usingFile).toStdString() << "'";
 			}
 		}
 	}
-	return result;
+	return nullptr;
 }
 
 structure::Struct ParsedFile::readStruct(const QString &name) {
@@ -268,7 +257,7 @@ structure::Type ParsedFile::readType() {
 			result = builtInType;
 		} else {
 			auto fullName = composeFullName(name);
-			if (findStruct(fullName)) {
+			if (module_->findStruct(fullName)) {
 				result.tag = structure::TypeTag::Struct;
 				result.name = fullName;
 			} else {
@@ -331,11 +320,17 @@ structure::Value ParsedFile::readStructValue() {
 }
 
 structure::Value ParsedFile::defaultConstructedStruct(const structure::FullName &structName) {
-	if (auto pattern = findStruct(structName)) {
-		QList<structure::Variable> fields;
+	if (auto pattern = module_->findStruct(structName)) {
+		QList<structure::data::field> fields;
 		fields.reserve(pattern->fields.size());
 		for (const auto &fieldType : pattern->fields) {
-			fields.push_back({ fieldType.name, { fieldType.type, Qt::Uninitialized } });
+			fields.push_back({
+				{ // variable
+					fieldType.name,
+					{ fieldType.type, Qt::Uninitialized }, // value
+				},
+				structure::data::field::Status::Uninitialized, // status
+			});
 		}
 		return { structName, fields };
 	}
@@ -343,14 +338,14 @@ structure::Value ParsedFile::defaultConstructedStruct(const structure::FullName 
 }
 
 void ParsedFile::applyStructParent(structure::Value &result, const structure::FullName &parentName) {
-	if (auto parent = findVariable(parentName)) {
+	if (auto parent = module_->findVariable(parentName)) {
 		if (parent->value.type() != result.type()) {
 			logErrorTypeMismatch() << "parent '" << logFullName(parentName) << "' has type '" << logType(parent->value.type()) << "' while child value has type " << logType(result.type());
 			return;
 		}
 
-		const auto *srcFields(parent->value.Complex());
-		auto *dstFields(result.Complex());
+		const auto *srcFields(parent->value.Fields());
+		auto *dstFields(result.Fields());
 		if (!srcFields || !dstFields) {
 			logAssert(false) << "struct data check failed";
 			return;
@@ -358,10 +353,17 @@ void ParsedFile::applyStructParent(structure::Value &result, const structure::Fu
 
 		logAssert(srcFields->size() == dstFields->size()) << "struct size check failed";
 		for (int i = 0, s = srcFields->size(); i != s; ++i) {
-			const auto &srcValue(srcFields->at(i).value);
-			auto &dstValue((*dstFields)[i].value);
-			logAssert(srcValue.type() == dstValue.type()) << "struct field type check failed";
-			dstValue = srcValue;
+			const auto &srcField(srcFields->at(i));
+			auto &dstField((*dstFields)[i]);
+			using Status = structure::data::field::Status;
+			if (srcField.status == Status::Explicit ||
+				dstField.status == Status::Uninitialized) {
+				const auto &srcValue(srcField.variable.value);
+				auto &dstValue(dstField.variable.value);
+				logAssert(srcValue.type() == dstValue.type()) << "struct field type check failed";
+				dstValue = srcValue;
+				dstField.status = Status::Implicit;
+			}
 		}
 	} else {
 		logError(kErrorIdentifierNotFound) << "parent '" << logFullName(parentName) << "' not found";
@@ -388,18 +390,19 @@ bool ParsedFile::readStructValueInner(structure::Value &result) {
 }
 
 bool ParsedFile::assignStructField(structure::Value &result, const structure::Variable &field) {
-	auto *fields = result.Complex();
+	auto *fields = result.Fields();
 	if (!fields) {
 		logAssert(false) << "struct data check failed";
 		return false;
 	}
 	for (auto &already : *fields) {
-		if (already.name == field.name) {
-			if (already.value.type() == field.value.type()) {
-				already.value = field.value;
+		if (already.variable.name == field.name) {
+			if (already.variable.value.type() == field.value.type()) {
+				already.variable.value = field.value;
+				already.status = structure::data::field::Status::Explicit;
 				return true;
 			} else {
-				logErrorTypeMismatch() << "field '" << logFullName(already.name) << "' has type '" << logType(already.value.type()) << "' while value has type '" << logType(field.value.type()) << "'";
+				logErrorTypeMismatch() << "field '" << logFullName(already.variable.name) << "' has type '" << logType(already.variable.value.type()) << "' while value has type '" << logType(field.value.type()) << "'";
 				return false;
 			}
 		}
@@ -429,7 +432,7 @@ structure::Value ParsedFile::readPositiveValue() {
 	if (numericToken.type == BasicType::Int) {
 		return { structure::TypeTag::Int, tokenValue(numericToken).toInt() };
 	} else if (numericToken.type == BasicType::Double) {
-		return { tokenValue(numericToken).toDouble() };
+		return { structure::TypeTag::Double, tokenValue(numericToken).toDouble() };
 	} else if (numericToken.type == BasicType::Name) {
 		auto value = tokenValue(numericToken);
 		auto match = QRegularExpression("^\\d+px$").match(value);
@@ -717,54 +720,12 @@ structure::Value ParsedFile::readFontValue() {
 structure::Value ParsedFile::readCopyValue() {
 	if (auto copyName = file_.getToken(BasicType::Name)) {
 		structure::FullName name = { tokenValue(copyName) };
-		if (auto variable = findVariable(name)) {
+		if (auto variable = module_->findVariable(name)) {
 			return variable->value.makeCopy(variable->name);
 		}
 		logError(kErrorIdentifierNotFound) << "identifier '" << logFullName(name) << "' not found";
 	}
 	return {};
-}
-
-// Returns nullptr if there is no such struct in result_ or any of included modules.
-const structure::Struct *ParsedFile::findStruct(const structure::FullName &name) {
-	if (auto result = findStructInModule(name, result_)) {
-		return result;
-	}
-	for (const auto &included : result_.includes) {
-		if (auto result = findStructInModule(name, included)) {
-			return result;
-		}
-	}
-	return nullptr;
-}
-
-const structure::Struct *ParsedFile::findStructInModule(const structure::FullName &name, const structure::Module &module) {
-	auto index = module.structsByName.value(fullNameKey(name), -1);
-	if (index < 0) {
-		return nullptr;
-	}
-	return &module.structs.at(index);
-}
-
-// Returns nullptr if there is no such variable in result_ or any of included modules.
-const structure::Variable *ParsedFile::findVariable(const structure::FullName &name) {
-	if (auto result = findVariableInModule(name, result_)) {
-		return result;
-	}
-	for (const auto &included : result_.includes) {
-		if (auto result = findVariableInModule(name, included)) {
-			return result;
-		}
-	}
-	return nullptr;
-}
-
-const structure::Variable *ParsedFile::findVariableInModule(const structure::FullName &name, const structure::Module &module) {
-	auto index = module.variablesByName.value(fullNameKey(name), -1);
-	if (index < 0) {
-		return nullptr;
-	}
-	return &module.variables.at(index);
 }
 
 BasicToken ParsedFile::assertNextToken(BasicToken::Type type) {

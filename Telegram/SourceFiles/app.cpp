@@ -82,7 +82,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
+	QPixmap *emoji = 0, *emojiLarge = 0;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -1993,23 +1993,6 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		if (!::sprite) {
-			QString spriteFilePostfix;
-			if (cRetina() || cScale() == dbisTwo) {
-				spriteFilePostfix = qsl("_200x");
-			} else if (cScale() == dbisOneAndQuarter) {
-				spriteFilePostfix = qsl("_125x");
-			} else if (cScale() == dbisOneAndHalf) {
-				spriteFilePostfix = qsl("_150x");
-			}
-			QString spriteFile = qsl(":/gui/art/sprite") + spriteFilePostfix + qsl(".png");
-			if (rtl()) {
-				::sprite = new QPixmap(QPixmap::fromImage(QImage(spriteFile).mirrored(true, false)));
-			} else {
-				::sprite = new QPixmap(spriteFile);
-			}
-            if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
-		}
 		emojiInit();
 		if (!::emoji) {
 			::emoji = new QPixmap(QLatin1String(EName));
@@ -2070,8 +2053,6 @@ namespace {
 	void deinitMedia() {
 		audioFinish();
 
-		delete ::sprite;
-		::sprite = 0;
 		delete ::emoji;
 		::emoji = 0;
 		delete ::emojiLarge;
@@ -2149,7 +2130,7 @@ namespace {
 	}
 
 	const QPixmap &sprite() {
-		return *::sprite;
+		return style::spritePixmap();
 	}
 
 	const QPixmap &emoji() {

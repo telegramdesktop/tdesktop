@@ -46,14 +46,31 @@ inline QRect centerrect(const QRect &inRect, const QRect &rect) {
 }
 
 namespace style {
+namespace internal {
+
+// Objects of derived classes are created in global scope.
+// They call [un]registerModule() in [de|con]structor.
+class ModuleBase {
+public:
+	virtual void start() = 0;
+	virtual void stop() = 0;
+};
+void registerModule(ModuleBase *module);
+void unregisterModule(ModuleBase *module);
+
+int registerFontFamily(const QString &family);
+
+int spriteWidth();
+
+} // namespace internal
 
 	class FontData;
 	class Font {
 	public:
 		Font(Qt::Initialization = Qt::Uninitialized) : ptr(0) {
 		}
-		Font(uint32 size, uint32 flags, const QString &family);
-		Font(uint32 size, uint32 flags = 0, uint32 family = 0);
+		Font(int size, uint32 flags, const QString &family);
+		Font(int size, uint32 flags = 0, int family = 0);
 
 		Font &operator=(const Font &other) {
 			ptr = other.ptr;
@@ -76,35 +93,23 @@ namespace style {
 	private:
 		FontData *ptr;
 
-		void init(uint32 size, uint32 flags, uint32 family, Font *modified);
+		void init(int size, uint32 flags, int family, Font *modified);
 		friend void startManager();
 
 		Font(FontData *p) : ptr(p) {
 		}
-		Font(uint32 size, uint32 flags, uint32 family, Font *modified);
+		Font(int size, uint32 flags, int family, Font *modified);
 		friend class FontData;
 
 	};
 
-	enum FontFlagBits {
-		FontBoldBit,
-		FontItalicBit,
-		FontUnderlineBit,
-
-		FontFlagsBits
-	};
-
 	enum FontFlags {
-		FontBold = (1 << FontBoldBit),
-		FontItalic = (1 << FontItalicBit),
-		FontUnderline = (1 << FontUnderlineBit),
+		FontBold           = 0x01,
+		FontItalic         = 0x02,
+		FontUnderline      = 0x04,
 
-		FontDifferentFlags = (1 << FontFlagsBits)
+		FontDifferentFlags = 0x08,
 	};
-
-	inline uint32 _fontKey(uint32 size, uint32 flags, uint32 family) {
-		return (((family << 10) | size) << FontFlagsBits) | flags;
-	}
 
 	class FontData {
 	public:
@@ -126,9 +131,9 @@ namespace style {
 		Font italic(bool set = true) const;
 		Font underline(bool set = true) const;
 
-		uint32 size() const;
+		int size() const;
 		uint32 flags() const;
-		uint32 family() const;
+		int family() const;
 
 		QFont f;
 		QFontMetrics m;
@@ -138,10 +143,12 @@ namespace style {
 		mutable Font modified[FontDifferentFlags];
 
 		Font otherFlagsFont(uint32 flag, bool set) const;
-		FontData(uint32 size, uint32 flags, uint32 family, Font *other);
+		FontData(int size, uint32 flags, int family, Font *other);
 
 		friend class Font;
-		uint32 _size, _flags, _family;
+		int _size;
+		uint32 _flags;
+		int _family;
 
 	};
 
@@ -159,7 +166,7 @@ namespace style {
 	class ColorData;
 	class Color {
 	public:
-		Color(Qt::Initialization = Qt::Uninitialized) : ptr(0), owner(false) {
+		Color(Qt::Initialization = Qt::Uninitialized) {
 		}
 		Color(const Color &c);
 		Color(const QColor &c);
@@ -185,8 +192,8 @@ namespace style {
 		}
 
 	private:
-		ColorData *ptr;
-		bool owner;
+		ColorData *ptr = nullptr;
+		bool owner = false;
 
 		void init(uchar r, uchar g, uchar b, uchar a);
 
@@ -233,17 +240,6 @@ namespace style {
 		return ptr->p;
 	}
 
-	typedef QVector<QString> FontFamilies;
-	extern FontFamilies _fontFamilies;
-
-	typedef QMap<uint32, FontData*> FontDatas;
-	extern FontDatas _fontsMap;
-
-	typedef QMap<uint32, ColorData*> ColorDatas;
-	extern ColorDatas _colorsMap;
-
-	extern int _spriteWidth;
-
 	typedef float64 number;
 	typedef QString string;
 	typedef QRect rect;
@@ -252,7 +248,7 @@ namespace style {
     public:
         sprite() {
         }
-		sprite(int left, int top, int width, int height) : rect(rtl() ? (_spriteWidth - left - width) : left, top, width, height) {
+		sprite(int left, int top, int width, int height) : rect(rtl() ? (internal::spriteWidth() - left - width) : left, top, width, height) {
         }
         inline int pxWidth() const {
             return rect::width() / cIntRetinaFactor();
@@ -314,8 +310,9 @@ namespace style {
 
 	void startManager();
 	void stopManager();
+	const QPixmap &spritePixmap();
 
-};
+} // namespace style
 
 inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {
 	return centerrect(inRect, QRect(QPoint(0, 0), sprite.pxSize()));

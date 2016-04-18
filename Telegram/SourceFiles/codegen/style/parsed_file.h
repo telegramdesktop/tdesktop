@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <string>
 #include "codegen/common/basic_tokenized_file.h"
 #include "codegen/style/options.h"
-#include "codegen/style/structure.h"
+#include "codegen/style/module.h"
 
 namespace codegen {
 namespace style {
@@ -32,14 +32,15 @@ namespace style {
 // Parses an input file to the internal struct.
 class ParsedFile {
 public:
-	ParsedFile(const Options &options);
+	explicit ParsedFile(const Options &options);
 	ParsedFile(const ParsedFile &other) = delete;
 	ParsedFile &operator=(const ParsedFile &other) = delete;
 
 	bool read();
 
-	const structure::Module &data() const {
-		return result_;
+	using ModulePtr = std::unique_ptr<structure::Module>;
+	ModulePtr getResult() {
+		return std::move(module_);
 	}
 
 private:
@@ -66,7 +67,7 @@ private:
 	}
 
 	// Helper methods for context-dependent reading.
-	structure::Module readIncluded();
+	ModulePtr readIncluded();
 	structure::Struct readStruct(const QString &name);
 	structure::Variable readVariable(const QString &name);
 
@@ -96,14 +97,6 @@ private:
 	structure::Value readFontValue();
 	structure::Value readCopyValue();
 
-	// Returns nullptr if there is no such struct in result_ or any of included modules.
-	const structure::Struct *findStruct(const structure::FullName &name);
-	const structure::Struct *findStructInModule(const structure::FullName &name, const structure::Module &module);
-
-	// Returns nullptr if there is no such variable in result_ or any of included modules.
-	const structure::Variable *findVariable(const structure::FullName &name);
-	const structure::Variable *findVariableInModule(const structure::FullName &name, const structure::Module &module);
-
 	// Read next token and fire unexpected token error if it is not of "type".
 	using BasicToken = common::BasicTokenizedFile::Token;
 	BasicToken assertNextToken(BasicToken::Type type);
@@ -117,7 +110,7 @@ private:
 	common::BasicTokenizedFile file_;
 	Options options_;
 	bool failed_ = false;
-	structure::Module result_;
+	ModulePtr module_;
 
 	QMap<std::string, structure::Type> typeNames_ = {
 		{ "int"       , { structure::TypeTag::Int } },

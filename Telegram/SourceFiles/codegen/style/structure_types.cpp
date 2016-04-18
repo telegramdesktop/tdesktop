@@ -20,8 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "codegen/style/structure_types.h"
 
-#include "codegen/style/structure.h"
-
 namespace codegen {
 namespace style {
 namespace structure {
@@ -117,23 +115,20 @@ struct Value::DataTypes {
 		data::font value_;
 
 	};
-	class TComplex : public DataBase {
+	class TFields : public DataBase {
 	public:
-		TComplex(data::complex value) : value_(value) {
+		TFields(data::fields value) : value_(value) {
 		}
-		const data::complex *Complex() const override { return &value_; }
-		data::complex *Complex() override { return &value_; }
+		const data::fields *Fields() const override { return &value_; }
+		data::fields *Fields() override { return &value_; }
 
 	private:
-		data::complex value_;
+		data::fields value_;
 
 	};
 };
 
 Value::Value() : Value(TypeTag::Invalid, std::make_shared<DataBase>()) {
-}
-
-Value::Value(double value) : Value(TypeTag::Double, std::make_shared<DataTypes::TDouble>(value)) {
 }
 
 Value::Value(data::point value) : Value(TypeTag::Point, std::make_shared<DataTypes::TPoint>(value)) {
@@ -154,9 +149,16 @@ Value::Value(data::margins value) : Value(TypeTag::Margins, std::make_shared<Dat
 Value::Value(data::font value) : Value(TypeTag::Font, std::make_shared<DataTypes::TFont>(value)) {
 }
 
-Value::Value(const FullName &type, data::complex value)
+Value::Value(const FullName &type, data::fields value)
 : type_ { TypeTag::Struct, type }
-, data_(std::make_shared<DataTypes::TComplex>(value)) {
+, data_(std::make_shared<DataTypes::TFields>(value)) {
+}
+
+Value::Value(TypeTag type, double value) : Value(type, std::make_shared<DataTypes::TDouble>(value)) {
+	if (type_.tag != TypeTag::Double) {
+		type_.tag = TypeTag::Invalid;
+		data_ = std::make_shared<DataBase>();
+	}
 }
 
 Value::Value(TypeTag type, int value) : Value(type, std::make_shared<DataTypes::TInt>(value)) {
@@ -189,10 +191,10 @@ Value::Value(Type type, Qt::Initialization) : type_(type) {
 	case TypeTag::Size: data_ = std::make_shared<DataTypes::TSize>(data::size { 0, 0 }); break;
 	case TypeTag::Transition: data_ = std::make_shared<DataTypes::TString>("linear"); break;
 	case TypeTag::Cursor: data_ = std::make_shared<DataTypes::TString>("default"); break;
-	case TypeTag::Align: data_ = std::make_shared<DataTypes::TString>("left"); break;
+	case TypeTag::Align: data_ = std::make_shared<DataTypes::TString>("topleft"); break;
 	case TypeTag::Margins: data_ = std::make_shared<DataTypes::TMargins>(data::margins { 0, 0, 0, 0 }); break;
 	case TypeTag::Font: data_ = std::make_shared<DataTypes::TFont>(data::font { "", 13, 0 }); break;
-	case TypeTag::Struct: data_ = std::make_shared<DataTypes::TComplex>(data::complex {}); break;
+	case TypeTag::Struct: data_ = std::make_shared<DataTypes::TFields>(data::fields {}); break;
 	}
 }
 

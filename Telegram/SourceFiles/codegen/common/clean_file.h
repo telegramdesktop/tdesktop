@@ -32,7 +32,7 @@ namespace common {
 // Reads a file removing all C-style comments.
 class CleanFile {
 public:
-	CleanFile(const QString &filepath);
+	explicit CleanFile(const QString &filepath);
 	CleanFile(const CleanFile &other) = delete;
 	CleanFile &operator=(const CleanFile &other) = delete;
 

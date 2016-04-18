@@ -21,54 +21,50 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtCore/QString>
-#include <QtCore/QList>
-#include <QtCore/QMap>
-#include "codegen/style/structure_types.h"
+#include <QtCore/QVector>
+#include <QtCore/QTextStream>
 
 namespace codegen {
-namespace style {
-namespace structure {
+namespace common {
 
-struct Variable {
-	FullName name;
-	Value value;
-
-	explicit operator bool() const {
-		return !name.isEmpty();
-	}
+struct ProjectInfo {
+	QString name;
+	QString source;
+	QString precompiledHeader;
+	bool forceReGenerate;
 };
 
-struct StructField {
-	FullName name;
-	Type type;
+// Creates a file with license header and codegen warning.
+class CppFile {
+public:
+	// If "basepath" is empty the folder containing "path" will be chosen.
+	// File ending with .cpp will be treated as source, otherwise like header.
+	CppFile(const QString &path, const ProjectInfo &project);
 
-	explicit operator bool() const {
-		return !name.isEmpty();
+	QTextStream &stream() {
+		return stream_;
 	}
+
+	CppFile &newline() {
+		stream() << "\n";
+		return *this;
+	}
+	CppFile &include(const QString &header);
+
+	// Empty name adds anonymous namespace.
+	CppFile &pushNamespace(const QString &name = QString());
+	CppFile &popNamespace();
+
+	bool finalize();
+
+private:
+	QString filepath_;
+	QByteArray content_;
+	QTextStream stream_;
+	QVector<QString> namespaces_;
+	bool forceReGenerate_;
+
 };
 
-struct Struct {
-	FullName name;
-	QList<StructField> fields;
-
-	explicit operator bool() const {
-		return !name.isEmpty();
-	}
-};
-
-struct Module {
-	QString fullpath;
-	QList<Module> includes;
-	QList<Struct> structs;
-	QList<Variable> variables;
-	QMap<QString, int> structsByName;
-	QMap<QString, int> variablesByName;
-
-	explicit operator bool() const {
-		return !fullpath.isEmpty();
-	}
-};
-
-} // namespace structure
-} // namespace style
+} // namespace common
 } // namespace codegen

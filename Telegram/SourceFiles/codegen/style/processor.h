@@ -20,6 +20,41 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/style_core.h"
-#include "GeneratedFiles/styles/style_basic_types.h"
-#include "GeneratedFiles/styles/style_basic.h"
+#include <memory>
+#include <QtCore/QString>
+#include "codegen/style/options.h"
+
+namespace codegen {
+namespace style {
+namespace structure {
+class Module;
+} // namespace structure
+class ParsedFile;
+
+// Walks through a file, parses it and parses dependency files if necessary.
+// Uses Generator class to produce the final output.
+class Processor {
+public:
+	explicit Processor(const Options &options);
+	Processor(const Processor &other) = delete;
+	Processor &operator=(const Processor &other) = delete;
+
+	// Returns 0 on success.
+	int launch();
+
+	~Processor();
+
+private:
+	bool write(const structure::Module &module) const;
+
+	std::unique_ptr<ParsedFile> parser_;
+	const Options &options_;
+
+	// List of files we need to generate with other instance of Generator.
+	// It is not empty only if rebuild_ flag is true.
+	QStringList dependenciesToGenerate_;
+
+};
+
+} // namespace style
+} // namespace codegen

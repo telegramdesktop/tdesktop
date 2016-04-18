@@ -30,6 +30,9 @@ namespace structure {
 
 // List of names, like overview.document.bg
 using FullName = QStringList;
+inline std::string logFullName(const FullName &name) {
+	return name.join('.').toStdString();
+}
 
 struct Variable;
 
@@ -68,6 +71,10 @@ inline bool operator!=(const Type &a, const Type &b) {
 
 namespace data {
 
+inline int pxAdjust(int value, int scale) {
+	return qRound((value * scale / 4.) + (value > 0 ? -0.01 : 0.01));
+}
+
 struct point {
 	int x, y;
 };
@@ -85,29 +92,32 @@ struct margins {
 };
 struct font {
 	enum Flag {
-		Bold = 0x01,
-		Italic = 0x02,
+		Bold      = 0x01,
+		Italic    = 0x02,
 		Underline = 0x04,
 	};
 	std::string family;
 	int size;
 	int flags;
 };
-using complex = QList<Variable>;
+struct field; // defined after Variable is defined
+using fields = QList<field>;
 
 } // namespace data
 
 class Value {
 public:
 	Value();
-	Value(double value);
 	Value(data::point value);
 	Value(data::sprite value);
 	Value(data::size value);
 	Value(data::color value);
 	Value(data::margins value);
 	Value(data::font value);
-	Value(const FullName &type, data::complex value);
+	Value(const FullName &type, data::fields value);
+
+	// Can be only double.
+	Value(TypeTag type, double value);
 
 	// Can be int / pixels.
 	Value(TypeTag type, int value);
@@ -128,8 +138,8 @@ public:
 	data::color Color() const { return data_->Color(); };
 	data::margins Margins() const { return data_->Margins(); };
 	data::font Font() const { return data_->Font(); };
-	const data::complex *Complex() const { return data_->Complex(); };
-	data::complex *Complex() { return data_->Complex(); };
+	const data::fields *Fields() const { return data_->Fields(); };
+	data::fields *Fields() { return data_->Fields(); };
 
 	explicit operator bool() const {
 		return type_.tag != TypeTag::Invalid;
@@ -139,6 +149,10 @@ public:
 		Value result(*this);
 		result.copyOf_ = copyOf;
 		return result;
+	}
+
+	const FullName &copyOf() const {
+		return copyOf_;
 	}
 
 private:
@@ -153,8 +167,8 @@ private:
 		virtual data::color Color() const { return {}; };
 		virtual data::margins Margins() const { return {}; };
 		virtual data::font Font() const { return {}; };
-		virtual const data::complex *Complex() const { return nullptr; };
-		virtual data::complex *Complex() { return nullptr; };
+		virtual const data::fields *Fields() const { return nullptr; };
+		virtual data::fields *Fields() { return nullptr; };
 		virtual ~DataBase() {
 		}
 	};
@@ -167,6 +181,45 @@ private:
 
 	FullName copyOf_; // for copies of existing named values
 
+};
+
+struct Variable {
+	FullName name;
+	Value value;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
+};
+
+namespace data {
+struct field {
+	enum class Status {
+		Uninitialized,
+		Implicit,
+		Explicit
+	};
+	Variable variable;
+	Status status;
+};
+} // namespace data
+
+struct StructField {
+	FullName name;
+	Type type;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
+};
+
+struct Struct {
+	FullName name;
+	QList<StructField> fields;
+
+	explicit operator bool() const {
+		return !name.isEmpty();
+	}
 };
 
 } // namespace structure

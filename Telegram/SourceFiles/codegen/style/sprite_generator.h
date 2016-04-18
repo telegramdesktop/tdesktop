@@ -20,6 +20,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/style_core.h"
-#include "GeneratedFiles/styles/style_basic_types.h"
-#include "GeneratedFiles/styles/style_basic.h"
+#include <memory>
+#include <QtCore/QString>
+#include <QtCore/QSet>
+#include <QtGui/QImage>
+#include "codegen/style/structure_types.h"
+
+namespace codegen {
+namespace style {
+namespace structure {
+class Module;
+} // namespace structure
+
+class SpriteGenerator {
+public:
+	SpriteGenerator(const structure::Module &module);
+	SpriteGenerator(const SpriteGenerator &other) = delete;
+	SpriteGenerator &operator=(const SpriteGenerator &other) = delete;
+
+	bool writeSprites();
+
+private:
+
+	bool collectSprites();
+	QImage generateSprite(int scale); // scale = 5 for 125% and 6 for 150%.
+
+	const structure::Module &module_;
+	QString basePath_;
+	QImage sprite2x_;
+	QList<structure::Variable> sprites_;
+
+};
+
+} // namespace style
+} // namespace codegen

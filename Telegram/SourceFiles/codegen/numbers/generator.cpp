@@ -18,8 +18,37 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "codegen/numbers/generator.h"
 
-#include "ui/style_core.h"
-#include "GeneratedFiles/styles/style_basic_types.h"
-#include "GeneratedFiles/styles/style_basic.h"
+#include <QtCore/QDir>
+#include <QtCore/QSet>
+#include <functional>
+
+namespace codegen {
+namespace numbers {
+namespace {
+
+} // namespace
+
+Generator::Generator(const Rules &rules, const QString &destBasePath, const common::ProjectInfo &project)
+: rules_(rules)
+, basePath_(destBasePath)
+, project_(project) {
+}
+
+bool Generator::writeHeader() {
+	header_ = std::make_unique<common::CppFile>(basePath_ + ".h", project_);
+
+	header_->stream() << "QVector<int> phoneNumberParse(const QString &number);\n";
+
+	return header_->finalize();
+}
+
+bool Generator::writeSource() {
+	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
+
+	return source_->finalize();
+}
+
+} // namespace numbers
+} // namespace codegen

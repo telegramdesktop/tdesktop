@@ -15,6 +15,6 @@
     Inputs="%(CodegenStyleItem.Identity)"
     Outputs=".\GeneratedFiles\styles\style_%(CodegenStyleItem.Filename).h;.\GeneratedFiles\styles\style_%(CodegenStyleItem.Filename).cpp">
   <Message Text="Generating style: %(CodegenStyleItem.Identity)" />
-  <Exec Command="$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_style.exe %(CodegenStyleItem.Identity)"/>
+  <Exec Command="$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_style.exe &quot;-I.\SourceFiles&quot; &quot;-o.\GeneratedFiles\styles&quot; %(CodegenStyleItem.Identity)"/>
  </Target>
 </Project>

@@ -20,38 +20,55 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtCore/QString>
-
-class QByteArray;
+#include <memory>
+#include <string>
+#include "codegen/common/basic_tokenized_file.h"
+#include "codegen/numbers/options.h"
 
 namespace codegen {
-namespace common {
+namespace numbers {
 
-class ConstUtf8String;
+struct Rule {
+};
+struct Rules {
+	QVector<Rule> data;
+};
 
-// Parses a char sequence to a QString using UTF-8 codec.
-// You can check for invalid UTF-8 sequence by isValid() method.
-class CheckedUtf8String {
+// Parses an input file to the internal struct.
+class ParsedFile {
 public:
-	CheckedUtf8String(const CheckedUtf8String &other) = default;
-	CheckedUtf8String &operator=(const CheckedUtf8String &other) = default;
+	explicit ParsedFile(const Options &options);
+	ParsedFile(const ParsedFile &other) = delete;
+	ParsedFile &operator=(const ParsedFile &other) = delete;
 
-	explicit CheckedUtf8String(const char *string, int size = -1);
-	explicit CheckedUtf8String(const QByteArray &string);
-	explicit CheckedUtf8String(const ConstUtf8String &string);
+	bool read();
 
-	bool isValid() const {
-		return valid_;
-	}
-	const QString &toString() const {
-		return string_;
+	Rules getResult() {
+		return result_;
 	}
 
 private:
-	QString string_;
-	bool valid_ = true;
+
+	bool failed() const {
+		return failed_ || file_.failed();
+	}
+
+	// Log error to std::cerr with 'code' at the current position in file.
+	common::LogStream logError(int code) {
+		failed_ = true;
+		return file_.logError(code);
+	}
+	common::LogStream logErrorUnexpectedToken() {
+		failed_ = true;
+		return file_.logErrorUnexpectedToken();
+	}
+
+	common::BasicTokenizedFile file_;
+	Options options_;
+	bool failed_ = false;
+	Rules result_;
 
 };
 
-} // namespace common
+} // namespace numbers
 } // namespace codegen
