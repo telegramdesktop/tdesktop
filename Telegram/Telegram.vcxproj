@@ -1053,11 +1053,6 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_basic.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp" />
-    <ClCompile Include="GeneratedFiles\style_auto.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="SourceFiles\apiwrap.cpp" />
     <ClCompile Include="SourceFiles\app.cpp" />
     <ClCompile Include="SourceFiles\application.cpp" />
@@ -1251,6 +1246,7 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/core/basic_types.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\..\..\Libraries\breakpad\src" "-I.\ThirdParty\minizip" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
     </CustomBuild>
+    <ClInclude Include="GeneratedFiles\numbers.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h" />
     <ClInclude Include="SourceFiles\core\click_handler.h" />
@@ -1583,18 +1579,10 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
-    <CustomBuild Include="Resources\style_classes.txt">
-      <Outputs>.\GeneratedFiles\style_classes.h</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h" -path_to_sprites ".\Resources\art\\"</Command>
-    </CustomBuild>
-    <CustomBuild Include="Resources\style.txt">
-      <Outputs>.\GeneratedFiles\style_auto.h</Outputs>
-      <Outputs>.\GeneratedFiles\style_auto.cpp</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h" -path_to_sprites ".\Resources\art\\"</Command>
-    </CustomBuild>
     <CustomBuild Include="Resources\numbers.txt">
+      <Outputs>.\GeneratedFiles\numbers.h</Outputs>
       <Outputs>.\GeneratedFiles\numbers.cpp</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h" -path_to_sprites ".\Resources\art\\"</Command>
+      <Command>"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_numbers.exe" "-o.\GeneratedFiles" ".\Resources\numbers.txt"</Command>
     </CustomBuild>
     <CustomBuild Include="Resources\lang.strings">
       <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
@@ -1616,16 +1604,6 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
     <ClInclude Include="GeneratedFiles\lang_auto.h" />
-    <ClInclude Include="GeneratedFiles\style_auto.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\style_classes.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="resource.h" />
     <CustomBuild Include="SourceFiles\apiwrap.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
@@ -2229,7 +2207,6 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\..\..\Libraries\breakpad\src" "-I.\ThirdParty\minizip" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/playerwidget.h"</Command>
     </CustomBuild>
-    <ClInclude Include="SourceFiles\numbers.h" />
     <ClInclude Include="SourceFiles\pspecific.h" />
     <CustomBuild Include="SourceFiles\pspecific_linux.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>

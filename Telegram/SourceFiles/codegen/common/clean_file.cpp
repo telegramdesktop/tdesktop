@@ -55,13 +55,22 @@ bool readFile(const QString &filepath, QByteArray *outResult) {
 } // namespace
 
 
-CleanFile::CleanFile(const QString &filepath) : filepath_(filepath) {
+CleanFile::CleanFile(const QString &filepath)
+: filepath_(filepath)
+, read_(true) {
+}
+
+CleanFile::CleanFile(const QByteArray &content, const QString &filepath)
+: filepath_(filepath)
+, content_(content)
+, read_(false) {
 }
 
 bool CleanFile::read() {
-	QByteArray content;
-	if (!readFile(filepath_, &content)) {
-		return false;
+	if (read_) {
+		if (!readFile(filepath_, &content_)) {
+			return false;
+		}
 	}
 	filepath_ = QFileInfo(filepath_).absoluteFilePath();
 
@@ -73,19 +82,19 @@ bool CleanFile::read() {
 	auto insideComment = InsideComment::None;
 	bool insideString = false;
 
-	const char *begin = content.cbegin(), *end = content.cend(), *offset = begin;
+	const char *begin = content_.cbegin(), *end = content_.cend(), *offset = begin;
 	auto feedContent = [this, &offset, end](const char *ch) {
 		if (ch > offset) {
-			if (content_.isEmpty()) content_.reserve(end - offset - 2);
-			content_.append(offset, ch - offset);
+			if (result_.isEmpty()) result_.reserve(end - offset - 2);
+			result_.append(offset, ch - offset);
 			offset = ch;
 		}
 	};
 	auto feedComment = [this, &offset, end](const char *ch) {
 		if (ch > offset) {
 //			comments_.push_back({ content_.size(), QByteArray(offset, ch - offset) });
-			if (content_.isEmpty()) content_.reserve(end - offset - 2);
-			content_.append(' ');
+			if (result_.isEmpty()) result_.reserve(end - offset - 2);
+			result_.append(' ');
 			offset = ch;
 		}
 	};
@@ -142,10 +151,10 @@ bool CleanFile::read() {
 		return false;
 	}
 	if (insideComment == InsideComment::None && end > offset) {
-		if (content_.isEmpty()) {
-			content_ = content;
+		if (result_.isEmpty()) {
+			result_ = content_;
 		} else {
-			content_.append(offset, end - offset);
+			result_.append(offset, end - offset);
 		}
 	}
 	return true;

@@ -28,10 +28,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace codegen {
 namespace numbers {
 
-struct Rule {
-};
+using Rule = QVector<int>;
 struct Rules {
-	QVector<Rule> data;
+	QMap<QString, Rule> data;
 };
 
 // Parses an input file to the internal struct.
@@ -63,6 +62,7 @@ private:
 		return file_.logErrorUnexpectedToken();
 	}
 
+	QByteArray content_;
 	common::BasicTokenizedFile file_;
 	Options options_;
 	bool failed_ = false;

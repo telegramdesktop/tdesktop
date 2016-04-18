@@ -111,9 +111,6 @@
     <ClCompile Include="SourceFiles\mainwidget.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\style_auto.cpp">
-      <Filter>GeneratedFiles</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\app.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
@@ -1094,12 +1091,6 @@
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratedFiles\style_auto.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\style_classes.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\countries.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
@@ -1125,9 +1116,6 @@
       <Filter>SourceFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
-      <Filter>SourceFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\numbers.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\config.h">
@@ -1249,6 +1237,9 @@
     </ClInclude>
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h">
       <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\numbers.h">
+      <Filter>GeneratedFiles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

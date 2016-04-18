@@ -33,16 +33,17 @@ namespace common {
 class CleanFile {
 public:
 	explicit CleanFile(const QString &filepath);
+	explicit CleanFile(const QByteArray &content, const QString &filepath = QString());
 	CleanFile(const CleanFile &other) = delete;
 	CleanFile &operator=(const CleanFile &other) = delete;
 
 	bool read();
 
 	const char *data() const {
-		return content_.constData();
+		return result_.constData();
 	}
 	const char *end() const {
-		return content_.constEnd();
+		return result_.constEnd();
 	}
 
 	static constexpr int MaxSize = 10 * 1024 * 1024;
@@ -52,8 +53,8 @@ public:
 
 private:
 	QString filepath_;
-
-	QByteArray content_;
+	QByteArray content_, result_;
+	bool read_;
 	//struct Comment {
 	//	int offset;
 	//	QByteArray content;

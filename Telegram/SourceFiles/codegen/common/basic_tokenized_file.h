@@ -37,6 +37,7 @@ class LogStream;
 class BasicTokenizedFile {
 public:
 	explicit BasicTokenizedFile(const QString &filepath);
+	explicit BasicTokenizedFile(const QByteArray &content, const QString &filepath = QString());
 	BasicTokenizedFile(const BasicTokenizedFile &other) = delete;
 	BasicTokenizedFile &operator=(const BasicTokenizedFile &other) = delete;
 

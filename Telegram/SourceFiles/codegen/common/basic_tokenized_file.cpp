@@ -57,6 +57,9 @@ Token invalidToken() {
 BasicTokenizedFile::BasicTokenizedFile(const QString &filepath) : reader_(filepath) {
 }
 
+BasicTokenizedFile::BasicTokenizedFile(const QByteArray &content, const QString &filepath) : reader_(content, filepath) {
+}
+
 bool BasicTokenizedFile::putBack() {
 	if (currentToken_ > 0) {
 		--currentToken_;
