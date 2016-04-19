@@ -48,27 +48,6 @@ namespace {
 		return result;
 	}
 
-	FileKey fromFilePart(const QString &val) {
-		FileKey result = 0;
-		int32 i = val.size();
-		if (i != 0x10) return 0;
-
-		while (i > 0) {
-			--i;
-			result <<= 4;
-
-			uint16 ch = val.at(i).unicode();
-			if (ch >= 'A' && ch <= 'F') {
-				result |= (ch - 'A') + 0x0A;
-			} else if (ch >= '0' && ch <= '9') {
-				result |= (ch - '0');
-			} else {
-				return 0;
-			}
-		}
-		return result;
-	}
-
 	QString _basePath, _userBasePath;
 
 	bool _started = false;
@@ -358,10 +337,6 @@ namespace {
 			if (QFileInfo(fname).exists()) return true;
 		}
 		return false;
-	}
-
-	bool fileExists(const FileKey &fkey, int options = UserPath | SafePath) {
-		return fileExists(toFilePart(fkey), options);
 	}
 
 	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {

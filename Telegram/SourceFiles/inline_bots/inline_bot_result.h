@@ -120,6 +120,5 @@ private:
 	std_::unique_ptr<internal::SendData> sendData;
 
 };
-Result *getResultFromLoader(FileLoader *loader);
 
 } // namespace InlineBots
