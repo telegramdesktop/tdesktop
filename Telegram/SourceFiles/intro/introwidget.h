@@ -20,8 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "mtproto/rpc_sender.h"
+
 class IntroStep;
-class IntroWidget final : public TWidget {
+class IntroWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -72,7 +74,7 @@ public:
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
-	void rpcClear();
+	void rpcClear() override;
 	void langChangeTo(int32 langId);
 
 	void nextStep(IntroStep *step) {
@@ -99,11 +101,12 @@ private:
 
 	QPixmap grabStep(int skip = 0);
 
-	int _langChangeTo;
+	int _langChangeTo = 0;
 
 	Animation _a_stage;
 	QPixmap _cacheHide, _cacheShow;
-	int _cacheHideIndex, _cacheShowIndex;
+	int _cacheHideIndex = 0;
+	int _cacheShowIndex = 0;
 	anim::ivalue a_coordHide, a_coordShow;
 	anim::fvalue a_opacityHide, a_opacityShow;
 
@@ -125,20 +128,26 @@ private:
 	void historyMove(MoveType type);
 	void pushStep(IntroStep *step, MoveType type);
 
+	void gotNearestDC(const MTPNearestDc &dc);
+
+	QString _countryForReg;
+
 	QString _phone, _phone_hash;
-	CallStatus _callStatus;
-	bool _registered;
+	CallStatus _callStatus = { CallDisabled, 0 };
+	bool _registered = false;
 
 	QString _code;
 
 	QByteArray _pwdSalt;
-	bool _hasRecovery, _codeByTelegram;
+	bool _hasRecovery = false;
+	bool _codeByTelegram = false;
 	QString _pwdHint;
 
 	QString _firstname, _lastname;
 
 	IconedButton _back;
-	float64 _backFrom, _backTo;
+	float64 _backFrom = 0.;
+	float64 _backTo = 0.;
 
 };
 

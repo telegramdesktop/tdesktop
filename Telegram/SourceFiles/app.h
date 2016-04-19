@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "basic_types.h"
+#include "core/basic_types.h"
 
 class AppClass;
-class Window;
+class MainWindow;
 class MainWidget;
 class SettingsWidget;
 class ApiWrap;
@@ -48,7 +48,7 @@ class LayeredWidget;
 
 namespace App {
 	AppClass *app();
-	Window *wnd();
+	MainWindow *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();
 	bool passcoded();

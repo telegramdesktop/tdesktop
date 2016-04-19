@@ -25,10 +25,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
-
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "lang.h"
+#include "playerwidget.h"
+#include "apiwrap.h"
 
 namespace {
 	typedef quint64 FileKey;

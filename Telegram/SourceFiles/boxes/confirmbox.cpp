@@ -23,9 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "confirmbox.h"
 #include "mainwidget.h"
-#include "window.h"
-
+#include "mainwindow.h"
+#include "apiwrap.h"
 #include "application.h"
+#include "core/click_handler_types.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -118,10 +119,10 @@ void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 
 	textstyleSet(&st::boxTextStyle);
-	ClickHandlerPtr handler = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), style::al_left);
+	auto state = _text.getStateLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width());
 	textstyleRestore();
 
-	ClickHandler::setActive(handler, this);
+	ClickHandler::setActive(state.link, this);
 }
 
 void ConfirmBox::closePressed() {

@@ -110,10 +110,12 @@ void FlatLabel::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 
 	textstyleSet(&_tst);
-	ClickHandlerPtr handler = _text.link(m.x(), m.y(), width(), _st.align);
+	Text::StateRequest request;
+	request.align = _st.align;
+	auto state = _text.getState(m.x(), m.y(), width(), request);
 	textstyleRestore();
 
-	ClickHandler::setActive(handler, this);
+	ClickHandler::setActive(state.link, this);
 }
 
 void FlatLabel::setOpacity(float64 o) {

@@ -26,11 +26,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "application.h"
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
+#include "apiwrap.h"
 
 QString cantInviteError() {
 	return lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info)));
@@ -956,7 +957,6 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 							if (p->asUser()->botInfo->cantJoinGroups) continue;
 						}
 						if (_channel) {
-							if (_channel->isMegagroup() && _membersFilter == MembersFilterAdmins) continue;
 							if (!_channel->isMegagroup() && _membersFilter != MembersFilterAdmins) continue;
 						}
 					}

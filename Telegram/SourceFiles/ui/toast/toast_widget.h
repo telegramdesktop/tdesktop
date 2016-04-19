@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/toast/toast.h"
 #include "ui/twidget.h"
-#include "ui/text.h"
+#include "ui/text/text.h"
 
 namespace Ui {
 namespace Toast {

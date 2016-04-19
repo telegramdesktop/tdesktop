@@ -30,7 +30,7 @@ extern "C" {
 }
 
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 namespace {
 	AnimationManager *_manager = 0;

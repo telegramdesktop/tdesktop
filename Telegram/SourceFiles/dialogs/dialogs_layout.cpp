@@ -93,7 +93,7 @@ void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool activ
 			p.drawSprite(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), *check);
 		}
 
-		paintItemCallback(nameleft, namewidth);
+		paintItemCallback(nameleft, namewidth, item);
 	}
 
 	if (history->peer->isUser() && history->peer->isVerified()) {
@@ -132,10 +132,10 @@ QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
 	int a = color->c.alpha() + 1;
 	int fg_r = color->c.red() * a, fg_g = color->c.green() * a, fg_b = color->c.blue() * a, fg_a = 255 * a;
 
-	QImage result(size, size, QImage::Format_ARGB32_Premultiplied);
+	QImage result(half, size, QImage::Format_ARGB32_Premultiplied);
 	uchar *bits = result.bits(), *maskbits = unreadBadgeStyle->circle.bits();
 	int bpl = result.bytesPerLine(), maskbpl = unreadBadgeStyle->circle.bytesPerLine();
-	for (int x = 0; x < size; ++x) {
+	for (int x = 0; x < half; ++x) {
 		for (int y = 0; y < size; ++y) {
 			int s = y * bpl + (x * 4);
 			int o = maskbits[y * maskbpl + x + xoffset] + 1;
@@ -194,7 +194,7 @@ void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool acti
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto history = row->history();
 	auto item = history->lastMsg;
-	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, w, active, history, item](int nameleft, int namewidth) {
+	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, w, active, history](int nameleft, int namewidth, HistoryItem *item) {
 		int32 unread = history->unreadCount();
 		if (history->peer->migrateFrom()) {
 			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
@@ -219,7 +219,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, row, active, item](int nameleft, int namewidth) {
+	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
 	});

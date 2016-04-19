@@ -22,15 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/boxshadow.h"
-
 #include "dropdown.h"
-
-enum DragState {
-	DragStateNone       = 0x00,
-	DragStateFiles      = 0x01,
-	DragStatePhotoFiles = 0x02,
-	DragStateImage      = 0x03,
-};
+#include "history/history_common.h"
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -181,7 +174,7 @@ private:
 	bool _firstLoading = false;
 
 	style::cursor _cursor = style::cur_default;
-	typedef QMap<HistoryItem*, uint32> SelectedItems;
+	using SelectedItems = QMap<HistoryItem*, TextSelection>;
 	SelectedItems _selected;
 	void applyDragSelection();
 	void applyDragSelection(SelectedItems *toItems) const;
@@ -629,7 +622,7 @@ public:
 
 	void onListEscapePressed();
 
-	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;

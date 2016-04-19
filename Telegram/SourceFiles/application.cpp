@@ -20,20 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
+
 #include "ui/style.h"
-
 #include "shortcuts.h"
-
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "langloaderplain.h"
-
 #include "localstorage.h"
-
 #include "autoupdater.h"
 
 namespace {
@@ -90,14 +86,7 @@ namespace {
 
 AppClass *AppObject = 0;
 
-Application::Application(int &argc, char **argv) : QApplication(argc, argv)
-, _secondInstance(false)
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _updateReply(0)
-, _updateThread(0)
-, _updateChecker(0)
-#endif
-{
+Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -718,7 +707,7 @@ AppClass::AppClass() : QObject()
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
-	_window = new Window();
+	_window = new MainWindow();
 	_window->createWinId();
 	_window->init();
 
@@ -905,6 +894,12 @@ void AppClass::call_handleHistoryUpdate() {
 	Notify::handlePendingHistoryUpdate();
 }
 
+void AppClass::call_handleUnreadCounterUpdate() {
+	if (auto w = App::wnd()) {
+		w->updateUnreadCounter();
+	}
+}
+
 void AppClass::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
@@ -1035,8 +1030,8 @@ void AppClass::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");
-				versionFeatures = langNewVersionText();
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
+//				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9041) {
 				versionFeatures = langNewVersionText();
 			} else {
@@ -1053,7 +1048,7 @@ void AppClass::checkMapVersion() {
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
-	if (Window *w = _window) {
+	if (auto w = _window) {
 		_window = 0;
 		delete w;
 	}
@@ -1086,7 +1081,7 @@ AppClass *AppClass::app() {
 	return AppObject;
 }
 
-Window *AppClass::wnd() {
+MainWindow *AppClass::wnd() {
 	return AppObject ? AppObject->_window : 0;
 }
 

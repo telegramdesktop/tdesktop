@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <QtWidgets/QWidget>
 
-class Window;
+class MainWindow;
 class Settings;
 
 class Slider : public QWidget {
@@ -313,7 +313,7 @@ class SettingsWidget : public TWidget {
 
 public:
 
-	SettingsWidget(Window *parent);
+	SettingsWidget(MainWindow *parent);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);

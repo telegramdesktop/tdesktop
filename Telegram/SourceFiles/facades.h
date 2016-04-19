@@ -24,7 +24,7 @@ class LayeredWidget;
 
 namespace App {
 
-void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo = 0);
+void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd, bool specialGif = false);
 void activateBotCommand(const HistoryItem *msg, int row, int col);
 void searchByHashtag(const QString &tag, PeerData *inPeer);
@@ -116,6 +116,7 @@ void historyMuteUpdated(History *history);
 
 // handle pending resize() / paint() on history items
 void handlePendingHistoryUpdate();
+void unreadCounterUpdated();
 
 } // namespace Notify
 
@@ -184,6 +185,7 @@ void finish();
 
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
+DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
 
 DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);

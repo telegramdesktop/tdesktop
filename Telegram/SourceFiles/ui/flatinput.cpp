@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/style.h"
 
 #include "flatinput.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "countryinput.h"
 
 #include "lang.h"
