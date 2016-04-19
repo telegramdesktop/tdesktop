@@ -20,9 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "codegen/style/generator.h"
 
+#include <memory>
+#include <functional>
 #include <QtCore/QDir>
 #include <QtCore/QSet>
-#include <functional>
 #include "codegen/style/parsed_file.h"
 
 using Module = codegen::style::structure::Module;
@@ -54,7 +55,7 @@ char hexFirstChar(char ch) {
 QString stringToEncodedString(const std::string &str) {
 	QString result;
 	result.reserve(str.size() * 4);
-	for (auto ch : str) {
+	for (uchar ch : str) {
 		if (ch == '\n') {
 			result.append("\\n");
 		} else if (ch == '\t') {

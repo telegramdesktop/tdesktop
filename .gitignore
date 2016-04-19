@@ -37,6 +37,7 @@ project.xcworkspace
 xcuserdata
 
 /Telegram/*.user.*
+*.pro.user
 /Linux/
 /Telegram/Makefile
 *.*~

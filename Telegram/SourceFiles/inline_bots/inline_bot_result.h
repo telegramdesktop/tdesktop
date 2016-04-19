@@ -43,7 +43,7 @@ private:
 
 public:
 
-	// Constructor is public only for std::make_unique<>() to work.
+	// Constructor is public only for std_::make_unique<>() to work.
 	// You should use create() static method instead.
 	explicit Result(const Creator &creator);
 	static std_::unique_ptr<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
