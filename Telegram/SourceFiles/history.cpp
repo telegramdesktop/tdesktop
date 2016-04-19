@@ -7401,9 +7401,9 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		}
 	}
 
-	uint64 animms = App::main() ? App::main()->animActiveTimeStart(this) : 0;
-	if (animms > 0 && animms <= ms) {
-		animms = ms - animms;
+	uint64 fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0;
+	if (fullAnimMs > 0 && fullAnimMs <= ms) {
+		int animms = ms - fullAnimMs;
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
 		} else {
@@ -8192,9 +8192,9 @@ void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, u
 		height -= unreadbarh;
 	}
 
-	uint64 animms = App::main() ? App::main()->animActiveTimeStart(this) : 0;
-	if (animms > 0 && animms <= ms) {
-		animms = ms - animms;
+	uint64 fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0;
+	if (fullAnimMs > 0 && fullAnimMs <= ms) {
+		int animms = ms - fullAnimMs;
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
 		} else {

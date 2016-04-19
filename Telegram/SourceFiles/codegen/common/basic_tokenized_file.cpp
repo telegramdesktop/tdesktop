@@ -49,7 +49,7 @@ bool isWhitespaceChar(char ch) {
 }
 
 Token invalidToken() {
-	return { Type::Invalid, QString(), ConstUtf8String(nullptr, 0) };
+	return { Type::Invalid, QString(), ConstUtf8String(nullptr, 0), false };
 }
 
 } // namespace

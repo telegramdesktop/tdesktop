@@ -33,8 +33,8 @@ ipch/
 ._*
 .qmake.stash
 /Mac/
-/Telegram/*.xcodeproj/xcuserdata/
-/Telegram/*.xcodeproj/project.xcworkspace/
+project.xcworkspace
+xcuserdata
 
 /Telegram/*.user.*
 /Linux/

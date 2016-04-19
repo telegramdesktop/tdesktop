@@ -48,7 +48,7 @@ QByteArray replaceStrings(const QString &filepath) {
 
 	QStringList lines = string.toString().split('\n');
 	for (auto &line : lines) {
-		auto match = QRegularExpression("^(\\d+;[A-Z]+;)([^;]+)(;.+)?$").match(line);
+		auto match = QRegularExpression("^(\\d+;[A-Z]+;)([^;]+)(;.*)?$").match(line);
 		if (match.hasMatch()) {
 			line = match.captured(1) + '"' + match.captured(2) + '"' + match.captured(3);
 		}

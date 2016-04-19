@@ -40,8 +40,9 @@ bool readFile(const QString &filepath, QByteArray *outResult) {
 		logError(kErrorFileNotFound, filepath) << ": error: file does not exist.";
 		return false;
 	}
-	if (f.size() > CleanFile::MaxSize) {
-		logError(kErrorFileTooLarge, filepath) << "' is too large, size=" << f.size() << " > maxsize=" << CleanFile::MaxSize;
+	auto limit = CleanFile::MaxSize;
+	if (f.size() > limit) {
+		logError(kErrorFileTooLarge, filepath) << "' is too large, size=" << f.size() << " > maxsize=" << limit;
 		return false;
 	}
 	if (!f.open(QIODevice::ReadOnly)) {
