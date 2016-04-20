@@ -1381,12 +1381,6 @@
     <CustomBuild Include="Resources\numbers.txt">
       <Filter>Resources</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\style.txt">
-      <Filter>Resources</Filter>
-    </CustomBuild>
-    <CustomBuild Include="Resources\style_classes.txt">
-      <Filter>Resources</Filter>
-    </CustomBuild>
     <CustomBuild Include="Resources\telegram.qrc">
       <Filter>Resources</Filter>
     </CustomBuild>
