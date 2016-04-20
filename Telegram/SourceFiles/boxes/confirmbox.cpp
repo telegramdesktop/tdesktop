@@ -404,7 +404,7 @@ void PinMessageBox::onPin() {
 	if (_requestId) return;
 
 	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
-	if (_notify.checked()) {
+	if (!_notify.checked()) {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));

@@ -383,7 +383,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tout << "#pragma once\n\n#include \"ui/style.h\"\n\nnamespace style {\n";
+			tout << "#pragma once\n\n#include \"ui/style_core.h\"\n\nnamespace style {\n";
 			for (int i = 0, l = byIndex.size(); i < l; ++i) {
 				ClassData &cls(byIndex[i]);
 				classes.insert(cls.name, cls);
@@ -513,7 +513,7 @@ typedef QPair<ScalarType, ScalarValue> ScalarData;
 typedef QPair<string, ScalarData> Scalar;
 typedef QMap<string, ScalarData> Fields;
 typedef QPair<string, Fields> ObjectData;
-typedef QPair<string, ObjectData> Object; 
+typedef QPair<string, ObjectData> Object;
 typedef QVector<Object> Objects;
 typedef QVector<Scalar> Scalars;
 
@@ -609,17 +609,7 @@ ScalarValue prepareColor(int variant, const string &name, const string &token) {
 	result.reserve(20);
 
 	int r = hexDec(token[0], token[1]), g = hexDec(token[2], token[3]), b = hexDec(token[4], token[5]), a = hexDec(token[6], token[7]);
-	if (a == 255) {
-		Color c;
-		c.color = QString("%1, %2, %3, 255").arg(r).arg(g).arg(b).toUtf8().constData();
-		colors[variant][name] = c;
-		if (!variant) {
-			for (int i = 1; i < variantsCount; ++i) {
-				colors[variants[i]][name] = c;
-			}
-		}
-		return fillPrepareResult(variant, "(Qt::Uninitialized)");
-	}
+
 	Color c;
 	c.color = QString("%1, %2, %3, %4").arg(r).arg(g).arg(b).arg(a).toUtf8().constData();
 	colors[variant][name] = c;
@@ -646,7 +636,7 @@ ScalarValue prepareNumber(int variant, const string &token, const char *&text, c
 ScalarValue prepareColorRGB(int variant, const string &name, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 
@@ -685,7 +675,7 @@ ScalarValue prepareColorRGB(int variant, const string &name, const char *&text, 
 ScalarValue prepareColorRGBA(int variant, const string &name, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
@@ -731,7 +721,7 @@ ScalarValue prepareColorRGBA(int variant, const string &name, const char *&text,
 ScalarValue prepareRect(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
@@ -869,7 +859,7 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 ScalarValue preparePoint(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 
@@ -902,7 +892,7 @@ ScalarValue preparePoint(int variant, const char *&text, const char *end) {
 ScalarValue prepareSize(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 
@@ -935,7 +925,7 @@ ScalarValue prepareSize(int variant, const char *&text, const char *end) {
 ScalarValue prepareTransition(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading transition() cons!").arg(type));
 
@@ -952,7 +942,7 @@ ScalarValue prepareTransition(int variant, const char *&text, const char *end) {
 ScalarValue prepareCursor(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type));
 
@@ -969,7 +959,7 @@ ScalarValue prepareCursor(int variant, const char *&text, const char *end) {
 ScalarValue prepareAlign(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading align() cons!").arg(type));
 
@@ -986,7 +976,7 @@ ScalarValue prepareAlign(int variant, const char *&text, const char *end) {
 ScalarValue prepareMargins(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
@@ -1059,7 +1049,7 @@ QMap<int, Fonts> fonts;
 ScalarValue prepareFont(int variant, const string &name, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
-	
+
 	ScalarValue sizeScalar, familyScalar;
 
 	string size, family;
@@ -1544,7 +1534,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tout << "#pragma once\n\n#include \"ui/style.h\"\n\nnamespace st {\n";
+			tout << "#pragma once\n\n#include \"ui/style_core.h\"\n\nnamespace st {\n";
 			tcpp << "\
 /*\n\
 Created from \'/Resources/style.txt\' by \'/MetaStyle\' project\n\
@@ -1604,7 +1594,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\tColorDatas _colorsMap;\n";
 			tcpp << "\tint _spriteWidth = " << spriteWidths[0] << ";\n\n";
 			tcpp << "\tvoid startManager() {\n";
-            
+
             tcpp << "\n\t\tif (cRetina()) {\n";
 			tcpp << "\t\t\tcSetRealScale(dbisOne);\n";
 			tcpp << "\t\t\t_spriteWidth = " << spriteWidths[variantsCount - 1] << ";\n\n";

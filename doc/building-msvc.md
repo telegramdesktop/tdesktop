@@ -21,7 +21,6 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     git clone https://github.com/openssl/openssl.git
     cd openssl
     git checkout OpenSSL_1_0_1-stable
-    git apply ./../../tdesktop/Telegram/_openssl_patch.diff
     perl Configure VC-WIN32 --prefix=D:\TBuild\Libraries\openssl\Release
     ms\do_ms
     nmake -f ms\nt.mak
@@ -30,7 +29,6 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     git clone https://github.com/openssl/openssl.git openssl_debug
     cd openssl_debug
     git checkout OpenSSL_1_0_1-stable
-    git apply ./../../tdesktop/Telegram/_openssl_patch.diff
     perl Configure debug-VC-WIN32 --prefix=D:\TBuild\Libraries\openssl_debug\Debug
     ms\do_ms
     nmake -f ms\nt.mak

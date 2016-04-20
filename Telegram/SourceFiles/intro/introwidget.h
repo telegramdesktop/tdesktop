@@ -74,7 +74,7 @@ public:
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
-	void rpcClear();
+	void rpcClear() override;
 	void langChangeTo(int32 langId);
 
 	void nextStep(IntroStep *step) {

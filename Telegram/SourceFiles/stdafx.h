@@ -53,7 +53,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mtproto/facade.h"
 
-#include "ui/style_core.h"
+#include "ui/style.h"
 #include "ui/twidget.h"
 #include "ui/animation.h"
 #include "ui/flatinput.h"

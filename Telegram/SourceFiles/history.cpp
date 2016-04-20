@@ -4979,7 +4979,7 @@ ImagePtr HistoryGif::replyPreview() {
 bool HistoryGif::playInline(bool autoplay) {
 	if (gif()) {
 		stopInline();
-	} else {
+	} else if (_data->loaded(DocumentData::FilePathResolveChecked)) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
@@ -7637,12 +7637,15 @@ int HistoryMessage::performResizeGetHeight(int width) {
 		}
 
 		if (reply) {
+			int32 l = 0, w = 0;
+			countPositionAndSize(l, w);
+
 			if (emptyText() && !displayFromName() && !Has<HistoryMessageVia>()) {
 				_height += st::msgPadding.top() + st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom() + st::mediaHeaderSkip;
 			} else {
 				_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 			}
-			reply->resize(width - st::msgPadding.left() - st::msgPadding.right());
+			reply->resize(w - st::msgPadding.left() - st::msgPadding.right());
 		}
 	} else {
 		_height = _media->resizeGetHeight(width);

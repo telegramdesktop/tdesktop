@@ -46,7 +46,7 @@ inline QRect centerrect(const QRect &inRect, const QRect &rect) {
 }
 
 namespace style {
-	
+
 	class FontData;
 	class Font {
 	public:
@@ -189,7 +189,7 @@ namespace style {
 		bool owner;
 
 		void init(uchar r, uchar g, uchar b, uchar a);
-		
+
 		friend void startManager();
 
 		Color(ColorData *p) : ptr(p) {
@@ -213,7 +213,7 @@ namespace style {
 
 		ColorData(uchar r, uchar g, uchar b, uchar a);
 		void set(const QColor &c);
-		
+
 		friend class Color;
 
 	};

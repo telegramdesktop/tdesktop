@@ -134,24 +134,13 @@ namespace style {
 		return *this;
 	}
 
-	void Color::set(const QColor &newv) {
-		if (!owner) {
-			ptr = new ColorData(*ptr);
-			owner = true;
-		}
-		ptr->set(newv);
+	namespace {
+	inline uint32 colorKey(uchar r, uchar g, uchar b, uchar a) {
+		return (((((uint32(r) << 8) | uint32(g)) << 8) | uint32(b)) << 8) | uint32(a);
 	}
-
-	void Color::set(uchar r, uchar g, uchar b, uchar a) {
-		if (!owner) {
-			ptr = new ColorData(*ptr);
-			owner = true;
-		}
-		ptr->set(QColor(r, g, b, a));
 	}
-
 	void Color::init(uchar r, uchar g, uchar b, uchar a) {
-		uint32 key = _colorKey(r, g, b, a);
+		uint32 key = colorKey(r, g, b, a);
 		ColorDatas::const_iterator i = _colorsMap.constFind(key);
 		if (i == _colorsMap.cend()) {
 			i = _colorsMap.insert(key, new ColorData(r, g, b, a));

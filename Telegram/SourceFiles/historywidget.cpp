@@ -1037,7 +1037,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 			if (item && !isUponSelected) {
-				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
+				bool mediaHasTextForCopy = false;
+				if (HistoryMedia *media = (msg ? msg->getMedia() : nullptr)) {
+					mediaHasTextForCopy = media->hasTextForCopy();
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
 					}
@@ -1065,8 +1067,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}
 					}
 				}
-				QString contextMenuText = item->selectedText(FullSelection);
-				if (!contextMenuText.isEmpty() && msg && !msg->getMedia()) {
+				if (msg && (!msg->emptyText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
