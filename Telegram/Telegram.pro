@@ -5,15 +5,15 @@ CONFIG += plugin static c++11
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
     OBJECTS_DIR = ./../DebugIntermediate
-    MOC_DIR = ./GenFiles/Debug
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Debug
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
     DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
-    MOC_DIR = ./GenFiles/Release
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Release
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Release
 }
 
@@ -29,43 +29,29 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
-style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
-style_auto_cpp.depends = FORCE
-style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
-style_auto_cpp.depends = ./../../Telegram/Resources/style.txt
+codegen_style.target = style_target
+codegen_style.depends = FORCE
+codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" "./../../Telegram/Resources/all_files.style" --rebuild
 
-style_auto_h.target = ./GeneratedFiles/style_auto.h
-style_auto_h.depends = FORCE
-style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
-style_auto_h.depends = ./../../Telegram/Resources/style.txt
+codegen_numbers.target = numbers_target
+codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
 
-style_classes_h.target = ./GeneratedFiles/style_classes.h
-style_classes_h.depends = FORCE
-style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
-style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
+CONFIG(debug, debug|release) {
+#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/DebugIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/DebugIntermediate
+codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
+}
+CONFIG(release, debug|release) {
+#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/ReleaseIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/ReleaseIntermediate
+codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/ReleaseIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/ReleaseIntermediate
+}
 
-numbers_cpp.target = ./GeneratedFiles/numbers.cpp
-numbers_cpp.depends = FORCE
-numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/Resources/art/
-numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
+codegen_lang.target = lang_target
+codegen_lang.depends = ./../../Telegram/Resources/lang.strings
+codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./GeneratedFiles/lang_auto
 
-lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
-lang_auto_cpp.depends = FORCE
-lang_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_cpp.depends = ./../../Telegram/Resources/lang.strings
+QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang
 
-lang_auto_h.target = ./GeneratedFiles/lang_auto.h
-lang_auto_h.depends = FORCE
-lang_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_h.depends = ./../../Telegram/Resources/lang.strings
-
-hook.depends = style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h
-CONFIG(debug,debug|release):hook.target = Makefile.Debug
-CONFIG(release,debug|release):hook.target = Makefile.Release
-
-QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h hook
-
-PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/numbers.cpp ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
+PRE_TARGETDEPS += style_target numbers_target lang_target
 
 unix {
     linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
@@ -81,8 +67,9 @@ unix {
 
 SOURCES += \
     ./GeneratedFiles/lang_auto.cpp \
-    ./GeneratedFiles/style_auto.cpp \
     ./GeneratedFiles/numbers.cpp \
+    ./GeneratedFiles/styles/style_basic.cpp \
+    ./GeneratedFiles/styles/style_basic_types.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -193,8 +180,9 @@ SOURCES += \
 
 HEADERS += \
     ./GeneratedFiles/lang_auto.h \
-    ./GeneratedFiles/style_auto.h \
-    ./GeneratedFiles/style_classes.h \
+    ./GeneratedFiles/numbers.h \
+    ./GeneratedFiles/styles/style_basic.h \
+    ./GeneratedFiles/styles/style_basic_types.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -214,7 +202,6 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/layout.h \
     ./SourceFiles/mediaview.h \
-    ./SourceFiles/numbers.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
     ./SourceFiles/profilewidget.h \
@@ -400,8 +387,9 @@ RESOURCES += \
     ./Resources/telegram_emojis.qrc
 
 OTHER_FILES += \
-    ./Resources/style_classes.txt \
-    ./Resources/style.txt \
+    ./Resources/basic_types.style \
+    ./Resources/basic.style \
+    ./Resources/all_files.style \
     ./Resources/lang.strings \
     ./Resources/langs/lang_it.strings \
     ./Resources/langs/lang_es.strings \

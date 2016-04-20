@@ -82,6 +82,9 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
+    <Filter Include="GeneratedFiles\styles">
+      <UniqueIdentifier>{3397dfda-79f1-4a4c-940b-be26b001baf5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -107,9 +110,6 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\mainwidget.cpp">
       <Filter>SourceFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\style_auto.cpp">
-      <Filter>GeneratedFiles</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\app.cpp">
       <Filter>SourceFiles</Filter>
@@ -1077,6 +1077,12 @@
     <ClCompile Include="SourceFiles\ui\text\text_block.cpp">
       <Filter>SourceFiles\ui\text</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_basic.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1084,12 +1090,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>SourceFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\style_auto.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\style_classes.h">
-      <Filter>GeneratedFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\countries.h">
       <Filter>SourceFiles</Filter>
@@ -1116,9 +1116,6 @@
       <Filter>SourceFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
-      <Filter>SourceFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\numbers.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\config.h">
@@ -1234,6 +1231,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\text\text_block.h">
       <Filter>SourceFiles\ui\text</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_basic.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_basic_types.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\numbers.h">
+      <Filter>GeneratedFiles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1373,12 +1379,6 @@
       <Filter>Resources</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\numbers.txt">
-      <Filter>Resources</Filter>
-    </CustomBuild>
-    <CustomBuild Include="Resources\style.txt">
-      <Filter>Resources</Filter>
-    </CustomBuild>
-    <CustomBuild Include="Resources\style_classes.txt">
       <Filter>Resources</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\telegram.qrc">
@@ -1534,5 +1534,16 @@
     <ResourceCompile Include="Telegram.rc">
       <Filter>Version</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CodegenStyleItem Include="Resources\all_files.style">
+      <Filter>Resources</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="Resources\basic.style">
+      <Filter>Resources</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="Resources\basic_types.style">
+      <Filter>Resources</Filter>
+    </CodegenStyleItem>
   </ItemGroup>
 </Project>

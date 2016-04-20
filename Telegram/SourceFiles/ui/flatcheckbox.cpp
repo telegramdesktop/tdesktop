@@ -250,7 +250,7 @@ Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const sty
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1.));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);
@@ -392,7 +392,7 @@ Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, con
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1.));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);

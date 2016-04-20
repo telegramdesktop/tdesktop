@@ -375,7 +375,7 @@ void BoxButton::resizeToText() {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _textWidth + (_st.height - _st.font->height)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1.));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);

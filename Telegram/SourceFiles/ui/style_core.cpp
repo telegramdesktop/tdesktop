@@ -20,13 +20,63 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+namespace style {
 namespace {
-	typedef QMap<QString, uint32> FontFamilyMap;
-	FontFamilyMap _fontFamilyMap;
+using ModulesList = QList<internal::ModuleBase*>;
+NeverFreedPointer<ModulesList> styleModules;
+
+typedef QMap<QString, int> FontFamilyMap;
+FontFamilyMap fontFamilyMap;
+
+typedef QVector<QString> FontFamilies;
+FontFamilies _fontFamilies;
+
+typedef QMap<uint32, FontData*> FontDatas;
+FontDatas fontsMap;
+
+typedef QMap<uint32, ColorData*> ColorDatas;
+ColorDatas colorsMap;
+
+int spriteWidthValue = 0;
+QPixmap *spriteData = nullptr;
+
+inline uint32 fontKey(int size, uint32 flags, int family) {
+	return (((uint32(family) << 10) | uint32(size)) << 3) | flags;
 }
 
-namespace style {
-	FontData::FontData(uint32 size, uint32 flags, uint32 family, Font *other) : f(_fontFamilies[family]), m(f), _size(size), _flags(flags), _family(family) {
+} // namespace
+
+namespace internal {
+
+void registerModule(ModuleBase *module) {
+	styleModules.makeIfNull();
+	styleModules->push_back(module);
+}
+
+void unregisterModule(ModuleBase *module) {
+	styleModules->removeOne(module);
+	if (styleModules->isEmpty()) {
+		styleModules.clear();
+	}
+}
+
+int registerFontFamily(const QString &family) {
+	auto result = fontFamilyMap.value(family, -1);
+	if (result < 0) {
+		result = _fontFamilies.size();
+		fontFamilyMap.insert(family, result);
+		_fontFamilies.push_back(family);
+	}
+	return result;
+}
+
+int spriteWidth() {
+	return spriteWidthValue;
+}
+
+} // namespace internal
+
+	FontData::FontData(int size, uint32 flags, int family, Font *other) : f(_fontFamilies[family]), m(f), _size(size), _flags(flags), _family(family) {
 		if (other) {
 			memcpy(modified, other, sizeof(modified));
 		} else {
@@ -60,7 +110,7 @@ namespace style {
 		return otherFlagsFont(FontUnderline, set);
 	}
 
-	uint32 FontData::size() const {
+	int FontData::size() const {
 		return _size;
 	}
 
@@ -68,7 +118,7 @@ namespace style {
 		return _flags;
 	}
 
-	uint32 FontData::family() const {
+	int FontData::family() const {
 		return _family;
 	}
 
@@ -80,34 +130,34 @@ namespace style {
 		return modified[newFlags];
 	}
 
-	Font::Font(uint32 size, uint32 flags, const QString &family) {
-		if (_fontFamilyMap.isEmpty()) {
+	Font::Font(int size, uint32 flags, const QString &family) {
+		if (fontFamilyMap.isEmpty()) {
 			for (uint32 i = 0, s = style::_fontFamilies.size(); i != s; ++i) {
-				_fontFamilyMap.insert(style::_fontFamilies.at(i), i);
+				fontFamilyMap.insert(style::_fontFamilies.at(i), i);
 			}
 		}
 
-		FontFamilyMap::const_iterator i = _fontFamilyMap.constFind(family);
-		if (i == _fontFamilyMap.cend()) {
+		auto i = fontFamilyMap.constFind(family);
+		if (i == fontFamilyMap.cend()) {
 			style::_fontFamilies.push_back(family);
-			i = _fontFamilyMap.insert(family, style::_fontFamilies.size() - 1);
+			i = fontFamilyMap.insert(family, style::_fontFamilies.size() - 1);
 		}
 		init(size, flags, i.value(), 0);
 	}
 
-	Font::Font(uint32 size, uint32 flags, uint32 family) {
+	Font::Font(int size, uint32 flags, int family) {
 		init(size, flags, family, 0);
 	}
 
-	Font::Font(uint32 size, uint32 flags, uint32 family, Font *modified) {
+	Font::Font(int size, uint32 flags, int family, Font *modified) {
 		init(size, flags, family, modified);
 	}
 
-	void Font::init(uint32 size, uint32 flags, uint32 family, Font *modified) {
-		uint32 key = _fontKey(size, flags, family);
-		FontDatas::const_iterator i = _fontsMap.constFind(key);
-		if (i == _fontsMap.cend()) {
-			i = _fontsMap.insert(key, new FontData(size, flags, family, modified));
+	void Font::init(int size, uint32 flags, int family, Font *modified) {
+		uint32 key = fontKey(size, flags, family);
+		auto i = fontsMap.constFind(key);
+		if (i == fontsMap.cend()) {
+			i = fontsMap.insert(key, new FontData(size, flags, family, modified));
 		}
 		ptr = i.value();
 	}
@@ -141,9 +191,9 @@ namespace style {
 	}
 	void Color::init(uchar r, uchar g, uchar b, uchar a) {
 		uint32 key = colorKey(r, g, b, a);
-		ColorDatas::const_iterator i = _colorsMap.constFind(key);
-		if (i == _colorsMap.cend()) {
-			i = _colorsMap.insert(key, new ColorData(r, g, b, a));
+		auto i = colorsMap.constFind(key);
+		if (i == colorsMap.cend()) {
+			i = colorsMap.insert(key, new ColorData(r, g, b, a));
 		}
 		ptr = i.value();
 	}
@@ -163,16 +213,57 @@ namespace style {
 		b = QBrush(color);
 	}
 
-	void stopManager() {
-		for (FontDatas::const_iterator i = _fontsMap.cbegin(), e = _fontsMap.cend(); i != e; ++i) {
-			delete i.value();
+	void startManager() {
+		if (cRetina()) {
+			cSetRealScale(dbisOne);
 		}
-		_fontsMap.clear();
 
-		for (ColorDatas::const_iterator i = _colorsMap.cbegin(), e = _colorsMap.cend(); i != e; ++i) {
-			delete i.value();
+		internal::registerFontFamily(qsl("Open Sans"));
+		QString spriteFilePostfix;
+		if (cRetina() || cScale() == dbisTwo) {
+			spriteFilePostfix = qsl("_200x");
+		} else if (cScale() == dbisOneAndQuarter) {
+			spriteFilePostfix = qsl("_125x");
+		} else if (cScale() == dbisOneAndHalf) {
+			spriteFilePostfix = qsl("_150x");
 		}
-		_colorsMap.clear();
+		QString spriteFile = qsl(":/gui/art/sprite") + spriteFilePostfix + qsl(".png");
+		if (rtl()) {
+			spriteData = new QPixmap(QPixmap::fromImage(QImage(spriteFile).mirrored(true, false)));
+		} else {
+			spriteData = new QPixmap(spriteFile);
+		}
+		if (cRetina()) spriteData->setDevicePixelRatio(cRetinaFactor());
+		spriteWidthValue = spriteData->width();
+
+		if (styleModules) {
+			for_const (auto module, *styleModules) {
+				module->start();
+			}
+		}
+		_fontFamilies.push_back(qsl("Open Sans"));
+	}
+
+	void stopManager() {
+		if (styleModules) {
+			for_const (auto module, *styleModules) {
+				module->stop();
+			}
+		}
+
+		for (auto fontData : fontsMap) {
+			delete fontData;
+		}
+		fontsMap.clear();
+
+		for (auto colorData : colorsMap) {
+			delete colorData;
+		}
+		colorsMap.clear();
+	}
+
+	const QPixmap &spritePixmap() {
+		return *spriteData;
 	}
 
 };

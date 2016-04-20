@@ -18,7 +18,23 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-
 #pragma once
 
-QVector<int> phoneNumberParse(const QString &number);
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+
+namespace codegen {
+namespace style {
+
+struct Options {
+	QStringList includePaths = { "." };
+	QString outputPath = ".";
+	QString inputPath;
+	bool rebuildDependencies = false;
+};
+
+// Parsing failed if inputPath is empty in the result.
+Options parseOptions();
+
+} // namespace style
+} // namespace codegen

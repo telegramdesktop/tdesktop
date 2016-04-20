@@ -411,8 +411,6 @@ GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/ui/flatbutton.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/sysbuttons.h \
 		SourceFiles/settingswidget.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/settingswidget.h -o GeneratedFiles/Debug/moc_settingswidget.cpp
@@ -587,8 +585,6 @@ GeneratedFiles/Debug/moc_popupmenu.cpp: ../../Libraries/QtStatic/qtbase/include/
 
 GeneratedFiles/Debug/moc_countryinput.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QWidget \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/animation.h \
@@ -618,8 +614,6 @@ GeneratedFiles/Debug/moc_flatbutton.cpp: SourceFiles/ui/button.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatbutton.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/ui/flatbutton.h -o GeneratedFiles/Debug/moc_flatbutton.cpp
 
@@ -631,8 +625,6 @@ GeneratedFiles/Debug/moc_flatcheckbox.cpp: SourceFiles/ui/button.h \
 
 GeneratedFiles/Debug/moc_flatinput.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
 		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
@@ -643,15 +635,11 @@ GeneratedFiles/Debug/moc_flatinput.cpp: ../../Libraries/QtStatic/qtbase/include/
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/ui/flatinput.h -o GeneratedFiles/Debug/moc_flatinput.cpp
 
 GeneratedFiles/Debug/moc_flatlabel.cpp: SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatlabel.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/ui/flatlabel.h -o GeneratedFiles/Debug/moc_flatlabel.cpp
 
 GeneratedFiles/Debug/moc_flattextarea.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QTextEdit \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
 		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
@@ -663,8 +651,6 @@ GeneratedFiles/Debug/moc_flattextarea.cpp: ../../Libraries/QtStatic/qtbase/inclu
 
 GeneratedFiles/Debug/moc_scrollarea.cpp: ../../Libraries/QtStatic/qtbase/include/QtWidgets/QScrollArea \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/scrollarea.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/ui/scrollarea.h -o GeneratedFiles/Debug/moc_scrollarea.cpp
 
@@ -706,8 +692,6 @@ GeneratedFiles/Debug/moc_connectionbox.cpp: SourceFiles/boxes/abstractbox.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
 		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
@@ -727,8 +711,6 @@ GeneratedFiles/Debug/moc_downloadpathbox.cpp: SourceFiles/boxes/abstractbox.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/animation.h \
 		SourceFiles/core/basic_types.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
@@ -793,8 +775,6 @@ GeneratedFiles/Debug/moc_introwidget.cpp: ../../Libraries/QtStatic/qtbase/includ
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/intro/introwidget.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/intro/introwidget.h -o GeneratedFiles/Debug/moc_introwidget.cpp
 
@@ -810,8 +790,6 @@ GeneratedFiles/Debug/moc_introcode.cpp: ../../Libraries/QtStatic/qtbase/include/
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/intro/introwidget.h \
@@ -830,8 +808,6 @@ GeneratedFiles/Debug/moc_introphone.cpp: ../../Libraries/QtStatic/qtbase/include
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/countryinput.h \
@@ -854,8 +830,6 @@ GeneratedFiles/Debug/moc_intropwdcheck.cpp: ../../Libraries/QtStatic/qtbase/incl
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/ui/countryinput.h \
@@ -878,8 +852,6 @@ GeneratedFiles/Debug/moc_introsignup.cpp: ../../Libraries/QtStatic/qtbase/includ
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \
 		../../Libraries/QtStatic/qtbase/include/QtGui/QColor \
 		SourceFiles/ui/style.h \
-		GeneratedFiles/style_classes.h \
-		GeneratedFiles/style_auto.h \
 		SourceFiles/ui/flatinput.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QLineEdit \
 		SourceFiles/intro/introwidget.h \

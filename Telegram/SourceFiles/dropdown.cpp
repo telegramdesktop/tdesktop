@@ -2876,7 +2876,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					}
 
 					if (rtl()) selx = width() - selx - st::rbEmoji.width;
-					p.setOpacity(skip ? qMax(1., selx / (skip * st::rbEmoji.width)) : 1.);
+					p.setOpacity(skip ? qMax(1., selx / float64(skip * st::rbEmoji.width)) : 1.);
 					p.fillRect(selx, _iconsTop + st::rbEmoji.height - st::stickerIconPadding, st::rbEmoji.width, st::stickerIconSel, st::stickerIconSelColor);
 
 					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.pxWidth(), 0., 1.);
