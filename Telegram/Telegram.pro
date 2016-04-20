@@ -5,15 +5,15 @@ CONFIG += plugin static c++11
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
     OBJECTS_DIR = ./../DebugIntermediate
-    MOC_DIR = ./GenFiles/Debug
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Debug
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
     DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
-    MOC_DIR = ./GenFiles/Release
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Release
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Release
 }
 
@@ -29,44 +29,29 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
-codegen_style.target = ./GeneratedFiles/styles/style_basic_types.h
+codegen_style.target = style_target
 codegen_style.depends = FORCE
+codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" "./../../Telegram/Resources/all_files.style" --rebuild
 
-codegen_numbers.target = ./GeneratedFiles/numbers.cpp
+codegen_numbers.target = numbers_target
 codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
 
 CONFIG(debug, debug|release) {
-codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/DebugIntermediate
-codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
+#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/DebugIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/DebugIntermediate
+codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
 }
 CONFIG(release, debug|release) {
-codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/ReleaseIntermediate
-codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/ReleaseIntermediate
+#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/ReleaseIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/ReleaseIntermediate
+codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/ReleaseIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/ReleaseIntermediate
 }
 
-lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
-lang_auto_cpp.depends = FORCE
-lang_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_cpp.depends = ./../../Telegram/Resources/lang.strings
+codegen_lang.target = lang_target
+codegen_lang.depends = ./../../Telegram/Resources/lang.strings
+codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./GeneratedFiles/lang_auto
 
-lang_auto_h.target = ./GeneratedFiles/lang_auto.h
-lang_auto_h.depends = FORCE
-lang_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_h.depends = ./../../Telegram/Resources/lang.strings
+QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang
 
-#hook.depends = style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h
-hook.depends = codegen_style codegen_numbers lang_auto_cpp lang_auto_h
-CONFIG(debug,debug|release):hook.target = Makefile.Debug
-CONFIG(release,debug|release):hook.target = Makefile.Release
-
-#QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h hook
-QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers lang_auto_cpp lang_auto_h hook
-
-#PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/numbers.cpp ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
-PRE_TARGETDEPS += \
-./GeneratedFiles/styles/style_basic_types.h \
-./GeneratedFiles/lang_auto.h \
-./GeneratedFiles/lang_auto.cpp
+PRE_TARGETDEPS += style_target numbers_target lang_target
 
 unix {
     linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch

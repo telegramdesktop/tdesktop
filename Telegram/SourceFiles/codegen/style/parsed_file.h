@@ -107,6 +107,7 @@ private:
 	// Compose context-dependent full name.
 	structure::FullName composeFullName(const QString &name);
 
+	QString filePath_;
 	common::BasicTokenizedFile file_;
 	Options options_;
 	bool failed_ = false;

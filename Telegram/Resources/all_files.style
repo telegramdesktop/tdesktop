@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
 // Legacy styles
-using "Resources/basic_types.style";
-using "Resources/basic.style";
+using "./basic_types.style";
+using "./basic.style";
 
 //using "overview/overview.style";

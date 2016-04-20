@@ -52,6 +52,8 @@ Token invalidToken() {
 	return { Type::Invalid, QString(), ConstUtf8String(nullptr, 0), false };
 }
 
+
+
 } // namespace
 
 BasicTokenizedFile::BasicTokenizedFile(const QString &filepath) : reader_(filepath) {

@@ -304,41 +304,6 @@ namespace {
 		}
 	};
 
-	bool fileExists(const QString &name, int options = UserPath | SafePath) {
-		if (options & UserPath) {
-			if (!_userWorking()) return false;
-		} else {
-			if (!_working()) return false;
-		}
-
-		// detect order of read attempts
-		QString toTry[2];
-		toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
-		if (options & SafePath) {
-			QFileInfo toTry0(toTry[0]);
-			if (toTry0.exists()) {
-				toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
-				QFileInfo toTry1(toTry[1]);
-				if (toTry1.exists()) {
-					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
-					if (mod0 < mod1) {
-						qSwap(toTry[0], toTry[1]);
-					}
-				} else {
-					toTry[1] = QString();
-				}
-			} else {
-				toTry[0][toTry[0].size() - 1] = '1';
-			}
-		}
-		for (int32 i = 0; i < 2; ++i) {
-			QString fname(toTry[i]);
-			if (fname.isEmpty()) break;
-			if (QFileInfo(fname).exists()) return true;
-		}
-		return false;
-	}
-
 	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
 		if (options & UserPath) {
 			if (!_userWorking()) return false;

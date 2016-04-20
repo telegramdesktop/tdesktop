@@ -44,6 +44,16 @@ constexpr int kErrorIdentifierNotFound = 804;
 constexpr int kErrorAlreadyDefined     = 805;
 constexpr int kErrorBadString          = 806;
 
+QString findInputFile(const Options &options) {
+	for (const auto &dir : options.includePaths) {
+		QString tryPath = QDir(dir).absolutePath() + '/' + options.inputPath;
+		if (QFileInfo(tryPath).exists()) {
+			return tryPath;
+		}
+	}
+	return options.inputPath;
+}
+
 QString tokenValue(const BasicToken &token) {
 	if (token.type == BasicType::String) {
 		return token.value;
@@ -144,7 +154,8 @@ bool validateAlignString(const QString &value) {
 } // namespace
 
 ParsedFile::ParsedFile(const Options &options)
-: file_(options.inputPath)
+: filePath_(findInputFile(options))
+, file_(filePath_)
 , options_(options) {
 }
 
@@ -153,8 +164,8 @@ bool ParsedFile::read() {
 		return false;
 	}
 
-	auto filepath = QFileInfo(options_.inputPath).absoluteFilePath();
-	module_ = std::make_unique<structure::Module>(filepath);
+	auto absolutePath = QFileInfo(filePath_).absoluteFilePath();
+	module_ = std::make_unique<structure::Module>(absolutePath);
 	do {
 		if (auto startToken = file_.getToken(BasicType::Name)) {
 			if (tokenValue(startToken) == "using") {
@@ -739,6 +750,7 @@ BasicToken ParsedFile::assertNextToken(BasicToken::Type type) {
 Options ParsedFile::includedOptions(const QString &filepath) {
 	auto result = options_;
 	result.inputPath = filepath;
+	result.includePaths[0] = QFileInfo(filePath_).dir().absolutePath();
 	return result;
 }
 
