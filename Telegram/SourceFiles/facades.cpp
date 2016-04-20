@@ -88,8 +88,16 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 	} break;
 
 	case HistoryMessageReplyMarkup::Button::SwitchInline: {
-		if (MainWidget *m = App::main()) {
-			if (UserData *bot = msg->history()->peer->asUser()) {
+		if (auto m = App::main()) {
+			auto getMessageBot = [msg]() -> UserData* {
+				if (auto bot = msg->viaBot()) {
+					return bot;
+				} else if (auto bot = msg->history()->peer->asUser()) {
+					return bot;
+				}
+				return nullptr;
+			};
+			if (auto bot = getMessageBot()) {
 				auto tryFastSwitch = [bot, &button]() -> bool {
 					if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
 						if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
