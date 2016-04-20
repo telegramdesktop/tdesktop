@@ -609,17 +609,7 @@ ScalarValue prepareColor(int variant, const string &name, const string &token) {
 	result.reserve(20);
 
 	int r = hexDec(token[0], token[1]), g = hexDec(token[2], token[3]), b = hexDec(token[4], token[5]), a = hexDec(token[6], token[7]);
-	if (a == 255) {
-		Color c;
-		c.color = QString("%1, %2, %3, 255").arg(r).arg(g).arg(b).toUtf8().constData();
-		colors[variant][name] = c;
-		if (!variant) {
-			for (int i = 1; i < variantsCount; ++i) {
-				colors[variants[i]][name] = c;
-			}
-		}
-		return fillPrepareResult(variant, "(Qt::Uninitialized)");
-	}
+
 	Color c;
 	c.color = QString("%1, %2, %3, %4").arg(r).arg(g).arg(b).arg(a).toUtf8().constData();
 	colors[variant][name] = c;
