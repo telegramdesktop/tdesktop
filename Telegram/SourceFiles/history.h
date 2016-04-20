@@ -1658,6 +1658,9 @@ public:
 	virtual bool isDisplayed() const {
 		return true;
 	}
+	virtual bool hasTextForCopy() const {
+		return false;
+	}
 	virtual void initDimensions() = 0;
 	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);
@@ -1878,6 +1881,9 @@ public:
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
 	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
+	}
 
 	QString inDialogsText() const override;
 	QString selectedText(TextSelection selection) const override;
@@ -1954,6 +1960,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
 	}
 
 	QString inDialogsText() const override;
@@ -2075,6 +2084,9 @@ public:
 		}
 		return selection;
 	}
+	bool hasTextForCopy() const override {
+		return Has<HistoryDocumentCaptioned>();
+	}
 
 	QString inDialogsText() const override;
 	QString selectedText(TextSelection selection) const override;
@@ -2158,6 +2170,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
 	}
 
 	QString inDialogsText() const override;
@@ -2384,6 +2399,9 @@ public:
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool hasTextForCopy() const override {
+		return false; // we do not add _title and _description in FullSelection text copy.
+	}
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
@@ -2515,6 +2533,9 @@ public:
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool hasTextForCopy() const override {
+		return !_title.isEmpty() || !_description.isEmpty();
+	}
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return p == _link;
