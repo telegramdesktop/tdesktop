@@ -21,5 +21,5 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/style_core.h"
-#include "GeneratedFiles/style_classes.h"
-#include "GeneratedFiles/style_auto.h"
+#include "style_classes.h"
+#include "style_auto.h"

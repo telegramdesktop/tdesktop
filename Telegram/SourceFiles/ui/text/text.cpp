@@ -1591,7 +1591,7 @@ public:
 				if (_wLeft < si.width) {
 					lineText = lineText.mid(0, currentBlock->from() - _localFrom) + _Elide;
 					lineLength = currentBlock->from() + _Elide.size() - _lineStart;
-					_selection.to = _selection.to = qMin(_selection.to, currentBlock->from());
+					_selection.to = qMin(_selection.to, currentBlock->from());
 					setElideBidi(currentBlock->from(), _Elide.size());
 					elideSaveBlock(blockIndex - 1, _endBlock, currentBlock->from(), elideWidth);
 					return;
