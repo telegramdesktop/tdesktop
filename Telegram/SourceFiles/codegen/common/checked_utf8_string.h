@@ -18,7 +18,40 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-
 #pragma once
 
-QVector<int> phoneNumberParse(const QString &number);
+#include <QtCore/QString>
+
+class QByteArray;
+
+namespace codegen {
+namespace common {
+
+class ConstUtf8String;
+
+// Parses a char sequence to a QString using UTF-8 codec.
+// You can check for invalid UTF-8 sequence by isValid() method.
+class CheckedUtf8String {
+public:
+	CheckedUtf8String(const CheckedUtf8String &other) = default;
+	CheckedUtf8String &operator=(const CheckedUtf8String &other) = default;
+
+	explicit CheckedUtf8String(const char *string, int size = -1);
+	explicit CheckedUtf8String(const QByteArray &string);
+	explicit CheckedUtf8String(const ConstUtf8String &string);
+
+	bool isValid() const {
+		return valid_;
+	}
+	const QString &toString() const {
+		return string_;
+	}
+
+private:
+	QString string_;
+	bool valid_ = true;
+
+};
+
+} // namespace common
+} // namespace codegen

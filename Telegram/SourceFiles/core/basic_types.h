@@ -816,8 +816,7 @@ inline QSharedPointer<T> MakeShared(Args&&... args) {
 template <typename T>
 class NeverFreedPointer {
 public:
-	explicit NeverFreedPointer() {
-	}
+	NeverFreedPointer() = default;
 	NeverFreedPointer(const NeverFreedPointer<T> &other) = delete;
 	NeverFreedPointer &operator=(const NeverFreedPointer<T> &other) = delete;
 
@@ -864,7 +863,7 @@ public:
 	}
 
 private:
-	T *_p = nullptr;
+	T *_p;
 
 };
 

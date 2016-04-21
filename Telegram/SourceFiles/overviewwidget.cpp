@@ -20,17 +20,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "styles/style_overview.h"
+#include "boxes/addcontactbox.h"
+#include "boxes/confirmbox.h"
+#include "boxes/photocropbox.h"
+#include "ui/filedialog.h"
+#include "window/top_bar_widget.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "overviewwidget.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
-#include "boxes/photocropbox.h"
 #include "application.h"
-#include "ui/filedialog.h"
 #include "playerwidget.h"
-#include "window/top_bar_widget.h"
 #include "overview/overview_layout.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -1999,7 +2000,7 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 
@@ -2022,16 +2023,16 @@ void OverviewWidget::scrollReset() {
 	_scroll.scrollToY((type() == OverviewLinks || type() == OverviewFiles) ? 0 : _scroll.scrollTopMax());
 }
 
-void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
+void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
 		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-	p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
+	p.drawSprite(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), st::topBarBackImg);
 	p.setFont(st::topBarBackFont->f);
 	p.setPen(st::topBarBackColor->p);
 	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);

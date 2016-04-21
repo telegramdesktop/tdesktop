@@ -21,15 +21,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "app.h"
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#include <libexif/exif-data.h>
+#endif
+
+#include "styles/style_overview.h"
 #include "lang.h"
 #include "dialogs/dialogs_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-#include <libexif/exif-data.h>
-#endif
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
@@ -82,7 +84,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
+	QPixmap *emoji = 0, *emojiLarge = 0;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -1993,14 +1995,6 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		if (!::sprite) {
-			if (rtl()) {
-				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
-			} else {
-				::sprite = new QPixmap(st::spriteFile);
-			}
-            if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
-		}
 		emojiInit();
 		if (!::emoji) {
 			::emoji = new QPixmap(QLatin1String(EName));
@@ -2061,8 +2055,6 @@ namespace {
 	void deinitMedia() {
 		audioFinish();
 
-		delete ::sprite;
-		::sprite = 0;
 		delete ::emoji;
 		::emoji = 0;
 		delete ::emojiLarge;
@@ -2140,7 +2132,7 @@ namespace {
 	}
 
 	const QPixmap &sprite() {
-		return *::sprite;
+		return style::spritePixmap();
 	}
 
 	const QPixmap &emoji() {
@@ -2532,7 +2524,7 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		QImage dog = App::sprite().toImage().copy(st::msgDogImg);
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
 		QImage::Format f = dog.format();
 		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
 			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);

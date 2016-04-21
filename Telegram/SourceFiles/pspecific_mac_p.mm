@@ -797,7 +797,7 @@ void objc_openFile(const QString &f, bool openwith) {
 
             NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
-			NSRect fullRect = { { 0., 0. }, { st::macAccessory.width() * 1., st::macAccessory.height() * 1. } };
+			NSRect fullRect = { { 0., 0. }, { st::macAccessoryWidth, st::macAccessoryHeight } };
 			NSView *accessory = [[NSView alloc] initWithFrame:fullRect];
 
             [accessory setAutoresizesSubviews:YES];
@@ -864,7 +864,7 @@ void objc_openFile(const QString &f, bool openwith) {
             NSImageView *badIcon = [[NSImageView alloc] init];
             NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
             [badIcon setImage:badImage];
-            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize.width(), st::macCautionIconSize.height())];
+            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize, st::macCautionIconSize)];
 
             NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
             badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;

@@ -20,6 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/style_core.h"
-#include "style_classes.h"
-#include "style_auto.h"
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+
+namespace codegen {
+namespace style {
+
+struct Options {
+	QStringList includePaths = { "." };
+	QString outputPath = ".";
+	QString inputPath;
+	bool rebuildDependencies = false;
+};
+
+// Parsing failed if inputPath is empty in the result.
+Options parseOptions();
+
+} // namespace style
+} // namespace codegen

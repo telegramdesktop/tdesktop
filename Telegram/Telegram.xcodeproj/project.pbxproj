@@ -23,7 +23,6 @@
 			isa = PBXAggregateTarget;
 			buildConfigurationList = 07C3AF3D194CCC310016CFF1 /* Build configuration list for PBXAggregateTarget "Meta Compile" */;
 			buildPhases = (
-				07C3AF3A194CCC310016CFF1 /* Meta Style */,
 				07C3AF3B194CCC310016CFF1 /* Meta Lang */,
 			);
 			dependencies = (
@@ -51,6 +50,9 @@
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_basic_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_basic_types.cpp */; };
+		0747FF7E1CC6435100096FC3 /* style_basic_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */; };
+		0747FF7F1CC6435100096FC3 /* style_basic.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0747FF7C1CC6435100096FC3 /* style_basic.cpp */; };
+		0747FF851CC6458B00096FC3 /* numbers.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0747FF831CC6458B00096FC3 /* numbers.cpp */; };
 		074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968CE1A44D14C00394F46 /* languagebox.cpp */; };
 		074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968D11A44D1DF00394F46 /* moc_languagebox.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
@@ -75,21 +77,22 @@
 		077A4AF81CA41C38002188D2 /* connection_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AEE1CA41C38002188D2 /* connection_auto.cpp */; };
 		077A4AF91CA41C38002188D2 /* connection_http.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF01CA41C38002188D2 /* connection_http.cpp */; };
 		077A4AFA1CA41C38002188D2 /* connection_tcp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF21CA41C38002188D2 /* connection_tcp.cpp */; };
-		077A4AFB1CA41C38002188D2 /* generate.py in Resources */ = {isa = PBXBuildFile; fileRef = 077A4AF41CA41C38002188D2 /* generate.py */; };
 		077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF51CA41C38002188D2 /* rsa_public_key.cpp */; };
-		077A4AFD1CA41C38002188D2 /* scheme.tl in Resources */ = {isa = PBXBuildFile; fileRef = 077A4AF61CA41C38002188D2 /* scheme.tl */; };
 		077A4B031CA41EE2002188D2 /* moc_connection_abstract.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */; };
 		077A4B041CA41EE2002188D2 /* moc_connection_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */; };
 		077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */; };
 		077A4B061CA41EE2002188D2 /* moc_connection_tcp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */; };
+		078500341CC94D1900168DBB /* style_core_color.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0785002C1CC94D1900168DBB /* style_core_color.cpp */; };
+		078500351CC94D1900168DBB /* style_core_font.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0785002E1CC94D1900168DBB /* style_core_font.cpp */; };
+		078500361CC94D1900168DBB /* style_core_icon.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500301CC94D1900168DBB /* style_core_icon.cpp */; };
+		078500371CC94D1900168DBB /* style_core_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500321CC94D1900168DBB /* style_core_types.cpp */; };
+		0785003A1CC94D9600168DBB /* style_overview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500381CC94D9600168DBB /* style_overview.cpp */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */; };
 		07AF95F51AFD03B90060B057 /* qrc_telegram_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */; };
-		07AF95F91AFD03C80060B057 /* telegram_emojis.qrc in Resources */ = {isa = PBXBuildFile; fileRef = 07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */; };
-		07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */ = {isa = PBXBuildFile; fileRef = 07AF95F81AFD03C80060B057 /* telegram_mac.qrc */; };
 		07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B604301B46A0EC00CA29FE /* playerwidget.cpp */; };
 		07B604351B46A20900CA29FE /* moc_playerwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B604341B46A20900CA29FE /* moc_playerwidget.cpp */; };
 		07B817091CB9A235006F7869 /* dialogs_indexed_list.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07B817021CB9A235006F7869 /* dialogs_indexed_list.cpp */; };
@@ -119,7 +122,6 @@
 		07DB674D1AD07C9200A51329 /* abstractbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB67491AD07C9200A51329 /* abstractbox.cpp */; };
 		07DB674E1AD07C9200A51329 /* sessionsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB674B1AD07C9200A51329 /* sessionsbox.cpp */; };
 		07DB67511AD07CB800A51329 /* intropwdcheck.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB674F1AD07CB800A51329 /* intropwdcheck.cpp */; };
-		07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DC429F1B5EA15300B6B888 /* numbers.cpp */; };
 		07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE929F1AA4923200A18F6F /* passcodewidget.cpp */; };
 		07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A31AA4925B00A18F6F /* autolockbox.cpp */; };
 		07DE92A81AA4925B00A18F6F /* passcodebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A51AA4925B00A18F6F /* passcodebox.cpp */; };
@@ -215,7 +217,6 @@
 		B460F624007324313696BE86 /* QuartzCore.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 7EC00404ACD5AB0E97726B0E /* QuartzCore.framework */; };
 		B6346B66B0A2228A91D8A5D9 /* dcenter.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 315C7FACB4A9E18AA95486CA /* dcenter.cpp */; settings = {ATTRIBUTES = (); }; };
 		B780F9E21269259B90A1F32A /* moc_dcenter.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2C540BAEABD7F9B5FA11008E /* moc_dcenter.cpp */; settings = {ATTRIBUTES = (); }; };
-		B78304F135DEF1F7A68393A6 /* CoreMedia.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 547CCADBD1CC5050167EF948 /* CoreMedia.framework */; };
 		B8CA3E1E11A7E0E7DF9E1CDE /* file_download.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 01D6341DC31FE5997F7BB159 /* file_download.cpp */; settings = {ATTRIBUTES = (); }; };
 		B8DA82DA1B195A933A0805E7 /* sysbuttons.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6B90F69947805586A6FAE80E /* sysbuttons.cpp */; settings = {ATTRIBUTES = (); }; };
 		B91D13BCC3963CB9C12D24A4 /* flatcheckbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = AF4585F593B1C9D0D4FD061C /* flatcheckbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -247,7 +248,6 @@
 		E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 81780025807318AEA3B8A6FF /* moc_addcontactbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		E8D95529CED88F18818C9A8B /* introwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0771C4C94B623FC34BF62983 /* introwidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 1080B6D395843B8F76A2E45E /* moc_title.cpp */; settings = {ATTRIBUTES = (); }; };
-		E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 99B8D38F7F5858601230911E /* style_auto.cpp */; settings = {ATTRIBUTES = (); }; };
 		EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C194EDD00F76216057D48A5C /* aboutbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FEC58F9D8A0963E5A9D4BE6F /* moc_connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		F26454630C80841CBDCFE1CA /* Foundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FCC237CA5AD60B9BA4447615 /* Foundation.framework */; };
@@ -270,6 +270,34 @@
 			proxyType = 2;
 			remoteGlobalIDString = 07084678195445A600B5AE3A;
 			remoteInfo = Updater;
+		};
+		0747FF1F1CC63E7E00096FC3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 0747FE5A1CC62B8500096FC3;
+			remoteInfo = codegen_style;
+		};
+		0747FF2B1CC63E9900096FC3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 0747FEE61CC63AD900096FC3;
+			remoteInfo = codegen_numbers;
+		};
+		0747FF701CC63FF300096FC3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 0747FE591CC62B8500096FC3;
+			remoteInfo = codegen_style;
+		};
+		0747FF721CC63FFD00096FC3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 0747FEE51CC63AD900096FC3;
+			remoteInfo = codegen_numbers;
 		};
 		07C3AF22194335970016CFF1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -320,6 +348,15 @@
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_basic_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_basic_types.cpp; path = GeneratedFiles/Debug/moc_basic_types.cpp; sourceTree = SOURCE_ROOT; };
+		0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = codegen_style.xcodeproj; path = build/xcode/codegen_style/codegen_style.xcodeproj; sourceTree = SOURCE_ROOT; };
+		0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = codegen_numbers.xcodeproj; path = build/xcode/codegen_numbers/codegen_numbers.xcodeproj; sourceTree = SOURCE_ROOT; };
+		0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_basic_types.cpp; path = GeneratedFiles/styles/style_basic_types.cpp; sourceTree = SOURCE_ROOT; };
+		0747FF7B1CC6435100096FC3 /* style_basic_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_basic_types.h; path = GeneratedFiles/styles/style_basic_types.h; sourceTree = SOURCE_ROOT; };
+		0747FF7C1CC6435100096FC3 /* style_basic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_basic.cpp; path = GeneratedFiles/styles/style_basic.cpp; sourceTree = SOURCE_ROOT; };
+		0747FF7D1CC6435100096FC3 /* style_basic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_basic.h; path = GeneratedFiles/styles/style_basic.h; sourceTree = SOURCE_ROOT; };
+		0747FF811CC644FF00096FC3 /* numbers.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = numbers.txt; path = Resources/numbers.txt; sourceTree = SOURCE_ROOT; };
+		0747FF831CC6458B00096FC3 /* numbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = numbers.cpp; path = GeneratedFiles/numbers.cpp; sourceTree = SOURCE_ROOT; };
+		0747FF841CC6458B00096FC3 /* numbers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = numbers.h; path = GeneratedFiles/numbers.h; sourceTree = SOURCE_ROOT; };
 		074968CC1A44D13400394F46 /* lang_it.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_it.strings; path = Resources/langs/lang_it.strings; sourceTree = SOURCE_ROOT; };
 		074968CE1A44D14C00394F46 /* languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = languagebox.cpp; path = SourceFiles/boxes/languagebox.cpp; sourceTree = SOURCE_ROOT; };
 		074968CF1A44D14C00394F46 /* languagebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = languagebox.h; path = SourceFiles/boxes/languagebox.h; sourceTree = SOURCE_ROOT; };
@@ -369,6 +406,17 @@
 		077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_auto.cpp; path = GeneratedFiles/Debug/moc_connection_auto.cpp; sourceTree = SOURCE_ROOT; };
 		077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_http.cpp; path = GeneratedFiles/Debug/moc_connection_http.cpp; sourceTree = SOURCE_ROOT; };
 		077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_tcp.cpp; path = GeneratedFiles/Debug/moc_connection_tcp.cpp; sourceTree = SOURCE_ROOT; };
+		0785002C1CC94D1900168DBB /* style_core_color.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_color.cpp; path = SourceFiles/ui/style/style_core_color.cpp; sourceTree = SOURCE_ROOT; };
+		0785002D1CC94D1900168DBB /* style_core_color.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_color.h; path = SourceFiles/ui/style/style_core_color.h; sourceTree = SOURCE_ROOT; };
+		0785002E1CC94D1900168DBB /* style_core_font.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_font.cpp; path = SourceFiles/ui/style/style_core_font.cpp; sourceTree = SOURCE_ROOT; };
+		0785002F1CC94D1900168DBB /* style_core_font.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_font.h; path = SourceFiles/ui/style/style_core_font.h; sourceTree = SOURCE_ROOT; };
+		078500301CC94D1900168DBB /* style_core_icon.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_icon.cpp; path = SourceFiles/ui/style/style_core_icon.cpp; sourceTree = SOURCE_ROOT; };
+		078500311CC94D1900168DBB /* style_core_icon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_icon.h; path = SourceFiles/ui/style/style_core_icon.h; sourceTree = SOURCE_ROOT; };
+		078500321CC94D1900168DBB /* style_core_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_types.cpp; path = SourceFiles/ui/style/style_core_types.cpp; sourceTree = SOURCE_ROOT; };
+		078500331CC94D1900168DBB /* style_core_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_types.h; path = SourceFiles/ui/style/style_core_types.h; sourceTree = SOURCE_ROOT; };
+		078500381CC94D9600168DBB /* style_overview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_overview.cpp; path = GeneratedFiles/styles/style_overview.cpp; sourceTree = SOURCE_ROOT; };
+		078500391CC94D9600168DBB /* style_overview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_overview.h; path = GeneratedFiles/styles/style_overview.h; sourceTree = SOURCE_ROOT; };
+		0785003F1CC9617100168DBB /* text.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text/text.h; sourceTree = SOURCE_ROOT; };
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
@@ -442,8 +490,6 @@
 		07DB674C1AD07C9200A51329 /* sessionsbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sessionsbox.h; path = SourceFiles/boxes/sessionsbox.h; sourceTree = SOURCE_ROOT; };
 		07DB674F1AD07CB800A51329 /* intropwdcheck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = intropwdcheck.cpp; path = SourceFiles/intro/intropwdcheck.cpp; sourceTree = SOURCE_ROOT; };
 		07DB67501AD07CB800A51329 /* intropwdcheck.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = intropwdcheck.h; path = SourceFiles/intro/intropwdcheck.h; sourceTree = SOURCE_ROOT; };
-		07DC429D1B5EA0E600B6B888 /* numbers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = numbers.h; path = SourceFiles/numbers.h; sourceTree = SOURCE_ROOT; };
-		07DC429F1B5EA15300B6B888 /* numbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = numbers.cpp; path = GeneratedFiles/numbers.cpp; sourceTree = SOURCE_ROOT; };
 		07DE929F1AA4923200A18F6F /* passcodewidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = passcodewidget.cpp; path = SourceFiles/passcodewidget.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92A21AA4924400A18F6F /* passcodewidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = passcodewidget.h; path = SourceFiles/passcodewidget.h; sourceTree = SOURCE_ROOT; };
 		07DE92A31AA4925B00A18F6F /* autolockbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = autolockbox.cpp; path = SourceFiles/boxes/autolockbox.cpp; sourceTree = SOURCE_ROOT; };
@@ -464,7 +510,7 @@
 		0ECF1EB9BF3786A16731F685 /* emojibox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = emojibox.cpp; path = SourceFiles/boxes/emojibox.cpp; sourceTree = "<absolute>"; };
 		0F8FFD87AEBAC448568570DC /* images.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = images.h; path = SourceFiles/ui/images.h; sourceTree = "<absolute>"; };
 		0FBED3C6654EA3753EB39831 /* session.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = session.cpp; path = SourceFiles/mtproto/session.cpp; sourceTree = "<absolute>"; };
-		0FC38EE7F29EF895925A2C49 /* style_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style_core.h; path = SourceFiles/ui/style_core.h; sourceTree = "<absolute>"; };
+		0FC38EE7F29EF895925A2C49 /* style_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style_core.h; path = SourceFiles/ui/style/style_core.h; sourceTree = "<absolute>"; };
 		1080B6D395843B8F76A2E45E /* moc_title.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_title.cpp; path = GeneratedFiles/Debug/moc_title.cpp; sourceTree = "<absolute>"; };
 		120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = contactsbox.h; path = SourceFiles/boxes/contactsbox.h; sourceTree = "<absolute>"; };
 		1292B92B4848460640F6A391 /* telegram.qrc */ = {isa = PBXFileReference; lastKnownFileType = text; name = telegram.qrc; path = Resources/telegram.qrc; sourceTree = "<absolute>"; };
@@ -501,7 +547,6 @@
 		34E1DF19219C52D7DB20224A /* flatlabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatlabel.h; path = SourceFiles/ui/flatlabel.h; sourceTree = "<absolute>"; };
 		36BDA5D01BED543A92886669 /* Telegram.pro */ = {isa = PBXFileReference; lastKnownFileType = text; path = Telegram.pro; sourceTree = "<absolute>"; };
 		36F718DC72345A84987DB0F6 /* flatbutton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatbutton.h; path = SourceFiles/ui/flatbutton.h; sourceTree = "<absolute>"; };
-		39C1ADF085370E033CB7E7E1 /* style_classes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style_classes.h; path = GeneratedFiles/style_classes.h; sourceTree = "<absolute>"; };
 		3A220FD1AE5AD9FE3DC073A4 /* moc_mainwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mainwidget.cpp; path = GeneratedFiles/Debug/moc_mainwidget.cpp; sourceTree = "<absolute>"; };
 		3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_dialogswidget.cpp; path = GeneratedFiles/Debug/moc_dialogswidget.cpp; sourceTree = "<absolute>"; };
 		3BBB805F6180E363BF89151A /* qtaudio_coreaudio */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtaudio_coreaudio; path = "/usr/local/Qt-5.3.2/plugins/audio/libqtaudio_coreaudio$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
@@ -509,7 +554,7 @@
 		3C44131FDCFEF4396B9EA2BA /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = /System/Library/Frameworks/AudioToolbox.framework; sourceTree = "<absolute>"; };
 		3D54A9F3266BB8739520E3FB /* moc_fileuploader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_fileuploader.cpp; path = GeneratedFiles/Debug/moc_fileuploader.cpp; sourceTree = "<absolute>"; };
 		3E329D4547CC23585307FA32 /* countryinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = countryinput.cpp; path = SourceFiles/ui/countryinput.cpp; sourceTree = "<absolute>"; };
-		420A06A32B66D250142B4B6D /* style_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = style_core.cpp; path = SourceFiles/ui/style_core.cpp; sourceTree = "<absolute>"; };
+		420A06A32B66D250142B4B6D /* style_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = style_core.cpp; path = SourceFiles/ui/style/style_core.cpp; sourceTree = "<absolute>"; };
 		4604687EBA85611C9E8A9CDF /* button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = button.h; path = SourceFiles/ui/button.h; sourceTree = "<absolute>"; };
 		46292F489228B60010794CE4 /* moc_button.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_button.cpp; path = GeneratedFiles/Debug/moc_button.cpp; sourceTree = "<absolute>"; };
 		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "/usr/local/Qt-5.3.2/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
@@ -550,7 +595,6 @@
 		6C86B6E6AB1857B735B720D6 /* layerwidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = layerwidget.h; path = SourceFiles/layerwidget.h; sourceTree = "<absolute>"; };
 		6D50D70712776D7ED3B00E5C /* facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = facade.cpp; path = SourceFiles/mtproto/facade.cpp; sourceTree = "<absolute>"; };
 		6E1859D714E4471E053D90C9 /* scrollarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = scrollarea.cpp; path = SourceFiles/ui/scrollarea.cpp; sourceTree = "<absolute>"; };
-		6E8FD0ED1B60D43929944CD2 /* text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text.h; sourceTree = "<absolute>"; };
 		710C982FC773400941B3AFBC /* dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dropdown.cpp; path = SourceFiles/dropdown.cpp; sourceTree = "<absolute>"; };
 		723F90793B2C195E2CCB2233 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };
@@ -586,7 +630,6 @@
 		96ACDDE3DCB798B97F9EA2F4 /* file_download.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file_download.h; path = SourceFiles/mtproto/file_download.h; sourceTree = "<absolute>"; };
 		9742F24EE18EA44D52824F1E /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
 		974DB34EEB8F83B91614C0B0 /* logs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = logs.cpp; path = SourceFiles/logs.cpp; sourceTree = "<absolute>"; };
-		99B8D38F7F5858601230911E /* style_auto.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = style_auto.cpp; path = GeneratedFiles/style_auto.cpp; sourceTree = "<absolute>"; };
 		9A55B8F7C143D66AD9EAE304 /* qgenericbearer */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qgenericbearer; path = "/usr/local/Qt-5.3.2/plugins/bearer/libqgenericbearer$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		9A69B711DE4B9C89BA803750 /* moc_aboutbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_aboutbox.cpp; path = GeneratedFiles/Debug/moc_aboutbox.cpp; sourceTree = "<absolute>"; };
 		9AB1479D7D63386FD2046620 /* flatinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatinput.cpp; path = SourceFiles/ui/flatinput.cpp; sourceTree = "<absolute>"; };
@@ -595,7 +638,6 @@
 		9D9F4744B2F9FF22569D4535 /* moc_countryinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_countryinput.cpp; path = GeneratedFiles/Debug/moc_countryinput.cpp; sourceTree = "<absolute>"; };
 		9DFF62A901D70814B8A323D4 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		9E0704DE8650D7952DC6B7AE /* moc_photosendbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_photosendbox.cpp; path = GeneratedFiles/Debug/moc_photosendbox.cpp; sourceTree = "<absolute>"; };
-		9EFD7CB36012BFC00CC79434 /* style_auto.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style_auto.h; path = GeneratedFiles/style_auto.h; sourceTree = "<absolute>"; };
 		A0090709DE1B155085362C36 /* introcode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introcode.cpp; path = SourceFiles/intro/introcode.cpp; sourceTree = "<absolute>"; };
 		A1479F94376F9732B57C69DB /* moc_animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_animation.cpp; path = GeneratedFiles/Debug/moc_animation.cpp; sourceTree = "<absolute>"; };
 		A1A67BEAA744704B29168D39 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
@@ -627,7 +669,6 @@
 		C20F9DD8C7B031B8E20D5653 /* application.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = application.cpp; path = SourceFiles/application.cpp; sourceTree = "<absolute>"; };
 		C34459FA465B57DF4DB80D12 /* introstart.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introstart.cpp; path = SourceFiles/intro/introstart.cpp; sourceTree = "<absolute>"; };
 		C63C6D083EBEB13A60256DF3 /* historywidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = historywidget.h; path = SourceFiles/historywidget.h; sourceTree = "<absolute>"; };
-		C913E6A1001E07EE7C13CE93 /* style.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style.h; path = SourceFiles/ui/style.h; sourceTree = "<absolute>"; };
 		C9FFCCE4FCB845744636795F /* moc_flatbutton.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flatbutton.cpp; path = GeneratedFiles/Debug/moc_flatbutton.cpp; sourceTree = "<absolute>"; };
 		CA56ACFB53D87637192CC9B2 /* mainwindow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mainwindow.cpp; path = SourceFiles/mainwindow.cpp; sourceTree = "<absolute>"; };
 		CE0D5EFE401BF9815FACE579 /* pspecific_mac.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pspecific_mac.h; path = SourceFiles/pspecific_mac.h; sourceTree = "<absolute>"; };
@@ -752,6 +793,44 @@
 			name = minizip;
 			sourceTree = "<group>";
 		};
+		0747FE4F1CC62AE400096FC3 /* codegen */ = {
+			isa = PBXGroup;
+			children = (
+				0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */,
+				0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */,
+			);
+			name = codegen;
+			sourceTree = "<group>";
+		};
+		0747FF1C1CC63E7E00096FC3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0747FF201CC63E7E00096FC3 /* codegen_style */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0747FF281CC63E9900096FC3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0747FF2C1CC63E9900096FC3 /* codegen_numbers */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0747FF791CC6434300096FC3 /* styles */ = {
+			isa = PBXGroup;
+			children = (
+				0747FF7C1CC6435100096FC3 /* style_basic.cpp */,
+				0747FF7D1CC6435100096FC3 /* style_basic.h */,
+				0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */,
+				0747FF7B1CC6435100096FC3 /* style_basic_types.h */,
+				078500381CC94D9600168DBB /* style_overview.cpp */,
+				078500391CC94D9600168DBB /* style_overview.h */,
+			);
+			name = styles;
+			sourceTree = "<group>";
+		};
 		074968CB1A44D0B800394F46 /* langs */ = {
 			isa = PBXGroup;
 			children = (
@@ -773,7 +852,7 @@
 				076B1C4B1CBFBF59002C0BC2 /* text_entity.cpp */,
 				076B1C4C1CBFBF59002C0BC2 /* text_entity.h */,
 				135FD3715BFDC50AD7B00E04 /* text.cpp */,
-				6E8FD0ED1B60D43929944CD2 /* text.h */,
+				0785003F1CC9617100168DBB /* text.h */,
 			);
 			name = text;
 			sourceTree = "<group>";
@@ -821,16 +900,34 @@
 			isa = PBXGroup;
 			children = (
 				074968CB1A44D0B800394F46 /* langs */,
-				07D7EABC1A597DD000838BA2 /* Localizable.strings */,
-				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
 				07080BCB1A4357F300741A51 /* lang.strings */,
+				0747FF811CC644FF00096FC3 /* numbers.txt */,
 				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
 				07C3AF2A19433ABF0016CFF1 /* style.txt */,
 				07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */,
 				07AF95F81AFD03C80060B057 /* telegram_mac.qrc */,
 				1292B92B4848460640F6A391 /* telegram.qrc */,
+				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
+				07D7EABC1A597DD000838BA2 /* Localizable.strings */,
 			);
 			name = Resources;
+			sourceTree = "<group>";
+		};
+		0785002B1CC94CF500168DBB /* style */ = {
+			isa = PBXGroup;
+			children = (
+				420A06A32B66D250142B4B6D /* style_core.cpp */,
+				0FC38EE7F29EF895925A2C49 /* style_core.h */,
+				0785002C1CC94D1900168DBB /* style_core_color.cpp */,
+				0785002D1CC94D1900168DBB /* style_core_color.h */,
+				0785002E1CC94D1900168DBB /* style_core_font.cpp */,
+				0785002F1CC94D1900168DBB /* style_core_font.h */,
+				078500301CC94D1900168DBB /* style_core_icon.cpp */,
+				078500311CC94D1900168DBB /* style_core_icon.h */,
+				078500321CC94D1900168DBB /* style_core_types.cpp */,
+				078500331CC94D1900168DBB /* style_core_types.h */,
+			);
+			name = style;
 			sourceTree = "<group>";
 		};
 		07B816FF1CB9A219006F7869 /* dialogs */ = {
@@ -925,16 +1022,15 @@
 		25B08E2869634E9BCBA333A2 /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
+				0747FF791CC6434300096FC3 /* styles */,
 				801973D3334D0FCA849CF485 /* Debug */,
-				07DC429F1B5EA15300B6B888 /* numbers.cpp */,
 				07080BCD1A43588C00741A51 /* lang_auto.cpp */,
 				07080BCE1A43588C00741A51 /* lang_auto.h */,
+				0747FF831CC6458B00096FC3 /* numbers.cpp */,
+				0747FF841CC6458B00096FC3 /* numbers.h */,
 				07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */,
 				07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */,
 				D6FF6676816C4E374D374060 /* qrc_telegram.cpp */,
-				99B8D38F7F5858601230911E /* style_auto.cpp */,
-				9EFD7CB36012BFC00CC79434 /* style_auto.h */,
-				39C1ADF085370E033CB7E7E1 /* style_classes.h */,
 			);
 			name = GeneratedFiles;
 			sourceTree = "<Group>";
@@ -942,8 +1038,9 @@
 		579DA7AEF5751DF4988869A0 /* ui */ = {
 			isa = PBXGroup;
 			children = (
-				076B1C471CBFBEB4002C0BC2 /* text */,
 				07E373901CBBBFDE00934F77 /* buttons */,
+				0785002B1CC94CF500168DBB /* style */,
+				076B1C471CBFBEB4002C0BC2 /* text */,
 				07C8FE071CB80884007A8702 /* toast */,
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
@@ -973,8 +1070,6 @@
 				0F8FFD87AEBAC448568570DC /* images.h */,
 				6E1859D714E4471E053D90C9 /* scrollarea.cpp */,
 				83A36F229E897566E011B79E /* scrollarea.h */,
-				420A06A32B66D250142B4B6D /* style_core.cpp */,
-				0FC38EE7F29EF895925A2C49 /* style_core.h */,
 				BB1602EA641643DE565005B1 /* twidget.cpp */,
 				507CCEEC4CBA3E3BD6EEDED1 /* twidget.h */,
 			);
@@ -1056,7 +1151,6 @@
 				FE8FD20832B4C226E345CFBA /* mainwidget.h */,
 				07A69330199277BA0099CB9F /* mediaview.cpp */,
 				07A69331199277BA0099CB9F /* mediaview.h */,
-				07DC429D1B5EA0E600B6B888 /* numbers.h */,
 				0732E4A7199E262300D50FE7 /* overviewwidget.cpp */,
 				0732E4A8199E262300D50FE7 /* overviewwidget.h */,
 				07DE929F1AA4923200A18F6F /* passcodewidget.cpp */,
@@ -1087,7 +1181,6 @@
 				CA56ACFB53D87637192CC9B2 /* mainwindow.cpp */,
 				301BB513F2F5D447B3BF22DF /* mainwindow.h */,
 				24F7D3E789E91B10E422C116 /* config.h */,
-				C913E6A1001E07EE7C13CE93 /* style.h */,
 			);
 			name = SourceFiles;
 			sourceTree = "<Group>";
@@ -1271,7 +1364,7 @@
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
 			children = (
-				07084684195445A600B5AE3A /* Updater.xcodeproj */,
+				0747FE4F1CC62AE400096FC3 /* codegen */,
 				25B08E2869634E9BCBA333A2 /* GeneratedFiles */,
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
 				071AD8691C5E8504008C9E90 /* ThirdParty */,
@@ -1279,6 +1372,7 @@
 				AF39DD055C3EF8226FBE929D /* Frameworks */,
 				FE0A091FDBFB3E9C31B7A1BD /* Products */,
 				076B1C611CBFCC0F002C0BC2 /* Resources */,
+				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 			);
 			name = Telegram;
 			sourceTree = "<Group>";
@@ -1298,6 +1392,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6CC3B5D2136C7CD6A5CF5A59 /* Build configuration list for PBXNativeTarget "Telegram" */;
 			buildPhases = (
+				0747FF741CC6408600096FC3 /* Generate styles */,
+				0747FF801CC6437300096FC3 /* Generate numbers */,
 				F7E50F631C51CD5B5DC0BC43 /* Compile Sources */,
 				D1C883685E82D5676953459A /* Link Binary With Libraries */,
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
@@ -1308,6 +1404,8 @@
 			buildRules = (
 			);
 			dependencies = (
+				0747FF731CC63FFD00096FC3 /* PBXTargetDependency */,
+				0747FF711CC63FF300096FC3 /* PBXTargetDependency */,
 				69BB0D15D494AAF597C8D2CF /* PBXTargetDependency */,
 			);
 			name = Telegram;
@@ -1346,6 +1444,14 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
+					ProductGroup = 0747FF281CC63E9900096FC3 /* Products */;
+					ProjectRef = 0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */;
+				},
+				{
+					ProductGroup = 0747FF1C1CC63E7E00096FC3 /* Products */;
+					ProjectRef = 0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */;
+				},
+				{
 					ProductGroup = 07084685195445A600B5AE3A /* Products */;
 					ProjectRef = 07084684195445A600B5AE3A /* Updater.xcodeproj */;
 				},
@@ -1367,6 +1473,20 @@
 			remoteRef = 07084688195445A700B5AE3A /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
+		0747FF201CC63E7E00096FC3 /* codegen_style */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = codegen_style;
+			remoteRef = 0747FF1F1CC63E7E00096FC3 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		0747FF2C1CC63E9900096FC3 /* codegen_numbers */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = codegen_numbers;
+			remoteRef = 0747FF2B1CC63E9900096FC3 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 /* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -1374,12 +1494,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				077A4AFB1CA41C38002188D2 /* generate.py in Resources */,
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
-				07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */,
 				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
-				077A4AFD1CA41C38002188D2 /* scheme.tl in Resources */,
-				07AF95F91AFD03C80060B057 /* telegram_emojis.qrc in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1399,6 +1515,34 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+		};
+		0747FF741CC6408600096FC3 /* Generate styles */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate styles";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "./../Mac/codegen/$CONFIGURATION/codegen_style \"-I./Resources\" \"-I./SourceFiles\" \"-o./GeneratedFiles/styles\" ./Resources/all_files.style --rebuild";
+		};
+		0747FF801CC6437300096FC3 /* Generate numbers */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate numbers";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "./../Mac/codegen/$CONFIGURATION/codegen_numbers \"-o./GeneratedFiles\" ./Resources/numbers.txt";
 		};
 		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1427,20 +1571,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Resources\"";
-		};
-		07C3AF3A194CCC310016CFF1 /* Meta Style */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Meta Style";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "open ../Mac/DebugStyle/MetaStyle.app --args -classes_in \"../../Telegram/Resources/style_classes.txt\" -classes_out \"../../Telegram/GeneratedFiles/style_classes.h\" -styles_in \"../../Telegram/Resources/style.txt\" -styles_out \"../../Telegram/GeneratedFiles/style_auto.h\" -path_to_sprites \"../../Telegram/Resources/art/\"";
 		};
 		07C3AF3B194CCC310016CFF1 /* Meta Lang */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1505,6 +1635,7 @@
 				4078D5D614EB3ECF7F1848C7 /* basic_types.cpp in Compile Sources */,
 				68FFEB7CA30BF0149161B809 /* mainwindow.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */,
+				078500341CC94D1900168DBB /* style_core_color.cpp in Compile Sources */,
 				076B1C5B1CBFC8F1002C0BC2 /* top_bar_widget.cpp in Compile Sources */,
 				DF259E9677CC63AF8754032B /* connection.cpp in Compile Sources */,
 				074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */,
@@ -1522,7 +1653,6 @@
 				8F65F0D95B1F0CEB859F2FB3 /* boxshadow.cpp in Compile Sources */,
 				07C8FE021CB66D97007A8702 /* inline_bot_layout_item.cpp in Compile Sources */,
 				D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */,
-				07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
 				07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */,
 				CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */,
@@ -1544,7 +1674,6 @@
 				077A4B061CA41EE2002188D2 /* moc_connection_tcp.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
 				071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */,
-				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
 				07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */,
@@ -1588,6 +1717,8 @@
 				0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */,
 				07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */,
 				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
+				0747FF7E1CC6435100096FC3 /* style_basic_types.cpp in Compile Sources */,
+				078500351CC94D1900168DBB /* style_core_font.cpp in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
 				FD2FE0C564A7389A2E609EC7 /* moc_sysbuttons.cpp in Compile Sources */,
 				E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */,
@@ -1601,7 +1732,9 @@
 				B780F9E21269259B90A1F32A /* moc_dcenter.cpp in Compile Sources */,
 				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
+				0785003A1CC94D9600168DBB /* style_overview.cpp in Compile Sources */,
 				07C8FE121CB80915007A8702 /* moc_toast_manager.cpp in Compile Sources */,
+				0747FF851CC6458B00096FC3 /* numbers.cpp in Compile Sources */,
 				077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_file_download.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
@@ -1621,6 +1754,7 @@
 				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
 				076B1C4E1CBFBF59002C0BC2 /* text_entity.cpp in Compile Sources */,
 				0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */,
+				078500371CC94D1900168DBB /* style_core_types.cpp in Compile Sources */,
 				0752F8701C2C84470026D0BC /* layout.cpp in Compile Sources */,
 				07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */,
 				FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */,
@@ -1629,6 +1763,7 @@
 				60CB4898955209B665E7B07D /* moc_twidget.cpp in Compile Sources */,
 				077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */,
 				07B8170A1CB9A235006F7869 /* dialogs_layout.cpp in Compile Sources */,
+				078500361CC94D1900168DBB /* style_core_icon.cpp in Compile Sources */,
 				7062978F12EEA525893A5E6F /* moc_aboutbox.cpp in Compile Sources */,
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,
@@ -1651,6 +1786,7 @@
 				0F7872E39EA570249D420912 /* moc_introwidget.cpp in Compile Sources */,
 				4F27F5F76AA3F78C8CA27339 /* moc_introcode.cpp in Compile Sources */,
 				07D8509519F5C97E00623D75 /* scheme_auto.cpp in Compile Sources */,
+				0747FF7F1CC6435100096FC3 /* style_basic.cpp in Compile Sources */,
 				0250AB6761AC71A2E3155EEA /* moc_introphone.cpp in Compile Sources */,
 				07D8509419F5C97E00623D75 /* core_types.cpp in Compile Sources */,
 				2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */,
@@ -1665,6 +1801,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0747FF711CC63FF300096FC3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = codegen_style;
+			targetProxy = 0747FF701CC63FF300096FC3 /* PBXContainerItemProxy */;
+		};
+		0747FF731CC63FFD00096FC3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = codegen_numbers;
+			targetProxy = 0747FF721CC63FFD00096FC3 /* PBXContainerItemProxy */;
+		};
 		07C3AF42194CCC510016CFF1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 07C3AF39194CCC310016CFF1 /* Meta Compile */;
@@ -1759,7 +1905,6 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
 				GCC_STRICT_ALIASING = NO;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -1902,7 +2047,6 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
 				GCC_STRICT_ALIASING = NO;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;

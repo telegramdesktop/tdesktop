@@ -11,7 +11,35 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\clean_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\cpp_file.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\common\logging.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\generator.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\processor.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\module.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\options.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp" />
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\main.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\sprite_generator.cpp" />
+    <ClCompile Include="..\..\..\SourceFiles\codegen\style\structure_types.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file_reader.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\const_utf8_string.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\cpp_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\common\logging.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\generator.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\processor.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\options.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\module.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\sprite_generator.h" />
+    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure_types.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4DF8176-4DEF-4859-962F-B497E3E7A323}</ProjectGuid>
@@ -41,45 +69,50 @@
     <_ProjectFileVersion>14.0.24730.2</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)$(Platform)\codegen\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)$(Platform)\codegen\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\obj\$(ProjectName)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>UNICODE;WIN32;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>UNICODE;WIN32;QT_CORE_LIB;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;.\..\..\..\SourceFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalOptions>/w44062 /wd4127 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>ws2_32.lib;qtmaind.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;imageformats\qwebpd.lib;Qt5Cored.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;qtmaind.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;imageformats\qwebpd.lib;Qt5Cored.lib;Qt5Guid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>UNICODE;WIN32;QT_NO_DEBUG;NDEBUG;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat />
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;.\..\..\..\SourceFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalOptions>/w44062 /wd4127 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>qtmain.lib;Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;qtmain.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;imageformats\qwebp.lib;Qt5Core.lib;Qt5Gui.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

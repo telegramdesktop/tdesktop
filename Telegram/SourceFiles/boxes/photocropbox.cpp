@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/style.h"
-#include "lang.h"
+#include "boxes/photocropbox.h"
 
+#include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "photocropbox.h"
@@ -227,7 +227,7 @@ void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
 void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
-	
+
 	p.setFont(st::boxTextFont);
 	p.setPen(st::boxPhotoTextFg);
 	p.drawText(QRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom(), width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), st::boxTextFont->height), _title, style::al_top);

@@ -1,0 +1,73 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+overviewCheckBg: #0006;
+overviewCheckedBg: #2fa9e2;
+
+overviewPhotoSkip: 10px;
+overviewPhotoBg: #F1F1F1;
+overviewPhotoMinSize: minPhotoSize;
+overviewPhotoCheck: icon {
+	{ size(32px, 32px), overviewCheckBg },
+	{ "overview_photo_check", #fff, point(8px, 10px) },
+};
+overviewPhotoChecked: icon {
+	{ size(32px, 32px), overviewCheckedBg },
+	{ "overview_photo_check", #fff, point(8px, 10px) },
+};
+overviewPhotoSelectOverlay: #0a7bb03f;
+
+overviewFilePadding: margins(0px, 3px, 16px, 3px);
+overviewFileSize: 70px;
+overviewFileNameTop: 7px;
+overviewFileStatusTop: 27px;
+overviewFileDateTop: 49px;
+overviewFileChecked: #2fa9e2;
+overviewFileCheck: #00000066;
+overviewFileExtPadding: 5px;
+overviewFileExtTop: 24px;
+overviewFileExtFont: font(18px semibold);
+
+overviewLoader: size(34px, 14px);
+overviewLoaderPoint: size(4px, 4px);
+overviewLoaderSkip: 4px;
+
+playlistHoverBg: #f2f2f2;
+playlistPadding: 10px;
+
+linksSearchMargin: margins(20px, 20px, 20px, 0px);
+linksMaxWidth: 520px;
+linksLetterFont: font(24px);
+linksMargin: margins(0px, 7px, 0px, 5px);
+linksTextTop: 6px;
+linksBorder: 1px;
+linksBorderFg: #eaeaea;
+linksDateColor: #808080;
+linksDateMargin: margins(0px, 15px, 0px, 2px);
+overviewLinksCheck: icon {
+	{ "overview_links_check_bg", overviewCheckBg },
+	{ "overview_links_check", #fff, point(4px, 5px) },
+};
+overviewLinksChecked: icon {
+	{ "overview_links_check_bg", overviewCheckedBg },
+	{ "overview_links_check", #fff, point(4px, 5px) },
+};

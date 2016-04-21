@@ -212,13 +212,12 @@ namespace {
 		}
 
 		bool init(QColor c) {
-			style::rect topLeft = st::wndShadow;
-			_fullsize = topLeft.width();
+			_fullsize = st::wndShadow.rect().width();
 			_shift = st::wndShadowShift;
 			QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 			{
-				QPainter p(&cornersImage);
-				p.drawPixmap(QPoint(0, 0), App::sprite(), topLeft);
+				Painter p(&cornersImage);
+				p.drawSprite(0, 0, st::wndShadow);
 			}
 			if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 			uchar *bits = cornersImage.bits();

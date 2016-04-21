@@ -25,7 +25,6 @@ fsize: 13px;
 normalFont: font(fsize);
 semiboldFont: font(fsize semibold);
 
-spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
 emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
@@ -2297,13 +2296,14 @@ overviewFileExtFont: font(18px semibold);
 
 // Mac specific
 
-macAccessory: size(450, 90);
+macAccessoryWidth: 450;
+macAccessoryHeight: 90;
 macEnableFilterAdd: 2;
 macEnableFilterTop: 5;
 macSelectorTop: 6;
 macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
-macCautionIconSize: size(16, 16);
+macCautionIconSize: 16;
 
 btnContext: iconedButton(btnDefIconed) {
 	bgColor: white;

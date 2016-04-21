@@ -29,34 +29,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace InlineBots {
 
-namespace {
-
-using ResultsByLoaderMap = QMap<FileLoader*, Result*>;
-NeverFreedPointer<ResultsByLoaderMap> ResultsByLoader;
-
-void regLoader(FileLoader *loader, Result *result) {
-	ResultsByLoader.createIfNull([]() -> ResultsByLoaderMap* {
-		return new ResultsByLoaderMap();
-	});
-	ResultsByLoader->insert(loader, result);
-}
-
-void unregLoader(FileLoader *loader) {
-	if (!ResultsByLoader) {
-		return;
-	}
-	ResultsByLoader->remove(loader);
-}
-
-} // namespace
-
-Result *getResultFromLoader(FileLoader *loader) {
-	if (!ResultsByLoader) {
-		return nullptr;
-	}
-	return ResultsByLoader->value(loader, nullptr);
-}
-
 Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
 }
 

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "settingswidget.h"
+#include "styles/style_overview.h"
 
 BackgroundInner::BackgroundInner() :
 _bgCount(0), _rows(0), _over(-1), _overDown(-1) {
@@ -111,7 +112,7 @@ void BackgroundInner::updateWallpapers() {
 
 void BackgroundInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
-	QPainter p(this);
+	Painter p(this);
 
 	if (_rows) {
 		for (int i = 0; i < _rows; ++i) {
@@ -130,7 +131,9 @@ void BackgroundInner::paintEvent(QPaintEvent *e) {
 				p.drawPixmap(x, y, pix);
 
 				if (paper.id == cChatBackgroundId()) {
-					p.drawPixmap(QPoint(x + st::backgroundSize.width() - st::overviewPhotoChecked.pxWidth(), y + st::backgroundSize.height() - st::overviewPhotoChecked.pxHeight()), App::sprite(), st::overviewPhotoChecked);
+					int checkPosX = x + st::backgroundSize.width() - st::overviewPhotoChecked.width();
+					int checkPosY = y + st::backgroundSize.height() - st::overviewPhotoChecked.height();
+					st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width());
 				}
 			}
 		}
