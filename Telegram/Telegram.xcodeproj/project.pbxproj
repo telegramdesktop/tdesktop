@@ -84,6 +84,11 @@
 		077A4B041CA41EE2002188D2 /* moc_connection_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */; };
 		077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */; };
 		077A4B061CA41EE2002188D2 /* moc_connection_tcp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */; };
+		078500341CC94D1900168DBB /* style_core_color.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0785002C1CC94D1900168DBB /* style_core_color.cpp */; };
+		078500351CC94D1900168DBB /* style_core_font.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0785002E1CC94D1900168DBB /* style_core_font.cpp */; };
+		078500361CC94D1900168DBB /* style_core_icon.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500301CC94D1900168DBB /* style_core_icon.cpp */; };
+		078500371CC94D1900168DBB /* style_core_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500321CC94D1900168DBB /* style_core_types.cpp */; };
+		0785003A1CC94D9600168DBB /* style_overview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500381CC94D9600168DBB /* style_overview.cpp */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
@@ -408,6 +413,16 @@
 		077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_auto.cpp; path = GeneratedFiles/Debug/moc_connection_auto.cpp; sourceTree = SOURCE_ROOT; };
 		077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_http.cpp; path = GeneratedFiles/Debug/moc_connection_http.cpp; sourceTree = SOURCE_ROOT; };
 		077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_tcp.cpp; path = GeneratedFiles/Debug/moc_connection_tcp.cpp; sourceTree = SOURCE_ROOT; };
+		0785002C1CC94D1900168DBB /* style_core_color.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_color.cpp; path = SourceFiles/ui/style/style_core_color.cpp; sourceTree = SOURCE_ROOT; };
+		0785002D1CC94D1900168DBB /* style_core_color.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_color.h; path = SourceFiles/ui/style/style_core_color.h; sourceTree = SOURCE_ROOT; };
+		0785002E1CC94D1900168DBB /* style_core_font.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_font.cpp; path = SourceFiles/ui/style/style_core_font.cpp; sourceTree = SOURCE_ROOT; };
+		0785002F1CC94D1900168DBB /* style_core_font.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_font.h; path = SourceFiles/ui/style/style_core_font.h; sourceTree = SOURCE_ROOT; };
+		078500301CC94D1900168DBB /* style_core_icon.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_icon.cpp; path = SourceFiles/ui/style/style_core_icon.cpp; sourceTree = SOURCE_ROOT; };
+		078500311CC94D1900168DBB /* style_core_icon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_icon.h; path = SourceFiles/ui/style/style_core_icon.h; sourceTree = SOURCE_ROOT; };
+		078500321CC94D1900168DBB /* style_core_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_core_types.cpp; path = SourceFiles/ui/style/style_core_types.cpp; sourceTree = SOURCE_ROOT; };
+		078500331CC94D1900168DBB /* style_core_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_types.h; path = SourceFiles/ui/style/style_core_types.h; sourceTree = SOURCE_ROOT; };
+		078500381CC94D9600168DBB /* style_overview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_overview.cpp; path = GeneratedFiles/styles/style_overview.cpp; sourceTree = SOURCE_ROOT; };
+		078500391CC94D9600168DBB /* style_overview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_overview.h; path = GeneratedFiles/styles/style_overview.h; sourceTree = SOURCE_ROOT; };
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
@@ -818,10 +833,12 @@
 		0747FF791CC6434300096FC3 /* styles */ = {
 			isa = PBXGroup;
 			children = (
-				0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */,
-				0747FF7B1CC6435100096FC3 /* style_basic_types.h */,
 				0747FF7C1CC6435100096FC3 /* style_basic.cpp */,
 				0747FF7D1CC6435100096FC3 /* style_basic.h */,
+				0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */,
+				0747FF7B1CC6435100096FC3 /* style_basic_types.h */,
+				078500381CC94D9600168DBB /* style_overview.cpp */,
+				078500391CC94D9600168DBB /* style_overview.h */,
 			);
 			name = styles;
 			sourceTree = "<group>";
@@ -906,6 +923,23 @@
 				07D7EABC1A597DD000838BA2 /* Localizable.strings */,
 			);
 			name = Resources;
+			sourceTree = "<group>";
+		};
+		0785002B1CC94CF500168DBB /* style */ = {
+			isa = PBXGroup;
+			children = (
+				420A06A32B66D250142B4B6D /* style_core.cpp */,
+				0FC38EE7F29EF895925A2C49 /* style_core.h */,
+				0785002C1CC94D1900168DBB /* style_core_color.cpp */,
+				0785002D1CC94D1900168DBB /* style_core_color.h */,
+				0785002E1CC94D1900168DBB /* style_core_font.cpp */,
+				0785002F1CC94D1900168DBB /* style_core_font.h */,
+				078500301CC94D1900168DBB /* style_core_icon.cpp */,
+				078500311CC94D1900168DBB /* style_core_icon.h */,
+				078500321CC94D1900168DBB /* style_core_types.cpp */,
+				078500331CC94D1900168DBB /* style_core_types.h */,
+			);
+			name = style;
 			sourceTree = "<group>";
 		};
 		07B816FF1CB9A219006F7869 /* dialogs */ = {
@@ -1016,8 +1050,9 @@
 		579DA7AEF5751DF4988869A0 /* ui */ = {
 			isa = PBXGroup;
 			children = (
-				076B1C471CBFBEB4002C0BC2 /* text */,
 				07E373901CBBBFDE00934F77 /* buttons */,
+				0785002B1CC94CF500168DBB /* style */,
+				076B1C471CBFBEB4002C0BC2 /* text */,
 				07C8FE071CB80884007A8702 /* toast */,
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
@@ -1047,8 +1082,6 @@
 				0F8FFD87AEBAC448568570DC /* images.h */,
 				6E1859D714E4471E053D90C9 /* scrollarea.cpp */,
 				83A36F229E897566E011B79E /* scrollarea.h */,
-				420A06A32B66D250142B4B6D /* style_core.cpp */,
-				0FC38EE7F29EF895925A2C49 /* style_core.h */,
 				BB1602EA641643DE565005B1 /* twidget.cpp */,
 				507CCEEC4CBA3E3BD6EEDED1 /* twidget.h */,
 			);
@@ -1509,7 +1542,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "./../Mac/codegen/$CONFIGURATION/codegen_style \"-I./SourceFiles\" \"-o./GeneratedFiles/styles\" ./Resources/all_files.style --rebuild";
+			shellScript = "./../Mac/codegen/$CONFIGURATION/codegen_style \"-I./Resources\" \"-I./SourceFiles\" \"-o./GeneratedFiles/styles\" ./Resources/all_files.style --rebuild";
 		};
 		0747FF801CC6437300096FC3 /* Generate numbers */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1616,6 +1649,7 @@
 				4078D5D614EB3ECF7F1848C7 /* basic_types.cpp in Compile Sources */,
 				68FFEB7CA30BF0149161B809 /* mainwindow.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */,
+				078500341CC94D1900168DBB /* style_core_color.cpp in Compile Sources */,
 				076B1C5B1CBFC8F1002C0BC2 /* top_bar_widget.cpp in Compile Sources */,
 				DF259E9677CC63AF8754032B /* connection.cpp in Compile Sources */,
 				074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */,
@@ -1698,6 +1732,7 @@
 				07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */,
 				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
 				0747FF7E1CC6435100096FC3 /* style_basic_types.cpp in Compile Sources */,
+				078500351CC94D1900168DBB /* style_core_font.cpp in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
 				FD2FE0C564A7389A2E609EC7 /* moc_sysbuttons.cpp in Compile Sources */,
 				E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */,
@@ -1711,6 +1746,7 @@
 				B780F9E21269259B90A1F32A /* moc_dcenter.cpp in Compile Sources */,
 				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
+				0785003A1CC94D9600168DBB /* style_overview.cpp in Compile Sources */,
 				07C8FE121CB80915007A8702 /* moc_toast_manager.cpp in Compile Sources */,
 				0747FF851CC6458B00096FC3 /* numbers.cpp in Compile Sources */,
 				077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */,
@@ -1732,6 +1768,7 @@
 				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
 				076B1C4E1CBFBF59002C0BC2 /* text_entity.cpp in Compile Sources */,
 				0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */,
+				078500371CC94D1900168DBB /* style_core_types.cpp in Compile Sources */,
 				0752F8701C2C84470026D0BC /* layout.cpp in Compile Sources */,
 				07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */,
 				FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */,
@@ -1740,6 +1777,7 @@
 				60CB4898955209B665E7B07D /* moc_twidget.cpp in Compile Sources */,
 				077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */,
 				07B8170A1CB9A235006F7869 /* dialogs_layout.cpp in Compile Sources */,
+				078500361CC94D1900168DBB /* style_core_icon.cpp in Compile Sources */,
 				7062978F12EEA525893A5E6F /* moc_aboutbox.cpp in Compile Sources */,
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,

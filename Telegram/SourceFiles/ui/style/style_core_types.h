@@ -42,7 +42,11 @@ class Sprite {
 public:
 	Sprite() {
 	}
-	Sprite(int left, int top, int width, int height) : _rect(rtl() ? (spriteWidth() - left - width) : left, top, width, height) {
+	Sprite(int left, int top, int width, int height)
+		: _rect(rtl() ? (spriteWidth() - left * cIntRetinaFactor() - width * cIntRetinaFactor()) : left * cIntRetinaFactor(),
+				top * cIntRetinaFactor(),
+				width * cIntRetinaFactor(),
+				height * cIntRetinaFactor()) {
 	}
 	int pxWidth() const {
 		return _rect.width() / cIntRetinaFactor();
