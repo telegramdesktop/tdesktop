@@ -23,7 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/click_handler_types.h"
 #include "dialogs/dialogs_indexed_list.h"
-#include "ui/style.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -5819,9 +5818,9 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 
 		if (_data->type == WebPageVideo) {
 			if (_data->siteName == qstr("YouTube")) {
-				p.drawPixmap(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::youtubeIcon);
+				p.drawSprite(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), st::youtubeIcon);
 			} else {
-				p.drawPixmap(QPoint((pixwidth - st::videoIcon.pxWidth()) / 2, (pixheight - st::videoIcon.pxHeight()) / 2), App::sprite(), st::videoIcon);
+				p.drawSprite(QPoint((pixwidth - st::videoIcon.pxWidth()) / 2, (pixheight - st::videoIcon.pxHeight()) / 2), st::videoIcon);
 			}
 			if (_durationWidth) {
 				int32 dateX = pixwidth - _durationWidth - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
@@ -7304,7 +7303,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	}
 
 	QPoint iconPos;
-	const QRect *iconRect = 0;
+	const style::sprite *iconRect = nullptr;
 	if (auto views = Get<HistoryMessageViews>()) {
 		iconPos = QPoint(infoRight - infoW + st::msgViewsPos.x(), infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
 		if (id > 0) {
@@ -7322,11 +7321,11 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 				iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
 			}
 		}
-		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+		p.drawSprite(iconPos, *iconRect);
 	} else if (id < 0 && history()->peer->isSelf()) {
 		iconPos = QPoint(infoRight - infoW, infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
 		iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
-		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+		p.drawSprite(iconPos, *iconRect);
 	}
 	if (outbg) {
 		iconPos = QPoint(infoRight - st::msgCheckImg.pxWidth() + st::msgCheckPos.x(), infoBottom - st::msgCheckImg.pxHeight() + st::msgCheckPos.y());
@@ -7339,7 +7338,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		} else {
 			iconRect = &(invertedsprites ? st::msgInvSendingImg : st::msgSendingImg);
 		}
-		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+		p.drawSprite(iconPos, *iconRect);
 	}
 }
 

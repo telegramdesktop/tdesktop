@@ -95,7 +95,11 @@ private:
 	structure::Value readAlignValue();
 	structure::Value readMarginsValue();
 	structure::Value readFontValue();
+	structure::Value readIconValue();
 	structure::Value readCopyValue();
+
+	structure::data::monoicon readMonoIconFields();
+	QString readMonoIconFilename();
 
 	// Read next token and fire unexpected token error if it is not of "type".
 	using BasicToken = common::BasicTokenizedFile::Token;

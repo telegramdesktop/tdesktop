@@ -19,10 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-#include "ui/style.h"
-
 #include "title.h"
+
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
@@ -103,7 +102,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBG->b);
 	if (!_cancel.isHidden()) {
 		p.setPen(st::titleTextButton.color->p);
@@ -112,7 +111,7 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 		auto chooseText = lang(inlineSwitchChoose ? lng_inline_switch_choose : lng_forward_choose);
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, chooseText);
 	}
-	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
+	p.drawSprite(st::titleIconPos, st::titleIconImg);
 	if (Adaptive::OneColumn() && !_counter.isNull() && App::main()) {
 		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
 	}

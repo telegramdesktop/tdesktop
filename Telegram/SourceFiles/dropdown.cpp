@@ -1427,7 +1427,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 
 					QPoint xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.pxWidth(), 0);
 					p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
-					p.drawPixmapLeft(xPos, width(), App::sprite(), st::stickerPanDelete);
+					p.drawSpriteLeft(xPos, width(), st::stickerPanDelete);
 					p.setOpacity(1);
 				}
 			}
@@ -3951,7 +3951,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
 				int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
+					p.drawSprite(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::notifyClose.icon);
+				}
 			}
 			p.setPen(st::black->p);
 			if (!_mrows->isEmpty()) {

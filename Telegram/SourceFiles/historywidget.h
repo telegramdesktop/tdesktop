@@ -520,7 +520,7 @@ public:
 
 	void updateTopBarSelection();
 
-	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	void loadMessages();

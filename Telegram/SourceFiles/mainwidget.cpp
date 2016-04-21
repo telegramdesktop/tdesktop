@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "ui/buttons/peer_avatar_button.h"
-#include "ui/style.h"
 #include "window/top_bar_widget.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -2471,7 +2470,7 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 	}
 }
 
@@ -2608,7 +2607,7 @@ bool MainWidget::needBackButton() {
 	return _overview || _profile || (_history->peer() && _history->peer()->id);
 }
 
-void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
+void MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_profile) {
 		_profile->paintTopBar(p, over, decreaseWidth);
 	} else if (_overview) {

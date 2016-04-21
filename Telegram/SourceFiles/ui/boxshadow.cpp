@@ -28,8 +28,8 @@ BoxShadow::BoxShadow(const style::sprite &topLeft) : _size(topLeft.pxWidth()), _
 	QImage cornersImage(_pixsize * 2, _pixsize * 2, QImage::Format_ARGB32_Premultiplied);
 	cornersImage.setDevicePixelRatio(cRetinaFactor());
 	{
-		QPainter p(&cornersImage);
-		p.drawPixmap(QPoint(rtl() ? _size : 0, 0), App::sprite(), topLeft);
+		Painter p(&cornersImage);
+		p.drawSprite(QPoint(rtl() ? _size : 0, 0), topLeft);
 	}
 	if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 	uchar *bits = cornersImage.bits();

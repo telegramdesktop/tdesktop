@@ -298,6 +298,8 @@ structure::Value ParsedFile::readValue() {
 		return marginsValue;
 	} else if (auto fontValue = readFontValue()) {
 		return fontValue;
+	} else if (auto iconValue = readIconValue()) {
+		return iconValue;
 	} else if (auto numericValue = readNumericValue()) {
 		return numericValue;
 	} else if (auto stringValue = readStringValue()) {
@@ -728,6 +730,46 @@ structure::Value ParsedFile::readFontValue() {
 	return {};
 }
 
+structure::Value ParsedFile::readIconValue() {
+	if (auto font = file_.getToken(BasicType::Name)) {
+		if (tokenValue(font) == "icon") {
+			std::vector<structure::data::monoicon> parts;
+			if (file_.getToken(BasicType::LeftBrace)) { // complex icon
+				do {
+					if (file_.getToken(BasicType::RightBrace)) {
+						break;
+					} else if (file_.getToken(BasicType::LeftBrace)) {
+						if (auto part = readMonoIconFields()) {
+							assertNextToken(BasicType::RightBrace);
+							parts.push_back(part);
+							file_.getToken(BasicType::Comma);
+							continue;
+						}
+						return {};
+					} else {
+						logErrorUnexpectedToken() << "icon part or '}'";
+						return {};
+					}
+				} while (true);
+
+			} else if (file_.getToken(BasicType::LeftParenthesis)) { // short icon
+				if (auto theOnlyPart = readMonoIconFields()) {
+					assertNextToken(BasicType::RightParenthesis);
+					parts.push_back(theOnlyPart);
+				}
+			}
+
+			if (parts.empty()) {
+				logErrorUnexpectedToken() << "at least one icon part";
+				return {};
+			}
+			return { structure::data::icon { parts } };
+		}
+		file_.putBack();
+	}
+	return {};
+}
+
 structure::Value ParsedFile::readCopyValue() {
 	if (auto copyName = file_.getToken(BasicType::Name)) {
 		structure::FullName name = { tokenValue(copyName) };
@@ -737,6 +779,61 @@ structure::Value ParsedFile::readCopyValue() {
 		logError(kErrorIdentifierNotFound) << "identifier '" << logFullName(name) << "' not found";
 	}
 	return {};
+}
+
+structure::data::monoicon ParsedFile::readMonoIconFields() {
+	structure::data::monoicon result;
+	result.filename = readMonoIconFilename();
+	if (!result.filename.isEmpty() && file_.getToken(BasicType::Comma)) {
+		if (auto color = readValue()) {
+			if (color.type().tag == structure::TypeTag::Color) {
+				result.color = color;
+				if (file_.getToken(BasicType::Comma)) {
+					if (auto offset = readValue()) {
+						if (offset.type().tag == structure::TypeTag::Point) {
+							result.offset = offset;
+						} else {
+							logErrorUnexpectedToken() << "icon offset";
+						}
+					} else {
+						logErrorUnexpectedToken() << "icon offset";
+					}
+				} else {
+					result.offset = { structure::data::point { 0, 0 } };
+				}
+			} else {
+				logErrorUnexpectedToken() << "icon color";
+			}
+		} else {
+			logErrorUnexpectedToken() << "icon color";
+		}
+	}
+	return result;
+}
+
+QString ParsedFile::readMonoIconFilename() {
+	if (auto filename = readValue()) {
+		if (filename.type().tag == structure::TypeTag::String) {
+			auto filepath = QString::fromStdString(filename.String());
+			for (const auto &path : options_.includePaths) {
+				QFileInfo fileinfo(path + '/' + filepath + ".png");
+				if (fileinfo.exists()) {
+					return path + '/' + filepath;
+				}
+			}
+			for (const auto &path : options_.includePaths) {
+				QFileInfo fileinfo(path + "/icons/" + filepath + ".png");
+				if (fileinfo.exists()) {
+					return path + "/icons/" + filepath;
+				}
+			}
+			logError(common::kErrorFileNotFound) << "could not open icon file '" << filename.String() << "'";
+		} else if (filename.type().tag == structure::TypeTag::Size) {
+			return QString("size://%1,%2").arg(filename.Size().width).arg(filename.Size().height);
+		}
+	}
+	logErrorUnexpectedToken() << "icon filename or rect size";
+	return QString();
 }
 
 BasicToken ParsedFile::assertNextToken(BasicToken::Type type) {

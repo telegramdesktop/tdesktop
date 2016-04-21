@@ -31,7 +31,7 @@ namespace codegen {
 namespace style {
 namespace {
 
-constexpr int kErrorCantWritePath = 851;
+constexpr int kErrorCantWritePath = 821;
 
 QString destFileBaseName(const structure::Module &module) {
 	return "style_" + QFileInfo(module.filepath()).baseName();

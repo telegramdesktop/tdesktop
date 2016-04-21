@@ -154,6 +154,7 @@ SOURCES += \
     ./SourceFiles/serialize/serialize_common.cpp \
     ./SourceFiles/serialize/serialize_document.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
+    ./SourceFiles/ui/style/style_core.cpp \
     ./SourceFiles/ui/text/text.cpp \
     ./SourceFiles/ui/text/text_block.cpp \
     ./SourceFiles/ui/text/text_entity.cpp \
@@ -174,7 +175,6 @@ SOURCES += \
     ./SourceFiles/ui/flattextarea.cpp \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
-    ./SourceFiles/ui/style_core.cpp \
     ./SourceFiles/ui/twidget.cpp \
     ./SourceFiles/window/top_bar_widget.cpp
 
@@ -272,6 +272,7 @@ HEADERS += \
     ./SourceFiles/serialize/serialize_common.h \
     ./SourceFiles/serialize/serialize_document.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
+    ./SourceFiles/ui/style/style_core.h \
     ./SourceFiles/ui/text/text.h \
     ./SourceFiles/ui/text/text_block.h \
     ./SourceFiles/ui/text/text_entity.h \
@@ -292,8 +293,6 @@ HEADERS += \
     ./SourceFiles/ui/flattextarea.h \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
-    ./SourceFiles/ui/style.h \
-    ./SourceFiles/ui/style_core.h \
     ./SourceFiles/ui/twidget.h \
     ./SourceFiles/window/top_bar_widget.h
 

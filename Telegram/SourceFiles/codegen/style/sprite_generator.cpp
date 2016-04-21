@@ -40,12 +40,11 @@ using structure::logFullName;
 
 namespace {
 
-constexpr int kErrorFileNotFound      = 881;
-constexpr int kErrorSpritesIntersect  = 882;
-constexpr int kErrorCouldNotGenerate  = 886;
-constexpr int kErrorCouldNotSerialize = 886;
-constexpr int kErrorCouldNotOpen      = 886;
-constexpr int kErrorCouldNotWrite     = 886;
+constexpr int kErrorSpritesIntersect  = 841;
+constexpr int kErrorCouldNotGenerate  = 842;
+constexpr int kErrorCouldNotSerialize = 843;
+constexpr int kErrorCouldNotOpen      = 844;
+constexpr int kErrorCouldNotWrite     = 845;
 
 } // namespace
 
@@ -64,7 +63,7 @@ bool SpriteGenerator::writeSprites() {
 
 	sprite2x_ = QImage(basePath_ + "/art/sprite_200x.png");
 	if (sprite2x_.isNull()) {
-		common::logError(kErrorFileNotFound, "/art/sprite_200x.png") << "sprite file was not found";
+		common::logError(common::kErrorFileNotFound, "/art/sprite_200x.png") << "sprite file was not found";
 		return false;
 	}
 	std::vector<int> sizes = { 5, 6 };

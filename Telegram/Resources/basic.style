@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-using "./basic_types.style";
+using "basic_types.style";
 
 semibold: "Open Sans Semibold";
 
@@ -2277,24 +2277,6 @@ medviewSaveMsg: #000000b2;
 
 mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
 
-overviewPhotoSkip: 10px;
-overviewPhotoBg: #F1F1F1;
-overviewPhotoMinSize: minPhotoSize;
-overviewPhotoCheck: sprite(245px, 308px, 32px, 32px);
-overviewPhotoChecked: sprite(278px, 308px, 32px, 32px);
-overviewPhotoSelectOverlay: #0a7bb03f;
-
-overviewFilePadding: margins(0px, 3px, 16px, 3px);
-overviewFileSize: 70px;
-overviewFileNameTop: 7px;
-overviewFileStatusTop: 27px;
-overviewFileDateTop: 49px;
-overviewFileChecked: #2fa9e2;
-overviewFileCheck: #00000066;
-overviewFileExtPadding: 5px;
-overviewFileExtTop: 24px;
-overviewFileExtFont: font(18px semibold);
-
 // Mac specific
 
 macAccessoryWidth: 450.;
@@ -2343,10 +2325,6 @@ radialDownload: sprite(346px, 0px, 50px, 50px);
 radialDownloadOpacity: 0.8;
 radialCancel: sprite(378px, 50px, 18px, 18px);
 radialCancelOpacity: 1.0;
-
-overviewLoader: size(34px, 14px);
-overviewLoaderPoint: size(4px, 4px);
-overviewLoaderSkip: 4px;
 
 mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
@@ -2475,22 +2453,6 @@ playerInactiveOpacity: 0.8;
 playerUnavailableOpacity: 0.3;
 playerDuration: 200;
 
-playlistHoverBg: #f2f2f2;
-playlistPadding: 10px;
-
-linksSearchMargin: margins(20px, 20px, 20px, 0px);
-linksMaxWidth: 520px;
-linksLetterFont: font(24px);
-linksMargin: margins(0px, 7px, 0px, 5px);
-linksTextTop: 6px;
-linksBorder: 1px;
-linksBorderFg: #eaeaea;
-linksDateColor: #808080;
-linksDateMargin: margins(0px, 15px, 0px, 2px);
-
-linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
-linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
-
 inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
@@ -2498,8 +2460,8 @@ inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
 inlineDescriptionFg: #8a8a8a;
 inlineRowMargin: 6px;
-inlineRowBorder: linksBorder;
-inlineRowBorderFg: linksBorderFg;
+inlineRowBorder: 1px;
+inlineRowBorderFg: #eaeaea;
 inlineRowFileNameTop: 2px;
 inlineRowFileDescriptionTop: 23px;
 inlineResultsMinWidth: 64px;

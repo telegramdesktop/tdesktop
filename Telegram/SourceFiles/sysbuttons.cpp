@@ -19,12 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/style.h"
-#include "lang.h"
-
-#include "shortcuts.h"
-
 #include "sysbuttons.h"
+
+#include "lang.h"
+#include "shortcuts.h"
 #include "application.h"
 #include "autoupdater.h"
 
@@ -64,7 +62,7 @@ void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
 }
 
 void SysBtn::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	int x = width() - ((_st.size.width() + _st.img.pxWidth()) / 2), y = (height() - _st.img.pxHeight()) / 2;
 	QColor c = a_color.current();
@@ -78,7 +76,7 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 		}
 	}
 	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
-	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
+	p.drawSprite(QPoint(x, y), _st.img);
 
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);

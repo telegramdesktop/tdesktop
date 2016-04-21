@@ -35,6 +35,7 @@ struct Value::DataTypes {
 		int value_;
 
 	};
+
 	class TDouble : public DataBase {
 	public:
 		TDouble(double value) : value_(value) {
@@ -45,6 +46,7 @@ struct Value::DataTypes {
 		double value_;
 
 	};
+
 	class TString : public DataBase {
 	public:
 		TString(std::string value) : value_(value) {
@@ -55,6 +57,7 @@ struct Value::DataTypes {
 		std::string value_;
 
 	};
+
 	class TPoint : public DataBase {
 	public:
 		TPoint(data::point value) : value_(value) {
@@ -65,6 +68,7 @@ struct Value::DataTypes {
 		data::point value_;
 
 	};
+
 	class TSprite : public DataBase {
 	public:
 		TSprite(data::sprite value) : value_(value) {
@@ -75,6 +79,7 @@ struct Value::DataTypes {
 		data::sprite value_;
 
 	};
+
 	class TSize : public DataBase {
 	public:
 		TSize(data::size value) : value_(value) {
@@ -85,6 +90,7 @@ struct Value::DataTypes {
 		data::size value_;
 
 	};
+
 	class TColor : public DataBase {
 	public:
 		TColor(data::color value) : value_(value) {
@@ -95,6 +101,7 @@ struct Value::DataTypes {
 		data::color value_;
 
 	};
+
 	class TMargins : public DataBase {
 	public:
 		TMargins(data::margins value) : value_(value) {
@@ -105,6 +112,7 @@ struct Value::DataTypes {
 		data::margins value_;
 
 	};
+
 	class TFont : public DataBase {
 	public:
 		TFont(data::font value) : value_(value) {
@@ -115,6 +123,18 @@ struct Value::DataTypes {
 		data::font value_;
 
 	};
+
+	class TIcon : public DataBase {
+	public:
+		TIcon(data::icon value) : value_(value) {
+		}
+		data::icon Icon() const override { return value_; }
+
+	private:
+		data::icon value_;
+
+	};
+
 	class TFields : public DataBase {
 	public:
 		TFields(data::fields value) : value_(value) {
@@ -147,6 +167,9 @@ Value::Value(data::margins value) : Value(TypeTag::Margins, std::make_shared<Dat
 }
 
 Value::Value(data::font value) : Value(TypeTag::Font, std::make_shared<DataTypes::TFont>(value)) {
+}
+
+Value::Value(data::icon value) : Value(TypeTag::Icon, std::make_shared<DataTypes::TIcon>(value)) {
 }
 
 Value::Value(const FullName &type, data::fields value)
@@ -194,6 +217,7 @@ Value::Value(Type type, Qt::Initialization) : type_(type) {
 	case TypeTag::Align: data_ = std::make_shared<DataTypes::TString>("topleft"); break;
 	case TypeTag::Margins: data_ = std::make_shared<DataTypes::TMargins>(data::margins { 0, 0, 0, 0 }); break;
 	case TypeTag::Font: data_ = std::make_shared<DataTypes::TFont>(data::font { "", 13, 0 }); break;
+	case TypeTag::Icon: data_ = std::make_shared<DataTypes::TIcon>(data::icon {}); break;
 	case TypeTag::Struct: data_ = std::make_shared<DataTypes::TFields>(data::fields {}); break;
 	}
 }

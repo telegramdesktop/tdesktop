@@ -54,8 +54,10 @@ private:
 	bool writeVariableDefinitions();
 	bool writeRefsDefinition();
 	bool writeVariableInit();
-	bool writePxValues();
-	bool writeFontFamilyValues();
+	bool writePxValuesInit();
+	bool writeFontFamiliesInit();
+	bool writeIconValues();
+	bool writeIconsInit();
 
 	bool collectUniqueValues();
 
@@ -65,7 +67,8 @@ private:
 	std::unique_ptr<common::CppFile> source_, header_;
 
 	QMap<int, bool> pxValues_;
-	QMap<std::string, int> fontFamilyValues_;
+	QMap<std::string, int> fontFamilies_;
+	QMap<QString, int> iconMasks_; // icon file -> index
 
 	std::vector<int> scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
 	std::vector<const char *>scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };

@@ -24,6 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <functional>
 #include <QtCore/QDir>
 #include <QtCore/QSet>
+#include <QtCore/QBuffer>
+#include <QtGui/QImage>
+#include <QtGui/QPainter>
 #include "codegen/style/parsed_file.h"
 
 using Module = codegen::style::structure::Module;
@@ -35,6 +38,9 @@ namespace codegen {
 namespace style {
 namespace {
 
+constexpr int kErrorBadIconSize   = 861;
+constexpr int kErrorBadIconFormat = 862;
+
 char hexChar(uchar ch) {
 	if (ch < 10) {
 		return '0' + ch;
@@ -45,30 +51,62 @@ char hexChar(uchar ch) {
 }
 
 char hexSecondChar(char ch) {
-	return hexChar((*reinterpret_cast<uchar*>(&ch)) << 4);
-}
-
-char hexFirstChar(char ch) {
 	return hexChar((*reinterpret_cast<uchar*>(&ch)) & 0x0F);
 }
 
+char hexFirstChar(char ch) {
+	return hexChar((*reinterpret_cast<uchar*>(&ch)) >> 4);
+}
+
 QString stringToEncodedString(const std::string &str) {
-	QString result;
-	result.reserve(str.size() * 4);
+	QString result, lineBreak = "\\\n";
+	result.reserve(str.size() * 8);
+	bool writingHexEscapedCharacters = false, startOnNewLine = false;
+	int lastCutSize = 0;
 	for (uchar ch : str) {
+		if (result.size() - lastCutSize > 80) {
+			startOnNewLine = true;
+			result.append(lineBreak);
+			lastCutSize = result.size();
+		}
 		if (ch == '\n') {
+			writingHexEscapedCharacters = false;
 			result.append("\\n");
 		} else if (ch == '\t') {
+			writingHexEscapedCharacters = false;
 			result.append("\\t");
 		} else if (ch == '"' || ch == '\\') {
+			writingHexEscapedCharacters = false;
 			result.append('\\').append(ch);
 		} else if (ch < 32 || ch > 127) {
+			writingHexEscapedCharacters = true;
 			result.append("\\x").append(hexFirstChar(ch)).append(hexSecondChar(ch));
 		} else {
+			if (writingHexEscapedCharacters) {
+				writingHexEscapedCharacters = false;
+				result.append("\"\"");
+			}
 			result.append(ch);
 		}
 	}
-	return '"' + result + '"';
+	return '"' + (startOnNewLine ? lineBreak : QString()) + result + '"';
+}
+
+QString stringToBinaryArray(const std::string &str) {
+	QStringList rows, chars;
+	chars.reserve(13);
+	rows.reserve(1 + (str.size() / 13));
+	for (uchar ch : str) {
+		if (chars.size() > 12) {
+			rows.push_back(chars.join(", "));
+			chars.clear();
+		}
+		chars.push_back(QString("0x") + hexFirstChar(ch) + hexSecondChar(ch));
+	}
+	if (!chars.isEmpty()) {
+		rows.push_back(chars.join(", "));
+	}
+	return QString("{") + ((rows.size() > 1) ? '\n' : ' ') + rows.join(",\n") + " }";
 }
 
 QString pxValueName(int value) {
@@ -92,7 +130,7 @@ Generator::Generator(const structure::Module &module, const QString &destBasePat
 bool Generator::writeHeader() {
 	header_ = std::make_unique<common::CppFile>(basePath_ + ".h", project_);
 
-	header_->include("ui/style_core.h").newline();
+	header_->include("ui/style/style_core.h").newline();
 
 	if (!writeHeaderStyleNamespace()) {
 		return false;
@@ -163,6 +201,7 @@ QString Generator::typeToString(structure::Type type) const {
 	case Tag::Align: return "style::align";
 	case Tag::Margins: return "style::margins";
 	case Tag::Font: return "style::font";
+	case Tag::Icon: return "style::icon";
 	case Tag::Struct: return "style::" + type.name.back();
 	}
 	return QString();
@@ -185,6 +224,7 @@ QString Generator::typeToDefaultValue(structure::Type type) const {
 	case Tag::Align: return "style::al_topleft";
 	case Tag::Margins: return "{ 0, 0, 0, 0 }";
 	case Tag::Font: return "{ Qt::Uninitialized }";
+	case Tag::Icon: return "{ Qt::Uninitialized }";
 	case Tag::Struct: {
 		if (auto realType = module_.findStruct(type.name)) {
 			QStringList fields;
@@ -212,39 +252,57 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	case Tag::Double: return QString("%1").arg(value.Double());
 	case Tag::Pixels: return pxValueName(value.Int());
 	case Tag::String: return QString("qsl(%1)").arg(stringToEncodedString(value.String()));
-	case Tag::Color: return QString("{ %1, %2, %3, %4 }").arg(value.Color().red).arg(value.Color().green).arg(value.Color().blue).arg(value.Color().alpha);
+	case Tag::Color: {
+		auto v(value.Color());
+		return QString("{ %1, %2, %3, %4 }").arg(v.red).arg(v.green).arg(v.blue).arg(v.alpha);
+	} break;
 	case Tag::Point: {
 		auto v(value.Point());
 		return QString("{ %1, %2 }").arg(pxValueName(v.x)).arg(pxValueName(v.y));
-	}
+	} break;
 	case Tag::Sprite: {
 		auto v(value.Sprite());
 		return QString("{ %1, %2, %3, %4 }").arg(pxValueName(v.left)).arg(pxValueName(v.top)).arg(pxValueName(v.width)).arg(pxValueName(v.height));
-	}
+	} break;
 	case Tag::Size: {
 		auto v(value.Size());
 		return QString("{ %1, %2 }").arg(pxValueName(v.width)).arg(pxValueName(v.height));
-	}
+	} break;
 	case Tag::Transition: return QString("anim::%1").arg(value.String().c_str());
 	case Tag::Cursor: return QString("style::cur_%1").arg(value.String().c_str());
 	case Tag::Align: return QString("style::al_%1").arg(value.String().c_str());
 	case Tag::Margins: {
 		auto v(value.Margins());
 		return QString("{ %1, %2, %3, %4 }").arg(pxValueName(v.left)).arg(pxValueName(v.top)).arg(pxValueName(v.right)).arg(pxValueName(v.bottom));
-	}
+	} break;
 	case Tag::Font: {
 		auto v(value.Font());
 		QString family = "0";
 		if (!v.family.empty()) {
-			auto familyIndex = fontFamilyValues_.value(v.family, -1);
+			auto familyIndex = fontFamilies_.value(v.family, -1);
 			if (familyIndex < 0) {
 				return QString();
-			} else {
-				family = QString("font%1index").arg(familyIndex);
 			}
+			family = QString("font%1index").arg(familyIndex);
 		}
 		return QString("{ %1, %2, %3 }").arg(pxValueName(v.size)).arg(v.flags).arg(family);
-	}
+	} break;
+	case Tag::Icon: {
+		auto v(value.Icon());
+		if (v.parts.empty()) return QString();
+
+		QStringList parts;
+		for (const auto &part : v.parts) {
+			auto maskIndex = iconMasks_.value(part.filename, -1);
+			if (maskIndex < 0) {
+				return QString();
+			}
+			auto color = valueAssignmentCode(part.color);
+			auto offset = valueAssignmentCode(part.offset);
+			parts.push_back(QString("MonoIcon{ &iconMask%1, %2, %3 }").arg(maskIndex).arg(color).arg(offset));
+		}
+		return QString("{ %1 }").arg(parts.join(", "));
+	} break;
 	case Tag::Struct: {
 		if (!value.Fields()) return QString();
 
@@ -381,13 +439,16 @@ bool Generator::writeVariableInit() {
 	if (!collectUniqueValues()) {
 		return false;
 	}
-	bool hasUniqueValues = (!pxValues_.isEmpty() || !fontFamilyValues_.isEmpty());
+	bool hasUniqueValues = (!pxValues_.isEmpty() || !fontFamilies_.isEmpty() || !iconMasks_.isEmpty());
 	if (hasUniqueValues) {
 		source_->pushNamespace();
-		if (!writePxValues()) {
+		if (!writePxValuesInit()) {
 			return false;
 		}
-		if (!writeFontFamilyValues()) {
+		if (!writeFontFamiliesInit()) {
+			return false;
+		}
+		if (!writeIconValues()) {
 			return false;
 		}
 		source_->popNamespace().newline();
@@ -415,12 +476,12 @@ void init_" << baseName_ << "() {\n\
 		}
 	}
 
-	if (hasUniqueValues) {
+	if (!pxValues_.isEmpty() || !fontFamilies_.isEmpty()) {
 		if (!pxValues_.isEmpty()) {
 			source_->stream() << "\tinitPxValues();\n";
 		}
-		if (!fontFamilyValues_.isEmpty()) {
-			source_->stream() << "\tinitFontFamilyValues();\n";
+		if (!fontFamilies_.isEmpty()) {
+			source_->stream() << "\tinitFontFamilies();\n";
 		}
 		source_->newline();
 	}
@@ -434,12 +495,13 @@ void init_" << baseName_ << "() {\n\
 		source_->stream() << "\t_" << name << " = " << value << ";\n";
 		return true;
 	});
+
 	source_->stream() << "\
 }\n\n";
 	return result;
 }
 
-bool Generator::writePxValues() {
+bool Generator::writePxValuesInit() {
 	if (pxValues_.isEmpty()) {
 		return true;
 	}
@@ -469,16 +531,16 @@ void initPxValues() {\n\
 	return true;
 }
 
-bool Generator::writeFontFamilyValues() {
-	if (fontFamilyValues_.isEmpty()) {
+bool Generator::writeFontFamiliesInit() {
+	if (fontFamilies_.isEmpty()) {
 		return true;
 	}
 
-	for (auto i = fontFamilyValues_.cbegin(), e = fontFamilyValues_.cend(); i != e; ++i) {
-		source_->stream() << "int font" << i.value() << "index;\n";
+	for (auto familyIndex : fontFamilies_) {
+		source_->stream() << "int font" << familyIndex << "index;\n";
 	}
-	source_->stream() << "void initFontFamilyValues() {\n";
-	for (auto i = fontFamilyValues_.cbegin(), e = fontFamilyValues_.cend(); i != e; ++i) {
+	source_->stream() << "void initFontFamilies() {\n";
+	for (auto i = fontFamilies_.cbegin(), e = fontFamilies_.cend(); i != e; ++i) {
 		auto family = stringToEncodedString(i.key());
 		source_->stream() << "\tfont" << i.value() << "index = style::internal::registerFontFamily(" << family << ");\n";
 	}
@@ -486,9 +548,103 @@ bool Generator::writeFontFamilyValues() {
 	return true;
 }
 
+namespace {
+
+QByteArray iconMaskValueSize(int width, int height) {
+	QByteArray result;
+	QLatin1String generateTag("GENERATE:");
+	result.append(generateTag.data(), generateTag.size());
+	QLatin1String sizeTag("SIZE:");
+	result.append(sizeTag.data(), sizeTag.size());
+	{
+		QBuffer buffer(&result);
+		buffer.open(QIODevice::Append);
+
+		QDataStream stream(&buffer);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(width) << qint32(height);
+	}
+	return result;
+}
+
+QByteArray iconMaskValuePng(const QString &filepath) {
+	QByteArray result;
+
+	QImage png100x(filepath + ".png");
+	QImage png200x(filepath + "@2x.png");
+	png100x.setDevicePixelRatio(1.);
+	png200x.setDevicePixelRatio(1.);
+	if (png100x.isNull()) {
+		common::logError(common::kErrorFileNotOpened, filepath + ".png") << "could not open icon file";
+		return result;
+	}
+	if (png200x.isNull()) {
+		common::logError(common::kErrorFileNotOpened, filepath + "@2x.png") << "could not open icon file";
+		return result;
+	}
+	if (png100x.format() != png200x.format()) {
+		common::logError(kErrorBadIconFormat, filepath + ".png") << "1x and 2x icons have different format";
+		return result;
+	}
+	if (png100x.width() * 2 != png200x.width() || png100x.height() * 2 != png200x.height()) {
+		common::logError(kErrorBadIconSize, filepath + ".png") << "bad icons size, 1x: " << png100x.width() << "x" << png100x.height() << ", 2x: " << png200x.width() << "x" << png200x.height();
+		return result;
+	}
+	QImage png125x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 5), structure::data::pxAdjust(png100x.height(), 5), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	QImage png150x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 6), structure::data::pxAdjust(png100x.height(), 6), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+	QImage composed(png200x.width() + png100x.width(), png200x.height() + png150x.height(), png100x.format());
+	{
+		QPainter p(&composed);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.fillRect(0, 0, composed.width(), composed.height(), QColor(0, 0, 0, 255));
+		p.drawImage(0, 0, png200x);
+		p.drawImage(png200x.width(), 0, png100x);
+		p.drawImage(0, png200x.height(), png150x);
+		p.drawImage(png150x.width(), png200x.height(), png125x);
+	}
+	{
+		QBuffer buffer(&result);
+		composed.save(&buffer, "PNG");
+//		composed.save(filePath + "@final.png", "PNG");
+	}
+	return result;
+}
+
+} // namespace
+
+bool Generator::writeIconValues() {
+	if (iconMasks_.isEmpty()) {
+		return true;
+	}
+
+	for (auto i = iconMasks_.cbegin(), e = iconMasks_.cend(); i != e; ++i) {
+		QString filePath = i.key();
+		QByteArray maskData;
+		QImage png100x, png200x;
+		if (filePath.startsWith("size://")) {
+			QStringList dimensions = filePath.mid(7).split(',');
+			if (dimensions.size() < 2 || dimensions.at(0).toInt() <= 0 || dimensions.at(1).toInt() <= 0) {
+				common::logError(common::kErrorFileNotOpened, filePath) << "bad dimensions";
+				return false;
+			}
+			maskData = iconMaskValueSize(dimensions.at(0).toInt(), dimensions.at(1).toInt());
+		} else {
+			maskData = iconMaskValuePng(filePath);
+		}
+		if (maskData.isEmpty()) {
+			return false;
+		}
+		source_->stream() << "const uchar iconMask" << i.value() << "Data[] = " << stringToBinaryArray(maskData.toStdString()) << ";\n";
+		source_->stream() << "IconMask iconMask" << i.value() << "(iconMask" << i.value() << "Data);\n\n";
+	}
+	return true;
+}
+
 bool Generator::collectUniqueValues() {
 	int fontFamilyIndex = 0;
-	std::function<bool(const Variable&)> collector = [this, &collector, &fontFamilyIndex](const Variable &variable) {
+	int iconMaskIndex = 0;
+	std::function<bool(const Variable&)> collector = [this, &collector, &fontFamilyIndex, &iconMaskIndex](const Variable &variable) {
 		auto value = variable.value;
 		switch (value.type().tag) {
 		case Tag::Invalid:
@@ -527,8 +683,18 @@ bool Generator::collectUniqueValues() {
 		case Tag::Font: {
 			auto v(value.Font());
 			pxValues_.insert(v.size, true);
-			if (!v.family.empty() && !fontFamilyValues_.contains(v.family)) {
-				fontFamilyValues_.insert(v.family, ++fontFamilyIndex);
+			if (!v.family.empty() && !fontFamilies_.contains(v.family)) {
+				fontFamilies_.insert(v.family, ++fontFamilyIndex);
+			}
+		} break;
+		case Tag::Icon: {
+			auto v(value.Icon());
+			for (const auto &part : v.parts) {
+				pxValues_.insert(part.offset.Point().x, true);
+				pxValues_.insert(part.offset.Point().y, true);
+				if (!iconMasks_.contains(part.filename)) {
+					iconMasks_.insert(part.filename, ++iconMaskIndex);
+				}
 			}
 		} break;
 		case Tag::Struct: {

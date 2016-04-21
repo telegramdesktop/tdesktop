@@ -26,6 +26,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace codegen {
 namespace common {
 
+// Common error codes.
+constexpr int kErrorFileNotFound        = 101;
+constexpr int kErrorFileTooLarge        = 102;
+constexpr int kErrorFileNotOpened       = 103;
+constexpr int kErrorUnexpectedEndOfFile = 104;
+
 // Wrapper around std::ostream that adds '\n' to the end of the logging line.
 class LogStream {
 public:

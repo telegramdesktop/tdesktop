@@ -21,15 +21,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "app.h"
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#include <libexif/exif-data.h>
+#endif
+
+#include "styles/style_overview.h"
 #include "lang.h"
 #include "dialogs/dialogs_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-#include <libexif/exif-data.h>
-#endif
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
@@ -2522,7 +2524,7 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		QImage dog = App::sprite().toImage().copy(st::msgDogImg);
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
 		QImage::Format f = dog.format();
 		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
 			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <memory>
+#include <vector>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 
@@ -35,6 +36,7 @@ inline std::string logFullName(const FullName &name) {
 }
 
 struct Variable;
+class Value;
 
 enum class TypeTag {
 	Invalid,
@@ -51,6 +53,7 @@ enum class TypeTag {
 	Align,
 	Margins,
 	Font,
+	Icon,
 	Struct,
 };
 
@@ -78,18 +81,23 @@ inline int pxAdjust(int value, int scale) {
 struct point {
 	int x, y;
 };
+
 struct sprite {
 	int left, top, width, height;
 };
+
 struct size {
 	int width, height;
 };
+
 struct color {
 	uchar red, green, blue, alpha;
 };
+
 struct margins {
 	int left, top, right, bottom;
 };
+
 struct font {
 	enum Flag {
 		Bold      = 0x01,
@@ -100,6 +108,12 @@ struct font {
 	int size;
 	int flags;
 };
+
+struct monoicon;
+struct icon {
+	std::vector<monoicon> parts;
+};
+
 struct field; // defined after Variable is defined
 using fields = QList<field>;
 
@@ -114,6 +128,7 @@ public:
 	Value(data::color value);
 	Value(data::margins value);
 	Value(data::font value);
+	Value(data::icon value);
 	Value(const FullName &type, data::fields value);
 
 	// Can be only double.
@@ -138,6 +153,7 @@ public:
 	data::color Color() const { return data_->Color(); };
 	data::margins Margins() const { return data_->Margins(); };
 	data::font Font() const { return data_->Font(); };
+	data::icon Icon() const { return data_->Icon(); };
 	const data::fields *Fields() const { return data_->Fields(); };
 	data::fields *Fields() { return data_->Fields(); };
 
@@ -167,6 +183,7 @@ private:
 		virtual data::color Color() const { return {}; };
 		virtual data::margins Margins() const { return {}; };
 		virtual data::font Font() const { return {}; };
+		virtual data::icon Icon() const { return {}; };
 		virtual const data::fields *Fields() const { return nullptr; };
 		virtual data::fields *Fields() { return nullptr; };
 		virtual ~DataBase() {
@@ -201,6 +218,16 @@ struct field {
 	};
 	Variable variable;
 	Status status;
+};
+
+struct monoicon {
+	QString filename;
+	Value color;
+	Value offset;
+
+	explicit operator bool() const {
+		return !filename.isEmpty();
+	}
 };
 } // namespace data
 

@@ -29,11 +29,6 @@ namespace codegen {
 namespace common {
 namespace {
 
-constexpr int kErrorFileNotFound        = 101;
-constexpr int kErrorFileTooLarge        = 102;
-constexpr int kErrorFileNotOpened       = 103;
-constexpr int kErrorUnexpectedEndOfFile = 104;
-
 bool readFile(const QString &filepath, QByteArray *outResult) {
 	QFile f(filepath);
 	if (!f.exists()) {

@@ -23,7 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
-#include "ui/style.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -119,8 +118,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					if (!paintingOther) {
 						if (selected) {
 							int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-							p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
-
+							p.drawSprite(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), st::notifyClose.icon);
 						}
 						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + _hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + _hashtagResults.at(from)) : _hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
 						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
@@ -299,10 +297,10 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 
 	// draw chat icon
 	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
+		p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), st::dlgChatImg);
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (_searchInPeer->isChannel()) {
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
+		p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), st::dlgChannelImg);
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	}
 
@@ -2531,7 +2529,7 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 void DialogsWidget::paintEvent(QPaintEvent *e) {
 	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
 
-	QPainter p(this);
+	Painter p(this);
 	QRect r(e->rect());
 	if (r != rect()) {
 		p.setClipRect(r);
@@ -2545,7 +2543,7 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 	QRect above(0, 0, width(), _scroll.y());

@@ -19,12 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/style.h"
+#include "ui/flatinput.h"
 
-#include "flatinput.h"
 #include "mainwindow.h"
 #include "countryinput.h"
-
 #include "lang.h"
 #include "numbers.h"
 
@@ -164,7 +162,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, _st.borderWidth, _st.borderWidth, height() - _st.borderWidth, b);
 	}
 	if (_st.imgRect.pxWidth()) {
-		p.drawPixmap(_st.imgPos, App::sprite(), _st.imgRect);
+		p.drawSprite(_st.imgPos, _st.imgRect);
 	}
 
 	bool phDraw = _phVisible;

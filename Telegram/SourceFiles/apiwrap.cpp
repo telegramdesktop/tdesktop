@@ -19,14 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/style.h"
-#include "lang.h"
+#include "apiwrap.h"
 
+#include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "apiwrap.h"
-
 #include "localstorage.h"
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
