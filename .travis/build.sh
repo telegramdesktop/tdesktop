@@ -114,12 +114,19 @@ build() {
 	./configure
 	make --silent
 
-	info_msg "Build MetaStyle"
-	# Build MetaStyle
-	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
-	cd "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
-	qmake CONFIG+=debug "../../Telegram/MetaStyle.pro"
-	make --silent
+        info_msg "Build codegen_style"
+        # Build codegen_style
+        mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+        cd "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+        qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_style/codegen_style.pro"
+        make --silent
+
+        info_msg "Build codegen_numbers"
+        # Build codegen_numbers
+        mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+        cd "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+        qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro"
+        make --silent
 
 	info_msg "Build MetaLang"
 	# Build MetaLang
