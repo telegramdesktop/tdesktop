@@ -31,18 +31,16 @@ linux {
 
 codegen_style.target = style_target
 codegen_style.depends = FORCE
-codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" "./../../Telegram/Resources/all_files.style" --rebuild
+codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
 
 codegen_numbers.target = numbers_target
 codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
+codegen_numbers.commands = ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
 
 CONFIG(debug, debug|release) {
-#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/DebugIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/DebugIntermediate
 codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
 }
 CONFIG(release, debug|release) {
-#codegen_style.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_style "-I./SourceFiles" "-o./../Linux/ReleaseIntermediate/GeneratedFiles/styles" "./Resources/all_files.style" --rebuild && cd ../Linux/ReleaseIntermediate
-codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/ReleaseIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/ReleaseIntermediate
 }
 
 codegen_lang.target = lang_target
@@ -70,6 +68,7 @@ SOURCES += \
     ./GeneratedFiles/numbers.cpp \
     ./GeneratedFiles/styles/style_basic.cpp \
     ./GeneratedFiles/styles/style_basic_types.cpp \
+    ./GeneratedFiles/styles/style_overview.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -155,6 +154,10 @@ SOURCES += \
     ./SourceFiles/serialize/serialize_document.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
     ./SourceFiles/ui/style/style_core.cpp \
+    ./SourceFiles/ui/style/style_core_color.cpp \
+    ./SourceFiles/ui/style/style_core_font.cpp \
+    ./SourceFiles/ui/style/style_core_icon.cpp \
+    ./SourceFiles/ui/style/style_core_types.cpp \
     ./SourceFiles/ui/text/text.cpp \
     ./SourceFiles/ui/text/text_block.cpp \
     ./SourceFiles/ui/text/text_entity.cpp \
@@ -183,6 +186,7 @@ HEADERS += \
     ./GeneratedFiles/numbers.h \
     ./GeneratedFiles/styles/style_basic.h \
     ./GeneratedFiles/styles/style_basic_types.h \
+    ./GeneratedFiles/styles/style_overview.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -273,6 +277,10 @@ HEADERS += \
     ./SourceFiles/serialize/serialize_document.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
     ./SourceFiles/ui/style/style_core.h \
+    ./SourceFiles/ui/style/style_core_color.h \
+    ./SourceFiles/ui/style/style_core_font.h \
+    ./SourceFiles/ui/style/style_core_icon.h \
+    ./SourceFiles/ui/style/style_core_types.h \
     ./SourceFiles/ui/text/text.h \
     ./SourceFiles/ui/text/text_block.h \
     ./SourceFiles/ui/text/text_entity.h \
@@ -332,7 +340,7 @@ CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
     QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic -static-libstdc++
 }
 # Linux 32bit fails Release link with Link-Time Optimization: virtual memory exhausted
 unix {
@@ -344,7 +352,7 @@ unix {
     }
 }
 CONFIG(debug, debug|release) {
-	QMAKE_LFLAGS_DEBUG += -g -rdynamic
+	QMAKE_LFLAGS_DEBUG += -g -rdynamic -static-libstdc++
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
