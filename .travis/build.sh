@@ -134,14 +134,10 @@ build() {
 
 	info_msg "Build Telegram Desktop"
 	# Build Telegram Desktop
-	mkdir -p "$srcdir/tdesktop/Linux/ReleaseIntermediate"
-	cd "$srcdir/tdesktop/Linux/ReleaseIntermediate"
+	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediate"
+	cd "$srcdir/tdesktop/Linux/DebugIntermediate"
 
-	qmake CONFIG+=release "../../Telegram/Telegram.pro"
-	local pattern="^PRE_TARGETDEPS +="
-	grep "$pattern" "$srcdir/tdesktop/Telegram/Telegram.pro" | sed "s/$pattern//g" | xargs make
-
-	qmake CONFIG+=release "../../Telegram/Telegram.pro"
+	qmake CONFIG+=debug "../../Telegram/Telegram.pro"
 	make
 }
 

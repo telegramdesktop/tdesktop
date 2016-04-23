@@ -137,7 +137,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 #####Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_6_0_patch.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
 
 #####Building library
 

@@ -87,7 +87,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
 
     git clone git://repo.or.cz/openal-soft.git
     git checkout 90349b38
-    git apply ./../../tdesktop/Telegram/_openal_patch.diff
+    git apply ./../../tdesktop/Telegram/Patches/openal.diff
 
 #####Building library
 
@@ -166,7 +166,7 @@ and run
 
 #####Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_6_0_patch.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
 
 #####Install Windows SDKs
 

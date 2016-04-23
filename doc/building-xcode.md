@@ -209,7 +209,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 From **/Users/user/TBuild/Libraries/qt5_6_0/qtbase**, run:
 
-    git apply ../../../tdesktop/Telegram/_qtbase_5_6_0_patch.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff
 
 #####Building library
 
@@ -243,7 +243,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     cd crashpad
     fetch crashpad
     cd crashpad/third_party/mini_chromium/mini_chromium
-    git apply ../../../../../../tdesktop/Telegram/_mini_chromium_patch.diff
+    git apply ../../../../../../tdesktop/Telegram/Patches/mini_chromium.diff
     cd ../../../
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
     ninja -C out/Release

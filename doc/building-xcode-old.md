@@ -175,11 +175,11 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
-    git apply ../../../tdesktop/Telegram/_qtbase_5_3_2_patch.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_3_2.diff
 
 From **/Users/user/TBuild/Libraries/QtStatic/qtimageformats**, run:
 
-    git apply ../../../tdesktop/Telegram/_qtimageformats_5_3_2_patch.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtimageformats_5_3_2.diff
 
 #####Building library
 

@@ -30,7 +30,7 @@ Preparation
 
     mkdir -p "$srcdir/Libraries"
 
-    local qt_patch_file="$srcdir/tdesktop/Telegram/_qtbase_${_qtver//./_}_patch.diff"
+    local qt_patch_file="$srcdir/tdesktop/Telegram/Patches/qtbase_${_qtver//./_}.diff"
     local qt_dir="$srcdir/Libraries/qt${_qtver//./_}"
     if [ "$qt_patch_file" -nt "$qt_dir" ]; then
       rm -rf "$qt_dir"
