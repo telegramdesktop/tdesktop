@@ -144,7 +144,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     make
     make install
 
-####Qt 5.5.1, slightly patched
+####Qt 5.6.0, slightly patched
 
 * Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
 * Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
@@ -156,17 +156,17 @@ There go to Libraries directory
 
 and run
 
-    git clone git://code.qt.io/qt/qt5.git QtStatic
-    cd QtStatic
-    git checkout 5.5
+    git clone git://code.qt.io/qt/qt5.git qt5_6_0
+    cd qt5_6_0
+    git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.5.1
-    cd qtimageformats && git checkout v5.5.1 && cd ..
-    cd qtbase && git checkout v5.5.1 && cd ..
+    git checkout v5.6.0
+    cd qtimageformats && git checkout v5.6.0 && cd ..
+    cd qtbase && git checkout v5.6.0 && cd ..
 
 #####Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_6_0_patch.diff && cd ..
 
 #####Install Windows SDKs
 
@@ -218,8 +218,8 @@ and run
 
 * Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.5.1**
-  * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.5.1** – **OK**
+  * Version name: **Qt 5.6.0 Win32**
+  * Path: **D:\TBuild\Libraries\qt5_6_0\qtbase**
+* Default Qt/Win version: **Qt 5.6.0 Win32** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

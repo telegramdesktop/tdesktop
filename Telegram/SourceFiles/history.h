@@ -356,6 +356,7 @@ public:
 	bool oldLoaded = false;
 	bool newLoaded = true;
 	HistoryItem *lastMsg = nullptr;
+	HistoryItem *lastSentMsg = nullptr;
 	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
@@ -807,6 +808,14 @@ struct HistoryMessageSigned : public BaseComponent<HistoryMessageSigned> {
 	int maxWidth() const;
 
 	Text _signature;
+};
+
+struct HistoryMessageEdited : public BaseComponent<HistoryMessageEdited> {
+	void create(const QDateTime &editDate, const QDateTime &date);
+	int maxWidth() const;
+
+	QDateTime _editDate;
+	Text _edited;
 };
 
 struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
@@ -1322,6 +1331,9 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
+	bool wasEdited() const {
+		return _flags & MTPDmessage::Flag::f_edit_date;
+	}
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();
@@ -2774,6 +2786,7 @@ private:
 		PeerId authorIdOriginal = 0;
 		PeerId fromIdOriginal = 0;
 		MsgId originalId = 0;
+		QDateTime editDate;
 		const MTPReplyMarkup *markup = nullptr;
 	};
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup);

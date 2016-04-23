@@ -4,7 +4,7 @@
 
 Choose a folder for the future build, for example **/Users/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-**IMPORTANT** You are required to build and install Qt 5.5.1 from the [Xcode 7](building-xcode.md) instructions first.
+**IMPORTANT** You are required to build and install Qt 5.6.0 from the [Xcode 7](building-xcode.md) instructions first.
 
 ###Clone source code
 

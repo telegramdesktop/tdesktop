@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
+#include "private/qfontengine_p.h"
 
 enum TextBlockType {
 	TextBlockTNewline = 0x01,

@@ -1705,7 +1705,7 @@ MsgId History::inboxRead(MsgId upTo) {
 		}
 	}
 
-	showFrom = 0;
+	showFrom = nullptr;
 	App::wnd()->notifyClear(this);
 	clearNotifications();
 
@@ -2177,6 +2177,9 @@ void History::clear(bool leaveItems) {
 	if (showFrom) {
 		showFrom = nullptr;
 	}
+	if (lastSentMsg) {
+		lastSentMsg = nullptr;
+	}
 	if (scrollTopItem) {
 		forgetScrollState();
 	}
@@ -2446,6 +2449,9 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	int itemIndex = item->indexInBlock();
 	if (history->showFrom == item) {
 		history->getNextShowFrom(this, itemIndex);
+	}
+	if (history->lastSentMsg == item) {
+		history->lastSentMsg = nullptr;
 	}
 	if (history->unreadBar == item) {
 		history->unreadBar = nullptr;
@@ -3088,8 +3094,8 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	ChannelData *channel = _history->peer->asChannel();
 	int32 s = date.secsTo(cur);
+	auto channel = _history->peer->asChannel();
 	if (!channel || id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
 
 	if (const HistoryMessage *msg = toHistoryMessage()) {
@@ -6458,6 +6464,17 @@ int HistoryMessageSigned::maxWidth() const {
 	return _signature.maxWidth();
 }
 
+void HistoryMessageEdited::create(const QDateTime &editDate, const QDateTime &date) {
+	_editDate = editDate;
+
+	QString time = date.toString(cTimeFormat());
+	_edited.setText(st::msgDateFont, time, _textNameOptions);
+}
+
+int HistoryMessageEdited::maxWidth() const {
+	return _edited.maxWidth();
+}
+
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	QString text;
 	if (_authorOriginal != _fromOriginal) {
@@ -6705,6 +6722,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	if (msg.has_via_bot_id()) config.viaBotId = msg.vvia_bot_id.v;
 	if (msg.has_views()) config.viewsCount = msg.vviews.v;
 	if (msg.has_reply_markup()) config.markup = &msg.vreply_markup;
+	if (msg.has_edit_date()) config.editDate = ::date(msg.vedit_date);
 
 	createComponents(config);
 
@@ -6787,6 +6805,9 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (isPost() && _from->isUser()) {
 		mask |= HistoryMessageSigned::Bit();
 	}
+	if (wasEdited()) {
+		mask |= HistoryMessageEdited::Bit();
+	}
 	if (config.authorIdOriginal && config.fromIdOriginal) {
 		mask |= HistoryMessageForwarded::Bit();
 	}
@@ -6812,6 +6833,9 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->create(_from->asUser(), date);
+	}
+	if (auto edited = Get<HistoryMessageEdited>()) {
+		edited->create(config.editDate, date);
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		fwd->_authorOriginal = App::peer(config.authorIdOriginal);
@@ -6849,6 +6873,8 @@ QString formatViewsCount(int32 views) {
 void HistoryMessage::initTime() {
 	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		_timeWidth = msgsigned->maxWidth();
+	} else if (auto edited = Get<HistoryMessageEdited>()) {
+		_timeWidth = edited->maxWidth();
 	} else {
 		_timeText = date.toString(cTimeFormat());
 		_timeWidth = st::msgDateFont->width(_timeText);
@@ -7046,6 +7072,16 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	if (message.has_entities()) {
 		entities = entitiesFromMTP(message.ventities.c_vector().v);
 	}
+
+	if (message.has_edit_date()) {
+		_flags |= MTPDmessage::Flag::f_edit_date;
+		if (!Has<HistoryMessageEdited>()) {
+			AddComponents(HistoryMessageEdited::Bit());
+		}
+		Get<HistoryMessageEdited>()->create(::date(message.vedit_date), date);
+		initTime();
+	}
+
 	setText(qs(message.vmessage), entities);
 	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
@@ -7298,6 +7334,8 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 
 	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->_signature.drawElided(p, dateX, dateY, _timeWidth);
+	} else if (auto edited = Get<HistoryMessageEdited>()) {
+		edited->_edited.drawElided(p, dateX, dateY, _timeWidth);
 	} else {
 		p.drawText(dateX, dateY + st::msgDateFont->ascent, _timeText);
 	}
