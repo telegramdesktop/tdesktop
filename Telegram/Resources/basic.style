@@ -1,0 +1,2487 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+using "basic_types.style";
+
+semibold: "Open Sans Semibold";
+
+fsize: 13px;
+normalFont: font(fsize);
+semiboldFont: font(fsize semibold);
+
+emojiImgSize: 18px; // exceptional value for retina
+emojiSize: 18px;
+emojiPadding: 0px;
+
+counterBG: #f23c34;
+counterMuteBG: #888;
+counterColor: #fff;
+counterMacInvColor: #ffffff01;
+
+lineWidth: 1px;
+
+transparent: #fff0;
+white: #fff;
+black: #000;
+
+color1: #c03d33; // red
+color2: #4fad2d; // green
+color3: #d09306; // yellow
+color4: #348cd4; // blue
+color5: #8544d6; // purple
+color6: #cd4073; // pink
+color7: #2996ad; // sea
+color8: #ce671b; // orange
+
+wndMinWidth: 380px;
+
+adaptiveNormalWidth: 640px;
+adaptiveWideWidth: 1366px;
+
+wndMinHeight: 480px;
+wndDefWidth: 800px;
+wndDefHeight: 600px;
+wndBG: white;
+wndShadow: sprite(209px, 46px, 19px, 19px);
+wndShadowShift: 1px;
+
+layerAlpha: 0.5;
+layerBg: black;
+
+overBg: #edf2f5;
+
+labelDefFlat: flatLabel {
+	font: font(fsize);
+	minWidth: 100px;
+	width: 0px;
+	align: align(left);
+}
+
+boxBg: white;
+boxVerticalMargin: 10px;
+boxWidth: 320px;
+boxWideWidth: 364px;
+boxPadding: margins(26px, 30px, 34px, 8px);
+boxMaxListHeight: 600px;
+boxFontSize: 14px;
+boxTextFont: font(boxFontSize);
+boxLittleSkip: 10px;
+boxMediumSkip: 20px;
+
+boxTitleFg: #444444;
+boxTitleFont: font(boxFontSize bold);
+boxTitlePosition: point(26px, 28px);
+boxTitleHeight: 54px;
+
+boxBlueTitleBg: #6393b5;
+boxBlueTitleAdditionalFg: #dae9f5;
+boxBlueTitleAdditionalSkip: 12px;
+boxBlueTitlePosition: point(23px, 18px);
+boxBlueCloseIcon: sprite(120px, 108px, 12px, 12px);
+boxBlueCloseBg: #c8e1f0;
+boxBlueCloseDuration: 150;
+boxBlueShadow: sprite(132px, 108px, 1px, 4px);
+
+boxButtonFont: font(boxFontSize semibold);
+defaultBoxButton: BoxButton {
+	textFg: #2f9fea;
+	textFgOver: #2f9fea;
+	textBg: white;
+	textBgOver: #edf7ff;
+
+	width: -24px;
+	height: 36px;
+
+	textTop: 8px;
+
+	font: boxButtonFont;
+	duration: 200;
+}
+cancelBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #aeaeae;
+}
+attentionBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #ea4b2f;
+	textFgOver: #ea4b2f;
+	textBgOver: #fff0ed;
+}
+boxButtonPadding: margins(12px, 16px, 22px, 16px);
+defaultBoxLinkButton: linkButton {
+	color: #0080c0;
+	overColor: #0080c0;
+	downColor: #0073ad;
+	font: boxTextFont;
+	overFont: font(boxFontSize underline);
+}
+redBoxLinkButton: linkButton(defaultBoxLinkButton) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+boxLabel: flatLabel(labelDefFlat) {
+	font: font(boxFontSize);
+	align: align(topleft);
+}
+
+defaultInputArea: InputArea {
+	textFg: black;
+	textMargins: margins(5px, 6px, 5px, 4px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	heightMin: 32px;
+	heightMax: 128px;
+}
+defaultInputField: InputField {
+	textFg: black;
+	textMargins: margins(0px, 6px, 0px, 4px);
+	textAlign: align(topleft);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	height: 32px;
+}
+dialogsSearchField: InputField(defaultInputField) {
+	textMargins: margins(34px, 7px, 34px, 7px);
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(6px, 5px);
+
+	width: 240px;
+	height: 34px;
+}
+defaultCheckbox: Checkbox {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkIcon: sprite(106px, 136px, 14px, 10px);
+
+	font: boxTextFont;
+	duration: 120;
+}
+defaultRadiobutton: Radiobutton {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkSkip: 65px; // * 0.1
+
+	font: boxTextFont;
+	duration: 120;
+}
+solidScroll: flatScroll {
+	barColor: #3f729734;
+	bgColor: #214f751a;
+	barOverColor: #3f729734;
+	bgOverColor: #214f751a;
+
+	round: 0px;
+	minHeight: 20px;
+
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+	shColor: rgba(0, 0, 0, 18);
+
+	duration: 150;
+	hiding: 0;
+}
+defaultPopupMenu: PopupMenu {
+	skip: 5px;
+
+	shadow: sprite(241px, 46px, 6px, 6px);
+	shadowShift: 1px;
+
+	itemBg: white;
+	itemBgOver: overBg;
+	itemFg: black;
+	itemFgOver: black;
+	itemFgDisabled: #ccc;
+	itemFgShortcut: #999;
+	itemFgShortcutOver: #7c99b2;
+	itemFgShortcutDisabled: #ccc;
+
+	itemPadding: margins(17px, 8px, 17px, 7px);
+	itemFont: normalFont;
+
+	separatorPadding: margins(0px, 5px, 0px, 5px);
+	separatorWidth: 1px;
+	separatorFg: #f1f1f1;
+
+	arrow: sprite(0px, 126px, 4px, 7px);
+
+	duration: 120;
+
+	widthMin: 180px;
+	widthMax: 300px;
+}
+
+defaultTooltip: Tooltip {
+	textBg: #eef2f5;
+	textFg: #5d6c80;
+	textFont: normalFont;
+	textBorder: #c9d1db;
+	textPadding: margins(5px, 2px, 5px, 2px);
+
+	shift: point(-20px, 20px);
+	skip: 10px;
+
+	widthMax: 800px;
+	linesMax: 12;
+}
+
+almostTransparent: #ffffff0d;
+boxScroll: flatScroll(solidScroll) {
+	width: 18px;
+	deltax: 6px;
+}
+boxScrollSkip: 6px;
+boxScrollShadowBg: #00000012;
+
+boxSearchField: InputField(defaultInputField) {
+	textMargins: margins(41px, 16px, 41px, 0px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(4px, 0px, 4px, 0px);
+
+	border: 0px;
+	borderActive: 0px;
+	borderError: 0px;
+
+	height: 48px;
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(15px, 14px);
+
+	font: normalFont;
+}
+boxSearchCancel: iconedButton {
+	color: white;
+	bgColor: white;
+	overBgColor: white;
+	font: font(fsize);
+
+	opacity: 0.3;
+	overOpacity: 0.4;
+
+	textPos: point(0px, 0px);
+	downTextPos: point(0px, 0px);
+
+	duration: 150;
+	cursor: cursor(pointer);
+
+	icon: sprite(133px, 108px, 12px, 12px);
+	iconPos: point(8px, 18px);
+	downIcon: sprite(133px, 108px, 12px, 12px);
+	downIconPos: point(8px, 18px);
+
+	width: 41px;
+	height: 48px;
+}
+
+titleBG: #6389a8;
+titleColor: #0f8dcc;//rgb(20, 136, 210);
+titleHeight: 39px;
+titleIconPos: point(7px, 7px);
+titleIconImg: sprite(161px, 100px, 26px, 26px);
+titleFont: font(17px);
+titlePos: point(44px, 29px);
+titleMenuOffset: 36px;
+
+titleRed: #ee4928;
+titleGray: #777;
+titleGreen: #41a903;
+
+titleStatusColor: #999;
+titleTypingColor: #0080c0;
+
+statusFont: font(fsize);
+versionColor: #777;
+
+shadowColor: rgba(0, 0, 0, 24);
+
+slideDuration: 240;
+slideShift: 0.3;
+slideFadeOut: 0.3;
+slideShadow: sprite(348px, 71px, 48px, 1px);
+slideFunction: transition(easeOutCirc);
+
+btnDefIconed: iconedButton {
+	color: white;
+	bgColor: white;
+	overBgColor: white;
+	font: font(fsize);
+
+	opacity: 0.78;
+	overOpacity: 1.;
+
+	textPos: point(0px, 0px);
+	downTextPos: point(0px, 0px);
+
+	duration: 150;
+	cursor: cursor(pointer);
+}
+
+sysBtnDelta: 6px;
+sysUpd: sysButton {
+	size: size(31px, 39px);
+	img: sprite(184px, 1px, 19px, 19px);
+	color: #c4d8e9;
+	overColor: white;
+	duration: 150;
+}
+updateBlinkDuration: 500;
+sysMin: sysButton(sysUpd) {
+	img: sprite(207px, 1px, 19px, 19px);
+}
+sysMax: sysButton(sysUpd) {
+	img: sprite(230px, 1px, 19px, 19px);
+}
+sysRes: sysButton(sysUpd) {
+	img: sprite(253px, 1px, 19px, 19px);
+}
+sysCls: sysButton(sysUpd) {
+	img: sprite(276px, 1px, 19px, 19px);
+}
+sysLock: sysButton(sysUpd) {
+	img: sprite(184px, 22px, 19px, 19px);
+}
+sysUnlock: sysButton(sysUpd) {
+	img: sprite(207px, 22px, 19px, 19px);
+}
+titleBackButton: iconedButton(btnDefIconed) {
+	icon: sprite(9px, 104px, 13px, 20px);
+	iconPos: point(5px, 9px);
+	downIcon: sprite(9px, 104px, 13px, 20px);
+	downIconPos: point(5px, 10px);
+
+	bgColor: #c4d8e9;
+	overBgColor: #fff;
+
+	width: -30px;
+	height: 39px;
+
+	opacity: 1.;
+	cursor: cursor(default);
+
+	textPos: point(23px, 10px);
+	downTextPos: point(23px, 11px);
+}
+
+btnWhiteHover: #f5f5f5;
+btnBoxWhiteHover: #fafafa;
+btnYesColor: #0080c0;
+btnYesHover: #0073ad;
+btnNoColor: #8b8b8b;
+btnNoHover: #777;
+
+titleTextButton: flatButton {
+	color: #d4e3ef;
+	overColor: #fff;
+	downColor: #fff;
+	bgColor: transparent;
+	overBgColor: transparent;
+	downBgColor: transparent;
+
+	width: -14px;
+	height: 39px;
+
+	textTop: 10px;
+	overTextTop: 10px;
+	downTextTop: 11px;
+
+	font: font(fsize);
+	overFont: font(fsize);
+	duration: 150;
+	cursor: cursor(default);
+}
+
+btnDefFlat: flatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+}
+btnDefBig: flatButton(btnDefFlat) {
+	textTop: 11px;
+	overTextTop: 11px;
+	downTextTop: 12px;
+
+	font: font(23px);
+	overFont: font(23px);
+	height: 56px;
+}
+btnNextBG: #2fa9e2;
+btnDefNext: flatButton(btnDefFlat) {
+	color: white;
+	overColor: white;
+	downColor: white;
+	bgColor: btnNextBG;
+	overBgColor: #279ad0;
+	downBgColor: #279ad0;
+}
+btnDefBack: flatButton(btnDefFlat) {
+	color: white;
+	overColor: white;
+	downColor: white;
+	bgColor: #c7c7c7;
+	overBgColor: #b9b9b9;
+	downBgColor: #b9b9b9;
+}
+
+linkCropLimit: 360px;
+linkFont: normalFont;
+linkOverFont: font(fsize underline);
+btnDefLink: linkButton {
+	color: btnYesColor;
+	overColor: btnYesColor;
+	downColor: btnYesHover;
+	font: linkFont;
+	overFont: linkOverFont;
+}
+
+cbDefFlat: flatCheckbox {
+	textColor: #000;
+	bgColor: transparent;
+	disColor: #999;
+
+	height: 22px;
+	textTop: 1px;
+	textLeft: 34px;
+	font: font(fsize);
+	duration: 200;
+	bgFunc: transition(easeOutCirc);
+	cursor: cursor(pointer);
+
+	disabledCursor: cursor(default);
+
+	imageRect: sprite(142px, 43px, 22px, 22px);
+	chkImageRect: sprite(120px, 68px, 22px, 22px);
+	overImageRect: sprite(142px, 68px, 22px, 22px);
+	chkOverImageRect: sprite(120px, 68px, 22px, 22px);
+	disImageRect: sprite(142px, 43px, 22px, 22px);
+	chkDisImageRect: sprite(120px, 43px, 22px, 22px);
+
+	imagePos: point(0px, 0px);
+}
+
+rbDefFlat: flatCheckbox(cbDefFlat) {
+	chkImageRect: sprite(165px, 68px, 22px, 22px);
+	chkOverImageRect: sprite(165px, 68px, 22px, 22px);
+	chkDisImageRect: sprite(165px, 43px, 22px, 22px);
+}
+
+inpDefFont: font(17px);
+inpDefFlat: flatInput {
+	textColor: #000;
+	bgColor: #FFF;
+	bgActive: #FFF;
+	width: 210px;
+	height: 40px;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: inpDefFont;
+	cursor: cursor(text);
+
+	borderWidth: 0px;
+	borderColor: black;
+	borderActive: black;
+	borderError: black;
+
+	phColor: #949494;
+	phFocusColor: #AAA;
+	phAlign: align(left);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+	phLeftFunc: transition(linear);
+	phAlphaFunc: transition(linear);
+	phColorFunc: transition(linear);
+}
+
+inpDefGray: flatInput(inpDefFlat) {
+	bgColor: #f2f2f2;
+	borderWidth: 2px;
+	borderColor: #f2f2f2;
+	borderActive: #80cff9;
+	borderError: #ed8080;
+	phColor: #808080;
+}
+
+taDefFlat: flatTextarea {
+	textColor: #000;
+	bgColor: #FFF;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: inpDefFont;
+	cursor: cursor(text);
+
+	phColor: #999;
+	phFocusColor: #AAA;
+	phAlign: align(topleft);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+	phLeftFunc: transition(linear);
+	phAlphaFunc: transition(linear);
+	phColorFunc: transition(linear);
+}
+
+scrollDef: flatScroll {
+	barColor: rgba(0, 0, 0, 83);
+	bgColor: rgba(0, 0, 0, 26);
+	barOverColor: rgba(0, 0, 0, 122);
+	bgOverColor: rgba(0, 0, 0, 44);
+
+	round: 0px;
+
+	width: 10px;
+	minHeight: 20px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 2px;
+	bottomsh: 2px;
+	shColor: rgba(0, 0, 0, 18);
+
+	duration: 150;
+	hiding: 1000;
+}
+scrollCountries: flatScroll(scrollDef) {
+	topsh: 0px;
+	bottomsh: -2px;
+}
+
+lnkText: #0f7dc7;
+
+introBtnTop: 288px;
+introSkip: 45px;
+introFinishSkip: 15px;
+introPhotoSize: 98px;
+introHeaderFont: font(24px);
+introHeaderSkip: 14px;
+introIconSkip: 54px;
+introFont: font(16px);
+introLink: linkButton(btnDefLink) {
+	font: introFont;
+	overFont: font(16px underline);
+}
+introColor: black;
+introLabel: flatLabel(labelDefFlat) {
+	font: introFont;
+	align: align(center);
+}
+
+introPointsTop: -30px; // intro steps bottom points
+introPointWidth: 4px;
+introPointHeight: 4px;
+introPointHoverWidth: 10px;
+introPointHoverHeight: 10px;
+introPointLeft: 3px;
+introPointTop: 3px;
+introPointDelta: 10px;
+introPointColor: rgb(0, 0, 0);
+introPointAlpha: 0.5;
+introPointHoverColor: #86b4e3;
+introPointStepT: transition(sineInOut);
+introPointAlphaT: transition(linear);
+introPointShowStepT: transition(easeOutCirc);
+introPointHideStepT: transition(easeInCirc);
+introPointShowAlphaT: transition(easeInCirc);
+introPointHideAlphaT: transition(easeOutCirc);
+
+introStepSize: size(400px, 200px);
+introSize: size(400px, 400px);
+introSlideShift: 500px; // intro hiding animation
+introSlideDuration: 200;
+introSlideDelta: 0; // between hide start and show start
+introHideFunc: transition(easeInCirc);
+introShowFunc: transition(easeOutCirc);
+introAlphaHideFunc: transition(easeOutCirc);
+introAlphaShowFunc: transition(easeInCirc);
+introTextTop: 22px;
+introTextSize: size(400px, 93px);
+introCallSkip: 15px;
+introPwdTextSize: size(400px, 73px);
+
+btnIntroSep: 12px;
+btnIntroNext: flatButton(btnDefNext, btnDefBig) {
+	textTop: 16px;
+	overTextTop: 16px;
+	downTextTop: 17px;
+
+	font: font(17px);
+	overFont: font(17px);
+
+	width: 300px;
+}
+
+boxShadow: sprite(363px, 50px, 15px, 15px);
+boxShadowShift: 2px;
+
+introCountry: countryInput {
+	width: 300px;
+	height: 41px;
+	top: 33px;
+	bgColor: #f2f2f2;
+	ptrSize: size(15px, 8px);
+	textMrg: margins(16px, 5px, 16px, 15px);
+	font: inpDefFont;
+	align: align(left);
+}
+
+introPhoneTop: 8px;
+inpIntroCountryCode: flatInput(inpDefGray) {
+	width: 70px;
+	height: 41px;
+	align: align(center);
+}
+inpIntroPhone: flatInput(inpDefGray) {
+	textMrg: margins(12px, 5px, 12px, 6px);
+	width: 225px;
+	height: 41px;
+}
+inpIntroCode: flatInput(inpDefGray) {
+	textMrg: margins(12px, 5px, 12px, 6px);
+	width: 106px;
+	height: 41px;
+	align: align(center);
+
+	phPos: point(0px, 0px);
+	phAlign: align(center);
+	phShift: 0px;
+}
+inpIntroName: flatInput(inpIntroPhone) {
+	width: 192px;
+}
+inpIntroPassword: flatInput(inpIntroPhone) {
+	width: 300px;
+}
+
+introSelectDelta: 30px;
+btnSelectSep: #e0e0e0;
+btnRedLink: linkButton(btnDefLink) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+
+countryRowHeight: 36px;
+countryRowNameFont: semiboldFont;
+countryRowPadding: margins(22px, 9px, 8px, 0px);
+countryRowCodeFont: font(fsize);
+countryRowBgOver: overBg;
+countryRowCodeFg: #808080;
+countryRowCodeFgOver: #7c99b2;
+countriesSkip: 12px;
+countriesScroll: flatScroll(boxScroll) {
+	deltat: 9px;
+	deltab: 3px;
+}
+
+introErrWidth: 450px;
+introErrDuration: 200;
+introErrFunc: transition(linear);
+introErrColor: black;
+introErrTop: 15px;
+introErrHeight: 40px;
+introErrFont: font(16px);
+
+introErrLabel: flatLabel(labelDefFlat) {
+	font: introErrFont;
+	align: align(center);
+}
+
+setWidth: 356px;
+setTop: 26px;
+setNameLeft: 3px;
+setNameTop: 5px;
+setNameFont: font(18px);
+setStatusTop: 35px;
+setStatusLeft: 3px;
+setStatusFont: font(14px);
+setPhotoSize: 120px;
+setHeaderFont: font(17px);
+setHeaderColor: black;
+setHeaderSkip: 60px;
+setHeaderLeft: -1px;
+setHeaderTop: 26px;
+setLittleSkip: 9px;
+setSectionSkip: 25px;
+setContactInfoLeft: 150px;
+setVersionHeight: 41px;
+setVersionLeft: 36px;
+setVersionTop: 3px;
+setVersionColor: #999;
+setBottom: 130px;
+setScroll: flatScroll(scrollDef) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
+setClose: iconedButton(btnDefIconed) {
+	icon: sprite(245px, 221px, 40px, 40px);
+	iconPos: point(0px, 0px);
+	downIcon: sprite(245px, 221px, 40px, 40px);
+	downIconPos: point(0px, 0px);
+
+	opacity: 0.71;
+
+	width: 43px;
+	height: 43px;
+}
+setClosePos: point(32px, 32px);
+setPhotoImg: sprite(0px, 218px, 120px, 120px);
+setOverPhotoImg: sprite(122px, 218px, 120px, 120px);
+setPhotoDuration: 150;
+
+setPadding: 26px;
+setBG: #FFF;
+setSh: #000;
+setTitleFrom: point(20px, 20px);
+setTitleFont: font(24px);
+setTitleColor: #000;
+setNameInput: flatInput(inpDefFlat) {
+	font: font(fsize);
+	height: 25px;
+	width: 170px;
+	textMrg: margins(3px, 3px, 3px, 3px);
+}
+setErrBG: #ffa5a5;
+setErrColor: #d84d4d;
+setErrHeight: 30px;
+setErrFont: font(fsize);
+setGoodColor: #4ab44a;
+
+setBackgroundSize: 120px;
+
+btnSetUpload: flatButton(btnDefNext, btnDefBig) {
+	width: 206px;
+	height: 42px;
+	font: font(18px);
+	overFont: font(18px);
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+}
+
+btnEditSave: flatButton(btnSetUpload) {
+	width: 115px;
+}
+btnEditCancel: flatButton(btnDefFlat, btnDefBig) {
+	color: #666d78;
+	overColor: #666d78;
+	downColor: #50565e;
+
+	bgColor: rgba(0, 0, 0, 63);
+	overBgColor: rgba(0, 0, 0, 47);
+	downBgColor: rgba(0, 0, 0, 95);
+
+	width: 115px;
+	height: 40px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(18px);
+	overFont: font(18px);
+}
+
+btnLogout: flatButton(btnDefFlat, btnDefBig) {
+	color: white;
+	overColor: white;
+	downColor: white;
+
+	bgColor: #db6352;
+	overBgColor: #d15948;
+	downBgColor: #c74d3b;
+
+	width: 148px;
+	height: 42px;
+
+	textTop: 8px;
+	overTextTop: 8px;
+	downTextTop: 9px;
+
+	font: font(18px);
+	overFont: font(18px);
+}
+
+//// dialogs
+dlgFilterPadding: 10px;
+dlgPhotoSize: 46px;
+dlgPaddingHor: 10px;
+dlgPaddingVer: 8px;
+dlgHeight: 62px;
+dlgPhotoPadding: 12px;
+
+dlgImportantHeight: 37px;
+
+noContactsHeight: 100px;
+noContactsFont: font(fsize);
+noContactsColor: #777;
+
+dlgSep: 8px;
+
+dlgMinWidth: 260px;
+dlgRichMinWidth: 150px;
+dlgMaxWidth: 540px;
+dlgFilter: flatInput(inpDefGray) {
+	font: font(fsize);
+	height: 34px;
+	bgColor: #f2f2f2;
+	phColor: #949494;
+	phFocusColor: #a4a4a4;
+	textMrg: margins(34px, 2px, 34px, 4px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
+	imgPos: point(6px, 5px);
+	width: 240px;
+
+	borderWidth: 2px;
+	borderColor: #f2f2f2;
+	borderActive: #80cff9;
+	borderError: #ed8080;
+}
+dlgScroll: flatScroll(scrollDef) {
+	topsh: 0px;
+	bottomsh: 0px;
+}
+dlgFont: font(fsize);
+
+dlgDblCheckImg: sprite(302px, 23px, 17px, 11px);
+dlgCheckImg: sprite(320px, 23px, 17px, 11px);
+dlgActiveDblCheckImg: sprite(302px, 36px, 17px, 11px);
+dlgActiveCheckImg: sprite(320px, 36px, 17px, 11px);
+dlgSendImg: sprite(122px, 25px, 17px, 11px);
+dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
+
+dlgChatImgPos: point(1px, 4px);
+dlgChatImg: sprite(104px, 26px, 16px, 11px);
+dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
+dlgChannelImgPos: point(3px, 4px);
+dlgChannelImg: sprite(105px, 1px, 12px, 11px);
+dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
+dlgImgSkip: 22px;
+
+dlgCheckLeft: 5px;
+dlgCheckTop: 4px;
+dlgCheckSkip: 3px;
+
+dlgHistFont: font(fsize);
+dlgNameColor: #000;
+dlgNameTop: 2px;
+dlgSystemColor: #4981af;
+dlgTextColor: #888;
+
+dlgDateFont: font(13px);
+dlgDateColor: #a8a8a8;
+dlgDateSkip: 5px;
+
+dlgUnreadColor: #FFF;
+dlgUnreadBG: #6fc766;
+dlgUnreadMutedBG: #bbb;
+dlgUnreadFont: font(12px bold);
+dlgUnreadHeight: 19px;
+dlgUnreadTop: 1px;
+dlgUnreadPaddingHor: 5px;
+dlgUnreadRadius: 2px;
+dlgBG: #FFF;
+dlgHoverBG: #f5f5f5;
+
+dlgActiveBG: #6a91b1;
+dlgActiveUnreadColor: #5b94bf;
+dlgActiveUnreadBG: white;
+dlgActiveColor: white;
+dlgActiveDateColor: #d3e2ee;
+dlgActiveUnreadMutedBG: dlgActiveDateColor;
+
+topBarHeight: 54px;
+topBarBG: white;
+topBarDuration: 200;
+topBarForwardPadding: margins(17px, 8px, 39px, 8px);
+topBarForwardAlpha: 0.6;
+topBarForwardImg: sprite(31px, 104px, 9px, 16px);
+topBarBackwardImg: sprite(22px, 104px, 9px, 16px);
+topBarBackPadding: margins(15px, 7px, 9px, 7px);
+topBarBackAlpha: 0.8;
+topBarBackImg: sprite(65px, 112px, 9px, 16px);
+topBarBackColor: #005faf;
+topBarBackFont: font(16px);
+topBarSearch: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(84px, 374px, 18px, 18px);
+	iconPos: point(13px, 18px);
+	downIcon: sprite(84px, 374px, 18px, 18px);
+	downIconPos: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+
+	width: 44px;
+	height: topBarHeight;
+}
+topBarMinPadding: 5px;
+topBarButton: flatButton(btnDefFlat) {
+	color: btnYesColor;
+	overColor: btnYesHover;
+	downColor: btnYesHover;
+
+	bgColor: white;
+	overBgColor: white;
+	downBgColor: white;
+
+	width: -40px;
+	height: 54px;
+
+	textTop: 19px;
+	overTextTop: 19px;
+	downTextTop: 20px;
+
+	font: font(fsize);
+	overFont: font(fsize underline);
+}
+topBarActionButton: flatButton(btnDefNext, btnDefBig) {
+	textTop: 8px;
+	overTextTop: 8px;
+	downTextTop: 9px;
+
+	font: font(fsize);
+	overFont: font(fsize);
+	width: 101px;
+	height: 34px;
+}
+topBarActionSkip: 13px;
+
+historyToEnd: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(252px, 41px, 44px, 44px);
+	iconPos: point(0px, 0px);
+	downIcon: sprite(252px, 41px, 44px, 44px);
+	downIconPos: point(0px, 0px);
+
+	width: 44px;
+	height: 44px;
+}
+historyToEndSkip: 10px;
+
+activeFadeInDuration: 500;
+activeFadeOutDuration: 3000;
+
+msgRadius: 3px;
+
+msgMaxWidth: 430px;
+msgFont: font(fsize);
+msgNameFont: semiboldFont;
+msgServiceFont: semiboldFont;
+msgServiceNameFont: semiboldFont;
+msgServicePhotoWidth: 100px;
+msgDateFont: font(13px);
+msgMinWidth: 190px;
+msgPhotoSize: 33px;
+msgPhotoSkip: 40px;
+msgPadding: margins(13px, 7px, 13px, 8px);
+msgMargin: margins(13px, 10px, 53px, 2px);
+msgMarginTopAttached: 3px;
+msgLnkPadding: 2px; // for media open / save links
+msgBorder: #f0f0f0;
+msgInBg: #fff;
+msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
+msgOutBg: #effdde;
+msgOutBgSelected: #b7dbdb;
+msgSelectOverlay: #358cd44c;
+msgStickerOverlay: #358cd47f;
+msgInServiceFg: #0e7acd;
+msgInServiceFgSelected: #0e7acd;
+msgOutServiceFg: #3a8e26;
+msgOutServiceFgSelected: #367570;
+msgShadow: 2px;
+msgInShadow: #748ea229;
+msgInShadowSelected: #548dbb29;
+msgOutShadow: #3ac34740;
+msgOutShadowSelected: #37a78e40;
+msgInDateFg: #a0acb6;
+msgInDateFgSelected: #6a9cc5;
+msgOutDateFg: #6cc264;
+msgOutDateFgSelected: #50a79c;
+
+msgReplyPadding: margins(6px, 6px, 11px, 6px);
+msgReplyBarPos: point(1px, 0px);
+msgReplyBarSize: size(2px, 36px);
+msgReplyBarSkip: 10px;
+msgOutReplyBarColor: #5dc452;
+msgInReplyBarColor: #2fa9e2;
+msgOutReplyBarSelColor: #4da79f;
+msgInReplyBarSelColor: #2fa9e2;
+
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbOverOpacity: 0.1;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
+//msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
+//msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
+msgBotKbSwitchPmIcon: sprite(188px, 348px, 10px, 10px);
+msgBotKbButton: botKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+
+msgServiceBg: #89a0b47f;
+msgServiceSelectBg: #bbc8d4a2;
+msgServiceColor: #FFF;
+msgServicePadding: margins(12px, 3px, 12px, 4px);
+msgServiceMargin: margins(10px, 10px, 80px, 2px);
+
+msgColor: #000;
+msgDateColor: #000;
+msgLinkColor: #2a6dc2;
+msgPressedLinkColor: #004bad;
+msgSkip: 40px;
+msgPtr: 8px;
+msgBG: ":/gui/art/bg.jpg";
+msgBG0: ":/gui/art/bg0.png";
+
+msgCheckPos: point(3px, 1px);
+msgSendingImg: sprite(260px, 20px, 20px, 20px);
+msgCheckImg: sprite(320px, 0px, 20px, 20px);
+msgDblCheckImg: sprite(300px, 0px, 20px, 20px);
+msgSelectCheckImg: sprite(162px, 0px, 20px, 20px);
+msgSelectDblCheckImg: sprite(142px, 0px, 20px, 20px);
+msgViewsPos: point(0px, -4px);
+msgViewsImg: sprite(104px, 48px, 16px, 11px);
+msgSelectViewsImg: sprite(104px, 70px, 16px, 11px);
+msgOutViewsImg: sprite(104px, 81px, 16px, 11px);
+msgSelectOutViewsImg: sprite(104px, 92px, 16px, 11px);
+msgSendingViewsImg: sprite(104px, 103px, 16px, 11px);
+msgSendingOutViewsImg: sprite(104px, 125px, 16px, 11px);
+msgInvSendingImg: sprite(320px, 65px, 20px, 20px);
+msgInvCheckImg: sprite(280px, 20px, 20px, 20px);
+msgInvDblCheckImg: sprite(300px, 65px, 20px, 20px);
+msgInvViewsImg: sprite(104px, 59px, 16px, 11px);
+msgInvSendingViewsImg: sprite(104px, 114px, 16px, 11px);
+
+msgDateSpace: 19px;
+msgDateCheckSpace: 4px;
+msgDateViewsSpace: 11px;
+msgDateDelta: point(2px, 5px);
+
+msgDateImgDelta: 4px;
+msgDateImgColor: #fff;
+msgDateImgBg: #00000054;
+msgDateImgBgOver: #00000074;
+msgDateImgBgSelected: #1c4a7187;
+msgDateImgPadding: point(8px, 2px);
+msgDateImgCheckSpace: 4px;
+
+msgDogImg: sprite(216px, 92px, 126px, 126px);
+historyPadding: 10px;
+
+collapseButton: flatButton(btnDefFlat) {
+	font: msgServiceFont;
+	overFont: msgServiceFont;
+	width: -24px;
+	bgColor: transparent;
+	downBgColor: transparent;
+	overBgColor: transparent;
+	color: white;
+	overColor: white;
+	downColor: white;
+	textTop: 3px;
+	overTextTop: 3px;
+	downTextTop: 3px;
+	height: 25px;
+}
+collapseHideDuration: 200;
+collapseShowDuration: 200;
+
+defaultTextStyle: textStyle {
+	linkFlags: font(fsize);
+	linkFlagsOver: font(fsize underline);
+	linkFg: btnYesColor;
+	linkFgDown: btnYesHover;
+	monoFg: #777;
+	selectBg: msgInBgSelected;
+	selectOverlay: msgSelectOverlay;
+	lineHeight: 0px;
+}
+boxTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 22px;
+}
+serviceTextStyle: textStyle(defaultTextStyle) {
+	linkFlags: msgServiceFont;
+	linkFlagsOver: font(fsize semibold underline);
+	linkFg: msgServiceColor;
+	linkFgDown: msgServiceColor;
+	monoFg: msgServiceColor;
+	selectBg: msgServiceSelectBg;
+	selectOverlay: msgServiceSelectBg;
+}
+inTextStyle: textStyle(defaultTextStyle) {
+	monoFg: #4e7391;
+	selectBg: msgInBgSelected;
+	selectOverlay: msgSelectOverlay;
+}
+outTextStyle: textStyle(defaultTextStyle) {
+	monoFg: #469165;
+	selectBg: msgOutBgSelected;
+	selectOverlay: msgSelectOverlay;
+}
+inFwdTextStyle: textStyle(defaultTextStyle) {
+	linkFlags: semiboldFont;
+	linkFlagsOver: semiboldFont;
+	linkFg: msgInServiceFg;
+	linkFgDown: msgInServiceFg;
+}
+outFwdTextStyle: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFg;
+	linkFgDown: msgOutServiceFg;
+}
+inFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgInServiceFgSelected;
+	linkFgDown: msgInServiceFgSelected;
+}
+outFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFgSelected;
+	linkFgDown: msgOutServiceFgSelected;
+}
+medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
+	linkFg: #91d9ff;
+	linkFgDown: #91d9ff;
+}
+
+dlgTextStyle: textStyle(defaultTextStyle) {
+	linkFg: dlgSystemColor;
+	linkFgDown: dlgSystemColor;
+	linkFlagsOver: font(fsize);
+}
+dlgActiveTextStyle: textStyle(defaultTextStyle) {
+	linkFg: dlgActiveColor;
+	linkFgDown: dlgActiveColor;
+	linkFlagsOver: font(fsize);
+}
+introLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 30px;
+}
+introErrLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 27px;
+}
+
+mediaPadding: margins(0px, 0px, 0px, 0px);//1px, 1px, 1px, 1px);//2px, 2px, 2px, 2px);
+mediaCaptionSkip: 5px;
+mediaHeaderSkip: 5px;
+mediaThumbSize: 48px;
+mediaNameTop: 3px;
+mediaDetailsShift: 3px;
+mediaInFg: msgInDateFg;
+mediaInFgSelected: msgInDateFgSelected;
+mediaOutFg: msgOutDateFg;
+mediaOutFgSelected: msgOutDateFgSelected;
+mediaInUnreadFg: #999;
+mediaInUnreadFgSelected: #7b95aa;
+mediaOutUnreadFg: #6aad60;
+mediaOutUnreadFgSelected: #5aa382;
+mediaUnreadSize: 7px;
+mediaUnreadSkip: 5px;
+mediaUnreadTop: 6px;
+
+mediaInStyle: textStyle(defaultTextStyle) {
+	linkFg: mediaInFg;
+	linkFgDown: mediaInFg;
+}
+mediaInStyleSelected: textStyle(defaultTextStyle) {
+	linkFg: mediaInFgSelected;
+	linkFgDown: mediaInFgSelected;
+}
+
+msgFileRedColor: #e47272;
+msgFileYellowColor: #efc274;
+msgFileGreenColor: #61b96e;
+msgFileBlueColor: #72b1df;
+msgFileRedDark: #cd5b5e;
+msgFileYellowDark: #e6a561;
+msgFileGreenDark: #4da859;
+msgFileBlueDark: #5c9ece;
+msgFileRedOver: #c35154;
+msgFileYellowOver: #dc9c5a;
+msgFileGreenOver: #44a050;
+msgFileBlueOver: #5294c4;
+msgFileRedSelected: #9f6a82;
+msgFileYellowSelected: #b19d84;
+msgFileGreenSelected: #46a07e;
+msgFileBlueSelected: #5099d0;
+
+msgFileMenuSize: size(36px, 36px);
+msgFileSize: 44px;
+msgFilePadding: margins(14px, 12px, 11px, 12px);
+msgFileThumbSize: 72px;
+msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileThumbNameTop: 12px;
+msgFileThumbStatusTop: 32px;
+msgFileThumbLinkTop: 60px;
+msgFileThumbLinkInFg: #3da5e0;
+msgFileThumbLinkInFgSelected: #3da5e0;
+msgFileThumbLinkOutFg: #5eba5b;
+msgFileThumbLinkOutFgSelected: #31a298;
+msgFileNameTop: 16px;
+msgFileStatusTop: 37px;
+msgFileMinWidth: 294px;
+msgFileInBg: #59b6eb;
+msgFileInBgOver: #4eade3;
+msgFileInBgSelected: #51a3d3;
+msgFileOutBg: #78c67f;
+msgFileOutBgOver: #6bc272;
+msgFileOutBgSelected: #5fb389;
+
+msgFileOutImage: sprite(0px, 146px, 18px, 18px);
+msgFileOutImageSelected: sprite(18px, 146px, 18px, 18px);
+msgFileInImage: sprite(0px, 164px, 18px, 18px);
+msgFileInImageSelected: sprite(18px, 164px, 18px, 18px);
+msgFileOutFile: sprite(36px, 146px, 18px, 18px);
+msgFileOutFileSelected: sprite(54px, 146px, 18px, 18px);
+msgFileInFile: sprite(36px, 164px, 18px, 18px);
+msgFileInFileSelected: sprite(54px, 164px, 18px, 18px);
+msgFileOutDownload: sprite(72px, 142px, 14px, 20px);
+msgFileOutDownloadSelected: sprite(86px, 142px, 14px, 20px);
+msgFileInDownload: sprite(72px, 162px, 14px, 20px);
+msgFileInDownloadSelected: sprite(86px, 162px, 14px, 20px);
+msgFileOutCancel: sprite(100px, 147px, 16px, 16px);
+msgFileOutCancelSelected: sprite(116px, 147px, 16px, 16px);
+msgFileInCancel: sprite(100px, 165px, 16px, 16px);
+msgFileInCancelSelected: sprite(116px, 165px, 16px, 16px);
+msgFileOutPause: sprite(132px, 147px, 14px, 16px);
+msgFileOutPauseSelected: sprite(146px, 147px, 14px, 16px);
+msgFileInPause: sprite(132px, 165px, 14px, 16px);
+msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
+msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
+msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
+msgFileInPlay: sprite(160px, 164px, 20px, 18px);
+msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
+
+msgFileRed: sprite(0px, 425px, 20px, 20px);
+msgFileYellow: sprite(20px, 425px, 20px, 20px);
+msgFileGreen: sprite(40px, 425px, 20px, 20px);
+msgFileBlue: sprite(60px, 425px, 20px, 20px);
+
+msgFileOverDuration: 200;
+msgFileRadialLine: 3px;
+
+msgVideoSize: size(320px, 240px);
+
+msgWaveformBar: 2px;
+msgWaveformSkip: 1px;
+msgWaveformMin: 2px;
+msgWaveformMax: 20px;
+msgWaveformInActive: #59b6eb;
+msgWaveformInActiveSelected: #51a3d3;
+msgWaveformInInactive: #d4dee6;
+msgWaveformInInactiveSelected: #9cc1e1;
+msgWaveformOutActive: #78c67f;
+msgWaveformOutActiveSelected: #6badad;
+msgWaveformOutInactive: #b3e2b4;
+msgWaveformOutInactiveSelected: #91c3c3;
+
+sendPadding: 9px;
+btnSend: flatButton(btnDefFlat) {
+	color: btnYesColor;
+	overColor: btnYesHover;
+	downColor: btnYesHover;
+
+	bgColor: white;
+	overBgColor: btnWhiteHover;
+	downBgColor: btnWhiteHover;
+
+	width: -32px;
+	height: 46px;
+
+	textTop: 12px;
+	overTextTop: 12px;
+	downTextTop: 13px;
+
+	font: font(16px);
+	overFont: font(16px);
+}
+btnUnblock: flatButton(btnSend) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+
+btnAttachDocument: iconedButton(btnDefIconed) {
+	icon: sprite(218px, 68px, 24px, 24px);
+	iconPos: point(11px, 11px);
+	downIcon: sprite(218px, 68px, 24px, 24px);
+	downIconPos: point(11px, 12px);
+
+	overBgColor: btnWhiteHover;
+	width: 46px;
+	height: 46px;
+}
+btnAttachPhoto: iconedButton(btnAttachDocument) {
+	icon: sprite(118px, 0px, 24px, 24px);
+	downIcon: sprite(118px, 0px, 24px, 24px);
+}
+btnAttachEmoji: iconedButton(btnAttachDocument) {
+	overBgColor: white;
+	icon: sprite(374px, 344px, 21px, 22px);
+	iconPos: point(6px, 12px);
+	downIcon: sprite(374px, 344px, 21px, 22px);
+	downIconPos: point(6px, 12px);
+
+	width: 33px;
+}
+emojiCircle: size(19px, 19px);
+emojiCirclePeriod: 1500;
+emojiCircleDuration: 500;
+emojiCircleTop: 13px;
+emojiCircleLine: 2px;
+emojiCircleFg: #b9b9b9;
+emojiCirclePart: 3.5;
+btnBotKbShow: iconedButton(btnAttachEmoji) {
+	icon: sprite(375px, 74px, 21px, 21px);
+	iconPos: point(6px, 12px);
+	downIcon: sprite(375px, 74px, 21px, 21px);
+	downIconPos: point(6px, 12px);
+}
+btnBotCmdStart: iconedButton(btnAttachEmoji) {
+	icon: sprite(354px, 74px, 21px, 21px);
+	iconPos: point(6px, 12px);
+	downIcon: sprite(354px, 74px, 21px, 21px);
+	downIconPos: point(6px, 12px);
+}
+btnBotKbHide: iconedButton(btnAttachEmoji) {
+	icon: sprite(373px, 95px, 23px, 14px);
+	iconPos: point(5px, 17px);
+	downIcon: sprite(373px, 95px, 23px, 14px);
+	downIconPos: point(5px, 17px);
+}
+broadcastToggle: flatCheckbox {
+	textColor: black;
+	bgColor: white;
+	disColor: black;
+
+	width: 34px;
+	height: 46px;
+	duration: 200;
+	bgFunc: transition(easeOutCirc);
+	cursor: cursor(pointer);
+
+	font: normalFont;
+
+	imageRect: sprite(18px, 125px, 22px, 21px);
+	chkImageRect: sprite(40px, 125px, 22px, 21px);
+	overImageRect: sprite(40px, 104px, 22px, 21px);
+	chkOverImageRect: sprite(40px, 125px, 22px, 21px);
+	disImageRect: sprite(18px, 125px, 22px, 21px);
+	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
+
+	imagePos: point(6px, 12px);
+}
+silentToggle: flatCheckbox(broadcastToggle) {
+	width: 33px;
+
+	imageRect: sprite(354px, 242px, 21px, 21px);
+	chkImageRect: sprite(354px, 221px, 21px, 21px);
+	overImageRect: sprite(375px, 242px, 21px, 21px);
+	chkOverImageRect: sprite(375px, 221px, 21px, 21px);
+	disImageRect: sprite(354px, 242px, 21px, 21px);
+	chkDisImageRect: sprite(354px, 221px, 21px, 21px);
+}
+btnRecordAudio: sprite(379px, 390px, 16px, 24px);
+btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
+recordSignalColor: #f17077;
+recordSignalMin: 5px;
+recordSignalMax: 12px;
+recordCancel: #aaa;
+recordCancelActive: #ec6466;
+recordFont: font(13px);
+recordTextTop: 14px;
+
+replySkip: 51px;
+replyColor: #377aae;
+replyHeight: 49px;
+replyTop: 8px;
+replyBottom: 6px;
+replyIconPos: point(13px, 13px);
+replyIcon: sprite(343px, 197px, 24px, 24px);
+editIcon: sprite(371px, 286px, 24px, 24px);
+replyCancel: iconedButton(btnDefIconed) {
+	icon: sprite(165px, 24px, 14px, 14px);
+	iconPos: point(17px, 17px);
+	downIcon: sprite(165px, 24px, 14px, 14px);
+	downIconPos: point(17px, 18px);
+	bgColor: white;
+	overBgColor: white;
+	width: 49px;
+	height: 49px;
+}
+inlineBotCancel: iconedButton(replyCancel) {
+	height: 46px;
+	iconPos: point(-1px, 16px); // < 0 means draw in the center of the button
+	downIconPos: point(-1px, 17px);
+}
+forwardIcon: sprite(368px, 197px, 24px, 24px);
+
+historyScroll: flatScroll(scrollDef) {
+	barColor: #89a0b47a;
+	bgColor: #89a0b44c;
+	barOverColor: #89a0b4bc;
+	bgOverColor: #89a0b46b;
+
+	round: 0px;
+
+	width: 12px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 0px;
+	bottomsh: -1px;
+}
+textRectMargins: margins(-2px, -1px, -2px, -1px);
+taMsgField: flatTextarea(taDefFlat) {
+	font: msgFont;
+}
+maxFieldHeight: 220px;
+// historyMinHeight: 56px;
+
+reportSpamHide: flatButton(topBarButton) {
+	height: 46px;
+
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+	downBgColor: transparent;
+}
+reportSpamButton: flatButton(reportSpamHide) {
+	textTop: 6px;
+	overTextTop: 6px;
+	downTextTop: 7px;
+
+	width: -50px;
+	height: 30px;
+
+	bgColor: #888;
+	overBgColor: #7b7b7b;
+	downBgColor: #7b7b7b;
+}
+reportSpamSeparator: 30px;
+reportSpamBg: #fffffff0;
+
+newMsgSound: ":/gui/art/newmsg.wav";
+
+unreadBarHeight: 32px;
+unreadBarMargin: 8px;
+unreadBarFont: semiboldFont;
+unreadBarBG: #fcfbfa;
+unreadBarBorder: shadowColor;
+unreadBarColor: #538bb4;
+
+searchedBarHeight: unreadBarHeight;
+searchedBarFont: unreadBarFont;
+searchedBarBG: #ebeef1;
+searchedBarBorder: unreadBarBorder;
+searchedBarColor: #a2aeb7;
+
+layerSlideDuration: 200;
+layerHideDuration: 200;
+layerPadding: margins(10px, 10px, 10px, 10px);
+
+contactPadding: margins(49px, 22px, 0px, 6px);
+contactSkip: 13px;
+contactPhoneSkip: 30px;
+contactUserIcon: sprite(120px, 90px, 18px, 18px);
+contactPhoneIcon: sprite(138px, 90px, 18px, 18px);
+contactIconTop: 10px;
+
+contactsPhotoSize: 42px;
+contactsPadding: margins(16px, 7px, 16px, 7px);
+contactsNameTop: 2px;
+contactsNameFont: semiboldFont;
+contactsStatusTop: 23px;
+contactsStatusFont: font(fsize);
+contactsStatusFg: #999999;
+contactsStatusFgOver: #7c99b2;
+contactsStatusFgOnline: #3b8dcc;
+contactsBgOver: overBg;
+contactsBgActive: #6f9cbd;
+contactsCheckPosition: point(8px, 16px);
+contactsCheckIcon: sprite(187px, 61px, 18px, 14px);
+contactsCheckActiveIcon: sprite(187px, 75px, 18px, 14px);
+contactsNewItemHeight: 53px;
+contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
+contactsNewItemIconPosition: point(29px, 19px);
+contactsNewItemTop: 18px;
+contactsNewItemFg: #4b82af;
+contactsAboutBg: #f7f7f7;
+contactsAboutShadow: #0000001F;
+contactsAdminCheckbox: Checkbox(defaultCheckbox) {
+	font: semiboldFont;
+	textBg: #f7f7f7;
+	textPosition: point(34px, 1px);
+}
+contactsAboutHeight: 42px;
+contactsAboutTop: 9px;
+contactsScroll: flatScroll(boxScroll) {
+	deltab: 0px;
+}
+
+btnNewGroup: iconedButton(btnDefIconed) {
+	icon: sprite(189px, 118px, 18px, 17px);
+	iconPos: point(8px, 8px);
+	downIcon: sprite(189px, 118px, 18px, 17px);
+	downIconPos: point(8px, 9px);
+
+	bgColor: transparent;
+	overBgColor: transparent;
+	width: 36px;
+	height: 36px;
+}
+btnAddContact: iconedButton(btnNewGroup) {
+	icon: sprite(188px, 93px, 18px, 18px);
+	downIcon: sprite(188px, 93px, 18px, 18px);
+}
+btnCancelSearch: iconedButton(btnNewGroup) {
+	icon: sprite(188px, 43px, 18px, 18px);
+	downIcon: sprite(188px, 43px, 18px, 18px);
+}
+
+notifyBG: white;
+notifyBorder: #f1f1f1;
+notifyBorderWidth: 1px;
+notifySlowHide: 4000;
+notifyPhotoSize: 62px;
+notifyMacPhotoSize: 64px;
+notifyPhotoPos: point(9px, 9px);
+notifyClosePos: point(1px, 2px);
+notifyClose: iconedButton(btnDefIconed) {
+	icon: sprite(167px, 130px, 10px, 10px);
+	iconPos: point(10px, 10px);
+	downIcon: sprite(167px, 130px, 10px, 10px);
+	downIconPos: point(10px, 11px);
+
+	width: 30px;
+	height: 30px;
+}
+notifyItemTop: 12px;
+notifyTextLeft: 12px;
+notifyTextTop: 7px;
+notifySlowHideFunc: transition(easeInCirc);
+notifyWaitShortHide: 0;
+notifyWaitLongHide: 20000;
+notifyFastAnim: 150;
+notifyWidth: 316px;
+notifyHeight: 80px;
+notifyDeltaX: 6px;
+notifyDeltaY: 7px;
+
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
+boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
+boxPhotoTextFg: #808080;
+cropPointSize: 10px;
+cropSkip: 13px;
+cropMinSize: 20px;
+confirmCaptionArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 56px;
+}
+confirmBg: #f2f2f2;
+confirmMaxHeight: 245px;
+confirmCompressedSkip: 10px;
+
+profileMaxWidth: 410px;
+profilePadding: margins(28px, 30px, 28px, 0px);
+profilePhotoSize: 120px;
+profileNameLeft: 21px;
+profileNameTop: -1px;
+profileNameFont: font(20px);
+profileStatusLeft: 22px;
+profileStatusTop: 31px;
+profileStatusFont: font(fsize);
+profilePhoneLeft: 22px;
+profilePhoneTop: 62px;
+profilePhoneFont: font(16px);
+profileButtonTop: 18px;
+profileButtonSkip: 10px;
+profileHeaderFont: font(20px);
+profileHeaderColor: black;
+profileHeaderSkip: 59px;
+profileHeaderLeft: -1px;
+profileHeaderTop: 22px;
+
+profileListPhotoSize: 46px;
+profileListPadding: size(12px, 6px);
+profileListNameTop: 8px;
+profileListStatusBottom: 6px;
+profileHoverBG: #f5f5f5;
+profileActiveBG: #6294b9;
+profileSubFont: font(fsize);
+profileListNameFont: semiboldFont;
+profileListNameColor: #000;
+profileOnlineColor: titleTypingColor;
+profileOfflineColor: titleStatusColor;
+btnShareContact: flatButton(btnDefNext, btnDefBig) {
+	width: 145px;
+	height: 42px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(17px);
+	overFont: font(17px);
+}
+btnMigrateToMega: flatButton(btnShareContact) {
+	width: -40px;
+}
+profileMinBtnPadding: 10px;
+
+membersPadding: margins(0px, 10px, 0px, 10px);
+
+forwardMargins: margins(30px, 10px, 30px, 10px);
+forwardFont: font(16px);
+forwardBg: rgba(0, 0, 0, 76);
+btnProfileCancel: flatButton(btnDefFlat, btnDefBig) {
+	color: #666d78;
+	overColor: #666d78;
+	downColor: #50565e;
+
+	bgColor: rgba(0, 0, 0, 63);
+	overBgColor: rgba(0, 0, 0, 47);
+	downBgColor: rgba(0, 0, 0, 95);
+
+	width: 145px;
+	height: 40px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(18px);
+	overFont: font(18px);
+}
+
+btnDeleteContact: flatButton(btnDefFlat, btnDefBig) {
+	color: #fff;
+	overColor: #fff;
+	downColor: #ffcbc1;
+
+	bgColor: #ee4928bf;
+	overBgColor: #ee4928;
+	downBgColor: #d14024;
+
+	width: 300px;
+	height: 40px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(18px);
+	overFont: font(18px);
+}
+
+profileNameInput: flatInput(setNameInput) {
+	width: 230px;
+}
+
+participantInnerAdd: flatButton(btnDefNext) {
+	width: 145px;
+	height: 40px;
+	font: font(18px);
+	overFont: font(18px);
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+}
+participantInnerCancel: flatButton(participantInnerAdd, btnDefBack) {
+}
+participantCancel: flatButton(participantInnerAdd, btnDefBack) {
+	width: 300px;
+}
+participantFilter: flatInput(inpDefFlat) {
+	width: 364px;
+	height: 52px;
+	font: font(16px);
+	textMrg: margins(39px, 11px, 10px, 10px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
+	imgPos: point(10px, 15px);
+}
+participantDelta: 12px;
+
+contactsFilter: flatInput(dlgFilter) {
+	width: 340px;
+	height: 38px;
+	textMrg: margins(34px, 3px, 5px, 4px);
+	imgPos: point(6px, 7px);
+}
+inpCountry: flatInput(contactsFilter) {
+}
+
+newGroupLimitFg: #a4a4a4;
+newGroupAboutFg: #808080;
+newGroupPadding: margins(4px, 6px, 4px, 3px);
+newGroupSkip: 17px;
+newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
+
+newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
+newGroupLinkTop: 3px;
+newGroupLinkFont: font(16px);
+
+newGroupPhotoSize: 76px;
+newGroupPhotoBg: #4eb5f0;
+newGroupPhotoBgOver: #3fa9e7;
+newGroupPhotoIcon: sprite(74px, 104px, 30px, 27px);
+newGroupPhotoIconPosition: point(23px, 25px);
+
+newGroupNamePosition: point(27px, 20px);
+
+newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
+newGroupDescription: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 115px;
+}
+
+newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
+newGroupLinkFadeDuration: 5000;
+
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
+}
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
+}
+connectionUserInputField: InputField(defaultInputField) {
+	width: 95px;
+}
+connectionPasswordInputField: InputField(defaultInputField) {
+	width: 120px;
+}
+connectionIPv6Skip: 11px;
+
+contactsAdd: flatButton(topBarButton) {
+	width: -40px;
+	height: 52px;
+
+	textTop: 18px;
+	overTextTop: 18px;
+	downTextTop: 19px;
+}
+
+aboutIcon: sprite(0px, 0px, 104px, 104px);
+aboutWidth: 390px;
+aboutVersionTop: -3px;
+aboutVersionLink: linkButton(btnDefLink) {
+	color: #999;
+	overColor: #999;
+	downColor: #999;
+}
+aboutTextTop: 34px;
+aboutSkip: 14px;
+aboutLabel: flatLabel(labelDefFlat) {
+	font: normalFont;
+	width: 330px;
+	align: align(topleft);
+}
+aboutTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 22px;
+}
+
+emojiTextFont: font(15px);
+emojiReplaceWidth: 52px;
+emojiReplaceHeight: 56px;
+emojiReplaceInnerHeight: 42px;
+emojiReplacePadding: 14px;
+
+connectingBG: #fffe;
+connectingColor: #777;
+connectingPadding: margins(5px, 5px, 5px, 5px);
+
+dropdownDef: dropdown {
+	border: 1px;
+	borderColor: #ebebeb;
+
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: sprite(241px, 46px, 6px, 6px);
+	shadowShift: 1px;
+
+	duration: 150;
+	width: 0px;
+}
+
+dropdownAttachDocument: iconedButton(btnAttachDocument) {
+	iconPos: point(14px, 13px);
+	downIconPos: point(14px, 14px);
+
+	width: 172px;
+	height: 49px;
+
+	color: black;
+
+	font: font(16px);
+
+	textPos: point(50px, 13px);
+	downTextPos: point(50px, 14px);
+}
+dropdownAttachPhoto: iconedButton(dropdownAttachDocument) {
+	icon: sprite(118px, 0px, 24px, 24px);
+	downIcon: sprite(118px, 0px, 24px, 24px);
+}
+dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
+	width: 200px;
+}
+dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
+	icon: sprite(92px, 348px, 24px, 24px);
+	downIcon: sprite(92px, 348px, 24px, 24px);
+}
+dropdownMediaSongs: iconedButton(dropdownMediaPhotos) {
+	icon: sprite(60px, 374px, 24px, 26px);
+	downIcon: sprite(60px, 374px, 24px, 26px);
+	iconPos: point(12px, 12px);
+	downIconPos: point(12px, 13px);
+}
+dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
+	width: 200px;
+}
+dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
+	icon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(62px, 348px, 24px, 24px);
+}
+dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
+	icon: sprite(372px, 414px, 24px, 24px);
+	downIcon: sprite(372px, 414px, 24px, 24px);
+}
+
+dragFont: font(28px semibold);
+dragSubfont: font(20px semibold);
+dragColor: #777;
+dragDropColor: btnYesColor;
+
+dragMargin: margins(0px, 10px, 0px, 10px);
+dragPadding: margins(20px, 10px, 20px, 10px);
+
+dragHeight: 72px;
+
+dpiSlider: slider {
+	color: #ccc;
+	thikness: 2px;
+
+	width: 260px;
+	bar: sprite(0px, 104px, 9px, 22px);
+}
+dpiActive: black;
+dpiInactive: #999;
+dpiFont1: linkFont;
+dpiFont2: linkFont;
+dpiFont3: linkFont;
+dpiFont4: linkFont;
+
+stickersMaxHeight: 440px;
+stickersPadding: margins(19px, 17px, 19px, 17px);
+stickersSize: size(64px, 64px);
+stickersScroll: flatScroll(boxScroll) {
+	deltax: 7px;
+	deltat: 23px;
+	deltab: 9px;
+}
+stickersReorderPadding: margins(0px, 12px, 0px, 12px);
+stickersReorderFg: #777;
+stickersRowDisabledOpacity: 0.4;
+stickersRowDuration: 200;
+
+emojiScroll: flatScroll(solidScroll) {
+	deltat: 48px;
+}
+emojiRecentOver: sprite(0px, 196px, 21px, 22px);
+emojiRecentActive: sprite(245px, 264px, 21px, 22px);
+emojiPeopleOver: sprite(21px, 196px, 21px, 22px);
+emojiPeopleActive: sprite(266px, 264px, 21px, 22px);
+emojiNatureOver: sprite(42px, 196px, 21px, 22px);
+emojiNatureActive: sprite(245px, 286px, 21px, 22px);
+emojiFoodOver: sprite(63px, 196px, 21px, 22px);
+emojiFoodActive: sprite(266px, 286px, 21px, 22px);
+emojiActivityOver: sprite(126px, 196px, 21px, 22px);
+emojiActivityActive: sprite(287px, 264px, 21px, 22px);
+emojiTravelOver: sprite(105px, 196px, 21px, 22px);
+emojiTravelActive: sprite(308px, 286px, 21px, 22px);
+emojiObjectsOver: sprite(147px, 196px, 21px, 22px);
+emojiObjectsActive: sprite(308px, 264px, 21px, 22px);
+emojiSymbolsOver: sprite(84px, 196px, 21px, 22px);
+emojiSymbolsActive: sprite(287px, 286px, 21px, 22px);
+stickersSettings: sprite(140px, 124px, 21px, 22px);
+savedGifsOver: sprite(329px, 286px, 21px, 22px);
+savedGifsActive: sprite(350px, 286px, 21px, 22px);
+
+emojiPanCategories: #f7f7f7;
+
+rbEmoji: flatCheckbox {
+	textColor: transparent;
+	bgColor: emojiPanCategories;
+	disColor: emojiPanCategories;
+
+	width: 42px;
+	height: 46px;
+
+	textTop: 0px;
+	textLeft: 0px;
+	font: font(fsize);
+	duration: 200;
+	bgFunc: transition(easeOutCirc);
+	cursor: cursor(pointer);
+
+	disabledCursor: cursor(default);
+	imagePos: point(11px, 12px);
+}
+rbEmojiRecent: flatCheckbox(rbEmoji) {
+	imageRect: emojiRecentOver;
+	chkImageRect: emojiRecentActive;
+	overImageRect: emojiRecentOver;
+	chkOverImageRect: emojiRecentActive;
+	disImageRect: emojiRecentOver;
+	chkDisImageRect: emojiRecentActive;
+}
+rbEmojiPeople: flatCheckbox(rbEmoji) {
+	imageRect: emojiPeopleOver;
+	chkImageRect: emojiPeopleActive;
+	overImageRect: emojiPeopleOver;
+	chkOverImageRect: emojiPeopleActive;
+	disImageRect: emojiPeopleOver;
+	chkDisImageRect: emojiPeopleActive;
+}
+rbEmojiNature: flatCheckbox(rbEmoji) {
+	imageRect: emojiNatureOver;
+	chkImageRect: emojiNatureActive;
+	overImageRect: emojiNatureOver;
+	chkOverImageRect: emojiNatureActive;
+	disImageRect: emojiNatureOver;
+	chkDisImageRect: emojiNatureActive;
+}
+rbEmojiFood: flatCheckbox(rbEmoji) {
+	imageRect: emojiFoodOver;
+	chkImageRect: emojiFoodActive;
+	overImageRect: emojiFoodOver;
+	chkOverImageRect: emojiFoodActive;
+	disImageRect: emojiFoodOver;
+	chkDisImageRect: emojiFoodActive;
+}
+rbEmojiActivity: flatCheckbox(rbEmoji) {
+	imageRect: emojiActivityOver;
+	chkImageRect: emojiActivityActive;
+	overImageRect: emojiActivityOver;
+	chkOverImageRect: emojiActivityActive;
+	disImageRect: emojiActivityOver;
+	chkDisImageRect: emojiActivityActive;
+}
+rbEmojiTravel: flatCheckbox(rbEmoji) {
+	imageRect: emojiTravelOver;
+	chkImageRect: emojiTravelActive;
+	overImageRect: emojiTravelOver;
+	chkOverImageRect: emojiTravelActive;
+	disImageRect: emojiTravelOver;
+	chkDisImageRect: emojiTravelActive;
+}
+rbEmojiObjects: flatCheckbox(rbEmoji) {
+	imageRect: emojiObjectsOver;
+	chkImageRect: emojiObjectsActive;
+	overImageRect: emojiObjectsOver;
+	chkOverImageRect: emojiObjectsActive;
+	disImageRect: emojiObjectsOver;
+	chkDisImageRect: emojiObjectsActive;
+}
+rbEmojiSymbols: flatCheckbox(rbEmoji) {
+	imageRect: emojiSymbolsOver;
+	chkImageRect: emojiSymbolsActive;
+	overImageRect: emojiSymbolsOver;
+	chkOverImageRect: emojiSymbolsActive;
+	disImageRect: emojiSymbolsOver;
+	chkDisImageRect: emojiSymbolsActive;
+}
+emojiPanPadding: 12px;
+emojiPanSize: size(45px, 41px);
+emojiPanWidth: 345px;
+emojiPanMaxHeight: 366px;
+emojiPanDuration: 200;
+emojiPanHover: #f0f4f7;
+
+emojiPanHeader: 42px;
+emojiPanHeaderFont: semiboldFont;
+emojiPanHeaderColor: #999;
+emojiPanHeaderLeft: 22px;
+emojiPanHeaderTop: 12px;
+emojiPanHeaderBg: #fffffff2;
+
+emojiColorsPadding: 5px;
+emojiColorsSep: 1px;
+emojiColorsSepColor: #d5d5d5;
+
+emojiSwitchSkip: 27px;
+emojiSwitchImgSkip: 21px;
+emojiSwitchStickers: sprite(318px, 328px, 8px, 12px);
+emojiSwitchEmoji: sprite(310px, 328px, 8px, 12px);
+emojiSwitchColor: #42a8db;
+
+stickerPanSize: size(64px, 64px);
+stickerPanPadding: 11px;
+stickerPanDelete: sprite(128px, 132px, 12px, 12px);
+stickerPanDeleteOpacity: 0.5;
+stickerIconPadding: 5px;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: #58b2ed;
+stickerIconLeft: sprite(342px, 72px, 40px, 1px);
+stickerIconRight: sprite(342px, 73px, 40px, 1px);
+stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewBg: #FFFFFFB0;
+stickerPreviewMin: 0.1;
+
+verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
+verifiedCheckProfilePos: point(7px, 6px);
+verifiedCheck: sprite(285px, 221px, 14px, 14px);
+verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
+verifiedCheckPos: point(4px, 2px);
+
+botKbDuration: 200;
+botKbBg: #edf1f5;
+botKbOverBg: #d8e2ec;
+botKbDownBg: #d8e2ec;
+botKbColor: #4b565f;
+botKbFont: font(15px semibold);
+botKbButton: botKeyboardButton {
+	margin: 10px;
+	padding: 10px;
+	height: 38px;
+	textTop: 9px;
+	downTextTop: 9px;
+}
+botKbTinyButton: botKeyboardButton {
+	margin: 4px;
+	padding: 3px;
+	height: 25px;
+	textTop: 2px;
+	downTextTop: 2px;
+}
+botKbScroll: flatScroll(solidScroll) {
+	deltax: 3px;
+	width: 10px;
+}
+switchPmButton: BoxButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
+}
+
+minPhotoSize: 100px;
+maxMediaSize: 420px;
+maxStickerSize: 256px;
+maxGifSize: 320px;
+maxSignatureSize: 144px;
+
+mvBgColor: #222;
+mvBgOpacity: 0.92;
+mvThickFont: semiboldFont;
+mvFont: font(fsize);
+
+mvTextLeft: 16px;
+mvTextSkip: 10px;
+mvHeaderTop: 48px;
+mvTextTop: 24px;
+mvTextColor: white;
+mvTextOpacity: 0.5;
+mvTextOverOpacity: 1;
+
+mvIconOpacity: 0.45;
+mvIconOverOpacity: 1;
+mvControlBgColor: black;
+mvControlBgOpacity: 0.3;
+mvControlMargin: 0px;
+mvControlSize: 90px;
+mvIconSize: size(60px, 56px);
+
+mvLeft: sprite(320px, 445px, 12px, 22px);
+mvRight: sprite(332px, 445px, 12px, 22px);
+mvClose: sprite(344px, 445px, 18px, 18px);
+mvSave: sprite(362px, 445px, 14px, 19px);
+mvMore: sprite(376px, 445px, 5px, 21px);
+
+mvDropdown: dropdown(dropdownDef) {
+	shadow: sprite(0px, 0px, 0px, 0px);
+	padding: margins(11px, 12px, 11px, 12px);
+
+	border: 0px;
+	width: 182px;
+}
+mvButton: iconedButton(btnDefIconed) {
+	bgColor: #383838;
+	overBgColor: #505050;
+	font: font(fsize);
+
+	opacity: 1.;
+	overOpacity: 1.;
+
+	width: -32px;
+	height: 36px;
+
+	color: white;
+
+	textPos: point(16px, 9px);
+	downTextPos: point(16px, 10px);
+
+	duration: 0;
+}
+mvPopupMenu: PopupMenu(defaultPopupMenu) {
+	shadow: sprite(0px, 0px, 0px, 0px);
+
+	itemBg: #383838;
+	itemBgOver: #505050;
+	itemFg: white;
+	itemFgOver: white;
+	itemFgDisabled: #999;
+	itemFgShortcut: #eee;
+	itemFgShortcutOver: #fff;
+	itemFgShortcutDisabled: #999;
+
+	separatorFg: #484848;
+}
+mvContextButton: iconedButton(mvButton) {
+	bgColor: #383838E6;
+	overBgColor: #505050E7;
+}
+mvWaitHide: 2000;
+mvHideDuration: 1000;
+mvShowDuration: 200;
+mvFadeDuration: 150;
+
+mvDocPadding: 18px;
+mvDocSize: size(340px, 116px);
+mvDocBg: white;
+mvDocNameTop: 4px;
+mvDocNameFont: font(semibold 14px);
+mvDocNameColor: black;
+mvDocSizeTop: 29px;
+mvDocSizeColor: #808080;
+mvDocExtTop: 35px;
+mvDocExtFont: font(semibold 18px);
+mvDocExtColor: white;
+mvDocExtPadding: 10px;
+mvDocLinksTop: 57px;
+mvDocRed: sprite(0px, 400px, 25px, 25px);
+mvDocYellow: sprite(25px, 400px, 25px, 25px);
+mvDocGreen: sprite(50px, 400px, 25px, 25px);
+mvDocBlue: sprite(75px, 400px, 25px, 25px);
+mvDocIconSize: 80px;
+
+mvDocLink: linkButton(btnDefLink) {
+	color: #4595d3;
+	overColor: #4595d3;
+	downColor: #4595d3;
+}
+
+mvDeltaFromLastAction: 5px;
+mvSwipeDistance: 80px;
+
+mvCaptionPadding: margins(18px, 10px, 18px, 10px);
+mvCaptionMargin: size(11px, 11px);
+mvCaptionRadius: 2px;
+mvCaptionBg: #11111180;
+mvCaptionFont: font(fsize);
+
+medviewSaveMsgCheck: sprite(311px, 309px, 22px, 18px);
+medviewSaveMsgFont: font(16px);
+medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
+medviewSaveMsgCheckPos: point(23px, 21px);
+medviewSaveMsgShowing: 200;
+medviewSaveMsgShown: 2000;
+medviewSaveMsgHiding: 2500;
+medviewSaveMsg: #000000b2;
+
+mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
+
+// Mac specific
+
+macAccessoryWidth: 450.;
+macAccessoryHeight: 90.;
+macEnableFilterAdd: 2;
+macEnableFilterTop: 5;
+macSelectorTop: 6;
+macAlwaysThisAppTop: 4;
+macAppHintTop: 8;
+macCautionIconSize: 16;
+
+btnContext: iconedButton(btnDefIconed) {
+	bgColor: white;
+	overBgColor: btnWhiteHover;
+	font: font(14px);
+
+	opacity: 1.;
+	overOpacity: 1.;
+
+	width: -32px;
+	height: 36px;
+
+	color: black;
+
+	textPos: point(16px, 7px);
+	downTextPos: point(16px, 8px);
+}
+
+photoLoader: size(52px, 22px);
+photoLoaderBg: #00000054;
+photoLoaderCnt: 3;
+photoLoaderPoint: size(6px, 6px);
+photoLoaderSkip: 6px;
+photoLoaderPeriod: 600; // ms full period
+photoLoaderDelta: 150; // ms between points
+photoLoaderDuration1: 150; // ms fade in
+photoLoaderDuration2: 150; // ms fade out
+photoLoaderAlphaMin: 0.1; // not less than that
+
+radialSize: size(50px, 50px);
+radialLine: 2px;
+radialDuration: 350;
+radialPeriod: 3000;
+radialBgOpacity: 0.4;
+radialDownload: sprite(346px, 0px, 50px, 50px);
+radialDownloadOpacity: 0.8;
+radialCancel: sprite(378px, 50px, 18px, 18px);
+radialCancelOpacity: 1.0;
+
+mediaviewLoader: size(78px, 33px);
+mediaviewLoaderPoint: size(9px, 9px);
+mediaviewLoaderSkip: 9px;
+
+downloadPathSkip: 10px;
+
+usernamePadding: margins(23px, 22px, 21px, 12px);
+usernameSkip: 49px;
+usernameTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+usernameDefaultFg: #777;
+
+youtubeIcon: sprite(116px, 338px, 72px, 50px);
+videoIcon: sprite(0px, 340px, 60px, 60px);
+locationSize: size(320px, 240px);
+
+boxOptionListPadding: margins(2px, 20px, 2px, 2px);
+
+langsWidth: 256px;
+langsButton: Radiobutton(defaultRadiobutton) {
+	width: 200px;
+}
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(boxScroll) {
+	width: 10px;
+	deltax: 3px;
+	deltat: 10px;
+	deltab: 0px;
+}
+
+passcodeHeaderFont: font(19px);
+passcodeHeaderHeight: 80px;
+passcodeInput: flatInput(inpIntroPhone) {
+}
+passcodeSubmit: flatButton(btnIntroNext) {
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+	width: 225px;
+	font: font(19px);
+	overFont: font(19px);
+}
+passcodeSubmitSkip: 40px;
+passcodePadding: margins(0px, 22px, 0px, 3px);
+passcodeSkip: 31px;
+
+mentionHeight: 40px;
+mentionScroll: flatScroll(scrollDef) {
+	topsh: 0px;
+	bottomsh: 0px;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionPhotoSize: msgPhotoSize;
+mentionBgOver: #f5f5f5;
+mentionFg: #777;
+mentionFgOver: #707070;
+mentionFgActive: #0080c0;
+mentionFgOverActive: #0077b3;
+
+sessionsScroll: flatScroll(boxScroll) {
+	deltax: 5px;
+	width: 14px;
+}
+sessionsHeight: 440px;
+sessionHeight: 70px;
+sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
+sessionCurrentHeight: 118px;
+sessionPadding: margins(21px, 10px, 21px, 0px);
+sessionNameFont: msgNameFont;
+sessionActiveFont: msgDateFont;
+sessionActiveColor: #aaa;
+sessionInfoFont: msgFont;
+sessionInfoColor: dlgTextColor;
+sessionTerminateTop: 30px;
+sessionTerminateSkip: 18px;
+sessionTerminate: iconedButton(notifyClose) {
+	iconPos: point(3px, 3px);
+	downIconPos: point(3px, 4px);
+	width: 16px;
+	height: 16px;
+}
+
+webPageLeft: 10px;
+webPageBar: 2px;
+webPageTitleFont: semiboldFont;
+webPageDescriptionFont: normalFont;
+webPagePhotoSkip: 5px;
+webPagePhotoSize: 100px;
+webPagePhotoDelta: 8px;
+
+botDescSkip: 8px;
+
+suppressAll: 0.2;
+suppressSong: 0.05;
+
+playerHeight: 44px;
+playerBg: #e4e9ef;
+playerFg: #54748f;
+playerTimeFg: #a4afba;
+playerLineHeight: 3px;
+playerMoverSize: size(2px, 7px);
+playerLineActive: #6389a8;
+playerLineInactive: #bac7d4;
+playerSkip: 8px;
+playerNameStyle: textStyle(defaultTextStyle) {
+	linkFg: #6389a8;
+	linkFgDown: #6389a8;
+	linkFlags: semiboldFont;
+	linkFlagsOver: semiboldFont;
+}
+playerPlay: sprite(377px, 109px, 19px, 22px);
+playerPause: sprite(379px, 131px, 17px, 20px);
+playerNext: sprite(374px, 151px, 22px, 14px);
+playerPrev: sprite(374px, 165px, 22px, 14px);
+playerClose: sprite(361px, 97px, 12px, 12px);
+playerFull: sprite(365px, 109px, 12px, 12px);
+playerRepeat: sprite(365px, 121px, 12px, 14px);
+playerVolume: sprite(352px, 179px, 44px, 12px);
+playerInactiveOpacity: 0.8;
+playerUnavailableOpacity: 0.3;
+playerDuration: 200;
+
+inlineResultsLeft: 11px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineThumbSize: 64px;
+inlineThumbSkip: 10px;
+inlineDescriptionFg: #8a8a8a;
+inlineRowMargin: 6px;
+inlineRowBorder: 1px;
+inlineRowBorderFg: #eaeaea;
+inlineRowFileNameTop: 2px;
+inlineRowFileDescriptionTop: 23px;
+inlineResultsMinWidth: 64px;
+inlineDurationMargin: 3px;
+
+editTextArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 256px;
+}
+
+toastFont: normalFont;
+toastMaxWidth: 480px;
+toastMinMargin: 13px;
+toastBg: medviewSaveMsg;
+toastFg: #FFF;
+toastPadding: margins(19px, 13px, 19px, 12px);
+toastFadeInDuration: 200;
+toastFadeOutDuration: 1000;
+
+infoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
+}

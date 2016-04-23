@@ -62,7 +62,7 @@ public:
 
 	void setBlueTitle(bool blue);
 	void raiseShadow();
-	
+
 public slots:
 
 	void onClose();
@@ -115,7 +115,7 @@ public:
 
 	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 	void resizeEvent(QResizeEvent *e);
-	
+
 protected:
 
 	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);

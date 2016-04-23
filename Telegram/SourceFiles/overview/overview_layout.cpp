@@ -21,15 +21,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "overview/overview_layout.h"
 
+#include "styles/style_overview.h"
+#include "ui/filedialog.h"
+#include "boxes/addcontactbox.h"
+#include "boxes/confirmbox.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwindow.h"
-#include "ui/filedialog.h"
 #include "playerwidget.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
 #include "audio.h"
 #include "localstorage.h"
 
@@ -139,6 +140,21 @@ void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 }
 
+namespace {
+
+void paintPhotoVideoCheck(Painter &p, int width, int height, bool selected) {
+	int checkPosX = width - st::overviewPhotoCheck.width();
+	int checkPosY = height - st::overviewPhotoCheck.height();
+	if (selected) {
+		p.fillRect(QRect(0, 0, width, height), st::overviewPhotoSelectOverlay);
+		st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width);
+	} else {
+		st::overviewPhotoCheck.paint(p, QPoint(checkPosX, checkPosY), width);
+	}
+}
+
+} // namespace
+
 Photo::Photo(PhotoData *photo, HistoryItem *parent) : ItemBase(parent)
 , _data(photo)
 , _link(new PhotoOpenClickHandler(photo))
@@ -160,7 +176,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 }
 
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
-	bool good = _data->loaded();
+	bool good = _data->loaded(), selected = (selection == FullSelection);
 	if (!good) {
 		_data->medium->automaticLoad(_parent);
 		good = _data->medium->loaded();
@@ -197,12 +213,8 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	} else {
 		p.drawPixmap(0, 0, _pix);
 	}
-
-	if (selection == FullSelection) {
-		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
-		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
-	} else if (context->selecting) {
-		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
+	if (selected || context->selecting) {
+		paintPhotoVideoCheck(p, _width, _height, selected);
 	}
 }
 
@@ -335,11 +347,8 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 		}
 	}
-
-	if (selected) {
-		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
-	} else if (context->selecting) {
-		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
+	if (selected || context->selecting) {
+		paintPhotoVideoCheck(p, _width, _height, selected);
 	}
 }
 
@@ -1060,9 +1069,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 
 		if (selection == FullSelection) {
 			App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::overviewPhotoSelectOverlay, PhotoSelectOverlayCorners);
-			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoChecked);
+			st::overviewLinksChecked.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksChecked.width(), top + st::dlgPhotoSize - st::overviewLinksChecked.height()), _width);
 		} else if (context->selecting) {
-			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoCheck);
+			st::overviewLinksCheck.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksCheck.width(), top + st::dlgPhotoSize - st::overviewLinksCheck.height()), _width);
 		}
 	}
 

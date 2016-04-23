@@ -273,7 +273,7 @@ MaskedButton::MaskedButton(QWidget *parent, const style::iconedButton &st, const
 }
 
 void MaskedButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	p.setOpacity(_opacity);
 
@@ -291,7 +291,7 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 	if (i.pxWidth()) {
 		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
 		p.fillRect(QRect(t, QSize(i.pxWidth(), i.pxHeight())), a_bg.current());
-		p.drawPixmap(t, App::sprite(), i);
+		p.drawSprite(t, i);
 	}
 }
 
@@ -301,7 +301,7 @@ EmojiButton::EmojiButton(QWidget *parent, const style::iconedButton &st) : Icone
 }
 
 void EmojiButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	uint64 ms = getms();
 	float64 loading = a_loading.current(ms, _loading ? 1 : 0);
@@ -311,10 +311,10 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	p.setOpacity(a_opacity.current() * _opacity * (1 - loading));
 
-	const QRect &i((_state & StateDown) ? _st.downIcon : _st.icon);
-	if (i.width()) {
+	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (!i.isEmpty()) {
 		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
-		p.drawPixmap(t, App::sprite(), i);
+		p.drawSprite(t, i);
 	}
 
 	p.setOpacity(a_opacity.current() * _opacity);
@@ -375,7 +375,7 @@ void BoxButton::resizeToText() {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _textWidth + (_st.height - _st.font->height)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1.));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);

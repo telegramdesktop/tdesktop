@@ -251,7 +251,6 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 ###Building Telegram Desktop
 
 * Launch Xcode, all projects will be taken from **/Users/user/TBuild/tdesktop/Telegram**
-* Open MetaStyle.xcodeproj and build for Debug (Release optionally)
 * Open MetaEmoji.xcodeproj and build for Debug (Release optionally)
 * Open MetaLang.xcodeproj and build for Debug (Release optionally)
 * Open Telegram.xcodeproj and build for Debug

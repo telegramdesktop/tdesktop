@@ -153,7 +153,7 @@ public:
 	void updateAdaptiveLayout();
 	bool needBackButton();
 
-	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	Window::TopBarWidget *topBar();
 
 	PlayerWidget *player();

@@ -1,0 +1,413 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+
+textStyle {
+	linkFlags: font;
+	linkFlagsOver: font;
+	linkFg: color;
+	linkFgDown: color;
+	monoFg: color;
+	selectBg: color;
+	selectOverlay: color;
+	lineHeight: pixels;
+}
+
+linkButton {
+	color: color;
+	overColor: color;
+	downColor: color;
+	font: font;
+	overFont: font;
+}
+
+sysButton {
+	size: size;
+	img: sprite;
+	color: color;
+	overColor: color;
+	duration: int;
+}
+
+flatButton {
+	color: color;
+	overColor: color;
+	downColor: color;
+
+	bgColor: color;
+	overBgColor: color;
+	downBgColor: color;
+
+	width: pixels;
+	height: pixels;
+
+	textTop: pixels;
+	overTextTop: pixels;
+	downTextTop: pixels;
+
+	font: font;
+	overFont: font;
+	duration: int;
+	cursor: cursor;
+}
+
+iconedButton {
+	icon: sprite;
+	iconPos: point;
+	downIcon: sprite;
+	downIconPos: point;
+
+	color: color;
+	bgColor: color;
+	overBgColor: color;
+	width: pixels;
+	height: pixels;
+	font: font;
+
+	opacity: double;
+	overOpacity: double;
+
+	textPos: point;
+	downTextPos: point;
+
+	duration: int;
+	cursor: cursor;
+}
+
+flatCheckbox {
+	textColor: color;
+	bgColor: color;
+	disColor: color;
+
+	width: pixels;
+	height: pixels;
+	textTop: pixels;
+	textLeft: pixels;
+	font: font;
+	duration: int;
+	bgFunc: transition;
+	cursor: cursor;
+
+	disabledCursor: cursor;
+
+	imageRect: sprite;
+	chkImageRect: sprite;
+	overImageRect: sprite;
+	chkOverImageRect: sprite;
+	disImageRect: sprite;
+	chkDisImageRect: sprite;
+
+	imagePos: point;
+}
+
+flatInput {
+	textColor: color;
+	bgColor: color;
+	bgActive: color;
+	width: pixels;
+	height: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	imgRect: sprite;
+	imgPos: point;
+
+	borderWidth: pixels;
+	borderColor: color;
+	borderActive: color;
+	borderError: color;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+	phLeftFunc: transition;
+	phAlphaFunc: transition;
+	phColorFunc: transition;
+}
+
+flatTextarea {
+	textColor: color;
+	bgColor: color;
+	width: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+	phLeftFunc: transition;
+	phAlphaFunc: transition;
+	phColorFunc: transition;
+}
+
+flatScroll {
+	barColor: color;
+	bgColor: color;
+	barOverColor: color;
+	bgOverColor: color;
+
+	round: pixels;
+
+	width: pixels;
+	minHeight: pixels;
+	deltax: pixels;
+	deltat: pixels;
+	deltab: pixels;
+
+	topsh: pixels;
+	bottomsh: pixels;
+	shColor: color;
+
+	duration: int;
+	hiding: int;
+}
+
+countryInput {
+	width: pixels;
+	height: pixels;
+	top: pixels;
+	bgColor: color;
+	ptrSize: size;
+	textMrg: margins;
+	font: font;
+	align: align;
+}
+
+slider {
+	color: color;
+	thikness: pixels;
+
+	width: pixels;
+	bar: sprite;
+}
+
+flatLabel {
+	font: font;
+	minWidth: pixels;
+	width: pixels;
+	align: align;
+}
+
+switcher {
+	border: pixels;
+	borderColor: color;
+
+	bgColor: color;
+	bgHovered: color;
+	bgActive: color;
+
+	height: pixels;
+
+	font: font;
+	textColor: color;
+	activeColor: color;
+
+	duration: int;
+}
+
+dropdown {
+	border: pixels;
+	borderColor: color;
+
+	padding: margins;
+	shadow: sprite;
+	shadowShift: pixels;
+
+	duration: int;
+	width: pixels;
+}
+
+PopupMenu {
+	skip: pixels;
+
+	shadow: sprite;
+	shadowShift: pixels;
+
+	itemBg: color;
+	itemBgOver: color;
+	itemFg: color;
+	itemFgOver: color;
+	itemFgDisabled: color;
+	itemFgShortcut: color;
+	itemFgShortcutOver: color;
+	itemFgShortcutDisabled: color;
+	itemPadding: margins;
+	itemFont: font;
+
+	separatorPadding: margins;
+	separatorWidth: pixels;
+	separatorFg: color;
+
+	arrow: sprite;
+
+	duration: int;
+
+	widthMin: pixels;
+	widthMax: pixels;
+}
+
+Tooltip {
+	textBg: color;
+	textFg: color;
+	textFont: font;
+	textBorder: color;
+	textPadding: margins;
+
+	shift: point;
+	skip: pixels;
+
+	widthMax: pixels;
+	linesMax: int;
+}
+
+botKeyboardButton {
+	margin: pixels;
+	padding: pixels;
+	height: pixels;
+	textTop: pixels;
+	downTextTop: pixels;
+}
+
+BoxButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
+	textBgOver: color;
+
+	width: pixels;
+	height: pixels;
+
+	textTop: pixels;
+
+	font: font;
+	duration: int;
+}
+
+Checkbox {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: pixels;
+	height: pixels;
+
+	textPosition: point;
+	diameter: pixels;
+	thickness: pixels;
+	checkIcon: sprite;
+
+	font: font;
+	duration: int;
+}
+
+Radiobutton {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: pixels;
+	height: pixels;
+
+	textPosition: point;
+	diameter: pixels;
+	thickness: pixels;
+	checkSkip: pixels;
+
+	font: font;
+	duration: int;
+}
+
+InputArea {
+	textFg: color;
+	textMargins: margins;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: pixels;
+
+	duration: int;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
+
+	font: font;
+
+	width: pixels;
+	heightMin: pixels;
+	heightMax: pixels;
+}
+
+InputField {
+	textFg: color;
+	textMargins: margins;
+	textAlign: align;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: pixels;
+
+	duration: int;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
+
+	font: font;
+
+	width: pixels;
+	height: pixels;
+
+	iconSprite: sprite;
+	iconPosition: point;
+}
+
+PeerAvatarButton {
+	size: pixels;
+	photoSize: pixels;
+}

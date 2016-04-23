@@ -75,10 +75,16 @@ Building
     ./configure
     make
     
-    # Build MetaStyle
-    mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
-    cd "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
-    qmake CONFIG+=debug "../../Telegram/MetaStyle.pro"
+    # Build codegen_style
+    mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+    cd "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+    qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_style/codegen_style.pro
+    make
+
+    # Build codegen_numbers
+    mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+    cd "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+    qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro
     make
     
     # Build MetaLang

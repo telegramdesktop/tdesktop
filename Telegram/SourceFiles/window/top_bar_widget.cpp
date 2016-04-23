@@ -180,7 +180,7 @@ void TopBarWidget::step_appearance(float64 ms, bool timer) {
 }
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	if (e->rect().top() < st::topBarHeight) { // optimize shadow-only drawing
 		p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);

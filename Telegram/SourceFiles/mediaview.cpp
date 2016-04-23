@@ -123,7 +123,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
 	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
 
-	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush));
+	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush.rect()));
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
 	moveToScreen();
@@ -1201,7 +1201,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
                     if (_saveMsgOpacity.current() > 0) {
 						p.setOpacity(_saveMsgOpacity.current());
 						App::roundRect(p, _saveMsg, st::medviewSaveMsg, MediaviewSaveCorners);
-						p.drawPixmap(_saveMsg.topLeft() + st::medviewSaveMsgCheckPos, App::sprite(), st::medviewSaveMsgCheck);
+						p.drawSprite(_saveMsg.topLeft() + st::medviewSaveMsgCheckPos, st::medviewSaveMsgCheck);
 
 						p.setPen(st::white->p);
 						textstyleSet(&st::medviewSaveAsTextStyle);
@@ -1300,7 +1300,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			}
 			if (_leftNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(_leftNavIcon.topLeft(), App::sprite(), st::mvLeft);
+				p.drawSprite(_leftNavIcon.topLeft(), st::mvLeft);
 			}
 		}
 
@@ -1311,12 +1311,12 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
 					QRect fill(_rightNav.intersected(rs.at(i)));
-					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+					if (!fill.isEmpty()) p.fillRect(fill, st::black);
 				}
 			}
 			if (_rightNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(_rightNavIcon.topLeft(), App::sprite(), st::mvRight);
+				p.drawSprite(_rightNavIcon.topLeft(), st::mvRight);
 			}
 		}
 
@@ -1327,12 +1327,12 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
 					QRect fill(_closeNav.intersected(rs.at(i)));
-					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+					if (!fill.isEmpty()) p.fillRect(fill, st::black);
 				}
 			}
 			if (_closeNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(_closeNavIcon.topLeft(), App::sprite(), st::mvClose);
+				p.drawSprite(_closeNavIcon.topLeft(), st::mvClose);
 			}
 		}
 
@@ -1340,14 +1340,14 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_saveVisible && _saveNavIcon.intersects(r)) {
 			float64 o = overLevel(OverSave);
 			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawPixmap(_saveNavIcon.topLeft(), App::sprite(), st::mvSave);
+			p.drawSprite(_saveNavIcon.topLeft(), st::mvSave);
 		}
 
 		// more area
 		if (_moreNavIcon.intersects(r)) {
 			float64 o = overLevel(OverMore);
 			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawPixmap(_moreNavIcon.topLeft(), App::sprite(), st::mvMore);
+			p.drawSprite(_moreNavIcon.topLeft(), st::mvMore);
 		}
 
 		p.setPen(st::white->p);
