@@ -192,32 +192,32 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run:
     make
     sudo make install
 
-####Qt 5.5.1, slightly patched
+####Qt 5.6.0, slightly patched
 #####Get the source code
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-    git clone git://code.qt.io/qt/qt5.git QtStatic
-    cd QtStatic
-    git checkout 5.5
+    git clone git://code.qt.io/qt/qt5.git qt5_6_0
+    cd qt5_6_0
+    git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.5.1
-    cd qtimageformats && git checkout v5.5.1 && cd ..
-    cd qtbase && git checkout v5.5.1 && cd ..
+    git checkout v5.6.0
+    cd qtimageformats && git checkout v5.6.0 && cd ..
+    cd qtbase && git checkout v5.6.0 && cd ..
 
 #####Apply the patch
 
-From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
+From **/Users/user/TBuild/Libraries/qt5_6_0/qtbase**, run:
 
-    git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff
 
 #####Building library
 
-Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
+Go to **/Users/user/TBuild/Libraries/qt5_6_0** and run:
 
-    ./configure -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make -j4
-    sudo make -j4 install
+    sudo make install
 
 Building (**make** command) will take a really long time.
 
@@ -243,7 +243,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     cd crashpad
     fetch crashpad
     cd crashpad/third_party/mini_chromium/mini_chromium
-    git apply ../../../../../../tdesktop/Telegram/_mini_chromium_patch.diff
+    git apply ../../../../../../tdesktop/Telegram/Patches/mini_chromium.diff
     cd ../../../
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
     ninja -C out/Release

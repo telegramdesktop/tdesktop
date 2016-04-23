@@ -213,13 +213,8 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-//#include "../../../QtStatic/qtbase/src/widgets/widgets/qwidgettextcontrol_p.h"
-
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (QMenu *menu = createStandardContextMenu()) {
-		//menu->addSeparator(); // testing two level menu
-		//QUnicodeControlCharacterMenu *ctrlCharacterMenu = new QUnicodeControlCharacterMenu(this, menu);
-		//menu->addMenu(ctrlCharacterMenu);
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }

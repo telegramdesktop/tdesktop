@@ -2018,7 +2018,11 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 QString HistoryInner::tooltipText() const {
 	if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			return App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			QString dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			//if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
+			//	dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			//}
+			return dateText;
 		}
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
@@ -6916,7 +6920,13 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			_scroll.keyPressEvent(e);
+			if (_history && _history->lastSentMsg) {
+				if (_field.getLastText().isEmpty() && !_editMsgId && !_replyToId) {
+					App::contextItem(_history->lastSentMsg);
+					onEditMessage();
+				}
+			}
+//			_scroll.keyPressEvent(e);
 		}
 	} else {
 		e->ignore();
@@ -7485,6 +7495,7 @@ void HistoryWidget::cancelForwarding() {
 }
 
 void HistoryWidget::onFieldBarCancel() {
+	Ui::hideLayer();
 	_replyForwardPressed = false;
 	if (_previewData && _previewData->pendingTill >= 0) {
 		_previewCancelled = true;
@@ -7640,6 +7651,14 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::onCancel() {
 	if (_inlineBotCancel) {
 		onInlineBotCancel();
+	} else if (_editMsgId) {
+		if (_replyEditMsg && textApplyEntities(_replyEditMsg->originalText(), _replyEditMsg->originalEntities()) != _field.getLastText()) {
+			auto box = new ConfirmBox(lang(lng_cancel_edit_post_sure), lang(lng_cancel_edit_post_yes), st::defaultBoxButton, lang(lng_cancel_edit_post_no));
+			connect(box, SIGNAL(confirmed()), this, SLOT(onFieldBarCancel()));
+			Ui::showLayer(box);
+		} else {
+			onFieldBarCancel();
+		}
 	} else if (!_attachMention.isHidden()) {
 		_attachMention.hideStart();
 	} else  {

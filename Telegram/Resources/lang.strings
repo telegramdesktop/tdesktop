@@ -599,6 +599,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In reply to";
+"lng_edited" = "Edited";
+"lng_edited_date" = "Edited: {date}";
+"lng_cancel_edit_post_sure" = "Cancel editing?";
+"lng_cancel_edit_post_yes" = "Yes";
+"lng_cancel_edit_post_no" = "No";
 
 "lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
 "lng_bot_inline_geo_unavailable" = "Sorry, this bot requires location sharing.\nIt is not available in Telegram Desktop.";

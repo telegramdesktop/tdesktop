@@ -6,13 +6,13 @@
 * Install g++ by command **sudo apt-get install g++** in Terminal
 * Install Qt Creator from [**Downloads page**](https://www.qt.io/download/)
 
-For 32 bit Ubuntu you need to install g++ version 4.8 manually by such commands
+You need to install g++ version 4.9 manually by such commands
 
 * sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 * sudo apt-get update
-* sudo apt-get install gcc-4.8 g++-4.8
-* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 20
-* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 20
+* sudo apt-get install gcc-4.9 g++-4.9
+* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 21
+* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 21
 
 ###Prepare folder
 
@@ -123,33 +123,33 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####Qt 5.5.1, slightly patched
+####Qt 5.6.0, slightly patched
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    git clone git://code.qt.io/qt/qt5.git QtStatic
-    cd QtStatic
-    git checkout 5.5
+    git clone git://code.qt.io/qt/qt5.git qt5_6_0
+    cd qt5_6_0
+    git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.5.1
-    cd qtimageformats && git checkout v5.5.1 && cd ..
-    cd qtbase && git checkout v5.5.1 && cd ..
+    git checkout v5.6.0
+    cd qtimageformats && git checkout v5.6.0 && cd ..
+    cd qtbase && git checkout v5.6.0 && cd ..
 
 #####Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
 
 #####Building library
 
-Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforms/xcb/README**)
+Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_0/qtbase/src/plugins/platforms/xcb/README**)
 
     sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev
 
-In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
+In Terminal go to **/home/user/TBuild/Libraries/qt5_6_0** and there run
 
-    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
+    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
     make -j4
-    sudo make -j4 install
+    sudo make install
 
 building (**make** command) will take really long time.
 
@@ -170,18 +170,18 @@ In Terminal go to **/home/user/TBuild/tdesktop** and run
 
     mkdir -p Linux/obj/codegen_style/Debug
     cd Linux/obj/codegen_style/Debug
-    /usr/local/Qt-5.5.1/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_style/codegen_style.pro
+    /usr/local/tdesktop/Qt-5.6.0/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_style/codegen_style.pro
     make
     mkdir -p ../../codegen_numbers/Debug
     cd ../../codegen_numbers/Debug
-    /usr/local/Qt-5.5.1/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro
+    /usr/local/tdesktop/Qt-5.6.0/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro
     make
 
 ###Building Telegram Desktop
 
 * Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**
-* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.5.1/bin/qmake > **Qt 5.5.1 (Qt-5.5.1)** > Apply
-* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.5.1 (Qt-5.5.1)** > Apply
+* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/tdesktop/Qt-5.6.0/bin/qmake > **Qt 5.6.0 (Qt-5.6.0)** > Apply
+* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.6.0 (Qt-5.6.0)** > Apply
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
 * Open Telegram.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediate** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediate** and build for Debug, if GeneratedFiles are not found click **Run qmake** from **Build** menu and try again
 * Open Updater.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateUpdater** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateUpdater** and build for Debug

@@ -87,6 +87,7 @@
 		078500361CC94D1900168DBB /* style_core_icon.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500301CC94D1900168DBB /* style_core_icon.cpp */; };
 		078500371CC94D1900168DBB /* style_core_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500321CC94D1900168DBB /* style_core_types.cpp */; };
 		0785003A1CC94D9600168DBB /* style_overview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078500381CC94D9600168DBB /* style_overview.cpp */; };
+		0785004D1CCA847400168DBB /* libqtfreetype.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 0785004C1CCA847400168DBB /* libqtfreetype.a */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
@@ -163,7 +164,6 @@
 		4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 51355181C0E6689B0B764543 /* connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		5058CB9D7BFFCE9F404A3700 /* Qt5Network in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 6700DD555BF1C0FC338FB959 /* Qt5Network */; };
 		565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 1E5EEB5782B6357057356F9E /* moc_flatinput.cpp */; settings = {ATTRIBUTES = (); }; };
-		59789101736112A570B8EFE6 /* qjp2 in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F0681BC551FC8A2B132FC646 /* qjp2 */; };
 		5CE57D44510AB2A11886AB52 /* title.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2BB2A1BB8DB0993F78F4E3C7 /* title.cpp */; settings = {ATTRIBUTES = (); }; };
 		5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 26083D8E535AFF927591E1A5 /* moc_contactsbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		60CB4898955209B665E7B07D /* moc_twidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 55A654A2EE8554FF062742B8 /* moc_twidget.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -257,7 +257,6 @@
 		F8B465CE34D8DF87AAE95913 /* CoreFoundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 4D765E1B1EA6C757220C63E7 /* CoreFoundation.framework */; };
 		F8ED42CF8679BF83227DAFC4 /* Carbon.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9DFF62A901D70814B8A323D4 /* Carbon.framework */; };
 		FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */ = {isa = PBXBuildFile; fileRef = 73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */; settings = {ATTRIBUTES = (); }; };
-		FBD56E2AC34F76BFFDB68619 /* qmng in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 83D37373949868693FB7816D /* qmng */; };
 		FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = BB1602EA641643DE565005B1 /* twidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		FD2FE0C564A7389A2E609EC7 /* moc_sysbuttons.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = B88236FC554B694F618D848C /* moc_sysbuttons.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -318,7 +317,7 @@
 /* Begin PBXFileReference section */
 		01D6341DC31FE5997F7BB159 /* file_download.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = file_download.cpp; path = SourceFiles/mtproto/file_download.cpp; sourceTree = "<absolute>"; };
 		032C1BF3E727B450A4851D48 /* emojibox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = emojibox.h; path = SourceFiles/boxes/emojibox.h; sourceTree = "<absolute>"; };
-		04391BE7A8B9D811E255100A /* Qt5Gui */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Gui; path = "/usr/local/Qt-5.3.2/lib/libQt5Gui$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		04391BE7A8B9D811E255100A /* Qt5Gui */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Gui; path = "(QT_PATH)/lib/libQt5Gui$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		047DAFB0A7DE92C63033A43C /* mainwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mainwidget.cpp; path = SourceFiles/mainwidget.cpp; sourceTree = "<absolute>"; };
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
 		0702E9A11CB8D2A8007A7495 /* serialize_common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = serialize_common.cpp; path = SourceFiles/serialize/serialize_common.cpp; sourceTree = SOURCE_ROOT; };
@@ -416,7 +415,7 @@
 		078500331CC94D1900168DBB /* style_core_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_core_types.h; path = SourceFiles/ui/style/style_core_types.h; sourceTree = SOURCE_ROOT; };
 		078500381CC94D9600168DBB /* style_overview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_overview.cpp; path = GeneratedFiles/styles/style_overview.cpp; sourceTree = SOURCE_ROOT; };
 		078500391CC94D9600168DBB /* style_overview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_overview.h; path = GeneratedFiles/styles/style_overview.h; sourceTree = SOURCE_ROOT; };
-		0785003F1CC9617100168DBB /* text.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text/text.h; sourceTree = SOURCE_ROOT; };
+		0785004C1CCA847400168DBB /* libqtfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqtfreetype.a; path = "$(QT_PATH)/lib/libqtfreetype$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
@@ -470,7 +469,7 @@
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
-		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "usr/local/Qt-5.3.2/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
+		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "$(QT_PATH)/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		07D7EABB1A597DD000838BA2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07D7EABD1A597DD200838BA2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07D7EABE1A597DD300838BA2 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -542,14 +541,14 @@
 		2C99425D7670941EAF07B453 /* moc_historywidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_historywidget.cpp; path = GeneratedFiles/Debug/moc_historywidget.cpp; sourceTree = "<absolute>"; };
 		2EA58EF6CDF368B0132BAEB9 /* settings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings.h; path = SourceFiles/settings.h; sourceTree = "<absolute>"; };
 		301BB513F2F5D447B3BF22DF /* mainwindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mainwindow.h; path = SourceFiles/mainwindow.h; sourceTree = "<absolute>"; };
-		31120EDB269DFF13E1D49847 /* qicns */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qicns; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqicns$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		31120EDB269DFF13E1D49847 /* qicns */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qicns; path = "$(QT_PATH)/plugins/imageformats/libqicns$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		315C7FACB4A9E18AA95486CA /* dcenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dcenter.cpp; path = SourceFiles/mtproto/dcenter.cpp; sourceTree = "<absolute>"; };
 		34E1DF19219C52D7DB20224A /* flatlabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatlabel.h; path = SourceFiles/ui/flatlabel.h; sourceTree = "<absolute>"; };
 		36BDA5D01BED543A92886669 /* Telegram.pro */ = {isa = PBXFileReference; lastKnownFileType = text; path = Telegram.pro; sourceTree = "<absolute>"; };
 		36F718DC72345A84987DB0F6 /* flatbutton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatbutton.h; path = SourceFiles/ui/flatbutton.h; sourceTree = "<absolute>"; };
 		3A220FD1AE5AD9FE3DC073A4 /* moc_mainwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mainwidget.cpp; path = GeneratedFiles/Debug/moc_mainwidget.cpp; sourceTree = "<absolute>"; };
 		3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_dialogswidget.cpp; path = GeneratedFiles/Debug/moc_dialogswidget.cpp; sourceTree = "<absolute>"; };
-		3BBB805F6180E363BF89151A /* qtaudio_coreaudio */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtaudio_coreaudio; path = "/usr/local/Qt-5.3.2/plugins/audio/libqtaudio_coreaudio$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		3BBB805F6180E363BF89151A /* qtaudio_coreaudio */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtaudio_coreaudio; path = "$(QT_PATH)/plugins/audio/libqtaudio_coreaudio$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		3BE70E2A82DC2BF402165ED5 /* sysbuttons.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = sysbuttons.h; path = SourceFiles/sysbuttons.h; sourceTree = "<absolute>"; };
 		3C44131FDCFEF4396B9EA2BA /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = /System/Library/Frameworks/AudioToolbox.framework; sourceTree = "<absolute>"; };
 		3D54A9F3266BB8739520E3FB /* moc_fileuploader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_fileuploader.cpp; path = GeneratedFiles/Debug/moc_fileuploader.cpp; sourceTree = "<absolute>"; };
@@ -557,7 +556,7 @@
 		420A06A32B66D250142B4B6D /* style_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = style_core.cpp; path = SourceFiles/ui/style/style_core.cpp; sourceTree = "<absolute>"; };
 		4604687EBA85611C9E8A9CDF /* button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = button.h; path = SourceFiles/ui/button.h; sourceTree = "<absolute>"; };
 		46292F489228B60010794CE4 /* moc_button.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_button.cpp; path = GeneratedFiles/Debug/moc_button.cpp; sourceTree = "<absolute>"; };
-		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "/usr/local/Qt-5.3.2/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "$(QT_PATH)/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		48003469151B9DDE82E851FB /* moc_profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_profilewidget.cpp; path = GeneratedFiles/Debug/moc_profilewidget.cpp; sourceTree = "<absolute>"; };
 		4AF15B5A0A43EB62D6DAF211 /* libexif.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexif.a; path = "../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a"; sourceTree = "<absolute>"; };
 		4D1099F2D3696E8A0E17D37D /* session.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = session.h; path = SourceFiles/mtproto/session.h; sourceTree = "<absolute>"; };
@@ -578,7 +577,7 @@
 		59E514973BA9BF6599252DDC /* flattextarea.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flattextarea.h; path = SourceFiles/ui/flattextarea.h; sourceTree = "<absolute>"; };
 		5A5431331A13AA7B07414240 /* stdafx.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = stdafx.cpp; path = SourceFiles/stdafx.cpp; sourceTree = "<absolute>"; };
 		5A7F88F9C7F08D3DDE6EEF6B /* localimageloader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = localimageloader.cpp; path = SourceFiles/localimageloader.cpp; sourceTree = "<absolute>"; };
-		5A80A1907B6CFFB524C1E57D /* Qt5Core */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Core; path = "/usr/local/Qt-5.3.2/lib/libQt5Core$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		5A80A1907B6CFFB524C1E57D /* Qt5Core */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Core; path = "$(QT_PATH)/lib/libQt5Core$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = layerwidget.cpp; path = SourceFiles/layerwidget.cpp; sourceTree = "<absolute>"; };
 		5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flattextarea.cpp; path = SourceFiles/ui/flattextarea.cpp; sourceTree = "<absolute>"; };
 		6011DDB120E1B2D4803E129A /* stdafx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stdafx.h; path = SourceFiles/stdafx.h; sourceTree = "<absolute>"; };
@@ -587,7 +586,7 @@
 		63AF8520023B4EA40306CB03 /* moc_session.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_session.cpp; path = GeneratedFiles/Debug/moc_session.cpp; sourceTree = "<absolute>"; };
 		6532A0DC7EFE446967682E83 /* moc_downloadpathbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_downloadpathbox.cpp; path = GeneratedFiles/Debug/moc_downloadpathbox.cpp; sourceTree = "<absolute>"; };
 		6610564B876E47D289A596DB /* confirmbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = confirmbox.cpp; path = SourceFiles/boxes/confirmbox.cpp; sourceTree = "<absolute>"; };
-		6700DD555BF1C0FC338FB959 /* Qt5Network */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Network; path = "/usr/local/Qt-5.3.2/lib/libQt5Network$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		6700DD555BF1C0FC338FB959 /* Qt5Network */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Network; path = "$(QT_PATH)/lib/libQt5Network$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		6868ADA9E9A9801B2BA92B97 /* countryinput.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = countryinput.h; path = SourceFiles/ui/countryinput.h; sourceTree = "<absolute>"; };
 		6A510365F9F6367ECB0DB065 /* images.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = images.cpp; path = SourceFiles/ui/images.cpp; sourceTree = "<absolute>"; };
 		6B46A0EE3C3B9D3B5A24946E /* moc_mainwindow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mainwindow.cpp; path = GeneratedFiles/Debug/moc_mainwindow.cpp; sourceTree = "<absolute>"; };
@@ -595,6 +594,7 @@
 		6C86B6E6AB1857B735B720D6 /* layerwidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = layerwidget.h; path = SourceFiles/layerwidget.h; sourceTree = "<absolute>"; };
 		6D50D70712776D7ED3B00E5C /* facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = facade.cpp; path = SourceFiles/mtproto/facade.cpp; sourceTree = "<absolute>"; };
 		6E1859D714E4471E053D90C9 /* scrollarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = scrollarea.cpp; path = SourceFiles/ui/scrollarea.cpp; sourceTree = "<absolute>"; };
+		6E8FD0ED1B60D43929944CD2 /* text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = text.h; path = SourceFiles/ui/text/text.h; sourceTree = "<absolute>"; };
 		710C982FC773400941B3AFBC /* dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dropdown.cpp; path = SourceFiles/dropdown.cpp; sourceTree = "<absolute>"; };
 		723F90793B2C195E2CCB2233 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };
@@ -609,7 +609,6 @@
 		81780025807318AEA3B8A6FF /* moc_addcontactbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_addcontactbox.cpp; path = GeneratedFiles/Debug/moc_addcontactbox.cpp; sourceTree = "<absolute>"; };
 		83728F60A64483E0AA933D76 /* pspecific.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pspecific.h; path = SourceFiles/pspecific.h; sourceTree = "<absolute>"; };
 		83A36F229E897566E011B79E /* scrollarea.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scrollarea.h; path = SourceFiles/ui/scrollarea.h; sourceTree = "<absolute>"; };
-		83D37373949868693FB7816D /* qmng */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qmng; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqmng$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		85FABD67716E36CD8B3CA4FA /* animation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = animation.h; path = SourceFiles/ui/animation.h; sourceTree = "<absolute>"; };
 		8880067F9BFD46108777E134 /* facade.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = facade.h; path = SourceFiles/mtproto/facade.h; sourceTree = "<absolute>"; };
 		8918F4B71ED5FC138AFD3F70 /* moc_scrollarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_scrollarea.cpp; path = GeneratedFiles/Debug/moc_scrollarea.cpp; sourceTree = "<absolute>"; };
@@ -619,18 +618,18 @@
 		8B98A212C068D6CC7CE73CAA /* moc_introcode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_introcode.cpp; path = GeneratedFiles/Debug/moc_introcode.cpp; sourceTree = "<absolute>"; };
 		8C800AAC9549E6E9E7046BED /* contactsbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = contactsbox.cpp; path = SourceFiles/boxes/contactsbox.cpp; sourceTree = "<absolute>"; };
 		8CCCACE96535180FEB557712 /* settingswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = settingswidget.cpp; path = SourceFiles/settingswidget.cpp; sourceTree = "<absolute>"; };
-		8CF51323544B886B8F4A2232 /* qwbmp */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qwbmp; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqwbmp$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		8CF51323544B886B8F4A2232 /* qwbmp */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qwbmp; path = "$(QT_PATH)/plugins/imageformats/libqwbmp$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		8D9815BDB5BD9F90D2BC05C5 /* AGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AGL.framework; path = /System/Library/Frameworks/AGL.framework; sourceTree = "<absolute>"; };
 		8DF456E9A416E4C3C2D6946C /* downloadpathbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = downloadpathbox.cpp; path = SourceFiles/boxes/downloadpathbox.cpp; sourceTree = "<absolute>"; };
 		8EB83A4D34226609E79A613A /* connectionbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = connectionbox.h; path = SourceFiles/boxes/connectionbox.h; sourceTree = "<absolute>"; };
-		8F500B5166907B6D9A7C3E3D /* qico */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qico; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqico$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		8F500B5166907B6D9A7C3E3D /* qico */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qico; path = "$(QT_PATH)/plugins/imageformats/libqico$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		924D4939FD169BB4B8AEB1C9 /* moc_facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_facade.cpp; path = GeneratedFiles/Debug/moc_facade.cpp; sourceTree = "<absolute>"; };
 		93AFE74928551FC3D7E8390B /* moc_settingswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_settingswidget.cpp; path = GeneratedFiles/Debug/moc_settingswidget.cpp; sourceTree = "<absolute>"; };
 		963123025C466CB8DD9CF4AF /* connection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = connection.h; path = SourceFiles/mtproto/connection.h; sourceTree = "<absolute>"; };
 		96ACDDE3DCB798B97F9EA2F4 /* file_download.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file_download.h; path = SourceFiles/mtproto/file_download.h; sourceTree = "<absolute>"; };
 		9742F24EE18EA44D52824F1E /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
 		974DB34EEB8F83B91614C0B0 /* logs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = logs.cpp; path = SourceFiles/logs.cpp; sourceTree = "<absolute>"; };
-		9A55B8F7C143D66AD9EAE304 /* qgenericbearer */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qgenericbearer; path = "/usr/local/Qt-5.3.2/plugins/bearer/libqgenericbearer$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		9A55B8F7C143D66AD9EAE304 /* qgenericbearer */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qgenericbearer; path = "$(QT_PATH)/plugins/bearer/libqgenericbearer$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		9A69B711DE4B9C89BA803750 /* moc_aboutbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_aboutbox.cpp; path = GeneratedFiles/Debug/moc_aboutbox.cpp; sourceTree = "<absolute>"; };
 		9AB1479D7D63386FD2046620 /* flatinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatinput.cpp; path = SourceFiles/ui/flatinput.cpp; sourceTree = "<absolute>"; };
 		9B36BB8C5B8CA7B07F3F35F0 /* fileuploader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileuploader.cpp; path = SourceFiles/fileuploader.cpp; sourceTree = "<absolute>"; };
@@ -643,14 +642,14 @@
 		A1A67BEAA744704B29168D39 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
 		A3622760CEC6D6827A25E710 /* rsa_public_key.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = rsa_public_key.h; path = SourceFiles/mtproto/rsa_public_key.h; sourceTree = "<absolute>"; };
 		A37C7E516201B0264A4CDA38 /* moc_introwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_introwidget.cpp; path = GeneratedFiles/Debug/moc_introwidget.cpp; sourceTree = "<absolute>"; };
-		A7782E2B07CB2D1D14F431B0 /* qtaccessiblewidgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtaccessiblewidgets; path = "/usr/local/Qt-5.3.2/plugins/accessible/libqtaccessiblewidgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		A7782E2B07CB2D1D14F431B0 /* qtaccessiblewidgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtaccessiblewidgets; path = "$(QT_PATH)/plugins/accessible/libqtaccessiblewidgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		A83D2C19F756D3371E5999A8 /* historywidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = historywidget.cpp; path = SourceFiles/historywidget.cpp; sourceTree = "<absolute>"; };
 		A9FF4818C6775109B3DBFA18 /* introsignup.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introsignup.cpp; path = SourceFiles/intro/introsignup.cpp; sourceTree = "<absolute>"; };
-		AA5379CB06E908AC80BE7B82 /* Qt5OpenGL */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5OpenGL; path = "/usr/local/Qt-5.3.2/lib/libQt5OpenGL$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		AA5379CB06E908AC80BE7B82 /* Qt5OpenGL */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5OpenGL; path = "$(QT_PATH)/lib/libQt5OpenGL$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		AC9B5F6FB4B984C8D76F7AE2 /* moc_dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_dropdown.cpp; path = GeneratedFiles/Debug/moc_dropdown.cpp; sourceTree = "<absolute>"; };
 		AD0C395D671BC024083A5FC7 /* localimageloader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = localimageloader.h; path = SourceFiles/localimageloader.h; sourceTree = "<absolute>"; };
 		AD90723EF02EAD016FD49CC9 /* introstart.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introstart.h; path = SourceFiles/intro/introstart.h; sourceTree = "<absolute>"; };
-		ADC6308023253CEA51F86E21 /* qwebp */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qwebp; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqwebp$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		ADC6308023253CEA51F86E21 /* qwebp */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qwebp; path = "$(QT_PATH)/plugins/imageformats/libqwebp$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		AF4585F593B1C9D0D4FD061C /* flatcheckbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatcheckbox.cpp; path = SourceFiles/ui/flatcheckbox.cpp; sourceTree = "<absolute>"; };
 		AF5776B0652744978B7DF6D3 /* langloaderplain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = langloaderplain.cpp; path = SourceFiles/langloaderplain.cpp; sourceTree = "<absolute>"; };
@@ -677,26 +676,25 @@
 		CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = profilewidget.cpp; path = SourceFiles/profilewidget.cpp; sourceTree = "<absolute>"; };
 		D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flattextarea.cpp; path = GeneratedFiles/Debug/moc_flattextarea.cpp; sourceTree = "<absolute>"; };
 		D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = photosendbox.cpp; path = SourceFiles/boxes/photosendbox.cpp; sourceTree = "<absolute>"; };
-		D3D1BE0BEA3AEE0551AD39AC /* qdds */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qdds; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqdds$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		D3D1BE0BEA3AEE0551AD39AC /* qdds */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qdds; path = "$(QT_PATH)/plugins/imageformats/libqdds$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		D3FE9C29B6A61D7C3C4B731B /* animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = animation.cpp; path = SourceFiles/ui/animation.cpp; sourceTree = "<absolute>"; };
 		D4B32C2222F82AC56BADEB21 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = /System/Library/Frameworks/OpenGL.framework; sourceTree = "<absolute>"; };
-		D53D8E6A188E05078A114294 /* qcocoa */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qcocoa; path = "/usr/local/Qt-5.3.2/plugins/platforms/libqcocoa$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
-		D6193B79CECC9DD0142D1200 /* qtharfbuzzng */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtharfbuzzng; path = "/usr/local/Qt-5.3.2/lib/libqtharfbuzzng$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		D53D8E6A188E05078A114294 /* qcocoa */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qcocoa; path = "$(QT_PATH)/plugins/platforms/libqcocoa$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		D6193B79CECC9DD0142D1200 /* qtharfbuzzng */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtharfbuzzng; path = "$(QT_PATH)/lib/libqtharfbuzzng$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		D6FF6676816C4E374D374060 /* qrc_telegram.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = qrc_telegram.cpp; path = GeneratedFiles/qrc_telegram.cpp; sourceTree = "<absolute>"; };
-		DBF506D10449BFABD45B82DA /* Qt5PrintSupport */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5PrintSupport; path = "/usr/local/Qt-5.3.2/lib/libQt5PrintSupport$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		DBF506D10449BFABD45B82DA /* Qt5PrintSupport */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5PrintSupport; path = "$(QT_PATH)/lib/libQt5PrintSupport$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		DC23E0B79FF53F35BA8F76A1 /* introsignup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introsignup.h; path = SourceFiles/intro/introsignup.h; sourceTree = "<absolute>"; };
-		DCEFD9167C239650120B0145 /* qtga */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtga; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqtga$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		DCEFD9167C239650120B0145 /* qtga */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtga; path = "$(QT_PATH)/plugins/imageformats/libqtga$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		DE4C0E3685DDAE58F9397B13 /* filedialog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = filedialog.cpp; path = SourceFiles/ui/filedialog.cpp; sourceTree = "<absolute>"; };
 		DFD7912080BC557230093752 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = /System/Library/Frameworks/ApplicationServices.framework; sourceTree = "<absolute>"; };
 		E181C525E21A16F2D4396CA7 /* moc_application.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_application.cpp; path = GeneratedFiles/Debug/moc_application.cpp; sourceTree = "<absolute>"; };
 		E466873F01ABA1E55E914489 /* dialogswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dialogswidget.cpp; path = SourceFiles/dialogswidget.cpp; sourceTree = "<absolute>"; };
-		E7B2F248E3F7970788F35BF5 /* Qt5PlatformSupport */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5PlatformSupport; path = "/usr/local/Qt-5.3.2/lib/libQt5PlatformSupport$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		E7B2F248E3F7970788F35BF5 /* Qt5PlatformSupport */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5PlatformSupport; path = "$(QT_PATH)/lib/libQt5PlatformSupport$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		E908A6C86F93FA27DF70866C /* photocropbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = photocropbox.cpp; path = SourceFiles/boxes/photocropbox.cpp; sourceTree = "<absolute>"; };
-		EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qcorewlanbearer; path = "/usr/local/Qt-5.3.2/plugins/bearer/libqcorewlanbearer$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qcorewlanbearer; path = "$(QT_PATH)/plugins/bearer/libqcorewlanbearer$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		EF1AD6A66D0C28A6A15E2C30 /* introphone.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introphone.h; path = SourceFiles/intro/introphone.h; sourceTree = "<absolute>"; };
-		F0681BC551FC8A2B132FC646 /* qjp2 */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qjp2; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqjp2$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		F1A04BDB750C2AE652797B04 /* flatbutton.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatbutton.cpp; path = SourceFiles/ui/flatbutton.cpp; sourceTree = "<absolute>"; };
-		F2453BA07315EB9F34F1CD57 /* qtiff */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtiff; path = "/usr/local/Qt-5.3.2/plugins/imageformats/libqtiff$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
+		F2453BA07315EB9F34F1CD57 /* qtiff */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtiff; path = "$(QT_PATH)/plugins/imageformats/libqtiff$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		F26998DF735BCE5F975508ED /* CoreWLAN.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreWLAN.framework; path = /System/Library/Frameworks/CoreWLAN.framework; sourceTree = "<absolute>"; };
 		F4EECA1187A744AEF5165243 /* pspecific_mac.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pspecific_mac.cpp; path = SourceFiles/pspecific_mac.cpp; sourceTree = "<absolute>"; };
 		F80095A026AF9453E9C2B8BD /* settingswidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settingswidget.h; path = SourceFiles/settingswidget.h; sourceTree = "<absolute>"; };
@@ -738,8 +736,6 @@
 				A9563D9C9FD0D76FAAF1CA96 /* qdds in Link Binary With Libraries */,
 				7CA5405B8503BFFC60932D2B /* qicns in Link Binary With Libraries */,
 				496FD9CEEB508016AFB9F928 /* qico in Link Binary With Libraries */,
-				59789101736112A570B8EFE6 /* qjp2 in Link Binary With Libraries */,
-				FBD56E2AC34F76BFFDB68619 /* qmng in Link Binary With Libraries */,
 				7F76437B577F737145996DC3 /* qtga in Link Binary With Libraries */,
 				C06DDE378A7AC1FA9E6FF69A /* qtiff in Link Binary With Libraries */,
 				A3F8F2284013928A02AE5C38 /* qwbmp in Link Binary With Libraries */,
@@ -852,7 +848,7 @@
 				076B1C4B1CBFBF59002C0BC2 /* text_entity.cpp */,
 				076B1C4C1CBFBF59002C0BC2 /* text_entity.h */,
 				135FD3715BFDC50AD7B00E04 /* text.cpp */,
-				0785003F1CC9617100168DBB /* text.h */,
+				6E8FD0ED1B60D43929944CD2 /* text.h */,
 			);
 			name = text;
 			sourceTree = "<group>";
@@ -1348,8 +1344,6 @@
 				D3D1BE0BEA3AEE0551AD39AC /* qdds */,
 				31120EDB269DFF13E1D49847 /* qicns */,
 				8F500B5166907B6D9A7C3E3D /* qico */,
-				F0681BC551FC8A2B132FC646 /* qjp2 */,
-				83D37373949868693FB7816D /* qmng */,
 				DCEFD9167C239650120B0145 /* qtga */,
 				F2453BA07315EB9F34F1CD57 /* qtiff */,
 				8CF51323544B886B8F4A2232 /* qwbmp */,
@@ -1845,7 +1839,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.45;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1864,7 +1857,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.9.45;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1892,10 +1884,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.45;
+				CURRENT_PROJECT_VERSION = "$(TDESKTOP_VERSION)";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.45;
+				DYLIB_COMPATIBILITY_VERSION = "$(TDESKTOP_MAJOR_VERSION)";
+				DYLIB_CURRENT_VERSION = "$(TDESKTOP_VERSION)";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1912,23 +1904,18 @@
 				GCC_WARN_UNUSED_FUNCTION = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
-					./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.2/QtGui,
-					./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.2/QtCore,
-					./../../Libraries/QtStatic/qtbase/include,
 					./SourceFiles,
 					./GeneratedFiles,
 					/usr/local/include,
+					"$(QT_PATH)/include",
+					"$(QT_PATH)/include/QtGui/5.3.2/QtGui",
+					"$(QT_PATH)/include/QtCore/5.3.2/QtCore",
+					"$(QT_PATH)/mkspecs/macx-clang",
 					./../../Libraries/opus/include,
 					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
-					"/usr/local/Qt-5.3.2/include",
-					"/usr/local/Qt-5.3.2/include/QtWidgets",
-					"/usr/local/Qt-5.3.2/include/QtNetwork",
-					"/usr/local/Qt-5.3.2/include/QtGui",
-					"/usr/local/Qt-5.3.2/include/QtCore",
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
-					"/usr/local/Qt-5.3.2/mkspecs/macx-clang",
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
 					./../../Libraries/crashpad/crashpad,
@@ -1940,10 +1927,10 @@
 				LIBRARY_SEARCH_PATHS = (
 					/System/Library/Frameworks/,
 					"./../../Libraries/libexif-0.6.20/libexif/.libs",
-					"/usr/local/Qt-5.3.2/lib",
-					"/usr/local/Qt-5.3.2/plugins/bearer",
-					"/usr/local/Qt-5.3.2/plugins/platforms",
-					"/usr/local/Qt-5.3.2/plugins/imageformats",
+					"$(QT_PATH)/lib",
+					"$(QT_PATH)/plugins/bearer",
+					"$(QT_PATH)/plugins/platforms",
+					"$(QT_PATH)/plugins/imageformats",
 					"./../../Libraries/openssl-xcode",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -1988,12 +1975,8 @@
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-L/usr/local/Qt-5.3.2/lib",
-					"-L/usr/local/Qt-5.3.2/plugins/bearer",
-					"-L/usr/local/Qt-5.3.2/plugins/platforms",
 					"-lcups",
 					"-lbsm",
-					"-L/usr/local/Qt-5.3.2/plugins/imageformats",
 					/usr/local/zlib_old/lib/libz.a,
 					"-lm",
 					/usr/local/openal_old/lib/libopenal.a,
@@ -2014,8 +1997,11 @@
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
+				QT_PATH = "/usr/local/Qt-5.3.2";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
+				TDESKTOP_MAJOR_VERSION = 0.9;
+				TDESKTOP_VERSION = 0.9.45;
 			};
 			name = Release;
 		};
@@ -2033,10 +2019,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.45;
+				CURRENT_PROJECT_VERSION = "$(TDESKTOP_VERSION)";
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.45;
+				DYLIB_COMPATIBILITY_VERSION = "$(TDESKTOP_MAJOR_VERSION)";
+				DYLIB_CURRENT_VERSION = "$(TDESKTOP_VERSION)";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
@@ -2054,23 +2040,18 @@
 				GCC_WARN_UNUSED_FUNCTION = NO;
 				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
-					./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.2/QtGui,
-					./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.2/QtCore,
-					./../../Libraries/QtStatic/qtbase/include,
 					./SourceFiles,
 					./GeneratedFiles,
 					/usr/local/include,
+					"$(QT_PATH)/include",
+					"$(QT_PATH)/include/QtGui/5.3.2/QtGui",
+					"$(QT_PATH)/include/QtCore/5.3.2/QtCore",
+					"$(QT_PATH)/mkspecs/macx-clang",
 					./../../Libraries/opus/include,
 					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
-					"/usr/local/Qt-5.3.2/include",
-					"/usr/local/Qt-5.3.2/include/QtWidgets",
-					"/usr/local/Qt-5.3.2/include/QtNetwork",
-					"/usr/local/Qt-5.3.2/include/QtGui",
-					"/usr/local/Qt-5.3.2/include/QtCore",
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
-					"/usr/local/Qt-5.3.2/mkspecs/macx-clang",
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
 					./../../Libraries/crashpad/crashpad,
@@ -2082,10 +2063,10 @@
 				LIBRARY_SEARCH_PATHS = (
 					/System/Library/Frameworks/,
 					"./../../Libraries/libexif-0.6.20/libexif/.libs",
-					"/usr/local/Qt-5.3.2/lib",
-					"/usr/local/Qt-5.3.2/plugins/bearer",
-					"/usr/local/Qt-5.3.2/plugins/platforms",
-					"/usr/local/Qt-5.3.2/plugins/imageformats",
+					"$(QT_PATH)/lib",
+					"$(QT_PATH)/plugins/bearer",
+					"$(QT_PATH)/plugins/platforms",
+					"$(QT_PATH)/plugins/imageformats",
 					"./../../Libraries/openssl-xcode",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -2131,12 +2112,8 @@
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-L/usr/local/Qt-5.3.2/lib",
-					"-L/usr/local/Qt-5.3.2/plugins/bearer",
-					"-L/usr/local/Qt-5.3.2/plugins/platforms",
 					"-lcups",
 					"-lbsm",
-					"-L/usr/local/Qt-5.3.2/plugins/imageformats",
 					/usr/local/zlib_old/lib/libz.a,
 					"-lm",
 					/usr/local/openal_old/lib/libopenal.a,
@@ -2157,8 +2134,11 @@
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
+				QT_PATH = "/usr/local/Qt-5.3.2";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
+				TDESKTOP_MAJOR_VERSION = 0.9;
+				TDESKTOP_VERSION = 0.9.45;
 			};
 			name = Debug;
 		};
@@ -2169,6 +2149,10 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(QT_PATH)/lib",
+				);
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
@@ -2186,6 +2170,10 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(QT_PATH)/lib",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OBJROOT = ./../Mac/DebugIntermediate;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
