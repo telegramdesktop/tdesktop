@@ -50,7 +50,7 @@ prepare() {
 
 	ln -s "$srcdir/qt5_6_0" "$srcdir/Libraries/qt5_6_0"
 	cd "$srcdir/Libraries/qt5_6_0/qtbase"
-	git apply "$srcdir/tdesktop/Telegram/_qtbase_5_6_0_patch.diff"
+	git apply "$srcdir/tdesktop/Telegram/Patches/qtbase_5_6_0.diff"
 
 	if [ ! -h "$srcdir/Libraries/breakpad" ]; then
 		ln -s "$srcdir/breakpad" "$srcdir/Libraries/breakpad"
@@ -60,6 +60,7 @@ prepare() {
 	sed -i 's/CUSTOM_API_ID//g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 	sed -i 's,LIBS += /usr/local/lib/libxkbcommon.a,,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 	sed -i 's,LIBS += /usr/local/lib/libz.a,LIBS += -lz,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
+	sed -i "s,/usr/local/tdesktop/Qt-5.6.0,$srcdir/qt,g" "$srcdir/tdesktop/Telegram/Telegram.pro"
 
 	local options=""
 
