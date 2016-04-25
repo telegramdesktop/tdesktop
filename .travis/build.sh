@@ -144,7 +144,7 @@ build() {
 }
 
 check() {
-	local filePath="$srcdir/tdesktop/Linux/Release/Telegram"
+	local filePath="$srcdir/tdesktop/Linux/Debug/Telegram"
 	if test -f "$filePath"; then
 		success_msg "Build successful done! :)"
 
