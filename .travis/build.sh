@@ -27,6 +27,7 @@ downloadLibs() {
 	git checkout v5.6.0
 	cd qtbase && git checkout v5.6.0 && cd ..
 	cd qtimageformats && git checkout v5.6.0 && cd ..
+	cd ..
 
 	echo -e "Clone Breakpad\n"
 	git clone https://chromium.googlesource.com/breakpad/breakpad breakpad
