@@ -18,6 +18,7 @@
 *.sdf
 *.opensdf
 *.opendb
+*.VC.db
 /Telegram/*.aps
 /Win32/
 ipch/

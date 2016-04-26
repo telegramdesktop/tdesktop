@@ -174,12 +174,15 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	}
 	_localSocket.close();
 
+// Local server does not work in WinRT build.
+#ifndef Q_OS_WINRT
 	psCheckLocalSocket(_localServerName);
 
 	if (!_localServer.listen(_localServerName)) {
 		LOG(("Failed to start listening to %1 server, error %2").arg(_localServerName).arg(int(_localServer.serverError())));
 		return App::quit();
 	}
+#endif // !Q_OS_WINRT
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {

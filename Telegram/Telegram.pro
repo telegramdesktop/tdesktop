@@ -355,9 +355,9 @@ CONFIG(debug, debug|release) {
 	QMAKE_LFLAGS_DEBUG += -g -rdynamic -static-libstdc++
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
-               ./../../Libraries/QtStatic/qtbase/include\
+INCLUDEPATH += /usr/local/tdesktop/Qt-5.6.0/include/QtGui/5.6.0/QtGui\
+               /usr/local/tdesktop/Qt-5.6.0/include/QtCore/5.6.0/QtCore\
+               /usr/local/tdesktop/Qt-5.6.0/include\
                /usr/local/include\
                /usr/local/include/opus\
                ./SourceFiles\
@@ -381,9 +381,9 @@ INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
 LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
-LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
-        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
-        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
+        /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
+        /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
 LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a

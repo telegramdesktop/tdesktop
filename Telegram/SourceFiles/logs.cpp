@@ -326,7 +326,11 @@ namespace Logs {
 			moveOldDataFrom = initialWorkingDir;
 #endif // Q_OS_LINUX && !_DEBUG
 
-#endif // Q_OS_MAC || Q_OS_LINUX
+#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
+		} else {
+			cForceWorkingDir(psAppDataPath());
+			workingDirChosen = true;
+#endif // Q_OS_WINRT
 		}
 
 		LogsData = new LogsDataFields();
@@ -341,7 +345,10 @@ namespace Logs {
 		}
 
 		cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
+// WinRT build requires the working dir to stay the same for plugin loading.
+#ifndef Q_OS_WINRT
 		QDir().setCurrent(cWorkingDir());
+#endif // !Q_OS_WINRT
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
 		Sandbox::WorkingDirReady();
