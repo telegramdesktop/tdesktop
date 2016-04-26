@@ -27,6 +27,7 @@ downloadLibs() {
 	git checkout v5.6.0
 	cd qtbase && git checkout v5.6.0 && cd ..
 	cd qtimageformats && git checkout v5.6.0 && cd ..
+	cd ..
 
 	echo -e "Clone Breakpad\n"
 	git clone https://chromium.googlesource.com/breakpad/breakpad breakpad
@@ -49,7 +50,7 @@ prepare() {
 
 	ln -s "$srcdir/qt5_6_0" "$srcdir/Libraries/qt5_6_0"
 	cd "$srcdir/Libraries/qt5_6_0/qtbase"
-	git apply "$srcdir/tdesktop/Telegram/_qtbase_5_6_0_patch.diff"
+	git apply "$srcdir/tdesktop/Telegram/Patches/qtbase_5_6_0.diff"
 
 	if [ ! -h "$srcdir/Libraries/breakpad" ]; then
 		ln -s "$srcdir/breakpad" "$srcdir/Libraries/breakpad"
@@ -143,7 +144,7 @@ build() {
 }
 
 check() {
-	local filePath="$srcdir/tdesktop/Linux/Release/Telegram"
+	local filePath="$srcdir/tdesktop/Linux/Debug/Telegram"
 	if test -f "$filePath"; then
 		success_msg "Build successful done! :)"
 
