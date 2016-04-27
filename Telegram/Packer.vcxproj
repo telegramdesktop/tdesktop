@@ -71,7 +71,7 @@
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl_debug\Debug\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
@@ -88,7 +88,7 @@
       <PreprocessorDefinitions>UNICODE;WIN32;WIN64;QT_NO_DEBUG;ZLIB_WINAPI;NDEBUG;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
@@ -106,7 +106,7 @@
       <DebugInformationFormat>
       </DebugInformationFormat>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>

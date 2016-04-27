@@ -427,10 +427,10 @@ void WorkingDirReady() {
 		cSetDebug(true);
 	}
 	if (cBetaVersion()) {
-		cSetDevVersion(false);
-	} else if (!cDevVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
-		cSetDevVersion(true);
-	} else if (DevVersion) {
+		cSetAlphaVersion(false);
+	} else if (!cAlphaVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
+		cSetAlphaVersion(true);
+	} else if (AppAlphaVersion) {
 		QFile f(cWorkingDir() + qsl("tdata/devversion"));
 		if (!f.exists() && f.open(QIODevice::WriteOnly)) {
 			f.write("1");

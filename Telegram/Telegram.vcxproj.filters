@@ -4,9 +4,6 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{df139398-6d5d-4bd5-8abe-b509b102f5d8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Version">
-      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ThirdParty">
       <UniqueIdentifier>{cda95767-f353-4a6b-a124-73632e61028a}</UniqueIdentifier>
     </Filter>
@@ -87,6 +84,12 @@
     </Filter>
     <Filter Include="SourceFiles\ui\style">
       <UniqueIdentifier>{58dd7db6-06a2-4076-964d-aec4e106c8c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OtherPlatforms">
+      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\winrc">
+      <UniqueIdentifier>{6b33ddc0-a7e2-4961-81dc-e1b5de2e2c60}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -1115,9 +1118,6 @@
     <ClInclude Include="SourceFiles\app.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\settings.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
@@ -1135,9 +1135,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
       <Filter>SourceFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\config.h">
-      <Filter>Version</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\minizip\crypt.h">
       <Filter>ThirdParty\minizip</Filter>
@@ -1270,6 +1267,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\style\style_core_icon.h">
       <Filter>SourceFiles\ui\style</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\version.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\config.h">
+      <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\winrc\resource.h">
+      <Filter>Resources\winrc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1405,9 +1411,6 @@
     <CustomBuild Include="SourceFiles\playerwidget.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.strings">
-      <Filter>Resources</Filter>
-    </CustomBuild>
     <CustomBuild Include="Resources\numbers.txt">
       <Filter>Resources</Filter>
     </CustomBuild>
@@ -1531,19 +1534,16 @@
       <Filter>Resources\langs</Filter>
     </None>
     <None Include="Telegram.xcodeproj\project.pbxproj">
-      <Filter>Version</Filter>
+      <Filter>OtherPlatforms</Filter>
     </None>
     <None Include="Telegram.plist">
-      <Filter>Version</Filter>
-    </None>
-    <None Include="Version">
-      <Filter>Version</Filter>
+      <Filter>OtherPlatforms</Filter>
     </None>
     <None Include="Telegram.xcodeproj\qt_preprocess.mak">
-      <Filter>Version</Filter>
+      <Filter>OtherPlatforms</Filter>
     </None>
     <None Include="Telegram.pro">
-      <Filter>Version</Filter>
+      <Filter>OtherPlatforms</Filter>
     </None>
     <None Include="SourceFiles\mtproto\generate.py">
       <Filter>SourceFiles\mtproto</Filter>
@@ -1554,16 +1554,23 @@
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>SourceFiles</Filter>
     </None>
+    <None Include="Resources\langs\lang.strings">
+      <Filter>Resources\langs</Filter>
+    </None>
+    <None Include="Resources\langs\download.sh">
+      <Filter>Resources\langs</Filter>
+    </None>
+    <None Include="Resources\langs\list">
+      <Filter>Resources\langs</Filter>
+    </None>
+    <None Include="Resources\langs\upload.sh">
+      <Filter>Resources\langs</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">
       <Filter>Resources</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Telegram.rc">
-      <Filter>Version</Filter>
-    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <CodegenStyleItem Include="Resources\all_files.style">
@@ -1578,5 +1585,10 @@
     <CodegenStyleItem Include="SourceFiles\overview\overview.style">
       <Filter>SourceFiles\overview</Filter>
     </CodegenStyleItem>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resources\winrc\Telegram.rc">
+      <Filter>Resources\winrc</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

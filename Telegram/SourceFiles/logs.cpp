@@ -326,7 +326,11 @@ namespace Logs {
 			moveOldDataFrom = initialWorkingDir;
 #endif // Q_OS_LINUX && !_DEBUG
 
-#endif // Q_OS_MAC || Q_OS_LINUX
+#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
+		} else {
+			cForceWorkingDir(psAppDataPath());
+			workingDirChosen = true;
+#endif // Q_OS_WINRT
 		}
 
 		LogsData = new LogsDataFields();
@@ -341,7 +345,10 @@ namespace Logs {
 		}
 
 		cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
+// WinRT build requires the working dir to stay the same for plugin loading.
+#ifndef Q_OS_WINRT
 		QDir().setCurrent(cWorkingDir());
+#endif // !Q_OS_WINRT
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
 		Sandbox::WorkingDirReady();
@@ -352,7 +359,7 @@ namespace Logs {
 			LogsData = 0;
 		}
 
-		LOG(("Launched version: %1, dev: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cDevVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
+		LOG(("Launched version: %1, alpha: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cAlphaVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
 		LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 		LOG(("Initial working dir: %1").arg(initialWorkingDir));
 		LOG(("Working dir: %1").arg(cWorkingDir()));
@@ -926,7 +933,7 @@ namespace internal {
 
 		ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 		ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
-		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cDevVersion() ? qsl("%1 dev") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
+		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cAlphaVersion() ? qsl("%1 alpha") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
 		ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
 		ProcessAnnotations["Platform"] = cPlatformString().toUtf8().constData();
 		ProcessAnnotations["UserTag"] = QString::number(Sandbox::UserTag(), 16).toUtf8().constData();

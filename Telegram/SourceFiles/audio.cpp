@@ -781,9 +781,9 @@ void AudioCapture::stop(bool needResult) {
 }
 
 bool AudioCapture::check() {
-	if (const ALCchar *def = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		if (ALCdevice *dev = alcCaptureOpenDevice(def, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5)) {
-			alcCaptureCloseDevice(dev);
+	if (auto defaultDevice = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
+		if (auto device = alcCaptureOpenDevice(defaultDevice, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5)) {
+			alcCaptureCloseDevice(device);
 			return _checkALCError();
 		}
 	}

@@ -44,8 +44,8 @@ CONFIG(release, debug|release) {
 }
 
 codegen_lang.target = lang_target
-codegen_lang.depends = ./../../Telegram/Resources/lang.strings
-codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./GeneratedFiles/lang_auto
+codegen_lang.depends = ./../../Telegram/Resources/langs/lang.strings
+codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
 
 QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang
 
@@ -241,6 +241,7 @@ HEADERS += \
     ./SourceFiles/core/basic_types.h \
     ./SourceFiles/core/click_handler.h \
     ./SourceFiles/core/click_handler_types.h \
+	./SourceFiles/core/version.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
     ./SourceFiles/dialogs/dialogs_layout.h \
@@ -397,7 +398,7 @@ OTHER_FILES += \
     ./Resources/basic_types.style \
     ./Resources/basic.style \
     ./Resources/all_files.style \
-    ./Resources/lang.strings \
+    ./Resources/langs/lang.strings \
     ./Resources/langs/lang_it.strings \
     ./Resources/langs/lang_es.strings \
     ./Resources/langs/lang_de.strings \

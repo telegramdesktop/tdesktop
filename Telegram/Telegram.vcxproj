@@ -17,6 +17,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B12702AD-ABFB-343A-A199-8E24837244A3}</ProjectGuid>
     <Keyword>Qt4VSv1.0</Keyword>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -54,17 +55,14 @@
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
     <CustomBuildBeforeTargets>
     </CustomBuildBeforeTargets>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -1137,7 +1135,11 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="SourceFiles\pspecific_win.cpp" />
+    <ClCompile Include="SourceFiles\pspecific_win.cpp">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\Program Files (x86)\Windows Kits\8.1\Include\winrt;C:\Program Files (x86)\Windows Kits\8.1\Include\shared;C:\Program Files (x86)\Windows Kits\8.1\Include\um;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">C:\Program Files (x86)\Windows Kits\8.1\Include\winrt;C:\Program Files (x86)\Windows Kits\8.1\Include\shared;C:\Program Files (x86)\Windows Kits\8.1\Include\um;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\Program Files (x86)\Windows Kits\8.1\Include\winrt;C:\Program Files (x86)\Windows Kits\8.1\Include\shared;C:\Program Files (x86)\Windows Kits\8.1\Include\um;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="SourceFiles\pspecific_winrt.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -1255,8 +1257,10 @@
     <ClInclude Include="GeneratedFiles\styles\style_basic.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h" />
     <ClInclude Include="GeneratedFiles\styles\style_overview.h" />
+    <ClInclude Include="Resources\winrc\resource.h" />
     <ClInclude Include="SourceFiles\core\click_handler.h" />
     <ClInclude Include="SourceFiles\core\click_handler_types.h" />
+    <ClInclude Include="SourceFiles\core\version.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_common.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_layout.h" />
@@ -1593,11 +1597,6 @@
       <Outputs>.\GeneratedFiles\numbers.cpp</Outputs>
       <Command>"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_numbers.exe" "-o.\GeneratedFiles" ".\Resources\numbers.txt"</Command>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.strings">
-      <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
-      <Outputs>.\GeneratedFiles\lang_auto.cpp</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\lang.strings" -lang_out ".\GeneratedFiles\lang_auto"</Command>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\application.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing application.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -1613,7 +1612,6 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
     <ClInclude Include="GeneratedFiles\lang_auto.h" />
-    <ClInclude Include="resource.h" />
     <CustomBuild Include="SourceFiles\apiwrap.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing apiwrap.h...</Message>
@@ -2163,13 +2161,13 @@
     <CustomBuild Include="SourceFiles\pspecific_win.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing pspecific_win.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl_debug\Debug\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS  "-IC:\Program Files (x86)\Windows Kits\8.1\Include\winrt" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\shared" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\um" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl_debug\Debug\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing pspecific_win.h...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing pspecific_win.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-IC:\Program Files (x86)\Windows Kits\8.1\Include\winrt" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\shared" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\um" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-IC:\Program Files (x86)\Windows Kits\8.1\Include\winrt" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\shared" "-IC:\Program Files (x86)\Windows Kits\8.1\Include\um" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/pspecific_win.h"</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
@@ -2358,15 +2356,16 @@
     <Image Include="Resources\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Telegram.rc" />
-  </ItemGroup>
-  <ItemGroup>
+    <None Include="Resources\langs\download.sh" />
+    <None Include="Resources\langs\lang.strings" />
     <None Include="Resources\langs\lang_de.strings" />
     <None Include="Resources\langs\lang_es.strings" />
     <None Include="Resources\langs\lang_it.strings" />
     <None Include="Resources\langs\lang_ko.strings" />
     <None Include="Resources\langs\lang_nl.strings" />
     <None Include="Resources\langs\lang_pt_BR.strings" />
+    <None Include="Resources\langs\list" />
+    <None Include="Resources\langs\upload.sh" />
     <None Include="SourceFiles\mtproto\generate.py" />
     <None Include="SourceFiles\mtproto\scheme.tl" />
     <None Include="SourceFiles\pspecific_mac_p.mm">
@@ -2378,7 +2377,6 @@
     <None Include="Telegram.pro" />
     <None Include="Telegram.xcodeproj\project.pbxproj" />
     <None Include="Telegram.xcodeproj\qt_preprocess.mak" />
-    <None Include="Version" />
   </ItemGroup>
   <ItemGroup>
     <CodegenStyleItem Include="Resources\all_files.style">
@@ -2389,6 +2387,9 @@
     <CodegenStyleItem Include="Resources\basic.style" />
     <CodegenStyleItem Include="Resources\basic_types.style" />
     <CodegenStyleItem Include="SourceFiles\overview\overview.style" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resources\winrc\Telegram.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
