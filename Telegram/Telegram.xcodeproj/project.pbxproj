@@ -1526,7 +1526,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"$CRASHPAD_PATH/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
 		};
 		0747FF741CC6408600096FC3 /* Generate styles */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1931,14 +1931,14 @@
 					"$(QT_PATH)/include/QtCore/5.6.0/QtCore",
 					"$(QT_PATH)/mkspecs/macx-clang",
 					./../../Libraries/opus/include,
-					"./../../Libraries/openal-soft/include",
+					"$(OPENAL_PATH)/include",
 					"./../../Libraries/libexif-0.6.20",
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
-					./../../Libraries/crashpad/crashpad,
-					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					"$(CRASHPAD_PATH)",
+					"$(CRASHPAD_PATH)/third_party/mini_chromium/mini_chromium",
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Release/;
@@ -1994,27 +1994,32 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					/usr/local/lib/libz.a,
+					"$(ZLIB_PATH)/lib/libz.a",
 					"-lm",
-					/usr/local/lib/libopenal.a,
+					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
-					/usr/local/lib/libavcodec.a,
-					/usr/local/lib/libavformat.a,
-					/usr/local/lib/libswscale.a,
-					/usr/local/lib/libswresample.a,
-					/usr/local/lib/libavutil.a,
-					/usr/local/lib/libiconv.a,
+					"$(FFMPEG_PATH)/lib/libavcodec.a",
+					"$(FFMPEG_PATH)/lib/libavformat.a",
+					"$(FFMPEG_PATH)/lib/libswscale.a",
+					"$(FFMPEG_PATH)/lib/libswresample.a",
+					"$(FFMPEG_PATH)/lib/libavutil.a",
+					"$(ICONV_PATH)/lib/libiconv.a",
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
+					"$(CRASHPAD_PATH)/out/Release/libbase.a",
+					"$(CRASHPAD_PATH)/out/Release/libcrashpad_client.a",
+					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
+				ZLIB_PATH = "/usr/local";
+				FFMPEG_PATH = "/usr/local";
+				ICONV_PATH = "/usr/local";
+				CRASHPAD_PATH = "./../../Libraries/crashpad/crashpad";
+				OPENAL_PATH = "/usr/local";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
@@ -2066,14 +2071,14 @@
 					"$(QT_PATH)/include/QtCore/5.6.0/QtCore",
 					"$(QT_PATH)/mkspecs/macx-clang",
 					./../../Libraries/opus/include,
-					"./../../Libraries/openal-soft/include",
+					"$(OPENAL_PATH)/include",
 					"./../../Libraries/libexif-0.6.20",
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
-					./../../Libraries/crashpad/crashpad,
-					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					"$(CRASHPAD_PATH)",
+					"$(CRASHPAD_PATH)/third_party/mini_chromium/mini_chromium",
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Debug/;
@@ -2130,27 +2135,32 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					/usr/local/lib/libz.a,
+					"$(ZLIB_PATH)/lib/libz.a",
 					"-lm",
-					/usr/local/lib/libopenal.a,
+					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
-					/usr/local/lib/libavcodec.a,
-					/usr/local/lib/libavformat.a,
-					/usr/local/lib/libswscale.a,
-					/usr/local/lib/libswresample.a,
-					/usr/local/lib/libavutil.a,
-					/usr/local/lib/libiconv.a,
+					"$(FFMPEG_PATH)/lib/libavcodec.a",
+					"$(FFMPEG_PATH)/lib/libavformat.a",
+					"$(FFMPEG_PATH)/lib/libswscale.a",
+					"$(FFMPEG_PATH)/lib/libswresample.a",
+					"$(FFMPEG_PATH)/lib/libavutil.a",
+					"$(ICONV_PATH)/lib/libiconv.a",
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
+					"$(CRASHPAD_PATH)/out/Release/libbase.a",
+					"$(CRASHPAD_PATH)/out/Release/libcrashpad_client.a",
+					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
+				ZLIB_PATH = "/usr/local";
+				FFMPEG_PATH = "/usr/local";
+				ICONV_PATH = "/usr/local";
+				CRASHPAD_PATH = "./../../Libraries/crashpad/crashpad";
+				OPENAL_PATH = "/usr/local";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
