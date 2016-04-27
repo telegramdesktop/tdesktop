@@ -473,6 +473,7 @@
 		07C8FE0D1CB80890007A8702 /* toast.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = toast.h; path = SourceFiles/ui/toast/toast.h; sourceTree = SOURCE_ROOT; };
 		07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_toast_manager.cpp; path = GeneratedFiles/Debug/moc_toast_manager.cpp; sourceTree = SOURCE_ROOT; };
 		07CAACD71AEA64F00058E508 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
+		07D518D41CD0E27600F5FF59 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = SourceFiles/core/version.h; sourceTree = SOURCE_ROOT; };
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
@@ -875,6 +876,7 @@
 				076B1C511CBFC6F2002C0BC2 /* click_handler_types.h */,
 				076B1C521CBFC6F2002C0BC2 /* click_handler.cpp */,
 				076B1C531CBFC6F2002C0BC2 /* click_handler.h */,
+				07D518D41CD0E27600F5FF59 /* version.h */,
 			);
 			name = core;
 			sourceTree = "<group>";

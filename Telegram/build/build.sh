@@ -69,13 +69,13 @@ elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../../Mac/Release"
+  ReleasePath="$HomePath/../Mac/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac32" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.6 and 10.7.."
   UpdateFile="tmac32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../../Mac/Release"
+  ReleasePath="$HomePath/../Mac/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$BetaVersion" != "0" ]; then
@@ -83,7 +83,7 @@ elif [ "$BuildTarget" == "macstore" ]; then
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
-  ReleasePath="$HomePath/../../Mac/Release"
+  ReleasePath="$HomePath/../Mac/Release"
   BinaryName="Telegram Desktop"
   DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
   DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
