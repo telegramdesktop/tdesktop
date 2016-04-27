@@ -893,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "BOTS 2.0\n\n— Apresentamos a API para bots 2.0, a maior atualização de nossa plataforma para bots desde junho de 2015.\n— A partir de agora, os bots podem atualizar as mensagens existentes em tempo real, assim como interagir com elas.\n— Os novos teclados integrados com callback, botões para 'Abrir URL' ou 'Alterar para modo integrado', ajudam a criar uma interface fluída.\n— Os bots integrados agora podem enviar qualquer tipo de anexo suportado no Telegram (vídeos, músicas, stickers, arquivos, etc.).\n— Tente usar os bots de exemplos para ver o que está por vir: @music, @sticker, @youtube, @foursquare\n\nMais em: {link}";
+"lng_new_version_text" = "— Melhorias no visual";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
