@@ -134,8 +134,12 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   mkdir -p "$WorkPath/ReleaseIntermediate"
   cd "$WorkPath/ReleaseIntermediate"
   "$QMakePath" "$HomePath/Telegram.pro" -r -spec linux-g++
+
   eval "$HomePath/build/makefile_static.sh"
-  make
+  ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
+  ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
+  ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
+  make -j4
   echo "$BinaryName build complete!"
 
   if [ ! -f "$ReleasePath/$BinaryName" ]; then

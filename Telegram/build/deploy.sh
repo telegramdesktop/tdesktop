@@ -4,47 +4,59 @@ pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
 
-DeployTarget="$1"
-
-while IFS='' read -r line || [[ -n "$line" ]]; do
-  set $line
-  eval $1="$2"
-done < Version
-
-if [ "$BetaVersion" != "0" ]; then
-  AppVersion="$BetaVersion"
-  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
-  DevParam="-beta $BetaVersion"
-  BetaKeyFile="tbeta_${AppVersion}_key"
-elif [ "$DevChannel" == "0" ]; then
-  AppVersionStrFull="$AppVersionStr"
-  DevParam=''
-else
-  AppVersionStrFull="$AppVersionStr.dev"
-  DevParam='-dev'
+if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
+  echo ""
+  echo "This script is for building the production version of Telegram Desktop."
+  echo ""
+  echo "For building custom versions please visit the build instructions page at:"
+  echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
+  exit
 fi
 
-if [ ! -f "Target" ]; then
-  echo "Deploy target not found!"
+Error () {
+  cd $FullExecPath
+  echo "$1"
   exit 1
+}
+
+DeployTarget="$1"
+
+if [ ! -f "$FullScriptPath/target" ]; then
+  Error "Build target not found!"
 fi
 
 while IFS='' read -r line || [[ -n "$line" ]]; do
   BuildTarget="$line"
-done < Target
+done < "$FullScriptPath/target"
+
+while IFS='' read -r line || [[ -n "$line" ]]; do
+  set $line
+  eval $1="$2"
+done < "$FullScriptPath/version"
+
+if [ "$BetaVersion" != "0" ]; then
+  AppVersion="$BetaVersion"
+  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
+  BetaKeyFile="tbeta_${AppVersion}_key"
+elif [ "$AlphaChannel" == "0" ]; then
+  AppVersionStrFull="$AppVersionStr"
+else
+  AppVersionStrFull="$AppVersionStr.alpha"
+fi
 
 echo ""
+HomePath="$FullScriptPath/.."
 if [ "$BuildTarget" == "linux" ]; then
   echo "Deploying version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
-  ReleasePath="./../Linux/Release"
+  ReleasePath="$HomePath/../Linux/Release"
   RemoteFolder="tlinux"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Deploying version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
-  ReleasePath="./../Linux/Release"
+  ReleasePath="$HomePath/../Linux/Release"
   RemoteFolder="tlinux32"
 elif [ "$BuildTarget" == "mac" ]; then
   DeployMac="0"
@@ -71,27 +83,25 @@ elif [ "$BuildTarget" == "mac" ]; then
   fi
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
-  ReleasePath="./../Mac/Release"
+  ReleasePath="$HomePath/../Mac/Release"
   RemoteFolder="tmac"
-  Mac32DeployPath="./../../tother/tmac32/$AppVersionStrMajor/$AppVersionStrFull"
+  Mac32DeployPath="$HomePath/../../tother/tmac32/$AppVersionStrMajor/$AppVersionStrFull"
   Mac32UpdateFile="tmac32upd$AppVersion"
   Mac32SetupFile="tsetup32.$AppVersionStrFull.dmg"
   Mac32RemoteFolder="tmac32"
-  WinDeployPath="./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStrFull"
+  WinDeployPath="$HomePath/../../tother/tsetup/$AppVersionStrMajor/$AppVersionStrFull"
   WinUpdateFile="tupdate$AppVersion"
   WinSetupFile="tsetup.$AppVersionStrFull.exe"
   WinPortableFile="tportable.$AppVersionStrFull.zip"
   WinRemoteFolder="tsetup"
-  DropboxPath="./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor"
+  DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
   DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
   DropboxSetupFile="$SetupFile"
   DropboxMac32SetupFile="$Mac32SetupFile"
 elif [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" = "macstore" ]; then
-  echo "No need to deploy this target."
-  exit
+  Error "No need to deploy this target."
 else
-  echo "Invalid target!"
-  exit 1
+  Error "Invalid target!"
 fi
 
 DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
@@ -105,8 +115,7 @@ if [ "$BetaVersion" != "0" ]; then
     BetaFilePath="$DeployPath/$BetaKeyFile"
   fi
   if [ ! -f "$BetaFilePath" ]; then
-    echo "Beta key file for $AppVersionStrFull not found :("
-    exit 1
+    Error "Beta key file for $AppVersionStrFull not found :("
   fi
 
   while IFS='' read -r line || [[ -n "$line" ]]; do
@@ -131,45 +140,38 @@ fi
 
   if [ "$BuildTarget" != "mac" ] || [ "$DeployMac" == "1" ]; then
     if [ ! -f "$DeployPath/$UpdateFile" ]; then
-      echo "$UpdateFile not found!";
-      exit 1
+      Error "$UpdateFile not found!";
     fi
 
     if [ ! -f "$DeployPath/$SetupFile" ]; then
-      echo "$SetupFile not found!"
-      exit 1
+      Error "$SetupFile not found!"
     fi
   fi
 
   if [ "$BuildTarget" == "mac" ]; then
     if [ "$DeployMac32" == "1" ]; then
       if [ ! -f "$Mac32DeployPath/$Mac32UpdateFile" ]; then
-        echo "$Mac32UpdateFile not found!"
-        exit 1
+        Error "$Mac32UpdateFile not found!"
       fi
 
       if [ ! -f "$Mac32DeployPath/$Mac32SetupFile" ]; then
-        echo "$Mac32SetupFile not found!"
-        exit 1
+        Error "$Mac32SetupFile not found!"
       fi
     fi
 
     if [ "$DeployWin" == "1" ]; then
       if [ ! -f "$WinDeployPath/$WinUpdateFile" ]; then
-        echo "$WinUpdateFile not found!"
-        exit 1
+        Error "$WinUpdateFile not found!"
       fi
 
       if [ "$BetaVersion" == "0" ]; then
         if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
-          echo "$WinSetupFile not found!"
-          exit 1
+          Error "$WinSetupFile not found!"
         fi
       fi
 
       if [ ! -f "$WinDeployPath/$WinPortableFile" ]; then
-        echo "$WinPortableFile not found!"
-        exit 1
+        Error "$WinPortableFile not found!"
       fi
     fi
 
@@ -221,4 +223,6 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
   fi
 fi
 
-echo "Version $AppVersionStrFull was deployed!";
+echo "Version $AppVersionStrFull was deployed!"
+cd $FullExecPath
+

@@ -7,7 +7,7 @@ set "InputVersion=%1"
 for /F "tokens=1,2,3,4 delims=. " %%a in ("%InputVersion%") do (
   set "VersionMajor=%%a"
   set "VersionMinor=%%b"
-  set "VersionMicro=%%c"
+  set "VersionPatch=%%c"
   if "%%d" == "" (
     set "VersionBeta=0"
     set "VersionAlpha=0"
@@ -30,9 +30,9 @@ if "%VersionMinorCleared%" neq "%VersionMinor%" (
   echo Bad minor version!
   exit /b 1
 )
-set /a "VersionMicroCleared=%VersionMicro% %% 1000"
-if "%VersionMicroCleared%" neq "%VersionMicro%" (
-  echo Bad micro version!
+set /a "VersionPatchCleared=%VersionPatch% %% 1000"
+if "%VersionPatchCleared%" neq "%VersionPatch%" (
+  echo Bad patch version!
   exit /b 1
 )
 if "%VersionAlpha%" neq "0" (
@@ -45,7 +45,7 @@ if "%VersionAlpha%" neq "0" (
   set "VersionAlphaBool=false"
 )
 
-set /a "VersionFull=%VersionMajor% * 1000000 + %VersionMinor% * 1000 + %VersionMicro%"
+set /a "VersionFull=%VersionMajor% * 1000000 + %VersionMinor% * 1000 + %VersionPatch%"
 if "%VersionBeta%" neq "0" (
   set /a "VersionBetaCleared=%VersionBeta% %% 1000"
   if "!VersionBetaCleared!" neq "%VersionBeta%" (
@@ -58,18 +58,19 @@ if "%VersionBeta%" neq "0" (
   set "VersionFullBeta=0"
 )
 
-set "VersionStr=%VersionMajor%.%VersionMinor%.%VersionMicro%"
-set "VersionStrSmall=%VersionMajor%.%VersionMinor%"
-if "%VersionMicro%" neq "0" (
-  set "VersionStrSmall=%VersionStrSmall%.%VersionMicro%"
+set "VersionStr=%VersionMajor%.%VersionMinor%.%VersionPatch%"
+if "%VersionPatch%" neq "0" (
+  set "VersionStrSmall=%VersionStr%"
+) else (
+  set "VersionStrSmall=%VersionMajor%.%VersionMinor%"
 )
 
 if "%VersionAlpha%" neq "0" (
-  echo Setting version: %VersionMajor%.%VersionMinor%.%VersionMicro% alpha
+  echo Setting version: %VersionStr% alpha
 ) else if "%VersionBeta%" neq "0" (
-  echo Setting version: %VersionMajor%.%VersionMinor%.%VersionMicro%.%VersionBeta% closed beta
+  echo Setting version: %VersionStr%.%VersionBeta% closed beta
 ) else (
-  echo Setting version: %VersionMajor%.%VersionMinor%.%VersionMicro% stable
+  echo Setting version: %VersionStr% stable
 )
 
 echo Patching build/version...
@@ -95,17 +96,17 @@ call :repl "Replace=(TDESKTOP_VERSION\s+=) (\s*)[&hat;;]+/$1$2 %VersionStrSmall%
 
 echo Patching Telegram.rc...
 set "ResourcePath=%FullScriptPath%..\Resources\winrc\Telegram.rc"
-call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionMicro%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionMicro%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionMicro%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionMicro%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
 echo Patching Updater.rc...
 set "ResourcePath=%FullScriptPath%..\Resources\winrc\Updater.rc"
-call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionMicro%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionMicro%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionMicro%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionMicro%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
 exit /b
 

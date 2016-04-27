@@ -102,8 +102,8 @@ build() {
 	./configure -prefix "$srcdir/qt" -release -opensource -confirm-license -qt-zlib \
 	            -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
 	            -qt-xkbcommon-x11 -no-opengl -static -nomake examples -nomake tests
-	make --silent -j
-	make --silent -j install
+	make --silent -j4
+	make --silent -j4 install
 
 	export PATH="$srcdir/qt/bin:$PATH"
 
@@ -111,28 +111,28 @@ build() {
 	# Build breakpad
 	cd "$srcdir/Libraries/breakpad"
 	./configure
-	make --silent -j
+	make --silent -j4
 
-  info_msg "Build codegen_style"
-  # Build codegen_style
-  mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
-  cd "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
-  qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_style/codegen_style.pro"
-  make --silent -j
+	info_msg "Build codegen_style"
+	# Build codegen_style
+	mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+	cd "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
+	qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_style/codegen_style.pro"
+	make --silent -j4
 
-  info_msg "Build codegen_numbers"
-  # Build codegen_numbers
-  mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
-  cd "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
-  qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro"
-  make --silent -j
+	info_msg "Build codegen_numbers"
+	# Build codegen_numbers
+	mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+	cd "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
+	qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro"
+	make --silent -j4
 
 	info_msg "Build MetaLang"
 	# Build MetaLang
 	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediateLang"
 	cd "$srcdir/tdesktop/Linux/DebugIntermediateLang"
 	qmake CONFIG+=debug "../../Telegram/MetaLang.pro"
-	make --silent -j
+	make --silent -j4
 
 	info_msg "Build Telegram Desktop"
 	# Build Telegram Desktop
@@ -141,9 +141,9 @@ build() {
 
 	./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
 	./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
-	./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./GeneratedFiles/lang_auto
+	./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
 	qmake CONFIG+=debug "../../Telegram/Telegram.pro"
-	make -j
+	make -j4
 }
 
 check() {
