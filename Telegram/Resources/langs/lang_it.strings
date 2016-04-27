@@ -190,7 +190,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_sure_reset" = "Attenzione!\n\nPerderai tutte le chat e i messaggi, insieme a tutti i media e i file condivisi!\n\nVuoi ripristinare il tuo account?";
 "lng_signin_reset" = "Ripristina";
 
-"lng_signup_title" = "Informazioni e foto";
+"lng_signup_title" = "Info e foto";
 "lng_signup_desc" = "Inserisci il tuo nome e\ncarica una foto.";
 
 "lng_signup_firstname" = "Nome";
@@ -225,7 +225,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Questo link apre una chat con te:";
 "lng_username_copied" = "Link copiato negli appunti.";
 
-"lng_settings_section_contact_info" = "Informazioni di contatto";
+"lng_settings_section_contact_info" = "Info contatto";
 "lng_settings_phone_number" = "Numero di telefono:";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Scegli username";
@@ -410,7 +410,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_edit_public_link" = "Modifica link pubblico";
 "lng_profile_participants_section" = "Membri";
 "lng_profile_info" = "Info contatto";
-"lng_profile_group_info" = "Nome gruppo";
+"lng_profile_group_info" = "Info gruppo";
 "lng_profile_channel_info" = "Info canale";
 "lng_profile_add_contact" = "Aggiungi contatto";
 "lng_profile_edit_contact" = "Modifica";
@@ -688,7 +688,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_send_to_not_contact" = "Spiacenti, ma al momento puoi scrivere\nsolo ai contatti reciproci.\n{more_info}";
 "lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo contatti reciproci.\n{more_info}";
 "lng_cant_invite_not_contact_channel" = "Spiacenti, ma al momento puoi aggiungere\nai canali solo contatti reciproci.\n{more_info}";
-"lng_cant_more_info" = "Più info »";
+"lng_cant_more_info" = "Maggiori info »";
 "lng_cant_invite_banned" = "Spiacenti, solo l'amministratore può aggiungere questo utente.";
 "lng_cant_invite_privacy" = "Spiacenti, non puoi aggiungere questo utente ai gruppi a causa delle sue impostazioni di privacy.";
 "lng_cant_invite_privacy_channel" = "Spiacenti, non puoi aggiungere questo utente ai canali a causa delle sue impostazioni di privacy.";
@@ -893,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "BOT 2.0,\n\n— Introdotta l'API dei Bot 2.0, il più grande aggiornamento della nostra piattaforma da Giugno 2015.\n— I bot possono ora aggiornare i messaggi esistenti quando interagisci con loro.\n— Nuove tastiere per i bot inline con pulsanti callback (per non far inviare nuovi messaggi al bot), 'apri URL' o 'passa a modalità inline' per creare un'interfaccia senza interruzioni.\n— I bot inline possono ora inviare qualsiasi tipo di allegato supportato su Telegram (video,musica,sticker,file,etc.).\n— Prova questi bot di esempio per vedere cosa è in arrivo a breve: @music, @sticker, @youtube, @foursquare\n\nPiù informazioni: {link}";
+"lng_new_version_text" = "— Miglioramenti visivi";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
