@@ -227,7 +227,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   fi
 
   echo "Dumping debug symbols.."
-  "./../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
+  "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
   echo "Done!"
 
   echo "Stripping the executable.."
@@ -330,7 +330,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac32" ]; then
-      ReleaseToPath="./../../tother/tmac32"
+      ReleaseToPath="$HomePath/../../tother/tmac32"
       DeployToPath="$ReleaseToPath/$AppVersionStrMajor/$AppVersionStrFull"
       if [ ! -d "$ReleaseToPath/$AppVersionStrMajor" ]; then
         mkdir "$ReleaseToPath/$AppVersionStrMajor"
