@@ -2765,7 +2765,7 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	QString tolaunch;
 	if ((betaversion && betaversion != cBetaVersion()) || (!betaversion && version && version != AppVersion)) {
 		QString path = cExeDir();
-		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|_\\d+/)(Telegram/)?$").match(path);
+		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|\\.alpha/|_\\d+/)(Telegram/)?$").match(path);
 		if (m.hasMatch()) {
 			QString base = path.mid(0, m.capturedStart()) + qstr("deploy/");
 			int32 major = version / 1000000, minor = (version % 1000000) / 1000, micro = (version % 1000);
@@ -2774,6 +2774,8 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 				base += qsl("_%1").arg(betaversion);
 			} else if (QDir(base + qstr(".dev")).exists()) {
 				base += qstr(".dev");
+			} else if (QDir(base + qstr(".alpha")).exists()) {
+				base += qstr(".alpha");
 			}
 			if (QFile(base + qstr("/Telegram/Telegram.exe")).exists()) {
 				base += qstr("/Telegram");

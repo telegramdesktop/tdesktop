@@ -55,7 +55,7 @@ inline bool rtl() {
 
 DeclareReadSetting(QString, Arguments);
 
-DeclareSetting(bool, DevVersion);
+DeclareSetting(bool, AlphaVersion);
 DeclareSetting(uint64, BetaVersion);
 DeclareSetting(uint64, RealBetaVersion);
 DeclareSetting(QByteArray, BetaPrivateKey);

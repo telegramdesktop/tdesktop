@@ -264,7 +264,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())) + ' ';
 	_curVersionWidth = st::linkFont->width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->width(_newVersionText);

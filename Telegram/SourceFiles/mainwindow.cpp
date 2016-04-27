@@ -2134,7 +2134,7 @@ LastCrashedWindow::LastCrashedWindow()
 {
 	excludeReportUsername();
 
-	if (!cDevVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
+	if (!cAlphaVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
 	if (_sendingState != SendingNoReport) {

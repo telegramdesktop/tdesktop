@@ -35,7 +35,7 @@ Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif
 
-bool DevChannel = false;
+bool AlphaChannel = false;
 quint64 BetaVersion = 0;
 
 const char *PublicKey = "\
@@ -46,7 +46,7 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-const char *PublicDevKey = "\
+const char *PublicAlphaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
 0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
@@ -55,7 +55,7 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 ";
 
 extern const char *PrivateKey;
-extern const char *PrivateDevKey;
+extern const char *PrivateAlphaKey;
 #include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
 #include "../../../../TelegramPrivate/beta_private.h" // private key for beta version file generation
 
@@ -171,12 +171,12 @@ int main(int argc, char *argv[])
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
 		} else if (string("-version") == argv[i] && i + 1 < argc) {
 			version = QString(argv[i + 1]).toInt();
-		} else if (string("-dev") == argv[i]) {
-			DevChannel = true;
+		} else if (string("-alpha") == argv[i]) {
+			AlphaChannel = true;
 		} else if (string("-beta") == argv[i] && i + 1 < argc) {
 			BetaVersion = QString(argv[i + 1]).toULongLong();
 			if (BetaVersion > version * 1000ULL && BetaVersion < (version + 1) * 1000ULL) {
-				DevChannel = false;
+				AlphaChannel = false;
 				BetaSignature = countBetaVersionSignature(BetaVersion);
 				if (BetaSignature.isEmpty()) {
 					return -1;
@@ -434,7 +434,7 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PrivateDevKey : PrivateKey), -1), 0, 0, 0);
+	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PrivateAlphaKey : PrivateKey), -1), 0, 0, 0);
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -457,7 +457,7 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PublicDevKey : PublicKey), -1), 0, 0, 0);
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PublicAlphaKey : PublicKey), -1), 0, 0, 0);
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;

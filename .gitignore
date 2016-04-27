@@ -19,7 +19,7 @@
 *.opensdf
 *.opendb
 *.VC.db
-/Telegram/*.aps
+*.aps
 /Win32/
 ipch/
 

@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
-, _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
+, _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), st::aboutLabel, st::aboutTextStyle)
 , _text2(this, lang(lng_about_text_2), st::aboutLabel, st::aboutTextStyle)
 , _text3(this, QString(), st::aboutLabel, st::aboutTextStyle)
