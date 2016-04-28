@@ -6920,7 +6920,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			if (_history && _history->lastSentMsg) {
+			if (_history && _history->lastSentMsg && _history->lastSentMsg->canEdit(::date(unixtime()))) {
 				if (_field.getLastText().isEmpty() && !_editMsgId && !_replyToId) {
 					App::contextItem(_history->lastSentMsg);
 					onEditMessage();
