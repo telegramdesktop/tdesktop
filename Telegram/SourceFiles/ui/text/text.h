@@ -178,11 +178,6 @@ public:
 	int length() const {
 		return _text.size();
 	}
-	enum ExpandLinksMode {
-		ExpandLinksNone,
-		ExpandLinksShortened,
-		ExpandLinksAll,
-	};
 	QString original(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
 	EntitiesInText originalEntities() const;
 

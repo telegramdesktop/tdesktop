@@ -475,20 +475,20 @@ private:
 	bool _undoAvailable, _redoAvailable;
 
 	bool _customUpDown;
-	
+
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
 	anim::cvalue a_placeholderFg;
 	Animation _a_placeholderFg, _a_placeholderShift;
-	
+
 	anim::fvalue a_borderOpacityActive;
 	anim::cvalue a_borderFg;
 	Animation _a_border;
-	
+
 	bool _focused, _error;
-	
+
 	const style::InputField &_st;
 
 	QTimer _touchTimer;

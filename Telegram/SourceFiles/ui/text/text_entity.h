@@ -21,11 +21,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 enum EntityInTextType {
+	EntityInTextInvalid = 0,
+
 	EntityInTextUrl,
 	EntityInTextCustomUrl,
 	EntityInTextEmail,
 	EntityInTextHashtag,
 	EntityInTextMention,
+	EntityInTextMentionName,
 	EntityInTextBotCommand,
 
 	EntityInTextBold,
@@ -33,12 +36,77 @@ enum EntityInTextType {
 	EntityInTextCode, // inline
 	EntityInTextPre,  // block
 };
-struct EntityInText {
-	EntityInText(EntityInTextType type, int offset, int length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
+
+class EntityInText;
+using EntitiesInText = QList<EntityInText>;
+
+class EntityInText {
+public:
+	EntityInText(EntityInTextType type, int offset, int length, const QString &data = QString())
+		: _type(type)
+		, _offset(offset)
+		, _length(length)
+		, _data(data) {
 	}
-	EntityInTextType type;
-	int offset, length;
-	QString text;
+
+	EntityInTextType type() const {
+		return _type;
+	}
+	int offset() const {
+		return _offset;
+	}
+	int length() const {
+		return _length;
+	}
+	QString data() const {
+		return _data;
+	}
+
+	void extendToLeft(int extent) {
+		_offset -= extent;
+		_length += extent;
+	}
+	void shrinkFromRight(int shrink) {
+		_length -= shrink;
+	}
+	void shiftLeft(int shift) {
+		_offset -= shift;
+		if (_offset < 0) {
+			_length += _offset;
+			_offset = 0;
+			if (_length < 0) {
+				_length = 0;
+			}
+		}
+	}
+	void updateTextEnd(int textEnd) {
+		if (_offset > textEnd) {
+			_offset = textEnd;
+			_length = 0;
+		} else if (_offset + _length > textEnd) {
+			_length = textEnd - _offset;
+		}
+	}
+
+	static int firstMonospaceOffset(const EntitiesInText &entities, int textLength) {
+		int result = textLength;
+		for_const (auto &entity, entities) {
+			if (entity.type() == EntityInTextPre || entity.type() == EntityInTextCode) {
+				accumulate_min(result, entity.offset());
+			}
+		}
+		return result;
+	}
+
+	explicit operator bool() const {
+		return type() != EntityInTextInvalid;
+	}
+
+private:
+	EntityInTextType _type;
+	int _offset, _length;
+	QString _data;
+
 };
 typedef QList<EntityInText> EntitiesInText;
 

@@ -3305,7 +3305,7 @@ int32 gifMaxStatusWidth(DocumentData *document) {
 
 QString captionedSelectedText(const QString &attachType, const Text &caption, TextSelection selection) {
 	if (selection != FullSelection) {
-		return caption.original(selection, Text::ExpandLinksAll);
+		return caption.original(selection, ExpandLinksAll);
 	}
 	QString result;
 	result.reserve(5 + attachType.size() + caption.length());
@@ -3734,7 +3734,7 @@ void HistoryPhoto::detachFromParent() {
 }
 
 QString HistoryPhoto::inDialogsText() const {
-	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(AllTextSelection, Text::ExpandLinksNone);
+	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(AllTextSelection, ExpandLinksNone);
 }
 
 QString HistoryPhoto::selectedText(TextSelection selection) const {
@@ -3980,7 +3980,7 @@ void HistoryVideo::setStatusSize(int32 newSize) const {
 }
 
 QString HistoryVideo::inDialogsText() const {
-	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(AllTextSelection, Text::ExpandLinksNone);
+	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(AllTextSelection, ExpandLinksNone);
 }
 
 QString HistoryVideo::selectedText(TextSelection selection) const {
@@ -4471,7 +4471,7 @@ QString HistoryDocument::inDialogsText() const {
 	}
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (!captioned->_caption.isEmpty()) {
-			result.append(' ').append(captioned->_caption.original(AllTextSelection, Text::ExpandLinksNone));
+			result.append(' ').append(captioned->_caption.original(AllTextSelection, ExpandLinksNone));
 		}
 	}
 	return result;
@@ -4929,7 +4929,7 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 }
 
 QString HistoryGif::inDialogsText() const {
-	return qsl("GIF") + (_caption.isEmpty() ? QString() : (' ' + _caption.original(AllTextSelection, Text::ExpandLinksNone)));
+	return qsl("GIF") + (_caption.isEmpty() ? QString() : (' ' + _caption.original(AllTextSelection, ExpandLinksNone)));
 }
 
 QString HistoryGif::selectedText(TextSelection selection) const {
@@ -5959,8 +5959,8 @@ QString HistoryWebPage::selectedText(TextSelection selection) const {
 	if (selection == FullSelection) {
 		return QString();
 	}
-	auto titleResult = _title.original(selection, Text::ExpandLinksAll);
-	auto descriptionResult = _description.original(toDescriptionSelection(selection), Text::ExpandLinksAll);
+	auto titleResult = _title.original(selection, ExpandLinksAll);
+	auto descriptionResult = _description.original(toDescriptionSelection(selection), ExpandLinksAll);
 	if (titleResult.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.isEmpty()) {
@@ -6406,7 +6406,7 @@ QString HistoryLocation::selectedText(TextSelection selection) const {
 		auto result = qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n");
 		auto info = selectedText(AllTextSelection);
 		if (!info.isEmpty()) result.append(info).append('\n');
-		return result + _link->text();
+		return result + _link->dragText();
 	}
 	auto titleResult = _title.original(selection);
 	auto descriptionResult = _description.original(toDescriptionSelection(selection));
@@ -6727,7 +6727,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	createComponents(config);
 
 	QString text(textClean(qs(msg.vmessage)));
-	initMedia(msg.has_media() ? (&msg.vmedia) : 0, text);
+	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr, text);
 	setText(text, msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText());
 }
 
@@ -7157,9 +7157,9 @@ void HistoryMessage::eraseFromOverview() {
 QString HistoryMessage::selectedText(TextSelection selection) const {
 	QString result, textResult, mediaResult;
 	if (selection == FullSelection) {
-		textResult = _text.original(AllTextSelection, Text::ExpandLinksAll);
+		textResult = _text.original(AllTextSelection, ExpandLinksAll);
 	} else {
-		textResult = _text.original(selection, Text::ExpandLinksAll);
+		textResult = _text.original(selection, ExpandLinksAll);
 	}
 	if (_media) {
 		mediaResult = _media->selectedText(toMediaSelection(selection));
@@ -7173,7 +7173,7 @@ QString HistoryMessage::selectedText(TextSelection selection) const {
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
-			QString fwdinfo = fwd->_text.original(AllTextSelection, Text::ExpandLinksAll), wrapped;
+			QString fwdinfo = fwd->_text.original(AllTextSelection, ExpandLinksAll), wrapped;
 			wrapped.reserve(fwdinfo.size() + 4 + result.size());
 			wrapped.append('[').append(fwdinfo).append(qsl("]\n")).append(result);
 			result = wrapped;
@@ -7191,7 +7191,7 @@ QString HistoryMessage::selectedText(TextSelection selection) const {
 }
 
 QString HistoryMessage::inDialogsText() const {
-	return emptyText() ? (_media ? _media->inDialogsText() : QString()) : _text.original(AllTextSelection, Text::ExpandLinksNone);
+	return emptyText() ? (_media ? _media->inDialogsText() : QString()) : _text.original(AllTextSelection, ExpandLinksNone);
 }
 
 HistoryMedia *HistoryMessage::getMedia() const {
@@ -7228,8 +7228,9 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 	}
 	textstyleRestore();
 
-	for (int32 i = 0, l = entities.size(); i != l; ++i) {
-		if (entities.at(i).type == EntityInTextUrl || entities.at(i).type == EntityInTextCustomUrl || entities.at(i).type == EntityInTextEmail) {
+	for_const (const auto &entity, entities) {
+		auto type = entity.type();
+		if (type == EntityInTextUrl || type == EntityInTextCustomUrl || type == EntityInTextEmail) {
 			_flags |= MTPDmessage_ClientFlag::f_has_text_links;
 			break;
 		}
@@ -8194,7 +8195,7 @@ QString HistoryService::selectedText(TextSelection selection) const {
 }
 
 QString HistoryService::inDialogsText() const {
-	return _text.original(AllTextSelection, Text::ExpandLinksNone);
+	return _text.original(AllTextSelection, ExpandLinksNone);
 }
 
 QString HistoryService::inReplyText() const {

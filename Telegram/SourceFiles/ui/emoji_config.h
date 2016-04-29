@@ -167,15 +167,14 @@ inline bool emojiEdge(const QChar *ch) {
 
 inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText &entities) {
 	if (to > from) {
-		for (EntitiesInText::iterator i = entities.begin(), e = entities.end(); i != e; ++i) {
-			if (i->offset >= to - start) break;
-			if (i->offset + i->length < from - start) continue;
-			if (i->offset >= from - start) {
-				i->offset -= (from - start - result.size());
-				i->length += (from - start - result.size());
+		for (auto &entity : entities) {
+			if (entity.offset() >= to - start) break;
+			if (entity.offset() + entity.length() < from - start) continue;
+			if (entity.offset() >= from - start) {
+				entity.extendToLeft(from - start - result.size());
 			}
-			if (i->offset + i->length < to - start) {
-				i->length -= (from - start - result.size());
+			if (entity.offset() + entity.length() < to - start) {
+				entity.shrinkFromRight(from - start - result.size());
 			}
 		}
 		result.append(from, to - from);
@@ -184,7 +183,7 @@ inline void appendPartToResult(QString &result, const QChar *start, const QChar 
 
 inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 	QString result;
-	int32 currentEntity = 0, entitiesCount = entities.size();
+	auto currentEntity = entities.begin(), entitiesEnd = entities.end();
 	const QChar *emojiStart = text.constData(), *emojiEnd = emojiStart, *e = text.constData() + text.size();
 	bool canFindEmoji = true;
 	for (const QChar *ch = emojiEnd; ch != e;) {
@@ -194,14 +193,14 @@ inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 			emojiFind(ch, e, newEmojiEnd, emojiCode);
 		}
 
-		while (currentEntity < entitiesCount && ch >= emojiStart + entities[currentEntity].offset + entities[currentEntity].length) {
+		while (currentEntity != entitiesEnd && ch >= emojiStart + currentEntity->offset() + currentEntity->length()) {
 			++currentEntity;
 		}
 		EmojiPtr emoji = emojiCode ? emojiGet(emojiCode) : 0;
 		if (emoji && emoji != TwoSymbolEmoji &&
 		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
 		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
-			(currentEntity >= entitiesCount || (ch < emojiStart + entities[currentEntity].offset && newEmojiEnd <= emojiStart + entities[currentEntity].offset) || (ch >= emojiStart + entities[currentEntity].offset + entities[currentEntity].length && newEmojiEnd > emojiStart + entities[currentEntity].offset + entities[currentEntity].length))
+			(currentEntity == entitiesEnd || (ch < emojiStart + currentEntity->offset() && newEmojiEnd <= emojiStart + currentEntity->offset()) || (ch >= emojiStart + currentEntity->offset() + currentEntity->length() && newEmojiEnd > emojiStart + currentEntity->offset() + currentEntity->length()))
 		) {
 			if (result.isEmpty()) result.reserve(text.size());
 

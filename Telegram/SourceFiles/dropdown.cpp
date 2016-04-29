@@ -3944,6 +3944,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
 		int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
 		bool hasUsername = _parent->filter().indexOf('@') > 1;
+		int filterSize = qMax(_parent->filter().size() - 1, 0);
+		bool filterIsEmpty = (filterSize == 0);
 		for (int32 i = from; i < to; ++i) {
 			if (i >= last) break;
 
@@ -3958,7 +3960,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::black->p);
 			if (!_mrows->isEmpty()) {
 				UserData *user = _mrows->at(i);
-				QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
+				QString first = filterIsEmpty ? QString() : ('@' + user->username.mid(0, filterSize));
+				QString second = (filterIsEmpty && !user->username.isEmpty()) ? ('@' + user->username) : user->username.mid(filterSize);
 				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 				if (mentionwidth < unamewidth + namewidth) {
 					namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
@@ -3987,7 +3990,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				}
 			} else if (!_hrows->isEmpty()) {
 				QString hrow = _hrows->at(i);
-				QString first = (_parent->filter().size() < 2) ? QString() : ('#' + hrow.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + hrow) : hrow.mid(_parent->filter().size() - 1);
+				QString first = filterIsEmpty ? QString() : ('#' + hrow.mid(0, filterSize));
+				QString second = filterIsEmpty ? ('#' + hrow) : hrow.mid(filterSize);
 				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
 				if (htagwidth < firstwidth + secondwidth) {
 					if (htagwidth < firstwidth + st::mentionFont->elidew) {
@@ -4020,7 +4024,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
 
 				int32 addleft = 0, widthleft = mentionwidth;
-				QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
+				QString first = filterIsEmpty ? QString() : ('/' + toHighlight.mid(0, filterSize));
+				QString second = filterIsEmpty ? ('/' + toHighlight) : toHighlight.mid(filterSize);
 				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
 				if (widthleft < firstwidth + secondwidth) {
 					if (widthleft < firstwidth + st::mentionFont->elidew) {
@@ -4424,6 +4429,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			App::api()->requestStickerSets();
 		}
 	} else if (_filter.at(0) == '@') {
+		bool listAllSuggestions = (_filter.size() < 2);
 		if (_chat) {
 			mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
 		} else if (_channel && _channel->isMegagroup()) {
@@ -4438,7 +4444,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			for (RecentInlineBots::const_iterator i = cRecentInlineBots().cbegin(), e = cRecentInlineBots().cend(); i != e; ++i) {
 				UserData *user = *i;
 				if (user->username.isEmpty()) continue;
-				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 				mrows.push_back(user);
 				++recentInlineBots;
 			}
@@ -4452,7 +4458,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					if (user->username.isEmpty()) continue;
-					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					ordered.insertMulti(App::onlineForSort(user, now), user);
 				}
@@ -4460,7 +4466,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 				UserData *user = *i;
 				if (user->username.isEmpty()) continue;
-				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 				mrows.push_back(user);
 				if (!ordered.isEmpty()) {
@@ -4482,7 +4488,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 				for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
 					UserData *user = *i;
 					if (user->username.isEmpty()) continue;
-					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					mrows.push_back(user);
 				}

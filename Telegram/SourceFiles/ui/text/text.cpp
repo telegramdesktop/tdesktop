@@ -293,10 +293,10 @@ public:
 			}
 			removeFlags.erase(removeFlags.begin());
 		}
-		while (waitingEntity != entitiesEnd && start + waitingEntity->offset + waitingEntity->length <= ptr) {
+		while (waitingEntity != entitiesEnd && start + waitingEntity->offset() + waitingEntity->length() <= ptr) {
 			++waitingEntity;
 		}
-		if (waitingEntity == entitiesEnd || ptr < start + waitingEntity->offset) {
+		if (waitingEntity == entitiesEnd || ptr < start + waitingEntity->offset()) {
 			return;
 		}
 
@@ -304,18 +304,19 @@ public:
 		int32 startFlags = 0;
 		int32 fullDisplayed;
 		QString lnkUrl, lnkText;
-		if (waitingEntity->type == EntityInTextCustomUrl) {
+		auto type = waitingEntity->type();
+		if (type == EntityInTextCustomUrl) {
 			lnk = true;
-			lnkUrl = waitingEntity->text;
-			lnkText = QString(start + waitingEntity->offset, waitingEntity->length);
+			lnkUrl = waitingEntity->data();
+			lnkText = QString(start + waitingEntity->offset(), waitingEntity->length());
 			fullDisplayed = -5;
-		} else if (waitingEntity->type == EntityInTextBold) {
+		} else if (type == EntityInTextBold) {
 			startFlags = TextBlockFSemibold;
-		} else if (waitingEntity->type == EntityInTextItalic) {
+		} else if (type == EntityInTextItalic) {
 			startFlags = TextBlockFItalic;
-		} else if (waitingEntity->type == EntityInTextCode) {
+		} else if (type == EntityInTextCode) {
 			startFlags = TextBlockFCode;
-		} else if (waitingEntity->type == EntityInTextPre) {
+		} else if (type == EntityInTextPre) {
 			startFlags = TextBlockFPre;
 			createBlock();
 			if (!_t->_blocks.isEmpty() && _t->_blocks.back()->type() != TextBlockTNewline) {
@@ -323,7 +324,7 @@ public:
 			}
 		} else {
 			lnk = true;
-			lnkUrl = QString(start + waitingEntity->offset, waitingEntity->length);
+			lnkUrl = QString(start + waitingEntity->offset(), waitingEntity->length());
 			getLinkData(lnkUrl, lnkText, fullDisplayed);
 		}
 
@@ -334,7 +335,7 @@ public:
 			lnkIndex = 0x8000 + links.size();
 
 			_t->_text += lnkText;
-			ptr = start + waitingEntity->offset + waitingEntity->length;
+			ptr = start + waitingEntity->offset() + waitingEntity->length();
 
 			createBlock();
 
@@ -343,24 +344,25 @@ public:
 			if (!(flags & startFlags)) {
 				createBlock();
 				flags |= startFlags;
-				removeFlags[start + waitingEntity->offset + waitingEntity->length].push_front(startFlags);
+				removeFlags[start + waitingEntity->offset() + waitingEntity->length()].push_front(startFlags);
 			}
 		}
 
 		++waitingEntity;
 		if (links.size() >= 0x7FFF) {
 			while (waitingEntity != entitiesEnd && (
-				waitingEntity->type == EntityInTextUrl ||
-				waitingEntity->type == EntityInTextCustomUrl ||
-				waitingEntity->type == EntityInTextEmail ||
-				waitingEntity->type == EntityInTextHashtag ||
-				waitingEntity->type == EntityInTextMention ||
-				waitingEntity->type == EntityInTextBotCommand ||
-				waitingEntity->length <= 0)) {
+				waitingEntity->type() == EntityInTextUrl ||
+				waitingEntity->type() == EntityInTextCustomUrl ||
+				waitingEntity->type() == EntityInTextEmail ||
+				waitingEntity->type() == EntityInTextHashtag ||
+				waitingEntity->type() == EntityInTextMention ||
+				waitingEntity->type() == EntityInTextMentionName ||
+				waitingEntity->type() == EntityInTextBotCommand ||
+				waitingEntity->length() <= 0)) {
 				++waitingEntity;
 			}
 		} else {
-			while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
+			while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
 		}
 	}
 
@@ -587,11 +589,11 @@ public:
 				entities.reserve(l);
 				const QChar s = text.size();
 				for (; i < l; ++i) {
-					EntityInTextType t = preparsed.at(i).type;
-					if ((t == EntityInTextMention && !parseMentions) ||
-						(t == EntityInTextHashtag && !parseHashtags) ||
-						(t == EntityInTextBotCommand && !parseBotCommands) ||
-						((t == EntityInTextBold || t == EntityInTextItalic || t == EntityInTextCode || t == EntityInTextPre) && !parseMono)) {
+					auto type = preparsed.at(i).type();
+					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
+						(type == EntityInTextHashtag && !parseHashtags) ||
+						(type == EntityInTextBotCommand && !parseBotCommands) ||
+						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMono)) {
 						continue;
 					}
 					entities.push_back(preparsed.at(i));
@@ -608,8 +610,13 @@ public:
 		start = src.constData();
 		end = start + src.size();
 
+		entitiesEnd = entities.cend();
+		waitingEntity = entities.cbegin();
+		while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
+		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(entities, end - start);
+
 		ptr = start;
-		while (ptr != end && chIsTrimmed(*ptr, rich)) {
+		while (ptr != end && chIsTrimmed(*ptr, rich) && ptr != start + firstMonospaceOffset) {
 			++ptr;
 		}
 		while (ptr != end && chIsTrimmed(*(end - 1), rich)) {
@@ -628,9 +635,6 @@ public:
 		ch = emojiLookback = 0;
 		lastSkipped = false;
 		checkTilde = !cRetina() && _t->_font->size() == 13 && _t->_font->flags() == 0; // tilde Open Sans fix
-		entitiesEnd = entities.cend();
-		waitingEntity = entities.cbegin();
-		while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
 		for (; ptr <= end; ++ptr) {
 			checkEntities();
 			if (rich) {
@@ -2928,29 +2932,21 @@ QString Text::original(TextSelection selection, ExpandLinksMode mode) const {
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
 		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
 		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
+		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
+			blockLnkIndex = 0;
+		}
 		if (blockLnkIndex != lnkIndex) {
-			if (lnkIndex) { // write link
-				const ClickHandlerPtr &lnk(_links.at(lnkIndex - 1));
-				const QString &url = (mode == ExpandLinksNone || !lnk) ? emptyurl : lnk->text();
-
-				int32 rangeFrom = qMax(int32(selection.from), lnkFrom), rangeTo = qMin(blockFrom, int32(selection.to));
-
-				if (rangeTo > rangeFrom) {
-					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-					if (url.isEmpty() || lnkFrom != rangeFrom || blockFrom != rangeTo) {
+			int32 rangeFrom = qMax(int32(selection.from), lnkFrom), rangeTo = qMin(blockFrom, int32(selection.to));
+			if (lnkIndex && rangeTo > rangeFrom) { // write link
+				QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
+				if (lnkFrom != rangeFrom || blockFrom != rangeTo) {
+					result += r;
+				} else {
+					QString expanded = _links.at(lnkIndex - 1)->getExpandedLinkText(mode, r);
+					if (expanded.isEmpty()) {
 						result += r;
 					} else {
-						QUrl u(url);
-						QString displayed = (u.isValid() ? u.toDisplayString() : url);
-						bool shortened = (r.size() > 3) && (_text.midRef(lnkFrom, r.size() - 3) == displayed.midRef(0, r.size() - 3));
-						bool same = (r == displayed.midRef(0, r.size())) || (r == url.midRef(0, r.size()));
-						if (same || shortened) {
-							result += url;
-						} else if (mode == ExpandLinksAll) {
-							result.append(r).append(qsl(" ( ")).append(url).append(qsl(" )"));
-						} else {
-							result += r;
-						}
+						result += expanded;
 					}
 				}
 			}
@@ -2974,8 +2970,6 @@ QString Text::original(TextSelection selection, ExpandLinksMode mode) const {
 
 EntitiesInText Text::originalEntities() const {
 	EntitiesInText result;
-	QString emptyurl;
-
 	int32 originalLength = 0, lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
 	int32 lnkFrom = 0, lnkIndex = 0, flags = 0;
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
@@ -3005,39 +2999,18 @@ EntitiesInText Text::originalEntities() const {
 			}
 			flags = blockFlags;
 		}
+		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
+			blockLnkIndex = 0;
+		}
 		if (blockLnkIndex != lnkIndex) {
-			if (lnkIndex) { // write link
-				const ClickHandlerPtr &lnk(_links.at(lnkIndex - 1));
-				const QString &url(lnk ? lnk->text() : emptyurl);
-
-				int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
-				if (rangeTo > rangeFrom) {
-					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-					if (url.isEmpty()) {
-						originalLength += r.size();
-					} else {
-						QUrl u(url);
-						QString displayed = (u.isValid() ? u.toDisplayString() : url);
-						bool shortened = (r.size() > 3) && (_text.midRef(lnkFrom, r.size() - 3) == displayed.midRef(0, r.size() - 3));
-						bool same = (r == displayed.midRef(0, r.size())) || (r == url.midRef(0, r.size()));
-						if (same || shortened) {
-							originalLength += url.size();
-							if (url.at(0) == '@') {
-								result.push_back(EntityInText(EntityInTextMention, lnkStart, originalLength - lnkStart));
-							} else if (url.at(0) == '#') {
-								result.push_back(EntityInText(EntityInTextHashtag, lnkStart, originalLength - lnkStart));
-							} else if (url.at(0) == '/') {
-								result.push_back(EntityInText(EntityInTextBotCommand, lnkStart, originalLength - lnkStart));
-							} else if (url.indexOf('@') > 0 && url.indexOf('/') <= 0) {
-								result.push_back(EntityInText(EntityInTextEmail, lnkStart, originalLength - lnkStart));
-							} else {
-								result.push_back(EntityInText(EntityInTextUrl, lnkStart, originalLength - lnkStart));
-							}
-						} else {
-							originalLength += r.size();
-							result.push_back(EntityInText(EntityInTextCustomUrl, lnkStart, originalLength - lnkStart, url));
-						}
-					}
+			int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
+			if (lnkIndex && rangeTo > rangeFrom) { // write link
+				QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
+				if (auto entity = _links.at(lnkIndex - 1)->getEntityInText(lnkStart, r)) {
+					result.push_back(entity);
+					originalLength += entity.length();
+				} else {
+					originalLength += r.size();
 				}
 			}
 			lnkIndex = blockLnkIndex;
