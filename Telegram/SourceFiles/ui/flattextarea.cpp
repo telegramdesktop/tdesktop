@@ -360,7 +360,7 @@ QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
 	return QString();
 }
 
-void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
+void FlatTextarea::insertMentionHashtagOrBotCommand(const QString &data, const QString &entityTag) {
 	QTextCursor c(textCursor());
 	int32 pos = c.position();
 
@@ -383,17 +383,16 @@ void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
 				if ((i == pos - p || (t.at(i - 1) == '/' ? t.at(i).isLetterOrNumber() : t.at(i).isLetter()) || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
 					c.setPosition(p + i - 1, QTextCursor::MoveAnchor);
 					int till = p + i;
-					for (; (till < e) && (till - p - i + 1 < str.size()); ++till) {
-						if (t.at(till - p).toLower() != str.at(till - p - i + 1).toLower()) {
+					for (; (till < e) && (till - p - i + 1 < data.size()); ++till) {
+						if (t.at(till - p).toLower() != data.at(till - p - i + 1).toLower()) {
 							break;
 						}
 					}
-					if (till - p - i + 1 == str.size() && till < e && t.at(till - p) == ' ') {
+					if (till - p - i + 1 == data.size() && till < e && t.at(till - p) == ' ') {
 						++till;
 					}
 					c.setPosition(till, QTextCursor::KeepAnchor);
-					c.insertText(str + ' ');
-					return;
+					break;
 				} else if ((i == pos - p || t.at(i).isLetter()) && t.at(i - 1) == '@' && i > 2 && (t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_') && !mentionInCommand) {
 					mentionInCommand = true;
 					--i;
@@ -406,7 +405,14 @@ void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
 		}
 		break;
 	}
-	c.insertText(str + ' ');
+	if (entityTag.isEmpty()) {
+		c.insertText(data + ' ');
+	} else {
+		QTextCharFormat fmt;
+		fmt.setForeground(st::defaultTextStyle.linkFg);
+		c.insertText(data, fmt);
+		c.insertText(qsl(" "));
+	}
 }
 
 void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {

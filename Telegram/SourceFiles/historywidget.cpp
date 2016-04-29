@@ -2740,7 +2740,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::historyScroll, false)
 , _toHistoryEnd(this, st::historyToEnd)
 , _collapseComments(this)
-, _attachMention(this)
+, _fieldAutocomplete(this)
 , _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
@@ -2827,7 +2827,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_saveDraftTimer, SIGNAL(timeout()), this, SLOT(onDraftSave()));
 	connect(_field.verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onDraftSaveDelayed()));
 	connect(&_field, SIGNAL(cursorPositionChanged()), this, SLOT(onDraftSaveDelayed()));
-	connect(&_field, SIGNAL(cursorPositionChanged()), this, SLOT(onCheckMentionDropdown()), Qt::QueuedConnection);
+	connect(&_field, SIGNAL(cursorPositionChanged()), this, SLOT(onCheckFieldAutocomplete()), Qt::QueuedConnection);
 
 	_fieldBarCancel.hide();
 
@@ -2849,10 +2849,12 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_collapseComments.hide();
 	_collapseComments.installEventFilter(this);
 
-	_attachMention.hide();
-	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
-	connect(&_attachMention, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
-	_field.installEventFilter(&_attachMention);
+	_fieldAutocomplete->hide();
+	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
+	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
+	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
+	connect(_fieldAutocomplete, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerSend(DocumentData*)));
+	_field.installEventFilter(_fieldAutocomplete);
 	updateFieldSubmitSettings();
 
 	_field.hide();
@@ -2911,12 +2913,24 @@ void HistoryWidget::onStickersUpdated() {
 	updateStickersByEmoji();
 }
 
-void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
-	if (str.at(0) == '/') { // bot command
+void HistoryWidget::onMentionInsert(UserData *user) {
+	QString replacement, entityTag;
+	if (user->username.isEmpty()) {
+		replacement = App::peerName(user);
+		entityTag = qsl("mention://peer.") + QString::number(user->id);
+	} else {
+		replacement = '@' + user->username;
+	}
+	_field.insertMentionHashtagOrBotCommand(replacement, entityTag);
+}
+
+void HistoryWidget::onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method) {
+	// Send bot command at once, if it was not inserted by pressing Tab.
+	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		App::sendBotCommand(_peer, nullptr, str);
 		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
 	} else {
-		_field.onMentionHashtagOrBotCommandInsert(str);
+		_field.insertMentionHashtagOrBotCommand(str);
 	}
 }
 
@@ -2952,8 +2966,8 @@ void HistoryWidget::updateInlineBotQuery() {
 		} else {
 			_emojiPan.queryInlineBot(_inlineBot, _peer, query);
 		}
-		if (!_attachMention.isHidden()) {
-			_attachMention.hideStart();
+		if (!_fieldAutocomplete->isHidden()) {
+			_fieldAutocomplete->hideStart();
 		}
 	} else {
 		clearInlineBot();
@@ -2964,13 +2978,13 @@ void HistoryWidget::updateStickersByEmoji() {
 	int32 len = 0;
 	if (EmojiPtr emoji = emojiFromText(_field.getLastText(), &len)) {
 		if (_field.getLastText().size() <= len) {
-			_attachMention.showStickers(emoji);
+			_fieldAutocomplete->showStickers(emoji);
 		} else {
 			len = 0;
 		}
 	}
 	if (!len) {
-		_attachMention.showStickers(EmojiPtr(0));
+		_fieldAutocomplete->showStickers(EmojiPtr(0));
 	}
 }
 
@@ -3239,8 +3253,8 @@ void HistoryWidget::updateStickers() {
 
 void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 	if (_peer && (_peer == user || !_peer->isUser())) {
-		if (_attachMention.clearFilteredBotCommands()) {
-			onCheckMentionDropdown();
+		if (_fieldAutocomplete->clearFilteredBotCommands()) {
+			onCheckFieldAutocomplete();
 		}
 	}
 }
@@ -3873,7 +3887,7 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragDocument.overlaps(globalRect) ||
 			_attachDragPhoto.overlaps(globalRect) ||
 			_attachType.overlaps(globalRect) ||
-			_attachMention.overlaps(globalRect) ||
+			_fieldAutocomplete->overlaps(globalRect) ||
 			_emojiPan.overlaps(globalRect));
 }
 
@@ -3986,7 +4000,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart.hide();
 		_joinChannel.hide();
 		_muteUnmute.hide();
-		_attachMention.hide();
+		_fieldAutocomplete->hide();
 		_field.hide();
 		_fieldBarCancel.hide();
 		_attachDocument.hide();
@@ -4047,7 +4061,7 @@ void HistoryWidget::updateControlsVisibility() {
 			}
 		}
 		_kbShown = false;
-		_attachMention.hide();
+		_fieldAutocomplete->hide();
 		_send.hide();
 		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_botStart.hide();
@@ -4071,7 +4085,7 @@ void HistoryWidget::updateControlsVisibility() {
 			update();
 		}
 	} else if (_canSendMessages) {
-		onCheckMentionDropdown();
+		onCheckFieldAutocomplete();
 		if (isBotStart()) {
 			if (isBotStart()) {
 				_unblock.hide();
@@ -4190,7 +4204,7 @@ void HistoryWidget::updateControlsVisibility() {
 			}
 		}
 	} else {
-		_attachMention.hide();
+		_fieldAutocomplete->hide();
 		_send.hide();
 		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_unblock.hide();
@@ -4807,7 +4821,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
@@ -5018,7 +5032,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_attachDocument.hide();
 	_attachPhoto.hide();
 	_attachEmoji.hide();
-	_attachMention.hide();
+	_fieldAutocomplete->hide();
 	_broadcast.hide();
 	_silent.hide();
 	_kbShow.hide();
@@ -5826,7 +5840,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			}
 			int32 onlineCount = 0;
 			bool onlyMe = true;
-			for (MentionRows::const_iterator i = _peer->asChannel()->mgInfo->lastParticipants.cbegin(), e = _peer->asChannel()->mgInfo->lastParticipants.cend(); i != e; ++i) {
+			for (auto i = _peer->asChannel()->mgInfo->lastParticipants.cbegin(), e = _peer->asChannel()->mgInfo->lastParticipants.cend(); i != e; ++i) {
 				if ((*i)->onlineTill > t) {
 					++onlineCount;
 					if (onlyMe && (*i) != App::self()) onlyMe = false;
@@ -5937,7 +5951,7 @@ void HistoryWidget::clearInlineBot() {
 		_field.finishPlaceholder();
 	}
 	_emojiPan.clearInlineBot();
-	onCheckMentionDropdown();
+	onCheckFieldAutocomplete();
 }
 
 void HistoryWidget::inlineBotChanged() {
@@ -5967,7 +5981,7 @@ void HistoryWidget::onFieldFocused() {
 	if (_list) _list->clearSelectedItems(true);
 }
 
-void HistoryWidget::onCheckMentionDropdown() {
+void HistoryWidget::onCheckFieldAutocomplete() {
 	if (!_history || _a_show.animating()) return;
 
 	bool start = false;
@@ -5977,7 +5991,7 @@ void HistoryWidget::onCheckMentionDropdown() {
 		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
 		if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 	}
-	_attachMention.showFiltered(_peer, query, start);
+	_fieldAutocomplete->showFiltered(_peer, query, start);
 }
 
 void HistoryWidget::updateFieldPlaceholder() {
@@ -6451,14 +6465,14 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 		if (_scroll.y() != st::replyHeight) {
 			_scroll.move(0, st::replyHeight);
 			_reportSpamPanel.move(0, st::replyHeight);
-			_attachMention.setBoundings(_scroll.geometry());
+			_fieldAutocomplete->setBoundings(_scroll.geometry());
 		}
 		_pinnedBar->cancel.move(width() - _pinnedBar->cancel.width(), 0);
 		_pinnedBar->shadow.setGeometry(0, st::replyHeight, width(), st::lineWidth);
 	} else if (_scroll.y() != 0) {
 		_scroll.move(0, 0);
 		_reportSpamPanel.move(0, 0);
-		_attachMention.setBoundings(_scroll.geometry());
+		_fieldAutocomplete->setBoundings(_scroll.geometry());
 	}
 
 	updateListSize(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
@@ -6566,7 +6580,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 			visibleAreaUpdated();
 		}
 
-		_attachMention.setBoundings(_scroll.geometry());
+		_fieldAutocomplete->setBoundings(_scroll.geometry());
 		_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 		updateCollapseCommentsVisibility();
 	}
@@ -6934,9 +6948,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void HistoryWidget::onFieldTabbed() {
-	QString sel = _attachMention.isHidden() ? QString() : _attachMention.getSelected();
-	if (!sel.isEmpty()) {
-		_field.onMentionHashtagOrBotCommandInsert(sel);
+	if (!_fieldAutocomplete->isHidden()) {
+		_fieldAutocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
 	}
 }
 
@@ -7014,7 +7027,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		Local::writeRecentHashtagsAndBots();
 	}
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
@@ -7171,14 +7184,14 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 
 	App::historyRegRandom(randomId, newId);
 
-	if (_attachMention.stickersShown()) {
+	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
 		_saveDraftText = true;
 		_saveDraftStart = getms();
 		onDraftSave();
 	}
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
@@ -7225,7 +7238,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 
 	App::historyRegRandom(randomId, newId);
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
@@ -7659,8 +7672,8 @@ void HistoryWidget::onCancel() {
 		} else {
 			onFieldBarCancel();
 		}
-	} else if (!_attachMention.isHidden()) {
-		_attachMention.hideStart();
+	} else if (!_fieldAutocomplete->isHidden()) {
+		_fieldAutocomplete->hideStart();
 	} else  {
 		Ui::showChatsList();
 		emit cancelled();
@@ -7677,7 +7690,7 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 			}
 			updateControlsVisibility();
 		}
-		onCheckMentionDropdown();
+		onCheckFieldAutocomplete();
 		updateReportSpamStatus();
 		_list->updateBotInfo();
 	}

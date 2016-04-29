@@ -94,6 +94,8 @@ public:
 
 	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
+	void insertMentionHashtagOrBotCommand(const QString &data, const QString &entityTag = QString());
+
 public slots:
 
 	void onTouchTimer();
@@ -103,8 +105,6 @@ public slots:
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
-
-	void onMentionHashtagOrBotCommandInsert(QString str);
 
 signals:
 

@@ -24,6 +24,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/boxshadow.h"
 #include "dropdown.h"
 #include "history/history_common.h"
+#include "history/field_autocomplete.h"
+
+namespace InlineBots {
+namespace Layout {
+class ItemBase;
+} // namespace Layout
+class Result;
+} // namespace InlineBots
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -483,13 +491,6 @@ enum TextUpdateEventsFlags {
 	TextUpdateEventsSendTyping = 0x02,
 };
 
-namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
-class Result;
-} // namespace InlineBots
-
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -759,7 +760,6 @@ public slots:
 
 	void activate();
 	void onStickersUpdated();
-	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 
 	void onFieldTabbed();
@@ -777,7 +777,7 @@ public slots:
 
 	void onFieldFocused();
 	void onFieldResize();
-	void onCheckMentionDropdown();
+	void onCheckFieldAutocomplete();
 	void onScrollTimer();
 
 	void onForwardSelected();
@@ -806,6 +806,8 @@ public slots:
 
 private slots:
 
+	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
+	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
 
 private:
@@ -1003,7 +1005,7 @@ private:
 	IconedButton _toHistoryEnd;
 	CollapseButton _collapseComments;
 
-	MentionsDropdown _attachMention;
+	ChildWidget<FieldAutocomplete> _fieldAutocomplete;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
