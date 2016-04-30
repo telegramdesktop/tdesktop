@@ -1364,6 +1364,21 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityHashtag: { const auto &d(entity.c_messageEntityHashtag()); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMention: { const auto &d(entity.c_messageEntityMention()); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMentionName: { const auto &d(entity.c_messageEntityMentionName()); result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, QString::number(d.vuser_id.v))); } break;
+			case mtpc_inputMessageEntityMentionName: {
+				const auto &d(entity.c_inputMessageEntityMentionName());
+				auto data = ([&d]() -> QString {
+					if (d.vuser_id.type() == mtpc_inputUserSelf) {
+						return QString::number(MTP::authedId());
+					} else if (d.vuser_id.type() == mtpc_inputUser) {
+						const auto &user(d.vuser_id.c_inputUser());
+						return QString::number(user.vuser_id.v) + '.' + QString::number(user.vaccess_hash.v);
+					}
+					return QString();
+				})();
+				if (!data.isEmpty()) {
+					result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
+				}
+			} break;
 			case mtpc_messageEntityBotCommand: { const auto &d(entity.c_messageEntityBotCommand()); result.push_back(EntityInText(EntityInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityBold: { const auto &d(entity.c_messageEntityBold()); result.push_back(EntityInText(EntityInTextBold, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityItalic: { const auto &d(entity.c_messageEntityItalic()); result.push_back(EntityInText(EntityInTextItalic, d.voffset.v, d.vlength.v)); } break;
@@ -1380,7 +1395,12 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 	auto &v = result._vector().v;
 	for_const (const auto &link, links) {
 		if (link.length() <= 0) continue;
-		if (sending && link.type() != EntityInTextCode && link.type() != EntityInTextPre) continue;
+		if (sending
+			&& link.type() != EntityInTextCode
+			&& link.type() != EntityInTextPre
+			&& link.type() != EntityInTextMentionName) {
+			continue;
+		}
 
 		auto offset = MTP_int(link.offset()), length = MTP_int(link.length());
 		switch (link.type()) {
@@ -1389,7 +1409,22 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(offset, length)); break;
 		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
 		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
-		case EntityInTextMentionName: v.push_back(MTP_messageEntityMentionName(offset, length, MTP_int(link.data().toInt()))); break;
+		case EntityInTextMentionName: {
+			auto inputUser = ([](const QString &data) -> MTPInputUser {
+				UserId userId = 0;
+				uint64 accessHash = 0;
+				if (mentionNameToFields(data, &userId, &accessHash)) {
+					if (userId == MTP::authedId()) {
+						return MTP_inputUserSelf();
+					}
+					return MTP_inputUser(MTP_int(userId), MTP_long(accessHash));
+				}
+				return MTP_inputUserEmpty();
+			})(link.data());
+			if (inputUser.type() != mtpc_inputUserEmpty) {
+				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
+			}
+		} break;
 		case EntityInTextBotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
 		case EntityInTextBold: v.push_back(MTP_messageEntityBold(offset, length)); break;
 		case EntityInTextItalic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
@@ -1400,8 +1435,9 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 	return result;
 }
 
-EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
-	EntitiesInText result, mono;
+// Some code is duplicated in flattextarea.cpp!
+void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich) {
+	EntitiesInText mono;
 
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
@@ -1701,20 +1737,18 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 		}
 		for (; monoEntity < monoCount && mono[monoEntity].offset() <= lnkStart; ++monoEntity) {
 			monoTill = qMax(monoTill, mono[monoEntity].offset() + mono[monoEntity].length());
-			result.push_back(mono[monoEntity]);
+			inOutEntities->push_back(mono[monoEntity]);
 		}
 		if (lnkStart >= monoTill) {
-			result.push_back(EntityInText(lnkType, lnkStart, lnkLength));
+			inOutEntities->push_back(EntityInText(lnkType, lnkStart, lnkLength));
 		}
 
 		offset = matchOffset = lnkStart + lnkLength;
 	}
 	for (; monoEntity < monoCount; ++monoEntity) {
 		monoTill = qMax(monoTill, mono[monoEntity].offset() + mono[monoEntity].length());
-		result.push_back(mono[monoEntity]);
+		inOutEntities->push_back(mono[monoEntity]);
 	}
-
-	return result;
 }
 
 QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
@@ -1769,71 +1803,11 @@ QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
 	return result;
 }
 
-void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &result, EntitiesInText &entities, bool checkSpace = false) {
-	int32 len = from.size(), s = result.size(), offset = 0, length = 0;
-	EntitiesInText::iterator i = entities.begin(), e = entities.end();
-	for (QChar *start = result.data(); offset < s;) {
-		int32 nextOffset = result.indexOf(from, offset);
-		if (nextOffset < 0) {
-			moveStringPart(start, length, offset, s - offset, entities);
-			break;
-		}
-
-		if (checkSpace) {
-			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
-			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
-			if (!spaceBefore && !spaceAfter) {
-				moveStringPart(start, length, offset, nextOffset - offset + len + 1, entities);
-				continue;
-			}
-		}
-
-		bool skip = false;
-		for (; i != e; ++i) { // find and check next finishing entity
-			if (i->offset() + i->length() > nextOffset) {
-				skip = (i->offset() < nextOffset + len);
-				break;
-			}
-		}
-		if (skip) {
-			moveStringPart(start, length, offset, nextOffset - offset + len, entities);
-			continue;
-		}
-
-		moveStringPart(start, length, offset, nextOffset - offset, entities);
-
-		*(start + length) = to;
-		++length;
-		offset += len;
-	}
-	if (length < s) result.resize(length);
-}
-
-QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 flags) {
-	cleanTextWithEntities(result, entities);
-
-	if (flags) {
-		entities = textParseEntities(result, flags);
-	}
-
-	replaceStringWithEntities(qstr("--"), QChar(8212), result, entities, true);
-	replaceStringWithEntities(qstr("<<"), QChar(171), result, entities);
-	replaceStringWithEntities(qstr(">>"), QChar(187), result, entities);
-
-	if (cReplaceEmojis()) {
-		result = replaceEmojis(result, entities);
-	}
-
-	trimTextWithEntities(result, entities);
-
-	return result;
-}
-
-void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText &entities) {
+void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText *inOutEntities) {
 	if (count > 0) {
 		if (to < from) {
 			memmove(start + to, start + from, count * sizeof(QChar));
-			for (auto &entity : entities) {
+			for (auto &entity : *inOutEntities) {
 				if (entity.offset() >= from + count) break;
 				if (entity.offset() + entity.length() < from) continue;
 				if (entity.offset() >= from) {
@@ -1849,24 +1823,84 @@ void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesI
 	}
 }
 
+void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &result, EntitiesInText *inOutEntities, bool checkSpace = false) {
+	int32 len = from.size(), s = result.size(), offset = 0, length = 0;
+	EntitiesInText::iterator i = inOutEntities->begin(), e = inOutEntities->end();
+	for (QChar *start = result.data(); offset < s;) {
+		int32 nextOffset = result.indexOf(from, offset);
+		if (nextOffset < 0) {
+			moveStringPart(start, length, offset, s - offset, inOutEntities);
+			break;
+		}
+
+		if (checkSpace) {
+			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
+			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
+			if (!spaceBefore && !spaceAfter) {
+				moveStringPart(start, length, offset, nextOffset - offset + len + 1, inOutEntities);
+				continue;
+			}
+		}
+
+		bool skip = false;
+		for (; i != e; ++i) { // find and check next finishing entity
+			if (i->offset() + i->length() > nextOffset) {
+				skip = (i->offset() < nextOffset + len);
+				break;
+			}
+		}
+		if (skip) {
+			moveStringPart(start, length, offset, nextOffset - offset + len, inOutEntities);
+			continue;
+		}
+
+		moveStringPart(start, length, offset, nextOffset - offset, inOutEntities);
+
+		*(start + length) = to;
+		++length;
+		offset += len;
+	}
+	if (length < s) result.resize(length);
+}
+
+QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inOutEntities) {
+	cleanTextWithEntities(result, inOutEntities);
+
+	if (flags) {
+		textParseEntities(result, flags, inOutEntities);
+	}
+
+	replaceStringWithEntities(qstr("--"), QChar(8212), result, inOutEntities, true);
+	replaceStringWithEntities(qstr("<<"), QChar(171), result, inOutEntities);
+	replaceStringWithEntities(qstr(">>"), QChar(187), result, inOutEntities);
+
+	if (cReplaceEmojis()) {
+		result = replaceEmojis(result, inOutEntities);
+	}
+
+	trimTextWithEntities(result, inOutEntities);
+
+	return result;
+}
+
 // replace bad symbols with space and remove \r
-void cleanTextWithEntities(QString &result, EntitiesInText &entities) {
+void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities) {
 	result = result.replace('\t', qstr("  "));
 	int32 len = result.size(), to = 0, from = 0;
 	QChar *start = result.data();
 	for (QChar *ch = start, *end = start + len; ch < end; ++ch) {
 		if (ch->unicode() == '\r') {
-			moveStringPart(start, to, from, (ch - start) - from, entities);
+			moveStringPart(start, to, from, (ch - start) - from, inOutEntities);
 			++from;
 		} else if (chReplacedBySpace(*ch)) {
 			*ch = ' ';
 		}
 	}
-	moveStringPart(start, to, from, len - from, entities);
+	moveStringPart(start, to, from, len - from, inOutEntities);
 	if (to < len) result.resize(to);
 }
 
-void trimTextWithEntities(QString &result, EntitiesInText &entities) {
+void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities) {
 	bool foundNotTrimmedChar = false;
 
 	// right trim
@@ -1875,7 +1909,7 @@ void trimTextWithEntities(QString &result, EntitiesInText &entities) {
 		if (!chIsTrimmed(*ch)) {
 			if (ch + 1 < e) {
 				int32 l = ch + 1 - s;
-				for (auto &entity : entities) {
+				for (auto &entity : *inOutEntities) {
 					entity.updateTextEnd(l);
 				}
 				result.resize(l);
@@ -1886,18 +1920,18 @@ void trimTextWithEntities(QString &result, EntitiesInText &entities) {
 	}
 	if (!foundNotTrimmedChar) {
 		result.clear();
-		entities.clear();
+		inOutEntities->clear();
 		return;
 	}
 
-	int firstMonospaceOffset = EntityInText::firstMonospaceOffset(entities, result.size());
+	int firstMonospaceOffset = EntityInText::firstMonospaceOffset(*inOutEntities, result.size());
 
 	// left trim
 	for (QChar *s = result.data(), *ch = s, *e = s + result.size(); ch != e; ++ch) {
 		if (!chIsTrimmed(*ch) || (ch - s) == firstMonospaceOffset) {
 			if (ch > s) {
 				int32 l = ch - s;
-				for (auto &entity : entities) {
+				for (auto &entity : *inOutEntities) {
 					entity.shiftLeft(l);
 				}
 				result = result.mid(l);

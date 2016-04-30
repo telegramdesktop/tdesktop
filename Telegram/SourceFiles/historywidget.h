@@ -486,6 +486,8 @@ public:
 
 };
 
+EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags);
+
 enum TextUpdateEventsFlags {
 	TextUpdateEventsSaveDraft  = 0x01,
 	TextUpdateEventsSendTyping = 0x02,

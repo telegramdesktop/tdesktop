@@ -33,17 +33,6 @@ public:
 
 	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 
-	bool viewportEvent(QEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void focusInEvent(QFocusEvent *e) override;
-	void focusOutEvent(QFocusEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-
 	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);
 	void setMaxHeight(int32 maxHeight);
@@ -51,6 +40,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+
 	void setPlaceholder(const QString &ph, int32 afterSymbols = 0);
 	void updatePlaceholder();
 	void finishPlaceholder();
@@ -94,7 +84,15 @@ public:
 
 	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
-	void insertMentionHashtagOrBotCommand(const QString &data, const QString &entityTag = QString());
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using TagList = QVector<Tag>;
+	const TagList &getLastTags() const {
+		return _oldtags;
+	}
+	void insertMentionHashtagOrBotCommand(const QString &data, const QString &tagId = QString());
 
 public slots:
 
@@ -118,8 +116,19 @@ signals:
 
 protected:
 
-	QString getText(int32 start = 0, int32 end = -1) const;
-	virtual void correctValue(const QString &was, QString &now);
+	bool viewportEvent(QEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
+	virtual void correctValue(const QString &was, QString &now, TagList &nowTags) {
+	}
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 
@@ -128,6 +137,10 @@ protected:
 	void checkContentHeight();
 
 private:
+
+	// "start" and "end" are in coordinates of text where emoji are replaced by ObjectReplacementCharacter.
+	// If "end" = -1 means get text till the end. "outTagsList" and "outTagsChanged" may be nullptr.
+	QString getText(int start, int end, TagList *outTagsList, bool *outTagsChanged) const;
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 	void processDocumentContentsChange(int position, int charsAdded);
@@ -139,12 +152,16 @@ private:
 	SubmitSettings _submitSettings = SubmitSettings::Enter;
 
 	QString _ph, _phelided, _oldtext;
+	TagList _oldtags;
 	int _phAfter = 0;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor;
 	Animation _a_appearance;
+
+	// Tags list which we should apply while setText() call or insert from mime data.
+	TagList _settingTags;
 
 	style::flatTextarea _st;
 
@@ -167,3 +184,10 @@ private:
 	typedef QList<LinkRange> LinkRanges;
 	LinkRanges _links;
 };
+
+inline bool operator==(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
+}
+inline bool operator!=(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return !(a == b);
+}

@@ -246,27 +246,6 @@ public:
 		createBlock();
 	}
 
-	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
-		if (!original.isEmpty() && original.at(0) == '/') {
-			result = original;
-			fullDisplayed = -4; // bot command
-		} else if (!original.isEmpty() && original.at(0) == '@') {
-			result = original;
-			fullDisplayed = -3; // mention
-		} else if (!original.isEmpty() && original.at(0) == '#') {
-			result = original;
-			fullDisplayed = -2; // hashtag
-		} else if (reMailStart().match(original).hasMatch()) {
-			result = original;
-			fullDisplayed = -1; // email
-		} else {
-			QUrl url(original), good(url.isValid() ? url.toEncoded() : "");
-			QString readable = good.isValid() ? good.toDisplayString() : original;
-			result = _t->_font->elided(readable, st::linkCropLimit);
-			fullDisplayed = (result == readable) ? 1 : 0;
-		}
-	}
-
 	bool checkCommand() {
 		bool result = false;
 		for (QChar c = ((ptr < end) ? *ptr : 0); c == TextCommand; c = ((ptr < end) ? *ptr : 0)) {
@@ -300,17 +279,11 @@ public:
 			return;
 		}
 
-		bool lnk = false;
 		int32 startFlags = 0;
-		int32 fullDisplayed;
-		QString lnkUrl, lnkText;
-		auto type = waitingEntity->type();
-		if (type == EntityInTextCustomUrl) {
-			lnk = true;
-			lnkUrl = waitingEntity->data();
-			lnkText = QString(start + waitingEntity->offset(), waitingEntity->length());
-			fullDisplayed = -5;
-		} else if (type == EntityInTextBold) {
+		QString linkData, linkText;
+		auto type = waitingEntity->type(), linkType = EntityInTextInvalid;
+		LinkDisplayStatus linkDisplayStatus = LinkDisplayedFull;
+		if (type == EntityInTextBold) {
 			startFlags = TextBlockFSemibold;
 		} else if (type == EntityInTextItalic) {
 			startFlags = TextBlockFItalic;
@@ -322,21 +295,36 @@ public:
 			if (!_t->_blocks.isEmpty() && _t->_blocks.back()->type() != TextBlockTNewline) {
 				createNewlineBlock();
 			}
-		} else {
-			lnk = true;
-			lnkUrl = QString(start + waitingEntity->offset(), waitingEntity->length());
-			getLinkData(lnkUrl, lnkText, fullDisplayed);
+		} else if (type == EntityInTextUrl
+		        || type == EntityInTextEmail
+		        || type == EntityInTextMention
+		        || type == EntityInTextHashtag
+		        || type == EntityInTextBotCommand) {
+			linkType = type;
+			linkData = QString(start + waitingEntity->offset(), waitingEntity->length());
+			if (linkType == EntityInTextUrl) {
+				computeLinkText(linkData, &linkText, &linkDisplayStatus);
+			} else {
+				linkText = linkData;
+			}
+		} else if (type == EntityInTextCustomUrl || type == EntityInTextMentionName) {
+			linkType = type;
+			linkData = waitingEntity->data();
+			linkText = QString(start + waitingEntity->offset(), waitingEntity->length());
 		}
 
-		if (lnk) {
+		if (linkType != EntityInTextInvalid) {
 			createBlock();
 
-			links.push_back(TextLinkData(lnkUrl, fullDisplayed));
+			links.push_back(TextLinkData(linkType, linkText, linkData, linkDisplayStatus));
 			lnkIndex = 0x8000 + links.size();
 
-			_t->_text += lnkText;
-			ptr = start + waitingEntity->offset() + waitingEntity->length();
+			for (auto entityEnd = start + waitingEntity->offset() + waitingEntity->length(); ptr < entityEnd; ++ptr) {
+				parseCurrentChar();
+				parseEmojiFromCurrent();
 
+				if (sumFinished || _t->_text.size() >= 0x8000) break; // 32k max
+			}
 			createBlock();
 
 			lnkIndex = 0;
@@ -461,7 +449,7 @@ public:
 		case TextCommandLinkText: {
 			createBlock();
 			int32 len = ptr->unicode();
-			links.push_back(TextLinkData(QString(++ptr, len), false));
+			links.push_back(TextLinkData(EntityInTextCustomUrl, QString(), QString(++ptr, len), LinkDisplayedFull));
 			lnkIndex = 0x8000 + links.size();
 		} break;
 
@@ -565,7 +553,7 @@ public:
 		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		if (options.flags & TextParseLinks) {
-			entities = textParseEntities(src, options.flags, rich);
+			textParseEntities(src, options.flags, &entities, rich);
 		}
 		parse(options);
 	}
@@ -664,32 +652,44 @@ public:
 				lnkIndex = maxLnkIndex + (b->lnkIndex() - 0x8000);
 				if (_t->_links.size() < lnkIndex) {
 					_t->_links.resize(lnkIndex);
-					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
-					ClickHandlerPtr lnk;
-					if (data.fullDisplayed < -4) { // hidden link
-						lnk.reset(new HiddenUrlClickHandler(data.url));
-					} else if (data.fullDisplayed < -3) { // bot command
-						lnk.reset(new BotCommandClickHandler(data.url));
-					} else if (data.fullDisplayed < -2) { // mention
+					const TextLinkData &link(links[lnkIndex - maxLnkIndex - 1]);
+					ClickHandlerPtr handler;
+					switch (link.type) {
+					case EntityInTextCustomUrl: handler.reset(new HiddenUrlClickHandler(link.data)); break;
+					case EntityInTextEmail:
+					case EntityInTextUrl: handler.reset(new UrlClickHandler(link.data, link.displayStatus == LinkDisplayedFull)); break;
+					case EntityInTextBotCommand: handler.reset(new BotCommandClickHandler(link.data)); break;
+					case EntityInTextHashtag:
 						if (options.flags & TextTwitterMentions) {
-							lnk.reset(new UrlClickHandler(qsl("https://twitter.com/") + data.url.mid(1), true));
+							handler.reset(new UrlClickHandler(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true));
 						} else if (options.flags & TextInstagramMentions) {
-							lnk.reset(new UrlClickHandler(qsl("https://instagram.com/") + data.url.mid(1) + '/', true));
+							handler.reset(new UrlClickHandler(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true));
 						} else {
-							lnk.reset(new MentionClickHandler(data.url));
+							handler.reset(new HashtagClickHandler(link.data));
 						}
-					} else if (data.fullDisplayed < -1) { // hashtag
+					break;
+					case EntityInTextMention:
 						if (options.flags & TextTwitterMentions) {
-							lnk.reset(new UrlClickHandler(qsl("https://twitter.com/hashtag/") + data.url.mid(1) + qsl("?src=hash"), true));
+							handler.reset(new UrlClickHandler(qsl("https://twitter.com/") + link.data.mid(1), true));
 						} else if (options.flags & TextInstagramMentions) {
-							lnk.reset(new UrlClickHandler(qsl("https://instagram.com/explore/tags/") + data.url.mid(1) + '/', true));
+							handler.reset(new UrlClickHandler(qsl("https://instagram.com/") + link.data.mid(1) + '/', true));
 						} else {
-							lnk.reset(new HashtagClickHandler(data.url));
+							handler.reset(new MentionClickHandler(link.data));
 						}
-					} else { // email or url
-						lnk.reset(new UrlClickHandler(data.url, data.fullDisplayed != 0));
+					break;
+					case EntityInTextMentionName: {
+						UserId userId = 0;
+						uint64 accessHash = 0;
+						if (mentionNameToFields(link.data, &userId, &accessHash)) {
+							handler.reset(new MentionNameClickHandler(link.text, userId, accessHash));
+						} else {
+							LOG(("Bad mention name: %1").arg(link.data));
+						}
+					} break;
 					}
-					_t->setLink(lnkIndex, lnk);
+
+					t_assert(!handler.isNull());
+					_t->setLink(lnkIndex, handler);
 				}
 				b->setLnkIndex(lnkIndex);
 			}
@@ -701,6 +701,30 @@ public:
 
 private:
 
+	enum LinkDisplayStatus {
+		LinkDisplayedFull,
+		LinkDisplayedElided,
+	};
+	struct TextLinkData {
+		TextLinkData() = default;
+		TextLinkData(EntityInTextType type, const QString &text, const QString &data, LinkDisplayStatus displayStatus)
+			: type(type)
+			, text(text)
+			, data(data)
+			, displayStatus(displayStatus) {
+		}
+		EntityInTextType type = EntityInTextInvalid;
+		QString text, data;
+		LinkDisplayStatus displayStatus = LinkDisplayedFull;
+	};
+
+	void computeLinkText(const QString &linkData, QString *outLinkText, LinkDisplayStatus *outDisplayStatus) {
+		QUrl url(linkData), good(url.isValid() ? url.toEncoded() : "");
+		QString readable = good.isValid() ? good.toDisplayString() : linkData;
+		*outLinkText = _t->_font->elided(readable, st::linkCropLimit);
+		*outDisplayStatus = (*outLinkText == readable) ? LinkDisplayedFull : LinkDisplayedElided;
+	}
+
 	Text *_t;
 	QString src;
 	const QChar *start, *end, *ptr;
@@ -709,12 +733,6 @@ private:
 	EntitiesInText entities;
 	EntitiesInText::const_iterator waitingEntity, entitiesEnd;
 
-	struct TextLinkData {
-		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
-		}
-		QString url;
-		int32 fullDisplayed; // -5 - custom text link, -4 - bot command, -3 - mention, -2 - hashtag, -1 - email
-	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
 

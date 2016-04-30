@@ -133,21 +133,36 @@ enum {
 	TextInstagramHashtags = 0x800,
 };
 
+inline bool mentionNameToFields(const QString &data, int32 *outUserId, uint64 *outAccessHash) {
+	auto components = data.split('.');
+	if (!components.isEmpty()) {
+		*outUserId = components.at(0).toInt();
+		*outAccessHash = (components.size() > 1) ? components.at(1).toULongLong() : 0;
+		return (*outUserId != 0);
+	}
+	return false;
+}
+
+inline QString mentionNameFromFields(int32 userId, uint64 accessHash) {
+	return QString::number(userId) + '.' + QString::number(accessHash);
+}
+
 EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities);
 MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending = false);
 
-EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
+// New entities are added to the ones that are already in inOutEntities.
+// Changes text if (flags & TextParseMono).
+void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich = false);
 QString textApplyEntities(const QString &text, const EntitiesInText &entities);
 
-QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 flags);
+QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inOutEntities);
 
 inline QString prepareText(QString result, bool checkLinks = false) {
 	EntitiesInText entities;
-	return prepareTextWithEntities(result, entities, checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0);
+	auto prepareFlags = checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0;
+	return prepareTextWithEntities(result, prepareFlags, &entities);
 }
 
-void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText &entities);
-
 // replace bad symbols with space and remove \r
-void cleanTextWithEntities(QString &result, EntitiesInText &entities);
-void trimTextWithEntities(QString &result, EntitiesInText &entities);
+void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities);
+void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities);

@@ -23,6 +23,64 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 
+namespace {
+
+QByteArray serializeTagsList(const FlatTextarea::TagList &tags) {
+	if (tags.isEmpty()) {
+		return QByteArray();
+	}
+
+	QByteArray tagsSerialized;
+	{
+		QBuffer buffer(&tagsSerialized);
+		buffer.open(QIODevice::WriteOnly);
+		QDataStream stream(&buffer);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(tags.size());
+		for_const (auto &tag, tags) {
+			stream << qint32(tag.offset) << qint32(tag.length) << tag.id;
+		}
+	}
+	return tagsSerialized;
+}
+
+FlatTextarea::TagList deserializeTagsList(QByteArray data, int textSize) {
+	FlatTextarea::TagList result;
+
+	QBuffer buffer(&data);
+	buffer.open(QIODevice::ReadOnly);
+
+	QDataStream stream(&buffer);
+	stream.setVersion(QDataStream::Qt_5_1);
+
+	qint32 tagCount = 0;
+	stream >> tagCount;
+	if (stream.status() != QDataStream::Ok) {
+		return result;
+	}
+	if (tagCount <= 0 || tagCount > textSize) {
+		return result;
+	}
+
+	for (int i = 0; i < tagCount; ++i) {
+		qint32 offset = 0, length = 0;
+		QString id;
+		stream >> offset >> length >> id;
+		if (stream.status() != QDataStream::Ok) {
+			return result;
+		}
+		if (offset < 0 || length <= 0 || offset + length > textSize) {
+			return result;
+		}
+		result.push_back({ offset, length, id });
+	}
+	return result;
+}
+
+constexpr str_const TagsMimeType = "application/x-td-field-tags";
+
+} // namespace
+
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
 , _oldtext(v)
 , _phVisible(!v.length())
@@ -62,7 +120,7 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
-	connect(document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
+	connect(document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
 	connect(document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
@@ -360,7 +418,7 @@ QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
 	return QString();
 }
 
-void FlatTextarea::insertMentionHashtagOrBotCommand(const QString &data, const QString &entityTag) {
+void FlatTextarea::insertMentionHashtagOrBotCommand(const QString &data, const QString &tagId) {
 	QTextCursor c(textCursor());
 	int32 pos = c.position();
 
@@ -405,13 +463,15 @@ void FlatTextarea::insertMentionHashtagOrBotCommand(const QString &data, const Q
 		}
 		break;
 	}
-	if (entityTag.isEmpty()) {
+	if (tagId.isEmpty()) {
 		c.insertText(data + ' ');
 	} else {
-		QTextCharFormat fmt;
-		fmt.setForeground(st::defaultTextStyle.linkFg);
-		c.insertText(data, fmt);
-		c.insertText(qsl(" "));
+		QTextCharFormat defaultFormat = c.charFormat(), linkFormat = defaultFormat;
+		linkFormat.setAnchor(true);
+		linkFormat.setAnchorName(tagId + '/' + QString::number(rand_value<uint32>()));
+		linkFormat.setForeground(st::defaultTextStyle.linkFg);
+		c.insertText(data, linkFormat);
+		c.insertText(qsl(" "), defaultFormat);
 	}
 }
 
@@ -471,11 +531,58 @@ void FlatTextarea::removeSingleEmoji() {
 	}
 }
 
-QString FlatTextarea::getText(int32 start, int32 end) const {
+namespace {
+
+class TagAccumulator {
+public:
+	TagAccumulator(FlatTextarea::TagList *tags) : _tags(tags) {
+	}
+
+	bool changed() const {
+		return _changed;
+	}
+
+	void feed(const QString &tagId, int currentPosition) {
+		if (tagId == _currentTagId) return;
+
+		if (!_currentTagId.isEmpty()) {
+			FlatTextarea::Tag tag = {
+				_currentStart,
+				currentPosition - _currentStart,
+				_currentTagId,
+			};
+			if (_currentTag >= _tags->size()) {
+				_changed = true;
+				_tags->push_back(tag);
+			} else if (_tags->at(_currentTag) != tag) {
+				_changed = true;
+				(*_tags)[_currentTag] = tag;
+			}
+			++_currentTag;
+		}
+		_currentTagId = tagId;
+		_currentStart = currentPosition;
+	};
+
+private:
+	FlatTextarea::TagList *_tags;
+	bool _changed = false;
+
+	int _currentTag = 0;
+	int _currentStart = 0;
+	QString _currentTagId;
+
+};
+
+} // namespace
+
+QString FlatTextarea::getText(int start, int end, TagList *outTagsList, bool *outTagsChanged) const {
 	if (end >= 0 && end <= start) return QString();
 
 	if (start < 0) start = 0;
 	bool full = (start == 0) && (end < 0);
+
+	TagAccumulator tagAccumulator(outTagsList);
 
 	QTextDocument *doc(document());
 	QTextBlock from = full ? doc->begin() : doc->findBlock(start), till = (end < 0) ? doc->end() : doc->findBlock(end);
@@ -491,16 +598,27 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 		end = possibleLen;
 	}
 
-	for (QTextBlock b = from; b != till; b = b.next()) {
-		for (QTextBlock::Iterator iter = b.begin(); !iter.atEnd(); ++iter) {
+	bool tillFragmentEnd = full;
+	for (auto b = from; b != till; b = b.next()) {
+		for (auto iter = b.begin(); !iter.atEnd(); ++iter) {
 			QTextFragment fragment(iter.fragment());
 			if (!fragment.isValid()) continue;
 
 			int32 p = full ? 0 : fragment.position(), e = full ? 0 : (p + fragment.length());
 			if (!full) {
-				if (p >= end || e <= start) {
+				tillFragmentEnd = (e <= end);
+				if (p == end && outTagsList) {
+					tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
+				}
+				if (p >= end) {
+					break;
+				}
+				if (e <= start) {
 					continue;
 				}
+			}
+			if (outTagsList && (full || p >= start)) {
+				tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
 			}
 
 			QTextCharFormat f = fragment.charFormat();
@@ -545,6 +663,13 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 		result.append('\n');
 	}
 	result.chop(1);
+
+	if (outTagsList) {
+		if (tillFragmentEnd) tagAccumulator.feed(QString(), result.size());
+		if (outTagsChanged) {
+			*outTagsChanged = tagAccumulator.changed();
+		}
+	}
 	return result;
 }
 
@@ -666,11 +791,17 @@ QStringList FlatTextarea::linksList() const {
 }
 
 void FlatTextarea::insertFromMimeData(const QMimeData *source) {
+	auto mime = str_const_latin1_toString(TagsMimeType);
+	if (source->hasFormat(mime)) {
+		auto tagsData = source->data(mime);
+		_settingTags = deserializeTagsList(tagsData, source->text().size());
+	} else {
+		_settingTags.clear();
+	}
 	QTextEdit::insertFromMimeData(source);
-	if (!_inDrop) emit spacedReturnedPasted();
-}
+	_settingTags.clear();
 
-void FlatTextarea::correctValue(const QString &was, QString &now) {
+	if (!_inDrop) emit spacedReturnedPasted();
 }
 
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
@@ -680,6 +811,7 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	imageFormat.setHeight(eh / cIntRetinaFactor());
 	imageFormat.setName(qsl("emoji://e.") + QString::number(emojiKey(emoji), 16));
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
+	imageFormat.setAnchorName(c.charFormat().anchorName());
 
 	static QString objectReplacement(QChar::ObjectReplacementCharacter);
 	c.insertText(objectReplacement, imageFormat);
@@ -703,7 +835,7 @@ void FlatTextarea::checkContentHeight() {
 
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 	int32 replacePosition = -1, replaceLen = 0;
-	const EmojiData *emoji = 0;
+	const EmojiData *emoji = nullptr;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
 	bool checkTilde = !cRetina() && (font().pixelSize() == 13) && (font().family() == regular), wasTildeFragment = false;
@@ -731,7 +863,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				QString t(fragment.text());
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
-					int32 emojiLen = 0;
+					int emojiLen = 0;
 					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
@@ -767,9 +899,12 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 			if (replacePosition >= 0) break;
 		}
 		if (replacePosition >= 0) {
+			// Optimization: with null page size document does not re-layout
+			// on each insertText / mergeCharFormat.
 			if (!document()->pageSize().isNull()) {
 				document()->setPageSize(QSizeF(0, 0));
 			}
+
 			QTextCursor c(doc->docHandle(), replacePosition);
 			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
 			if (emoji) {
@@ -782,7 +917,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 			charsAdded -= replacePosition + replaceLen - position;
 			position = replacePosition + (emoji ? 1 : replaceLen);
 
-			emoji = 0;
+			emoji = nullptr;
 			replacePosition = -1;
 		} else {
 			break;
@@ -821,7 +956,7 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 
 	if (!_links.isEmpty()) {
 		bool changed = false;
-		for (LinkRanges::iterator i = _links.begin(); i != _links.end();) {
+		for (auto i = _links.begin(); i != _links.end();) {
 			if (i->first + i->second <= position) {
 				++i;
 			} else if (i->first >= position + charsRemoved) {
@@ -867,11 +1002,15 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 void FlatTextarea::onDocumentContentsChanged() {
 	if (_correcting) return;
 
-	QString curText(getText());
+	auto tagsChanged = false;
+	auto curText = getText(0, -1, &_oldtags, &tagsChanged);
+
 	_correcting = true;
-	correctValue(_oldtext, curText);
+	correctValue(_oldtext, curText, _oldtags);
 	_correcting = false;
-	if (_oldtext != curText) {
+
+	bool textOrTagsChanged = tagsChanged || (_oldtext != curText);
+	if (textOrTagsChanged) {
 		_oldtext = curText;
 		emit changed();
 		checkContentHeight();
@@ -934,7 +1073,11 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 	QTextCursor c(textCursor());
 	int32 start = c.selectionStart(), end = c.selectionEnd();
 	if (end > start) {
-		result->setText(getText(start, end));
+		TagList tags;
+		result->setText(getText(start, end, &tags, nullptr));
+		if (!tags.isEmpty()) {
+			result->setData(qsl("application/x-td-field-tags"), serializeTagsList(tags));
+		}
 	}
 	return result;
 }

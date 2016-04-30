@@ -147,6 +147,27 @@ private:
 
 };
 
+class MentionNameClickHandler : public ClickHandler {
+public:
+	MentionNameClickHandler(QString text, UserId userId, uint64 accessHash)
+		: _text(text)
+		, _userId(userId)
+		, _accessHash(accessHash) {
+	}
+
+	void onClick(Qt::MouseButton button) const override;
+
+	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+
+	QString tooltip() const override;
+
+private:
+	QString _text;
+	UserId _userId;
+	uint64 _accessHash;
+
+};
+
 class HashtagClickHandler : public TextClickHandler {
 public:
 	HashtagClickHandler(const QString &tag) : _tag(tag) {

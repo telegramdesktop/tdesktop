@@ -165,9 +165,9 @@ inline bool emojiEdge(const QChar *ch) {
 	return false;
 }
 
-inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText &entities) {
+inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText *inOutEntities) {
 	if (to > from) {
-		for (auto &entity : entities) {
+		for (auto &entity : *inOutEntities) {
 			if (entity.offset() >= to - start) break;
 			if (entity.offset() + entity.length() < from - start) continue;
 			if (entity.offset() >= from - start) {
@@ -181,9 +181,9 @@ inline void appendPartToResult(QString &result, const QChar *start, const QChar 
 	}
 }
 
-inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
+inline QString replaceEmojis(const QString &text, EntitiesInText *inOutEntities) {
 	QString result;
-	auto currentEntity = entities.begin(), entitiesEnd = entities.end();
+	auto currentEntity = inOutEntities->begin(), entitiesEnd = inOutEntities->end();
 	const QChar *emojiStart = text.constData(), *emojiEnd = emojiStart, *e = text.constData() + text.size();
 	bool canFindEmoji = true;
 	for (const QChar *ch = emojiEnd; ch != e;) {
@@ -204,7 +204,7 @@ inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 		) {
 			if (result.isEmpty()) result.reserve(text.size());
 
-			appendPartToResult(result, emojiStart, emojiEnd, ch, entities);
+			appendPartToResult(result, emojiStart, emojiEnd, ch, inOutEntities);
 
 			if (emoji->color) {
 				EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
@@ -232,7 +232,7 @@ inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 	}
 	if (result.isEmpty()) return text;
 
-	appendPartToResult(result, emojiStart, emojiEnd, e, entities);
+	appendPartToResult(result, emojiStart, emojiEnd, e, inOutEntities);
 
 	return result;
 }

@@ -1029,7 +1029,8 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 		}
 		if (badMedia == 1) {
 			QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
-			EntitiesInText entities = textParseEntities(text, _historyTextNoMonoOptions.flags);
+			EntitiesInText entities;
+			textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
 			entities.push_front(EntityInText(EntityInTextItalic, 0, text.size()));
 			result = HistoryMessage::create(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v, text, entities);
 		} else if (badMedia) {

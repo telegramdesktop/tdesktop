@@ -126,6 +126,29 @@ EntityInText MentionClickHandler::getEntityInText(int offset, const QStringRef &
 	return EntityInText(EntityInTextMention, offset, textPart.size());
 }
 
+void MentionNameClickHandler::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		if (auto user = App::userLoaded(_userId)) {
+			Ui::showPeerProfile(user);
+		}
+	}
+}
+
+EntityInText MentionNameClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
+	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
+	return EntityInText(EntityInTextMentionName, offset, textPart.size(), data);
+}
+
+QString MentionNameClickHandler::tooltip() const {
+	if (auto user = App::userLoaded(_userId)) {
+		auto name = App::peerName(user);
+		if (name != _text) {
+			return name;
+		}
+	}
+	return QString();
+}
+
 QString HashtagClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_hashtag);
 }

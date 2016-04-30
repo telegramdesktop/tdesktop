@@ -1084,50 +1084,54 @@ void executeParsedCommand(const QString &command) {
 }
 } // namespace
 
-void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId) {
-	readServerHistory(hist, false);
-	_history->fastShowAtEnd(hist);
+void MainWidget::sendMessage(const MessageToSend &message) {
+	auto history = message.history;
+	const auto &text = message.text;
 
-	if (!hist || !_history->canSendMessages(hist->peer)) {
+	readServerHistory(history, false);
+	_history->fastShowAtEnd(history);
+
+	if (!history || !_history->canSendMessages(history->peer)) {
 		return;
 	}
 
 	saveRecentHashtags(text);
 
-	EntitiesInText sendingEntities, leftEntities;
-	QString sendingText, leftText = prepareTextWithEntities(text, leftEntities, itemTextOptions(hist, App::self()).flags);
+	EntitiesInText sendingEntities, leftEntities = entitiesFromFieldTags(message.entities);
+	auto prepareFlags = itemTextOptions(history, App::self()).flags;
+	QString sendingText, leftText = prepareTextWithEntities(text, prepareFlags, &leftEntities);
 
-	QString command = parseCommandFromMessage(hist, text);
+	QString command = parseCommandFromMessage(history, text);
 	HistoryItem *lastMessage = nullptr;
 
-	if (replyTo < 0) replyTo = _history->replyToId();
+	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : 0;
 	while (command.isEmpty() && textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
-		FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
+		FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 		uint64 randomId = rand_value<uint64>();
 
-		trimTextWithEntities(sendingText, sendingEntities);
+		trimTextWithEntities(sendingText, &sendingEntities);
 
 		App::historyRegRandom(randomId, newId);
-		App::historyRegSentData(randomId, hist->peer->id, sendingText);
+		App::historyRegSentData(randomId, history->peer->id, sendingText);
 
 		MTPstring msgText(MTP_string(sendingText));
-		MTPDmessage::Flags flags = newMessageFlags(hist->peer) | MTPDmessage::Flag::f_entities; // unread, out
+		MTPDmessage::Flags flags = newMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
 		MTPmessages_SendMessage::Flags sendFlags = 0;
 		if (replyTo) {
 			flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
 		}
 		MTPMessageMedia media = MTP_messageMediaEmpty();
-		if (webPageId == CancelledWebPageId) {
+		if (message.webPageId == CancelledWebPageId) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
-		} else if (webPageId) {
-			WebPageData *page = App::webPage(webPageId);
+		} else if (message.webPageId) {
+			WebPageData *page = App::webPage(message.webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
-		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
-		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
-		bool silentPost = channelPost && silent;
+		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup() && history->peer->asChannel()->canPublish() && (history->peer->asChannel()->isBroadcast() || message.broadcast);
+		bool showFromName = !channelPost || history->peer->asChannel()->addsSignature();
+		bool silentPost = channelPost && message.silent;
 		if (channelPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_broadcast;
 			flags |= MTPDmessage::Flag::f_views;
@@ -1143,13 +1147,13 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		if (!sentEntities.c_vector().v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
-		lastMessage = hist->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		history->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), history->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 	}
 
-	hist->lastSentMsg = lastMessage;
+	history->lastSentMsg = lastMessage;
 
-	finishForwarding(hist, broadcast, silent);
+	finishForwarding(history, message.broadcast, message.silent);
 
 	executeParsedCommand(command);
 }
@@ -1728,7 +1732,8 @@ void MainWidget::dialogsCancelled() {
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media) {
 	MTPDmessage::Flags flags = MTPDmessage::Flag::f_unread | MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id;
 	QString sendingText, leftText = msg;
-	EntitiesInText sendingEntities, leftEntities = textParseEntities(leftText, _historyTextNoMonoOptions.flags);
+	EntitiesInText sendingEntities, leftEntities;
+	textParseEntities(leftText, _historyTextNoMonoOptions.flags, &leftEntities);
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);

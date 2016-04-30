@@ -2735,6 +2735,25 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
+EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags) {
+	EntitiesInText result;
+	if (tags.isEmpty()) {
+		return result;
+	}
+
+	result.reserve(tags.size());
+	auto mentionStart = qstr("mention://user.");
+	for_const (auto &tag, tags) {
+		if (tag.id.startsWith(mentionStart)) {
+			auto match = QRegularExpression("^(\\d+\\.\\d+)(/|$)").match(tag.id.midRef(mentionStart.size()));
+			if (match.hasMatch()) {
+				result.push_back(EntityInText(EntityInTextMentionName, tag.offset, tag.length, match.captured(1)));
+			}
+		}
+	}
+	return result;
+}
+
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::replyCancel)
 , _scroll(this, st::historyScroll, false)
@@ -2917,7 +2936,7 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 	QString replacement, entityTag;
 	if (user->username.isEmpty()) {
 		replacement = App::peerName(user);
-		entityTag = qsl("mention://peer.") + QString::number(user->id);
+		entityTag = qsl("mention://user.") + QString::number(user->bareId()) + '.' + QString::number(user->access);
 	} else {
 		replacement = '@' + user->username;
 	}
@@ -4737,8 +4756,11 @@ void HistoryWidget::saveEditMsg() {
 
 	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
 
-	EntitiesInText sendingEntities, leftEntities;
-	QString sendingText, leftText = prepareTextWithEntities(_field.getLastText(), leftEntities, itemTextOptions(_history, App::self()).flags);
+	auto fieldText = _field.getLastText();
+	auto fieldTags = _field.getLastTags();
+	auto prepareFlags = itemTextOptions(_history, App::self()).flags;
+	EntitiesInText sendingEntities, leftEntities = entitiesFromFieldTags(fieldTags);
+	QString sendingText, leftText = prepareTextWithEntities(fieldText, prepareFlags, &leftEntities);
 
 	if (!textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		_field.selectAll();
@@ -4814,7 +4836,15 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
 
-	App::main()->sendMessage(_history, _field.getLastText(), replyTo, _broadcast.checked(), _silent.checked(), webPageId);
+	MainWidget::MessageToSend message;
+	message.history = _history;
+	message.text = _field.getLastText();
+	message.entities = _field.getLastTags();
+	message.replyTo = replyTo;
+	message.broadcast = _broadcast.checked();
+	message.silent = _silent.checked();
+	message.webPageId = webPageId;
+	App::main()->sendMessage(message);
 
 	clearFieldText();
 	_saveDraftText = true;
@@ -5320,7 +5350,13 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 		toSend += '@' + username;
 	}
 
-	App::main()->sendMessage(_history, toSend, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0, false, false);
+	MainWidget::MessageToSend message;
+	message.history = _history;
+	message.text = toSend;
+	message.replyTo = replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0;
+	message.broadcast = false;
+	message.silent = false;
+	App::main()->sendMessage(message);
 	if (replyTo) {
 		if (_replyToId == replyTo) {
 			cancelReply();
