@@ -34,16 +34,12 @@ namespace {
 
 const style::textStyle *_textStyle = nullptr;
 
-void _initDefault() {
+void initDefault() {
 	_textStyle = &st::defaultTextStyle;
 }
 
-inline int32 _blockHeight(const ITextBlock *b, const style::font &font) {
+inline int32 countBlockHeight(const ITextBlock *b, const style::font &font) {
 	return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (_textStyle->lineHeight > font->height) ? _textStyle->lineHeight : font->height;
-}
-
-inline QFixed _blockRBearing(const ITextBlock *b) {
-	return (b->type() == TextBlockTText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 }
 
 } // namespace
@@ -908,7 +904,7 @@ public:
 		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
-		if (!_textStyle) _initDefault();
+		if (!_textStyle) initDefault();
 
 		if (_p) {
 			_p->setFont(_t->_font->f);
@@ -955,8 +951,7 @@ public:
 		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
 			ITextBlock *b = *i;
 			TextBlockType _btype = b->type();
-			int32 blockHeight = _blockHeight(b, _t->_font);
-			QFixed _rb = _blockRBearing(b);
+			int32 blockHeight = countBlockHeight(b, _t->_font);
 
 			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
@@ -968,7 +963,7 @@ public:
 				_lineStart = nextStart;
 				_lineStartBlock = blockIndex + 1;
 
-				last_rBearing = _rb;
+				last_rBearing = b->f_rbearing();
 				last_rPadding = b->f_rpadding();
 				_wLeft = _w - (b->f_width() - last_rBearing);
 				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
@@ -983,10 +978,11 @@ public:
 				continue;
 			}
 
-			QFixed lpadding = b->f_lpadding();
-			QFixed newWidthLeft = _wLeft - lpadding - last_rBearing - (last_rPadding + b->f_width() - _rb);
+			auto b__f_lpadding = b->f_lpadding();
+			auto b__f_rbearing = b->f_rbearing();
+			QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
 			if (newWidthLeft >= 0) {
-				last_rBearing = _rb;
+				last_rBearing = b__f_rbearing;
 				last_rPadding = b->f_rpadding();
 				_wLeft = newWidthLeft;
 
@@ -999,7 +995,7 @@ public:
 			if (_btype == TextBlockTText) {
 				TextBlock *t = static_cast<TextBlock*>(b);
 				if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-					last_rPadding += lpadding;
+					last_rPadding += b__f_lpadding;
 
 					_lineHeight = qMax(_lineHeight, blockHeight);
 
@@ -1010,14 +1006,14 @@ public:
 				QFixed f_wLeft = _wLeft; // vars for saving state of the last word start
 				int32 f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
 				for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
-					bool wordEndsHere = (j->width >= 0);
-					QFixed j_width = wordEndsHere ? j->width : -j->width;
+					bool wordEndsHere = (j->f_width() >= 0);
+					QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-					QFixed newWidthLeft = _wLeft - lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-					lpadding = 0;
+					QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
+					b__f_lpadding = 0;
 					if (newWidthLeft >= 0) {
 						last_rBearing = j->f_rbearing();
-						last_rPadding = j->rpadding;
+						last_rPadding = j->f_rpadding();
 						_wLeft = newWidthLeft;
 
 						_lineHeight = qMax(_lineHeight, blockHeight);
@@ -1042,16 +1038,16 @@ public:
 						j = f;
 						_wLeft = f_wLeft;
 						_lineHeight = f_lineHeight;
-						j_width = (j->width >= 0) ? j->width : -j->width;
+						j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
 					}
-					if (!drawLine(elidedLine ? ((j + 1 == en) ? _blockEnd(_t, i, e) : (j + 1)->from) : j->from, i, e)) return;
+					if (!drawLine(elidedLine ? ((j + 1 == en) ? _blockEnd(_t, i, e) : (j + 1)->from()) : j->from(), i, e)) return;
 					_y += _lineHeight;
 					_lineHeight = qMax(0, blockHeight);
-					_lineStart = j->from;
+					_lineStart = j->from();
 					_lineStartBlock = blockIndex;
 
 					last_rBearing = j->f_rbearing();
-					last_rPadding = j->rpadding;
+					last_rPadding = j->f_rpadding();
 					_wLeft = _w - (j_width - last_rBearing);
 					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 						_wLeft -= _elideRemoveFromEnd;
@@ -1076,7 +1072,7 @@ public:
 			_lineStart = b->from();
 			_lineStartBlock = blockIndex;
 
-			last_rBearing = _rb;
+			last_rBearing = b__f_rbearing;
 			last_rPadding = b->f_rpadding();
 			_wLeft = _w - (b->f_width() - last_rBearing);
 			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
@@ -2404,7 +2400,7 @@ Text &Text::operator=(Text &&other) {
 }
 
 void Text::setText(style::font font, const QString &text, const TextParseOptions &options) {
-	if (!_textStyle) _initDefault();
+	if (!_textStyle) initDefault();
 	_font = font;
 	clear();
 	{
@@ -2423,9 +2419,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		ITextBlock *b = *i;
 		TextBlockType _btype = b->type();
-		int32 blockHeight = _blockHeight(b, _font);
-		QFixed _rb = _blockRBearing(b);
-
+		int32 blockHeight = countBlockHeight(b, _font);
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			if (initial) {
@@ -2444,7 +2438,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 
 			_minHeight += lineHeight;
 			lineHeight = 0;
-			last_rBearing = _rb;
+			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
 			if (_maxWidth < _width) {
 				_maxWidth = _width;
@@ -2453,11 +2447,13 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 			continue;
 		}
 
+		auto b__f_rbearing = b->f_rbearing(); // cache
+
 		_width += b->f_lpadding();
-		_width += last_rBearing + (last_rPadding + b->f_width() - _rb);
+		_width += last_rBearing + (last_rPadding + b->f_width() - b__f_rbearing);
 		lineHeight = qMax(lineHeight, blockHeight);
 
-		last_rBearing = _rb;
+		last_rBearing = b__f_rbearing;
 		last_rPadding = b->f_rpadding();
 		continue;
 	}
@@ -2473,7 +2469,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 		}
 	}
 	if (_width > 0) {
-		if (!lineHeight) lineHeight = _blockHeight(_blocks.back(), _font);
+		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _font);
 		_minHeight += lineHeight;
 		if (_maxWidth < _width) {
 			_maxWidth = _width;
@@ -2482,7 +2478,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 }
 
 void Text::setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options) {
-	if (!_textStyle) _initDefault();
+	if (!_textStyle) initDefault();
 	_font = font;
 	clear();
 	{
@@ -2644,11 +2640,10 @@ int32 Text::countWidth(int32 w) const {
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		ITextBlock *b = *i;
 		TextBlockType _btype = b->type();
-		int32 blockHeight = _blockHeight(b, _font);
-		QFixed _rb = _blockRBearing(b);
+		int32 blockHeight = countBlockHeight(b, _font);
 
 		if (_btype == TextBlockTNewline) {
-			last_rBearing = _rb;
+			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
 			if (widthLeft < minWidthLeft) {
 				minWidthLeft = widthLeft;
@@ -2658,10 +2653,11 @@ int32 Text::countWidth(int32 w) const {
 			longWordLine = true;
 			continue;
 		}
-		QFixed lpadding = b->f_lpadding();
-		QFixed newWidthLeft = widthLeft - lpadding - last_rBearing - (last_rPadding + b->f_width() - _rb);
+		auto b__f_lpadding = b->f_lpadding();
+		auto b__f_rbearing = b->f_rbearing(); // cache
+		QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
 		if (newWidthLeft >= 0) {
-			last_rBearing = _rb;
+			last_rBearing = b__f_rbearing;
 			last_rPadding = b->f_rpadding();
 			widthLeft = newWidthLeft;
 
@@ -2672,7 +2668,7 @@ int32 Text::countWidth(int32 w) const {
 		if (_btype == TextBlockTText) {
 			TextBlock *t = static_cast<TextBlock*>(b);
 			if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-				last_rPadding += lpadding;
+				last_rPadding += b__f_lpadding;
 
 				longWordLine = false;
 				continue;
@@ -2680,14 +2676,14 @@ int32 Text::countWidth(int32 w) const {
 
 			QFixed f_wLeft = widthLeft;
 			for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
-				bool wordEndsHere = (j->width >= 0);
-				QFixed j_width = wordEndsHere ? j->width : -j->width;
+				bool wordEndsHere = (j->f_width() >= 0);
+				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-				QFixed newWidthLeft = widthLeft - lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-				lpadding = 0;
+				QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
+				b__f_lpadding = 0;
 				if (newWidthLeft >= 0) {
 					last_rBearing = j->f_rbearing();
-					last_rPadding = j->rpadding;
+					last_rPadding = j->f_rpadding();
 					widthLeft = newWidthLeft;
 
 					if (wordEndsHere) {
@@ -2703,11 +2699,11 @@ int32 Text::countWidth(int32 w) const {
 				if (f != j) {
 					j = f;
 					widthLeft = f_wLeft;
-					j_width = (j->width >= 0) ? j->width : -j->width;
+					j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
 				}
 
 				last_rBearing = j->f_rbearing();
-				last_rPadding = j->rpadding;
+				last_rPadding = j->f_rpadding();
 				if (widthLeft < minWidthLeft) {
 					minWidthLeft = widthLeft;
 				}
@@ -2720,7 +2716,7 @@ int32 Text::countWidth(int32 w) const {
 			continue;
 		}
 
-		last_rBearing = _rb;
+		last_rBearing = b__f_rbearing;
 		last_rPadding = b->f_rpadding();
 		if (widthLeft < minWidthLeft) {
 			minWidthLeft = widthLeft;
@@ -2750,24 +2746,24 @@ int32 Text::countHeight(int32 w) const {
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		ITextBlock *b = *i;
 		TextBlockType _btype = b->type();
-		int32 blockHeight = _blockHeight(b, _font);
-		QFixed _rb = _blockRBearing(b);
+		int32 blockHeight = countBlockHeight(b, _font);
 
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			result += lineHeight;
 			lineHeight = 0;
-			last_rBearing = _rb;
+			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
 			widthLeft = width - (b->f_width() - last_rBearing);
 
 			longWordLine = true;
 			continue;
 		}
-		QFixed lpadding = b->f_lpadding();
-		QFixed newWidthLeft = widthLeft - lpadding - last_rBearing - (last_rPadding + b->f_width() - _rb);
+		auto b__f_lpadding = b->f_lpadding();
+		auto b__f_rbearing = b->f_rbearing();
+		QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
 		if (newWidthLeft >= 0) {
-			last_rBearing = _rb;
+			last_rBearing = b__f_rbearing;
 			last_rPadding = b->f_rpadding();
 			widthLeft = newWidthLeft;
 
@@ -2780,7 +2776,7 @@ int32 Text::countHeight(int32 w) const {
 		if (_btype == TextBlockTText) {
 			TextBlock *t = static_cast<TextBlock*>(b);
 			if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-				last_rPadding += lpadding;
+				last_rPadding += b__f_lpadding;
 
 				lineHeight = qMax(lineHeight, blockHeight);
 
@@ -2791,14 +2787,14 @@ int32 Text::countHeight(int32 w) const {
 			QFixed f_wLeft = widthLeft;
 			int32 f_lineHeight = lineHeight;
 			for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
-				bool wordEndsHere = (j->width >= 0);
-				QFixed j_width = wordEndsHere ? j->width : -j->width;
+				bool wordEndsHere = (j->f_width() >= 0);
+				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-				QFixed newWidthLeft = widthLeft - lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-				lpadding = 0;
+				QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
+				b__f_lpadding = 0;
 				if (newWidthLeft >= 0) {
 					last_rBearing = j->f_rbearing();
-					last_rPadding = j->rpadding;
+					last_rPadding = j->f_rpadding();
 					widthLeft = newWidthLeft;
 
 					lineHeight = qMax(lineHeight, blockHeight);
@@ -2818,13 +2814,13 @@ int32 Text::countHeight(int32 w) const {
 					j = f;
 					widthLeft = f_wLeft;
 					lineHeight = f_lineHeight;
-					j_width = (j->width >= 0) ? j->width : -j->width;
+					j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
 				}
 
 				result += lineHeight;
 				lineHeight = qMax(0, blockHeight);
 				last_rBearing = j->f_rbearing();
-				last_rPadding = j->rpadding;
+				last_rPadding = j->f_rpadding();
 				widthLeft = width - (j_width - last_rBearing);
 
 				longWordLine = true;
@@ -2837,7 +2833,7 @@ int32 Text::countHeight(int32 w) const {
 
 		result += lineHeight;
 		lineHeight = qMax(0, blockHeight);
-		last_rBearing = _rb;
+		last_rBearing = b__f_rbearing;
 		last_rPadding = b->f_rpadding();
 		widthLeft = width - (b->f_width() - last_rBearing);
 

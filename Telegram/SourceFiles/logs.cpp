@@ -944,10 +944,14 @@ namespace internal {
 #ifdef Q_OS_WIN
 		internal::BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
 			dumpspath.toStdWString(),
-			/*FilterCallback*/ 0,
+			google_breakpad::ExceptionHandler::FilterCallback(nullptr),
 			internal::DumpCallback,
-			/*context*/	0,
-			true
+			(void*)nullptr, // callback_context
+			google_breakpad::ExceptionHandler::HANDLER_ALL,
+			MINIDUMP_TYPE(MiniDumpNormal),
+			// MINIDUMP_TYPE(MiniDumpWithFullMemory | MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithProcessThreadData | MiniDumpWithFullMemoryInfo | MiniDumpWithUnloadedModules | MiniDumpWithFullAuxiliaryState | MiniDumpIgnoreInaccessibleMemory | MiniDumpWithTokenInformation),
+			(const wchar_t*)nullptr, // pipe_name
+			(const google_breakpad::CustomClientInfo*)nullptr
 		);
 #elif defined Q_OS_MAC // Q_OS_WIN
 
@@ -968,11 +972,11 @@ namespace internal {
 		std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().constData();
 		std::string database = QFile::encodeName(dumpspath).constData();
 		if (crashpad_client.StartHandler(base::FilePath(handler),
-										 base::FilePath(database),
-										 std::string(),
-										 ProcessAnnotations,
-										 std::vector<std::string>(),
-										 false)) {
+		                                 base::FilePath(database),
+		                                 std::string(),
+		                                 ProcessAnnotations,
+		                                 std::vector<std::string>(),
+		                                 false)) {
 			crashpad_client.UseHandler();
 		}
 #endif // else for MAC_USE_BREAKPAD
