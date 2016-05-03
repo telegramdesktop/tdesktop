@@ -1597,11 +1597,6 @@
       <Outputs>.\GeneratedFiles\numbers.cpp</Outputs>
       <Command>"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_numbers.exe" "-o.\GeneratedFiles" ".\Resources\numbers.txt"</Command>
     </CustomBuild>
-    <CustomBuild Include="Resources\langs\lang.strings">
-      <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
-      <Outputs>.\GeneratedFiles\lang_auto.cpp</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\langs\lang.strings" -lang_out ".\GeneratedFiles\lang_auto"</Command>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\application.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing application.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
@@ -2362,7 +2357,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\download.sh" />
-    <None Include="Resources\langs\lang.strings" />
+    <CustomBuild Include="Resources\langs\lang.strings">
+      <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
+      <Outputs>.\GeneratedFiles\lang_auto.cpp</Outputs>
+      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\langs\lang.strings" -lang_out ".\GeneratedFiles\lang_auto"</Command>
+    </CustomBuild>
     <None Include="Resources\langs\lang_de.strings" />
     <None Include="Resources\langs\lang_es.strings" />
     <None Include="Resources\langs\lang_it.strings" />

@@ -1513,6 +1513,9 @@
     <CustomBuild Include="SourceFiles\core\basic_types.h">
       <Filter>SourceFiles\core</Filter>
     </CustomBuild>
+    <CustomBuild Include="Resources\langs\lang.strings">
+      <Filter>Resources\langs</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1553,9 +1556,6 @@
     </None>
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>SourceFiles</Filter>
-    </None>
-    <None Include="Resources\langs\lang.strings">
-      <Filter>Resources\langs</Filter>
     </None>
     <None Include="Resources\langs\download.sh">
       <Filter>Resources\langs</Filter>
