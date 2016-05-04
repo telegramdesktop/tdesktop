@@ -213,11 +213,7 @@ private:
 
 };
 
-inline QString str_const_latin1_toString(const str_const &str) {
-	return QString::fromLatin1(str.c_str(), str.size());
-}
-
-inline QString str_const_utf8_toString(const str_const &str) {
+inline QString str_const_toString(const str_const &str) {
 	return QString::fromUtf8(str.c_str(), str.size());
 }
 

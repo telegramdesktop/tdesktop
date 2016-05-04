@@ -122,7 +122,7 @@ void PsMainWindow::psSetupTrayIcon() {
         icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
 
         trayIcon->setIcon(icon);
-        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        trayIcon->setToolTip(str_const_toString(AppName));
         connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
         App::wnd()->updateTrayMenu();
     }

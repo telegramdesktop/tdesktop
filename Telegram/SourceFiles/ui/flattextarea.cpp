@@ -791,7 +791,7 @@ QStringList FlatTextarea::linksList() const {
 }
 
 void FlatTextarea::insertFromMimeData(const QMimeData *source) {
-	auto mime = str_const_latin1_toString(TagsMimeType);
+	auto mime = str_const_toString(TagsMimeType);
 	if (source->hasFormat(mime)) {
 		auto tagsData = source->data(mime);
 		_settingTags = deserializeTagsList(tagsData, source->text().size());
