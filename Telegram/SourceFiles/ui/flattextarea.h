@@ -92,7 +92,16 @@ public:
 	const TagList &getLastTags() const {
 		return _oldtags;
 	}
-	void insertMentionHashtagOrBotCommand(const QString &data, const QString &tagId = QString());
+	void insertTag(const QString &text, QString tagId = QString());
+
+	// If you need to make some preparations of tags before putting them to QMimeData
+	// (and then to clipboard or to drag-n-drop object), here is a strategy for that.
+	class TagMimeProcessor {
+	public:
+		virtual QString mimeTagFromTag(const QString &tagId) = 0;
+		virtual QString tagFromMimeTag(const QString &mimeTag) = 0;
+	};
+	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
 
 public slots:
 
@@ -177,6 +186,8 @@ private:
 	int _realInsertPosition = -1;
 	int _realCharsAdded = 0;
 
+	std_::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
+
 	style::flatTextarea _st;
 
 	bool _undoAvailable = false;
@@ -194,8 +205,13 @@ private:
 
 	bool _correcting = false;
 
-	typedef QPair<int, int> LinkRange;
-	typedef QList<LinkRange> LinkRanges;
+	struct LinkRange {
+		int start;
+		int length;
+	};
+	friend bool operator==(const LinkRange &a, const LinkRange &b);
+	friend bool operator!=(const LinkRange &a, const LinkRange &b);
+	using LinkRanges = QVector<LinkRange>;
 	LinkRanges _links;
 };
 
@@ -203,5 +219,12 @@ inline bool operator==(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
 	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
 }
 inline bool operator!=(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const FlatTextarea::LinkRange &a, const FlatTextarea::LinkRange &b) {
+	return (a.start == b.start) && (a.length == b.length);
+}
+inline bool operator!=(const FlatTextarea::LinkRange &a, const FlatTextarea::LinkRange &b) {
 	return !(a == b);
 }

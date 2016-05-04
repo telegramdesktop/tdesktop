@@ -2754,6 +2754,32 @@ EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags) {
 	return result;
 }
 
+namespace {
+
+// For mention tags save and validate userId, ignore tags for different userId.
+class FieldTagMimeProcessor : public FlatTextarea::TagMimeProcessor {
+public:
+	QString mimeTagFromTag(const QString &tagId) override {
+		if (tagId.startsWith(qstr("mention://"))) {
+			return tagId + ':' + QString::number(MTP::authedId());
+		}
+		return tagId;
+	}
+
+	QString tagFromMimeTag(const QString &mimeTag) override {
+		if (mimeTag.startsWith(qstr("mention://"))) {
+			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
+			if (!match.hasMatch() || match.capturedRef(1).toInt() != MTP::authedId()) {
+				return QString();
+			}
+			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
+		}
+		return mimeTag;
+	}
+};
+
+} // namespace
+
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::replyCancel)
 , _scroll(this, st::historyScroll, false)
@@ -2874,6 +2900,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerSend(DocumentData*)));
 	_field.installEventFilter(_fieldAutocomplete);
+	_field.setTagMimeProcessor(std_::make_unique<FieldTagMimeProcessor>());
 	updateFieldSubmitSettings();
 
 	_field.hide();
@@ -2940,7 +2967,7 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 	} else {
 		replacement = '@' + user->username;
 	}
-	_field.insertMentionHashtagOrBotCommand(replacement, entityTag);
+	_field.insertTag(replacement, entityTag);
 }
 
 void HistoryWidget::onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method) {
@@ -2949,7 +2976,7 @@ void HistoryWidget::onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::
 		App::sendBotCommand(_peer, nullptr, str);
 		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
 	} else {
-		_field.insertMentionHashtagOrBotCommand(str);
+		_field.insertTag(str);
 	}
 }
 
