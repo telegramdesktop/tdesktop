@@ -253,7 +253,8 @@ public:
 		return result;
 	}
 
-	void checkEntities() {
+	// Returns true if at least one entity was parsed in the current position.
+	bool checkEntities() {
 		while (!removeFlags.isEmpty() && (ptr >= removeFlags.firstKey() || ptr >= end)) {
 			const QList<int32> &removing(removeFlags.first());
 			for (int32 i = removing.size(); i > 0;) {
@@ -272,7 +273,7 @@ public:
 			++waitingEntity;
 		}
 		if (waitingEntity == entitiesEnd || ptr < start + waitingEntity->offset()) {
-			return;
+			return false;
 		}
 
 		int32 startFlags = 0;
@@ -348,6 +349,7 @@ public:
 		} else {
 			while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
 		}
+		return true;
 	}
 
 	bool readSkipBlockCommand() {
@@ -620,11 +622,7 @@ public:
 		lastSkipped = false;
 		checkTilde = !cRetina() && _t->_font->size() == 13 && _t->_font->flags() == 0; // tilde Open Sans fix
 		for (; ptr <= end; ++ptr) {
-			checkEntities();
-			if (rich) {
-				if (checkCommand()) {
-					checkEntities();
-				}
+			while (checkEntities() || (rich && checkCommand())) {
 			}
 			parseCurrentChar();
 			parseEmojiFromCurrent();

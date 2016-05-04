@@ -6960,12 +6960,12 @@ void HistoryMessage::initDimensions() {
 			if (_media->isDisplayed()) {
 				if (_text.hasSkipBlock()) {
 					_text.removeSkipBlock();
-					_textWidth = 0;
+					_textWidth = -1;
 					_textHeight = 0;
 				}
 			} else if (!_text.hasSkipBlock()) {
 				_text.setSkipBlock(skipBlockWidth(), skipBlockHeight());
-				_textWidth = 0;
+				_textWidth = -1;
 				_textHeight = 0;
 			}
 		}
@@ -7103,6 +7103,8 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 			keyboard->oldTop = keyboardTop;
 		}
 	}
+
+	App::historyUpdateDependent(this);
 }
 
 void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
@@ -7211,11 +7213,11 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 	initMedia(media, t);
 	if (_media && _media->isDisplayed() && !mediaWasDisplayed) {
 		_text.removeSkipBlock();
-		_textWidth = 0;
+		_textWidth = -1;
 		_textHeight = 0;
 	} else if (mediaWasDisplayed && (!_media || !_media->isDisplayed())) {
 		_text.setSkipBlock(skipBlockWidth(), skipBlockHeight());
-		_textWidth = 0;
+		_textWidth = -1;
 		_textHeight = 0;
 	}
 }
@@ -7236,7 +7238,7 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 			break;
 		}
 	}
-	_textWidth = 0;
+	_textWidth = -1;
 	_textHeight = 0;
 }
 
@@ -7395,7 +7397,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
-			_textWidth = 0;
+			_textWidth = -1;
 			_textHeight = 0;
 		}
 		setPendingInitDimensions();
@@ -7410,7 +7412,7 @@ void HistoryMessage::setId(MsgId newId) {
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
-			_textWidth = 0;
+			_textWidth = -1;
 			_textHeight = 0;
 		}
 		setPendingInitDimensions();
@@ -8079,7 +8081,6 @@ bool HistoryService::updatePinned(bool force) {
 		updatePinnedText();
 	}
 	if (force) {
-		setPendingInitDimensions();
 		if (gotDependencyItem && App::wnd()) {
 			App::wnd()->notifySettingGot();
 		}
@@ -8208,7 +8209,9 @@ void HistoryService::setServiceText(const QString &text) {
 	textstyleSet(&st::serviceTextStyle);
 	_text.setText(st::msgServiceFont, text, _historySrvOptions);
 	textstyleRestore();
-	initDimensions();
+	setPendingInitDimensions();
+	_textWidth = -1;
+	_textHeight = 0;
 }
 
 void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {

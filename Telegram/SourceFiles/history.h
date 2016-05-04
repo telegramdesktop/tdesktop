@@ -1566,7 +1566,8 @@ protected:
 	}
 
 	Text _text = { int(st::msgMinWidth) };
-	int32 _textWidth, _textHeight;
+	int _textWidth = -1;
+	int _textHeight = 0;
 
 	HistoryMediaPtr _media;
 

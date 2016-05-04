@@ -143,7 +143,16 @@ private:
 	QString getText(int start, int end, TagList *outTagsList, bool *outTagsChanged) const;
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
-	void processDocumentContentsChange(int position, int charsAdded);
+
+	// After any characters added we must postprocess them. This includes:
+	// 1. Replacing font family to semibold for ~ characters, if we used Open Sans 13px.
+	// 2. Replacing font family from semibold for all non-~ characters, if we used ...
+	// 3. Replacing emoji code sequences by ObjectReplacementCharacters with emoji pics.
+	// 4. Interrupting tags in which the text was inserted by any char except a letter.
+	// 5. Applying tags from "_insertedTags" in case we pasted text with tags, not just text.
+	// Rule 4 applies only if we inserted chars not in the middle of a tag (but at the end).
+	void processFormatting(int changedPosition, int changedEnd);
+
 	bool heightAutoupdated();
 
 	int _minHeight = -1; // < 0 - no autosize
@@ -161,7 +170,12 @@ private:
 	Animation _a_appearance;
 
 	// Tags list which we should apply while setText() call or insert from mime data.
-	TagList _settingTags;
+	TagList _insertedTags;
+
+	// Override insert position and charsAdded from complex text editing
+	// (like drag-n-drop in the same text edit field).
+	int _realInsertPosition = -1;
+	int _realCharsAdded = 0;
 
 	style::flatTextarea _st;
 
