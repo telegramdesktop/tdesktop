@@ -563,7 +563,7 @@ void PsMainWindow::psSetupTrayIcon() {
             QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
 
             trayIcon->setIcon(icon);
-            trayIcon->setToolTip(QString::fromStdWString(AppName));
+            trayIcon->setToolTip(str_const_toString(AppName));
             connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
             connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
             App::wnd()->updateTrayMenu();
@@ -1171,7 +1171,7 @@ QString psAppDataPath() {
 }
 
 QString psDownloadPath() {
-	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + QString::fromWCharArray(AppName) + '/';
+	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
