@@ -75,7 +75,7 @@
       <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
-      <AdditionalOptions>/Zm152 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm152 /Zo </AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
@@ -107,7 +107,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm152 /Zo </AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
@@ -140,7 +140,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm152 /Zo </AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
@@ -2384,7 +2384,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\download.sh" />
-    <None Include="Resources\langs\lang.strings" />
+    <CustomBuild Include="Resources\langs\lang.strings">
+      <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
+      <Outputs>.\GeneratedFiles\lang_auto.cpp</Outputs>
+      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\langs\lang.strings" -lang_out ".\GeneratedFiles\lang_auto"</Command>
+    </CustomBuild>
     <None Include="Resources\langs\lang_de.strings" />
     <None Include="Resources\langs\lang_es.strings" />
     <None Include="Resources\langs\lang_it.strings" />

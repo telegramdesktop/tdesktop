@@ -75,6 +75,9 @@ public:
 		return _rpadding;
 	}
 
+	// Should be virtual, but optimized throught type() call.
+	QFixed f_rbearing() const;
+
 	uint16 lnkIndex() const {
 		return (_flags >> 12) & 0xFFFF;
 	}
@@ -132,26 +135,40 @@ private:
 	friend class TextPainter;
 };
 
-struct TextWord {
-	TextWord() {
+class TextWord {
+public:
+	TextWord() = default;
+	TextWord(uint16 from, QFixed width, QFixed rbearing, QFixed rpadding = 0)
+		: _from(from)
+		, _rbearing(rbearing.value() > 0x7FFF ? 0x7FFF : (rbearing.value() < -0x7FFF ? -0x7FFF : rbearing.value()))
+		, _width(width)
+		, _rpadding(rpadding) {
 	}
-	TextWord(uint16 from, QFixed width, QFixed rbearing, QFixed rpadding = 0) : from(from),
-		_rbearing(rbearing.value() > 0x7FFF ? 0x7FFF : (rbearing.value() < -0x7FFF ? -0x7FFF : rbearing.value())), width(width), rpadding(rpadding) {
+	uint16 from() const {
+		return _from;
 	}
 	QFixed f_rbearing() const {
 		return QFixed::fromFixed(_rbearing);
 	}
-	uint16 from;
-	int16 _rbearing;
-	QFixed width, rpadding;
+	QFixed f_width() const {
+		return _width;
+	}
+	QFixed f_rpadding() const {
+		return _rpadding;
+	}
+	void add_rpadding(QFixed padding) {
+		_rpadding += padding;
+	}
+
+private:
+	uint16 _from = 0;
+	QFixed _width, _rpadding;
+	int16 _rbearing = 0;
+
 };
 
 class TextBlock : public ITextBlock {
 public:
-
-	QFixed f_rbearing() const {
-		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
-	}
 
 	ITextBlock *clone() const {
 		return new TextBlock(*this);
@@ -160,6 +177,11 @@ public:
 private:
 
 	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex);
+
+	friend class ITextBlock;
+	QFixed real_f_rbearing() const {
+		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
+	}
 
 	typedef QVector<TextWord> TextWords;
 	TextWords _words;

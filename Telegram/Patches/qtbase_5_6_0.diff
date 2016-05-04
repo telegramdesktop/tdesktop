@@ -16,21 +16,6 @@ index eec9e1f..ec3015e 100644
  QMAKE_CFLAGS_YACC       =
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
-diff --git a/src/corelib/io/qfilesystemengine_win.cpp b/src/corelib/io/qfilesystemengine_win.cpp
-index f1a6019..a53a6c4 100644
---- a/src/corelib/io/qfilesystemengine_win.cpp
-+++ b/src/corelib/io/qfilesystemengine_win.cpp
-@@ -1416,8 +1416,9 @@ bool QFileSystemEngine::copyFile(const QFileSystemEntry &source, const QFileSyst
-     COPYFILE2_EXTENDED_PARAMETERS copyParams = {
-         sizeof(copyParams), COPY_FILE_FAIL_IF_EXISTS, NULL, NULL, NULL
-     };
-+    // CopyFile2 returns HRESULT, not BOOL, so it should be tested for S_OK, not 0.
-     bool ret = ::CopyFile2((const wchar_t*)source.nativeFilePath().utf16(),
--                           (const wchar_t*)target.nativeFilePath().utf16(), &copyParams) != 0;
-+                           (const wchar_t*)target.nativeFilePath().utf16(), &copyParams) == S_OK;
- #endif // Q_OS_WINRT
-     if(!ret)
-         error = QSystemError(::GetLastError(), QSystemError::NativeError);
 diff --git a/src/corelib/tools/qunicodetables.cpp b/src/corelib/tools/qunicodetables.cpp
 index 14e4fd1..c31c62b 100644
 --- a/src/corelib/tools/qunicodetables.cpp
@@ -114,7 +99,7 @@ index 39c228f..b72fdc0 100644
  public:
      inline QTextItemInt()
 diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
-index 9e2a23a..861f202 100644
+index 9e2a23a..4466a4e 100644
 --- a/src/gui/text/qtextlayout.cpp
 +++ b/src/gui/text/qtextlayout.cpp
 @@ -694,6 +694,9 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
@@ -136,6 +121,47 @@ index 9e2a23a..861f202 100644
      }
 
      return oldPos;
+@@ -1644,6 +1645,7 @@ namespace {
+         int maxGlyphs;
+         int currentPosition;
+         glyph_t previousGlyph;
++        QFontEngine *previousGlyphFontEngine;
+
+         QFixed minw;
+         QFixed softHyphenWidth;
+@@ -1677,13 +1679,14 @@ namespace {
+             if (currentPosition > 0 &&
+                 logClusters[currentPosition - 1] < glyphs.numGlyphs) {
+                 previousGlyph = currentGlyph(); // needed to calculate right bearing later
++                previousGlyphFontEngine = fontEngine;
+             }
+         }
+
+-        inline void calculateRightBearing(glyph_t glyph)
++        inline void calculateRightBearing(QFontEngine *engine, glyph_t glyph)
+         {
+             qreal rb;
+-            fontEngine->getGlyphBearings(glyph, 0, &rb);
++            engine->getGlyphBearings(glyph, 0, &rb);
+
+             // We only care about negative right bearings, so we limit the range
+             // of the bearing here so that we can assume it's negative in the rest
+@@ -1696,13 +1699,13 @@ namespace {
+         {
+             if (currentPosition <= 0)
+                 return;
+-            calculateRightBearing(currentGlyph());
++            calculateRightBearing(fontEngine, currentGlyph());
+         }
+
+         inline void calculateRightBearingForPreviousGlyph()
+         {
+             if (previousGlyph > 0)
+-                calculateRightBearing(previousGlyph);
++                calculateRightBearing(previousGlyphFontEngine, previousGlyph);
+         }
+
+         static const QFixed RightBearingNotCalculated;
 diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
 index f74d4d4..57d449a 100644
 --- a/src/gui/text/qtextlayout.h

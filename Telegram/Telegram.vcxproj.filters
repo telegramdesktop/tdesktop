@@ -1528,6 +1528,9 @@
     <CustomBuild Include="SourceFiles\history\field_autocomplete.h">
       <Filter>SourceFiles\history</Filter>
     </CustomBuild>
+    <CustomBuild Include="Resources\langs\lang.strings">
+      <Filter>Resources\langs</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1568,9 +1571,6 @@
     </None>
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>SourceFiles</Filter>
-    </None>
-    <None Include="Resources\langs\lang.strings">
-      <Filter>Resources\langs</Filter>
     </None>
     <None Include="Resources\langs\download.sh">
       <Filter>Resources\langs</Filter>
