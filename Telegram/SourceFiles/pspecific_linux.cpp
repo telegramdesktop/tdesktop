@@ -1314,7 +1314,7 @@ void psRegisterCustomScheme() {
             s << "StartupWMClass=Telegram\n";
             s << "Type=Application\n";
             s << "Categories=Network;\n";
-            s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
+            s << "MimeType=x-scheme-handler/tg;\n";
             f.close();
 
             if (_psRunCommand("desktop-file-install --dir=" + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + escapeShell(QFile::encodeName(file)))) {

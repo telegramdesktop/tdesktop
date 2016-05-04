@@ -1,4 +1,4 @@
-/Telegram/Target
+/Telegram/build/target
 /Telegram/GeneratedFiles/
 /Telegram/SourceFiles/art/grid.png
 /Telegram/SourceFiles/art/grid_125x.png
@@ -18,7 +18,8 @@
 *.sdf
 *.opensdf
 *.opendb
-/Telegram/*.aps
+*.VC.db
+*.aps
 /Win32/
 ipch/
 
