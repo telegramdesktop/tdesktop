@@ -31,15 +31,26 @@ class FlatTextarea : public QTextEdit {
 
 public:
 
-	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using TagList = QVector<Tag>;
+	struct TextWithTags {
+		using Tags = FlatTextarea::TagList;
+		QString text;
+		Tags tags;
+	};
+
+	static QByteArray serializeTagsList(const TagList &tags);
+	static TagList deserializeTagsList(QByteArray data, int textLength);
+	static QString tagsMimeType();
+
+	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString(), const TagList &tags = TagList());
 
 	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);
 	void setMaxHeight(int32 maxHeight);
-
-	const QString &getLastText() const {
-		return _oldtext;
-	}
 
 	void setPlaceholder(const QString &ph, int32 afterSymbols = 0);
 	void updatePlaceholder();
@@ -82,17 +93,22 @@ public:
 	};
 	void setSubmitSettings(SubmitSettings settings);
 
-	void setTextFast(const QString &text, bool clearUndoHistory = true);
-
-	struct Tag {
-		int offset, length;
-		QString id;
-	};
-	using TagList = QVector<Tag>;
-	const TagList &getLastTags() const {
-		return _oldtags;
+	const TextWithTags &getTextWithTags() const {
+		return _lastTextWithTags;
 	}
+	TextWithTags getTextWithTagsPart(int start, int end = -1);
 	void insertTag(const QString &text, QString tagId = QString());
+
+	bool isEmpty() const {
+		return _lastTextWithTags.text.isEmpty();
+	}
+
+	enum UndoHistoryAction {
+		AddToUndoHistory,
+		MergeWithUndoHistory,
+		ClearUndoHistory
+	};
+	void setTextWithTags(const TextWithTags &textWithTags, UndoHistoryAction undoHistoryAction = AddToUndoHistory);
 
 	// If you need to make some preparations of tags before putting them to QMimeData
 	// (and then to clipboard or to drag-n-drop object), here is a strategy for that.
@@ -147,9 +163,9 @@ protected:
 
 private:
 
-	// "start" and "end" are in coordinates of text where emoji are replaced by ObjectReplacementCharacter.
-	// If "end" = -1 means get text till the end. "outTagsList" and "outTagsChanged" may be nullptr.
-	QString getText(int start, int end, TagList *outTagsList, bool *outTagsChanged) const;
+	// "start" and "end" are in coordinates of text where emoji are replaced
+	// by ObjectReplacementCharacter. If "end" = -1 means get text till the end.
+	QString getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged = nullptr) const;
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 
@@ -169,8 +185,7 @@ private:
 	int _maxLength = -1;
 	SubmitSettings _submitSettings = SubmitSettings::Enter;
 
-	QString _ph, _phelided, _oldtext;
-	TagList _oldtags;
+	QString _ph, _phelided;
 	int _phAfter = 0;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
@@ -178,8 +193,11 @@ private:
 	anim::cvalue a_phColor;
 	Animation _a_appearance;
 
+	TextWithTags _lastTextWithTags;
+
 	// Tags list which we should apply while setText() call or insert from mime data.
 	TagList _insertedTags;
+	bool _insertedTagsAreFromMime;
 
 	// Override insert position and charsAdded from complex text editing
 	// (like drag-n-drop in the same text edit field).
@@ -219,6 +237,13 @@ inline bool operator==(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
 	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
 }
 inline bool operator!=(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const FlatTextarea::TextWithTags &a, const FlatTextarea::TextWithTags &b) {
+	return (a.text == b.text) && (a.tags == b.tags);
+}
+inline bool operator!=(const FlatTextarea::TextWithTags &a, const FlatTextarea::TextWithTags &b) {
 	return !(a == b);
 }
 

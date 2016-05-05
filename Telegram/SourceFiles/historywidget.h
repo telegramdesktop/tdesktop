@@ -486,12 +486,8 @@ public:
 
 };
 
-EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags);
-
-enum TextUpdateEventsFlags {
-	TextUpdateEventsSaveDraft  = 0x01,
-	TextUpdateEventsSendTyping = 0x02,
-};
+EntitiesInText entitiesFromTextTags(const TextWithTags::Tags &tags);
+TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities);
 
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
@@ -954,11 +950,18 @@ private:
 	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
 	bool savedGifsFailed(const RPCError &error);
 
+	enum class TextUpdateEvent {
+		SaveDraft  = 0x01,
+		SendTyping = 0x02,
+	};
+	Q_DECLARE_FLAGS(TextUpdateEvents, TextUpdateEvent);
+	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
+
 	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
 	void writeDrafts(History *history);
-	void setFieldText(const QString &text, int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true);
-	void clearFieldText(int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true) {
-		setFieldText(QString());
+	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory);
+	void clearFieldText(TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory) {
+		setFieldText(TextWithTags(), events, undoHistoryAction);
 	}
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -1062,7 +1065,7 @@ private:
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
 	TaskQueue _fileLoader;
-	int32 _textUpdateEventsFlags = (TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping);
+	TextUpdateEvents _textUpdateEvents = (TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);
 
 	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
@@ -1095,3 +1098,4 @@ private:
 
 };
 
+Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryWidget::TextUpdateEvents)

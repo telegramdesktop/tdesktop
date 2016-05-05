@@ -159,7 +159,9 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 		return false;
 	}
 	History *h = App::history(peer);
-	h->setMsgDraft(std_::make_unique<HistoryDraft>(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
+	TextWithTags textWithTags = { url + '\n' + text, TextWithTags::Tags() };
+	MessageCursor cursor = { url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX };
+	h->setMsgDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -177,7 +179,9 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 		return false;
 	}
 	History *h = App::history(peer);
-	h->setMsgDraft(std_::make_unique<HistoryDraft>(botAndQuery, 0, MessageCursor(botAndQuery.size(), botAndQuery.size(), QFIXED_MAX), false));
+	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
+	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
+	h->setMsgDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -1086,7 +1090,7 @@ void executeParsedCommand(const QString &command) {
 
 void MainWidget::sendMessage(const MessageToSend &message) {
 	auto history = message.history;
-	const auto &text = message.text;
+	const auto &textWithTags = message.textWithTags;
 
 	readServerHistory(history, false);
 	_history->fastShowAtEnd(history);
@@ -1095,13 +1099,13 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		return;
 	}
 
-	saveRecentHashtags(text);
+	saveRecentHashtags(textWithTags.text);
 
-	EntitiesInText sendingEntities, leftEntities = entitiesFromFieldTags(message.entities);
+	EntitiesInText sendingEntities, leftEntities = entitiesFromTextTags(textWithTags.tags);
 	auto prepareFlags = itemTextOptions(history, App::self()).flags;
-	QString sendingText, leftText = prepareTextWithEntities(text, prepareFlags, &leftEntities);
+	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
 
-	QString command = parseCommandFromMessage(history, text);
+	QString command = parseCommandFromMessage(history, textWithTags.text);
 	HistoryItem *lastMessage = nullptr;
 
 	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : 0;

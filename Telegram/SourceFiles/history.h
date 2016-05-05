@@ -151,22 +151,23 @@ struct SendAction {
 	int32 progress;
 };
 
+using TextWithTags = FlatTextarea::TextWithTags;
 struct HistoryDraft {
 	HistoryDraft() : msgId(0), previewCancelled(false) {
 	}
-	HistoryDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
-		: text(text)
+	HistoryDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
+		: textWithTags(textWithTags)
 		, msgId(msgId)
 		, cursor(cursor)
 		, previewCancelled(previewCancelled) {
 	}
 	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled)
-		: text(field.getLastText())
+		: textWithTags(field.getTextWithTags())
 		, msgId(msgId)
 		, cursor(field)
 		, previewCancelled(previewCancelled) {
 	}
-	QString text;
+	TextWithTags textWithTags;
 	MsgId msgId; // replyToId for message draft, editMsgId for edit draft
 	MessageCursor cursor;
 	bool previewCancelled;
@@ -176,8 +177,8 @@ struct HistoryEditDraft : public HistoryDraft {
 		: HistoryDraft()
 		, saveRequest(0) {
 	}
-	HistoryEditDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
-		: HistoryDraft(text, msgId, cursor, previewCancelled)
+	HistoryEditDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
+		: HistoryDraft(textWithTags, msgId, cursor, previewCancelled)
 		, saveRequest(saveRequest) {
 	}
 	HistoryEditDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequest = 0)
@@ -373,7 +374,7 @@ public:
 	}
 	void takeMsgDraft(History *from) {
 		if (auto &draft = from->_msgDraft) {
-			if (!draft->text.isEmpty() && !_msgDraft) {
+			if (!draft->textWithTags.text.isEmpty() && !_msgDraft) {
 				_msgDraft = std_::move(draft);
 				_msgDraft->msgId = 0; // edit and reply to drafts can't migrate
 			}

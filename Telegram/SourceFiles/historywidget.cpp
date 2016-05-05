@@ -2053,8 +2053,8 @@ MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st
 }
 
 bool MessageField::hasSendText() const {
-	const QString &text(getLastText());
-	for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
+	auto &text(getTextWithTags().text);
+	for (auto *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
 		ushort code = ch->unicode();
 		if (code != ' ' && code != '\n' && code != '\r' && !chReplacedBySpace(code)) {
 			return true;
@@ -2735,7 +2735,7 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
-EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags) {
+EntitiesInText entitiesFromTextTags(const FlatTextarea::TagList &tags) {
 	EntitiesInText result;
 	if (tags.isEmpty()) {
 		return result;
@@ -2748,6 +2748,24 @@ EntitiesInText entitiesFromFieldTags(const FlatTextarea::TagList &tags) {
 			auto match = QRegularExpression("^(\\d+\\.\\d+)(/|$)").match(tag.id.midRef(mentionStart.size()));
 			if (match.hasMatch()) {
 				result.push_back(EntityInText(EntityInTextMentionName, tag.offset, tag.length, match.captured(1)));
+			}
+		}
+	}
+	return result;
+}
+
+TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities) {
+	TextWithTags::Tags result;
+	if (entities.isEmpty()) {
+		return result;
+	}
+
+	result.reserve(entities.size());
+	for_const (auto &entity, entities) {
+		if (entity.type() == EntityInTextMentionName) {
+			auto match = QRegularExpression("^(\\d+\\.\\d+)$").match(entity.data());
+			if (match.hasMatch()) {
+				result.push_back({ entity.offset(), entity.length(), qstr("mention://user.") + entity.data() });
 			}
 		}
 	}
@@ -2974,7 +2992,7 @@ void HistoryWidget::onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		App::sendBotCommand(_peer, nullptr, str);
-		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
+		setFieldText(_field.getTextWithTagsPart(_field.textCursor().position()));
 	} else {
 		_field.insertTag(str);
 	}
@@ -3022,15 +3040,16 @@ void HistoryWidget::updateInlineBotQuery() {
 
 void HistoryWidget::updateStickersByEmoji() {
 	int32 len = 0;
-	if (EmojiPtr emoji = emojiFromText(_field.getLastText(), &len)) {
-		if (_field.getLastText().size() <= len) {
-			_fieldAutocomplete->showStickers(emoji);
-		} else {
+	auto &text = _field.getTextWithTags().text;
+	if (EmojiPtr emoji = emojiFromText(text, &len)) {
+		if (text.size() > len) {
 			len = 0;
+		} else {
+			_fieldAutocomplete->showStickers(emoji);
 		}
 	}
 	if (!len) {
-		_fieldAutocomplete->showStickers(EmojiPtr(0));
+		_fieldAutocomplete->showStickers(nullptr);
 	}
 }
 
@@ -3039,7 +3058,7 @@ void HistoryWidget::onTextChange() {
 	updateStickersByEmoji();
 
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		if (!_inlineBot && !_editMsgId && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
+		if (!_inlineBot && !_editMsgId && (_textUpdateEvents.testFlag(TextUpdateEvent::SendTyping))) {
 			updateSendAction(_history, SendActionTyping);
 		}
 	}
@@ -3065,13 +3084,13 @@ void HistoryWidget::onTextChange() {
 		update();
 	}
 
-	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
+	if (!_peer || !(_textUpdateEvents.testFlag(TextUpdateEvent::SaveDraft))) return;
 	_saveDraftText = true;
 	onDraftSave(true);
 }
 
 void HistoryWidget::onDraftSaveDelayed() {
-	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
+	if (!_peer || !(_textUpdateEvents.testFlag(TextUpdateEvent::SaveDraft))) return;
 	if (!_field.textCursor().anchor() && !_field.textCursor().position() && !_field.verticalScrollBar()->value()) {
 		if (!Local::hasDraftCursors(_peer->id)) {
 			return;
@@ -3106,17 +3125,17 @@ void HistoryWidget::writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **edit
 			Local::MessageDraft localMsgDraft, localEditDraft;
 			if (msgDraft) {
 				if (*msgDraft) {
-					localMsgDraft = Local::MessageDraft((*msgDraft)->msgId, (*msgDraft)->text, (*msgDraft)->previewCancelled);
+					localMsgDraft = Local::MessageDraft((*msgDraft)->msgId, (*msgDraft)->textWithTags, (*msgDraft)->previewCancelled);
 				}
 			} else {
-				localMsgDraft = Local::MessageDraft(_replyToId, _field.getLastText(), _previewCancelled);
+				localMsgDraft = Local::MessageDraft(_replyToId, _field.getTextWithTags(), _previewCancelled);
 			}
 			if (editDraft) {
 				if (*editDraft) {
-					localEditDraft = Local::MessageDraft((*editDraft)->msgId, (*editDraft)->text, (*editDraft)->previewCancelled);
+					localEditDraft = Local::MessageDraft((*editDraft)->msgId, (*editDraft)->textWithTags, (*editDraft)->previewCancelled);
 				}
 			} else if (_editMsgId) {
-				localEditDraft = Local::MessageDraft(_editMsgId, _field.getLastText(), _previewCancelled);
+				localEditDraft = Local::MessageDraft(_editMsgId, _field.getTextWithTags(), _previewCancelled);
 			}
 			Local::writeDrafts(_peer->id, localMsgDraft, localEditDraft);
 			if (_migrated) {
@@ -3152,11 +3171,11 @@ void HistoryWidget::writeDrafts(History *history) {
 	Local::MessageDraft localMsgDraft, localEditDraft;
 	MessageCursor msgCursor, editCursor;
 	if (auto msgDraft = history->msgDraft()) {
-		localMsgDraft = Local::MessageDraft(msgDraft->msgId, msgDraft->text, msgDraft->previewCancelled);
+		localMsgDraft = Local::MessageDraft(msgDraft->msgId, msgDraft->textWithTags, msgDraft->previewCancelled);
 		msgCursor = msgDraft->cursor;
 	}
 	if (auto editDraft = history->editDraft()) {
-		localEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->text, editDraft->previewCancelled);
+		localEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->textWithTags, editDraft->previewCancelled);
 		editCursor = editDraft->cursor;
 	}
 	Local::writeDrafts(history->peer->id, localMsgDraft, localEditDraft);
@@ -3331,8 +3350,9 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
 		}
 		bot->botInfo->inlineReturnPeerId = 0;
 		History *h = App::history(toPeerId);
-		auto text = '@' + bot->username + ' ' + query;
-		h->setMsgDraft(std_::make_unique<HistoryDraft>(text, 0, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
+		MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
+		h->setMsgDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
 		if (h == _history) {
 			applyDraft();
 		} else {
@@ -3633,11 +3653,11 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 		return;
 	}
 
-	_textUpdateEventsFlags = 0;
-	setFieldText(draft->text);
+	_textUpdateEvents = 0;
+	setFieldText(draft->textWithTags);
 	_field.setFocus();
 	draft->cursor.applyTo(_field);
-	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
+	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	_previewCancelled = draft->previewCancelled;
 	if (auto editDraft = _history->editDraft()) {
 		_editMsgId = editDraft->msgId;
@@ -3730,7 +3750,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		if (_editMsgId) {
 			_history->setEditDraft(std_::make_unique<HistoryEditDraft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
 		} else {
-			if (_replyToId || !_field.getLastText().isEmpty()) {
+			if (_replyToId || !_field.isEmpty()) {
 				_history->setMsgDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 			} else {
 				_history->clearMsgDraft();
@@ -4738,11 +4758,11 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 }
 
 void HistoryWidget::onInlineBotCancel() {
-	QString text = _field.getLastText();
-	if (text.size() > _inlineBotUsername.size() + 2) {
-		setFieldText('@' + _inlineBotUsername + ' ', TextUpdateEventsSaveDraft, false);
+	auto &textWithTags = _field.getTextWithTags();
+	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
+		setFieldText({ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
 	} else {
-		clearFieldText(TextUpdateEventsSaveDraft, false);
+		clearFieldText(TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
 	}
 }
 
@@ -4783,11 +4803,10 @@ void HistoryWidget::saveEditMsg() {
 
 	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
 
-	auto fieldText = _field.getLastText();
-	auto fieldTags = _field.getLastTags();
+	auto &textWithTags = _field.getTextWithTags();
 	auto prepareFlags = itemTextOptions(_history, App::self()).flags;
-	EntitiesInText sendingEntities, leftEntities = entitiesFromFieldTags(fieldTags);
-	QString sendingText, leftText = prepareTextWithEntities(fieldText, prepareFlags, &leftEntities);
+	EntitiesInText sendingEntities, leftEntities = entitiesFromTextTags(textWithTags.tags);
+	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
 
 	if (!textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		_field.selectAll();
@@ -4865,8 +4884,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 	MainWidget::MessageToSend message;
 	message.history = _history;
-	message.text = _field.getLastText();
-	message.entities = _field.getLastTags();
+	message.textWithTags = _field.getTextWithTags();
 	message.replyTo = replyTo;
 	message.broadcast = _broadcast.checked();
 	message.silent = _silent.checked();
@@ -5379,7 +5397,7 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 
 	MainWidget::MessageToSend message;
 	message.history = _history;
-	message.text = toSend;
+	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.replyTo = replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0;
 	message.broadcast = false;
 	message.silent = false;
@@ -5460,8 +5478,9 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 	if (!_history) return false;
 
+	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	QString toInsert = cmd;
-	if (!toInsert.isEmpty() && toInsert.at(0) != '@') {
+	if (!toInsert.isEmpty() && !insertingInlineBot) {
 		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
 		if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
 		QString username = bot ? bot->asUser()->username : QString();
@@ -5472,28 +5491,33 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 	}
 	toInsert += ' ';
 
-	if (toInsert.at(0) != '@') {
-		QString text = _field.getLastText();
+	if (!insertingInlineBot) {
+		auto &textWithTags = _field.getTextWithTags();
 		if (specialGif) {
-			if (text.trimmed() == '@' + cInlineGifBotUsername() && text.at(0) == '@') {
-				clearFieldText(TextUpdateEventsSaveDraft, false);
+			if (textWithTags.text.trimmed() == '@' + cInlineGifBotUsername() && textWithTags.text.at(0) == '@') {
+				clearFieldText(TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
 			}
 		} else {
-			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
+			TextWithTags textWithTagsToSet;
+			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(textWithTags.text);
 			if (m.hasMatch()) {
-				text = toInsert + text.mid(m.capturedLength());
+				textWithTagsToSet = _field.getTextWithTagsPart(m.capturedLength());
 			} else {
-				text = toInsert + text;
+				textWithTagsToSet = textWithTags;
 			}
-			_field.setTextFast(text);
+			textWithTagsToSet.text = toInsert + textWithTagsToSet.text;
+			for (auto &tag : textWithTagsToSet.tags) {
+				tag.offset += toInsert.size();
+			}
+			_field.setTextWithTags(textWithTagsToSet);
 
 			QTextCursor cur(_field.textCursor());
 			cur.movePosition(QTextCursor::End);
 			_field.setTextCursor(cur);
 		}
 	} else {
-		if (!specialGif || _field.getLastText().isEmpty()) {
-			setFieldText(toInsert, TextUpdateEventsSaveDraft, false);
+		if (!specialGif || _field.isEmpty()) {
+			setFieldText({ toInsert, TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
 			_field.setFocus();
 			return true;
 		}
@@ -5787,7 +5811,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 }
 
 void HistoryWidget::onCmdStart() {
-	setFieldText(qsl("/"));
+	setFieldText({ qsl("/"), TextWithTags::Tags() }, 0, FlatTextarea::AddToUndoHistory);
 }
 
 void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
@@ -6998,7 +7022,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			if (_history && _history->lastSentMsg && _history->lastSentMsg->canEdit(::date(unixtime()))) {
-				if (_field.getLastText().isEmpty() && !_editMsgId && !_replyToId) {
+				if (_field.isEmpty() && !_editMsgId && !_replyToId) {
 					App::contextItem(_history->lastSentMsg);
 					onEditMessage();
 				}
@@ -7308,11 +7332,11 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	_field.setFocus();
 }
 
-void HistoryWidget::setFieldText(const QString &text, int32 textUpdateEventsFlags, bool clearUndoHistory) {
-	_textUpdateEventsFlags = textUpdateEventsFlags;
-	_field.setTextFast(text, clearUndoHistory);
+void HistoryWidget::setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events, FlatTextarea::UndoHistoryAction undoHistoryAction) {
+	_textUpdateEvents = events;
+	_field.setTextWithTags(textWithTags, undoHistoryAction);
 	_field.moveCursor(QTextCursor::End);
-	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
+	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 
 	_previewCancelled = false;
 	_previewData = nullptr;
@@ -7351,7 +7375,7 @@ void HistoryWidget::onReplyToMessage() {
 		if (auto msgDraft = _history->msgDraft()) {
 			msgDraft->msgId = to->id;
 		} else {
-			_history->setMsgDraft(std_::make_unique<HistoryDraft>(QString(), to->id, MessageCursor(), false));
+			_history->setMsgDraft(std_::make_unique<HistoryDraft>(TextWithTags(), to->id, MessageCursor(), false));
 		}
 	} else {
 		_replyEditMsg = to;
@@ -7384,14 +7408,17 @@ void HistoryWidget::onEditMessage() {
 	} else {
 		delete box;
 
-		if (_replyToId || !_field.getLastText().isEmpty()) {
+		if (_replyToId || !_field.isEmpty()) {
 			_history->setMsgDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 		} else {
 			_history->clearMsgDraft();
 		}
 
-		QString text(textApplyEntities(to->originalText(), to->originalEntities()));
-		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(text, to->id, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		auto originalText = to->originalText();
+		auto originalEntities = to->originalEntities();
+		TextWithTags original = { textApplyEntities(originalText, originalEntities), textTagsFromEntities(originalEntities) };
+		MessageCursor cursor = { original.text.size(), original.text.size(), QFIXED_MAX };
+		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(original, to->id, cursor, false));
 		applyDraft(false);
 
 		_previewData = 0;
@@ -7510,7 +7537,7 @@ void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		update();
 	} else if (auto msgDraft = (_history ? _history->msgDraft() : nullptr)) {
 		if (msgDraft->msgId) {
-			if (msgDraft->text.isEmpty()) {
+			if (msgDraft->textWithTags.text.isEmpty()) {
 				_history->clearMsgDraft();
 			} else {
 				msgDraft->msgId = 0;
@@ -7533,7 +7560,7 @@ void HistoryWidget::cancelEdit() {
 	if (!_editMsgId) return;
 
 	_editMsgId = 0;
-	_replyEditMsg = 0;
+	_replyEditMsg = nullptr;
 	_history->clearEditDraft();
 	applyDraft();
 
@@ -7546,21 +7573,21 @@ void HistoryWidget::cancelEdit() {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	mouseMoveEvent(0);
+	mouseMoveEvent(nullptr);
 	if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !replyToId()) {
 		_fieldBarCancel.hide();
 		updateMouseTracking();
 	}
 
-	int32 old = _textUpdateEventsFlags;
-	_textUpdateEventsFlags = 0;
+	auto old = _textUpdateEvents;
+	_textUpdateEvents = 0;
 	onTextChange();
-	_textUpdateEventsFlags = old;
+	_textUpdateEvents = old;
 
 	updateBotKeyboard();
 	updateFieldPlaceholder();
 
-	resizeEvent(0);
+	resizeEvent(nullptr);
 	update();
 }
 
@@ -7728,7 +7755,10 @@ void HistoryWidget::onCancel() {
 	if (_inlineBotCancel) {
 		onInlineBotCancel();
 	} else if (_editMsgId) {
-		if (_replyEditMsg && textApplyEntities(_replyEditMsg->originalText(), _replyEditMsg->originalEntities()) != _field.getLastText()) {
+		auto originalText = _replyEditMsg ? _replyEditMsg->originalText() : QString();
+		auto originalEntities = _replyEditMsg ? _replyEditMsg->originalEntities() : EntitiesInText();
+		TextWithTags original = { textApplyEntities(originalText, originalEntities), textTagsFromEntities(originalEntities) };
+		if (_replyEditMsg && original != _field.getTextWithTags()) {
 			auto box = new ConfirmBox(lang(lng_cancel_edit_post_sure), lang(lng_cancel_edit_post_yes), st::defaultBoxButton, lang(lng_cancel_edit_post_no));
 			connect(box, SIGNAL(confirmed()), this, SLOT(onFieldBarCancel()));
 			Ui::showLayer(box);

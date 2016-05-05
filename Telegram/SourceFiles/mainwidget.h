@@ -283,8 +283,7 @@ public:
 
 	struct MessageToSend {
 		History *history = nullptr;
-		QString text;
-		FlatTextarea::TagList entities;
+		TextWithTags textWithTags;
 		MsgId replyTo = 0;
 		bool broadcast = false;
 		bool silent = false;

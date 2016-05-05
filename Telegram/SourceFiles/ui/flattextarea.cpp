@@ -23,9 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 
-namespace {
-
-QByteArray serializeTagsList(const FlatTextarea::TagList &tags) {
+QByteArray FlatTextarea::serializeTagsList(const TagList &tags) {
 	if (tags.isEmpty()) {
 		return QByteArray();
 	}
@@ -44,8 +42,11 @@ QByteArray serializeTagsList(const FlatTextarea::TagList &tags) {
 	return tagsSerialized;
 }
 
-FlatTextarea::TagList deserializeTagsList(QByteArray data, int textSize) {
-	FlatTextarea::TagList result;
+FlatTextarea::TagList FlatTextarea::deserializeTagsList(QByteArray data, int textLength) {
+	TagList result;
+	if (data.isEmpty()) {
+		return result;
+	}
 
 	QBuffer buffer(&data);
 	buffer.open(QIODevice::ReadOnly);
@@ -58,7 +59,7 @@ FlatTextarea::TagList deserializeTagsList(QByteArray data, int textSize) {
 	if (stream.status() != QDataStream::Ok) {
 		return result;
 	}
-	if (tagCount <= 0 || tagCount > textSize) {
+	if (tagCount <= 0 || tagCount > textLength) {
 		return result;
 	}
 
@@ -69,7 +70,7 @@ FlatTextarea::TagList deserializeTagsList(QByteArray data, int textSize) {
 		if (stream.status() != QDataStream::Ok) {
 			return result;
 		}
-		if (offset < 0 || length <= 0 || offset + length > textSize) {
+		if (offset < 0 || length <= 0 || offset + length > textLength) {
 			return result;
 		}
 		result.push_back({ offset, length, id });
@@ -77,12 +78,12 @@ FlatTextarea::TagList deserializeTagsList(QByteArray data, int textSize) {
 	return result;
 }
 
-constexpr str_const TagsMimeType = "application/x-td-field-tags";
+QString FlatTextarea::tagsMimeType() {
+	return qsl("application/x-td-field-tags");
+}
 
-} // namespace
-
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
-, _oldtext(v)
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : QTextEdit(parent)
+, _lastTextWithTags { v, tags }
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
@@ -126,22 +127,41 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
-	if (!v.isEmpty()) {
-		setTextFast(v);
+	if (!_lastTextWithTags.text.isEmpty()) {
+		setTextWithTags(_lastTextWithTags, ClearUndoHistory);
 	}
 }
 
-void FlatTextarea::setTextFast(const QString &text, bool clearUndoHistory) {
-	if (clearUndoHistory) {
-		setPlainText(text);
+FlatTextarea::TextWithTags FlatTextarea::getTextWithTagsPart(int start, int end) {
+	TextWithTags result;
+	result.text = getTextPart(start, end, &result.tags);
+	return result;
+}
+
+void FlatTextarea::setTextWithTags(const TextWithTags &textWithTags, UndoHistoryAction undoHistoryAction) {
+	_insertedTags = textWithTags.tags;
+	_insertedTagsAreFromMime = false;
+	_realInsertPosition = 0;
+	_realCharsAdded = textWithTags.text.size();
+	auto doc = document();
+	auto cursor = QTextCursor(doc->docHandle(), 0);
+	if (undoHistoryAction == ClearUndoHistory) {
+		doc->setUndoRedoEnabled(false);
+		cursor.beginEditBlock();
+	} else if (undoHistoryAction == MergeWithUndoHistory) {
+		cursor.joinPreviousEditBlock();
 	} else {
-		QTextCursor c(document()->docHandle(), 0);
-		c.joinPreviousEditBlock();
-		c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-		c.insertText(text);
-		c.movePosition(QTextCursor::End);
-		c.endEditBlock();
+		cursor.beginEditBlock();
 	}
+	cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+	cursor.insertText(textWithTags.text);
+	cursor.movePosition(QTextCursor::End);
+	cursor.endEditBlock();
+	if (undoHistoryAction == ClearUndoHistory) {
+		doc->setUndoRedoEnabled(true);
+	}
+	_insertedTags.clear();
+	_realInsertPosition = -1;
 	finishPlaceholder();
 }
 
@@ -266,7 +286,8 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.setFont(_st.font);
 		p.setPen(a_phColor.current());
 		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
-			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + _st.font->width(getLastText().mid(0, _phAfter)), _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
+			int skipWidth = _st.font->width(getTextWithTags().text.mid(0, _phAfter));
+			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
 		} else {
 			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
 			p.drawText(phRect, _ph, QTextOption(_st.phAlign));
@@ -317,7 +338,7 @@ QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInl
 	t_assert(outInlineBot != nullptr);
 	t_assert(outInlineBotUsername != nullptr);
 
-	const QString &text(getLastText());
+	auto &text = getTextWithTags().text;
 
 	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
 	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
@@ -474,10 +495,8 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 		cursor.insertText(text + ' ', format);
 	} else {
 		_insertedTags.clear();
-		if (_tagMimeProcessor) {
-			tagId = _tagMimeProcessor->mimeTagFromTag(tagId);
-		}
 		_insertedTags.push_back({ 0, text.size(), tagId });
+		_insertedTagsAreFromMime = false;
 		cursor.insertText(text + ' ');
 		_insertedTags.clear();
 	}
@@ -601,7 +620,7 @@ private:
 
 } // namespace
 
-QString FlatTextarea::getText(int start, int end, TagList *outTagsList, bool *outTagsChanged) const {
+QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged) const {
 	if (end >= 0 && end <= start) return QString();
 
 	if (start < 0) start = 0;
@@ -632,7 +651,7 @@ QString FlatTextarea::getText(int start, int end, TagList *outTagsList, bool *ou
 			int32 p = full ? 0 : fragment.position(), e = full ? 0 : (p + fragment.length());
 			if (!full) {
 				tillFragmentEnd = (e <= end);
-				if (p == end && outTagsList) {
+				if (p == end) {
 					tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
 				}
 				if (p >= end) {
@@ -642,7 +661,7 @@ QString FlatTextarea::getText(int start, int end, TagList *outTagsList, bool *ou
 					continue;
 				}
 			}
-			if (outTagsList && (full || p >= start)) {
+			if (full || p >= start) {
 				tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
 			}
 
@@ -689,11 +708,9 @@ QString FlatTextarea::getText(int start, int end, TagList *outTagsList, bool *ou
 	}
 	result.chop(1);
 
-	if (outTagsList) {
-		if (tillFragmentEnd) tagAccumulator.feed(QString(), result.size());
-		if (outTagsChanged) {
-			*outTagsChanged = tagAccumulator.changed();
-		}
+	if (tillFragmentEnd) tagAccumulator.feed(QString(), result.size());
+	if (outTagsChanged) {
+		*outTagsChanged = tagAccumulator.changed();
 	}
 	return result;
 }
@@ -816,11 +833,12 @@ QStringList FlatTextarea::linksList() const {
 }
 
 void FlatTextarea::insertFromMimeData(const QMimeData *source) {
-	auto mime = str_const_toString(TagsMimeType);
+	auto mime = tagsMimeType();
 	auto text = source->text();
 	if (source->hasFormat(mime)) {
 		auto tagsData = source->data(mime);
 		_insertedTags = deserializeTagsList(tagsData, text.size());
+		_insertedTagsAreFromMime = true;
 	} else {
 		_insertedTags.clear();
 	}
@@ -982,7 +1000,9 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 	auto doc = document();
 
 	// Apply inserted tags.
-	int breakTagOnNotLetterTill = processInsertedTags(doc, insertPosition, insertEnd, _insertedTags, _tagMimeProcessor.get());
+	auto insertedTagsProcessor = _insertedTagsAreFromMime ? _tagMimeProcessor.get() : nullptr;
+	int breakTagOnNotLetterTill = processInsertedTags(doc, insertPosition, insertEnd,
+		_insertedTags, insertedTagsProcessor);
 	using ActionType = FormattingAction::Type;
 	while (true) {
 		FormattingAction action;
@@ -1181,15 +1201,15 @@ void FlatTextarea::onDocumentContentsChanged() {
 	if (_correcting) return;
 
 	auto tagsChanged = false;
-	auto curText = getText(0, -1, &_oldtags, &tagsChanged);
+	auto curText = getTextPart(0, -1, &_lastTextWithTags.tags, &tagsChanged);
 
 	_correcting = true;
-	correctValue(_oldtext, curText, _oldtags);
+	correctValue(_lastTextWithTags.text, curText, _lastTextWithTags.tags);
 	_correcting = false;
 
-	bool textOrTagsChanged = tagsChanged || (_oldtext != curText);
+	bool textOrTagsChanged = tagsChanged || (_lastTextWithTags.text != curText);
 	if (textOrTagsChanged) {
-		_oldtext = curText;
+		_lastTextWithTags.text = curText;
 		emit changed();
 		checkContentHeight();
 	}
@@ -1231,12 +1251,16 @@ void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 		_phAfter = afterSymbols;
 		updatePlaceholder();
 	}
-	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - (_phAfter ? _st.font->width(getLastText().mid(0, _phAfter)) : 0));
+	int skipWidth = 0;
+	if (_phAfter) {
+		skipWidth = _st.font->width(getTextWithTags().text.mid(0, _phAfter));
+	}
+	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - skipWidth);
 	if (_phVisible) update();
 }
 
 void FlatTextarea::updatePlaceholder() {
-	bool vis = (getLastText().size() <= _phAfter);
+	bool vis = (getTextWithTags().text.size() <= _phAfter);
 	if (vis == _phVisible) return;
 
 	a_phLeft.start(vis ? 0 : _st.phShift);
@@ -1252,14 +1276,14 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 	int32 start = c.selectionStart(), end = c.selectionEnd();
 	if (end > start) {
 		TagList tags;
-		result->setText(getText(start, end, &tags, nullptr));
+		result->setText(getTextPart(start, end, &tags));
 		if (!tags.isEmpty()) {
 			if (_tagMimeProcessor) {
 				for (auto &tag : tags) {
 					tag.id = _tagMimeProcessor->mimeTagFromTag(tag.id);
 				}
 			}
-			result->setData(str_const_toString(TagsMimeType), serializeTagsList(tags));
+			result->setData(tagsMimeType(), serializeTagsList(tags));
 		}
 	}
 	return result;
