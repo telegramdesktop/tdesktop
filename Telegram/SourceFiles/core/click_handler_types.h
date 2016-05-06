@@ -70,7 +70,7 @@ public:
 	}
 
 	QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const override;
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 	static void doOpen(QString url);
 	void onClick(Qt::MouseButton button) const override {
@@ -118,7 +118,7 @@ public:
 	void onClick(Qt::MouseButton button) const override;
 
 	QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const override;
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 };
 
@@ -135,7 +135,7 @@ public:
 
 	QString copyToClipboardContextItemText() const override;
 
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {
@@ -157,7 +157,7 @@ public:
 
 	void onClick(Qt::MouseButton button) const override;
 
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 	QString tooltip() const override;
 
@@ -181,7 +181,7 @@ public:
 
 	QString copyToClipboardContextItemText() const override;
 
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {
@@ -204,7 +204,7 @@ public:
 		return _cmd;
 	}
 
-	EntityInText getEntityInText(int offset, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {

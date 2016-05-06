@@ -1437,7 +1437,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 
 // Some code is duplicated in flattextarea.cpp!
 void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich) {
-	EntitiesInText mono;
+	EntitiesInText result;
 
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
@@ -1445,6 +1445,9 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 	bool withMono = (flags & TextParseMono);
 
 	if (withMono) { // parse mono entities (code and pre)
+		int existingEntityIndex = 0, existingEntitiesCount = inOutEntities->size();
+		int existingEntityShiftLeft = 0;
+
 		QString newText;
 
 		int32 offset = 0, matchOffset = offset, len = text.size(), commandOffset = rich ? 0 : len;
@@ -1468,7 +1471,7 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 			auto mCode = _reCode.match(text, matchOffset);
 			if (!mPre.hasMatch() && !mCode.hasMatch()) break;
 
-			int32 preStart = mPre.hasMatch() ? mPre.capturedStart() : INT_MAX,
+			int preStart = mPre.hasMatch() ? mPre.capturedStart() : INT_MAX,
 				preEnd = mPre.hasMatch() ? mPre.capturedEnd() : INT_MAX,
 				codeStart = mCode.hasMatch() ? mCode.capturedStart() : INT_MAX,
 				codeEnd = mCode.hasMatch() ? mCode.capturedEnd() : INT_MAX,
@@ -1506,11 +1509,25 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				continue;
 			}
 
-			if (newText.isEmpty()) newText.reserve(text.size());
-
 			bool addNewlineBefore = false, addNewlineAfter = false;
 			int32 outerStart = tagStart, outerEnd = tagEnd;
 			int32 innerStart = tagStart + mTag.capturedLength(2), innerEnd = tagEnd - mTag.capturedLength(3);
+
+			// Check if start or end sequences intersect any existing entity.
+			int intersectedEntityEnd = 0;
+			for_const (auto &entity, *inOutEntities) {
+				if (qMin(innerStart, entity.offset() + entity.length()) > qMax(outerStart, entity.offset()) ||
+					qMin(outerEnd, entity.offset() + entity.length()) > qMax(innerEnd, entity.offset())) {
+					intersectedEntityEnd = entity.offset() + entity.length();
+					break;
+				}
+			}
+			if (intersectedEntityEnd > 0) {
+				matchOffset = qMax(innerStart, intersectedEntityEnd);
+				continue;
+			}
+
+			if (newText.isEmpty()) newText.reserve(text.size());
 			if (pre) {
 				while (outerStart > 0 && chIsSpace(*(start + outerStart - 1), rich) && !chIsNewline(*(start + outerStart - 1))) {
 					--outerStart;
@@ -1540,14 +1557,27 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				}
 				addNewlineAfter = (outerEnd < len && !chIsNewline(*(start + outerEnd)));
 			}
+
+			for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() < innerStart; ++existingEntityIndex) {
+				auto &entity = inOutEntities->at(existingEntityIndex);
+				result.push_back(entity);
+				result.back().shiftLeft(existingEntityShiftLeft);
+			}
 			if (outerStart > offset) newText.append(start + offset, outerStart - offset);
 			if (addNewlineBefore) newText.append('\n');
+			existingEntityShiftLeft += (innerStart - outerStart) - (addNewlineBefore ? 1 : 0);
 
-			int32 tagLength = innerEnd - innerStart;
-			mono.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, newText.size(), tagLength));
+			int entityStart = newText.size(), entityLength = innerEnd - innerStart;
+			result.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, entityStart, entityLength));
 
-			newText.append(start + innerStart, tagLength);
+			for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() <= innerEnd; ++existingEntityIndex) {
+				auto &entity = inOutEntities->at(existingEntityIndex);
+				result.push_back(entity);
+				result.back().shiftLeft(existingEntityShiftLeft);
+			}
+			newText.append(start + innerStart, entityLength);
 			if (addNewlineAfter) newText.append('\n');
+			existingEntityShiftLeft += (outerEnd - innerEnd) - (addNewlineAfter ? 1 : 0);
 
 			offset = matchOffset = outerEnd;
 		}
@@ -1555,8 +1585,19 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 			newText.append(start + offset, len - offset);
 			text = newText;
 		}
+		if (!result.isEmpty()) {
+			for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
+				auto &entity = inOutEntities->at(existingEntityIndex);
+				result.push_back(entity);
+				result.back().shiftLeft(existingEntityShiftLeft);
+			}
+			*inOutEntities = result;
+			result = EntitiesInText();
+		}
 	}
-	int32 monoEntity = 0, monoCount = mono.size(), monoTill = 0;
+
+	int existingEntityIndex = 0, existingEntitiesCount = inOutEntities->size();
+	int existingEntityEnd = 0;
 
 	initLinkSets();
 	int32 len = text.size(), commandOffset = rich ? 0 : len;
@@ -1572,11 +1613,11 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				}
 			}
 		}
-		QRegularExpressionMatch mDomain = _reDomain.match(text, matchOffset);
-		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
-		QRegularExpressionMatch mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
-		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
-		QRegularExpressionMatch mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
+		auto mDomain = _reDomain.match(text, matchOffset);
+		auto mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
+		auto mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
+		auto mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
+		auto mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
 
 		EntityInTextType lnkType = EntityInTextUrl;
 		int32 lnkStart = 0, lnkLength = 0;
@@ -1735,19 +1776,23 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				lnkLength = (p - start) - lnkStart;
 			}
 		}
-		for (; monoEntity < monoCount && mono[monoEntity].offset() <= lnkStart; ++monoEntity) {
-			monoTill = qMax(monoTill, mono[monoEntity].offset() + mono[monoEntity].length());
-			inOutEntities->push_back(mono[monoEntity]);
+		for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() <= lnkStart; ++existingEntityIndex) {
+			auto &entity = inOutEntities->at(existingEntityIndex);
+			accumulate_max(existingEntityEnd, entity.offset() + entity.length());
+			result.push_back(entity);
 		}
-		if (lnkStart >= monoTill) {
+		if (lnkStart >= existingEntityEnd) {
 			inOutEntities->push_back(EntityInText(lnkType, lnkStart, lnkLength));
 		}
 
 		offset = matchOffset = lnkStart + lnkLength;
 	}
-	for (; monoEntity < monoCount; ++monoEntity) {
-		monoTill = qMax(monoTill, mono[monoEntity].offset() + mono[monoEntity].length());
-		inOutEntities->push_back(mono[monoEntity]);
+	if (!result.isEmpty()) {
+		for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
+			auto &entity = inOutEntities->at(existingEntityIndex);
+			result.push_back(entity);
+		}
+		*inOutEntities = result;
 	}
 }
 

@@ -75,18 +75,23 @@ void UrlClickHandler::doOpen(QString url) {
 }
 
 QString UrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
-	if (mode == ExpandLinksNone) {
-		return QString();
+	QString result;
+	if (mode != ExpandLinksNone) {
+		result = _originalUrl;
 	}
-	return _originalUrl;
+	return result;
 }
 
-EntityInText UrlClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	auto u = _originalUrl;
-	if (isEmail(u)) {
-		return EntityInText(EntityInTextUrl, offset, u.size());
+TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	TextWithEntities result;
+	auto entityType = isEmail(_originalUrl) ? EntityInTextEmail : EntityInTextUrl;
+	int entityLength = textPart.size();
+	if (mode != ExpandLinksNone) {
+		result.text = _originalUrl;
+		entityLength = _originalUrl.size();
 	}
-	return EntityInText(EntityInTextUrl, offset, u.size());
+	result.entities.push_back({ entityType, entityOffset, entityLength });
+	return result;
 }
 
 void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
@@ -102,14 +107,20 @@ void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
 }
 
 QString HiddenUrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
-	if (mode != ExpandLinksAll) {
-		return QString();
+	QString result;
+	if (mode == ExpandLinksAll) {
+		result = textPart.toString() + qsl(" (") + url() + ')';
 	}
-	return textPart.toString() + qsl(" (") + url() + ')';
+	return result;
 }
 
-EntityInText HiddenUrlClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	return EntityInText(EntityInTextCustomUrl, offset, textPart.size(), url());
+TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	TextWithEntities result;
+	result.entities.push_back({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
+	if (mode == ExpandLinksAll) {
+		result.text = textPart.toString() + qsl(" (") + url() + ')';
+	}
+	return result;
 }
 
 QString MentionClickHandler::copyToClipboardContextItemText() const {
@@ -122,8 +133,8 @@ void MentionClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-EntityInText MentionClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	return EntityInText(EntityInTextMention, offset, textPart.size());
+TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextMention, entityOffset, textPart.size() });
 }
 
 void MentionNameClickHandler::onClick(Qt::MouseButton button) const {
@@ -134,9 +145,9 @@ void MentionNameClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-EntityInText MentionNameClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
+TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
 	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
-	return EntityInText(EntityInTextMentionName, offset, textPart.size(), data);
+	return simpleTextWithEntity({ EntityInTextMentionName, entityOffset, textPart.size(), data });
 }
 
 QString MentionNameClickHandler::tooltip() const {
@@ -159,8 +170,8 @@ void HashtagClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-EntityInText HashtagClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	return EntityInText(EntityInTextHashtag, offset, textPart.size());
+TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
 
 void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
@@ -180,6 +191,6 @@ void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-EntityInText BotCommandClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	return EntityInText(EntityInTextHashtag, offset, textPart.size());
+TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }

@@ -3947,8 +3947,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
-				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
-					item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
+				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
+					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText();
+					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
 					item->addToOverview(AddToOverviewNew);
 				}

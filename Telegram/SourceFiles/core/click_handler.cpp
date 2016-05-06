@@ -66,6 +66,12 @@ QString ClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef
 	return QString();
 }
 
-EntityInText ClickHandler::getEntityInText(int offset, const QStringRef &textPart) const {
-	return EntityInText(EntityInTextInvalid, offset, 0);
+TextWithEntities ClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return { QString(), EntitiesInText() };
+}
+
+TextWithEntities ClickHandler::simpleTextWithEntity(const EntityInText &entity) const {
+	TextWithEntities result;
+	result.entities.push_back(entity);
+	return result;
 }

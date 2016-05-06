@@ -39,6 +39,54 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "playerwidget.h"
 
+namespace {
+
+QString mimeTagFromTag(const QString &tagId) {
+	if (tagId.startsWith(qstr("mention://"))) {
+		return tagId + ':' + QString::number(MTP::authedId());
+	}
+	return tagId;
+}
+
+QMimeData *mimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
+	if (forClipboard.text.isEmpty()) {
+		return nullptr;
+	}
+
+	auto result = new QMimeData();
+	result->setText(forClipboard.text);
+	auto tags = textTagsFromEntities(forClipboard.entities);
+	if (!tags.isEmpty()) {
+		for (auto &tag : tags) {
+			tag.id = mimeTagFromTag(tag.id);
+		}
+		result->setData(FlatTextarea::tagsMimeType(), FlatTextarea::serializeTagsList(tags));
+	}
+	return result;
+}
+
+// For mention tags save and validate userId, ignore tags for different userId.
+class FieldTagMimeProcessor : public FlatTextarea::TagMimeProcessor {
+public:
+	QString mimeTagFromTag(const QString &tagId) override {
+		return ::mimeTagFromTag(tagId);
+	}
+
+	QString tagFromMimeTag(const QString &mimeTag) override {
+		if (mimeTag.startsWith(qstr("mention://"))) {
+			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
+			if (!match.hasMatch() || match.capturedRef(1).toInt() != MTP::authedId()) {
+				return QString();
+			}
+			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
+		}
+		return mimeTag;
+	}
+
+};
+
+} // namespace
+
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
 HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : TWidget(nullptr)
@@ -704,24 +752,21 @@ void HistoryInner::onDragExec() {
 		}
 	}
 	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
-	QString sel;
+	TextWithEntities sel;
 	QList<QUrl> urls;
 	if (uponSelected) {
 		sel = getSelectedText();
 	} else if (pressedHandler) {
-		sel = pressedHandler->dragText();
+		sel = { pressedHandler->dragText(), EntitiesInText() };
 		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
 		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
 		//}
 	}
-	if (!sel.isEmpty()) {
+	if (auto mimeData = mimeDataFromTextWithEntities(sel)) {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 
 		QDrag *drag = new QDrag(App::wnd());
-		QMimeData *mimeData = new QMimeData;
-
-		mimeData->setText(sel);
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
 		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
@@ -748,7 +793,7 @@ void HistoryInner::onDragExec() {
 		}
 		if (!forwardMimeType.isEmpty()) {
 			QDrag *drag = new QDrag(App::wnd());
-			QMimeData *mimeData = new QMimeData;
+			QMimeData *mimeData = new QMimeData();
 
 			mimeData->setData(forwardMimeType, "1");
 			if (DocumentData *document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
@@ -1124,10 +1169,7 @@ void HistoryInner::onMenuDestroy(QObject *obj) {
 }
 
 void HistoryInner::copySelectedText() {
-	QString sel = getSelectedText();
-	if (!sel.isEmpty()) {
-		QApplication::clipboard()->setText(sel);
-	}
+	setToClipboard(getSelectedText());
 }
 
 void HistoryInner::copyContextUrl() {
@@ -1217,9 +1259,12 @@ void HistoryInner::copyContextText() {
 		return;
 	}
 
-	QString contextMenuText = item->selectedText(FullSelection);
-	if (!contextMenuText.isEmpty()) {
-		QApplication::clipboard()->setText(contextMenuText);
+	setToClipboard(item->selectedText(FullSelection));
+}
+
+void HistoryInner::setToClipboard(const TextWithEntities &forClipboard) {
+	if (auto data = mimeDataFromTextWithEntities(forClipboard)) {
+		QApplication::clipboard()->setMimeData(data);
 	}
 }
 
@@ -1227,42 +1272,48 @@ void HistoryInner::resizeEvent(QResizeEvent *e) {
 	onUpdateSelected();
 }
 
-QString HistoryInner::getSelectedText() const {
+TextWithEntities HistoryInner::getSelectedText() const {
 	SelectedItems sel = _selected;
 
 	if (_dragAction == Selecting && _dragSelFrom && _dragSelTo) {
 		applyDragSelection(&sel);
 	}
 
-	if (sel.isEmpty()) return QString();
+	if (sel.isEmpty()) {
+		return TextWithEntities();
+	}
 	if (sel.cbegin().value() != FullSelection) {
 		return sel.cbegin().key()->selectedText(sel.cbegin().value());
 	}
 
-	int32 fullSize = 0, mtop = migratedTop(), htop = historyTop();
+	int fullSize = 0;
 	QString timeFormat(qsl(", [dd.MM.yy hh:mm]\n"));
-	QMap<int32, QString> texts;
-	for (SelectedItems::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
+	QMap<int, TextWithEntities> texts;
+	for (auto i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
 		if (item->detached()) continue;
 
-		QString text, sel = item->selectedText(FullSelection), time = item->date.toString(timeFormat);
-		int32 size = item->author()->name.size() + time.size() + sel.size();
-		text.reserve(size);
+		QString time = item->date.toString(timeFormat);
+		TextWithEntities part, unwrapped = item->selectedText(FullSelection);
+		int size = item->author()->name.size() + time.size() + unwrapped.text.size();
+		part.text.reserve(size);
 
-		int32 y = itemTop(item);
+		int y = itemTop(item);
 		if (y >= 0) {
-			texts.insert(y, text.append(item->author()->name).append(time).append(sel));
+			part.text.append(item->author()->name).append(time);
+			appendTextWithEntities(part, std_::move(unwrapped));
+			texts.insert(y, part);
 			fullSize += size;
 		}
 	}
 
-	QString result, sep(qsl("\n\n"));
-	result.reserve(fullSize + (texts.size() - 1) * 2);
-	for (QMap<int32, QString>::const_iterator i = texts.cbegin(), e = texts.cend(); i != e; ++i) {
-		result.append(i.value());
+	TextWithEntities result;
+	auto sep = qsl("\n\n");
+	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
+	for (auto i = texts.begin(), e = texts.end(); i != e; ++i) {
+		appendTextWithEntities(result, std_::move(i.value()));
 		if (i + 1 != e) {
-			result.append(sep);
+			result.text.append(sep);
 		}
 	}
 	return result;
@@ -2027,7 +2078,7 @@ QString HistoryInner::tooltipText() const {
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
 			if (HistoryMessageForwarded *fwd = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
-				return fwd->_text.original(AllTextSelection, ExpandLinksNone);
+				return fwd->_text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
 	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {
@@ -2679,7 +2730,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 }
 
 QString HistoryHider::offeredText() const {
-	return toText.original();
+	return toText.originalText();
 }
 
 bool HistoryHider::wasOffered() const {
@@ -2771,32 +2822,6 @@ TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities) {
 	}
 	return result;
 }
-
-namespace {
-
-// For mention tags save and validate userId, ignore tags for different userId.
-class FieldTagMimeProcessor : public FlatTextarea::TagMimeProcessor {
-public:
-	QString mimeTagFromTag(const QString &tagId) override {
-		if (tagId.startsWith(qstr("mention://"))) {
-			return tagId + ':' + QString::number(MTP::authedId());
-		}
-		return tagId;
-	}
-
-	QString tagFromMimeTag(const QString &mimeTag) override {
-		if (mimeTag.startsWith(qstr("mention://"))) {
-			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-			if (!match.hasMatch() || match.capturedRef(1).toInt() != MTP::authedId()) {
-				return QString();
-			}
-			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
-		}
-		return mimeTag;
-	}
-};
-
-} // namespace
 
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::replyCancel)
@@ -6258,8 +6283,8 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
-		QString caption = item->getMedia() ? item->getMedia()->getCaption() : QString();
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -6310,8 +6335,8 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
-			QString caption = item->getMedia() ? item->getMedia()->getCaption() : QString();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -6339,8 +6364,8 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
-			QString caption = item->getMedia() ? item->getMedia()->getCaption() : QString();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -7414,11 +7439,12 @@ void HistoryWidget::onEditMessage() {
 			_history->clearMsgDraft();
 		}
 
-		auto originalText = to->originalText();
-		auto originalEntities = to->originalEntities();
-		TextWithTags original = { textApplyEntities(originalText, originalEntities), textTagsFromEntities(originalEntities) };
-		MessageCursor cursor = { original.text.size(), original.text.size(), QFIXED_MAX };
-		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(original, to->id, cursor, false));
+		auto original = to->originalText();
+		auto editText = textApplyEntities(original.text, original.entities);
+		auto editTags = textTagsFromEntities(original.entities);
+		TextWithTags editData = { editText, editTags };
+		MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
+		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(editData, to->id, cursor, false));
 		applyDraft(false);
 
 		_previewData = 0;
@@ -7755,10 +7781,11 @@ void HistoryWidget::onCancel() {
 	if (_inlineBotCancel) {
 		onInlineBotCancel();
 	} else if (_editMsgId) {
-		auto originalText = _replyEditMsg ? _replyEditMsg->originalText() : QString();
-		auto originalEntities = _replyEditMsg ? _replyEditMsg->originalEntities() : EntitiesInText();
-		TextWithTags original = { textApplyEntities(originalText, originalEntities), textTagsFromEntities(originalEntities) };
-		if (_replyEditMsg && original != _field.getTextWithTags()) {
+		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
+		auto editText = textApplyEntities(original.text, original.entities);
+		auto editTags = textTagsFromEntities(original.entities);
+		TextWithTags editData = { editText, editTags };
+		if (_replyEditMsg && editData != _field.getTextWithTags()) {
 			auto box = new ConfirmBox(lang(lng_cancel_edit_post_sure), lang(lng_cancel_edit_post_yes), st::defaultBoxButton, lang(lng_cancel_edit_post_no));
 			connect(box, SIGNAL(confirmed()), this, SLOT(onFieldBarCancel()));
 			Ui::showLayer(box);

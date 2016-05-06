@@ -57,7 +57,7 @@ public:
 	void keyPressEvent(QKeyEvent *e) override;
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
-	QString getSelectedText() const;
+	TextWithEntities getSelectedText() const;
 
 	void dragActionStart(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
 	void dragActionUpdate(const QPoint &screenPos);
@@ -143,6 +143,8 @@ private:
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
+
+	void setToClipboard(const TextWithEntities &forClipboard);
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;

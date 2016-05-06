@@ -555,14 +555,15 @@ public:
 		}
 		parse(options);
 	}
-	TextParser(Text *t, const QString &text, const EntitiesInText &preparsed, const TextParseOptions &options) : _t(t),
-		src(text),
+	TextParser(Text *t, const TextWithEntities &textWithEntities, const TextParseOptions &options) : _t(t),
+		src(textWithEntities.text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
 		maxLnkIndex(0),
 		flags(0),
 		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
+		auto preparsed = textWithEntities.entities;
 		if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
 			bool parseMentions = (options.flags & TextParseMentions);
 			bool parseHashtags = (options.flags & TextParseHashtags);
@@ -573,7 +574,7 @@ public:
 			} else {
 				int32 i = 0, l = preparsed.size();
 				entities.reserve(l);
-				const QChar s = text.size();
+				const QChar s = src.size();
 				for (; i < l; ++i) {
 					auto type = preparsed.at(i).type();
 					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
@@ -2497,7 +2498,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	}
 }
 
-void Text::setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options) {
+void Text::setMarkedText(style::font font, const TextWithEntities &textWithEntities, const TextParseOptions &options) {
 	if (!_textStyle) initDefault();
 	_font = font;
 	clear();
@@ -2532,7 +2533,7 @@ void Text::setMarkedText(style::font font, const QString &text, const EntitiesIn
 //		newText.append("\n\n").append(text);
 //		TextParser parser(this, newText, EntitiesInText(), options);
 
-		TextParser parser(this, text, entities, options);
+		TextParser parser(this, textWithEntities, options);
 	}
 	recountNaturalSize(true, options.dir);
 }
@@ -2932,117 +2933,133 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 	return { from, to };
 }
 
-QString Text::original(TextSelection selection, ExpandLinksMode mode) const {
+template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
+void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const {
 	if (isEmpty() || selection.empty()) {
-		return QString();
+		return;
 	}
 
-	QString result, emptyurl;
-	result.reserve(_text.size());
-
-	int32 lnkFrom = 0, lnkIndex = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
-		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
-		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
-		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
-			blockLnkIndex = 0;
-		}
-		if (blockLnkIndex != lnkIndex) {
-			int32 rangeFrom = qMax(int32(selection.from), lnkFrom), rangeTo = qMin(blockFrom, int32(selection.to));
-			if (lnkIndex && rangeTo > rangeFrom) { // write link
-				QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-				if (lnkFrom != rangeFrom || blockFrom != rangeTo) {
-					result += r;
-				} else {
-					QString expanded = _links.at(lnkIndex - 1)->getExpandedLinkText(mode, r);
-					if (expanded.isEmpty()) {
-						result += r;
-					} else {
-						result += expanded;
-					}
-				}
-			}
-			lnkIndex = blockLnkIndex;
-			lnkFrom = blockFrom;
-		}
-		if (i == e) break;
-
-		TextBlockType type = (*i)->type();
-		if (type == TextBlockTSkip) continue;
-
-		if (!blockLnkIndex) {
-			int32 rangeFrom = qMax(selection.from, (*i)->from()), rangeTo = qMin(selection.to, uint16((*i)->from() + TextPainter::_blockLength(this, i, e)));
-			if (rangeTo > rangeFrom) {
-				result += _text.midRef(rangeFrom, rangeTo - rangeFrom);
-			}
-		}
-	}
-	return result;
-}
-
-EntitiesInText Text::originalEntities() const {
-	EntitiesInText result;
-	int32 originalLength = 0, lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
-	int32 lnkFrom = 0, lnkIndex = 0, flags = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
-		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
-		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
+	int lnkIndex = 0;
+	uint16 lnkFrom = 0;
+	int32 flags = 0;
+	for (auto i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
+		int blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
+		uint16 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
-		if (blockFlags != flags) {
-			if ((flags & TextBlockFItalic) && !(blockFlags & TextBlockFItalic)) { // write italic
-				result.push_back(EntityInText(EntityInTextItalic, italicStart, originalLength - italicStart));
-			} else if ((blockFlags & TextBlockFItalic) && !(flags & TextBlockFItalic)) {
-				italicStart = originalLength;
-			}
-			if ((flags & TextBlockFSemibold) && !(blockFlags & TextBlockFSemibold)) {
-				result.push_back(EntityInText(EntityInTextBold, boldStart, originalLength - boldStart));
-			} else if ((blockFlags & TextBlockFSemibold) && !(flags & TextBlockFSemibold)) {
-				boldStart = originalLength;
-			}
-			if ((flags & TextBlockFCode) && !(blockFlags & TextBlockFCode)) {
-				result.push_back(EntityInText(EntityInTextCode, codeStart, originalLength - codeStart));
-			} else if ((blockFlags & TextBlockFCode) && !(flags & TextBlockFCode)) {
-				codeStart = originalLength;
-			}
-			if ((flags & TextBlockFPre) && !(blockFlags & TextBlockFPre)) {
-				result.push_back(EntityInText(EntityInTextPre, preStart, originalLength - preStart));
-			} else if ((blockFlags & TextBlockFPre) && !(flags & TextBlockFPre)) {
-				preStart = originalLength;
-			}
+
+		bool checkBlockFlags = (blockFrom >= selection.from) && (blockFrom <= selection.to);
+		if (checkBlockFlags && blockFlags != flags) {
+			flagsChangeCallback(flags, blockFlags);
 			flags = blockFlags;
 		}
 		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
 			blockLnkIndex = 0;
 		}
 		if (blockLnkIndex != lnkIndex) {
-			int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
-			if (lnkIndex && rangeTo > rangeFrom) { // write link
-				QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-				if (auto entity = _links.at(lnkIndex - 1)->getEntityInText(lnkStart, r)) {
-					result.push_back(entity);
-					originalLength += entity.length();
-				} else {
-					originalLength += r.size();
+			if (lnkIndex) {
+				auto rangeFrom = qMax(selection.from, lnkFrom);
+				auto rangeTo = qMin(blockFrom, selection.to);
+				if (rangeTo > rangeFrom) { // handle click handler
+					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
+					if (lnkFrom != rangeFrom || blockFrom != rangeTo) {
+						appendPartCallback(r);
+					} else {
+						clickHandlerFinishCallback(r, _links.at(lnkIndex - 1));
+					}
 				}
 			}
 			lnkIndex = blockLnkIndex;
 			if (lnkIndex) {
 				lnkFrom = blockFrom;
-				lnkStart = originalLength;
+				clickHandlerStartCallback();
 			}
 		}
-		if (i == e) break;
+		if (i == e || blockFrom >= selection.to) break;
 
-		TextBlockType type = (*i)->type();
-		if (type == TextBlockTSkip) continue;
+		if ((*i)->type() == TextBlockTSkip) continue;
 
 		if (!blockLnkIndex) {
-			int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
+			auto rangeFrom = qMax(selection.from, blockFrom);
+			auto rangeTo = qMin(selection.to, uint16(blockFrom + TextPainter::_blockLength(this, i, e)));
 			if (rangeTo > rangeFrom) {
-				originalLength += rangeTo - rangeFrom;
+				appendPartCallback(_text.midRef(rangeFrom, rangeTo - rangeFrom));
 			}
 		}
 	}
+}
+
+TextWithEntities Text::originalTextWithEntities(TextSelection selection, ExpandLinksMode mode) const {
+	TextWithEntities result;
+	result.text.reserve(_text.size());
+
+	int lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
+	auto flagsChangeCallback = [&result, &italicStart, &boldStart, &codeStart, &preStart](int32 oldFlags, int32 newFlags) {
+		if ((oldFlags & TextBlockFItalic) && !(newFlags & TextBlockFItalic)) { // write italic
+			result.entities.push_back(EntityInText(EntityInTextItalic, italicStart, result.text.size() - italicStart));
+		} else if ((newFlags & TextBlockFItalic) && !(oldFlags & TextBlockFItalic)) {
+			italicStart = result.text.size();
+		}
+		if ((oldFlags & TextBlockFSemibold) && !(newFlags & TextBlockFSemibold)) {
+			result.entities.push_back(EntityInText(EntityInTextBold, boldStart, result.text.size() - boldStart));
+		} else if ((newFlags & TextBlockFSemibold) && !(oldFlags & TextBlockFSemibold)) {
+			boldStart = result.text.size();
+		}
+		if ((oldFlags & TextBlockFCode) && !(newFlags & TextBlockFCode)) {
+			result.entities.push_back(EntityInText(EntityInTextCode, codeStart, result.text.size() - codeStart));
+		} else if ((newFlags & TextBlockFCode) && !(oldFlags & TextBlockFCode)) {
+			codeStart = result.text.size();
+		}
+		if ((oldFlags & TextBlockFPre) && !(newFlags & TextBlockFPre)) {
+			result.entities.push_back(EntityInText(EntityInTextPre, preStart, result.text.size() - preStart));
+		} else if ((newFlags & TextBlockFPre) && !(oldFlags & TextBlockFPre)) {
+			preStart = result.text.size();
+		}
+	};
+	auto clickHandlerStartCallback = [&result, &lnkStart]() {
+		lnkStart = result.text.size();
+	};
+	auto clickHandlerFinishCallback = [mode, &result, &lnkStart](const QStringRef &r, const ClickHandlerPtr &handler) {
+		auto expanded = handler->getExpandedLinkTextWithEntities(mode, lnkStart, r);
+		if (expanded.text.isEmpty()) {
+			result.text += r;
+		} else {
+			result.text += expanded.text;
+		}
+		if (!expanded.entities.isEmpty()) {
+			result.entities.append(expanded.entities);
+		}
+	};
+	auto appendPartCallback = [&result](const QStringRef &r) {
+		result.text += r;
+	};
+
+	enumerateText(selection, appendPartCallback, clickHandlerStartCallback, clickHandlerFinishCallback, flagsChangeCallback);
+
+	return result;
+}
+
+QString Text::originalText(TextSelection selection, ExpandLinksMode mode) const {
+	QString result;
+	result.reserve(_text.size());
+
+	auto appendPartCallback = [&result](const QStringRef &r) {
+		result += r;
+	};
+	auto clickHandlerStartCallback = []() {
+	};
+	auto clickHandlerFinishCallback = [mode, &result](const QStringRef &r, const ClickHandlerPtr &handler) {
+		auto expanded = handler->getExpandedLinkText(mode, r);
+		if (expanded.isEmpty()) {
+			result += r;
+		} else {
+			result += expanded;
+		}
+	};
+	auto flagsChangeCallback = [](int32 oldFlags, int32 newFlags) {
+	};
+
+	enumerateText(selection, appendPartCallback, clickHandlerStartCallback, clickHandlerFinishCallback, flagsChangeCallback);
+
 	return result;
 }
 

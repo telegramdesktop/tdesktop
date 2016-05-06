@@ -79,6 +79,9 @@ public:
 			}
 		}
 	}
+	void shiftRight(int shift) {
+		_offset += shift;
+	}
 	void updateTextEnd(int textEnd) {
 		if (_offset > textEnd) {
 			_offset = textEnd;
@@ -108,7 +111,19 @@ private:
 	QString _data;
 
 };
-typedef QList<EntityInText> EntitiesInText;
+
+struct TextWithEntities {
+	QString text;
+	EntitiesInText entities;
+};
+inline void appendTextWithEntities(TextWithEntities &to, TextWithEntities &&append) {
+	int entitiesShiftRight = to.text.size();
+	for (auto &entity : append.entities) {
+		entity.shiftRight(entitiesShiftRight);
+	}
+	to.text += append.text;
+	to.entities += append.entities;
+}
 
 // text preprocess
 QString textClean(const QString &text);

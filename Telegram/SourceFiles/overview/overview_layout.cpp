@@ -898,9 +898,11 @@ bool Document::updateStatusText() const {
 Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
-	QString text = _parent->originalText(), mainUrl;
-	EntitiesInText entities = _parent->originalEntities();
+	const auto textWithEntities = _parent->originalText();
+	QString mainUrl;
 
+	auto text = textWithEntities.text;
+	auto &entities = textWithEntities.entities;
 	int32 from = 0, till = text.size(), lnk = entities.size();
 	for_const (const auto &entity, entities) {
 		auto type = entity.type();

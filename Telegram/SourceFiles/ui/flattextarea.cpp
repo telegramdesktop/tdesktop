@@ -463,7 +463,7 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 			if (previousChar == '@' || previousChar == '#' || previousChar == '/') {
 				if ((i == pos - fragmentPosition || (previousChar == '/' ? fragmentText.at(i).isLetterOrNumber() : fragmentText.at(i).isLetter()) || previousChar == '#') &&
 					(i < 2 || !(fragmentText.at(i - 2).isLetterOrNumber() || fragmentText.at(i - 2) == '_'))) {
-					cursor.setPosition(fragmentPosition + i - 1, QTextCursor::MoveAnchor);
+					cursor.setPosition(fragmentPosition + i - 1);
 					int till = fragmentPosition + i;
 					for (; (till < fragmentEnd) && (till - fragmentPosition - i + 1 < text.size()); ++till) {
 						if (fragmentText.at(till - fragmentPosition).toLower() != text.at(till - fragmentPosition - i + 1).toLower()) {
@@ -608,6 +608,13 @@ public:
 		_currentStart = currentPosition;
 	};
 
+	void finish() {
+		if (_currentTag < _tags->size()) {
+			_tags->resize(_currentTag);
+			_changed = true;
+		}
+	}
+
 private:
 	FlatTextarea::TagList *_tags;
 	bool _changed = false;
@@ -709,6 +716,8 @@ QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool
 	result.chop(1);
 
 	if (tillFragmentEnd) tagAccumulator.feed(QString(), result.size());
+	tagAccumulator.finish();
+
 	if (outTagsChanged) {
 		*outTagsChanged = tagAccumulator.changed();
 	}
@@ -842,7 +851,8 @@ void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 	} else {
 		_insertedTags.clear();
 	}
-	_realInsertPosition = textCursor().position();
+	auto cursor = textCursor();
+	_realInsertPosition = qMin(cursor.position(), cursor.anchor());
 	_realCharsAdded = text.size();
 	QTextEdit::insertFromMimeData(source);
 	if (!_inDrop) {
@@ -895,7 +905,8 @@ void prepareFormattingOptimization(QTextDocument *document) {
 }
 
 void removeTags(QTextDocument *document, int from, int end) {
-	QTextCursor c(document->docHandle(), from);
+	QTextCursor c(document->docHandle(), 0);
+	c.setPosition(from);
 	c.setPosition(end, QTextCursor::KeepAnchor);
 
 	QTextCharFormat format;
@@ -923,7 +934,8 @@ int processInsertedTags(QTextDocument *document, int changedPosition, int change
 			if (applyNoTagFrom < tagFrom) {
 				removeTags(document, applyNoTagFrom, tagFrom);
 			}
-			QTextCursor c(document->docHandle(), tagFrom);
+			QTextCursor c(document->docHandle(), 0);
+			c.setPosition(tagFrom);
 			c.setPosition(tagTo, QTextCursor::KeepAnchor);
 
 			QTextCharFormat format;
@@ -1098,7 +1110,8 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 		if (action.type != ActionType::Invalid) {
 			prepareFormattingOptimization(doc);
 
-			QTextCursor c(doc->docHandle(), action.intervalStart);
+			QTextCursor c(doc->docHandle(), 0);
+			c.setPosition(action.intervalStart);
 			c.setPosition(action.intervalEnd, QTextCursor::KeepAnchor);
 			if (action.type == ActionType::InsertEmoji) {
 				insertEmoji(action.emoji, c);
