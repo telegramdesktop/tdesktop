@@ -465,12 +465,13 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 					(i < 2 || !(fragmentText.at(i - 2).isLetterOrNumber() || fragmentText.at(i - 2) == '_'))) {
 					cursor.setPosition(fragmentPosition + i - 1);
 					int till = fragmentPosition + i;
-					for (; (till < fragmentEnd) && (till - fragmentPosition - i + 1 < text.size()); ++till) {
-						if (fragmentText.at(till - fragmentPosition).toLower() != text.at(till - fragmentPosition - i + 1).toLower()) {
+					for (; (till < fragmentEnd); ++till) {
+						auto ch = fragmentText.at(till - fragmentPosition);
+						if (!ch.isLetterOrNumber() && ch != '_') {
 							break;
 						}
 					}
-					if (till - fragmentPosition - i + 1 == text.size() && till < fragmentEnd && fragmentText.at(till - fragmentPosition) == ' ') {
+					if (till < fragmentEnd && fragmentText.at(till - fragmentPosition) == ' ') {
 						++till;
 					}
 					cursor.setPosition(till, QTextCursor::KeepAnchor);

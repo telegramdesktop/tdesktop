@@ -43,7 +43,7 @@ public:
 	void fastHide();
 
 	bool clearFilteredBotCommands();
-	void showFiltered(PeerData *peer, QString query, bool start);
+	void showFiltered(PeerData *peer, QString query, bool addInlineBots);
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
 
@@ -114,6 +114,13 @@ private:
 	UserData *_user;
 	ChannelData *_channel;
 	EmojiPtr _emoji;
+	enum class Type {
+		Mentions,
+		Hashtags,
+		BotCommands,
+		Stickers,
+	};
+	Type _type = Type::Mentions;
 	QString _filter;
 	QRect _boundings;
 	bool _addInlineBots;

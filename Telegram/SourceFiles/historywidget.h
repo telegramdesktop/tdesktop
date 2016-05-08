@@ -548,7 +548,6 @@ public:
 	void destroyData();
 
 	void updateFieldPlaceholder();
-	void updateInlineBotQuery();
 	void updateStickersByEmoji();
 
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
@@ -819,6 +818,12 @@ private:
 
 	void clearInlineBot();
 	void inlineBotChanged();
+
+	// Look in the _field for the inline bot and query string.
+	void updateInlineBotQuery();
+
+	// Request to show results in the emoji panel.
+	void applyInlineBotQuery(UserData *bot, const QString &query);
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

@@ -3041,10 +3041,16 @@ void HistoryWidget::updateInlineBotQuery() {
 			return;
 		}
 	} else if (bot == LookingUpInlineBot) {
-		_inlineBot = LookingUpInlineBot;
-		return;
+		if (_inlineBot == LookingUpInlineBot) {
+			return;
+		}
+		bot = _inlineBot;
 	}
 
+	applyInlineBotQuery(bot, query);
+}
+
+void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 	if (bot) {
 		if (_inlineBot != bot) {
 			_inlineBot = bot;
@@ -5651,12 +5657,32 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
+	UserData *resolvedBot = nullptr;
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const auto &d(result.c_contacts_resolvedPeer());
-		App::feedUsers(d.vusers);
+		if (resolvedBot = App::feedUsers(d.vusers)) {
+			if (!resolvedBot->botInfo || resolvedBot->botInfo->inlinePlaceholder.isEmpty()) {
+				resolvedBot = nullptr;
+			}
+		}
 		App::feedChats(d.vchats);
 	}
-	updateInlineBotQuery();
+
+	UserData *bot = nullptr;
+	QString inlineBotUsername;
+	QString query = _field.getInlineBotQuery(&bot, &inlineBotUsername);
+	if (inlineBotUsername == _inlineBotUsername) {
+		if (bot == LookingUpInlineBot) {
+			bot = resolvedBot;
+		}
+	} else {
+		bot = nullptr;
+	}
+	if (bot) {
+		applyInlineBotQuery(bot, query);
+	} else {
+		clearInlineBot();
+	}
 }
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
@@ -6097,7 +6123,8 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 	if (!_history || _a_show.animating()) return;
 
 	bool start = false;
-	QString query = _inlineBot ? QString() : _field.getMentionHashtagBotCommandPart(start);
+	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
+	QString query = isInlineBot ? QString() : _field.getMentionHashtagBotCommandPart(start);
 	if (!query.isEmpty()) {
 		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
 		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();

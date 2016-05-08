@@ -73,12 +73,12 @@ void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::white);
 }
 
-void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool start) {
-//	_inner->showFiltered(peer, query, start);
+void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInlineBots) {
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
 	if (query.isEmpty()) {
+		_type = Type::Mentions;
 		rowsUpdated(internal::MentionRows(), internal::HashtagRows(), internal::BotCommandRows(), _srows, false);
 		return;
 	}
@@ -86,11 +86,28 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool start) 
 	_emoji = EmojiPtr();
 
 	query = query.toLower();
-	bool resetScroll = (_filter != query);
-	if (resetScroll) {
-		_filter = query;
+	auto type = Type::Stickers;
+	auto plainQuery = query.midRef(0);
+	switch (query.at(0).unicode()) {
+	case '@':
+		type = Type::Mentions;
+		plainQuery = query.midRef(1);
+		break;
+	case '#':
+		type = Type::Hashtags;
+		plainQuery = query.midRef(1);
+		break;
+	case '/':
+		type = Type::BotCommands;
+		plainQuery = query.midRef(1);
+		break;
 	}
-	_addInlineBots = start;
+	bool resetScroll = (_type != type || _filter != plainQuery);
+	if (resetScroll) {
+		_type = type;
+		_filter = plainQuery.toString();
+	}
+	_addInlineBots = addInlineBots;
 
 	updateFiltered(resetScroll);
 }
@@ -98,6 +115,7 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool start) 
 void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 	bool resetScroll = (_emoji != emoji);
 	_emoji = emoji;
+	_type = Type::Stickers;
 	if (!emoji) {
 		rowsUpdated(_mrows, _hrows, _brows, StickerPack(), false);
 		return;
@@ -158,23 +176,41 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 			App::api()->requestStickerSets();
 		}
-	} else if (_filter.at(0) == '@') {
-		bool listAllSuggestions = (_filter.size() < 2);
+	} else if (_type == Type::Mentions) {
+		int maxListSize = _addInlineBots ? cRecentInlineBots().size() : 0;
 		if (_chat) {
-			mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
+			maxListSize += (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
 			} else {
-				mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + _channel->mgInfo->lastParticipants.size());
+				maxListSize += _channel->mgInfo->lastParticipants.size();
 			}
-		} else if (_addInlineBots) {
-			mrows.reserve(cRecentInlineBots().size());
 		}
+		if (maxListSize) {
+			mrows.reserve(maxListSize);
+		}
+
+		auto filterNotPassedByUsername = [this](UserData *user) -> bool {
+			if (user->username.startsWith(_filter, Qt::CaseInsensitive)) {
+				bool exactUsername = (user->username.size() == _filter.size());
+				return exactUsername;
+			}
+			return true;
+		};
+		auto filterNotPassedByName = [this](UserData *user) -> bool {
+			for_const (auto &namePart, user->names) {
+				if (namePart.startsWith(_filter, Qt::CaseInsensitive)) {
+					bool exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
+					return exactUsername;
+				}
+			}
+			return true;
+		};
+
+		bool listAllSuggestions = _filter.isEmpty();
 		if (_addInlineBots) {
-			for (auto i = cRecentInlineBots().cbegin(), e = cRecentInlineBots().cend(); i != e; ++i) {
-				UserData *user = *i;
-				if (user->username.isEmpty()) continue;
-				if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+			for_const (auto user, cRecentInlineBots()) {
+				if (!listAllSuggestions && filterNotPassedByUsername(user)) continue;
 				mrows.push_back(user);
 				++recentInlineBots;
 			}
@@ -187,16 +223,13 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			} else if (!_chat->participants.isEmpty()) {
 				for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
-					if (!listAllSuggestions && user->username.isEmpty()) continue;
-					if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					ordered.insertMulti(App::onlineForSort(user, now), user);
 				}
 			}
-			for (auto i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-				UserData *user = *i;
-				if (!listAllSuggestions && user->username.isEmpty()) continue;
-				if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+			for_const (auto user, _chat->lastAuthors) {
+				if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 				mrows.push_back(user);
 				if (!ordered.isEmpty()) {
@@ -215,24 +248,24 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (App::api()) App::api()->requestLastParticipants(_channel);
 			} else {
 				mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
-				for (auto i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
-					UserData *user = *i;
-					if (!listAllSuggestions && user->username.isEmpty()) continue;
-					if (!listAllSuggestions && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				for_const (auto user, _channel->mgInfo->lastParticipants) {
+					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					mrows.push_back(user);
 				}
 			}
 		}
-	} else if (_filter.at(0) == '#') {
+	} else if (_type == Type::Hashtags) {
+		bool listAllSuggestions = _filter.isEmpty();
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (_filter.size() > 1 && (!i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || i->first.size() + 1 == _filter.size())) continue;
+			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) continue;
 			hrows.push_back(i->first);
 		}
-	} else if (_filter.at(0) == '/') {
-		bool hasUsername = _filter.indexOf('@') > 1;
+	} else if (_type == Type::BotCommands) {
+		bool listAllSuggestions = _filter.isEmpty();
+		bool hasUsername = _filter.indexOf('@') > 0;
 		QMap<UserData*, bool> bots;
 		int32 cnt = 0;
 		if (_chat) {
@@ -277,9 +310,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.remove(user);
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
-						if (_filter.size() > 1) {
+						if (!listAllSuggestions) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
+							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
 						}
 						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
@@ -289,9 +322,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				for (QMap<UserData*, bool>::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
-						if (_filter.size() > 1) {
+						if (!listAllSuggestions) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
+							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
 						}
 						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
@@ -552,9 +585,10 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	} else {
 		int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
 		int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
-		bool hasUsername = _parent->filter().indexOf('@') > 1;
-		int filterSize = qMax(_parent->filter().size() - 1, 0);
-		bool filterIsEmpty = (filterSize == 0);
+		auto filter = _parent->filter();
+		bool hasUsername = filter.indexOf('@') > 0;
+		int filterSize = filter.size();
+		bool filterIsEmpty = filter.isEmpty();
 		for (int32 i = from; i < to; ++i) {
 			if (i >= last) break;
 
@@ -569,8 +603,8 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::black->p);
 			if (!_mrows->isEmpty()) {
 				UserData *user = _mrows->at(i);
-				QString first = filterIsEmpty ? QString() : ('@' + user->username.mid(0, filterSize));
-				QString second = (filterIsEmpty && !user->username.isEmpty()) ? ('@' + user->username) : user->username.mid(filterSize);
+				QString first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
+				QString second = first.isEmpty() ? (user->username.isEmpty() ? QString() : ('@' + user->username)) : user->username.mid(filterSize);
 				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 				if (mentionwidth < unamewidth + namewidth) {
 					namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
@@ -733,7 +767,7 @@ bool FieldAutocompleteInner::chooseSelected(FieldAutocomplete::ChooseMethod meth
 			UserData *user = _brows->at(_sel).first;
 			const BotCommand *command(_brows->at(_sel).second);
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
-			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
+			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 0) {
 				emit botCommandChosen('/' + command->command + '@' + user->username, method);
 			} else {
 				emit botCommandChosen('/' + command->command, method);
