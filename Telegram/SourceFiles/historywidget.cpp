@@ -3703,7 +3703,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, new ReplyEditMessageDataCallback());
+			App::api()->requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, std_::make_unique<ReplyEditMessageDataCallback>());
 		}
 	}
 }
@@ -7249,7 +7249,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			update();
 		}
 		if (!_pinnedBar->msg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, new ReplyEditMessageDataCallback());
+			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, std_::make_unique<ReplyEditMessageDataCallback>());
 		}
 	} else if (_pinnedBar) {
 		destroyPinnedBar();

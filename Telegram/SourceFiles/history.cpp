@@ -6843,7 +6843,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this) && App::api()) {
-			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, new HistoryDependentItemCallback(fullId()));
+			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
 		}
 	}
 	if (auto via = Get<HistoryMessageVia>()) {
@@ -8192,7 +8192,7 @@ HistoryService::HistoryService(History *history, const MTPDmessageService &msg) 
 		UpdateComponents(HistoryServicePinned::Bit());
 		MsgId pinnedMsgId = Get<HistoryServicePinned>()->msgId = msg.vreply_to_msg_id.v;
 		if (!updatePinned() && App::api()) {
-			App::api()->requestMessageData(history->peer->asChannel(), pinnedMsgId, new HistoryDependentItemCallback(fullId()));
+			App::api()->requestMessageData(history->peer->asChannel(), pinnedMsgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
 		}
 	}
 	setMessageByAction(msg.vaction);

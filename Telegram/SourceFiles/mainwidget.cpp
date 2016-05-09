@@ -3826,6 +3826,107 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	update();
 }
 
+namespace {
+
+bool fwdInfoDataLoaded(const MTPMessageFwdHeader &header) {
+	if (header.type() != mtpc_messageFwdHeader) {
+		return true;
+	}
+	auto &info = header.c_messageFwdHeader();
+	if (info.has_channel_id()) {
+		if (!App::channelLoaded(peerFromChannel(info.vchannel_id))) {
+			return false;
+		}
+		if (info.has_from_id() && !App::user(peerFromUser(info.vfrom_id), PeerData::MinimalLoaded)) {
+			return false;
+		}
+	} else {
+		if (info.has_from_id() && !App::userLoaded(peerFromUser(info.vfrom_id))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool mentionUsersLoaded(const MTPVector<MTPMessageEntity> &entities) {
+	for_const (auto &entity, entities.c_vector().v) {
+		auto type = entity.type();
+		if (type == mtpc_messageEntityMentionName) {
+			if (!App::userLoaded(peerFromUser(entity.c_messageEntityMentionName().vuser_id))) {
+				return false;
+			}
+		} else if (type == mtpc_inputMessageEntityMentionName) {
+			auto &inputUser = entity.c_inputMessageEntityMentionName().vuser_id;
+			if (inputUser.type() == mtpc_inputUser) {
+				if (!App::userLoaded(peerFromUser(inputUser.c_inputUser().vuser_id))) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+enum class DataIsLoadedResult {
+	NotLoaded = 0,
+	FromNotLoaded = 1,
+	MentionNotLoaded = 2,
+	Ok = 3,
+};
+DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
+	switch (msg.type()) {
+	case mtpc_message: {
+		const MTPDmessage &d(msg.c_message());
+		if (!d.is_post() && d.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+				return DataIsLoadedResult::FromNotLoaded;
+			}
+		}
+		if (d.has_via_bot_id()) {
+			if (!App::userLoaded(peerFromUser(d.vvia_bot_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		}
+		if (d.has_fwd_from() && !fwdInfoDataLoaded(d.vfwd_from)) {
+			return DataIsLoadedResult::NotLoaded;
+		}
+		if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
+			return DataIsLoadedResult::MentionNotLoaded;
+		}
+	} break;
+	case mtpc_messageService: {
+		const MTPDmessageService &d(msg.c_messageService());
+		if (!d.is_post() && d.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+				return DataIsLoadedResult::FromNotLoaded;
+			}
+		}
+		switch (d.vaction.type()) {
+		case mtpc_messageActionChatAddUser: {
+			for_const(const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
+				if (!App::userLoaded(peerFromUser(userId))) {
+					return DataIsLoadedResult::NotLoaded;
+				}
+			}
+		} break;
+		case mtpc_messageActionChatJoinedByLink: {
+			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatJoinedByLink().vinviter_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		} break;
+		case mtpc_messageActionChatDeleteUser: {
+			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatDeleteUser().vuser_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		} break;
+		}
+	} break;
+	}
+	return DataIsLoadedResult::Ok;
+}
+
+} // namespace
+
 void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	switch (updates.type()) {
 	case mtpc_updates: {
@@ -3872,20 +3973,12 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 	case mtpc_updateShortMessage: {
 		const auto &d(updates.c_updateShortMessage());
-		if (!App::userLoaded(d.vuser_id.v) || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
+		if (!App::userLoaded(d.vuser_id.v)
+			|| (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))
+			|| (d.has_entities() && !mentionUsersLoaded(d.ventities))
+			|| (d.has_fwd_from() && !fwdInfoDataLoaded(d.vfwd_from))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
-		}
-		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
-			const auto &f(d.vfwd_from.c_messageFwdHeader());
-			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
-				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-				return getDifference();
-			}
-			if (f.has_channel_id() && !App::channelLoaded(f.vchannel_id.v)) {
-				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-				return getDifference();
-			}
 		}
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
@@ -3906,21 +3999,14 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updateShortChatMessage: {
 		const auto &d(updates.c_updateShortChatMessage());
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
-		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
+		if (!App::chatLoaded(d.vchat_id.v)
+			|| noFrom
+			|| (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))
+			|| (d.has_entities() && !mentionUsersLoaded(d.ventities))
+			|| (d.has_fwd_from() && !fwdInfoDataLoaded(d.vfwd_from))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			if (noFrom && App::api()) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
-		}
-		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
-			const auto &f(d.vfwd_from.c_messageFwdHeader());
-			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
-				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-				return getDifference();
-			}
-			if (f.has_channel_id() && !App::channelLoaded(f.vchannel_id.v)) {
-				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-				return getDifference();
-			}
 		}
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
@@ -3948,6 +4034,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
 				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
+					if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
+						api()->requestMessageData(item->history()->peer->asChannel(), item->id, nullptr);
+					}
 					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText();
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
@@ -3971,73 +4060,6 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 	}
 }
-
-namespace {
-
-enum class DataIsLoadedResult {
-	NotLoaded = 0,
-	FromNotLoaded = 1,
-	Ok = 2,
-};
-DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: {
-		const MTPDmessage &d(msg.c_message());
-		if (!d.is_post() && d.has_from_id()) {
-			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
-				return DataIsLoadedResult::FromNotLoaded;
-			}
-		}
-		if (d.has_via_bot_id()) {
-			if (!App::userLoaded(peerFromUser(d.vvia_bot_id))) {
-				return DataIsLoadedResult::NotLoaded;
-			}
-		}
-		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
-			ChannelId fromChannelId = d.vfwd_from.c_messageFwdHeader().vchannel_id.v;
-			if (fromChannelId) {
-				if (!App::channelLoaded(peerFromChannel(fromChannelId))) {
-					return DataIsLoadedResult::NotLoaded;
-				}
-			} else {
-				if (!App::userLoaded(peerFromUser(d.vfwd_from.c_messageFwdHeader().vfrom_id))) {
-					return DataIsLoadedResult::NotLoaded;
-				}
-			}
-		}
-	} break;
-	case mtpc_messageService: {
-		const MTPDmessageService &d(msg.c_messageService());
-		if (!d.is_post() && d.has_from_id()) {
-			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
-				return DataIsLoadedResult::FromNotLoaded;
-			}
-		}
-		switch (d.vaction.type()) {
-		case mtpc_messageActionChatAddUser: {
-			for_const(const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
-				if (!App::userLoaded(peerFromUser(userId))) {
-					return DataIsLoadedResult::NotLoaded;
-				}
-			}
-		} break;
-		case mtpc_messageActionChatJoinedByLink: {
-			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatJoinedByLink().vinviter_id))) {
-				return DataIsLoadedResult::NotLoaded;
-			}
-		} break;
-		case mtpc_messageActionChatDeleteUser: {
-			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatDeleteUser().vuser_id))) {
-				return DataIsLoadedResult::NotLoaded;
-			}
-		} break;
-		}
-	} break;
-	}
-	return DataIsLoadedResult::Ok;
-}
-
-} // namespace
 
 void MainWidget::feedUpdate(const MTPUpdate &update) {
 	if (!MTP::authedId()) return;
