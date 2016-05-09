@@ -6752,6 +6752,33 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	setText(textWithEntities);
 }
 
+namespace {
+
+MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
+	MTPDmessage::Flags result = newMessageFlags(p) | MTPDmessage::Flag::f_fwd_from;
+	if (from) {
+		result |= MTPDmessage::Flag::f_from_id;
+	}
+	if (fwd->Has<HistoryMessageVia>()) {
+		result |= MTPDmessage::Flag::f_via_bot_id;
+	}
+	if (!p->isChannel()) {
+		if (HistoryMedia *media = fwd->getMedia()) {
+			if (media->type() == MediaTypeVoiceFile) {
+				result |= MTPDmessage::Flag::f_media_unread;
+//			} else if (media->type() == MediaTypeVideo) {
+//				result |= MTPDmessage::flag_media_unread;
+			}
+		}
+	}
+	if (fwd->hasViews()) {
+		result |= MTPDmessage::Flag::f_views;
+	}
+	return result;
+}
+
+} // namespace
+
 HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd)
 : HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	CreateConfig config;

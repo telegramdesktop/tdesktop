@@ -8211,7 +8211,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	} else if (editTimeLeft > DisplayEditTimeWarningMs) {
 		updateIn = static_cast<int>(qMin(editTimeLeft - DisplayEditTimeWarningMs, qint64(FullDayInMs)));
 	} else {
-		updateIn = (editTimeLeft % 1000);
+		updateIn = static_cast<int>(editTimeLeft % 1000);
 		if (!updateIn) {
 			updateIn = 1000;
 		}
@@ -8224,7 +8224,6 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	// Restart timer only if we are sure that we've painted the whole timer.
 	if (rect.contains(QRect(left, top, width() - left, st::normalFont->height)) && updateIn > 0) {
 		_updateEditTimeLeftDisplay.start(updateIn);
-		LOG(("Time since message: %1ms, update in %2ms: %3").arg(timeSinceMessage).arg(updateIn).arg(editTimeLeftText));
 	}
 
 	if (!editTimeLeftText.isEmpty()) {
