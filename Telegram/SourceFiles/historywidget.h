@@ -791,7 +791,6 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
-	void updateField();
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples);
@@ -808,6 +807,8 @@ private slots:
 	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
+
+	void updateField();
 
 private:
 
@@ -834,6 +835,7 @@ private:
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Text _replyEditMsgText;
+	mutable SingleTimer _updateEditTimeLeftDisplay;
 
 	IconedButton _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
@@ -861,7 +863,8 @@ private:
 	void sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 
-	void drawField(Painter &p);
+	void drawField(Painter &p, const QRect &rect);
+	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
 	void drawPinnedBar(Painter &p);

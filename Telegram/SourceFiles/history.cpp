@@ -3095,8 +3095,7 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	auto channel = _history->peer->asChannel();
-	if (!channel || id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
+	if (id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
 
 	if (auto msg = toHistoryMessage()) {
 		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) return false;
@@ -3114,6 +3113,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 			}
 		}
 		if (isPost()) {
+			auto channel = _history->peer->asChannel();
 			return (channel->amCreator() || (channel->amEditor() && out()));
 		}
 		return out();
@@ -6484,7 +6484,7 @@ void HistoryMessageEdited::create(const QDateTime &editDate, const QDateTime &da
 	_editDate = editDate;
 
 	QString time = date.toString(cTimeFormat());
-	_edited.setText(st::msgDateFont, time, _textNameOptions);
+	_edited.setText(st::msgDateFont, lang(lng_edited) + ' ' + time, _textNameOptions);
 }
 
 int HistoryMessageEdited::maxWidth() const {

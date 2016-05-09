@@ -2070,9 +2070,9 @@ QString HistoryInner::tooltipText() const {
 	if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
 			QString dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			//if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
-			//	dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
-			//}
+			if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
+				dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			}
 			return dateText;
 		}
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
@@ -2985,6 +2985,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	connect(&_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
 	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
+
+	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 }
 
 void HistoryWidget::start() {
@@ -7077,9 +7079,10 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 				if (_field.isEmpty() && !_editMsgId && !_replyToId) {
 					App::contextItem(_history->lastSentMsg);
 					onEditMessage();
+					return;
 				}
 			}
-//			_scroll.keyPressEvent(e);
+			_scroll.keyPressEvent(e);
 		}
 	} else {
 		e->ignore();
@@ -7474,8 +7477,8 @@ void HistoryWidget::onEditMessage() {
 		_history->setEditDraft(std_::make_unique<HistoryEditDraft>(editData, to->id, cursor, false));
 		applyDraft(false);
 
-		_previewData = 0;
-		if (HistoryMedia *media = to->getMedia()) {
+		_previewData = nullptr;
+		if (auto media = to->getMedia()) {
 			if (media->type() == MediaTypeWebPage) {
 				_previewData = static_cast<HistoryWebPage*>(media)->webpage();
 				updatePreview();
@@ -7491,7 +7494,7 @@ void HistoryWidget::onEditMessage() {
 		updateFieldPlaceholder();
 		updateMouseTracking();
 		updateReplyToName();
-		resizeEvent(0);
+		resizeEvent(nullptr);
 		updateField();
 
 		_saveDraftText = true;
@@ -8089,7 +8092,7 @@ void HistoryWidget::updateField() {
 	update(0, fy, width(), height() - fy);
 }
 
-void HistoryWidget::drawField(Painter &p) {
+void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	int32 backy = _field.y() - st::sendPadding, backh = _field.height() + 2 * st::sendPadding;
 	Text *from = 0, *text = 0;
 	bool serviceColor = false, hasForward = readyToForward();
@@ -8110,7 +8113,7 @@ void HistoryWidget::drawField(Painter &p) {
 		backh += st::replyHeight;
 	}
 	bool drawPreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
-	p.fillRect(0, backy, width(), backh, st::taMsgField.bgColor->b);
+	p.fillRect(0, backy, width(), backh, st::taMsgField.bgColor);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		int32 replyLeft = st::replySkip;
 		p.drawSprite(QPoint(st::replyIconPos.x(), backy + st::replyIconPos.y()), _editMsgId ? st::editIcon : st::replyIcon);
@@ -8126,8 +8129,7 @@ void HistoryWidget::drawField(Painter &p) {
 				}
 				p.setPen(st::replyColor);
 				if (_editMsgId) {
-					p.setFont(st::msgServiceNameFont);
-					p.drawText(replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_edit_message));
+					paintEditHeader(p, rect, replyLeft, backy);
 				} else {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel.width() - st::msgReplyPadding.right());
 				}
@@ -8179,6 +8181,56 @@ void HistoryWidget::drawField(Painter &p) {
 		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), width() - previewLeft - _fieldBarCancel.width() - st::msgReplyPadding.right());
 		p.setPen(st::msgColor->p);
 		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - previewLeft - _fieldBarCancel.width() - st::msgReplyPadding.right());
+	}
+}
+
+namespace {
+
+constexpr int DisplayEditTimeWarningMs = 900 * 1000;
+constexpr int FullDayInMs = 86400 * 1000;
+
+} // namespace
+
+void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int top) const {
+	if (!rect.intersects(QRect(left, top, width() - left, st::normalFont->height))) {
+		return;
+	}
+
+	p.setFont(st::msgServiceNameFont);
+	p.drawText(left, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_edit_message));
+
+	if (!_replyEditMsg) return;
+
+	QString editTimeLeftText;
+	int updateIn = -1;
+	auto tmp = ::date(unixtime());
+	auto timeSinceMessage = _replyEditMsg->date.msecsTo(QDateTime::currentDateTime());
+	auto editTimeLeft = (Global::EditTimeLimit() * 1000LL) - timeSinceMessage;
+	if (editTimeLeft < 2) {
+		editTimeLeftText = qsl("0:00");
+	} else if (editTimeLeft > DisplayEditTimeWarningMs) {
+		updateIn = static_cast<int>(qMin(editTimeLeft - DisplayEditTimeWarningMs, qint64(FullDayInMs)));
+	} else {
+		updateIn = (editTimeLeft % 1000);
+		if (!updateIn) {
+			updateIn = 1000;
+		}
+		++updateIn;
+
+		editTimeLeft = (editTimeLeft - 1) / 1000; // seconds
+		editTimeLeftText = qsl("%1:%2").arg(editTimeLeft / 60).arg(editTimeLeft % 60, 2, 10, QChar('0'));
+	}
+
+	// Restart timer only if we are sure that we've painted the whole timer.
+	if (rect.contains(QRect(left, top, width() - left, st::normalFont->height)) && updateIn > 0) {
+		_updateEditTimeLeftDisplay.start(updateIn);
+		LOG(("Time since message: %1ms, update in %2ms: %3").arg(timeSinceMessage).arg(updateIn).arg(editTimeLeftText));
+	}
+
+	if (!editTimeLeftText.isEmpty()) {
+		p.setFont(st::normalFont);
+		p.setPen(st::msgInDateFg);
+		p.drawText(left + st::msgServiceNameFont->width(lang(lng_edit_message)) + st::normalFont->spacew, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, editTimeLeftText);
 	}
 }
 
@@ -8308,7 +8360,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 
 	if (_list) {
 		if (!_field.isHidden() || _recording) {
-			drawField(p);
+			drawField(p, r);
 			if (_send.isHidden()) {
 				drawRecordButton(p);
 				if (_recording) drawRecording(p);
