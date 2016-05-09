@@ -2818,25 +2818,6 @@ inline MTPDmessage::Flags newMessageFlags(PeerData *p) {
 	}
 	return result;
 }
-inline MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
-	MTPDmessage::Flags result = newMessageFlags(p);
-	if (from) {
-		result |= MTPDmessage::Flag::f_from_id;
-	}
-	if (fwd->Has<HistoryMessageVia>()) {
-		result |= MTPDmessage::Flag::f_via_bot_id;
-	}
-	if (!p->isChannel()) {
-		if (HistoryMedia *media = fwd->getMedia()) {
-			if (media->type() == MediaTypeVoiceFile) {
-				result |= MTPDmessage::Flag::f_media_unread;
-//			} else if (media->type() == MediaTypeVideo) {
-//				result |= MTPDmessage::flag_media_unread;
-			}
-		}
-	}
-	return result;
-}
 
 struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
 	MsgId msgId = 0;
