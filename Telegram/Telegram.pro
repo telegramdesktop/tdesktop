@@ -125,6 +125,7 @@ SOURCES += \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/history/field_autocomplete.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
     ./SourceFiles/inline_bots/inline_bot_result.cpp \
@@ -248,6 +249,7 @@ HEADERS += \
     ./SourceFiles/dialogs/dialogs_list.h \
     ./SourceFiles/dialogs/dialogs_row.h \
     ./SourceFiles/history/history_common.h \
+    ./SourceFiles/history/field_autocomplete.h \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
     ./SourceFiles/inline_bots/inline_bot_layout_item.h \
     ./SourceFiles/inline_bots/inline_bot_result.h \

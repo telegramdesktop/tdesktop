@@ -116,6 +116,8 @@ public:
 	public:
 		virtual QString mimeTagFromTag(const QString &tagId) = 0;
 		virtual QString tagFromMimeTag(const QString &mimeTag) = 0;
+		virtual ~TagMimeProcessor() {
+		}
 	};
 	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
 

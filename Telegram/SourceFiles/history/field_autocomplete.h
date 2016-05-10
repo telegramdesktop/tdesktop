@@ -57,7 +57,7 @@ public:
 	int32 innerTop();
 	int32 innerBottom();
 
-	bool eventFilter(QObject *obj, QEvent *e);
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	enum class ChooseMethod {
 		ByEnter,

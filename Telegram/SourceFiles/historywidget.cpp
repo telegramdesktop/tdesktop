@@ -5665,7 +5665,8 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 	UserData *resolvedBot = nullptr;
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const auto &d(result.c_contacts_resolvedPeer());
-		if (resolvedBot = App::feedUsers(d.vusers)) {
+		resolvedBot = App::feedUsers(d.vusers);
+		if (resolvedBot) {
 			if (!resolvedBot->botInfo || resolvedBot->botInfo->inlinePlaceholder.isEmpty()) {
 				resolvedBot = nullptr;
 			}

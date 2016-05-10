@@ -83,12 +83,12 @@ QString FlatTextarea::tagsMimeType() {
 }
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : QTextEdit(parent)
-, _lastTextWithTags { v, tags }
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
 , a_phColor(st.phColor->c)
 , _a_appearance(animation(this, &FlatTextarea::step_appearance))
+, _lastTextWithTags { v, tags }
 , _st(st) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
@@ -821,7 +821,7 @@ void FlatTextarea::parseLinks() { // some code is duplicated in text.cpp!
 				continue;
 			}
 		}
-		newLinks.push_back({ domainOffset - 1, p - start - domainOffset + 2 });
+		newLinks.push_back({ domainOffset - 1, static_cast<int>(p - start - domainOffset + 2) });
 		offset = matchOffset = p - start;
 	}
 
