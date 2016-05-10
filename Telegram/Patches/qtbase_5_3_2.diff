@@ -108,6 +108,51 @@ index ebff950..642e5b7 100644
          }
  
          // Make sure we're inside the viewport.
+diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
+index 4879ae5..2ef42b6 100644
+--- a/src/gui/text/qtextlayout.cpp
++++ b/src/gui/text/qtextlayout.cpp
+@@ -1601,6 +1601,7 @@ namespace {
+         int maxGlyphs;
+         int currentPosition;
+         glyph_t previousGlyph;
++        QFontEngine *previousGlyphFontEngine;
+ 
+         QFixed minw;
+         QFixed softHyphenWidth;
+@@ -1634,13 +1635,14 @@ namespace {
+             if (currentPosition > 0 &&
+                 logClusters[currentPosition - 1] < glyphs.numGlyphs) {
+                 previousGlyph = currentGlyph(); // needed to calculate right bearing later
++                previousGlyphFontEngine = fontEngine;
+             }
+         }
+ 
+-        inline void adjustRightBearing(glyph_t glyph)
++        inline void adjustRightBearing(QFontEngine *engine, glyph_t glyph)
+         {
+             qreal rb;
+-            fontEngine->getGlyphBearings(glyph, 0, &rb);
++            engine->getGlyphBearings(glyph, 0, &rb);
+             rightBearing = qMin(QFixed(), QFixed::fromReal(rb));
+         }
+ 
+@@ -1648,13 +1650,13 @@ namespace {
+         {
+             if (currentPosition <= 0)
+                 return;
+-            adjustRightBearing(currentGlyph());
++            adjustRightBearing(fontEngine, currentGlyph());
+         }
+ 
+         inline void adjustPreviousRightBearing()
+         {
+             if (previousGlyph > 0)
+-                adjustRightBearing(previousGlyph);
++                adjustRightBearing(previousGlyphFontEngine, previousGlyph);
+         }
+ 
+         inline void resetRightBearing()
 diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
 index cbe42c3..2209490 100644
 --- a/src/gui/text/qtextlayout.h
@@ -184,7 +229,7 @@ index e46eaff..6464eda 100644
      }
      return ret;
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-index 83c960d..74fa84d 100755
+index 83c960d..10e7e17 100755
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 +++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 @@ -102,7 +102,7 @@ QT_USE_NAMESPACE
@@ -209,11 +254,11 @@ index 83c960d..74fa84d 100755
  }
  
 +qreal _devicePixelRatio() {
-+	qreal result = 1.0;
-+	foreach (QScreen *screen, QGuiApplication::screens()) {
-+		result = qMax(result, screen->devicePixelRatio());
-+	}
-+	return result;
++    qreal result = 1.0;
++    foreach (QScreen *screen, QGuiApplication::screens()) {
++        result = qMax(result, screen->devicePixelRatio());
++    }
++    return result;
 +}
 +
  void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
@@ -229,58 +274,52 @@ index 83c960d..74fa84d 100755
 -    const short scale = hgt - 4;
 +    const short scale = hgt * _devicePixelRatio();
  
--    QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
+     QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
 -                                          menuVisible ? QIcon::Selected : QIcon::Normal);
-+	QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
-+										  m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal);
++    m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal);
      if (pm.isNull()) {
          pm = QPixmap(scale, scale);
          pm.fill(Qt::transparent);
-@@ -322,25 +329,31 @@ QT_END_NAMESPACE
+@@ -322,15 +329,12 @@ QT_END_NAMESPACE
      return self;
  }
  
+--(void)menuTrackingDone:(NSNotification*)notification
 +-(void)updateIconSelection
-+{
-+	CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
-+	const short scale = hgt * _devicePixelRatio();
-+	QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
-+									 parent->iconSelected ? QIcon::Selected : QIcon::Normal);
-+	if (pm.isNull()) {
-+		pm = QPixmap(scale, scale);
-+		pm.fill(Qt::transparent);
-+	}
-+	NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
-+	[self setImage: nsaltimage];
-+	[nsaltimage release];
-+}
-+
- -(void)menuTrackingDone:(NSNotification*)notification
  {
-     Q_UNUSED(notification);
-     down = NO;
- 
--    CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+-    Q_UNUSED(notification);
+-    down = NO;
+-
+     CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
 -    const short scale = hgt - 4;
 -
 -    QPixmap pm = parent->icon.pixmap(QSize(scale, scale), QIcon::Normal);
--    if (pm.isNull()) {
--        pm = QPixmap(scale, scale);
--        pm.fill(Qt::transparent);
--    }
--    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
--    [self setImage: nsaltimage];
--    [nsaltimage release];
--
++    const short scale = hgt * _devicePixelRatio();
++    QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
++    parent->iconSelected ? QIcon::Selected : QIcon::Normal);
+     if (pm.isNull()) {
+         pm = QPixmap(scale, scale);
+         pm.fill(Qt::transparent);
+@@ -338,9 +342,18 @@ QT_END_NAMESPACE
+     NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
+     [self setImage: nsaltimage];
+     [nsaltimage release];
++}
++
++-(void)menuTrackingDone:(NSNotification*)notification
++{
++    Q_UNUSED(notification);
++    down = NO;
+ 
      parent->menuVisible = false;
  
-+	parent->iconSelected = false;
-+	[self updateIconSelection];
-+	
++    parent->iconSelected = false;
++    [self updateIconSelection];
++
      [self setNeedsDisplay:YES];
  }
  
-@@ -350,19 +363,9 @@ QT_END_NAMESPACE
+@@ -350,18 +363,8 @@ QT_END_NAMESPACE
      int clickCount = [mouseEvent clickCount];
      [self setNeedsDisplay:YES];
  
@@ -296,20 +335,18 @@ index 83c960d..74fa84d 100755
 -    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
 -    [self setImage: nsaltimage];
 -    [nsaltimage release];
--
-+	parent->iconSelected = (clickCount != 2) && parent->menu;
-+	[self updateIconSelection];
-+	
++    parent->iconSelected = (clickCount != 2) && parent->menu;
++    [self updateIconSelection];
+ 
      if (clickCount == 2) {
          [self menuTrackingDone:nil];
-         [parent doubleClickSelector:self];
 @@ -380,6 +383,9 @@ QT_END_NAMESPACE
  {
      Q_UNUSED(mouseEvent);
      [self menuTrackingDone:nil];
 +
-+	parent->iconSelected = false;
-+	[self updateIconSelection];
++    parent->iconSelected = false;
++    [self updateIconSelection];
  }
  
  - (void)rightMouseDown:(NSEvent *)mouseEvent
@@ -318,8 +355,8 @@ index 83c960d..74fa84d 100755
      Q_UNUSED(mouseEvent);
      [self menuTrackingDone:nil];
 +
-+	parent->iconSelected = false;
-+	[self updateIconSelection];
++    parent->iconSelected = false;
++    [self updateIconSelection];
  }
  
  - (void)otherMouseDown:(NSEvent *)mouseEvent
