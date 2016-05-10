@@ -18,28 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-#include <QtCore/QtPlugin>
+#pragma once
 
-#ifdef Q_OS_WINRT
-//Q_IMPORT_PLUGIN(QWinRTIntegrationPlugin)
-//Q_IMPORT_PLUGIN(QWbmpPlugin)
-#elif defined Q_OS_WIN // Q_OS_WINRT
-Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
-#elif defined Q_OS_MAC // Q_OS_WIN
-Q_IMPORT_PLUGIN(QGenericEnginePlugin)
-Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
-Q_IMPORT_PLUGIN(QDDSPlugin)
-Q_IMPORT_PLUGIN(QICNSPlugin)
-Q_IMPORT_PLUGIN(QICOPlugin)
-Q_IMPORT_PLUGIN(QTgaPlugin)
-Q_IMPORT_PLUGIN(QTiffPlugin)
-Q_IMPORT_PLUGIN(QWbmpPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
-#elif defined Q_OS_LINUX // Q_OS_LINUX
-Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
-#endif
+#include "core/basic_types.h"
+
+#define BETA_VERSION_MACRO (0ULL)
+
+constexpr int AppVersion = 9048;
+constexpr str_const AppVersionStr = "0.9.48";
+constexpr bool AppAlphaVersion = false;
+constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;

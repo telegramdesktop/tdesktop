@@ -213,6 +213,10 @@ private:
 
 };
 
+inline QString str_const_toString(const str_const &str) {
+	return QString::fromUtf8(str.c_str(), str.size());
+}
+
 template <typename T>
 inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 
@@ -996,7 +1000,7 @@ public:
 
 	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
-			uint64 m = (1 << i);
+			uint64 m = (1ULL << i);
 			if (_mask & m) {
 				int s = ComponentWraps[i].Size;
 				if (s) {

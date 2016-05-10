@@ -32,10 +32,11 @@ struct ScriptLine {
 	QFixed textWidth;
 };
 
+// All members finished with "_" are internal.
 struct LineBreakHelper
 {
 	LineBreakHelper()
-		: glyphCount(0), maxGlyphs(0), currentPosition(0), fontEngine(0), logClusters(0)
+		: glyphCount(0), maxGlyphs(INT_MAX), currentPosition(0), fontEngine(0), logClusters(0)
 	{
 	}
 
@@ -48,7 +49,9 @@ struct LineBreakHelper
 	int glyphCount;
 	int maxGlyphs;
 	int currentPosition;
-	glyph_t previousGlyph;
+
+	glyph_t previousGlyph_ = 0;
+	QFontEngine *previousFontEngine_ = nullptr;
 
 	QFixed rightBearing;
 
@@ -65,34 +68,70 @@ struct LineBreakHelper
 
 	inline void saveCurrentGlyph()
 	{
-		previousGlyph = 0;
 		if (currentPosition > 0 &&
 			logClusters[currentPosition - 1] < glyphs.numGlyphs) {
-			previousGlyph = currentGlyph(); // needed to calculate right bearing later
+			previousGlyph_ = currentGlyph(); // needed to calculate right bearing later
+			previousFontEngine_ = fontEngine;
+		} else {
+			previousGlyph_ = 0;
+			previousFontEngine_ = nullptr;
 		}
 	}
 
-	inline void adjustRightBearing(glyph_t glyph)
+	inline void calculateRightBearing(QFontEngine *engine, glyph_t glyph)
 	{
 		qreal rb;
-		fontEngine->getGlyphBearings(glyph, 0, &rb);
-		rightBearing = qMin(QFixed(), QFixed::fromReal(rb));
+		engine->getGlyphBearings(glyph, 0, &rb);
+
+		// We only care about negative right bearings, so we limit the range
+		// of the bearing here so that we can assume it's negative in the rest
+		// of the code, as well ase use QFixed(1) as a sentinel to represent
+		// the state where we have yet to compute the right bearing.
+		rightBearing = qMin(QFixed::fromReal(rb), QFixed(0));
 	}
 
-	inline void adjustRightBearing()
+	inline void calculateRightBearing()
 	{
-		if (currentPosition <= 0)
-			return;
-		adjustRightBearing(currentGlyph());
+		if (currentPosition > 0 &&
+			logClusters[currentPosition - 1] < glyphs.numGlyphs) {
+			calculateRightBearing(fontEngine, currentGlyph());
+		} else {
+			rightBearing = 0;
+		}
 	}
 
-	inline void adjustPreviousRightBearing()
+	inline void calculateRightBearingForPreviousGlyph()
 	{
-		if (previousGlyph > 0)
-			adjustRightBearing(previousGlyph);
+		if (previousGlyph_ > 0) {
+			calculateRightBearing(previousFontEngine_, previousGlyph_);
+		} else {
+			rightBearing = 0;
+		}
+	}
+
+	// We always calculate the right bearing right before it is needed.
+	// So we don't need caching / optimizations referred to delayed right bearing calculations.
+
+	//static const QFixed RightBearingNotCalculated;
+
+	//inline void resetRightBearing()
+	//{
+	//	rightBearing = RightBearingNotCalculated;
+	//}
+
+	// We express the negative right bearing as an absolute number
+	// so that it can be applied to the width using addition.
+	inline QFixed negativeRightBearing() const
+	{
+		//if (rightBearing == RightBearingNotCalculated)
+		//	return QFixed(0);
+
+		return qAbs(rightBearing);
 	}
 
 };
+
+//const QFixed LineBreakHelper::RightBearingNotCalculated = QFixed(1);
 
 static inline void addNextCluster(int &pos, int end, ScriptLine &line, int &glyphCount,
 	const QScriptItem &current, const unsigned short *logClusters,
@@ -127,8 +166,6 @@ public:
 	void parseWords(QFixed minResizeWidth, int32 blockFrom) {
 		LineBreakHelper lbh;
 
-		lbh.maxGlyphs = INT_MAX;
-
 		int item = -1;
 		int newItem = eng->findItem(0);
 
@@ -137,10 +174,8 @@ public:
 		const QCharAttributes *attributes = eng->attributes();
 		if (!attributes)
 			return;
-		lbh.currentPosition = 0;
 		int end = 0;
 		lbh.logClusters = eng->layoutData->logClustersPtr;
-		lbh.previousGlyph = 0;
 
 		block->_lpadding = 0;
 		block->_words.clear();
@@ -180,7 +215,7 @@ public:
 				if (block->_words.isEmpty()) {
 					block->_lpadding = lbh.spaceData.textWidth;
 				} else {
-					block->_words.back().rpadding += lbh.spaceData.textWidth;
+					block->_words.back().add_rpadding(lbh.spaceData.textWidth);
 					block->_width += lbh.spaceData.textWidth;
 				}
 				lbh.spaceData.length = 0;
@@ -199,8 +234,8 @@ public:
 					if (lbh.currentPosition >= eng->layoutData->string.length()
 						|| attributes[lbh.currentPosition].whiteSpace
 						|| isLineBreak(attributes, lbh.currentPosition)) {
-						lbh.adjustRightBearing();
-						block->_words.push_back(TextWord(wordStart + blockFrom, lbh.tmpData.textWidth, qMin(QFixed(), lbh.rightBearing)));
+						lbh.calculateRightBearing();
+						block->_words.push_back(TextWord(wordStart + blockFrom, lbh.tmpData.textWidth, -lbh.negativeRightBearing()));
 						block->_width += lbh.tmpData.textWidth;
 						lbh.tmpData.textWidth = 0;
 						lbh.tmpData.length = 0;
@@ -209,8 +244,8 @@ public:
 					} else if (attributes[lbh.currentPosition].graphemeBoundary) {
 						if (!addingEachGrapheme && lbh.tmpData.textWidth > minResizeWidth) {
 							if (lastGraphemeBoundaryPosition >= 0) {
-								lbh.adjustPreviousRightBearing();
-								block->_words.push_back(TextWord(wordStart + blockFrom, -lastGraphemeBoundaryLine.textWidth, qMin(QFixed(), lbh.rightBearing)));
+								lbh.calculateRightBearingForPreviousGlyph();
+								block->_words.push_back(TextWord(wordStart + blockFrom, -lastGraphemeBoundaryLine.textWidth, -lbh.negativeRightBearing()));
 								block->_width += lastGraphemeBoundaryLine.textWidth;
 								lbh.tmpData.textWidth -= lastGraphemeBoundaryLine.textWidth;
 								lbh.tmpData.length -= lastGraphemeBoundaryLine.length;
@@ -219,8 +254,8 @@ public:
 							addingEachGrapheme = true;
 						}
 						if (addingEachGrapheme) {
-							lbh.adjustRightBearing();
-							block->_words.push_back(TextWord(wordStart + blockFrom, -lbh.tmpData.textWidth, qMin(QFixed(), lbh.rightBearing)));
+							lbh.calculateRightBearing();
+							block->_words.push_back(TextWord(wordStart + blockFrom, -lbh.tmpData.textWidth, -lbh.negativeRightBearing()));
 							block->_width += lbh.tmpData.textWidth;
 							lbh.tmpData.textWidth = 0;
 							lbh.tmpData.length = 0;
@@ -239,7 +274,7 @@ public:
 		if (block->_words.isEmpty()) {
 			block->_rpadding = 0;
 		} else {
-			block->_rpadding = block->_words.back().rpadding;
+			block->_rpadding = block->_words.back().f_rpadding();
 			block->_width -= block->_rpadding;
 			block->_words.squeeze();
 		}
@@ -260,6 +295,10 @@ private:
 	const QString &str;
 
 };
+
+QFixed ITextBlock::f_rbearing() const {
+	return (type() == TextBlockTText) ? static_cast<const TextBlock*>(this)->real_f_rbearing() : 0;
+}
 
 TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, color, lnkIndex) {
 	_flags |= ((TextBlockTText & 0x0F) << 8);

@@ -174,12 +174,15 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	}
 	_localSocket.close();
 
+// Local server does not work in WinRT build.
+#ifndef Q_OS_WINRT
 	psCheckLocalSocket(_localServerName);
 
 	if (!_localServer.listen(_localServerName)) {
 		LOG(("Failed to start listening to %1 server, error %2").arg(_localServerName).arg(int(_localServer.serverError())));
 		return App::quit();
 	}
+#endif // !Q_OS_WINRT
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {
@@ -464,8 +467,8 @@ void Application::startUpdateCheck(bool forceWait) {
 		QUrl url(cUpdateURL());
 		if (cBetaVersion()) {
 			url.setQuery(qsl("version=%1&beta=%2").arg(AppVersion).arg(cBetaVersion()));
-		} else if (cDevVersion()) {
-			url.setQuery(qsl("version=%1&dev=1").arg(AppVersion));
+		} else if (cAlphaVersion()) {
+			url.setQuery(qsl("version=%1&alpha=1").arg(AppVersion));
 		} else {
 			url.setQuery(qsl("version=%1").arg(AppVersion));
 		}
@@ -1028,7 +1031,7 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
 //				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9041) {
@@ -1037,7 +1040,7 @@ void AppClass::checkMapVersion() {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
-				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
+				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
 				_window->serviceNotification(versionFeatures);
 			}
 		}

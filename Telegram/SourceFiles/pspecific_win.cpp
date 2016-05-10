@@ -1075,7 +1075,7 @@ void PsMainWindow::psSetupTrayIcon() {
         QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
 
         trayIcon->setIcon(icon);
-        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        trayIcon->setToolTip(str_const_toString(AppName));
         connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
         connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
         App::wnd()->updateTrayMenu();
@@ -1829,7 +1829,7 @@ QString psAppDataPath() {
 	WCHAR wstrPath[maxFileLen];
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
 		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
-		return appData.absolutePath() + '/' + QString::fromWCharArray(AppName) + '/';
+		return appData.absolutePath() + '/' + str_const_toString(AppName) + '/';
 	}
 	return QString();
 }
@@ -1839,13 +1839,13 @@ QString psAppDataPathOld() {
 	WCHAR wstrPath[maxFileLen];
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
 		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
-		return appData.absolutePath() + '/' + QString::fromWCharArray(AppNameOld) + '/';
+		return appData.absolutePath() + '/' + str_const_toString(AppNameOld) + '/';
 	}
 	return QString();
 }
 
 QString psDownloadPath() {
-	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + QString::fromWCharArray(AppName) + '/';
+	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
@@ -1903,7 +1903,7 @@ void psDoFixPrevious() {
 		DWORD checkType, checkSize = bufSize * 2;
 		WCHAR checkStr[bufSize];
 
-		QString appId = QString::fromStdWString(AppId);
+		QString appId = str_const_toString(AppId);
 		QString newKeyStr1 = QString("Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
 		QString newKeyStr2 = QString("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
 		QString oldKeyStr1 = QString("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
@@ -2305,7 +2305,7 @@ void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args
 	WCHAR startupFolder[MAX_PATH];
 	HRESULT hr = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
 	if (SUCCEEDED(hr)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + QString::fromWCharArray(AppFile) + qsl(".lnk");
+		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + str_const_toString(AppFile) + qsl(".lnk");
 		if (create) {
 			ComPtr<IShellLink> shellLink;
 			hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
@@ -2367,9 +2367,6 @@ void psUpdateOverlayed(TWidget *widget) {
 	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }
-
-static const WCHAR *_programName = AppName; // folder in APPDATA, if current path is unavailable for writing
-static const WCHAR *_exeName = L"Telegram.exe";
 
 // Stack walk code is inspired by http://www.codeproject.com/Articles/11132/Walking-the-callstack
 
@@ -2765,7 +2762,7 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	QString tolaunch;
 	if ((betaversion && betaversion != cBetaVersion()) || (!betaversion && version && version != AppVersion)) {
 		QString path = cExeDir();
-		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|_\\d+/)(Telegram/)?$").match(path);
+		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|\\.alpha/|_\\d+/)(Telegram/)?$").match(path);
 		if (m.hasMatch()) {
 			QString base = path.mid(0, m.capturedStart()) + qstr("deploy/");
 			int32 major = version / 1000000, minor = (version % 1000000) / 1000, micro = (version % 1000);
@@ -2774,6 +2771,8 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 				base += qsl("_%1").arg(betaversion);
 			} else if (QDir(base + qstr(".dev")).exists()) {
 				base += qstr(".dev");
+			} else if (QDir(base + qstr(".alpha")).exists()) {
+				base += qstr(".alpha");
 			}
 			if (QFile(base + qstr("/Telegram/Telegram.exe")).exists()) {
 				base += qstr("/Telegram");
