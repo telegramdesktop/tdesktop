@@ -356,6 +356,7 @@ public:
 	bool oldLoaded = false;
 	bool newLoaded = true;
 	HistoryItem *lastMsg = nullptr;
+	HistoryItem *lastSentMsg = nullptr;
 	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
@@ -807,6 +808,14 @@ struct HistoryMessageSigned : public BaseComponent<HistoryMessageSigned> {
 	int maxWidth() const;
 
 	Text _signature;
+};
+
+struct HistoryMessageEdited : public BaseComponent<HistoryMessageEdited> {
+	void create(const QDateTime &editDate, const QDateTime &date);
+	int maxWidth() const;
+
+	QDateTime _editDate;
+	Text _edited;
 };
 
 struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
@@ -1322,6 +1331,9 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
+	bool wasEdited() const {
+		return _flags & MTPDmessage::Flag::f_edit_date;
+	}
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();
@@ -1658,6 +1670,9 @@ public:
 	virtual bool isDisplayed() const {
 		return true;
 	}
+	virtual bool hasTextForCopy() const {
+		return false;
+	}
 	virtual void initDimensions() = 0;
 	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);
@@ -1878,6 +1893,9 @@ public:
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
 	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
+	}
 
 	QString inDialogsText() const override;
 	QString selectedText(TextSelection selection) const override;
@@ -1954,6 +1972,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
 	}
 
 	QString inDialogsText() const override;
@@ -2075,6 +2096,9 @@ public:
 		}
 		return selection;
 	}
+	bool hasTextForCopy() const override {
+		return Has<HistoryDocumentCaptioned>();
+	}
 
 	QString inDialogsText() const override;
 	QString selectedText(TextSelection selection) const override;
@@ -2158,6 +2182,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	bool hasTextForCopy() const override {
+		return !_caption.isEmpty();
 	}
 
 	QString inDialogsText() const override;
@@ -2384,6 +2411,9 @@ public:
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool hasTextForCopy() const override {
+		return false; // we do not add _title and _description in FullSelection text copy.
+	}
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
@@ -2515,6 +2545,9 @@ public:
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool hasTextForCopy() const override {
+		return !_title.isEmpty() || !_description.isEmpty();
+	}
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return p == _link;
@@ -2753,6 +2786,7 @@ private:
 		PeerId authorIdOriginal = 0;
 		PeerId fromIdOriginal = 0;
 		MsgId originalId = 0;
+		QDateTime editDate;
 		const MTPReplyMarkup *markup = nullptr;
 	};
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup);

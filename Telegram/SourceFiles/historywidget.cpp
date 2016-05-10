@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
 #include "ui/filedialog.h"
-#include "ui/style.h"
 #include "ui/toast/toast.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang.h"
@@ -1037,7 +1036,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 			if (item && !isUponSelected) {
-				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
+				bool mediaHasTextForCopy = false;
+				if (HistoryMedia *media = (msg ? msg->getMedia() : nullptr)) {
+					mediaHasTextForCopy = media->hasTextForCopy();
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
 					}
@@ -1065,8 +1066,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}
 					}
 				}
-				QString contextMenuText = item->selectedText(FullSelection);
-				if (!contextMenuText.isEmpty() && msg && !msg->getMedia()) {
+				if (msg && (!msg->emptyText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
@@ -2018,7 +2018,11 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 QString HistoryInner::tooltipText() const {
 	if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			return App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			QString dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			//if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
+			//	dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			//}
+			return dateText;
 		}
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
@@ -5744,12 +5748,12 @@ void HistoryWidget::onForwardHere() {
 	App::forward(_peer->id, ForwardContextMessage);
 }
 
-void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
+void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
 		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 
@@ -5772,10 +5776,10 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 
 	if (Adaptive::OneColumn()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawPixmap(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), App::sprite(), st::topBarBackwardImg);
+		p.drawSprite(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), st::topBarBackwardImg);
 	} else {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
+		p.drawSprite(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), st::topBarForwardImg);
 	}
 }
 
@@ -6916,7 +6920,13 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			_scroll.keyPressEvent(e);
+			if (_history && _history->lastSentMsg && _history->lastSentMsg->canEdit(::date(unixtime()))) {
+				if (_field.getLastText().isEmpty() && !_editMsgId && !_replyToId) {
+					App::contextItem(_history->lastSentMsg);
+					onEditMessage();
+				}
+			}
+//			_scroll.keyPressEvent(e);
 		}
 	} else {
 		e->ignore();
@@ -7485,6 +7495,7 @@ void HistoryWidget::cancelForwarding() {
 }
 
 void HistoryWidget::onFieldBarCancel() {
+	Ui::hideLayer();
 	_replyForwardPressed = false;
 	if (_previewData && _previewData->pendingTill >= 0) {
 		_previewCancelled = true;
@@ -7640,6 +7651,14 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::onCancel() {
 	if (_inlineBotCancel) {
 		onInlineBotCancel();
+	} else if (_editMsgId) {
+		if (_replyEditMsg && textApplyEntities(_replyEditMsg->originalText(), _replyEditMsg->originalEntities()) != _field.getLastText()) {
+			auto box = new ConfirmBox(lang(lng_cancel_edit_post_sure), lang(lng_cancel_edit_post_yes), st::defaultBoxButton, lang(lng_cancel_edit_post_no));
+			connect(box, SIGNAL(confirmed()), this, SLOT(onFieldBarCancel()));
+			Ui::showLayer(box);
+		} else {
+			onFieldBarCancel();
+		}
 	} else if (!_attachMention.isHidden()) {
 		_attachMention.hideStart();
 	} else  {
@@ -7934,7 +7953,7 @@ void HistoryWidget::drawField(Painter &p) {
 	p.fillRect(0, backy, width(), backh, st::taMsgField.bgColor->b);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		int32 replyLeft = st::replySkip;
-		p.drawPixmap(QPoint(st::replyIconPos.x(), backy + st::replyIconPos.y()), App::sprite(), _editMsgId ? st::editIcon : st::replyIcon);
+		p.drawSprite(QPoint(st::replyIconPos.x(), backy + st::replyIconPos.y()), _editMsgId ? st::editIcon : st::replyIcon);
 		if (!drawPreview) {
 			if (drawMsgText) {
 				if (drawMsgText->getMedia() && drawMsgText->getMedia()->hasReplyPreview()) {
@@ -7962,7 +7981,7 @@ void HistoryWidget::drawField(Painter &p) {
 		}
 	} else if (from && text) {
 		int32 forwardLeft = st::replySkip;
-		p.drawPixmap(QPoint(st::replyIconPos.x(), backy + st::replyIconPos.y()), App::sprite(), st::forwardIcon);
+		p.drawSprite(QPoint(st::replyIconPos.x(), backy + st::replyIconPos.y()), st::forwardIcon);
 		if (!drawPreview) {
 			if (!preview->isNull()) {
 				QRect to(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
@@ -8093,7 +8112,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 

@@ -71,14 +71,14 @@
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl_debug\Debug\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;$(QTDIR)\lib;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmaind.lib;zlibstat.lib;libeay32MTd.lib;Qt5Cored.lib;LzmaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;$(QTDIR)\lib;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\openssl_debug\Debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;zlibstat.lib;libeay32.lib;LzmaLib.lib;qtmaind.lib;qtpcred.lib;Qt5Cored.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
     </Link>
@@ -88,14 +88,14 @@
       <PreprocessorDefinitions>UNICODE;WIN32;WIN64;QT_NO_DEBUG;ZLIB_WINAPI;NDEBUG;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;$(QTDIR)\lib;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;zlibstat.lib;libeay32MT.lib;Qt5Core.lib;LzmaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;$(QTDIR)\lib;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\openssl\Release\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;zlibstat.lib;libeay32.lib;LzmaLib.lib;qtmain.lib;qtpcre.lib;Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
     </Link>
@@ -106,14 +106,14 @@
       <DebugInformationFormat>
       </DebugInformationFormat>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.;$(QTDIR)\include;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;$(QTDIR)\include\QtCore;.\..\..\Libraries\lzma\C;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\openssl\Release\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;$(QTDIR)\lib;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\openssl\Release\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;zlibstat.lib;libeay32.lib;Qt5Core.lib;qtpcre.lib;LzmaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;zlibstat.lib;libeay32.lib;LzmaLib.lib;qtmain.lib;qtpcre.lib;Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers>
       </ImageHasSafeExceptionHandlers>

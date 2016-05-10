@@ -19,12 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "mainwindow.h"
 
 #include "zip.h"
-
-#include "ui/style.h"
 #include "lang.h"
 #include "shortcuts.h"
 #include "application.h"
@@ -183,10 +180,10 @@ void NotifyWindow::updateNotifyDisplay() {
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->isChat() || history->peer->isMegagroup()) {
-				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
+				p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), st::dlgChatImg);
 				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 			} else if (history->peer->isChannel()) {
-				p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
+				p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), st::dlgChannelImg);
 				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 			}
 		}
@@ -1113,7 +1110,7 @@ bool MainWindow::minimizeToTray() {
 
 	hide();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
-		trayIcon->showMessage(QString::fromStdWString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
+		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
 		Local::writeSettings();
 	}
@@ -1782,7 +1779,7 @@ void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::colo
 	} else {
 		fontSize = (cntSize < 2) ? 22 : 22;
 	}
-	style::font f(fontSize);
+	style::font f = { fontSize, 0, 0 };
 	int32 w = f->width(cnt), d, r;
 	if (size == 16) {
 		d = (cntSize < 2) ? 2 : 1;
@@ -1831,7 +1828,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 			} else {
 				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
 			}
-			style::font f(fontSize);
+			style::font f = { fontSize, 0, 0 };
 			int32 w = f->width(cnt), d, r;
 			if (size == 16) {
 				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
@@ -2137,7 +2134,7 @@ LastCrashedWindow::LastCrashedWindow()
 {
 	excludeReportUsername();
 
-	if (!cDevVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
+	if (!cAlphaVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
 	if (_sendingState != SendingNoReport) {

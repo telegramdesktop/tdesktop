@@ -116,7 +116,7 @@ void PsMainWindow::psSetupTrayIcon() {
         icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
 
         trayIcon->setIcon(icon);
-        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        trayIcon->setToolTip(str_const_toString(AppName));
         connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
         App::wnd()->updateTrayMenu();
     }
@@ -156,7 +156,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 		skip = 2;
 		fontSize = 16;
 	}
-	style::font f(fontSize);
+	style::font f(fontSize, 0, 0);
 	int32 w = f->width(cnt), d, r;
 	if (size == 22) {
 		d = (cntSize < 2) ? 3 : 2;

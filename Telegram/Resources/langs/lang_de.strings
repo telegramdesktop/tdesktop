@@ -893,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "BOTS 2.0\n\n— Bot API 2.0: Das größte Update unserer Bot-Plattform seit Juni 2015.\n— Bots können vorhandene Nachrichten aktualisieren, während du mit dem Bot schreibst.\n— Neue Inline-Tastaturen mit 'Callback', 'URL öffnen' oder 'in den Inline-Modus wechseln'-Knöpfen, für eine noch bessere Integration.\n— Inline-Bots dürfen nun alle erlaubten Anhänge senden (Videos, Musik, Sticker, Dateien, etc.).\n— Probiere doch mal einen der folgenden Beispielbots aus: @music, @sticker, @youtube, @foursquare\n\nMehr Infos: {link}";
+"lng_new_version_text" = "— Optische Verbesserungen (u.a. runde Profilbilder)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

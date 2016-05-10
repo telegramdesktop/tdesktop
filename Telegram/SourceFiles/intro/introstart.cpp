@@ -19,14 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-#include "ui/style.h"
-
-#include "application.h"
-
 #include "intro/introstart.h"
-#include "intro/introphone.h"
 
+#include "lang.h"
+#include "application.h"
+#include "intro/introphone.h"
 #include "langloaderplain.h"
 
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
@@ -65,7 +62,7 @@ IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 void IntroStart::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 
-	QPainter p(this);
+	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
@@ -75,7 +72,7 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 	p.setPen(st::introColor->p);
 	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
 
-	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
+	p.drawSprite(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), st::aboutIcon);
 }
 
 void IntroStart::resizeEvent(QResizeEvent *e) {

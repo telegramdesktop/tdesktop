@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "structs.h"
 
-#include "ui/style.h"
 #include "lang.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "history.h"

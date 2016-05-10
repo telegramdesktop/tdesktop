@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 #include "playerwidget.h"
+#include "localstorage.h"
 
 #include "lang.h"
 
@@ -794,7 +795,7 @@ void objc_openFile(const QString &f, bool openwith) {
 
             NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
-			NSRect fullRect = { { 0., 0. }, { st::macAccessory.width() * 1., st::macAccessory.height() * 1. } };
+			NSRect fullRect = { { 0., 0. }, { st::macAccessoryWidth, st::macAccessoryHeight } };
 			NSView *accessory = [[NSView alloc] initWithFrame:fullRect];
 
             [accessory setAutoresizesSubviews:YES];
@@ -862,7 +863,7 @@ void objc_openFile(const QString &f, bool openwith) {
             NSImageView *badIcon = [[NSImageView alloc] init];
             NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
             [badIcon setImage:badImage];
-            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize.width(), st::macCautionIconSize.height())];
+            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize, st::macCautionIconSize)];
 
             NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
             badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;
@@ -1054,7 +1055,7 @@ QString objc_documentsPath() {
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + QString::fromWCharArray(AppName) + '/';
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
 	}
 	return QString();
 }
@@ -1062,7 +1063,7 @@ QString objc_appDataPath() {
 QString objc_downloadPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + QString::fromWCharArray(AppName) + '/';
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
 	}
 	return QString();
 }
@@ -1123,7 +1124,7 @@ void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 			NSData *data = [_downloadPathUrl bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
 			if (data) {
 				cSetDownloadPathBookmark(QByteArray::fromNSData(data));
-				cSetNeedConfigResave(true);
+				Local::writeUserSettings();
 			}
 		}
 	}

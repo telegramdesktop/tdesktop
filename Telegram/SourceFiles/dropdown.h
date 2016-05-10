@@ -629,7 +629,8 @@ public slots:
 	void onWndActiveChanged();
 
 	void onTabChange();
-	void onScroll();
+	void onScrollEmoji();
+	void onScrollStickers();
 	void onSwitch();
 
 	void onRemoveSet(quint64 setId);

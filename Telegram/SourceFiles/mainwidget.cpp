@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "ui/buttons/peer_avatar_button.h"
-#include "ui/style.h"
 #include "window/top_bar_widget.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -1099,6 +1098,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 	QString sendingText, leftText = prepareTextWithEntities(text, leftEntities, itemTextOptions(hist, App::self()).flags);
 
 	QString command = parseCommandFromMessage(hist, text);
+	HistoryItem *lastMessage = nullptr;
 
 	if (replyTo < 0) replyTo = _history->replyToId();
 	while (command.isEmpty() && textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
@@ -1143,9 +1143,11 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		if (!sentEntities.c_vector().v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
-		hist->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		lastMessage = hist->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
+
+	hist->lastSentMsg = lastMessage;
 
 	finishForwarding(hist, broadcast, silent);
 
@@ -2471,7 +2473,7 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 	}
 }
 
@@ -2608,7 +2610,7 @@ bool MainWidget::needBackButton() {
 	return _overview || _profile || (_history->peer() && _history->peer()->id);
 }
 
-void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
+void MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_profile) {
 		_profile->paintTopBar(p, over, decreaseWidth);
 	} else if (_overview) {

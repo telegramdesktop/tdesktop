@@ -48,27 +48,6 @@ namespace {
 		return result;
 	}
 
-	FileKey fromFilePart(const QString &val) {
-		FileKey result = 0;
-		int32 i = val.size();
-		if (i != 0x10) return 0;
-
-		while (i > 0) {
-			--i;
-			result <<= 4;
-
-			uint16 ch = val.at(i).unicode();
-			if (ch >= 'A' && ch <= 'F') {
-				result |= (ch - 'A') + 0x0A;
-			} else if (ch >= '0' && ch <= '9') {
-				result |= (ch - '0');
-			} else {
-				return 0;
-			}
-		}
-		return result;
-	}
-
 	QString _basePath, _userBasePath;
 
 	bool _started = false;
@@ -324,45 +303,6 @@ namespace {
 			finish();
 		}
 	};
-
-	bool fileExists(const QString &name, int options = UserPath | SafePath) {
-		if (options & UserPath) {
-			if (!_userWorking()) return false;
-		} else {
-			if (!_working()) return false;
-		}
-
-		// detect order of read attempts
-		QString toTry[2];
-		toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
-		if (options & SafePath) {
-			QFileInfo toTry0(toTry[0]);
-			if (toTry0.exists()) {
-				toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
-				QFileInfo toTry1(toTry[1]);
-				if (toTry1.exists()) {
-					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
-					if (mod0 < mod1) {
-						qSwap(toTry[0], toTry[1]);
-					}
-				} else {
-					toTry[1] = QString();
-				}
-			} else {
-				toTry[0][toTry[0].size() - 1] = '1';
-			}
-		}
-		for (int32 i = 0; i < 2; ++i) {
-			QString fname(toTry[i]);
-			if (fname.isEmpty()) break;
-			if (QFileInfo(fname).exists()) return true;
-		}
-		return false;
-	}
-
-	bool fileExists(const FileKey &fkey, int options = UserPath | SafePath) {
-		return fileExists(toFilePart(fkey), options);
-	}
 
 	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
 		if (options & UserPath) {
@@ -2361,8 +2301,10 @@ namespace Local {
 
 			EncryptedDescriptor data(sizeof(quint64) + Serialize::stringSize(msgDraft.text) + 2 * sizeof(qint32) + Serialize::stringSize(editDraft.text) + 2 * sizeof(qint32));
 			data.stream << quint64(peer);
-			data.stream << msgDraft.text << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
-			data.stream << editDraft.text << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
+			data.stream << msgDraft.text << QByteArray();
+			data.stream << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
+			data.stream << editDraft.text << QByteArray();
+			data.stream << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
 
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
@@ -2431,14 +2373,22 @@ namespace Local {
 
 		quint64 draftPeer = 0;
 		QString msgText, editText;
+		QByteArray msgTagsSerialized, editTagsSerialized;
 		qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
 		draft.stream >> draftPeer >> msgText;
+		if (draft.version >= 9048) {
+			draft.stream >> msgTagsSerialized;
+		}
 		if (draft.version >= 7021) {
 			draft.stream >> msgReplyTo;
 			if (draft.version >= 8001) {
 				draft.stream >> msgPreviewCancelled;
 				if (!draft.stream.atEnd()) {
-					draft.stream >> editText >> editMsgId >> editPreviewCancelled;
+					draft.stream >> editText;
+					if (draft.version >= 9048) {
+						draft.stream >> editTagsSerialized;
+					}
+					draft.stream >> editMsgId >> editPreviewCancelled;
 				}
 			}
 		}

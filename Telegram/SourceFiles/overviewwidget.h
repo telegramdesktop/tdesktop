@@ -262,7 +262,7 @@ public:
 	void scrollBy(int32 add);
 	void scrollReset();
 
-	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;

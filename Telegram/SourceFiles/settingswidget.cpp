@@ -19,11 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/style.h"
-#include "lang.h"
-
-#include "boxes/aboutbox.h"
 #include "settingswidget.h"
+
+#include "lang.h"
+#include "boxes/aboutbox.h"
 #include "mainwidget.h"
 #include "application.h"
 #include "boxes/photocropbox.h"
@@ -88,12 +87,12 @@ void Slider::setSelected(int32 sel) {
 }
 
 void Slider::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	p.fillRect(0, (height() - _st.thikness) / 2, width(), _st.thikness, _st.color->b);
 
 	int32 x = qFloor(_sel * float64(width() - _st.bar.pxWidth()) / (_count - 1)), y = (height() - _st.bar.pxHeight()) / 2;
-	p.drawPixmap(QPoint(x, y), App::sprite(), _st.bar);
+	p.drawSprite(QPoint(x, y), _st.bar);
 }
 
 QString scaleLabel(DBIScale scale) {
@@ -265,7 +264,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())) + ' ';
 	_curVersionWidth = st::linkFont->width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->width(_newVersionText);
@@ -405,11 +404,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			self()->paintUserpicLeft(p, st::setPhotoSize, _left, top, st::setWidth);
 		} else {
 			if (a_photoOver.current() < 1) {
-				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
+				p.drawSprite(QPoint(_left, top), st::setPhotoImg);
 			}
 			if (a_photoOver.current() > 0) {
 				p.setOpacity(a_photoOver.current());
-				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
+				p.drawSprite(QPoint(_left, top), st::setOverPhotoImg);
 				p.setOpacity(1);
 			}
 		}
@@ -1922,7 +1921,7 @@ void SettingsWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 	} else {
 		p.fillRect(rect(), st::setBG->b);
 	}
