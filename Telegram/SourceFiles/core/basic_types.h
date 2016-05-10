@@ -213,6 +213,10 @@ private:
 
 };
 
+inline QString str_const_toString(const str_const &str) {
+	return QString::fromUtf8(str.c_str(), str.size());
+}
+
 template <typename T>
 inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 
