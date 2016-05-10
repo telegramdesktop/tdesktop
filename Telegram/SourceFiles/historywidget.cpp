@@ -3007,7 +3007,10 @@ void HistoryWidget::onStickersUpdated() {
 void HistoryWidget::onMentionInsert(UserData *user) {
 	QString replacement, entityTag;
 	if (user->username.isEmpty()) {
-		replacement = App::peerName(user);
+		replacement = user->firstName;
+		if (replacement.isEmpty()) {
+			replacement = App::peerName(user);
+		}
 		entityTag = qsl("mention://user.") + QString::number(user->bareId()) + '.' + QString::number(user->access);
 	} else {
 		replacement = '@' + user->username;
