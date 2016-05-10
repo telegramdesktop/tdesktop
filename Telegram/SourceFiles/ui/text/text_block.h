@@ -140,9 +140,9 @@ public:
 	TextWord() = default;
 	TextWord(uint16 from, QFixed width, QFixed rbearing, QFixed rpadding = 0)
 		: _from(from)
-		, _rbearing(rbearing.value() > 0x7FFF ? 0x7FFF : (rbearing.value() < -0x7FFF ? -0x7FFF : rbearing.value()))
 		, _width(width)
-		, _rpadding(rpadding) {
+		, _rpadding(rpadding)
+		, _rbearing(rbearing.value() > 0x7FFF ? 0x7FFF : (rbearing.value() < -0x7FFF ? -0x7FFF : rbearing.value())) {
 	}
 	uint16 from() const {
 		return _from;
