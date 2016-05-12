@@ -8190,7 +8190,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 
 namespace {
 
-constexpr int DisplayEditTimeWarningMs = 900 * 1000;
+constexpr int DisplayEditTimeWarningMs = 300 * 1000;
 constexpr int FullDayInMs = 86400 * 1000;
 
 } // namespace

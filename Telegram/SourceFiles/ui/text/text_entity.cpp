@@ -1363,7 +1363,14 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityEmail: { const auto &d(entity.c_messageEntityEmail()); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityHashtag: { const auto &d(entity.c_messageEntityHashtag()); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMention: { const auto &d(entity.c_messageEntityMention()); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityMentionName: { const auto &d(entity.c_messageEntityMentionName()); result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, QString::number(d.vuser_id.v))); } break;
+			case mtpc_messageEntityMentionName: {
+				const auto &d(entity.c_messageEntityMentionName());
+				auto data = QString::number(d.vuser_id.v);
+				if (auto user = App::userLoaded(peerFromUser(d.vuser_id))) {
+					data += '.' + QString::number(user->access);
+				}
+				result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
+			} break;
 			case mtpc_inputMessageEntityMentionName: {
 				const auto &d(entity.c_inputMessageEntityMentionName());
 				auto data = ([&d]() -> QString {
