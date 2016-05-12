@@ -1,0 +1,50 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+profileBg: windowBg;
+
+profileTopBarHeight: topBarHeight;
+profileTopBarBackIconFg: #51b3e0;
+profileTopBarBackIcon: icon {
+	{ "topbar_back_arrow", profileTopBarBackIconFg },
+};
+profileTopBarBackIconPosition: point(15px, 19px);
+profileTopBarBackFont: font(14px);
+profileTopBarBackFg: #1485c2;
+profileTopBarBackPosition: point(32px, 17px);
+
+profileMarginTop: 13px;
+profilePhotoSize: 112px;
+profilePhotoLeft: 35px;
+profileNameLeft: 26px;
+profileNameTop: 9px;
+profileNameFont: font(16px);
+profileNameFg: windowTextFg;
+profileStatusLeft: 27px;
+profileStatusTop: 35px;
+profileStatusFont: normalFont;
+profileStatusFg: windowSubTextFg;
+profileMarginBottom: 30px;
+profileSeparator: 10px;
+
+profileBlocksTop: 7px;
+profileBlockMarginTop: 21px;

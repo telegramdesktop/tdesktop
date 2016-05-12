@@ -269,6 +269,15 @@ bool hideWindowNoQuit() {
 	return false;
 }
 
+bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
+	if (auto w = App::wnd()) {
+		if (w->contentOverlapped(widget, event)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace Ui
 
 namespace Notify {

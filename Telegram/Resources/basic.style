@@ -55,10 +55,13 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
+windowBg: #fff; // fallback for background: white
+windowTextFg: #000; // fallback for text color: black
+windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndBG: white;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
@@ -1671,13 +1674,13 @@ confirmCompressedSkip: 10px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
-profilePhotoSize: 120px;
-profileNameLeft: 21px;
-profileNameTop: -1px;
-profileNameFont: font(20px);
-profileStatusLeft: 22px;
-profileStatusTop: 31px;
-profileStatusFont: font(fsize);
+//profilePhotoSize: 120px;
+//profileNameLeft: 21px;
+//profileNameTop: -1px;
+//profileNameFont: font(20px);
+//profileStatusLeft: 22px;
+//profileStatusTop: 31px;
+//profileStatusFont: font(fsize);
 profilePhoneLeft: 22px;
 profilePhoneTop: 62px;
 profilePhoneFont: font(16px);
@@ -2458,7 +2461,7 @@ inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
-inlineDescriptionFg: #8a8a8a;
+inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;
 inlineRowBorderFg: #eaeaea;

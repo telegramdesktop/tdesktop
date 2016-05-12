@@ -435,7 +435,7 @@ void MainWindow::init() {
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Window, st::wndBG->c);
+	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);
 
 	title = new TitleWidget(this);
@@ -1420,6 +1420,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 	} else if (cOtherOnline() >= t) {
 		delay = Global::NotifyDefaultDelay();
 	}
+//	LOG(("Is online: %1, otherOnline: %2, currentTime: %3, otherNotOld: %4, otherLaterThanMe: %5").arg(Logs::b(isOnline)).arg(cOtherOnline()).arg(t).arg(Logs::b(otherNotOld)).arg(Logs::b(otherLaterThanMe)));
 
 	uint64 when = ms + delay;
 	notifyWhenAlerts[history].insert(when, notifyByFrom);

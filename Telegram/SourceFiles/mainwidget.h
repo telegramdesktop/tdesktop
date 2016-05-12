@@ -35,6 +35,10 @@ namespace Window {
 class TopBarWidget;
 } // namespace Window
 
+namespace Profile {
+class Widget;
+} // namespace Profile
+
 class MainWindow;
 class ApiWrap;
 class ConfirmBox;
@@ -550,7 +554,7 @@ private:
 
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
-	ChildWidget<ProfileWidget> _profile = { nullptr };
+	ChildWidget<Profile::Widget> _profile = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;

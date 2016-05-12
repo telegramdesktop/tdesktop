@@ -335,7 +335,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 void EmojiButton::setLoading(bool loading) {
 	if (_loading != loading) {
-		EnsureAnimation(a_loading, _loading ? 1. : 0., func(this, &EmojiButton::update));
+		EnsureAnimation(a_loading, _loading ? 1. : 0., func(this, &EmojiButton::updateCallback));
 		a_loading.start(loading ? 1. : 0., st::emojiCircleDuration);
 		_loading = loading;
 		if (_loading) {

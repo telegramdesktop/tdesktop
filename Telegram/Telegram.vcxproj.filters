@@ -91,6 +91,9 @@
     <Filter Include="Resources\winrc">
       <UniqueIdentifier>{6b33ddc0-a7e2-4961-81dc-e1b5de2e2c60}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\profile">
+      <UniqueIdentifier>{b761f2a4-0e8c-4e52-b179-7a3185c046c4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1104,6 +1107,48 @@
     <ClCompile Include="SourceFiles\ui\style\style_core_icon.cpp">
       <Filter>SourceFiles\ui\style</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\slide_animation.cpp">
+      <Filter>SourceFiles\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_inner_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_profile.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_cover.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1276,6 +1321,12 @@
     </ClInclude>
     <ClInclude Include="Resources\winrc\resource.h">
       <Filter>Resources\winrc</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\slide_animation.h">
+      <Filter>SourceFiles\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_profile.h">
+      <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1516,6 +1567,15 @@
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_inner_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_cover.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1584,6 +1644,9 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\overview\overview.style">
       <Filter>SourceFiles\overview</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\profile\profile.style">
+      <Filter>SourceFiles\profile</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

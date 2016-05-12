@@ -26,7 +26,7 @@ class ProfileInner : public TWidget, public RPCSender, public ClickHandlerHost {
 
 public:
 
-	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer);
+	ProfileInner(ProfileWidget *profile, PeerData *peer);
 
 	void start();
 
@@ -147,7 +147,6 @@ private:
 	bool migrateFail(const RPCError &error);
 
 	ProfileWidget *_profile;
-	ScrollArea *_scroll;
 
 	PeerData *_peer;
 	UserData *_peerUser;

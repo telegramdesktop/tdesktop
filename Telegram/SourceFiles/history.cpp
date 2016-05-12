@@ -3204,14 +3204,14 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
-RadialAnimation::RadialAnimation(AnimationCreator creator)
+RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
 : _firstStart(0)
 , _lastStart(0)
 , _lastTime(0)
 , _opacity(0)
 , a_arcEnd(0, 0)
 , a_arcStart(0, FullArcLength)
-, _animation(creator) {
+, _animation(std_::move(callbacks)) {
 
 }
 
