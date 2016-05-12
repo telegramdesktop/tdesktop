@@ -9,4 +9,4 @@ Terminal=false
 StartupWMClass=Telegram
 Type=Application
 Categories=Network;
-MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;
+MimeType=x-scheme-handler/tg;

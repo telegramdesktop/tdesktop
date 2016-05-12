@@ -86,6 +86,7 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
+    cd openal-soft
     git checkout 90349b38
     git apply ./../../tdesktop/Telegram/Patches/openal.diff
 

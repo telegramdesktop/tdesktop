@@ -2301,8 +2301,10 @@ namespace Local {
 
 			EncryptedDescriptor data(sizeof(quint64) + Serialize::stringSize(msgDraft.text) + 2 * sizeof(qint32) + Serialize::stringSize(editDraft.text) + 2 * sizeof(qint32));
 			data.stream << quint64(peer);
-			data.stream << msgDraft.text << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
-			data.stream << editDraft.text << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
+			data.stream << msgDraft.text << QByteArray();
+			data.stream << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
+			data.stream << editDraft.text << QByteArray();
+			data.stream << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
 
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
@@ -2371,14 +2373,22 @@ namespace Local {
 
 		quint64 draftPeer = 0;
 		QString msgText, editText;
+		QByteArray msgTagsSerialized, editTagsSerialized;
 		qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
 		draft.stream >> draftPeer >> msgText;
+		if (draft.version >= 9048) {
+			draft.stream >> msgTagsSerialized;
+		}
 		if (draft.version >= 7021) {
 			draft.stream >> msgReplyTo;
 			if (draft.version >= 8001) {
 				draft.stream >> msgPreviewCancelled;
 				if (!draft.stream.atEnd()) {
-					draft.stream >> editText >> editMsgId >> editPreviewCancelled;
+					draft.stream >> editText;
+					if (draft.version >= 9048) {
+						draft.stream >> editTagsSerialized;
+					}
+					draft.stream >> editMsgId >> editPreviewCancelled;
 				}
 			}
 		}

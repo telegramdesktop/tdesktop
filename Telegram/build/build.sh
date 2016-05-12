@@ -124,6 +124,9 @@ fi
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
   DropboxSymbolsPath="/media/psf/Dropbox/Telegram/symbols"
+  if [ ! -d "$DropboxSymbolsPath" ]; then
+    Error "Dropbox path not found!"
+  fi
 
   mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
   cd "$WorkPath/ReleaseIntermediateUpdater"
@@ -206,6 +209,9 @@ fi
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
   DropboxSymbolsPath="/Volumes/Storage/Dropbox/Telegram/symbols"
+  if [ ! -d "$DropboxSymbolsPath" ]; then
+    Error "Dropbox path not found!"
+  fi
 
   if [ "$FastParam" != "fast" ]; then
     touch "./Resources/telegram.qrc"
@@ -279,7 +285,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     if [ "$BetaVersion" == "0" ]; then
       cd "$ReleasePath"
-      temppath=`hdiutil attach -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
+      cp -f tsetup_blank.dmg tsetup.dmg
+      temppath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
       cp -R "./$BinaryName.app" "$temppath/"
       bless --folder "$temppath/" --openfolder "$temppath/"
       hdiutil detach "$temppath"
