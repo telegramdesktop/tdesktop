@@ -279,7 +279,6 @@ public:
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	void step_show(float64 ms, bool timer);
 
-	void updateAdaptiveLayout();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
@@ -300,12 +299,10 @@ public:
 	void updateAfterDrag();
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}
@@ -354,7 +351,7 @@ private:
 
 	int32 _selCount;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab;
 
 };

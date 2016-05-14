@@ -38,10 +38,8 @@ public:
 	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth, int minHeight);
 
-	// Sometimes height of this widget is larger than it is required
-	// so that it is allowed to scroll down to the desired position.
-	// When resizing with scroll moving up the additional height may be decreased.
-	void decreaseAdditionalHeight(int removeHeight);
+	// Updates the area that is visible inside the scroll container.
+	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -50,11 +48,18 @@ private:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth);
 
+	// Sometimes height of this widget is larger than it is required
+	// so that it is allowed to scroll down to the desired position.
+	// When resizing with scroll moving up the additional height may be decreased.
+	void decreaseAdditionalHeight(int removeHeight);
+
 	PeerData *_peer;
 
 	// Height that we added to the natural height so that it is allowed
 	// to scroll down to the desired position.
 	int _addedHeight = 0;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 
 	ChildWidget<CoverWidget> _cover;
 	QList<BlockWidget*> _blocks;

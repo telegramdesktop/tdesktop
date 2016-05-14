@@ -25,38 +25,48 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 
 namespace Profile {
+namespace {
 
-class BackButton final : public Button {
+class OnlineCounter {
 public:
-	BackButton(QWidget *parent) : Button(parent) {
-		setCursor(style::cur_pointer);
+	OnlineCounter() : _currentTime(unixtime()), _self(App::self()) {
 	}
-
-	void resizeToWidth(int newWidth) {
-		resize(newWidth, st::profileTopBarHeight);
+	void feedUser(UserData *user) {
+		if (App::onlineForSort(user, _currentTime) > _currentTime) {
+			++_result;
+			if (user != _self) {
+				_onlyMe = false;
+			}
+		}
 	}
-
-protected:
-	void paintEvent(QPaintEvent *e) {
-		Painter p(this);
-
-		st::profileTopBarBackIcon.paint(p, st::profileTopBarBackIconPosition, width());
-
-		p.setFont(st::profileTopBarBackFont);
-		p.setPen(st::profileTopBarBackFg);
-		p.drawTextLeft(st::profileTopBarBackPosition.x(), st::profileTopBarBackPosition.y(), width(), lang(lng_menu_back));
+	QString result(int fullCount) const {
+		if (_result > 0 && !_onlyMe) {
+			return lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _result);
+		}
+		return lng_chat_status_members(lt_count, fullCount);
 	}
 
 private:
+	bool _onlyMe = true;
+	int _result = 0;
+	int _currentTime;
+	UserData *_self;
 
 };
+
+} // namespace
 
 class PhotoButton final : public Button {
 public:
 	PhotoButton(QWidget *parent, PeerData *peer) : Button(parent), _peer(peer) {
 		resize(st::profilePhotoSize, st::profilePhotoSize);
+	}
+	void photoUpdated() {
+		bool hasPhoto = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId);
+		setCursor(hasPhoto ? style::cur_pointer : style::cur_default);
 	}
 
 protected:
@@ -77,29 +87,29 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChat(peer->asChat())
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
-, _backButton(this)
 , _photoButton(this, peer) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_backButton->moveToLeft(0, 0);
-	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
+	_photoButton->photoUpdated();
+	connect(_photoButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 
 	_nameText.setText(st::profileNameFont, App::peerName(_peer));
 	updateStatusText();
 }
 
-void CoverWidget::onBack() {
-	App::main()->showBackFromStack();
+void CoverWidget::onPhotoShow() {
+	PhotoData *photo = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId) ? App::photo(_peer->photoId) : nullptr;
+	if ((_peer->photoId == UnknownPeerPhotoId) || (_peer->photoId && !photo->date)) {
+		App::api()->requestFullPeer(_peer);
+	}
+	if (photo && photo->date) {
+		App::wnd()->showPhoto(photo, _peer);
+	}
 }
 
 void CoverWidget::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 
-	// Top bar
-	_backButton->resizeToWidth(newWidth);
-	newHeight += _backButton->height();
-
-	// Cover content
 	newHeight += st::profileMarginTop;
 	_photoButton->moveToLeft(st::profilePhotoLeft, newHeight);
 
@@ -143,34 +153,19 @@ void CoverWidget::updateStatusText() {
 				_statusText = lng_chat_status_members(lt_count, _peerChat->count);
 			}
 		} else {
-			int onlineCount = 0;
-			bool onlyMe = true;
-			for (auto i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
-				auto onlineTill = App::onlineForSort(i.key(), currentTime);
-				if (onlineTill > currentTime) {
-					++onlineCount;
-				}
+			OnlineCounter counter;
+			auto &participants = _peerChat->participants;
+			for (auto i = participants.cbegin(), e = participants.cend(); i != e; ++i) {
+				counter.feedUser(i.key());
 			}
-			if (onlineCount && !onlyMe) {
-				_statusText = lng_chat_status_members_online(lt_count, _peerChat->participants.size(), lt_count_online, onlineCount);
-			} else {
-				_statusText = lng_chat_status_members(lt_count, _peerChat->participants.size());
-			}
+			_statusText = counter.result(participants.size());
 		}
 	} else if (isUsingMegagroupOnlineCount()) {
-		int onlineCount = 0;
-		bool onlyMe = true;
-		for_const (auto &user, _peerMegagroup->mgInfo->lastParticipants) {
-			auto onlineTill = App::onlineForSort(user, currentTime);
-			if (onlineTill > currentTime) {
-				++onlineCount;
-			}
+		OnlineCounter counter;
+		for_const (auto user, _peerMegagroup->mgInfo->lastParticipants) {
+			counter.feedUser(user);
 		}
-		if (onlineCount && !onlyMe) {
-			_statusText = lng_chat_status_members_online(lt_count, _peerMegagroup->count, lt_count_online, onlineCount);
-		} else {
-			_statusText = lng_chat_status_members(lt_count, _peerMegagroup->count);
-		}
+		_statusText = counter.result(_peerMegagroup->count);
 	} else if (_peerChannel) {
 		if (_peerChannel->count > 0) {
 			_statusText = lng_chat_status_members(lt_count, _peerChannel->count);

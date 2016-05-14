@@ -27,6 +27,7 @@ class ScrollArea;
 namespace Profile {
 
 class InnerWidget;
+class FixedBar;
 class Widget final : public TWidget {
 	Q_OBJECT
 
@@ -48,6 +49,9 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+private slots:
+	void onScroll();
+
 private:
 	// QWidget::update() method is overloaded and we need template deduction.
 	void repaintCallback() {
@@ -55,9 +59,9 @@ private:
 	}
 	void showFinished();
 
+	ChildWidget<FixedBar> _fixedBar;
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
-	ChildWidget<PlainShadow> _sideShadow;
 
 	std_::unique_ptr<SlideAnimation> _showAnimation;
 

@@ -184,6 +184,21 @@ public:
 
 	bool inFocusChain() const;
 
+	void hideChildren() {
+		for (auto child : children()) {
+			if (auto widget = qobject_cast<QWidget*>(child)) {
+				widget->hide();
+			}
+		}
+	}
+	void showChildren() {
+		for (auto child : children()) {
+			if (auto widget = qobject_cast<QWidget*>(child)) {
+				widget->show();
+			}
+		}
+	}
+
 };
 
 void myEnsureResized(QWidget *target);

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "profile/profile_cover.h"
+#include "apiwrap.h"
 
 namespace Profile {
 
@@ -37,10 +38,25 @@ void InnerWidget::resizeToWidth(int newWidth, int minHeight) {
 	resize(newWidth, naturalHeight + _addedHeight);
 }
 
-void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
-	if (removeHeight > 0) {
-		resizeToWidth(width(), height() - removeHeight);
+void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+
+	int notDisplayedAtBottom = height() - _visibleBottom;
+	if (notDisplayedAtBottom > 0) {
+		decreaseAdditionalHeight(notDisplayedAtBottom);
 	}
+
+	//loadProfilePhotos(_visibleTop);
+	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->count) {
+		if (_visibleTop + (PreloadHeightsCount + 1) * (_visibleBottom - _visibleTop) > height()) {
+			App::api()->requestLastParticipants(peer()->asChannel(), false);
+		}
+	}
+}
+
+void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
+	resizeToWidth(width(), height() - removeHeight);
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {

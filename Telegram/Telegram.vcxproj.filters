@@ -1149,6 +1149,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_profile_cover.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_fixed_bar.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1574,6 +1586,9 @@
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_cover.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_fixed_bar.h">
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
   </ItemGroup>

@@ -1864,15 +1864,12 @@ ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this, peer)
 , _a_show(animation(this, &ProfileWidget::step_show))
-, _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor)
 , _inGrab(false) {
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
 	_scroll.show();
-
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1906,8 +1903,6 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 
 	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
 	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
-	_sideShadow.resize(st::lineWidth, height());
-	_sideShadow.moveToLeft(0, 0);
 }
 
 void ProfileWidget::mousePressEvent(QMouseEvent *e) {
@@ -1988,7 +1983,7 @@ void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_scroll.hide();
 	_topShadow.hide();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -2003,7 +1998,6 @@ void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
@@ -2053,10 +2047,6 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 		}
 		_scroll.scrollToY(_scroll.scrollTop() + addToScroll);
 	}
-}
-
-void ProfileWidget::updateAdaptiveLayout() {
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 PeerData *ProfileWidget::ui_getPeerForMouseAction() {

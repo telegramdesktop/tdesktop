@@ -257,15 +257,12 @@ public:
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void updateAdaptiveLayout();
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}
@@ -294,7 +291,7 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab;
 
 };

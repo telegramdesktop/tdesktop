@@ -33,12 +33,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _a_state(animation(this, &PlayerWidget::step_state))
-, _a_progress(animation(this, &PlayerWidget::step_progress))
-, _sideShadow(this, st::shadowColor) {
+, _a_progress(animation(this, &PlayerWidget::step_progress)) {
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -343,10 +341,6 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	}
 }
 
-void PlayerWidget::updateAdaptiveLayout() {
-	_sideShadow.setVisible(!Adaptive::OneColumn());
-}
-
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
@@ -569,9 +563,6 @@ void PlayerWidget::resizeEvent(QResizeEvent *e) {
 
 	int32 infoLeft = (_fullAvailable ? (_nextRect.x() + _nextRect.width()) : (_playRect.x() + _playRect.width()));
 	_infoRect = QRect(infoLeft + st::playerSkip / 2, 0, (_fullAvailable ? _fullRect.x() : _repeatRect.x()) - infoLeft - st::playerSkip, availh);
-
-	_sideShadow.resize(st::lineWidth, height());
-	_sideShadow.moveToLeft(0, 0);
 
 	update();
 }

@@ -23,44 +23,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Profile {
 
 class BackButton;
-class PhotoButton;
 
-class CoverWidget final : public TWidget {
+class FixedBar final : public TWidget {
 	Q_OBJECT
 
 public:
-	CoverWidget(QWidget *parent, PeerData *peer);
+	FixedBar(QWidget *parent, PeerData *peer);
 
-	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth);
 
-public slots:
-	void onPhotoShow();
+	// When animating mode is enabled the content is hidden and the
+	// whole fixed bar acts like a back button.
+	void setAnimatingMode(bool enabled);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+public slots:
+	void onBack();
 
 private:
-	void updateStatusText();
-	bool isUsingMegagroupOnlineCount() const;
-
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	// Cover content
-	ChildWidget<PhotoButton> _photoButton;
+	ChildWidget<BackButton> _backButton;
+	QList<FlatButton*> _rightActions;
 
-	QPoint _namePosition;
-	Text _nameText;
-
-	QPoint _statusPosition;
-	QString _statusText;
-
-	ChildWidget<BoxButton> _primaryButton = { nullptr };
-	ChildWidget<BoxButton> _secondaryButton = { nullptr };
+	bool _animatingMode = false;
 
 };
 

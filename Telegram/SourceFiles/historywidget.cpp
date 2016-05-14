@@ -2767,7 +2767,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
 , _a_show(animation(this, &HistoryWidget::step_show))
-, _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
@@ -2890,7 +2889,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachDragPhoto.hide();
 
 	_topShadow.hide();
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
 	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
@@ -5038,7 +5036,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 		_pinnedBar->cancel.hide();
 	}
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -5048,10 +5046,9 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 }
 
 void HistoryWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
+	float64 dt = ms / 3000;// st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.setVisible(_peer ? true : false);
 
 		a_coordUnder.finish();
@@ -5090,14 +5087,12 @@ void HistoryWidget::doneShow() {
 }
 
 void HistoryWidget::updateAdaptiveLayout() {
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 	update();
 }
 
 void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 	_topShadow.setVisible(_peer ? true : false);
 }
 
@@ -6489,8 +6484,6 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 
 	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
 	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
-	_sideShadow.resize(st::lineWidth, height());
-	_sideShadow.moveToLeft(0, 0);
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {
@@ -7081,7 +7074,6 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			}
 			connect(&_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
 			_reportSpamPanel.raise();
-			_sideShadow.raise();
 			_topShadow.raise();
 			updatePinnedBar();
 			result = true;

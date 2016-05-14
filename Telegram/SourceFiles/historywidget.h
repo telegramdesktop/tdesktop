@@ -656,12 +656,10 @@ public:
 	bool contentOverlapped(const QRect &globalRect);
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}
@@ -1086,7 +1084,7 @@ private:
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab = false;
 
 };

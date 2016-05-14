@@ -61,7 +61,7 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 
 void SlideAnimation::start() {
 	int width = _cacheUnder.width() / cIntRetinaFactor();
-	int delta = qFloor(st::slideShift * width);
+	int delta = st::slideShift;
 	a_progress = anim::fvalue(0, 1);
 	if (_direction == SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
@@ -75,7 +75,7 @@ void SlideAnimation::start() {
 }
 
 void SlideAnimation::step(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
+	float64 dt = ms / 3000;// st::slideDuration;
 	if (dt >= 1) {
 		dt = 1;
 		if (timer) {

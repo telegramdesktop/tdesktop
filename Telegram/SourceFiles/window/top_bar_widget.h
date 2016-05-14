@@ -47,7 +47,6 @@ public:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void step_appearance(float64 ms, bool timer);
-	void enableShadow(bool enable = true);
 
 	void startAnim();
 	void stopAnim();
@@ -58,14 +57,7 @@ public:
 
 	FlatButton *mediaTypeButton();
 
-	void grabStart() override {
-		_sideShadow->hide();
-	}
-	void grabFinish() override {
-		_sideShadow->setVisible(!Adaptive::OneColumn());
-	}
-
-	public slots:
+public slots:
 
 	void onForwardSelection();
 	void onDeleteSelection();
@@ -106,8 +98,6 @@ private:
 	ChildWidget<FlatButton> _mediaType;
 
 	ChildWidget<IconedButton> _search;
-
-	ChildWidget<PlainShadow> _sideShadow;
 
 };
 

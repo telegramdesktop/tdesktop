@@ -552,6 +552,8 @@ private:
 
 	int _dialogsWidth = st::dlgMinWidth;
 
+	PlainShadow _sideShadow;
+
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
 	ChildWidget<Profile::Widget> _profile = { nullptr };

@@ -51,8 +51,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
 , _deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
-, _search(this, st::topBarSearch)
-, _sideShadow(this, st::shadowColor) {
+, _search(this, st::topBarSearch) {
 
 	connect(_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -263,9 +262,6 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_addContact->isHidden()) _addContact->move(r -= _addContact->width(), 0);
 	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
 	_search->move(width() - (_info->isHidden() ? st::topBarForwardPadding.right() : _info->width()) - _search->width(), 0);
-
-	_sideShadow->resize(st::lineWidth, height());
-	_sideShadow->moveToLeft(0, 0);
 }
 
 void TopBarWidget::startAnim() {
@@ -285,7 +281,6 @@ void TopBarWidget::startAnim() {
 
 void TopBarWidget::stopAnim() {
 	_animating = false;
-	_sideShadow->setVisible(!Adaptive::OneColumn());
 	showAll();
 }
 
@@ -363,7 +358,6 @@ void TopBarWidget::showAll() {
 			_info->hide();
 		}
 	}
-	_sideShadow->setVisible(!Adaptive::OneColumn());
 	resizeEvent(nullptr);
 }
 

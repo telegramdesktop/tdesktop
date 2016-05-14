@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_widget.h"
 
+#include "profile/profile_fixed_bar.h"
 #include "profile/profile_inner_widget.h"
 #include "mainwindow.h"
 #include "application.h"
@@ -28,14 +29,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Profile {
 
 Widget::Widget(QWidget *parent, PeerData *peer) : TWidget(parent)
+, _fixedBar(this, peer)
 , _scroll(this, st::setScroll)
-, _inner(this, peer)
-, _sideShadow(this, st::shadowColor) {
-	_scroll->setWidget(_inner);
-	_scroll->move(0, 0);
-	_scroll->show();
+, _inner(this, peer) {
+	_fixedBar->move(0, 0);
+	_fixedBar->resizeToWidth(width());
+	_fixedBar->show();
 
-	_sideShadow->setVisible(!Adaptive::OneColumn());
+	_scroll->setWidget(_inner);
+	_scroll->move(0, _fixedBar->height());
+	_scroll->show();
 
 	connect(_scroll, SIGNAL(scrolled()), _inner, SLOT(updateSelected()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -58,12 +61,13 @@ void Widget::setGeometryWithTopMoved(const QRect &newGeometry, int topDelta) {
 }
 
 void Widget::showAnimated(SlideDirection direction, const QPixmap &oldContentCache) {
-	show();
-	_scroll->show();
-	_sideShadow->hide();
+	_showAnimation = nullptr;
+
+	showChildren();
+	_fixedBar->setAnimatingMode(false);
 	auto myContentCache = myGrab(this);
-	_scroll->hide();
-	_sideShadow->show();
+	hideChildren();
+	_fixedBar->setAnimatingMode(true);
 
 	_showAnimation = std_::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
@@ -71,6 +75,8 @@ void Widget::showAnimated(SlideDirection direction, const QPixmap &oldContentCac
 	_showAnimation->setFinishedCallback(func(this, &Widget::showFinished));
 	_showAnimation->setPixmaps(oldContentCache, myContentCache);
 	_showAnimation->start();
+
+	show();
 }
 
 void Widget::setInnerFocus() {
@@ -79,24 +85,20 @@ void Widget::setInnerFocus() {
 
 void Widget::resizeEvent(QResizeEvent *e) {
 	int newScrollTop = _scroll->scrollTop() + _topDelta;
-	if (_scroll->size() != size()) {
-		_scroll->resize(size());
-		if (_inner->width() != width()) {
-			_inner->resizeToWidth(width(), _scroll->height());
-		}
+	_fixedBar->resizeToWidth(width());
+
+	QSize scrollSize(width(), height() - _fixedBar->height());
+	if (_scroll->size() != scrollSize) {
+		_scroll->resize(scrollSize);
+		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 	}
 	if (!_scroll->isHidden()) {
 		if (_topDelta) {
 			_scroll->scrollToY(newScrollTop);
 		}
-		int notDisplayedAtBottom = _scroll->scrollTopMax() - _scroll->scrollTop();
-		if (notDisplayedAtBottom > 0) {
-			_inner->decreaseAdditionalHeight(notDisplayedAtBottom);
-		}
+		int scrollTop = _scroll->scrollTop();
+		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	}
-
-	_sideShadow->resize(st::lineWidth, height());
-	_sideShadow->moveToLeft(0, 0);
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -108,11 +110,19 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void Widget::onScroll() {
+	int scrollTop = _scroll->scrollTop();
+	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+}
+
 void Widget::showFinished() {
 	if (isHidden()) return;
 
 	App::app()->mtpUnpause();
-	_scroll->show();
+
+	showChildren();
+	_fixedBar->setAnimatingMode(false);
+
 	setInnerFocus();
 }
 

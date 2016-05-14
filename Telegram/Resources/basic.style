@@ -375,7 +375,7 @@ versionColor: #777;
 shadowColor: rgba(0, 0, 0, 24);
 
 slideDuration: 240;
-slideShift: 0.3;
+slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: sprite(348px, 71px, 48px, 1px);
 slideFunction: transition(easeOutCirc);

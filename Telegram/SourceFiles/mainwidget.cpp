@@ -48,6 +48,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
+, _sideShadow(this, st::shadowColor)
 , _dialogs(this)
 , _history(this)
 , _player(this)
@@ -387,7 +388,7 @@ QPixmap MainWidget::grabInner() {
 	if (_overview && !_overview->isHidden()) {
 		return myGrab(_overview);
 	} else if (_profile && !_profile->isHidden()) {
-		return myGrab(_profile);
+		return myGrab(_profile, QRect(0, st::topBarHeight, _history->width(), _history->height() - st::topBarHeight));
 	} else if (Adaptive::OneColumn() && _history->isHidden()) {
 		return myGrab(_dialogs, QRect(0, st::topBarHeight, _dialogs->width(), _dialogs->height() - st::topBarHeight));
 	} else if (_history->peer()) {
@@ -407,6 +408,8 @@ bool MainWidget::isItemVisible(HistoryItem *item) {
 QPixmap MainWidget::grabTopBar() {
 	if (!_topBar->isHidden()) {
 		return myGrab(_topBar);
+	} else if (_profile) {
+		return myGrab(_profile, QRect(0, 0, _profile->width(), st::topBarHeight));
 	} else if (Adaptive::OneColumn() && _history->isHidden()) {
 		return myGrab(_dialogs, QRect(0, 0, _dialogs->width(), st::topBarHeight));
 	} else {
@@ -528,7 +531,9 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 					if (Adaptive::OneColumn()) {
 						animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 					} else {
+						_sideShadow.hide();
 						animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+						_sideShadow.show();
 					}
 				} else {
 					animCache = grabInner();
@@ -2050,7 +2055,9 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		} else if (Adaptive::OneColumn()) {
 			animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 		} else {
+			_sideShadow.hide();
 			animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+			_sideShadow.show();
 		}
 		if (peerId || !Adaptive::OneColumn()) {
 			animTopBarCache = grabTopBar();
@@ -2261,7 +2268,9 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	if (Adaptive::OneColumn()) {
 		animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else {
+		_sideShadow.hide();
 		animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+		_sideShadow.show();
 	}
 //	QPixmap animCache = grabInner(), animTopBarCache = grabTopBar();
 	if (!back) {
@@ -2343,6 +2352,7 @@ void MainWidget::orderWidgets() {
 	_player->raise();
 	_dialogs->raise();
 	_mediaType->raise();
+	_sideShadow.raise();
 	if (_hider) _hider->raise();
 }
 
@@ -2435,7 +2445,7 @@ void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -2587,6 +2597,8 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 		_dialogsWidth = chatsListWidth(width());
 		_dialogs->resize(_dialogsWidth, height());
 		_dialogs->moveToLeft(0, 0);
+		_sideShadow.resize(st::lineWidth, height());
+		_sideShadow.moveToLeft(_dialogsWidth, 0);
 		_player->resize(width() - _dialogsWidth, _player->height());
 		_player->moveToLeft(_dialogsWidth, 0);
 		_topBar->resize(width() - _dialogsWidth, st::topBarHeight);
@@ -2616,11 +2628,9 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 
 void MainWidget::updateAdaptiveLayout() {
 	showAll();
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 	_topBar->updateAdaptiveLayout();
 	_history->updateAdaptiveLayout();
-	if (_overview) _overview->updateAdaptiveLayout();
-//	if (_profile) _profile->updateAdaptiveLayout(); TODO
-	_player->updateAdaptiveLayout();
 }
 
 bool MainWidget::needBackButton() {

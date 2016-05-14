@@ -1922,15 +1922,12 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
 , _selCount(0)
-, _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor)
 , _inGrab(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
-
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	updateScrollColors();
 
@@ -1983,8 +1980,6 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 
 	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
 	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
-	_sideShadow.resize(st::lineWidth, height());
-	_sideShadow.moveToLeft(0, 0);
 }
 
 void OverviewWidget::paintEvent(QPaintEvent *e) {
@@ -2148,7 +2143,7 @@ void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimT
 	_scroll.hide();
 	_topShadow.hide();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -2163,7 +2158,6 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
@@ -2184,10 +2178,6 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 		update();
 		App::main()->topBar()->update();
 	}
-}
-
-void OverviewWidget::updateAdaptiveLayout() {
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void OverviewWidget::doneShow() {
