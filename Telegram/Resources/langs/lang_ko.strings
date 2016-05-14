@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "링크 정보를 가져오는 중..";
 
 "lng_profile_chat_unaccessible" = "그룹에 접근할 수 없습니다.";
-"lng_topbar_info" = "정보";
 "lng_profile_about_section" = "정보";
 "lng_profile_description_section" = "설명";
 "lng_profile_settings_section" = "환경설정";
@@ -594,12 +593,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_channel_public_link_copied" = "클립보드에 링크가 복사되었습니다.";
 
-"lng_forwarded" = "{user}로 부터 전달 받음";
+"lng_forwarded" = "{user}님으로 부터 전달 받음";
 "lng_forwarded_channel" = "{channel}로 부터 전달 받음";
 "lng_forwarded_via" = "{inline_bot}을 {user}로 부터 전달 받음";
 "lng_forwarded_channel_via" = "{inline_bot}을 {channel}로 부터 전달 받음";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "다음 유저에게 답장 :";
+"lng_edited" = "수정됨";
+"lng_edited_date" = "수정됨: {date}";
+"lng_cancel_edit_post_sure" = "수정을 취소하겠습니까?";
+"lng_cancel_edit_post_yes" = "네";
+"lng_cancel_edit_post_no" = "아니요";
 
 "lng_bot_share_location_unavailable" = "죄송합니다, 위치 공유는 텔레그램 테스크탑에서는 현재 지원을 하고 있지 않습니다.";
 "lng_bot_inline_geo_unavailable" = "죄송합니다, 위치 공유는 텔레그램 테스크탑에서는 현재 지원을 하고 있지 않습니다.";
@@ -893,11 +897,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 비주얼 향상";
+"lng_new_version_text" = "— 메시지 작성 후 2일내 수정 기능\n— 그룹내에서 @를 입력하고 상대방을 선택하여 멘션 기능 ㅡ 아이디가 없어도 가능\n\n자세한 설명: {link}";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
 "lng_full_name" = "{last_name} {first_name}";
+
+// Not used
+
+"lng_topbar_info" = "정보";
 
 // Wnd specific
 

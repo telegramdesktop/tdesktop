@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "Recupero le info del link...";
 
 "lng_profile_chat_unaccessible" = "Gruppo non accessibile";
-"lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Info";
 "lng_profile_description_section" = "Descrizione";
 "lng_profile_settings_section" = "Impostazioni";
@@ -600,6 +599,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Inoltrato da {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In risposta a";
+"lng_edited" = "modificato";
+"lng_edited_date" = "Modificato: {date}";
+"lng_cancel_edit_post_sure" = "Annullare la modifica?";
+"lng_cancel_edit_post_yes" = "Sì";
+"lng_cancel_edit_post_no" = "No";
 
 "lng_bot_share_location_unavailable" = "Spiacenti, la condivisione della posizione non è al momento disponibile su Telegram Desktop.";
 "lng_bot_inline_geo_unavailable" = "Spiacenti, questo bot richiede la condivisione della posizione. Non è disponibile su Telegram Desktop.";
@@ -628,7 +632,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_auto_photo" = "Download automatico foto";
 "lng_media_auto_audio" = "Download automatico messaggi vocali";
 "lng_media_auto_gif" = "Download automatico GIF";
-"lng_media_auto_private_chats" = "Chat";
+"lng_media_auto_private_chats" = "Chat private";
 "lng_media_auto_groups" = "Gruppi e canali";
 "lng_media_auto_play" = "Autoriproduzione";
 
@@ -893,11 +897,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Miglioramenti visivi";
+"lng_new_version_text" = "— Modifica i tuoi messaggi ovunque entro 2 giorni dall'invio.\n— Menziona le persone nei gruppi digitando @ e selezionandole dalla lista — anche se non hanno un username.\n\nPiù informazioni: {link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+// Not used
+
+"lng_topbar_info" = "Info";
 
 // Wnd specific
 

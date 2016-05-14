@@ -43,7 +43,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "audio.h"
-#include "langloaderplain.h"
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
@@ -1055,35 +1054,9 @@ void executeParsedCommand(const QString &command) {
 	if (command == qsl("new_version_text")) {
 		App::wnd()->serviceNotification(langNewVersionText());
 	} else if (command == qsl("all_new_version_texts")) {
-
-#define NEW_VER_TAG lt_link
-#define NEW_VER_TAG_VALUE "https://telegram.org/blog/bots-2-0"
-
-#ifdef NEW_VER_TAG
-#define NEW_VER_KEY lng_new_version_text__tagged
-#define NEW_VER_POSTFIX .tag(NEW_VER_TAG, QString::fromUtf8(NEW_VER_TAG_VALUE))
-#else
-#define NEW_VER_KEY lng_new_version_text
-#define NEW_VER_POSTFIX
-#endif
-
 		for (int i = 0; i < languageCount; ++i) {
-			LangLoaderResult result;
-			if (i) {
-				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name, NEW_VER_KEY));
-				result = loader.found();
-			} else {
-				result.insert(lng_language_name, langOriginal(lng_language_name));
-				result.insert(NEW_VER_KEY, langOriginal(NEW_VER_KEY));
-			}
-			App::wnd()->serviceNotification(result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")) + qsl(":\n\n") + LangString(result.value(NEW_VER_KEY, qsl("--none--")))NEW_VER_POSTFIX);
+			App::wnd()->serviceNotification(langNewVersionTextForLang(i));
 		}
-
-#undef NEW_VER_POSTFIX
-#undef NEW_VER_KEY
-#undef NEW_VER_TAG_VALUE
-#undef NEW_VER_TAG
-
 	}
 }
 } // namespace
