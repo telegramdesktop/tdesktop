@@ -1524,8 +1524,8 @@ protected:
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
 	bool displayDate() const {
-		if (HistoryItem *prev = previous()) {
-			return prev->date.date().day() != date.date().day();
+		if (auto prev = previous()) {
+			return prev->date.date() != date.date();
 		}
 		return true;
 	}

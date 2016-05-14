@@ -3724,11 +3724,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
-			_history->forgetScrollState();
-			if (_migrated) {
-				_migrated->forgetScrollState();
-			}
-
 			bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
 
 			bool canShowNow = _history->isReadyFor(showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
@@ -3738,6 +3733,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
 			} else {
+				_history->forgetScrollState();
+				if (_migrated) {
+					_migrated->forgetScrollState();
+				}
+
 				if (_history->isChannel() && wasOnlyImportant != _history->asChannelHistory()->onlyImportant()) {
 					clearAllLoadRequests();
 				}

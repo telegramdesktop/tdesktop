@@ -5356,6 +5356,9 @@ void HistoryContact::initDimensions() {
 
 	if (_userId) {
 		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
+		if (_parent->Has<HistoryMessageSigned>()) {
+			_minh += st::msgDateFont->height - st::msgDateDelta.y();
+		}
 	} else {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
