@@ -2334,7 +2334,7 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Resources\telegram.qrc">
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(FullPath);.\Resources\art\icon256.png;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(FullPath);.\Resources\art\icon256.png;.\Resources\art\sprite_125x.png;.\Resources\art\sprite_150x.png;%(AdditionalInputs)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Rcc%27ing %(Identity)...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\qrc_%(Filename).cpp;%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\rcc.exe" -name "%(Filename)" -no-compress "%(FullPath)" -o .\GeneratedFiles\qrc_%(Filename).cpp</Command>
@@ -2415,7 +2415,18 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </CodegenStyleItem>
-    <CodegenStyleItem Include="Resources\basic.style" />
+    <CustomBuild Include="Resources\basic.style">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_style.exe" "-I.\Resources" "-I.\SourceFiles" "-o.\GeneratedFiles\styles" %(FullPath)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_style.exe" "-I.\Resources" "-I.\SourceFiles" "-o.\GeneratedFiles\styles" %(FullPath)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)$(Platform)\codegen\$(Configuration)\codegen_style.exe" "-I.\Resources" "-I.\SourceFiles" "-o.\GeneratedFiles\styles" %(FullPath)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\styles\style_%(Filename).h;.\GeneratedFiles\styles\style_%(Filename).cpp;.\Resources\art\sprite_125x.png;.\Resources\art\sprite_150x.png;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\styles\style_%(Filename).h;.\GeneratedFiles\styles\style_%(Filename).cpp;.\Resources\art\sprite_125x.png;.\Resources\art\sprite_150x.png;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\styles\style_%(Filename).h;.\GeneratedFiles\styles\style_%(Filename).cpp;.\Resources\art\sprite_125x.png;.\Resources\art\sprite_150x.png;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling style %(Identity)...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Compiling style %(Identity)...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling style %(Identity)...</Message>
+    </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style" />
     <CodegenStyleItem Include="SourceFiles\overview\overview.style" />
   </ItemGroup>
