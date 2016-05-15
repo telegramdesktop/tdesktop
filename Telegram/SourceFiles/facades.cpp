@@ -236,6 +236,10 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	}
 }
 
+void showPeerProfile(const PeerId &peer) {
+	if (MainWidget *m = App::main()) m->showPeerProfile(App::peer(peer));
+}
+
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
 	if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
 }

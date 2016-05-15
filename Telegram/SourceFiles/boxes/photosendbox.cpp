@@ -414,7 +414,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			image = doc->thumb;
 		} break;
 		}
-		caption = media->getCaption();
+		caption = media->getCaption().text;
 	}
 	if ((!_animated && (dimensions.isEmpty() || doc)) || image->isNull()) {
 		_animated = false;
@@ -492,7 +492,8 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		_field->setMaxLength(MaxPhotoCaption);
 		_field->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
 	} else {
-		QString text = textApplyEntities(msg->originalText(), msg->originalEntities());
+		auto original = msg->originalText();
+		QString text = textApplyEntities(original.text, original.entities);
 		_field = new InputArea(this, st::editTextArea, lang(lng_photo_caption), text);
 //		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
 		_field->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);

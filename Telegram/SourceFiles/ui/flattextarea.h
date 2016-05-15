@@ -31,26 +31,27 @@ class FlatTextarea : public QTextEdit {
 
 public:
 
-	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using TagList = QVector<Tag>;
+	struct TextWithTags {
+		using Tags = FlatTextarea::TagList;
+		QString text;
+		Tags tags;
+	};
 
-	bool viewportEvent(QEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void focusInEvent(QFocusEvent *e) override;
-	void focusOutEvent(QFocusEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
+	static QByteArray serializeTagsList(const TagList &tags);
+	static TagList deserializeTagsList(QByteArray data, int textLength);
+	static QString tagsMimeType();
+
+	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString(), const TagList &tags = TagList());
 
 	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);
 	void setMaxHeight(int32 maxHeight);
 
-	const QString &getLastText() const {
-		return _oldtext;
-	}
 	void setPlaceholder(const QString &ph, int32 afterSymbols = 0);
 	void updatePlaceholder();
 	void finishPlaceholder();
@@ -92,7 +93,33 @@ public:
 	};
 	void setSubmitSettings(SubmitSettings settings);
 
-	void setTextFast(const QString &text, bool clearUndoHistory = true);
+	const TextWithTags &getTextWithTags() const {
+		return _lastTextWithTags;
+	}
+	TextWithTags getTextWithTagsPart(int start, int end = -1);
+	void insertTag(const QString &text, QString tagId = QString());
+
+	bool isEmpty() const {
+		return _lastTextWithTags.text.isEmpty();
+	}
+
+	enum UndoHistoryAction {
+		AddToUndoHistory,
+		MergeWithUndoHistory,
+		ClearUndoHistory
+	};
+	void setTextWithTags(const TextWithTags &textWithTags, UndoHistoryAction undoHistoryAction = AddToUndoHistory);
+
+	// If you need to make some preparations of tags before putting them to QMimeData
+	// (and then to clipboard or to drag-n-drop object), here is a strategy for that.
+	class TagMimeProcessor {
+	public:
+		virtual QString mimeTagFromTag(const QString &tagId) = 0;
+		virtual QString tagFromMimeTag(const QString &mimeTag) = 0;
+		virtual ~TagMimeProcessor() {
+		}
+	};
+	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
 
 public slots:
 
@@ -103,8 +130,6 @@ public slots:
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
-
-	void onMentionHashtagOrBotCommandInsert(QString str);
 
 signals:
 
@@ -118,8 +143,19 @@ signals:
 
 protected:
 
-	QString getText(int32 start = 0, int32 end = -1) const;
-	virtual void correctValue(const QString &was, QString &now);
+	bool viewportEvent(QEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
+	virtual void correctValue(const QString &was, QString &now, TagList &nowTags) {
+	}
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 
@@ -129,8 +165,21 @@ protected:
 
 private:
 
+	// "start" and "end" are in coordinates of text where emoji are replaced
+	// by ObjectReplacementCharacter. If "end" = -1 means get text till the end.
+	QString getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged = nullptr) const;
+
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
-	void processDocumentContentsChange(int position, int charsAdded);
+
+	// After any characters added we must postprocess them. This includes:
+	// 1. Replacing font family to semibold for ~ characters, if we used Open Sans 13px.
+	// 2. Replacing font family from semibold for all non-~ characters, if we used ...
+	// 3. Replacing emoji code sequences by ObjectReplacementCharacters with emoji pics.
+	// 4. Interrupting tags in which the text was inserted by any char except a letter.
+	// 5. Applying tags from "_insertedTags" in case we pasted text with tags, not just text.
+	// Rule 4 applies only if we inserted chars not in the middle of a tag (but at the end).
+	void processFormatting(int changedPosition, int changedEnd);
+
 	bool heightAutoupdated();
 
 	int _minHeight = -1; // < 0 - no autosize
@@ -138,13 +187,26 @@ private:
 	int _maxLength = -1;
 	SubmitSettings _submitSettings = SubmitSettings::Enter;
 
-	QString _ph, _phelided, _oldtext;
+	QString _ph, _phelided;
 	int _phAfter = 0;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor;
 	Animation _a_appearance;
+
+	TextWithTags _lastTextWithTags;
+
+	// Tags list which we should apply while setText() call or insert from mime data.
+	TagList _insertedTags;
+	bool _insertedTagsAreFromMime;
+
+	// Override insert position and charsAdded from complex text editing
+	// (like drag-n-drop in the same text edit field).
+	int _realInsertPosition = -1;
+	int _realCharsAdded = 0;
+
+	std_::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
 
 	style::flatTextarea _st;
 
@@ -163,7 +225,33 @@ private:
 
 	bool _correcting = false;
 
-	typedef QPair<int, int> LinkRange;
-	typedef QList<LinkRange> LinkRanges;
+	struct LinkRange {
+		int start;
+		int length;
+	};
+	friend bool operator==(const LinkRange &a, const LinkRange &b);
+	friend bool operator!=(const LinkRange &a, const LinkRange &b);
+	using LinkRanges = QVector<LinkRange>;
 	LinkRanges _links;
 };
+
+inline bool operator==(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
+}
+inline bool operator!=(const FlatTextarea::Tag &a, const FlatTextarea::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const FlatTextarea::TextWithTags &a, const FlatTextarea::TextWithTags &b) {
+	return (a.text == b.text) && (a.tags == b.tags);
+}
+inline bool operator!=(const FlatTextarea::TextWithTags &a, const FlatTextarea::TextWithTags &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const FlatTextarea::LinkRange &a, const FlatTextarea::LinkRange &b) {
+	return (a.start == b.start) && (a.length == b.length);
+}
+inline bool operator!=(const FlatTextarea::LinkRange &a, const FlatTextarea::LinkRange &b) {
+	return !(a == b);
+}

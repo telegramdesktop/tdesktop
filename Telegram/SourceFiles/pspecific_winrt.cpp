@@ -852,7 +852,6 @@ namespace {
 				//	_psShadowWindows.setColor(_shInactive);
 				//}
 				if (Global::started()) {
-					QMetaObject::invokeMethod(App::wnd(), "updateCounter", Qt::QueuedConnection);
 					App::wnd()->update();
 				}
 			} return false;

@@ -414,7 +414,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true id:int ip_address:string port:int = DcOption;
 
-config#317ceef4 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int disabled_features:Vector<DisabledFeature> = Config;
+config#c9411388 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -587,6 +587,8 @@ messageEntityItalic#826f8b60 offset:int length:int = MessageEntity;
 messageEntityCode#28a20571 offset:int length:int = MessageEntity;
 messageEntityPre#73924be0 offset:int length:int language:string = MessageEntity;
 messageEntityTextUrl#76a6d327 offset:int length:int url:string = MessageEntity;
+messageEntityMentionName#352dca58 offset:int length:int user_id:int = MessageEntity;
+inputMessageEntityMentionName#208e68c9 offset:int length:int user_id:InputUser = MessageEntity;
 
 inputChannelEmpty#ee8c1e86 = InputChannel;
 inputChannel#afeb712e channel_id:int access_hash:long = InputChannel;
@@ -677,6 +679,21 @@ inputBotInlineMessageID#890c3d89 dc_id:int id:long access_hash:long = InputBotIn
 
 inlineBotSwitchPM#3c20629f text:string start_param:string = InlineBotSwitchPM;
 
+messages.peerDialogs#3371c354 dialogs:Vector<Dialog> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> state:updates.State = messages.PeerDialogs;
+
+topPeer#edcdc05b peer:Peer rating:double = TopPeer;
+
+topPeerCategoryBotsPM#ab661b5b = TopPeerCategory;
+topPeerCategoryBotsInline#148677e2 = TopPeerCategory;
+topPeerCategoryCorrespondents#637b7ed = TopPeerCategory;
+topPeerCategoryGroups#bd17a14a = TopPeerCategory;
+topPeerCategoryChannels#161d9628 = TopPeerCategory;
+
+topPeerCategoryPeers#fb834291 category:TopPeerCategory count:int peers:Vector<TopPeer> = TopPeerCategoryPeers;
+
+contacts.topPeersNotModified#de266ef5 = contacts.TopPeers;
+contacts.topPeers#70b772a8 categories:Vector<TopPeerCategoryPeers> chats:Vector<Chat> users:Vector<User> = contacts.TopPeers;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -742,6 +759,8 @@ contacts.exportCard#84e53737 = Vector<int>;
 contacts.importCard#4fe196fe export_card:Vector<int> = User;
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
 contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
+contacts.getTopPeers#d4982db5 flags:# correspondents:flags.0?true bots_pm:flags.1?true bots_inline:flags.2?true groups:flags.10?true channels:flags.15?true offset:int limit:int hash:int = contacts.TopPeers;
+contacts.resetTopPeerRating#1ae373ac category:TopPeerCategory peer:InputPeer = Bool;
 
 messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
 messages.getDialogs#6b47f94d offset_date:int offset_id:int offset_peer:InputPeer limit:int = messages.Dialogs;
@@ -806,6 +825,7 @@ messages.editMessage#ce91e4ca flags:# no_webpage:flags.1?true peer:InputPeer id:
 messages.editInlineBotMessage#130c2c85 flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:flags.11?string reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getBotCallbackAnswer#a6e94f04 peer:InputPeer msg_id:int data:bytes = messages.BotCallbackAnswer;
 messages.setBotCallbackAnswer#481c591a flags:# alert:flags.1?true query_id:long message:flags.0?string = Bool;
+messages.getPeerDialogs#19250887 peer:Vector<InputPeer> = messages.PeerDialogs;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
@@ -859,4 +879,4 @@ channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessag
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;
 
-// LAYER 51
+// LAYER 52

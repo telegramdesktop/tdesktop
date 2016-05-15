@@ -23,6 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 class ClickHandler;
 using ClickHandlerPtr = QSharedPointer<ClickHandler>;
 
+enum ExpandLinksMode {
+	ExpandLinksNone,
+	ExpandLinksShortened,
+	ExpandLinksAll,
+};
+
 class ClickHandlerHost {
 protected:
 
@@ -35,35 +41,44 @@ protected:
 
 };
 
+class EntityInText;
+struct TextWithEntities;
 class ClickHandler {
 public:
-
-	virtual void onClick(Qt::MouseButton) const = 0;
-
-	virtual QString tooltip() const {
-		return QString();
-	}
-	virtual void copyToClipboard() const {
-	}
-	virtual QString copyToClipboardContextItem() const {
-		return QString();
-	}
-	virtual QString text() const {
-		return QString();
-	}
-	virtual QString dragText() const {
-		return text();
-	}
-
 	virtual ~ClickHandler() {
 	}
 
-	// this method should be called on mouse over a click handler
-	// it returns true if something was changed or false otherwise
+	virtual void onClick(Qt::MouseButton) const = 0;
+
+	// What text to show in a tooltip when mouse is over that click handler as a link in Text.
+	virtual QString tooltip() const {
+		return QString();
+	}
+
+	// What to drop in the input fields when dragging that click handler as a link from Text.
+	virtual QString dragText() const {
+		return QString();
+	}
+
+	// Copy to clipboard support.
+	virtual void copyToClipboard() const {
+	}
+	virtual QString copyToClipboardContextItemText() const {
+		return QString();
+	}
+
+	// Entities in text support.
+
+	// This method returns empty string if just textPart should be used (nothing to expand).
+	virtual QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const;
+	virtual TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const;
+
+	// This method should be called on mouse over a click handler.
+	// It returns true if the active handler was changed or false otherwise.
 	static bool setActive(const ClickHandlerPtr &p, ClickHandlerHost *host = nullptr);
 
-	// this method should be called when mouse leaves the host
-	// it returns true if something was changed or false otherwise
+	// This method should be called when mouse leaves the host.
+	// It returns true if the active handler was changed or false otherwise.
 	static bool clearActive(ClickHandlerHost *host = nullptr) {
 		if (host && _activeHost != host) {
 			return false;
@@ -71,7 +86,7 @@ public:
 		return setActive(ClickHandlerPtr(), host);
 	}
 
-	// this method should be called on mouse pressed
+	// This method should be called on mouse press event.
 	static void pressed() {
 		unpressed();
 		if (!_active || !*_active) {
@@ -84,8 +99,8 @@ public:
 		}
 	}
 
-	// this method should be called on mouse released
-	// the activated click handler is returned
+	// This method should be called on mouse release event.
+	// The activated click handler (if any) is returned.
 	static ClickHandlerPtr unpressed() {
 		if (_pressed && *_pressed) {
 			bool activated = (_active && *_active == *_pressed);
@@ -136,8 +151,12 @@ public:
 		}
 	}
 
-private:
+protected:
+	// For click handlers like mention or hashtag in getExpandedLinkTextWithEntities()
+	// we return just an empty string ("use original string part") with single entity.
+	TextWithEntities simpleTextWithEntity(const EntityInText &entity) const;
 
+private:
 	static NeverFreedPointer<ClickHandlerPtr> _active;
 	static NeverFreedPointer<ClickHandlerPtr> _pressed;
 	static ClickHandlerHost *_activeHost;

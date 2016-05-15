@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "Lade Linkvorschau...";
 
 "lng_profile_chat_unaccessible" = "Gruppe nicht verfügbar";
-"lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Info";
 "lng_profile_description_section" = "Beschreibung";
 "lng_profile_settings_section" = "Einstellungen";
@@ -600,6 +599,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Weitergeleitet aus {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Antwort auf";
+"lng_edited" = "bearbeitet";
+"lng_edited_date" = "Bearbeitet: {date}";
+"lng_cancel_edit_post_sure" = "Bearbeitung abbrechen?";
+"lng_cancel_edit_post_yes" = "Ja";
+"lng_cancel_edit_post_no" = "Nein";
 
 "lng_bot_share_location_unavailable" = "Teilen von Standorten ist derzeit bei Telegram Desktop nicht möglich.";
 "lng_bot_inline_geo_unavailable" = "Dieser Bot braucht deinen aktuellen Standort. Die Funktion ist bei Telegram Desktop derzeit nicht verfügbar.";
@@ -893,11 +897,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Optische Verbesserungen (u.a. runde Profilbilder)";
+"lng_new_version_text" = "— Bearbeite deine Nachrichten nachträglich (innerhalb von 2 Tagen).\n— Erwähne Leute in Gruppen - ohne das diese einen Benutzernamen haben müssen (einfach @ eingeben und aus der Liste auswählen).\n\nMehr: {link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+// Not used
+
+"lng_topbar_info" = "Info";
 
 // Wnd specific
 

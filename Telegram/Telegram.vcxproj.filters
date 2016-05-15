@@ -1104,6 +1104,18 @@
     <ClCompile Include="SourceFiles\ui\style\style_core_icon.cpp">
       <Filter>SourceFiles\ui\style</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\history\field_autocomplete.cpp">
+      <Filter>SourceFiles\history</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1512,6 +1524,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\core\basic_types.h">
       <Filter>SourceFiles\core</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\history\field_autocomplete.h">
+      <Filter>SourceFiles\history</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>

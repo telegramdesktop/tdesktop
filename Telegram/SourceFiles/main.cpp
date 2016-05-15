@@ -25,6 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 int main(int argc, char *argv[]) {
+#ifndef Q_OS_MAC // Retina display support is working fine, others are not.
+	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
+#endif // Q_OS_MAC
+
 	settingsParseArgs(argc, argv);
 	if (cLaunchMode() == LaunchModeFixPrevious) {
 		return psFixPrevious();

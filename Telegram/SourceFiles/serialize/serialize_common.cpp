@@ -23,10 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Serialize {
 
-int stringSize(const QString &str) {
-	return sizeof(quint32) + str.size() * sizeof(ushort);
-}
-
 void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
 	stream << qint32(loc.width()) << qint32(loc.height());
 	stream << qint32(loc.dc()) << quint64(loc.volume()) << qint32(loc.local()) << quint64(loc.secret());
