@@ -29,7 +29,7 @@ public:
 	void init();
 
 	typedef SharedCallback<void, ChannelData*, MsgId> RequestMessageDataCallback;
-	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback);
+	void requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);

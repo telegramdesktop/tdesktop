@@ -61,3 +61,17 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 	}
 	return true;
 }
+
+QString ClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
+	return QString();
+}
+
+TextWithEntities ClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return { QString(), EntitiesInText() };
+}
+
+TextWithEntities ClickHandler::simpleTextWithEntity(const EntityInText &entity) const {
+	TextWithEntities result;
+	result.entities.push_back(entity);
+	return result;
+}

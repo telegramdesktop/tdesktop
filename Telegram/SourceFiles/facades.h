@@ -67,6 +67,14 @@ void repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
 bool isInlineItemVisible(const InlineBots::Layout::ItemBase *reader);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
+void showPeerProfile(const PeerId &peer);
+inline void showPeerProfile(const PeerData *peer) {
+	showPeerProfile(peer->id);
+}
+inline void showPeerProfile(const History *history) {
+	showPeerProfile(history->peer->id);
+}
+
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
 	showPeerHistory(peer->id, msgId, back);

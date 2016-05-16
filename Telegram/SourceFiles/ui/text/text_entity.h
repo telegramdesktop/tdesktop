@@ -21,11 +21,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 enum EntityInTextType {
+	EntityInTextInvalid = 0,
+
 	EntityInTextUrl,
 	EntityInTextCustomUrl,
 	EntityInTextEmail,
 	EntityInTextHashtag,
 	EntityInTextMention,
+	EntityInTextMentionName,
 	EntityInTextBotCommand,
 
 	EntityInTextBold,
@@ -33,14 +36,94 @@ enum EntityInTextType {
 	EntityInTextCode, // inline
 	EntityInTextPre,  // block
 };
-struct EntityInText {
-	EntityInText(EntityInTextType type, int offset, int length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
+
+class EntityInText;
+using EntitiesInText = QList<EntityInText>;
+
+class EntityInText {
+public:
+	EntityInText(EntityInTextType type, int offset, int length, const QString &data = QString())
+		: _type(type)
+		, _offset(offset)
+		, _length(length)
+		, _data(data) {
 	}
-	EntityInTextType type;
-	int offset, length;
-	QString text;
+
+	EntityInTextType type() const {
+		return _type;
+	}
+	int offset() const {
+		return _offset;
+	}
+	int length() const {
+		return _length;
+	}
+	QString data() const {
+		return _data;
+	}
+
+	void extendToLeft(int extent) {
+		_offset -= extent;
+		_length += extent;
+	}
+	void shrinkFromRight(int shrink) {
+		_length -= shrink;
+	}
+	void shiftLeft(int shift) {
+		_offset -= shift;
+		if (_offset < 0) {
+			_length += _offset;
+			_offset = 0;
+			if (_length < 0) {
+				_length = 0;
+			}
+		}
+	}
+	void shiftRight(int shift) {
+		_offset += shift;
+	}
+	void updateTextEnd(int textEnd) {
+		if (_offset > textEnd) {
+			_offset = textEnd;
+			_length = 0;
+		} else if (_offset + _length > textEnd) {
+			_length = textEnd - _offset;
+		}
+	}
+
+	static int firstMonospaceOffset(const EntitiesInText &entities, int textLength) {
+		int result = textLength;
+		for_const (auto &entity, entities) {
+			if (entity.type() == EntityInTextPre || entity.type() == EntityInTextCode) {
+				accumulate_min(result, entity.offset());
+			}
+		}
+		return result;
+	}
+
+	explicit operator bool() const {
+		return type() != EntityInTextInvalid;
+	}
+
+private:
+	EntityInTextType _type;
+	int _offset, _length;
+	QString _data;
+
 };
-typedef QList<EntityInText> EntitiesInText;
+
+struct TextWithEntities {
+	QString text;
+	EntitiesInText entities;
+};
+inline void appendTextWithEntities(TextWithEntities &to, TextWithEntities &&append) {
+	int entitiesShiftRight = to.text.size();
+	for (auto &entity : append.entities) {
+		entity.shiftRight(entitiesShiftRight);
+	}
+	to.text += append.text;
+	to.entities += append.entities;
+}
 
 // text preprocess
 QString textClean(const QString &text);
@@ -65,21 +148,36 @@ enum {
 	TextInstagramHashtags = 0x800,
 };
 
+inline bool mentionNameToFields(const QString &data, int32 *outUserId, uint64 *outAccessHash) {
+	auto components = data.split('.');
+	if (!components.isEmpty()) {
+		*outUserId = components.at(0).toInt();
+		*outAccessHash = (components.size() > 1) ? components.at(1).toULongLong() : 0;
+		return (*outUserId != 0);
+	}
+	return false;
+}
+
+inline QString mentionNameFromFields(int32 userId, uint64 accessHash) {
+	return QString::number(userId) + '.' + QString::number(accessHash);
+}
+
 EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities);
 MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending = false);
 
-EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
+// New entities are added to the ones that are already in inOutEntities.
+// Changes text if (flags & TextParseMono).
+void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich = false);
 QString textApplyEntities(const QString &text, const EntitiesInText &entities);
 
-QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 flags);
+QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inOutEntities);
 
 inline QString prepareText(QString result, bool checkLinks = false) {
 	EntitiesInText entities;
-	return prepareTextWithEntities(result, entities, checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0);
+	auto prepareFlags = checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0;
+	return prepareTextWithEntities(result, prepareFlags, &entities);
 }
 
-void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText &entities);
-
 // replace bad symbols with space and remove \r
-void cleanTextWithEntities(QString &result, EntitiesInText &entities);
-void trimTextWithEntities(QString &result, EntitiesInText &entities);
+void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities);
+void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities);

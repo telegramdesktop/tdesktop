@@ -84,7 +84,13 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
 
-	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false, false);
+	MainWidget::MessageToSend message;
+	message.history = history;
+	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
+	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
+	message.broadcast = false;
+	message.silent = false;
+	App::main()->sendMessage(message);
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
@@ -425,7 +431,7 @@ void PsMainWindow::psMacUpdateMenu() {
 		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = !edit->getLastText().isEmpty();
+		canSelectAll = !edit->isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();

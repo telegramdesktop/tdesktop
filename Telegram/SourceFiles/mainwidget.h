@@ -281,7 +281,15 @@ public:
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
 
-	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId = 0);
+	struct MessageToSend {
+		History *history = nullptr;
+		TextWithTags textWithTags;
+		MsgId replyTo = 0;
+		bool broadcast = false;
+		bool silent = false;
+		WebPageId webPageId = 0;
+	};
+	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
 
     void readServerHistory(History *history, bool force = true);

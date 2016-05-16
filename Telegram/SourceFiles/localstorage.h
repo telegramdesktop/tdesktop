@@ -105,11 +105,15 @@ namespace Local {
 
 	int32 oldSettingsVersion();
 
+	using TextWithTags = FlatTextarea::TextWithTags;
 	struct MessageDraft {
-		MessageDraft(MsgId msgId = 0, QString text = QString(), bool previewCancelled = false) : msgId(msgId), text(text), previewCancelled(previewCancelled) {
+		MessageDraft(MsgId msgId = 0, TextWithTags textWithTags = TextWithTags(), bool previewCancelled = false)
+			: msgId(msgId)
+			, textWithTags(textWithTags)
+			, previewCancelled(previewCancelled) {
 		}
 		MsgId msgId;
-		QString text;
+		TextWithTags textWithTags;
 		bool previewCancelled;
 	};
 	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft);
