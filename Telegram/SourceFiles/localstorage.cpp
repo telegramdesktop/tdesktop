@@ -122,14 +122,6 @@ namespace {
 		return true;
 	}
 
-	uint32 _dateTimeSize() {
-		return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
-	}
-
-	uint32 _bytearraySize(const QByteArray &arr) {
-		return sizeof(quint32) + arr.size();
-	}
-
 	QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
 
 	MTP::AuthKey _oldKey, _settingsKey, _passKey, _localKey;
@@ -628,18 +620,18 @@ namespace {
 				size += sizeof(quint64) * 2 + sizeof(quint32) + Serialize::stringSize(i.value().name());
 				if (AppVersion > 9013) {
 					// bookmark
-					size += _bytearraySize(i.value().bookmark());
+					size += Serialize::bytearraySize(i.value().bookmark());
 				}
 				// date + size
-				size += _dateTimeSize() + sizeof(quint32);
+				size += Serialize::dateTimeSize() + sizeof(quint32);
 			}
 
 			//end mark
 			size += sizeof(quint64) * 2 + sizeof(quint32) + Serialize::stringSize(QString());
 			if (AppVersion > 9013) {
-				size += _bytearraySize(QByteArray());
+				size += Serialize::bytearraySize(QByteArray());
 			}
-			size += _dateTimeSize() + sizeof(quint32);
+			size += Serialize::dateTimeSize() + sizeof(quint32);
 
 			size += sizeof(quint32); // aliases count
 			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
@@ -1530,7 +1522,7 @@ namespace {
 		}
 
 		uint32 size = 16 * (sizeof(quint32) + sizeof(qint32));
-		size += sizeof(quint32) + Serialize::stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + _bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
+		size += sizeof(quint32) + Serialize::stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + Serialize::bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
@@ -2281,8 +2273,8 @@ namespace Local {
 	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft) {
 		if (!_working()) return;
 
-		if (msgDraft.msgId <= 0 && msgDraft.text.isEmpty() && editDraft.msgId <= 0) {
-			DraftsMap::iterator i = _draftsMap.find(peer);
+		if (msgDraft.msgId <= 0 && msgDraft.textWithTags.text.isEmpty() && editDraft.msgId <= 0) {
+			auto i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
 				_draftsMap.erase(i);
@@ -2292,18 +2284,25 @@ namespace Local {
 
 			_draftsNotReadMap.remove(peer);
 		} else {
-			DraftsMap::const_iterator i = _draftsMap.constFind(peer);
+			auto i = _draftsMap.constFind(peer);
 			if (i == _draftsMap.cend()) {
 				i = _draftsMap.insert(peer, genKey());
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
 
-			EncryptedDescriptor data(sizeof(quint64) + Serialize::stringSize(msgDraft.text) + 2 * sizeof(qint32) + Serialize::stringSize(editDraft.text) + 2 * sizeof(qint32));
+			auto msgTags = FlatTextarea::serializeTagsList(msgDraft.textWithTags.tags);
+			auto editTags = FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
+
+			int size = sizeof(quint64);
+			size += Serialize::stringSize(msgDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
+			size += Serialize::stringSize(editDraft.textWithTags.text) + Serialize::bytearraySize(editTags) + 2 * sizeof(qint32);
+
+			EncryptedDescriptor data(size);
 			data.stream << quint64(peer);
-			data.stream << msgDraft.text << QByteArray();
+			data.stream << msgDraft.textWithTags.text << msgTags;
 			data.stream << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
-			data.stream << editDraft.text << QByteArray();
+			data.stream << editDraft.textWithTags.text << editTags;
 			data.stream << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
 
 			FileWriteDescriptor file(i.value());
@@ -2372,10 +2371,10 @@ namespace Local {
 		}
 
 		quint64 draftPeer = 0;
-		QString msgText, editText;
+		TextWithTags msgData, editData;
 		QByteArray msgTagsSerialized, editTagsSerialized;
 		qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
-		draft.stream >> draftPeer >> msgText;
+		draft.stream >> draftPeer >> msgData.text;
 		if (draft.version >= 9048) {
 			draft.stream >> msgTagsSerialized;
 		}
@@ -2384,7 +2383,7 @@ namespace Local {
 			if (draft.version >= 8001) {
 				draft.stream >> msgPreviewCancelled;
 				if (!draft.stream.atEnd()) {
-					draft.stream >> editText;
+					draft.stream >> editData.text;
 					if (draft.version >= 9048) {
 						draft.stream >> editTagsSerialized;
 					}
@@ -2399,18 +2398,21 @@ namespace Local {
 			return;
 		}
 
+		msgData.tags = FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
+		editData.tags = FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
+
 		MessageCursor msgCursor, editCursor;
 		_readDraftCursors(peer, msgCursor, editCursor);
 
-		if (msgText.isEmpty() && !msgReplyTo) {
+		if (msgData.text.isEmpty() && !msgReplyTo) {
 			h->clearMsgDraft();
 		} else {
-			h->setMsgDraft(std_::make_unique<HistoryDraft>(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setMsgDraft(std_::make_unique<HistoryDraft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 		if (!editMsgId) {
 			h->clearEditDraft();
 		} else {
-			h->setEditDraft(std_::make_unique<HistoryEditDraft>(editText, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(std_::make_unique<HistoryEditDraft>(editData, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 
@@ -3029,7 +3031,7 @@ namespace Local {
 		} else {
 			int32 setsCount = 0;
 			QByteArray hashToWrite;
-			quint32 size = sizeof(quint32) + _bytearraySize(hashToWrite);
+			quint32 size = sizeof(quint32) + Serialize::bytearraySize(hashToWrite);
 			for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 				if (notLoaded) {
@@ -3692,7 +3694,7 @@ namespace Local {
 			}
 			quint32 size = sizeof(quint32);
 			for (SavedPeers::const_iterator i = saved.cbegin(); i != saved.cend(); ++i) {
-				size += _peerSize(i.key()) + _dateTimeSize();
+				size += _peerSize(i.key()) + Serialize::dateTimeSize();
 			}
 
 			EncryptedDescriptor data(size);

@@ -1161,6 +1161,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_profile_fixed_bar.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\history\field_autocomplete.cpp">
+      <Filter>SourceFiles\history</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1576,6 +1588,9 @@
     <CustomBuild Include="SourceFiles\core\basic_types.h">
       <Filter>SourceFiles\core</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\history\field_autocomplete.h">
+      <Filter>SourceFiles\history</Filter>
+    </CustomBuild>
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
     </CustomBuild>
@@ -1590,6 +1605,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_fixed_bar.h">
       <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\basic.style">
+      <Filter>Resources</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -1649,9 +1667,6 @@
   </ItemGroup>
   <ItemGroup>
     <CodegenStyleItem Include="Resources\all_files.style">
-      <Filter>Resources</Filter>
-    </CodegenStyleItem>
-    <CodegenStyleItem Include="Resources\basic.style">
       <Filter>Resources</Filter>
     </CodegenStyleItem>
     <CodegenStyleItem Include="Resources\basic_types.style">

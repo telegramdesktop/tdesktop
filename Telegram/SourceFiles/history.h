@@ -151,22 +151,23 @@ struct SendAction {
 	int32 progress;
 };
 
+using TextWithTags = FlatTextarea::TextWithTags;
 struct HistoryDraft {
 	HistoryDraft() : msgId(0), previewCancelled(false) {
 	}
-	HistoryDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
-		: text(text)
+	HistoryDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
+		: textWithTags(textWithTags)
 		, msgId(msgId)
 		, cursor(cursor)
 		, previewCancelled(previewCancelled) {
 	}
 	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled)
-		: text(field.getLastText())
+		: textWithTags(field.getTextWithTags())
 		, msgId(msgId)
 		, cursor(field)
 		, previewCancelled(previewCancelled) {
 	}
-	QString text;
+	TextWithTags textWithTags;
 	MsgId msgId; // replyToId for message draft, editMsgId for edit draft
 	MessageCursor cursor;
 	bool previewCancelled;
@@ -176,8 +177,8 @@ struct HistoryEditDraft : public HistoryDraft {
 		: HistoryDraft()
 		, saveRequest(0) {
 	}
-	HistoryEditDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
-		: HistoryDraft(text, msgId, cursor, previewCancelled)
+	HistoryEditDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
+		: HistoryDraft(textWithTags, msgId, cursor, previewCancelled)
 		, saveRequest(saveRequest) {
 	}
 	HistoryEditDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequest = 0)
@@ -373,7 +374,7 @@ public:
 	}
 	void takeMsgDraft(History *from) {
 		if (auto &draft = from->_msgDraft) {
-			if (!draft->text.isEmpty() && !_msgDraft) {
+			if (!draft->textWithTags.text.isEmpty() && !_msgDraft) {
 				_msgDraft = std_::move(draft);
 				_msgDraft->msgId = 0; // edit and reply to drafts can't migrate
 			}
@@ -1292,14 +1293,17 @@ public:
 	}
 	virtual void previousItemChanged();
 
-	virtual QString selectedText(TextSelection selection) const {
-		return qsl("[-]");
+	virtual TextWithEntities selectedText(TextSelection selection) const {
+		return { qsl("[-]"), EntitiesInText() };
 	}
 	virtual QString inDialogsText() const {
 		return qsl("-");
 	}
 	virtual QString inReplyText() const {
 		return inDialogsText();
+	}
+	virtual TextWithEntities originalText() const {
+		return { QString(), EntitiesInText() };
 	}
 
 	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
@@ -1362,15 +1366,9 @@ public:
 	virtual HistoryMedia *getMedia() const {
 		return nullptr;
 	}
-	virtual void setText(const QString &text, const EntitiesInText &links) {
+	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
-	virtual QString originalText() const {
-		return QString();
-	}
-	virtual EntitiesInText originalEntities() const {
-		return EntitiesInText();
-	}
-	virtual bool textHasLinks() {
+	virtual bool textHasLinks() const {
 		return false;
 	}
 
@@ -1526,8 +1524,8 @@ protected:
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
 	bool displayDate() const {
-		if (HistoryItem *prev = previous()) {
-			return prev->date.date().day() != date.date().day();
+		if (auto prev = previous()) {
+			return prev->date.date() != date.date();
 		}
 		return true;
 	}
@@ -1566,7 +1564,8 @@ protected:
 	}
 
 	Text _text = { int(st::msgMinWidth) };
-	int32 _textWidth, _textHeight;
+	int _textWidth = -1;
+	int _textHeight = 0;
 
 	HistoryMediaPtr _media;
 
@@ -1661,7 +1660,7 @@ public:
 
 	virtual HistoryMediaType type() const = 0;
 	virtual QString inDialogsText() const = 0;
-	virtual QString selectedText(TextSelection selection) const = 0;
+	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(int x, int y) const {
 		return (x >= 0 && y >= 0 && x < _width && y < _height);
@@ -1748,8 +1747,8 @@ public:
 	virtual ImagePtr replyPreview() {
 		return ImagePtr();
 	}
-	virtual QString getCaption() const {
-		return QString();
+	virtual TextWithEntities getCaption() const {
+		return TextWithEntities();
 	}
 	virtual bool needsBubble() const = 0;
 	virtual bool customInfoLayout() const = 0;
@@ -1898,7 +1897,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	PhotoData *photo() const {
 		return _data;
@@ -1915,8 +1914,8 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	QString getCaption() const override {
-		return _caption.original();
+	TextWithEntities getCaption() const override {
+		return _caption.originalTextWithEntities();
 	}
 	bool needsBubble() const override {
 		if (!_caption.isEmpty()) {
@@ -1978,7 +1977,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -1998,8 +1997,8 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	QString getCaption() const override {
-		return _caption.original();
+	TextWithEntities getCaption() const override {
+		return _caption.originalTextWithEntities();
 	}
 	bool needsBubble() const override {
 		if (!_caption.isEmpty()) {
@@ -2101,7 +2100,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2122,11 +2121,11 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	QString getCaption() const override {
+	TextWithEntities getCaption() const override {
 		if (const HistoryDocumentCaptioned *captioned = Get<HistoryDocumentCaptioned>()) {
-			return captioned->_caption.original();
+			return captioned->_caption.originalTextWithEntities();
 		}
-		return QString();
+		return TextWithEntities();
 	}
 	bool needsBubble() const override {
 		return true;
@@ -2188,7 +2187,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -2215,8 +2214,8 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	QString getCaption() const override {
-		return _caption.original();
+	TextWithEntities getCaption() const override {
+		return _caption.originalTextWithEntities();
 	}
 	bool needsBubble() const override {
 		if (!_caption.isEmpty()) {
@@ -2286,7 +2285,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -2355,7 +2354,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void attachToParent() override;
 	void detachFromParent() override;
@@ -2423,7 +2422,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -2557,7 +2556,7 @@ public:
 	}
 
 	QString inDialogsText() const override;
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
 		if (!_title.isEmpty() || !_description.isEmpty()) {
@@ -2611,8 +2610,8 @@ public:
 	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd) {
 		return _create(history, msgId, flags, date, from, fwd);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, msg, entities);
+	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, textWithEntities);
 	}
 	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, doc, caption, markup);
@@ -2683,13 +2682,12 @@ public:
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview();
 
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
 	HistoryMedia *getMedia() const override;
-	void setText(const QString &text, const EntitiesInText &entities) override;
-	QString originalText() const override;
-	EntitiesInText originalEntities() const override;
-	bool textHasLinks() override;
+	void setText(const TextWithEntities &textWithEntities) override;
+	TextWithEntities originalText() const override;
+	bool textHasLinks() const override;
 
 	int32 infoWidth() const override {
 		int32 result = _timeWidth;
@@ -2751,7 +2749,7 @@ private:
 
 	HistoryMessage(History *history, const MTPDmessage &msg);
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities); // local message
+	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities); // local message
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
 	friend class HistoryItemInstantiated<HistoryMessage>;
@@ -2820,25 +2818,6 @@ inline MTPDmessage::Flags newMessageFlags(PeerData *p) {
 	}
 	return result;
 }
-inline MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
-	MTPDmessage::Flags result = newMessageFlags(p);
-	if (from) {
-		result |= MTPDmessage::Flag::f_from_id;
-	}
-	if (fwd->Has<HistoryMessageVia>()) {
-		result |= MTPDmessage::Flag::f_via_bot_id;
-	}
-	if (!p->isChannel()) {
-		if (HistoryMedia *media = fwd->getMedia()) {
-			if (media->type() == MediaTypeVoiceFile) {
-				result |= MTPDmessage::Flag::f_media_unread;
-//			} else if (media->type() == MediaTypeVideo) {
-//				result |= MTPDmessage::flag_media_unread;
-			}
-		}
-	}
-	return result;
-}
 
 struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
 	MsgId msgId = 0;
@@ -2900,7 +2879,7 @@ public:
 	bool serviceMsg() const override {
 		return true;
 	}
-	QString selectedText(TextSelection selection) const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
 	QString inReplyText() const override;
 
@@ -2937,8 +2916,8 @@ public:
 
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	QString selectedText(TextSelection selection) const override {
-		return QString();
+	TextWithEntities selectedText(TextSelection selection) const override {
+		return { QString(), EntitiesInText() };
 	}
 	HistoryItemType type() const override {
 		return HistoryItemGroup;
@@ -2987,8 +2966,8 @@ public:
 	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
-	QString selectedText(TextSelection selection) const override {
-		return QString();
+	TextWithEntities selectedText(TextSelection selection) const override {
+		return { QString(), EntitiesInText() };
 	}
 	HistoryItemType type() const override {
 		return HistoryItemCollapse;

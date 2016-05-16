@@ -55,22 +55,22 @@ protected:
 
 class UrlClickHandler : public TextClickHandler {
 public:
-	UrlClickHandler(const QString &url, bool fullDisplayed = true) : TextClickHandler(fullDisplayed), _url(url) {
+	UrlClickHandler(const QString &url, bool fullDisplayed = true) : TextClickHandler(fullDisplayed), _originalUrl(url) {
 		if (isEmail()) {
-			_readable = _url;
+			_readable = _originalUrl;
 		} else {
-			QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-			_readable = good.isValid() ? good.toDisplayString() : _url;
+			QUrl u(_originalUrl), good(u.isValid() ? u.toEncoded() : QString());
+			_readable = good.isValid() ? good.toDisplayString() : _originalUrl;
 		}
 	}
-	QString copyToClipboardContextItem() const override;
+	QString copyToClipboardContextItemText() const override;
 
-	QString text() const override {
-		return _url;
-	}
 	QString dragText() const override {
 		return url();
 	}
+
+	QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 	static void doOpen(QString url);
 	void onClick(Qt::MouseButton button) const override {
@@ -82,11 +82,11 @@ public:
 protected:
 	QString url() const override {
 		if (isEmail()) {
-			return _url;
+			return _originalUrl;
 		}
 
-		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
+		QUrl u(_originalUrl), good(u.isValid() ? u.toEncoded() : QString());
+		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _originalUrl);
 
 		if (!QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;
@@ -103,10 +103,10 @@ private:
 		return ((at > 0) && (slash < 0 || slash > at));
 	}
 	bool isEmail() const {
-		return isEmail(_url);
+		return isEmail(_originalUrl);
 	}
 
-	QString _url, _readable;
+	QString _originalUrl, _readable;
 
 };
 typedef QSharedPointer<TextClickHandler> TextClickHandlerPtr;
@@ -117,18 +117,25 @@ public:
 	}
 	void onClick(Qt::MouseButton button) const override;
 
+	QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const override;
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
+
 };
 
 class MentionClickHandler : public TextClickHandler {
 public:
 	MentionClickHandler(const QString &tag) : _tag(tag) {
 	}
-	QString copyToClipboardContextItem() const override;
 
-	QString text() const override {
+	void onClick(Qt::MouseButton button) const override;
+
+	QString dragText() const override {
 		return _tag;
 	}
-	void onClick(Qt::MouseButton button) const override;
+
+	QString copyToClipboardContextItemText() const override;
+
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {
@@ -140,16 +147,41 @@ private:
 
 };
 
+class MentionNameClickHandler : public ClickHandler {
+public:
+	MentionNameClickHandler(QString text, UserId userId, uint64 accessHash)
+		: _text(text)
+		, _userId(userId)
+		, _accessHash(accessHash) {
+	}
+
+	void onClick(Qt::MouseButton button) const override;
+
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
+
+	QString tooltip() const override;
+
+private:
+	QString _text;
+	UserId _userId;
+	uint64 _accessHash;
+
+};
+
 class HashtagClickHandler : public TextClickHandler {
 public:
 	HashtagClickHandler(const QString &tag) : _tag(tag) {
 	}
-	QString copyToClipboardContextItem() const override;
 
-	QString text() const override {
+	void onClick(Qt::MouseButton button) const override;
+
+	QString dragText() const override {
 		return _tag;
 	}
-	void onClick(Qt::MouseButton button) const override;
+
+	QString copyToClipboardContextItemText() const override;
+
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {
@@ -165,10 +197,14 @@ class BotCommandClickHandler : public TextClickHandler {
 public:
 	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {
 	}
-	QString text() const override {
+
+	void onClick(Qt::MouseButton button) const override;
+
+	QString dragText() const override {
 		return _cmd;
 	}
-	void onClick(Qt::MouseButton button) const override;
+
+	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {

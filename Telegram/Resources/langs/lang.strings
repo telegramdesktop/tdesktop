@@ -599,7 +599,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In reply to";
-"lng_edited" = "Edited";
+"lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_cancel_edit_post_sure" = "Cancel editing?";
 "lng_cancel_edit_post_yes" = "Yes";
@@ -897,7 +897,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "BOTS 2.0\n\n— Introducing Bot API 2.0, the biggest update to our bot platform since June 2015.\n— Bots can now update existing messages on the fly as you interact with them.\n— New Inline keyboards with callback, 'open URL' or 'switch to inline mode' buttons help create seamless interfaces.\n— Inline bots can now send all attachments supported by Telegram (videos, music, stickers, locations, etc.).\n— Try out these sample bots to see what's coming your way soon: @music, @sticker, @youtube, @foursquare\n\nMore info: {link}";
+"lng_new_version_text" = "— Edit your messages everywhere within 2 days after posting (press the up arrow button to edit your last message).\n— Mention people in groups by typing @ and selecting them from the list — even if they don't have a username.\n\nMore: {link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

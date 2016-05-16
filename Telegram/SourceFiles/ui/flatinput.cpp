@@ -1011,7 +1011,8 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 			if (!_inner.document()->pageSize().isNull()) {
 				_inner.document()->setPageSize(QSizeF(0, 0));
 			}
-			QTextCursor c(doc->docHandle(), replacePosition);
+			QTextCursor c(doc->docHandle(), 0);
+			c.setPosition(replacePosition);
 			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
 			if (emoji) {
 				insertEmoji(emoji, c);

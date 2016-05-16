@@ -1395,8 +1395,8 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 				_sel = *i;
 			}
 		} else {
-			for (auto i = shownDialogs()->cfind(_sel), b = shownDialogs()->cbegin(); i != b && (toSkip--); --i) {
-				_sel = *i;
+			for (auto i = shownDialogs()->cfind(_sel), b = shownDialogs()->cbegin(); i != b && (toSkip--);) {
+				_sel = *(--i);
 			}
 			if (toSkip && importantDialogs) {
 				_importantSwitchSel = true;

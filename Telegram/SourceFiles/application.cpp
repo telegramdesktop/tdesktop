@@ -1031,10 +1031,10 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9041) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
-//				versionFeatures = langNewVersionText();
-			} else if (Local::oldMapVersion() < 9041) {
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9049) {
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
+				versionFeatures = langNewVersionText();
+			} else if (Local::oldMapVersion() < 9049) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

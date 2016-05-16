@@ -399,7 +399,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_preview_loading" = "Obtendo Informações do Link...";
 
 "lng_profile_chat_unaccessible" = "Grupo inacessível";
-"lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Sobre";
 "lng_profile_description_section" = "Descrição";
 "lng_profile_settings_section" = "Configurações";
@@ -600,6 +599,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forwarded_channel_via" = "Encaminhado de {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Em resposta a";
+"lng_edited" = "editado";
+"lng_edited_date" = "Editado: {date}";
+"lng_cancel_edit_post_sure" = "Cancelar edição?";
+"lng_cancel_edit_post_yes" = "Sim";
+"lng_cancel_edit_post_no" = "Não";
 
 "lng_bot_share_location_unavailable" = "O compartilhamento de localização está atualmente indisponível no Telegram Desktop.";
 "lng_bot_inline_geo_unavailable" = "Esse bot requer compartilhamento de localização\nIsso não está disponível no Telegram Desktop.";
@@ -893,11 +897,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Melhorias no visual";
+"lng_new_version_text" = "— Edite suas mensagens em qualquer lugar, até 2 dias após postagem.\n— Mencione pessoas nos grupos digitando @ e selecionando-os através da lista — mesmo que eles não tenham nome de usuário.\n\nMais: {link}";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+// Not used
+
+"lng_topbar_info" = "Info";
 
 // Wnd specific
 

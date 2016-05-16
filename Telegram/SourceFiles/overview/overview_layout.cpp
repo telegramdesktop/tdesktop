@@ -898,31 +898,40 @@ bool Document::updateStatusText() const {
 Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
-	QString text = _parent->originalText();
-	EntitiesInText entities = _parent->originalEntities();
+	const auto textWithEntities = _parent->originalText();
+	QString mainUrl;
 
+	auto text = textWithEntities.text;
+	auto &entities = textWithEntities.entities;
 	int32 from = 0, till = text.size(), lnk = entities.size();
-	for (int32 i = 0; i < lnk; ++i) {
-		if (entities[i].type != EntityInTextUrl && entities[i].type != EntityInTextCustomUrl && entities[i].type != EntityInTextEmail) {
+	for_const (const auto &entity, entities) {
+		auto type = entity.type();
+		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			continue;
 		}
-		QString u = entities[i].text, t = text.mid(entities[i].offset, entities[i].length);
-		_links.push_back(LinkEntry(u.isEmpty() ? t : u, t));
+		auto customUrl = entity.data(), entityText = text.mid(entity.offset(), entity.length());
+		auto url = customUrl.isEmpty() ? entityText : customUrl;
+		if (_links.isEmpty()) {
+			mainUrl = url;
+		}
+		_links.push_back(LinkEntry(url, entityText));
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		if (entities[lnk].type != EntityInTextUrl && entities[lnk].type != EntityInTextCustomUrl && entities[lnk].type != EntityInTextEmail) {
+		const auto &entity = entities.at(lnk);
+		auto type = entity.type();
+		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			++lnk;
 			break;
 		}
-		int32 afterLinkStart = entities[lnk].offset + entities[lnk].length;
+		int32 afterLinkStart = entity.offset() + entity.length();
 		if (till > afterLinkStart) {
 			if (!QRegularExpression(qsl("^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
 				++lnk;
 				break;
 			}
 		}
-		till = entities[lnk].offset;
+		till = entity.offset();
 	}
 	if (!lnk) {
 		if (QRegularExpression(qsl("^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(from, till - from)).hasMatch()) {
@@ -932,6 +941,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 
 	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
 	if (_page) {
+		mainUrl = _page->url;
 		if (_page->document) {
 			_photol.reset(new DocumentOpenClickHandler(_page->document));
 		} else if (_page->photo) {
@@ -945,8 +955,8 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 		} else {
 			_photol = MakeShared<UrlClickHandler>(_page->url);
 		}
-	} else if (!_links.isEmpty()) {
-		_photol = MakeShared<UrlClickHandler>(_links.front().lnk->text());
+	} else if (!mainUrl.isEmpty()) {
+		_photol = MakeShared<UrlClickHandler>(mainUrl);
 	}
 	if (from >= till && _page) {
 		text = _page->description;
@@ -984,8 +994,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	if (_page) {
 		_title = _page->title;
 	}
-	QString url(_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text()));
-	QVector<QStringRef> parts = url.splitRef('/');
+	QVector<QStringRef> parts = mainUrl.splitRef('/');
 	if (!parts.isEmpty()) {
 		QStringRef domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others

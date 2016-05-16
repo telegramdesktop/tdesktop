@@ -1512,3 +1512,18 @@ MsgId clientMsgId() {
 	Q_ASSERT(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
 }
+
+QString LocationClickHandler::copyToClipboardContextItemText() const {
+	return lang(lng_context_copy_link);
+}
+
+void LocationClickHandler::onClick(Qt::MouseButton button) const {
+	if (!psLaunchMaps(_coords)) {
+		QDesktopServices::openUrl(_text);
+	}
+}
+
+void LocationClickHandler::setup() {
+	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
+	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
+}

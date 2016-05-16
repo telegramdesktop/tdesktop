@@ -142,9 +142,8 @@ inline LangString langDateTimeFull(const QDateTime &date) {
 	return lng_mediaview_date_time(lt_date, langDayOfMonthFull(date.date()), lt_time, date.time().toString(cTimeFormat()));
 }
 
-inline LangString langNewVersionText() {
-	return lng_new_version_text(lt_link, qsl("https://telegram.org/blog/bots-2-0"));
-}
+QString langNewVersionText();
+QString langNewVersionTextForLang(int langId);
 
 class LangLoader {
 public:

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "boxes/confirmbox.h"
 
-QString UrlClickHandler::copyToClipboardContextItem() const {
+QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
 }
 
@@ -74,8 +74,28 @@ void UrlClickHandler::doOpen(QString url) {
 	}
 }
 
+QString UrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
+	QString result;
+	if (mode != ExpandLinksNone) {
+		result = _originalUrl;
+	}
+	return result;
+}
+
+TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	TextWithEntities result;
+	auto entityType = isEmail(_originalUrl) ? EntityInTextEmail : EntityInTextUrl;
+	int entityLength = textPart.size();
+	if (mode != ExpandLinksNone) {
+		result.text = _originalUrl;
+		entityLength = _originalUrl.size();
+	}
+	result.entities.push_back({ entityType, entityOffset, entityLength });
+	return result;
+}
+
 void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	QString u = url();
+	auto u = url();
 
 	u = tryConvertUrlToLocal(u);
 
@@ -86,22 +106,24 @@ void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-QString LocationClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_link);
-}
-
-void LocationClickHandler::onClick(Qt::MouseButton button) const {
-	if (!psLaunchMaps(_coords)) {
-		QDesktopServices::openUrl(_text);
+QString HiddenUrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
+	QString result;
+	if (mode == ExpandLinksAll) {
+		result = textPart.toString() + qsl(" (") + url() + ')';
 	}
+	return result;
 }
 
-void LocationClickHandler::setup() {
-	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
-	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
+TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	TextWithEntities result;
+	result.entities.push_back({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
+	if (mode == ExpandLinksAll) {
+		result.text = textPart.toString() + qsl(" (") + url() + ')';
+	}
+	return result;
 }
 
-QString MentionClickHandler::copyToClipboardContextItem() const {
+QString MentionClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_mention);
 }
 
@@ -111,7 +133,34 @@ void MentionClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-QString HashtagClickHandler::copyToClipboardContextItem() const {
+TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextMention, entityOffset, textPart.size() });
+}
+
+void MentionNameClickHandler::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		if (auto user = App::userLoaded(_userId)) {
+			Ui::showPeerProfile(user);
+		}
+	}
+}
+
+TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
+	return simpleTextWithEntity({ EntityInTextMentionName, entityOffset, textPart.size(), data });
+}
+
+QString MentionNameClickHandler::tooltip() const {
+	if (auto user = App::userLoaded(_userId)) {
+		auto name = App::peerName(user);
+		if (name != _text) {
+			return name;
+		}
+	}
+	return QString();
+}
+
+QString HashtagClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_hashtag);
 }
 
@@ -119,6 +168,10 @@ void HashtagClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
 	}
+}
+
+TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
 
 void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
@@ -136,4 +189,8 @@ void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 			App::insertBotCommand(_cmd);
 		}
 	}
+}
+
+TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
