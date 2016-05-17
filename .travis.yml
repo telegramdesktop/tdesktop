@@ -17,6 +17,7 @@ arch:
 
    - git
    - patch
+   - dee-fixed
    - libunity
    - libappindicator-gtk2
 
