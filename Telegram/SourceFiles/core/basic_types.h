@@ -166,6 +166,16 @@ template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
+// For QFlags<> declared in private section of a class we need to declare
+// operators from Q_DECLARE_OPERATORS_FOR_FLAGS as friend functions.
+#define Q_DECLARE_FRIEND_INCOMPATIBLE_FLAGS(Flags) \
+friend Q_DECL_CONSTEXPR QIncompatibleFlag operator|(Flags::enum_type f1, int f2) Q_DECL_NOTHROW;
+
+#define Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(Flags) \
+friend Q_DECL_CONSTEXPR QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) Q_DECL_NOTHROW; \
+friend Q_DECL_CONSTEXPR QFlags<Flags::enum_type> operator|(Flags::enum_type f1, QFlags<Flags::enum_type> f2) Q_DECL_NOTHROW; \
+Q_DECLARE_FRIEND_INCOMPATIBLE_FLAGS(Flags)
+
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator
 // it is important for the copy-on-write Qt containers
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),

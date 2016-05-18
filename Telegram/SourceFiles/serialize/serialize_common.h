@@ -24,7 +24,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Serialize {
 
-int stringSize(const QString &str);
+inline int stringSize(const QString &str) {
+	return sizeof(quint32) + str.size() * sizeof(ushort);
+}
+
+inline int bytearraySize(const QByteArray &arr) {
+	return sizeof(quint32) + arr.size();
+}
+
+inline int dateTimeSize() {
+	return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
+}
 
 void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc);
 StorageImageLocation readStorageImageLocation(QDataStream &stream);

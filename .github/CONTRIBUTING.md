@@ -73,7 +73,7 @@ For more info, see [GitHub Help][help_change_commit_message].
 
 ## Build instructions
 
-See the [README.md](README.md#build-instructions) for details on the various build
+See the [README.md][build_instructions] for details on the various build
 environments.
 
 ## Pull upstream changes into your fork regularly
@@ -150,11 +150,8 @@ Don't forget to [sign your patch](#sign-your-work) to put it in the public domai
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org/
-[msvc]: MSVC.md
-[xcode]: XCODE.md
-[xcode_old]: XCODEold.md
-[qtcreator]: QTCREATOR.md
 [help_fork_repo]: https://help.github.com/articles/fork-a-repo/
 [help_change_commit_message]: https://help.github.com/articles/changing-a-commit-message/
 [commit_message]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
-[pr]: ../../compare/
+[pr]: https://github.com/telegramdesktop/tdesktop/compare
+[build_instructions]: https://github.com/telegramdesktop/tdesktop/blob/master/README.md#build-instructions

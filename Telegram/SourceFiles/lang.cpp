@@ -19,8 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "lang.h"
+
+#include "langloaderplain.h"
 
 LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang dependent
 	int v = qFloor(value);
@@ -44,6 +45,43 @@ LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang
 	}
 	return lang(LangKey(key0)).tag(tag, sv);
 }
+
+#define NEW_VER_TAG lt_link
+#define NEW_VER_TAG_VALUE "https://telegram.org/blog/edit"
+
+QString langNewVersionText() {
+#ifdef NEW_VER_TAG
+	return lng_new_version_text(NEW_VER_TAG, QString::fromUtf8(NEW_VER_TAG_VALUE));
+#else // NEW_VER_TAG
+	return lang(lng_new_version_text);
+#endif // NEW_VER_TAG
+}
+
+#ifdef NEW_VER_TAG
+#define NEW_VER_KEY lng_new_version_text__tagged
+#define NEW_VER_POSTFIX .tag(NEW_VER_TAG, QString::fromUtf8(NEW_VER_TAG_VALUE))
+#else // NEW_VER_TAG
+#define NEW_VER_KEY lng_new_version_text
+#define NEW_VER_POSTFIX
+#endif // NEW_VER_TAG
+
+QString langNewVersionTextForLang(int langId) {
+	LangLoaderResult result;
+	if (langId) {
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name, NEW_VER_KEY));
+		result = loader.found();
+	} else {
+		result.insert(lng_language_name, langOriginal(lng_language_name));
+		result.insert(NEW_VER_KEY, langOriginal(NEW_VER_KEY));
+	}
+	return result.value(lng_language_name, LanguageCodes[langId].c_str() + qsl(" language")) + qsl(":\n\n") + LangString(result.value(NEW_VER_KEY, qsl("--none--")))NEW_VER_POSTFIX;
+}
+
+#undef NEW_VER_POSTFIX
+#undef NEW_VER_KEY
+
+#undef NEW_VER_TAG_VALUE
+#undef NEW_VER_TAG
 
 const QString &LangLoader::errors() const {
 	if (_errors.isEmpty() && !_err.isEmpty()) {

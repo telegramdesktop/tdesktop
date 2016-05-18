@@ -111,6 +111,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_usernamebox.cpp\
+	 GeneratedFiles/Debug/moc_field_autocomplete.cpp\
 	 GeneratedFiles/Debug/moc_introwidget.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
@@ -237,6 +238,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_usernamebox.cpp\
+	 GeneratedFiles/Debug/moc_field_autocomplete.cpp\
 	 GeneratedFiles/Debug/moc_introwidget.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
@@ -306,6 +308,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_usernamebox.cpp\
+	 GeneratedFiles/Debug/moc_field_autocomplete.cpp\
 	 GeneratedFiles/Debug/moc_introwidget.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
@@ -497,6 +500,9 @@ GeneratedFiles/Debug/moc_stickersetbox.cpp: SourceFiles/boxes/stickersetbox.h
 
 GeneratedFiles/Debug/moc_usernamebox.cpp:SourceFiles/boxes/usernamebox.h
 	$(MOC_FILE) SourceFiles/boxes/usernamebox.h -o GeneratedFiles/Debug/moc_usernamebox.cpp
+
+GeneratedFiles/Debug/moc_field_autocomplete.cpp: SourceFiles/history/field_autocomplete.h
+	$(MOC_FILE) SourceFiles/history/field_autocomplete.h -o GeneratedFiles/Debug/moc_field_autocomplete.cpp
 
 GeneratedFiles/Debug/moc_introwidget.cpp: SourceFiles/intro/introwidget.h
 	$(MOC_FILE) SourceFiles/intro/introwidget.h -o GeneratedFiles/Debug/moc_introwidget.cpp

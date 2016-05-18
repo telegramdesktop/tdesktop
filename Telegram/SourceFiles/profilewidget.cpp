@@ -1030,21 +1030,21 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				if (!data) {
 					data = _participantsData[cnt] = new ParticipantData();
 					data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-					if (user->botInfo) {
-						if (user->botInfo->readsAllHistory) {
-							data->online = lang(lng_status_bot_reads_all);
-						} else {
-							data->online = lang(lng_status_bot_not_reads_all);
-						}
-					} else {
-						data->online = App::onlineText(user, l_time);
-					}
 					if (_peerChat) {
 						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
 					} else if (_peerChannel) {
 						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
 					} else {
 						data->admin = false;
+					}
+					if (user->botInfo) {
+						if (user->botInfo->readsAllHistory || data->admin) {
+							data->online = lang(lng_status_bot_reads_all);
+						} else {
+							data->online = lang(lng_status_bot_not_reads_all);
+						}
+					} else {
+						data->online = App::onlineText(user, l_time);
 					}
 					if (_amCreator) {
 						data->cankick = (user != App::self());

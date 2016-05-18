@@ -37,17 +37,19 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 void ApiWrap::init() {
 }
 
-void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback) {
-	MessageDataRequest::CallbackPtr pcallback(callback);
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback) {
 	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
-	req.callbacks.append(pcallback);
+	if (callback) {
+		MessageDataRequest::CallbackPtr pcallback(callback.release());
+		req.callbacks.append(pcallback);
+	}
 	if (!req.req) _messageDataResolveDelayed->call();
 }
 
 ApiWrap::MessageIds ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
 	MessageIds result;
 	result.reserve(requests.size());
-	for (MessageDataRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+	for (auto i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		if (i.value().req > 0) continue;
 		result.push_back(MTP_int(i.key()));
 	}
@@ -56,7 +58,7 @@ ApiWrap::MessageIds ApiWrap::collectMessageIds(const MessageDataRequests &reques
 
 ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting) {
 	if (channel) {
-		ChannelMessageDataRequests::iterator i = _channelMessageDataRequests.find(channel);
+		auto i = _channelMessageDataRequests.find(channel);
 		if (i == _channelMessageDataRequests.cend()) {
 			if (onlyExisting) return 0;
 			i = _channelMessageDataRequests.insert(channel, MessageDataRequests());
@@ -72,12 +74,12 @@ void ApiWrap::resolveMessageDatas() {
 	MessageIds ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
 		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, (ChannelData*)nullptr), RPCFailHandlerPtr(), 0, 5);
-		for (MessageDataRequests::iterator i = _messageDataRequests.begin(); i != _messageDataRequests.cend(); ++i) {
-			if (i.value().req > 0) continue;
-			i.value().req = req;
+		for (auto &request : _messageDataRequests) {
+			if (request.req > 0) continue;
+			request.req = req;
 		}
 	}
-	for (ChannelMessageDataRequests::iterator j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
+	for (auto j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
 		if (j->isEmpty()) {
 			j = _channelMessageDataRequests.erase(j);
 			continue;
@@ -85,9 +87,9 @@ void ApiWrap::resolveMessageDatas() {
 		MessageIds ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
 			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, j.key()), RPCFailHandlerPtr(), 0, 5);
-			for (MessageDataRequests::iterator i = j->begin(); i != j->cend(); ++i) {
-				if (i.value().req > 0) continue;
-				i.value().req = req;
+			for (auto &request : *j) {
+				if (request.req > 0) continue;
+				request.req = req;
 			}
 		}
 		++j;
@@ -128,10 +130,10 @@ void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &
 	}
 	MessageDataRequests *requests(messageDataRequests(channel, true));
 	if (requests) {
-		for (MessageDataRequests::iterator i = requests->begin(); i != requests->cend();) {
+		for (auto i = requests->begin(); i != requests->cend();) {
 			if (i.value().req == req) {
-				for (MessageDataRequest::Callbacks::const_iterator j = i.value().callbacks.cbegin(), e = i.value().callbacks.cend(); j != e; ++j) {
-					(*j)->call(channel, i.key());
+				for_const (auto &callback, i.value().callbacks) {
+					callback->call(channel, i.key());
 				}
 				i = requests->erase(i);
 			} else {
