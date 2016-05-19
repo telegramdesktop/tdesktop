@@ -19,17 +19,20 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/slide_animation.h"
+#include "window/slide_animation.h"
+
+namespace Window {
 
 SlideAnimation::SlideAnimation()
-: _animation(animation(this, &SlideAnimation::step)) {
+	: _animation(animation(this, &SlideAnimation::step)) {
 }
 
 void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
+	int retina = cIntRetinaFactor();
+
 	_animation.step(getms());
 	if (a_progress.current() < 1) {
 		p.fillRect(update, st::white);
-		int retina = cIntRetinaFactor();
 		int underLeft = a_coordUnder.current();
 		int underWidth = _cacheUnder.width() / retina;
 		int underHeight = _cacheUnder.height() / retina;
@@ -40,6 +43,11 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 		p.setOpacity(a_progress.current());
 	}
 	p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+
+	if (_topBarShadowEnabled) {
+		p.setOpacity(1);
+		p.fillRect(0, st::topBarHeight, _cacheOver.width() / retina, st::lineWidth, st::shadowColor);
+	}
 }
 
 void SlideAnimation::setDirection(SlideDirection direction) {
@@ -51,6 +59,10 @@ void SlideAnimation::setPixmaps(const QPixmap &oldContentCache, const QPixmap &n
 	_cacheOver = newContentCache;
 }
 
+void SlideAnimation::setTopBarShadow(bool enabled) {
+	_topBarShadowEnabled = enabled;
+}
+
 void SlideAnimation::setRepaintCallback(RepaintCallback &&callback) {
 	_repaintCallback = std_::move(callback);
 }
@@ -60,13 +72,11 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 }
 
 void SlideAnimation::start() {
-	int width = _cacheUnder.width() / cIntRetinaFactor();
 	int delta = st::slideShift;
 	a_progress = anim::fvalue(0, 1);
 	if (_direction == SlideDirection::FromLeft) {
-		std::swap(_cacheUnder, _cacheOver);
-		a_coordUnder = anim::ivalue(-delta, 0);
-		a_coordOver = anim::ivalue(0, delta);
+		a_coordUnder = anim::ivalue(0, delta);
+		a_coordOver = anim::ivalue(-delta, 0);
 	} else {
 		a_coordUnder = anim::ivalue(0, -delta);
 		a_coordOver = anim::ivalue(delta, 0);
@@ -75,7 +85,7 @@ void SlideAnimation::start() {
 }
 
 void SlideAnimation::step(float64 ms, bool timer) {
-	float64 dt = ms / 3000;// st::slideDuration;
+	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		dt = 1;
 		if (timer) {
@@ -95,3 +105,5 @@ void SlideAnimation::step(float64 ms, bool timer) {
 		_repaintCallback.call();
 	}
 }
+
+} // namespace Window

@@ -1502,7 +1502,7 @@ void PeerOpenClickHandler::onClickImpl() const {
 				Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
 			}
 		} else {
-			App::main()->showPeerProfile(peer());
+			Ui::showPeerProfile(peer());
 		}
 	}
 }

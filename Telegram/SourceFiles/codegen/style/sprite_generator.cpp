@@ -48,8 +48,9 @@ constexpr int kErrorCouldNotWrite     = 845;
 
 } // namespace
 
-SpriteGenerator::SpriteGenerator(const structure::Module &module)
-: module_(module)
+SpriteGenerator::SpriteGenerator(const structure::Module &module, bool forceReGenerate)
+: forceReGenerate_(forceReGenerate)
+, module_(module)
 , basePath_(QFileInfo(module.filepath()).dir().absolutePath()) {
 }
 
@@ -84,7 +85,7 @@ bool SpriteGenerator::writeSprites() {
 			}
 		}
 		QFile file(filepath);
-		if (file.open(QIODevice::ReadOnly)) {
+		if (!forceReGenerate_ && file.open(QIODevice::ReadOnly)) {
 			if (file.readAll() == spriteData) {
 				continue;
 			}

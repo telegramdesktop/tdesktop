@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dropdown.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
+#include "window/section_widget.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -576,7 +577,10 @@ public:
 	MsgId msgId() const;
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
-	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
+	bool hasTopBarShadow() const {
+		return peer() != nullptr;
+	}
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
@@ -659,9 +663,14 @@ public:
 		_inGrab = true;
 		resizeEvent(0);
 	}
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
 	void grabFinish() override {
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
 	}
 
 	bool isItemVisible(HistoryItem *item);
@@ -1084,9 +1093,9 @@ private:
 	int32 _titlePeerTextWidth = 0;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;

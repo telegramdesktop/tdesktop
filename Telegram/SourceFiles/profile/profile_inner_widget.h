@@ -43,6 +43,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override; // TEMP for testing
 
 private:
 	// Resizes content and counts natural widget height for the desired width.

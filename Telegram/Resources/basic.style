@@ -373,12 +373,13 @@ statusFont: font(fsize);
 versionColor: #777;
 
 shadowColor: rgba(0, 0, 0, 24);
+shadowToggleDuration: 200;
 
 slideDuration: 240;
 slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: sprite(348px, 71px, 48px, 1px);
-slideFunction: transition(easeOutCirc);
+slideFunction: transition(linear);
 
 btnDefIconed: iconedButton {
 	color: white;

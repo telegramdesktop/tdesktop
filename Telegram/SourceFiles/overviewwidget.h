@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "window/section_widget.h"
+
 namespace Overview {
 namespace Layout {
 
@@ -276,7 +278,11 @@ public:
 	int32 countBestScroll() const;
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
+	bool hasTopBarShadow() const {
+		return true;
+	}
+	void setLastScrollTop(int lastScrollTop);
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 
 	void doneShow();
@@ -302,9 +308,14 @@ public:
 		_inGrab = true;
 		resizeEvent(0);
 	}
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
 	void grabFinish() override {
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
 	}
 	void rpcClear() override {
 		_inner.rpcClear();
@@ -340,9 +351,9 @@ private:
 	QString _header;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	int32 _scrollSetAfterShow;
 

@@ -365,7 +365,7 @@ public:
 
 	using Callback = Function<void>;
 
-	SimpleAnimation() : _data(0) {
+	SimpleAnimation() {
 	}
 
 	bool animating(uint64 ms) {
@@ -376,12 +376,16 @@ public:
 		return false;
 	}
 
-	bool isNull() {
+	bool isNull() const {
 		return !_data;
 	}
 
 	typename AnimType::Type current() {
 		return _data ? _data->a.current() : typename AnimType::Type();
+	}
+
+	typename AnimType::Type current(const typename AnimType::Type &def) {
+		return _data ? _data->a.current() : def;
 	}
 
 	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
@@ -405,6 +409,17 @@ public:
 		}
 	}
 
+	void finish() {
+		if (isNull()) {
+			return;
+		}
+
+		_data->a.finish();
+		_data->_a.stop();
+		delete _data;
+		_data = nullptr;
+	}
+
 	~SimpleAnimation() {
 		deleteAndMark(_data);
 	}
@@ -424,7 +439,7 @@ private:
 		float64 duration;
 		anim::transition transition;
 	};
-	Data *_data;
+	Data *_data = nullptr;
 
 	void step(float64 ms, bool timer) {
 		float64 dt = (ms >= _data->duration) ? 1 : (ms / _data->duration);
@@ -439,15 +454,15 @@ private:
 		}
 		if (!_data->_a.animating()) {
 			delete _data;
-			_data = 0;
+			_data = nullptr;
 		}
 	}
 
 };
 
-typedef SimpleAnimation<anim::fvalue> FloatAnimation;
-typedef SimpleAnimation<anim::ivalue> IntAnimation;
-typedef SimpleAnimation<anim::cvalue> ColorAnimation;
+using FloatAnimation = SimpleAnimation<anim::fvalue>;
+using IntAnimation = SimpleAnimation<anim::ivalue>;
+using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
 #define EnsureAnimation(animation, from, callback) if ((animation).isNull()) { (animation).setup((from), (callback)); }
 

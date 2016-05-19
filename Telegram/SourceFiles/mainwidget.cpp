@@ -22,7 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "ui/buttons/peer_avatar_button.h"
-#include "profile/profile_widget.h"
+#include "window/section_memento.h"
+#include "window/section_widget.h"
 #include "window/top_bar_widget.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -44,6 +45,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "audio.h"
+
+StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
+, _memento(std_::move(memento)) {
+}
+
+StackItemSection::~StackItemSection() {
+}
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
@@ -390,8 +398,8 @@ void MainWidget::rpcClear() {
 QPixmap MainWidget::grabInner() {
 	if (_overview && !_overview->isHidden()) {
 		return myGrab(_overview);
-	} else if (_profile && !_profile->isHidden()) {
-		return myGrab(_profile, QRect(0, st::topBarHeight, _history->width(), _history->height() - st::topBarHeight));
+	} else if (_wideSection && !_wideSection->isHidden()) {
+		return myGrab(_wideSection, QRect(0, st::topBarHeight, _history->width(), _history->height() - st::topBarHeight));
 	} else if (Adaptive::OneColumn() && _history->isHidden()) {
 		return myGrab(_dialogs, QRect(0, st::topBarHeight, _dialogs->width(), _dialogs->height() - st::topBarHeight));
 	} else if (_history->peer()) {
@@ -411,8 +419,8 @@ bool MainWidget::isItemVisible(HistoryItem *item) {
 QPixmap MainWidget::grabTopBar() {
 	if (!_topBar->isHidden()) {
 		return myGrab(_topBar);
-	} else if (_profile) {
-		return myGrab(_profile, QRect(0, 0, _profile->width(), st::topBarHeight));
+	} else if (_wideSection) {
+		return myGrab(_wideSection, QRect(0, 0, _wideSection->width(), st::topBarHeight));
 	} else if (Adaptive::OneColumn() && _history->isHidden()) {
 		return myGrab(_dialogs, QRect(0, 0, _dialogs->width(), st::topBarHeight));
 	} else {
@@ -528,29 +536,22 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				_forwardConfirm = 0;
 			}
 			onHistoryShown(_history->history(), _history->msgId());
-			if (_profile || _overview || (_history->peer() && _history->peer()->id)) {
-				QPixmap animCache, animTopBarCache;
-				if (_profile) {
-					if (Adaptive::OneColumn()) {
-						animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
-					} else {
-						_sideShadow.hide();
-						animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-						_sideShadow.show();
-					}
+			if (_wideSection || _overview || (_history->peer() && _history->peer()->id)) {
+				Window::SectionSlideParams animationParams;
+				if (_overview) {
+					animationParams = prepareOverviewAnimation();
+				} else if (_wideSection) {
+					animationParams = prepareWideSectionAnimation(_wideSection);
 				} else {
-					animCache = grabInner();
-					animTopBarCache = grabTopBar();
+					animationParams = prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
 				}
 				_dialogs->hide();
 				if (_overview) {
-					_overview->show();
-					_overview->animShow(animCache, animTopBarCache);
-				} else if (_profile) {
-					_profile->showAnimated(SlideDirection::FromRight, animCache);
+					_overview->showAnimated(Window::SlideDirection::FromRight, animationParams);
+				} else if (_wideSection) {
+					_wideSection->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				} else {
-					_history->show();
-					_history->animShow(animCache, animTopBarCache);
+					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
 			}
 			App::wnd()->getTitle()->updateBackButton();
@@ -575,19 +576,19 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 		dialogsToUp();
 
 		_hider->hide();
-		QPixmap animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+		auto animationParams = prepareDialogsAnimation();
 
 		onHistoryShown(0, 0);
 		if (_overview) {
 			_overview->hide();
-		} else if (_profile) {
-			_profile->hide();
+		} else if (_wideSection) {
+			_wideSection->hide();
 		} else {
 			_history->hide();
 		}
 		_dialogs->show();
 		resizeEvent(0);
-		_dialogs->animShow(animCache);
+		_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
 		App::wnd()->getTitle()->updateBackButton();
 	} else {
 		_hider->show();
@@ -1878,15 +1879,15 @@ void MainWidget::setInnerFocus() {
 			_hider->setFocus();
 		} else if (_overview) {
 			_overview->activate();
-		} else if (_profile) {
-			_profile->setInnerFocus();
+		} else if (_wideSection) {
+			_wideSection->setInnerFocus();
 		} else {
 			dialogsActivate();
 		}
 	} else if (_overview) {
 		_overview->activate();
-	} else if (_profile) {
-		_profile->setInnerFocus();
+	} else if (_wideSection) {
+		_wideSection->setInnerFocus();
 	} else {
 		_history->setInnerFocus();
 	}
@@ -2030,31 +2031,19 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		_hider = nullptr;
 	}
 
-	QPixmap animCache, animTopBarCache;
-	if (!_a_show.animating() && ((_history->isHidden() && (_profile || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)))) {
-		if (peerId) {
-			animCache = grabInner();
-		} else if (Adaptive::OneColumn()) {
-			animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
-		} else {
-			_sideShadow.hide();
-			animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-			_sideShadow.show();
-		}
-		if (peerId || !Adaptive::OneColumn()) {
-			animTopBarCache = grabTopBar();
-		}
-		_history->show();
+	Window::SectionSlideParams animationParams;
+	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)))) {
+		animationParams = prepareHistoryAnimation(peerId);
 	}
 	if (_history->peer() && _history->peer()->id != peerId) clearBotStartToken(_history->peer());
 	_history->showHistory(peerId, showAtMsgId);
 
 	bool noPeer = (!_history->peer() || !_history->peer()->id), onlyDialogs = noPeer && Adaptive::OneColumn();
-	if (_profile || _overview) {
-		if (_profile) {
-			_profile->hide();
-			_profile->deleteLater();
-			_profile = nullptr;
+	if (_wideSection || _overview) {
+		if (_wideSection) {
+			_wideSection->hide();
+			_wideSection->deleteLater();
+			_wideSection = nullptr;
 		}
 		if (_overview) {
 			_overview->hide();
@@ -2073,9 +2062,10 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		_topBar->hide();
 		_history->hide();
 		if (!_a_show.animating()) {
-			_dialogs->show();
-			if (!animCache.isNull()) {
-				_dialogs->animShow(animCache);
+			if (!animationParams.oldContentCache.isNull()) {
+				_dialogs->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
+			} else {
+				_dialogs->show();
 			}
 		}
 	} else {
@@ -2090,11 +2080,13 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		}
 		if (Adaptive::OneColumn() && !_dialogs->isHidden()) _dialogs->hide();
 		if (!_a_show.animating()) {
-			if (_history->isHidden()) _history->show();
-			if (!animCache.isNull()) {
-				_history->animShow(animCache, animTopBarCache, back);
-			} else if (App::wnd()) {
-				QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
+			if (!animationParams.oldContentCache.isNull()) {
+				_history->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
+			} else {
+				_history->show();
+				if (App::wnd()) {
+					QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
+				}
 			}
 		}
 	}
@@ -2112,8 +2104,8 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
-	if (_profile) {
-		//return _profile->ui_getPeerForMouseAction(); TODO
+	if (_wideSection) {
+		//return _wideSection->ui_getPeerForMouseAction(); TODO
 	}
 	return _history->ui_getPeerForMouseAction();
 }
@@ -2152,10 +2144,6 @@ MsgId MainWidget::activeMsgId() {
 	return _history->peer() ? _history->msgId() : _msgIdInStack;
 }
 
-PeerData *MainWidget::profilePeer() {
-	return _profile ? _profile->peer() : 0;
-}
-
 PeerData *MainWidget::overviewPeer() {
 	return _overview ? _overview->peer() : 0;
 }
@@ -2186,18 +2174,15 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		return;
 	}
 
-	QRect topBarRect = QRect(_topBar->x(), _topBar->y(), _topBar->width(), st::topBarHeight);
-	QRect historyRect = QRect(_history->x(), topBarRect.y() + topBarRect.height(), _history->width(), _history->y() + _history->height() - topBarRect.y() - topBarRect.height());
-	QPixmap animCache, animTopBarCache;
-	if (!_a_show.animating() && (Adaptive::OneColumn() || _profile || _overview || _history->peer())) {
-		animCache = grabInner();
-		animTopBarCache = grabTopBar();
+	Window::SectionSlideParams animationParams;
+	if (!_a_show.animating() && (Adaptive::OneColumn() || _wideSection || _overview || _history->peer())) {
+		animationParams = prepareOverviewAnimation();
 	}
 	if (!back) {
 		if (_overview) {
 			_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-		} else if (_profile) {
-//			_stack.push_back(new StackItemProfile(_profile->peer(), _profile->lastScrollTop())); TODO
+		} else if (_wideSection) {
+			_stack.push_back(new StackItemSection(_wideSection->createMemento()));
 		} else if (_history->peer()) {
 			dlgUpdated();
 			_peerInStack = _history->peer();
@@ -2212,18 +2197,19 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		_overview->deleteLater();
 		_overview->rpcClear();
 	}
-	if (_profile) {
-		_profile->hide();
-		_profile->deleteLater();
-		_profile = nullptr;
+	if (_wideSection) {
+		_wideSection->hide();
+		_wideSection->deleteLater();
+		_wideSection = nullptr;
 	}
 	_overview = new OverviewWidget(this, peer, type);
 	_mediaTypeMask = 0;
 	_topBar->show();
 	resizeEvent(nullptr);
 	mediaOverviewUpdated(peer, type);
-	if (!animCache.isNull()) {
-		_overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
+	_overview->setLastScrollTop(lastScrollTop);
+	if (!animationParams.oldContentCache.isNull()) {
+		_overview->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
 	} else {
 		_overview->fastShow();
 	}
@@ -2238,36 +2224,88 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	App::wnd()->getTitle()->updateBackButton();
 }
 
-void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop) {
-	if (peer->migrateTo()) {
-		peer = peer->migrateTo();
-	}
-
+void MainWidget::showWideSection(Window::SectionMemento &memento) {
 	App::wnd()->hideSettings();
-	if (_profile && _profile->peer() == peer) return;
+	if (_wideSection && _wideSection->showInternal(&memento)) {
+		return;
+	}
 
-	QPixmap animCache;
-	if (Adaptive::OneColumn()) {
-		animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
-	} else {
-		_sideShadow.hide();
-		animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-		_sideShadow.show();
+	if (_overview) {
+		_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
+	} else if (_wideSection) {
+		_stack.push_back(new StackItemSection(_wideSection->createMemento()));
+	} else if (_history->peer()) {
+		dlgUpdated();
+		_peerInStack = _history->peer();
+		_msgIdInStack = _history->msgId();
+		dlgUpdated();
+		_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
 	}
-//	QPixmap animCache = grabInner(), animTopBarCache = grabTopBar();
-	if (!back) {
-		if (_overview) {
-			_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-		} else if (_profile) {
-//			_stack.push_back(new StackItemProfile(_profile->peer(), _profile->lastScrollTop())); TODO
-		} else if (_history->peer()) {
-			dlgUpdated();
-			_peerInStack = _history->peer();
-			_msgIdInStack = _history->msgId();
-			dlgUpdated();
-			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
+	showWideSectionAnimated(&memento, false);
+}
+
+Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow) {
+	Window::SectionSlideParams result;
+	result.withTopBarShadow = willHaveTopBarShadow;
+	if (selectingPeer() && Adaptive::OneColumn()) {
+		result.withTopBarShadow = false;
+	} else if (_wideSection) {
+		if (!_wideSection->hasTopBarShadow()) {
+			result.withTopBarShadow = false;
 		}
+	} else if (!_overview && !_history->peer()) {
+		result.withTopBarShadow = false;
 	}
+
+	if (selectingPeer() && Adaptive::OneColumn()) {
+		result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+	} else if (_wideSection) {
+		result.oldContentCache = _wideSection->grabForShowAnimation(result);
+	} else {
+		if (result.withTopBarShadow) {
+			if (_overview) _overview->grapWithoutTopBarShadow();
+			_history->grapWithoutTopBarShadow();
+		} else {
+			if (_overview) _overview->grabStart();
+			_history->grabStart();
+		}
+		if (Adaptive::OneColumn()) {
+			result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+		} else {
+			_sideShadow.hide();
+			result.oldContentCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+			_sideShadow.show();
+		}
+		if (_overview) _overview->grabFinish();
+		_history->grabFinish();
+	}
+
+	return result;
+}
+
+Window::SectionSlideParams MainWidget::prepareWideSectionAnimation(Window::SectionWidget *section) {
+	return prepareShowAnimation(section->hasTopBarShadow());
+}
+
+Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPeerId) {
+	return prepareShowAnimation(historyPeerId != 0);
+}
+
+Window::SectionSlideParams MainWidget::prepareOverviewAnimation() {
+	return prepareShowAnimation(true);
+}
+
+Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
+	return prepareShowAnimation(false);
+}
+
+void MainWidget::showWideSectionAnimated(Window::SectionMemento *memento, bool back) {
+	QPixmap animCache;
+
+	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
+	auto newWideSection = memento->createWidget(this, newWideGeometry);
+	Window::SectionSlideParams animationParams = prepareWideSectionAnimation(newWideSection);
+
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2275,17 +2313,17 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 		_overview->rpcClear();
 		_overview = nullptr;
 	}
-	if (_profile) {
-		_profile->hide();
-		_profile->deleteLater();
-		_profile = nullptr;
+	if (_wideSection) {
+		_wideSection->hide();
+		_wideSection->deleteLater();
+		_wideSection = nullptr;
 	}
-	_profile = new Profile::Widget(this, peer);
+	_wideSection = newWideSection;
 	_topBar->hide();
 	resizeEvent(0);
-	_profile->showAnimated(SlideDirection::FromRight, animCache);
+	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
+	_wideSection->showAnimated(direction, animationParams);
 	_history->animStop();
-	if (back) clearBotStartToken(_history->peer());
 	_history->showHistory(0, 0);
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
@@ -2304,6 +2342,9 @@ void MainWidget::showBackFromStack() {
 	}
 	StackItem *item = _stack.back();
 	_stack.pop_back();
+	if (auto currentHistoryPeer = _history->peer()) {
+		clearBotStartToken(currentHistoryPeer);
+	}
 	if (item->type() == HistoryStackItem) {
 		dlgUpdated();
 		_peerInStack = 0;
@@ -2319,9 +2360,9 @@ void MainWidget::showBackFromStack() {
 		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
 		Ui::showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
 		_history->setReplyReturns(histItem->peer->id, histItem->replyReturns);
-	} else if (item->type() == ProfileStackItem) {
-		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
-		showPeerProfile(profItem->peer, true, profItem->lastScrollTop);
+	} else if (item->type() == SectionStackItem) {
+		StackItemSection *sectionItem = static_cast<StackItemSection*>(item);
+		showWideSectionAnimated(sectionItem->memento(), true);
 	} else if (item->type() == OverviewStackItem) {
 		StackItemOverview *overItem = static_cast<StackItemOverview*>(item);
 		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
@@ -2343,6 +2384,19 @@ QRect MainWidget::historyRect() const {
 	r.moveLeft(r.left() + _history->x());
 	r.moveTop(r.top() + _history->y());
 	return r;
+}
+
+QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
+	_topBar->stopAnim();
+	QPixmap result;
+	if (Adaptive::OneColumn()) {
+		result = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+	} else {
+		_sideShadow.hide();
+		result = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+		_sideShadow.show();
+	}
+	return result;
 }
 
 void MainWidget::dlgUpdated() {
@@ -2482,12 +2536,13 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 void MainWidget::hideAll() {
 	_dialogs->hide();
 	_history->hide();
-	if (_profile) {
-		_profile->hide();
+	if (_wideSection) {
+		_wideSection->hide();
 	}
 	if (_overview) {
 		_overview->hide();
 	}
+	_sideShadow.hide();
 	_topBar->hide();
 	_mediaType->hide();
 	if (_player->isOpened() && !_player->isHidden()) {
@@ -2501,6 +2556,7 @@ void MainWidget::showAll() {
 		cSetPasswordRecovered(false);
 		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
+	_sideShadow.show();
 	if (Adaptive::OneColumn()) {
 		if (_hider) {
 			_hider->hide();
@@ -2515,12 +2571,12 @@ void MainWidget::showAll() {
 			_dialogs->show();
 			_history->hide();
 			if (_overview) _overview->hide();
-			if (_profile) _profile->hide();
+			if (_wideSection) _wideSection->hide();
 			_topBar->hide();
 		} else if (_overview) {
 			_overview->show();
-		} else if (_profile) {
-			_profile->show();
+		} else if (_wideSection) {
+			_wideSection->show();
 		} else if (_history->peer()) {
 			_history->show();
 			_history->resizeEvent(0);
@@ -2528,7 +2584,7 @@ void MainWidget::showAll() {
 			_dialogs->show();
 			_history->hide();
 		}
-		if (_profile) {
+		if (_wideSection) {
 			_topBar->hide();
 		} else if (!selectingPeer() && (_overview || _history->peer())) {
 			_topBar->show();
@@ -2545,13 +2601,13 @@ void MainWidget::showAll() {
 		_dialogs->show();
 		if (_overview) {
 			_overview->show();
-		} else if (_profile) {
-			_profile->show();
+		} else if (_wideSection) {
+			_wideSection->show();
 		} else {
 			_history->show();
 			_history->resizeEvent(0);
 		}
-		if (_profile) {
+		if (_wideSection) {
 			_topBar->hide();
 		} else if (_overview || _history->peer()) {
 			_topBar->show();
@@ -2593,9 +2649,9 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 		}
 	}
 	_mediaType->moveToLeft(width() - _mediaType->width(), _playerHeight + st::topBarHeight);
-	if (_profile) {
-		QRect profileGeometry(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
-		_profile->setGeometryWithTopMoved(profileGeometry, _contentScrollAddToY);
+	if (_wideSection) {
+		QRect wideSectionGeometry(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
+		_wideSection->setGeometryWithTopMoved(wideSectionGeometry, _contentScrollAddToY);
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
 	_contentScrollAddToY = 0;
@@ -2611,20 +2667,21 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 void MainWidget::updateAdaptiveLayout() {
 	showAll();
 	_sideShadow.setVisible(!Adaptive::OneColumn());
+	if (_wideSection) {
+		_wideSection->updateAdaptiveLayout();
+	}
 	_topBar->updateAdaptiveLayout();
 	_history->updateAdaptiveLayout();
 }
 
 bool MainWidget::needBackButton() {
-	return _overview || _profile || (_history->peer() && _history->peer()->id);
+	return _overview || _wideSection || _history->peer();
 }
 
 void MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
-	if (_profile) {
-//		_profile->paintTopBar(p, over, decreaseWidth);
-	} else if (_overview) {
+	if (_overview) {
 		_overview->paintTopBar(p, over, decreaseWidth);
-	} else {
+	} else if (!_wideSection) {
 		_history->paintTopBar(p, over, decreaseWidth);
 	}
 }
@@ -2668,11 +2725,9 @@ PlayerWidget *MainWidget::player() {
 }
 
 void MainWidget::onTopBarClick() {
-	if (_profile) {
-//		_profile->topBarClick();
-	} else if (_overview) {
+	if (_overview) {
 		_overview->topBarClick();
-	} else {
+	} else if (!_wideSection) {
 		_history->topBarClick();
 	}
 }
@@ -3308,7 +3363,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				// Always open bot chats, even from mention links.
 				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
 			} else {
-				showPeerProfile(peer);
+				Ui::showPeerProfile(peer);
 			}
 		} else {
 			if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
@@ -3391,7 +3446,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			// Always open bot chats, even from mention links.
 			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
 		} else {
-			showPeerProfile(peer);
+			Ui::showPeerProfile(peer);
 		}
 	} else {
 		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
@@ -3690,7 +3745,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 void MainWidget::activate() {
 	if (_a_show.animating()) return;
-	if (!_profile && !_overview) {
+	if (!_wideSection && !_overview) {
 		if (_hider) {
 			if (_hider->wasOffered()) {
 				_hider->setFocus();
@@ -3724,7 +3779,7 @@ bool MainWidget::isActive() const {
 }
 
 bool MainWidget::historyIsActive() const {
-	return isActive() && !_profile && !_overview && _history->isActive();
+	return isActive() && !_wideSection && !_overview && _history->isActive();
 }
 
 bool MainWidget::lastWasOnline() const {

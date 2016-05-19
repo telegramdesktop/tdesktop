@@ -1838,7 +1838,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	if (_over == OverName && _down == OverName) {
 		if (App::wnd() && _from) {
 			close();
-			if (App::main()) App::main()->showPeerProfile(_from);
+			Ui::showPeerProfile(_from);
 		}
 	} else if (_over == OverDate && _down == OverDate) {
 		onToMessage();

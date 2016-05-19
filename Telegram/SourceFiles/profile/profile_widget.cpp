@@ -23,18 +23,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_fixed_bar.h"
 #include "profile/profile_inner_widget.h"
+#include "profile/profile_section_memento.h"
 #include "mainwindow.h"
 #include "application.h"
 
 namespace Profile {
 
-Widget::Widget(QWidget *parent, PeerData *peer) : TWidget(parent)
+Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 , _fixedBar(this, peer)
+, _fixedBarShadow(this, st::shadowColor)
 , _scroll(this, st::setScroll)
 , _inner(this, peer) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
+
+	_fixedBarShadow->setMode(ToggleableShadow::Mode::HiddenFast);
+	_fixedBarShadow->raise();
+	updateAdaptiveLayout();
 
 	_scroll->setWidget(_inner);
 	_scroll->move(0, _fixedBar->height());
@@ -44,86 +50,85 @@ Widget::Widget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 }
 
+void Widget::updateAdaptiveLayout() {
+	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
+}
+
 PeerData *Widget::peer() const {
 	return _inner->peer();
 }
 
-void Widget::setGeometryWithTopMoved(const QRect &newGeometry, int topDelta) {
-	_topDelta = topDelta;
-	bool willBeResized = (size() != newGeometry.size());
-	if (geometry() != newGeometry) {
-		setGeometry(newGeometry);
-	}
-	if (!willBeResized) {
-		resizeEvent(nullptr);
-	}
-	_topDelta = 0;
-}
-
-void Widget::showAnimated(SlideDirection direction, const QPixmap &oldContentCache) {
-	_showAnimation = nullptr;
-
-	showChildren();
-	_fixedBar->setAnimatingMode(false);
-	auto myContentCache = myGrab(this);
-	hideChildren();
-	_fixedBar->setAnimatingMode(true);
-
-	_showAnimation = std_::make_unique<SlideAnimation>();
-	_showAnimation->setDirection(direction);
-	_showAnimation->setRepaintCallback(func(this, &Widget::repaintCallback));
-	_showAnimation->setFinishedCallback(func(this, &Widget::showFinished));
-	_showAnimation->setPixmaps(oldContentCache, myContentCache);
-	_showAnimation->start();
-
-	show();
+QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
+	if (params.withTopBarShadow) _fixedBarShadow->hide();
+	auto result = myGrab(this);
+	if (params.withTopBarShadow) _fixedBarShadow->show();
+	return result;
 }
 
 void Widget::setInnerFocus() {
 	_inner->setFocus();
 }
 
+bool Widget::showInternal(Window::SectionMemento *memento) {
+	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento)) {
+		if (profileMemento->_peer == peer()) {
+			// Perhaps no need to do that?..
+			_scroll->scrollToY(profileMemento->_scrollTop);
+
+			return true;
+		}
+	}
+	return false;
+}
+
+void Widget::setInternalState(const SectionMemento *memento) {
+	myEnsureResized(this);
+	_scroll->scrollToY(memento->_scrollTop);
+	_fixedBarShadow->setMode(memento->_scrollTop > 0 ? ToggleableShadow::Mode::ShownFast : ToggleableShadow::Mode::HiddenFast);
+}
+
+std_::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
+	auto result = std_::make_unique<SectionMemento>(peer());
+	result->_scrollTop = _scroll->scrollTop();
+	return std_::move(result);
+}
+
 void Widget::resizeEvent(QResizeEvent *e) {
-	int newScrollTop = _scroll->scrollTop() + _topDelta;
+	if (!width() || !height()) {
+		return;
+	}
+
+	int newScrollTop = _scroll->scrollTop() + topDelta();
 	_fixedBar->resizeToWidth(width());
+	_fixedBarShadow->resize(width(), st::lineWidth);
 
 	QSize scrollSize(width(), height() - _fixedBar->height());
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
-		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
+		_inner->resizeToWidth(scrollSize.width(), _scroll->height() * 2);
 	}
 	if (!_scroll->isHidden()) {
-		if (_topDelta) {
+		if (topDelta()) {
 			_scroll->scrollToY(newScrollTop);
 		}
 		int scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	}
-}
-
-void Widget::paintEvent(QPaintEvent *e) {
-	if (Ui::skipPaintEvent(this, e)) return;
-
-	if (_showAnimation) {
-		Painter p(this);
-		_showAnimation->paintContents(p, e->rect());
+		_fixedBarShadow->setMode((scrollTop > 0) ? ToggleableShadow::Mode::Shown : ToggleableShadow::Mode::Hidden);
 	}
 }
 
 void Widget::onScroll() {
 	int scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	_fixedBarShadow->setMode((scrollTop > 0) ? ToggleableShadow::Mode::Shown : ToggleableShadow::Mode::Hidden);
 }
 
-void Widget::showFinished() {
-	if (isHidden()) return;
+void Widget::showAnimatedHook() {
+	_fixedBar->setAnimatingMode(true);
+}
 
-	App::app()->mtpUnpause();
-
-	showChildren();
+void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
-
-	setInnerFocus();
 }
 
 } // namespace Profile

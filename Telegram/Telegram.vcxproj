@@ -429,6 +429,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_section_widget.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_session.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -733,6 +737,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_scrollarea.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_section_widget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -1069,6 +1077,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_section_widget.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_session.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1190,6 +1202,7 @@
     <ClCompile Include="SourceFiles\profile\profile_cover.cpp" />
     <ClCompile Include="SourceFiles\profile\profile_fixed_bar.cpp" />
     <ClCompile Include="SourceFiles\profile\profile_inner_widget.cpp" />
+    <ClCompile Include="SourceFiles\profile\profile_section_memento.cpp" />
     <ClCompile Include="SourceFiles\profile\profile_widget.cpp" />
     <ClCompile Include="SourceFiles\pspecific_linux.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1239,7 +1252,6 @@
     <ClCompile Include="SourceFiles\ui\images.cpp" />
     <ClCompile Include="SourceFiles\ui\popupmenu.cpp" />
     <ClCompile Include="SourceFiles\ui\scrollarea.cpp" />
-    <ClCompile Include="SourceFiles\ui\slide_animation.cpp" />
     <ClCompile Include="SourceFiles\ui\style\style_core.cpp" />
     <ClCompile Include="SourceFiles\ui\style\style_core_color.cpp" />
     <ClCompile Include="SourceFiles\ui\style\style_core_icon.cpp" />
@@ -1253,6 +1265,8 @@
     <ClCompile Include="SourceFiles\ui\toast\toast_widget.cpp" />
     <ClCompile Include="SourceFiles\ui\twidget.cpp" />
     <ClCompile Include="SourceFiles\mainwindow.cpp" />
+    <ClCompile Include="SourceFiles\window\section_widget.cpp" />
+    <ClCompile Include="SourceFiles\window\slide_animation.cpp" />
     <ClCompile Include="SourceFiles\window\top_bar_widget.cpp" />
     <ClCompile Include="ThirdParty\minizip\zip.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -1513,6 +1527,7 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/profile/profile_fixed_bar.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\profile\profile_section_memento.h" />
     <ClInclude Include="SourceFiles\serialize\serialize_common.h" />
     <ClInclude Include="SourceFiles\serialize\serialize_document.h" />
     <ClInclude Include="SourceFiles\shortcuts.h" />
@@ -1675,7 +1690,6 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/ui/twidget.h"</Command>
     </CustomBuild>
-    <ClInclude Include="SourceFiles\ui\slide_animation.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core_color.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core_font.h" />
@@ -1714,6 +1728,22 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/window/top_bar_widget.h"</Command>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\window\section_widget.h">
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing section_widget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/window/section_widget.h"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing section_widget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/window/section_widget.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl_debug\Debug\include"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing section_widget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/window/section_widget.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
+    </CustomBuild>
+    <ClInclude Include="SourceFiles\window\section_memento.h" />
+    <ClInclude Include="SourceFiles\window\slide_animation.h" />
     <ClInclude Include="ThirdParty\minizip\crypt.h" />
     <ClInclude Include="ThirdParty\minizip\ioapi.h" />
     <ClInclude Include="ThirdParty\minizip\zip.h" />

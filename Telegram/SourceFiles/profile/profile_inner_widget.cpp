@@ -44,7 +44,7 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 
 	int notDisplayedAtBottom = height() - _visibleBottom;
 	if (notDisplayedAtBottom > 0) {
-		decreaseAdditionalHeight(notDisplayedAtBottom);
+//		decreaseAdditionalHeight(notDisplayedAtBottom);
 	}
 
 	//loadProfilePhotos(_visibleTop);
@@ -63,6 +63,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.fillRect(e->rect(), st::white);
+}
+
+void InnerWidget::mousePressEvent(QMouseEvent *e) { // TEMP for testing
+	Ui::showPeerOverview(_peer, OverviewPhotos);
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {

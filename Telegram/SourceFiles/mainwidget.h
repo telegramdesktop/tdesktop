@@ -33,18 +33,16 @@ class PeerAvatarButton;
 
 namespace Window {
 class TopBarWidget;
+class SectionMemento;
+class SectionWidget;
+struct SectionSlideParams;
 } // namespace Window
-
-namespace Profile {
-class Widget;
-} // namespace Profile
 
 class MainWindow;
 class ApiWrap;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
-class ProfileWidget;
 class OverviewWidget;
 class PlayerWidget;
 class HistoryHider;
@@ -52,7 +50,7 @@ class Dropdown;
 
 enum StackItemType {
 	HistoryStackItem,
-	ProfileStackItem,
+	SectionStackItem,
 	OverviewStackItem,
 };
 
@@ -68,8 +66,9 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer),
-msgId(msgId), replyReturns(replyReturns) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer)
+		, msgId(msgId)
+		, replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
@@ -78,19 +77,29 @@ msgId(msgId), replyReturns(replyReturns) {
 	QList<MsgId> replyReturns;
 };
 
-class StackItemProfile : public StackItem {
+class StackItemSection : public StackItem {
 public:
-	StackItemProfile(PeerData *peer, int32 lastScrollTop) : StackItem(peer), lastScrollTop(lastScrollTop) {
-	}
+	StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento);
+	~StackItemSection();
+
 	StackItemType type() const {
-		return ProfileStackItem;
+		return SectionStackItem;
 	}
-	int32 lastScrollTop;
+	Window::SectionMemento *memento() const {
+		return _memento.get();
+	}
+
+private:
+	std_::unique_ptr<Window::SectionMemento> _memento;
+
 };
 
 class StackItemOverview : public StackItem {
 public:
-	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), mediaType(mediaType), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer)
+		, mediaType(mediaType)
+		, lastWidth(lastWidth)
+		, lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return OverviewStackItem;
@@ -214,14 +223,14 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 
-	PeerData *profilePeer();
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
-	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1);
+	void showWideSection(Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	void orderWidgets();
 	QRect historyRect() const;
+	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 
 	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
 	void onSendFileCancel(const FileLoadResultPtr &file);
@@ -485,7 +494,6 @@ public slots:
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 private:
-
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelWasRead(PeerData *peer, const MTPBool &result);
     void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
@@ -494,6 +502,15 @@ private:
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
+
+	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
+	void showWideSectionAnimated(Window::SectionMemento *memento, bool back);
+
+	// All this methods use the prepareShowAnimation().
+	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
+	Window::SectionSlideParams prepareOverviewAnimation();
+	Window::SectionSlideParams prepareDialogsAnimation();
 
 	bool _started = false;
 
@@ -564,7 +581,7 @@ private:
 
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
-	ChildWidget<Profile::Widget> _profile = { nullptr };
+	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;

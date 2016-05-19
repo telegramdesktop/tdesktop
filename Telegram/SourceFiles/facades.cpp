@@ -20,6 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "profile/profile_section_memento.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -237,7 +238,15 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (MainWidget *m = App::main()) m->showPeerProfile(App::peer(peer));
+	if (auto m = App::main()) {
+		m->showWideSection(Profile::SectionMemento(App::peer(peer)));
+	}
+}
+
+void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
+	if (auto m = App::main()) {
+		m->showMediaOverview(App::peer(peer), type);
+	}
 }
 
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {

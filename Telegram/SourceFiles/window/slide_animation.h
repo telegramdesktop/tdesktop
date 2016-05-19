@@ -20,38 +20,45 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <memory>
-#include <QtCore/QString>
-#include <QtCore/QSet>
-#include <QtGui/QImage>
-#include "codegen/style/structure_types.h"
+namespace Window {
 
-namespace codegen {
-namespace style {
-namespace structure {
-class Module;
-} // namespace structure
+enum class SlideDirection {
+	FromRight,
+	FromLeft,
+};
 
-class SpriteGenerator {
+class SlideAnimation {
 public:
-	SpriteGenerator(const structure::Module &module, bool forceReGenerate);
-	SpriteGenerator(const SpriteGenerator &other) = delete;
-	SpriteGenerator &operator=(const SpriteGenerator &other) = delete;
+	SlideAnimation();
 
-	bool writeSprites();
+	void paintContents(Painter &p, const QRect &update) const;
+
+	void setDirection(SlideDirection direction);
+	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
+	void setTopBarShadow(bool enabled);
+
+	using RepaintCallback = Function<void>;
+	void setRepaintCallback(RepaintCallback &&callback);
+
+	using FinishedCallback = Function<void>;
+	void setFinishedCallback(FinishedCallback &&callback);
+
+	void start();
 
 private:
+	void step(float64 ms, bool timer);
 
-	bool collectSprites();
-	QImage generateSprite(int scale); // scale = 5 for 125% and 6 for 150%.
+	SlideDirection _direction = SlideDirection::FromRight;
+	bool _topBarShadowEnabled = false;
 
-	const structure::Module &module_;
-	bool forceReGenerate_;
-	QString basePath_;
-	QImage sprite2x_;
-	QList<structure::Variable> sprites_;
+	mutable Animation _animation;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_progress;
+
+	RepaintCallback _repaintCallback;
+	FinishedCallback _finishedCallback;
 
 };
 
-} // namespace style
-} // namespace codegen
+} // namespace Window

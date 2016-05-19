@@ -20,38 +20,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <memory>
-#include <QtCore/QString>
-#include <QtCore/QSet>
-#include <QtGui/QImage>
-#include "codegen/style/structure_types.h"
+#include "window/section_memento.h"
 
-namespace codegen {
-namespace style {
-namespace structure {
-class Module;
-} // namespace structure
+namespace Profile {
 
-class SpriteGenerator {
+class Widget;
+
+class SectionMemento : public Window::SectionMemento {
 public:
-	SpriteGenerator(const structure::Module &module, bool forceReGenerate);
-	SpriteGenerator(const SpriteGenerator &other) = delete;
-	SpriteGenerator &operator=(const SpriteGenerator &other) = delete;
+	SectionMemento(PeerData *peer) : _peer(peer) {
+	}
 
-	bool writeSprites();
+	Window::SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const override;
 
 private:
+	friend class Widget;
 
-	bool collectSprites();
-	QImage generateSprite(int scale); // scale = 5 for 125% and 6 for 150%.
-
-	const structure::Module &module_;
-	bool forceReGenerate_;
-	QString basePath_;
-	QImage sprite2x_;
-	QList<structure::Variable> sprites_;
+	PeerData *_peer;
+	int _scrollTop = 0;
 
 };
 
-} // namespace style
-} // namespace codegen
+} // namespace Window

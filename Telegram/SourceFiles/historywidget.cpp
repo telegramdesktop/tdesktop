@@ -4089,7 +4089,9 @@ bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId re
 }
 
 void HistoryWidget::updateControlsVisibility() {
-	_topShadow.setVisible(_peer ? true : false);
+	if (!_a_show.animating()) {
+		_topShadow.setVisible(_peer ? true : false);
+	}
 	if (!_history || _a_show.animating()) {
 		_reportSpamPanel.hide();
 		_scroll.hide();
@@ -5123,15 +5125,15 @@ HistoryItem *HistoryWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const
 	return _list->atTopImportantMsg(_scroll.scrollTop(), _scroll.height(), bottomUnderScrollTop);
 }
 
-void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
+void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
 	if (App::app()) App::app()->mtpPause();
 
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
-	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
-	App::main()->topBar()->stopAnim();
-	(back ? _cacheTopBarUnder : _cacheTopBarOver) = myGrab(App::main()->topBar());
+	_cacheUnder = params.oldContentCache;
+	show();
+	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_cacheOver = App::main()->grabForShowAnimation(params);
 	App::main()->topBar()->startAnim();
+	_topShadow.setVisible(params.withTopBarShadow ? true : false);
 
 	_scroll.hide();
 	_kbScroll.hide();
@@ -5155,31 +5157,37 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_botStart.hide();
 	_joinChannel.hide();
 	_muteUnmute.hide();
-	_topShadow.hide();
 	if (_pinnedBar) {
 		_pinnedBar->shadow.hide();
 		_pinnedBar->cancel.hide();
 	}
 
-	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	int delta = st::slideShift;
+	a_progress = anim::fvalue(0, 1);
+	if (direction == Window::SlideDirection::FromLeft) {
+		a_coordUnder = anim::ivalue(0, delta);
+		a_coordOver = anim::ivalue(-delta, 0);
+	} else {
+		a_coordUnder = anim::ivalue(0, -delta);
+		a_coordOver = anim::ivalue(delta, 0);
+	}
 	_a_show.start();
 
 	App::main()->topBar()->update();
+
 	activate();
 }
 
 void HistoryWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / 3000;// st::slideDuration;
+	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
 		_topShadow.setVisible(_peer ? true : false);
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
-		a_shadow.finish();
-		_cacheUnder = _cacheOver = _cacheTopBarUnder = _cacheTopBarOver = QPixmap();
+		a_progress.finish();
+		_cacheUnder = _cacheOver = QPixmap();
 		App::main()->topBar()->stopAnim();
 		doneShow();
 
@@ -5187,7 +5195,7 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 	} else {
 		a_coordUnder.update(dt, st::slideFunction);
 		a_coordOver.update(dt, st::slideFunction);
-		a_shadow.update(dt, st::slideFunction);
+		a_progress.update(dt, st::slideFunction);
 	}
 	if (timer) {
 		update();
@@ -5903,10 +5911,24 @@ void HistoryWidget::onForwardHere() {
 
 void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
-		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
-		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
-		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
+		int retina = cIntRetinaFactor();
+		if (a_progress.current() < 1) {
+			int underLeft = a_coordUnder.current();
+			int underWidth = _cacheUnder.width() / retina;
+			int underHeight = st::topBarHeight;
+			p.fillRect(0, 0, underWidth, underHeight, st::white);
+			QRect underDst(0, 0, underWidth + underLeft, underHeight);
+			QRect underSrc(-underLeft * retina, 0, (underWidth + underLeft) * retina, underHeight * retina);
+			p.setOpacity(1. - a_progress.current());
+			p.drawPixmap(underDst, _cacheUnder, underSrc);
+			p.setOpacity(a_progress.current());
+		}
+		int overLeft = a_coordOver.current();
+		int overWidth = _cacheOver.width() / retina;
+		int overHeight = st::topBarHeight;
+		QRect overDst(overLeft, 0, overWidth - overLeft, overHeight);
+		QRect overSrc(0, 0, (overWidth - overLeft) * retina, overHeight * retina);
+		p.drawPixmap(overDst, _cacheOver, overSrc);
 		return;
 	}
 
@@ -5940,7 +5962,7 @@ void HistoryWidget::topBarClick() {
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
 	} else {
-		if (_history) App::main()->showPeerProfile(_peer);
+		if (_history) Ui::showPeerProfile(_peer);
 	}
 }
 
@@ -8310,20 +8332,31 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
+	bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
+
 	if (_a_show.animating()) {
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
-			p.setOpacity(1);
+		int retina = cIntRetinaFactor();
+		int inCacheTop = hasTopBar ? st::topBarHeight : 0;
+		if (a_progress.current() < 1) {
+			int underLeft = a_coordUnder.current();
+			int underWidth = _cacheUnder.width() / retina;
+			int underHeight = height();
+			p.fillRect(r, st::white);
+			QRect underDst(0, 0, underWidth + underLeft, underHeight);
+			QRect underSrc(-underLeft * retina, inCacheTop * retina, (underWidth + underLeft) * retina, underHeight * retina);
+			p.setOpacity(1. - a_progress.current());
+			p.drawPixmap(underDst, _cacheUnder, underSrc);
+			p.setOpacity(a_progress.current());
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		int overLeft = a_coordOver.current();
+		int overWidth = _cacheOver.width() / retina;
+		int overHeight = height();
+		QRect overDst(overLeft, 0, overWidth - overLeft, overHeight);
+		QRect overSrc(0, inCacheTop * retina, (overWidth - overLeft) * retina, overHeight * retina);
+		p.drawPixmap(overDst, _cacheOver, overSrc);
 		return;
 	}
 
-	bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
 	QRect fill(0, 0, width(), App::main()->height());
 	int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);

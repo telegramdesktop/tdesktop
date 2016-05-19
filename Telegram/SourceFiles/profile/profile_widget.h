@@ -20,53 +20,57 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/slide_animation.h"
+#include "window/section_widget.h"
 
 class ScrollArea;
 
 namespace Profile {
 
+class SectionMemento;
 class InnerWidget;
 class FixedBar;
-class Widget final : public TWidget {
+class Widget final : public Window::SectionWidget {
 	Q_OBJECT
 
 public:
 	Widget(QWidget *parent, PeerData *peer);
 
 	PeerData *peer() const;
+	PeerData *peerForDialogs() const override {
+		return peer();
+	}
 
-	// When resizing the widget with top edge moved up or down and we
-	// want to add this top movement to the scroll position, so inner
-	// content will not move.
-	void setGeometryWithTopMoved(const QRect &newGeometry, int topDelta);
+	bool hasTopBarShadow() const override {
+		return _fixedBarShadow->isFullyShown();
+	}
 
-	void showAnimated(SlideDirection direction, const QPixmap &oldContentCache);
+	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	void setInnerFocus();
+	void setInnerFocus() override;
+
+	void updateAdaptiveLayout() override;
+
+	bool showInternal(Window::SectionMemento *memento) override;
+	std_::unique_ptr<Window::SectionMemento> createMemento() const override;
+
+	void setInternalState(const SectionMemento *memento);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+
+	void showAnimatedHook() override;
+	void showFinishedHook() override;
 
 private slots:
 	void onScroll();
 
 private:
-	// QWidget::update() method is overloaded and we need template deduction.
-	void repaintCallback() {
-		update();
-	}
-	void showFinished();
+	friend class SectionMemento;
 
-	ChildWidget<FixedBar> _fixedBar;
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
-
-	std_::unique_ptr<SlideAnimation> _showAnimation;
-
-	// Saving here topDelta in resizeWithTopMoved() to get it passed to resizeEvent().
-	int _topDelta = 0;
+	ChildWidget<FixedBar> _fixedBar;
+	ChildWidget<ToggleableShadow> _fixedBarShadow;
 
 };
 

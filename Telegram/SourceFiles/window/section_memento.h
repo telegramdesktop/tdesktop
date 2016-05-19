@@ -20,39 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-enum class SlideDirection {
-	FromRight,
-	FromLeft,
-};
+namespace Window {
 
-class SlideAnimation {
+class SectionWidget;
+
+class SectionMemento {
 public:
-	SlideAnimation();
-
-	void paintContents(Painter &p, const QRect &update) const;
-
-	void setDirection(SlideDirection direction);
-	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
-
-	using RepaintCallback = Function<void>;
-	void setRepaintCallback(RepaintCallback &&callback);
-
-	using FinishedCallback = Function<void>;
-	void setFinishedCallback(FinishedCallback &&callback);
-
-	void start();
-
-private:
-	void step(float64 ms, bool timer);
-
-	SlideDirection _direction = SlideDirection::FromRight;
-
-	mutable Animation _animation;
-	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_progress;
-
-	RepaintCallback _repaintCallback;
-	FinishedCallback _finishedCallback;
+	virtual SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const = 0;
 
 };
+
+} // namespace Window

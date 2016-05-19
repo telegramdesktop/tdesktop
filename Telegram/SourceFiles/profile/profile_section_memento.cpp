@@ -18,40 +18,18 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "profile/profile_section_memento.h"
 
-#include <memory>
-#include <QtCore/QString>
-#include <QtCore/QSet>
-#include <QtGui/QImage>
-#include "codegen/style/structure_types.h"
+#include "profile/profile_widget.h"
 
-namespace codegen {
-namespace style {
-namespace structure {
-class Module;
-} // namespace structure
+namespace Profile {
 
-class SpriteGenerator {
-public:
-	SpriteGenerator(const structure::Module &module, bool forceReGenerate);
-	SpriteGenerator(const SpriteGenerator &other) = delete;
-	SpriteGenerator &operator=(const SpriteGenerator &other) = delete;
+Window::SectionWidget *SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
+	auto result = new Widget(parent, _peer);
+	result->setGeometry(geometry);
+	result->setInternalState(this);
+	return result;
+}
 
-	bool writeSprites();
-
-private:
-
-	bool collectSprites();
-	QImage generateSprite(int scale); // scale = 5 for 125% and 6 for 150%.
-
-	const structure::Module &module_;
-	bool forceReGenerate_;
-	QString basePath_;
-	QImage sprite2x_;
-	QList<structure::Variable> sprites_;
-
-};
-
-} // namespace style
-} // namespace codegen
+} // namespace Profile

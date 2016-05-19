@@ -27,7 +27,6 @@ class PeerAvatarButton;
 } // namespace Ui
 class FlatButton;
 class IconedButton;
-class PlainShadow;
 
 namespace Window {
 

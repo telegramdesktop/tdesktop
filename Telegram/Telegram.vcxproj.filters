@@ -1119,9 +1119,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_profile_widget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\ui\slide_animation.cpp">
-      <Filter>SourceFiles\ui</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_profile_inner_widget.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
     </ClCompile>
@@ -1172,6 +1169,24 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
       <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\section_widget.cpp">
+      <Filter>SourceFiles\window</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\slide_animation.cpp">
+      <Filter>SourceFiles\window</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_section_memento.cpp">
+      <Filter>SourceFiles\profile</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1346,11 +1361,17 @@
     <ClInclude Include="Resources\winrc\resource.h">
       <Filter>Resources\winrc</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\ui\slide_animation.h">
-      <Filter>SourceFiles\ui</Filter>
-    </ClInclude>
     <ClInclude Include="GeneratedFiles\styles\style_profile.h">
       <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\window\slide_animation.h">
+      <Filter>SourceFiles\window</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\window\section_memento.h">
+      <Filter>SourceFiles\window</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_section_memento.h">
+      <Filter>SourceFiles\profile</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1608,6 +1629,9 @@
     </CustomBuild>
     <CustomBuild Include="Resources\basic.style">
       <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\window\section_widget.h">
+      <Filter>SourceFiles\window</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

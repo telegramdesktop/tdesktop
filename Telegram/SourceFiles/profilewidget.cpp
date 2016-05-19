@@ -1170,7 +1170,7 @@ void ProfileInner::mousePressEvent(QMouseEvent *e) {
 			_kickDown = _kickOver;
 			update();
 		} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
-			App::main()->showPeerProfile(_participants[_selectedRow]);
+			Ui::showPeerProfile(_participants[_selectedRow]);
 		} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 			if (_photoLink) {
 				_photoLink->onClick(e->button());

@@ -1976,7 +1976,7 @@ void MembersInner::chooseParticipant() {
 	if (_sel < 0 || _sel >= _rows.size()) return;
 	if (PeerData *peer = _rows[_sel]) {
 		Ui::hideLayer();
-		App::main()->showPeerProfile(peer, ShowAtUnreadMsgId);
+		Ui::showPeerProfile(peer);
 	}
 }
 
