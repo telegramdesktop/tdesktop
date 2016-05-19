@@ -2553,6 +2553,26 @@ public:
 		_fullDisplayed = full;
 	}
 
+	// Copy to clipboard support.
+	void copyToClipboard() const override {
+		if (auto button = getButton()) {
+			if (button->type == HistoryMessageReplyMarkup::Button::Url) {
+				auto url = QString::fromUtf8(button->data);
+				if (!url.isEmpty()) {
+					QApplication::clipboard()->setText(url);
+				}
+			}
+		}
+	}
+	QString copyToClipboardContextItemText() const override {
+		if (auto button = getButton()) {
+			if (button->type == HistoryMessageReplyMarkup::Button::Url) {
+				return lang(lng_context_copy_link);
+			}
+		}
+		return QString();
+	}
+
 	// Finds the corresponding button in the items markup struct.
 	// If the button is not found it returns nullptr.
 	// Note: it is possible that we will point to the different button
@@ -3116,7 +3136,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 			auto channel = _history->peer->asChannel();
 			return (channel->amCreator() || (channel->amEditor() && out()));
 		}
-		return out();
+		return out() || (peerToUser(_history->peer->id) == MTP::authedId());
 	}
 	return false;
 }
@@ -5831,7 +5851,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
 		int32 pixwidth = _attach->currentWidth(), pixheight = _attach->height();
 
-		if (_data->type == WebPageVideo) {
+		if (_data->type == WebPageVideo && _attach->type() == MediaTypePhoto) {
 			if (_data->siteName == qstr("YouTube")) {
 				p.drawSprite(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), st::youtubeIcon);
 			} else {

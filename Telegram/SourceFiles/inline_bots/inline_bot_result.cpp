@@ -209,6 +209,7 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			_photo->thumb->loadEvenCancelled();
 			_photo->medium->loadEvenCancelled();
 		}
+		return false;
 	}
 	if (_document && (
 		_type == Type::Video ||
@@ -224,9 +225,9 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			} else {
 				DocumentOpenClickHandler::doOpen(_document, ActionOnLoadNone);
 			}
-		} else {
-			return true;
+			return false;
 		}
+		return true;
 	}
 	return true;
 }

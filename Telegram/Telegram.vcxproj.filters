@@ -1591,9 +1591,9 @@
     <CodegenStyleItem Include="Resources\all_files.style">
       <Filter>Resources</Filter>
     </CodegenStyleItem>
-    <CodegenStyleItem Include="Resources\basic.style">
+    <CustomBuild Include="Resources\basic.style">
       <Filter>Resources</Filter>
-    </CodegenStyleItem>
+    </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style">
       <Filter>Resources</Filter>
     </CodegenStyleItem>

@@ -78,7 +78,7 @@ bool Processor::write(const structure::Module &module) const {
 		"codegen_style",
 		srcFile.fileName(),
 		"stdafx.h",
-		!options_.rebuildDependencies, // forceReGenerate
+		false,//!options_.rebuildDependencies, // forceReGenerate
 	};
 
 	SpriteGenerator spriteGenerator(module);
