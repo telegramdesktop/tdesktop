@@ -5163,13 +5163,15 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	}
 
 	int delta = st::slideShift;
-	a_progress = anim::fvalue(0, 1);
 	if (direction == Window::SlideDirection::FromLeft) {
-		a_coordUnder = anim::ivalue(0, delta);
-		a_coordOver = anim::ivalue(-delta, 0);
+		a_progress = anim::fvalue(1, 0);
+		std::swap(_cacheUnder, _cacheOver);
+		a_coordUnder = anim::ivalue(-delta, 0);
+		a_coordOver = anim::ivalue(0, width());
 	} else {
+		a_progress = anim::fvalue(0, 1);
 		a_coordUnder = anim::ivalue(0, -delta);
-		a_coordOver = anim::ivalue(delta, 0);
+		a_coordOver = anim::ivalue(width(), 0);
 	}
 	_a_show.start();
 
@@ -5912,23 +5914,15 @@ void HistoryWidget::onForwardHere() {
 void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
-		if (a_progress.current() < 1) {
-			int underLeft = a_coordUnder.current();
-			int underWidth = _cacheUnder.width() / retina;
-			int underHeight = st::topBarHeight;
-			p.fillRect(0, 0, underWidth, underHeight, st::white);
-			QRect underDst(0, 0, underWidth + underLeft, underHeight);
-			QRect underSrc(-underLeft * retina, 0, (underWidth + underLeft) * retina, underHeight * retina);
-			p.setOpacity(1. - a_progress.current());
-			p.drawPixmap(underDst, _cacheUnder, underSrc);
-			p.setOpacity(a_progress.current());
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
+			p.setOpacity(a_progress.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::black);
+			p.setOpacity(1);
 		}
-		int overLeft = a_coordOver.current();
-		int overWidth = _cacheOver.width() / retina;
-		int overHeight = st::topBarHeight;
-		QRect overDst(overLeft, 0, overWidth - overLeft, overHeight);
-		QRect overSrc(0, 0, (overWidth - overLeft) * retina, overHeight * retina);
-		p.drawPixmap(overDst, _cacheOver, overSrc);
+		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
+		p.setOpacity(a_progress.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 
@@ -8337,23 +8331,15 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
 		int inCacheTop = hasTopBar ? st::topBarHeight : 0;
-		if (a_progress.current() < 1) {
-			int underLeft = a_coordUnder.current();
-			int underWidth = _cacheUnder.width() / retina;
-			int underHeight = height();
-			p.fillRect(r, st::white);
-			QRect underDst(0, 0, underWidth + underLeft, underHeight);
-			QRect underSrc(-underLeft * retina, inCacheTop * retina, (underWidth + underLeft) * retina, underHeight * retina);
-			p.setOpacity(1. - a_progress.current());
-			p.drawPixmap(underDst, _cacheUnder, underSrc);
-			p.setOpacity(a_progress.current());
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
+			p.setOpacity(a_progress.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black);
+			p.setOpacity(1);
 		}
-		int overLeft = a_coordOver.current();
-		int overWidth = _cacheOver.width() / retina;
-		int overHeight = height();
-		QRect overDst(overLeft, 0, overWidth - overLeft, overHeight);
-		QRect overSrc(0, inCacheTop * retina, (overWidth - overLeft) * retina, overHeight * retina);
-		p.drawPixmap(overDst, _cacheOver, overSrc);
+		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
+		p.setOpacity(a_progress.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 

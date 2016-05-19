@@ -31,18 +31,15 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 	int retina = cIntRetinaFactor();
 
 	_animation.step(getms());
-	if (a_progress.current() < 1) {
-		p.fillRect(update, st::white);
-		int underLeft = a_coordUnder.current();
-		int underWidth = _cacheUnder.width() / retina;
-		int underHeight = _cacheUnder.height() / retina;
-		QRect underDest(0, 0, underWidth + underLeft, underHeight);
-		QRect underSrc(-underLeft * retina, 0, (underWidth + underLeft) * retina, underHeight * retina);
-		p.setOpacity(1. - a_progress.current());
-		p.drawPixmap(underDest, _cacheUnder, underSrc);
-		p.setOpacity(a_progress.current());
+	if (a_coordOver.current() > 0) {
+		p.drawPixmap(QRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, _cacheUnder.height()));
+		p.setOpacity(a_progress.current() * st::slideFadeOut);
+		p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::black);
+		p.setOpacity(1);
 	}
-	p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+	p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
+	p.setOpacity(a_progress.current());
+	p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), _cacheOver.height() / retina), App::sprite(), st::slideShadow.rect());
 
 	if (_topBarShadowEnabled) {
 		p.setOpacity(1);
@@ -73,13 +70,15 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 
 void SlideAnimation::start() {
 	int delta = st::slideShift;
-	a_progress = anim::fvalue(0, 1);
 	if (_direction == SlideDirection::FromLeft) {
-		a_coordUnder = anim::ivalue(0, delta);
-		a_coordOver = anim::ivalue(-delta, 0);
+		a_progress = anim::fvalue(1, 0);
+		std::swap(_cacheUnder, _cacheOver);
+		a_coordUnder = anim::ivalue(-delta, 0);
+		a_coordOver = anim::ivalue(0, _cacheOver.width() / cIntRetinaFactor());
 	} else {
+		a_progress = anim::fvalue(0, 1);
 		a_coordUnder = anim::ivalue(0, -delta);
-		a_coordOver = anim::ivalue(delta, 0);
+		a_coordOver = anim::ivalue(_cacheOver.width() / cIntRetinaFactor(), 0);
 	}
 	_animation.start();
 }
@@ -98,9 +97,9 @@ void SlideAnimation::step(float64 ms, bool timer) {
 		}
 	}
 
-	a_coordUnder.update(dt, anim::linear);
-	a_coordOver.update(dt, anim::linear);
-	a_progress.update(dt, anim::linear);
+	a_coordUnder.update(dt, st::slideFunction);
+	a_coordOver.update(dt, st::slideFunction);
+	a_progress.update(dt, st::slideFunction);
 	if (timer) {
 		_repaintCallback.call();
 	}

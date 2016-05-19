@@ -2586,6 +2586,7 @@ void MainWidget::showAll() {
 		}
 		if (_wideSection) {
 			_topBar->hide();
+			_dialogs->hide();
 		} else if (!selectingPeer() && (_overview || _history->peer())) {
 			_topBar->show();
 			_dialogs->hide();
