@@ -1025,20 +1025,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 }
 topBarActionSkip: 13px;
 
-historyToEnd: iconedButton(btnDefIconed) {
-	bgColor: transparent;
-	overBgColor: transparent;
-
-	icon: sprite(252px, 41px, 44px, 44px);
-	iconPos: point(0px, 0px);
-	downIcon: sprite(252px, 41px, 44px, 44px);
-	downIconPos: point(0px, 0px);
-
-	width: 44px;
-	height: 44px;
-}
-historyToEndSkip: 10px;
-
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
 

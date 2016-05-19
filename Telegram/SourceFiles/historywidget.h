@@ -33,6 +33,10 @@ class ItemBase;
 class Result;
 } // namespace InlineBots
 
+namespace Ui {
+class HistoryDownButton;
+} // namespace Ui
+
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
 	Q_OBJECT
@@ -1017,7 +1021,7 @@ private:
 	uint64 _lastScrolled = 0;
 	QTimer _updateHistoryItems;
 
-	IconedButton _toHistoryEnd;
+	ChildWidget<Ui::HistoryDownButton> _historyToEnd;
 	CollapseButton _collapseComments;
 
 	ChildWidget<FieldAutocomplete> _fieldAutocomplete;

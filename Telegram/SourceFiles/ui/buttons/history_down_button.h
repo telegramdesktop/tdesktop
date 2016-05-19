@@ -22,25 +22,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/button.h"
 
-class PeerData;
-
 namespace Ui {
 
-class PeerAvatarButton : public Button {
-public:
-	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+class HistoryDownButton : public Button {
+	Q_OBJECT
 
-	void setPeer(PeerData *peer) {
-		_peer = peer;
-		update();
-	}
+public:
+	HistoryDownButton(QWidget *parent);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
+private slots:
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
 private:
-	PeerData *_peer;
-	const style::PeerAvatarButton &_st;
+	void step_arrowOver(float64 ms, bool timer);
+
+	anim::fvalue a_arrowOpacity;
+	Animation _a_arrowOver;
 
 };
 

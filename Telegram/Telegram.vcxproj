@@ -310,6 +310,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_history_down_button.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_introcode.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -598,6 +602,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_historywidget.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history_down_button.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -918,6 +926,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_introcode.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1063,6 +1075,7 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_basic.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp" />
+    <ClCompile Include="GeneratedFiles\styles\style_history.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_overview.cpp" />
     <ClCompile Include="SourceFiles\apiwrap.cpp" />
     <ClCompile Include="SourceFiles\app.cpp" />
@@ -1174,6 +1187,7 @@
     <ClCompile Include="SourceFiles\ui\animation.cpp" />
     <ClCompile Include="SourceFiles\ui\boxshadow.cpp" />
     <ClCompile Include="SourceFiles\ui\button.cpp" />
+    <ClCompile Include="SourceFiles\ui\buttons\history_down_button.cpp" />
     <ClCompile Include="SourceFiles\ui\buttons\peer_avatar_button.cpp" />
     <ClCompile Include="SourceFiles\ui\countryinput.cpp" />
     <ClCompile Include="SourceFiles\ui\emoji_config.cpp" />
@@ -1269,6 +1283,7 @@
     <ClInclude Include="GeneratedFiles\numbers.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h" />
+    <ClInclude Include="GeneratedFiles\styles\style_history.h" />
     <ClInclude Include="GeneratedFiles\styles\style_overview.h" />
     <ClInclude Include="Resources\winrc\resource.h" />
     <ClInclude Include="SourceFiles\core\click_handler.h" />
@@ -1447,6 +1462,20 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing countryinput.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/ui/countryinput.h"</Command>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\buttons\history_down_button.h">
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing history_down_button.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/ui/buttons/history_down_button.h"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing history_down_button.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/ui/buttons/history_down_button.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl_debug\Debug\include"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing history_down_button.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/ui/buttons/history_down_button.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\ui\buttons\peer_avatar_button.h" />
     <ClInclude Include="SourceFiles\ui\emoji_config.h" />
@@ -2428,6 +2457,7 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling style %(Identity)...</Message>
     </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style" />
+    <CodegenStyleItem Include="SourceFiles\history\history.style" />
     <CodegenStyleItem Include="SourceFiles\overview\overview.style" />
   </ItemGroup>
   <ItemGroup>

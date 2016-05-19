@@ -1116,6 +1116,21 @@
     <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_history.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\history_down_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1288,6 +1303,9 @@
     </ClInclude>
     <ClInclude Include="Resources\winrc\resource.h">
       <Filter>Resources\winrc</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_history.h">
+      <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1531,6 +1549,9 @@
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\buttons\history_down_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1599,6 +1620,9 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\overview\overview.style">
       <Filter>SourceFiles\overview</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\history\history.style">
+      <Filter>SourceFiles\history</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

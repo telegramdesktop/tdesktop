@@ -21,10 +21,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "historywidget.h"
 
+#include "styles/style_history.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
+#include "ui/buttons/history_down_button.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang.h"
 #include "application.h"
@@ -2826,7 +2828,7 @@ TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities) {
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::replyCancel)
 , _scroll(this, st::historyScroll, false)
-, _toHistoryEnd(this, st::historyToEnd)
+, _historyToEnd(this)
 , _collapseComments(this)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
@@ -2866,7 +2868,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
 	connect(&_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
-	connect(&_toHistoryEnd, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
+	connect(_historyToEnd, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
 	connect(&_collapseComments, SIGNAL(clicked()), this, SLOT(onCollapseComments()));
 	connect(&_fieldBarCancel, SIGNAL(clicked()), this, SLOT(onFieldBarCancel()));
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
@@ -2931,8 +2933,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	updateScrollColors();
 
-	_toHistoryEnd.hide();
-	_toHistoryEnd.installEventFilter(this);
+	_historyToEnd->hide();
+	_historyToEnd->installEventFilter(this);
 
 	_collapseComments.hide();
 	_collapseComments.installEventFilter(this);
@@ -4110,7 +4112,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachEmoji.hide();
 		_broadcast.hide();
 		_silent.hide();
-		_toHistoryEnd.hide();
+		_historyToEnd->hide();
 		_collapseComments.hide();
 		_kbShow.hide();
 		_kbHide.hide();
@@ -5138,7 +5140,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_scroll.hide();
 	_kbScroll.hide();
 	_reportSpamPanel.hide();
-	_toHistoryEnd.hide();
+	_historyToEnd->hide();
 	_collapseComments.hide();
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -5562,7 +5564,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
-	if ((obj == &_toHistoryEnd || obj == &_collapseComments) && e->type() == QEvent::Wheel) {
+	if ((obj == _historyToEnd || obj == &_collapseComments) && e->type() == QEvent::Wheel) {
 		return _scroll.viewportEvent(e);
 	}
 	return TWidget::eventFilter(obj, e);
@@ -6624,7 +6626,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 
 	updateFieldSize();
 
-	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
+	_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
 	updateCollapseCommentsVisibility();
 
 	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
@@ -6726,7 +6728,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 
 		_fieldAutocomplete->setBoundings(_scroll.geometry());
-		_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
+		_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
 		updateCollapseCommentsVisibility();
 	}
 
@@ -7005,10 +7007,10 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 
 void HistoryWidget::updateToEndVisibility() {
 	bool toEndVisible = !_a_show.animating() && _history && !_firstLoadRequest && (!_history->loadedAtBottom() || _replyReturn || _scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax());
-	if (toEndVisible && _toHistoryEnd.isHidden()) {
-		_toHistoryEnd.show();
-	} else if (!toEndVisible && !_toHistoryEnd.isHidden()) {
-		_toHistoryEnd.hide();
+	if (toEndVisible && _historyToEnd->isHidden()) {
+		_historyToEnd->show();
+	} else if (!toEndVisible && !_historyToEnd->isHidden()) {
+		_historyToEnd->hide();
 	}
 }
 
