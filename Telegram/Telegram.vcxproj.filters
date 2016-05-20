@@ -1188,6 +1188,18 @@
     <ClCompile Include="SourceFiles\profile\profile_section_memento.cpp">
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_block_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1632,6 +1644,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\window\section_widget.h">
       <Filter>SourceFiles\window</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_block_widget.h">
+      <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

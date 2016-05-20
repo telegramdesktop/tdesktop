@@ -98,6 +98,9 @@ private:
 	structure::Value readIconValue();
 	structure::Value readCopyValue();
 
+	structure::Value readNumericOrNumericCopyValue();
+	structure::Value readStringOrStringCopyValue();
+
 	structure::data::monoicon readMonoIconFields();
 	QString readMonoIconFilename();
 

@@ -22,49 +22,34 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-class BackButton;
-class PhotoButton;
-
-class CoverWidget final : public TWidget {
+class BlockWidget : public TWidget {
 	Q_OBJECT
 
 public:
-	CoverWidget(QWidget *parent, PeerData *peer);
+	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
 
 	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth);
 
-public slots:
-	void onPhotoShow();
+	// Updates the area that is visible inside the scroll container.
+	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	virtual void paintContents(Painter &p) {
+	}
+
+	// Resizes content and counts natural widget height for the desired width.
+	virtual int resizeGetHeight(int newWidth) = 0;
+
+	PeerData *peer() const {
+		return _peer;
+	}
 
 private:
-	void updateStatusText();
-	bool isUsingMegagroupOnlineCount() const;
-
-	void paintDivider(Painter &p);
-
 	PeerData *_peer;
-	UserData *_peerUser;
-	ChatData *_peerChat;
-	ChannelData *_peerChannel;
-	ChannelData *_peerMegagroup;
-
-	// Cover content
-	ChildWidget<PhotoButton> _photoButton;
-
-	QPoint _namePosition;
-	Text _nameText;
-
-	QPoint _statusPosition;
-	QString _statusText;
-
-	int _dividerTop;
-
-	ChildWidget<BoxButton> _primaryButton = { nullptr };
-	ChildWidget<BoxButton> _secondaryButton = { nullptr };
+	QString _title;
 
 };
 

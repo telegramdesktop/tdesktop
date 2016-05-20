@@ -44,7 +44,17 @@ profileStatusTop: 35px;
 profileStatusFont: normalFont;
 profileStatusFg: windowSubTextFg;
 profileMarginBottom: 30px;
-profileSeparator: 10px;
+
+profileDividerFg: black;
+profileDividerLeft: icon {
+	{ "profile_divider_left", profileDividerFg },
+};
+profileDividerFill: icon {
+	{ "profile_divider_fill", profileDividerFg },
+};
 
 profileBlocksTop: 7px;
 profileBlockMarginTop: 21px;
+profileBlockTitleFont: semiboldFont;
+profileBlockTitleFg: black;
+profileBlockTitlePosition: point(16px, profileBlockMarginTop);

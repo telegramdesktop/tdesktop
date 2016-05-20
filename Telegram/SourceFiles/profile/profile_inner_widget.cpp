@@ -30,6 +30,7 @@ namespace Profile {
 InnerWidget::InnerWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peer(peer)
 , _cover(this, peer) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void InnerWidget::resizeToWidth(int newWidth, int minHeight) {
@@ -62,7 +63,7 @@ void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(e->rect(), st::white);
+	p.fillRect(e->rect(), st::profileBg);
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) { // TEMP for testing

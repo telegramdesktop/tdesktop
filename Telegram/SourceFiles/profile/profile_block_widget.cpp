@@ -18,54 +18,30 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "profile/profile_block_widget.h"
+
+#include "styles/style_profile.h"
 
 namespace Profile {
 
-class BackButton;
-class PhotoButton;
+BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
+, _peer(peer)
+, _title(title) {
+}
 
-class CoverWidget final : public TWidget {
-	Q_OBJECT
+void BlockWidget::resizeToWidth(int newWidth) {
+	resize(newWidth, resizeGetHeight(newWidth));
+}
 
-public:
-	CoverWidget(QWidget *parent, PeerData *peer);
+void BlockWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
 
-	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth);
+	p.setFont(st::profileBlockTitleFont);
+	p.setPen(st::profileBlockTitleFg);
+	p.drawText(st::profileBlockTitlePosition, _title);
 
-public slots:
-	void onPhotoShow();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void updateStatusText();
-	bool isUsingMegagroupOnlineCount() const;
-
-	void paintDivider(Painter &p);
-
-	PeerData *_peer;
-	UserData *_peerUser;
-	ChatData *_peerChat;
-	ChannelData *_peerChannel;
-	ChannelData *_peerMegagroup;
-
-	// Cover content
-	ChildWidget<PhotoButton> _photoButton;
-
-	QPoint _namePosition;
-	Text _nameText;
-
-	QPoint _statusPosition;
-	QString _statusText;
-
-	int _dividerTop;
-
-	ChildWidget<BoxButton> _primaryButton = { nullptr };
-	ChildWidget<BoxButton> _secondaryButton = { nullptr };
-
-};
+	paintContents(p);
+}
 
 } // namespace Profile

@@ -119,7 +119,9 @@ void CoverWidget::resizeToWidth(int newWidth) {
 
 	newHeight += st::profilePhotoSize;
 	newHeight += st::profileMarginBottom;
-	newHeight += st::profileSeparator;
+
+	_dividerTop = newHeight;
+	newHeight += st::profileDividerFill.height();
 
 	newHeight += st::profileBlocksTop;
 
@@ -130,7 +132,7 @@ void CoverWidget::resizeToWidth(int newWidth) {
 void CoverWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(e->rect(), st::white);
+	p.fillRect(e->rect(), st::profileBg);
 
 	int availWidth = width() - _namePosition.x() - _photoButton->x();
 	p.setFont(st::profileNameFont);
@@ -140,6 +142,16 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.setFont(st::profileStatusFont);
 	p.setPen(st::profileStatusFg);
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
+
+	paintDivider(p);
+}
+
+void CoverWidget::paintDivider(Painter &p) {
+	st::profileDividerLeft.paint(p, QPoint(st::lineWidth, _dividerTop), width());
+
+	int toFillLeft = st::lineWidth + st::profileDividerLeft.width();
+	QRect toFill = rtlrect(toFillLeft, _dividerTop, width() - toFillLeft, st::profileDividerFill.height(), width());
+	st::profileDividerFill.fill(p, toFill);
 }
 
 void CoverWidget::updateStatusText() {
