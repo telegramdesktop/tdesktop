@@ -954,6 +954,8 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::black->p);
 	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (!_mediaButtons[i]) continue;
+
 		if (!_mediaButtons[i]->isHidden()) {
 			mediaFound = true;
 			top += _mediaButtons[i]->height() + st::setLittleSkip;
@@ -1258,6 +1260,8 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	QPoint p(addToScroll ? mapFromGlobal(QCursor::pos()) : QPoint(0, 0));
 	bool oneWasShown = false;
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (!_mediaButtons[i]) continue;
+
 		if (!_mediaButtons[i]->isHidden()) {
 			oneWasShown = true;
 			break;
@@ -1271,6 +1275,8 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	int32 y = _mediaButtons[OverviewPhotos]->y();
 	if (addToScroll) *addToScroll = 0;
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (!_mediaButtons[i]) continue;
+
 		int32 addToY = _mediaButtons[i]->height() + st::setLittleSkip;
 
 		int32 count = _history->overviewCount(i), additional = _migrated ? _migrated->overviewCount(i) : 0;
@@ -1465,6 +1471,8 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 
 	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (!_mediaButtons[i]) continue;
+
 		_mediaButtons[i]->move(_left, top);
 		if (!_mediaButtons[i]->isHidden()) {
 			mediaFound = true;

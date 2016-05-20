@@ -976,22 +976,22 @@ void DialogsInner::itemRemoved(HistoryItem *item) {
 }
 
 void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
-	for (QVector<MTPDialog>::const_iterator i = added.cbegin(), e = added.cend(); i != e; ++i) {
-		History *history = 0;
-		switch (i->type()) {
+	for_const (auto &dialog, added) {
+		History *history = nullptr;
+		switch (dialog.type()) {
 		case mtpc_dialog: {
-			const auto &d(i->c_dialog());
-			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v);
+			auto &d(dialog.c_dialog());
+			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
 			if (App::main()) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
 			}
 		} break;
 
 		case mtpc_dialogChannel: {
-			const auto &d(i->c_dialogChannel());
+			auto &d(dialog.c_dialogChannel());
 			PeerData *peer = App::peerLoaded(peerFromMTP(d.vpeer));
 			int32 unreadCount = (peer && peer->isMegagroup()) ? d.vunread_count.v : d.vunread_important_count.v;
-			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), unreadCount, d.vread_inbox_max_id.v);
+			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), unreadCount, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
 			if (history->peer->isChannel()) {
 				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
@@ -1927,20 +1927,21 @@ void DialogsWidget::notify_historyMuteUpdated(History *history) {
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
-	for (QVector<MTPDialog>::const_iterator i = dialogs.cbegin(), e = dialogs.cend(); i != e; ++i) {
-		switch (i->type()) {
+	for_const (auto &dialog, dialogs) {
+		switch (dialog.type()) {
 		case mtpc_dialog: {
-			const auto &d(i->c_dialog());
+			auto &d(dialog.c_dialog());
 			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
 				if (d.vunread_count.v >= h->unreadCount()) {
 					h->setUnreadCount(d.vunread_count.v);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
+				accumulate_max(h->outboxReadBefore, d.vread_outbox_max_id.v + 1);
 			}
 		} break;
 		case mtpc_dialogChannel: {
-			const auto &d(i->c_dialogChannel());
+			auto &d(dialog.c_dialogChannel());
 			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
 				if (h->peer->isChannel()) {
 					h->peer->asChannel()->ptsReceived(d.vpts.v);
@@ -1955,6 +1956,7 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 					h->setUnreadCount(unreadCount);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
+				accumulate_max(h->outboxReadBefore, d.vread_outbox_max_id.v + 1);
 			}
 		} break;
 		}

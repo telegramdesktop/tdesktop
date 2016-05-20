@@ -218,7 +218,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
 			return;
 		}
-		const auto &f(d.vfull_chat.c_channelFull());
+		auto &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
 		channel->flagsFull = f.vflags.v;
@@ -257,7 +257,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				App::main()->peerUpdated(cfrom);
 			}
 		}
-		const auto &v(f.vbot_info.c_vector().v);
+		auto &v(f.vbot_info.c_vector().v);
 		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
 			switch (i->type()) {
 			case mtpc_botInfo: {

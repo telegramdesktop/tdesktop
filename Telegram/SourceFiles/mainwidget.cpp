@@ -1707,7 +1707,7 @@ void MainWidget::dialogsCancelled() {
 }
 
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media) {
-	MTPDmessage::Flags flags = MTPDmessage::Flag::f_unread | MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id;
+	MTPDmessage::Flags flags = MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id | MTPDmessage_ClientFlag::f_clientside_unread;
 	QString sendingText, leftText = msg;
 	EntitiesInText sendingEntities, leftEntities;
 	textParseEntities(leftText, _historyTextNoMonoOptions.flags, &leftEntities);
@@ -4295,7 +4295,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (App::history(user->id)->loadedAtBottom()) {
-				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), MTPDmessage::Flag::f_unread);
+				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), 0);
 			}
 		}
 	} break;
@@ -4486,9 +4486,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadChannelInbox: {
-		const auto &d(update.c_updateReadChannelInbox());
-		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
+		auto &d(update.c_updateReadChannelInbox());
+		auto channel = App::channelLoaded(d.vchannel_id.v);
 		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
+	} break;
+
+	case mtpc_updateReadChannelOutbox: {
+		auto &d(update.c_updateReadChannelOutbox());
+		auto channel = App::channelLoaded(d.vchannel_id.v);
+		App::feedOutboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {

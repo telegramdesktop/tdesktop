@@ -48,7 +48,7 @@ public:
 	void step_typings(uint64 ms, bool timer);
 
 	History *find(const PeerId &peerId);
-	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead);
+	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
 
 	void clear();
 	void remove(const PeerId &peer);
@@ -114,6 +114,7 @@ enum MediaOverviewType {
 	OverviewFiles      = 3,
 	OverviewVoiceFiles = 4,
 	OverviewLinks      = 5,
+	OverviewChatPhotos = 6,
 
 	OverviewCount
 };
@@ -126,6 +127,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewFiles: return MTP_inputMessagesFilterDocument();
 	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
+	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
 	case OverviewCount: break;
 	default: type = OverviewCount; break;
 	}
@@ -1149,7 +1151,7 @@ public:
 	const HistoryBlock *block() const {
 		return _block;
 	}
-	virtual void destroy();
+	void destroy();
 	void detach();
 	void detachFast();
 	bool detached() const {
@@ -1186,16 +1188,7 @@ public:
 	bool out() const {
 		return _flags & MTPDmessage::Flag::f_out;
 	}
-	bool unread() const {
-		if (out() && id > 0 && id < _history->outboxReadBefore) return false;
-		if (!out() && id > 0) {
-			if (id < _history->inboxReadBefore) return false;
-			if (channelId() != NoChannel) return true; // no unread flag for incoming messages in channels
-		}
-		if (history()->peer->isSelf()) return false; // messages from myself are always read
-		if (out() && history()->peer->migrateTo()) return false; // outgoing messages in converted chats are always read
-		return (_flags & MTPDmessage::Flag::f_unread);
-	}
+	bool unread() const;
 	bool mentionsMe() const {
 		return _flags & MTPDmessage::Flag::f_mentioned;
 	}
@@ -1288,6 +1281,8 @@ public:
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
 	}
+	virtual void eraseFromOverview() {
+	}
 	virtual bool hasBubble() const {
 		return false;
 	}
@@ -1363,8 +1358,8 @@ public:
 		return FullMsgId(channelId(), id);
 	}
 
-	virtual HistoryMedia *getMedia() const {
-		return nullptr;
+	HistoryMedia *getMedia() const {
+		return _media.data();
 	}
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
@@ -1771,19 +1766,6 @@ protected:
 	int _width = 0;
 
 };
-
-inline MediaOverviewType mediaToOverviewType(HistoryMedia *media) {
-	switch (media->type()) {
-	case MediaTypePhoto: return OverviewPhotos;
-	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeFile: return OverviewFiles;
-	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewFiles;
-	case MediaTypeVoiceFile: return OverviewVoiceFiles;
-	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
-	default: break;
-	}
-	return OverviewCount;
-}
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -2654,8 +2636,6 @@ public:
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	void destroy() override;
-
 	bool hasPoint(int x, int y) const override;
 	bool pointInTime(int32 right, int32 bottom, int x, int y, InfoDisplayType type) const override;
 
@@ -2680,11 +2660,10 @@ public:
 	void applyEdition(const MTPDmessage &message) override;
 	void updateMedia(const MTPMessageMedia *media) override;
 	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview();
+	void eraseFromOverview() override;
 
 	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
-	HistoryMedia *getMedia() const override;
 	void setText(const TextWithEntities &textWithEntities) override;
 	TextWithEntities originalText() const override;
 	bool textHasLinks() const override;
@@ -2812,9 +2791,9 @@ inline MTPDmessage::Flags newMessageFlags(PeerData *p) {
 	MTPDmessage::Flags result = 0;
 	if (!p->isSelf()) {
 		result |= MTPDmessage::Flag::f_out;
-		if (p->isChat() || (p->isUser() && !p->asUser()->botInfo)) {
-			result |= MTPDmessage::Flag::f_unread;
-		}
+		//if (p->isChat() || (p->isUser() && !p->asUser()->botInfo)) {
+		//	result |= MTPDmessage::Flag::f_unread;
+		//}
 	}
 	return result;
 }
@@ -2873,6 +2852,9 @@ public:
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
     QString notificationText() const override;
 
+	int32 addToOverview(AddToOverviewMethod method) override;
+	void eraseFromOverview() override;
+
 	bool needCheck() const override {
 		return false;
 	}
@@ -2882,8 +2864,6 @@ public:
 	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText() const override;
 	QString inReplyText() const override;
-
-	HistoryMedia *getMedia() const override;
 
 	void setServiceText(const QString &text);
 

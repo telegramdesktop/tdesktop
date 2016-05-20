@@ -313,7 +313,6 @@ inline const char *cApiSystemVersion() {
 inline QString cApiAppVersion() {
 	return QString::number(AppVersion);
 }
-static const char *ApiLang = "en";
 
 extern QString gKeyFile;
 inline const QString &cDataFile() {

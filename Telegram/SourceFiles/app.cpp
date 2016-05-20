@@ -1734,11 +1734,11 @@ namespace {
 	}
 
 	History *history(const PeerId &peer) {
-		return ::histories.findOrInsert(peer, 0, 0);
+		return ::histories.findOrInsert(peer, 0, 0, 0);
 	}
 
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
-		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead);
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {
+		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead, maxOutboxRead);
 	}
 
 	History *historyLoaded(const PeerId &peer) {

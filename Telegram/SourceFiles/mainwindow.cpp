@@ -773,7 +773,7 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 }
 
 void MainWindow::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
-	return lnk->peer() ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
+	return (!item && lnk->peer()) ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
 }
 
 void MainWindow::showPhoto(PhotoData *photo, HistoryItem *item) {

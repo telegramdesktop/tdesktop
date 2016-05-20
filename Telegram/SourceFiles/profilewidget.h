@@ -188,7 +188,7 @@ private:
 
 	// shared media
 	bool _notAllMediaLoaded;
-	LinkButton *_mediaButtons[OverviewCount];
+	LinkButton *_mediaButtons[OverviewCount] = { nullptr };
 	QString overviewLinkText(int32 type, int32 count);
 
 	// actions

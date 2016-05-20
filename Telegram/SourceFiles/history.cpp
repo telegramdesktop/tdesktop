@@ -99,6 +99,27 @@ bool needReSetInlineResultDocument(const MTPMessageMedia &media, DocumentData *e
 	return true;
 }
 
+MediaOverviewType messageMediaToOverviewType(HistoryMedia *media) {
+	switch (media->type()) {
+	case MediaTypePhoto: return OverviewPhotos;
+	case MediaTypeVideo: return OverviewVideos;
+	case MediaTypeFile: return OverviewFiles;
+	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewFiles;
+	case MediaTypeVoiceFile: return OverviewVoiceFiles;
+	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
+	default: break;
+	}
+	return OverviewCount;
+}
+
+MediaOverviewType serviceMediaToOverviewType(HistoryMedia *media) {
+	switch (media->type()) {
+	case MediaTypePhoto: return OverviewChatPhotos;
+	default: break;
+	}
+	return OverviewCount;
+}
+
 } // namespace
 
 void historyInit() {
@@ -108,7 +129,7 @@ void historyInit() {
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
 , _mute(isNotifyMuted(peer->notify)) {
-	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
+	if (peer->isUser() && peer->asUser()->botInfo) {
 		outboxReadBefore = INT_MAX;
 	}
 	for (auto &countData : overviewCountData) {
@@ -418,8 +439,8 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	MTPDmessage::Flags flags = 0;
 	if (peerToUser(inviter->id) == MTP::authedId()) {
 		unread = false;
-	} else if (unread) {
-		flags |= MTPDmessage::Flag::f_unread;
+	//} else if (unread) {
+	//	flags |= MTPDmessage::Flag::f_unread;
 	}
 
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
@@ -838,12 +859,13 @@ History *Histories::find(const PeerId &peerId) {
 	return (i == map.cend()) ? 0 : i.value();
 }
 
-History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead) {
-	Map::const_iterator i = map.constFind(peerId);
+History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
+	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
 		i = map.insert(peerId, peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId)));
 		i.value()->setUnreadCount(unreadCount);
 		i.value()->inboxReadBefore = maxInboxRead + 1;
+		i.value()->outboxReadBefore = maxOutboxRead + 1;
 	}
 	return i.value();
 }
@@ -947,7 +969,7 @@ HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type
 	PeerId peer = peerFromMessage(msg);
 	if (!peer) return nullptr;
 
-	HistoryItem *result = findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
+	HistoryItem *result = App::history(peer)->addNewMessage(msg, type);
 	if (result && type == NewMessageUnread) {
 		checkForSwitchInlineButton(result);
 	}
@@ -1697,7 +1719,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	if (!upTo) upTo = msgIdForRead();
-	inboxReadBefore = qMax(inboxReadBefore, upTo + 1);
+	accumulate_max(inboxReadBefore, upTo + 1);
 
 	updateChatListEntry();
 	if (peer->migrateTo()) {
@@ -1720,7 +1742,7 @@ MsgId History::inboxRead(HistoryItem *wasRead) {
 MsgId History::outboxRead(int32 upTo) {
 	if (upTo < 0) return upTo;
 	if (!upTo) upTo = msgIdForRead();
-	if (outboxReadBefore < upTo + 1) outboxReadBefore = upTo + 1;
+	accumulate_max(outboxReadBefore, upTo + 1);
 
 	return upTo;
 }
@@ -3038,6 +3060,8 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 
 void HistoryItem::destroy() {
 	// All this must be done for all items manually in History::clear(false)!
+	eraseFromOverview();
+
 	bool wasAtBottom = history()->loadedAtBottom();
 	_history->removeNotification(this);
 	detach();
@@ -3139,6 +3163,30 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 		return out() || (peerToUser(_history->peer->id) == MTP::authedId());
 	}
 	return false;
+}
+
+bool HistoryItem::unread() const {
+	// Messages from myself are always read.
+	if (history()->peer->isSelf()) return false;
+
+	if (out()) {
+		// Outgoing messages in converted chats are always read.
+		if (history()->peer->migrateTo()) return false;
+
+		if (id > 0) {
+			if (id < history()->outboxReadBefore) return false;
+			if (auto channel = history()->peer->asChannel()) {
+				if (!channel->isMegagroup()) return false;
+			}
+		}
+		return true;
+	}
+
+	if (id > 0) {
+		if (id < history()->inboxReadBefore) return false;
+		return true;
+	}
+	return (_flags & MTPDmessage_ClientFlag::f_clientside_unread);
 }
 
 void HistoryItem::destroyUnreadBar() {
@@ -7199,7 +7247,7 @@ int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
 
 	int32 result = 0;
 	if (HistoryMedia *media = getMedia()) {
-		MediaOverviewType type = mediaToOverviewType(media);
+		MediaOverviewType type = messageMediaToOverviewType(media);
 		if (type != OverviewCount) {
 			if (history()->addToOverview(type, id, method)) {
 				result |= (1 << type);
@@ -7216,7 +7264,7 @@ int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
 
 void HistoryMessage::eraseFromOverview() {
 	if (HistoryMedia *media = getMedia()) {
-		MediaOverviewType type = mediaToOverviewType(media);
+		MediaOverviewType type = messageMediaToOverviewType(media);
 		if (type != OverviewCount) {
 			history()->eraseFromOverview(type, id);
 		}
@@ -7272,10 +7320,6 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 
 QString HistoryMessage::inDialogsText() const {
 	return emptyText() ? (_media ? _media->inDialogsText() : QString()) : _text.originalText(AllTextSelection, ExpandLinksNone);
-}
-
-HistoryMedia *HistoryMessage::getMedia() const {
-	return _media.data();
 }
 
 void HistoryMessage::setMedia(const MTPMessageMedia *media) {
@@ -7657,11 +7701,6 @@ void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->itemRemoved(this, dependency);
 	}
-}
-
-void HistoryMessage::destroy() {
-	eraseFromOverview();
-	HistoryItem::destroy();
 }
 
 int HistoryMessage::resizeGetHeight_(int width) {
@@ -8462,8 +8501,28 @@ QString HistoryService::notificationText() const {
     return msg;
 }
 
-HistoryMedia *HistoryService::getMedia() const {
-	return _media.data();
+int32 HistoryService::addToOverview(AddToOverviewMethod method) {
+	if (!indexInOverview()) return 0;
+
+	int32 result = 0;
+	if (auto media = getMedia()) {
+		MediaOverviewType type = serviceMediaToOverviewType(media);
+		if (type != OverviewCount) {
+			if (history()->addToOverview(type, id, method)) {
+				result |= (1 << type);
+			}
+		}
+	}
+	return result;
+}
+
+void HistoryService::eraseFromOverview() {
+	if (auto media = getMedia()) {
+		MediaOverviewType type = serviceMediaToOverviewType(media);
+		if (type != OverviewCount) {
+			history()->eraseFromOverview(type, id);
+		}
+	}
 }
 
 HistoryService::~HistoryService() {

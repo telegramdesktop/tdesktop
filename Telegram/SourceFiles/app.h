@@ -158,7 +158,7 @@ namespace App {
 
 	Histories &histories();
 	History *history(const PeerId &peer);
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
