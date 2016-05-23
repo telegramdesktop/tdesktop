@@ -20,6 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 namespace Profile {
 
 class BackButton;
@@ -34,8 +38,15 @@ public:
 	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth);
 
-public slots:
+private slots:
 	void onPhotoShow();
+
+	void onSetPhoto();
+	void onAddMember();
+	void onSendMessage();
+	void onShareContact();
+	void onJoin();
+	void onViewChannel();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -63,8 +74,8 @@ private:
 
 	int _dividerTop;
 
-	ChildWidget<BoxButton> _primaryButton = { nullptr };
-	ChildWidget<BoxButton> _secondaryButton = { nullptr };
+	ChildWidget<Ui::RoundButton> _primaryButton = { nullptr };
+	ChildWidget<Ui::RoundButton> _secondaryButton = { nullptr };
 
 };
 

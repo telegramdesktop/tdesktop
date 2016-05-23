@@ -42,7 +42,25 @@ protected:
 public slots:
 	void onBack();
 
+private slots:
+	void onEditChannel();
+	void onEditGroup();
+	void onLeaveGroup();
+	void onAddContact();
+	void onEditContact();
+	void onDeleteContact();
+
 private:
+	void refreshRightActions();
+	enum class RightActionType {
+		EditChannel,
+		EditGroup,
+		LeaveGroup,
+		AddContact,
+		EditContact,
+		DeleteContact
+	};
+
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
@@ -51,6 +69,7 @@ private:
 
 	ChildWidget<BackButton> _backButton;
 	QList<FlatButton*> _rightActions;
+	QList<RightActionType> _rightActionTypes;
 
 	bool _animatingMode = false;
 

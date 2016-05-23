@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_cover.h"
 
 #include "styles/style_profile.h"
+#include "ui/buttons/round_button.h"
 #include "lang.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -95,6 +96,9 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 
 	_nameText.setText(st::profileNameFont, App::peerName(_peer));
 	updateStatusText();
+
+	_primaryButton = new Ui::RoundButton(this, "SEND MESSAGE", st::profilePrimaryButton);
+	_secondaryButton = new Ui::RoundButton(this, "SHARE CONTACT", st::profileSecondaryButton);
 }
 
 void CoverWidget::onPhotoShow() {
@@ -107,6 +111,31 @@ void CoverWidget::onPhotoShow() {
 	}
 }
 
+void CoverWidget::onSetPhoto() {
+
+}
+
+void CoverWidget::onAddMember() {
+
+}
+
+void CoverWidget::onSendMessage() {
+
+}
+
+void CoverWidget::onShareContact() {
+
+}
+
+void CoverWidget::onJoin() {
+
+}
+
+void CoverWidget::onViewChannel() {
+
+}
+
+
 void CoverWidget::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 
@@ -116,6 +145,15 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	int infoLeft = _photoButton->x() + _photoButton->width();
 	_namePosition = QPoint(infoLeft + st::profileNameLeft, _photoButton->y() + st::profileNameTop);
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _photoButton->y() + st::profileStatusTop);
+
+	int buttonLeft = st::profilePhotoLeft + _photoButton->width() + st::profileButtonLeft;
+	if (_primaryButton) {
+		_primaryButton->moveToLeft(buttonLeft, st::profileButtonTop);
+		buttonLeft += _primaryButton->width() + st::profileButtonSkip;
+	}
+	if (_secondaryButton) {
+		_secondaryButton->moveToLeft(buttonLeft, st::profileButtonTop);
+	}
 
 	newHeight += st::profilePhotoSize;
 	newHeight += st::profileMarginBottom;

@@ -1200,6 +1200,9 @@
     <ClCompile Include="SourceFiles\profile\profile_block_widget.cpp">
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\round_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1384,6 +1387,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\profile\profile_section_memento.h">
       <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\round_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

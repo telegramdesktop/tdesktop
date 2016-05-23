@@ -68,6 +68,31 @@ void FixedBar::onBack() {
 	App::main()->showBackFromStack();
 }
 
+void FixedBar::onEditChannel() {
+
+}
+
+void FixedBar::onEditGroup() {
+
+}
+
+void FixedBar::onLeaveGroup() {
+
+}
+
+void FixedBar::onAddContact() {
+
+}
+
+void FixedBar::onEditContact() {
+
+}
+
+void FixedBar::onDeleteContact() {
+
+}
+
+
 void FixedBar::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 

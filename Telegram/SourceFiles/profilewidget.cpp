@@ -887,12 +887,12 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 //		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, top + addbyname + st::profilePhoneTop + st::profilePhoneFont->ascent, _phoneText);
 	}
 //	top += st::profilePhotoSize;
-	top += st::profileButtonTop;
+//	top += st::profileButtonTop;
 
 	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
-		top -= st::profileButtonTop;
+//		top -= st::profileButtonTop;
 	}
 
 	// about
@@ -1378,7 +1378,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_width = qMin(width() - st::profilePadding.left() - st::profilePadding.right(), int(st::profileMaxWidth));
 	_left = (width() - _width) / 2;
 
-	int32 top = 0, btnWidth = (_width - st::profileButtonSkip) / 2;
+	int32 top = 0, btnWidth = 0;// (_width - st::profileButtonSkip) / 2;
 
 	// profile
 	top += st::profilePadding.top();
@@ -1403,7 +1403,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	//_pinnedMessage.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	//top += st::profilePhotoSize;
 
-	top += st::profileButtonTop;
+	//top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
 	if (_peerChannel && _peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
@@ -1419,7 +1419,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
-		top -= st::profileButtonTop;
+		//top -= st::profileButtonTop;
 	}
 
 	// about
