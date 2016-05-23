@@ -1081,7 +1081,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	QString command = parseCommandFromMessage(history, textWithTags.text);
 	HistoryItem *lastMessage = nullptr;
 
-	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : 0;
+	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : message.replyTo;
 	while (command.isEmpty() && textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 		uint64 randomId = rand_value<uint64>();
