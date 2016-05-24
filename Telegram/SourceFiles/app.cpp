@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
+#include "observer_peer.h"
 
 namespace {
 	App::LaunchState _launchState = App::Launched;
@@ -365,13 +366,14 @@ namespace {
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated) {
-        UserData *data = 0;
-		const auto &v(users.c_vector().v);
-		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const auto &user(*i);
-            data = 0;
-			bool wasContact = false, minimal = false;
+        UserData *result = nullptr;
+		for_const (auto &user, users.c_vector().v) {
+            UserData *data = nullptr;
+			bool wasContact = false, canShareContact = false, minimal = false;
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
+
+			Notify::PeerUpdate update;
+			using UpdateFlag = Notify::PeerUpdateFlag;
 
 			switch (user.type()) {
 			case mtpc_userEmpty: {
@@ -379,6 +381,8 @@ namespace {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
+				auto canShareThisContact = data->canShareThisContact();
+
 				data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
 				data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
@@ -389,6 +393,10 @@ namespace {
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
+
+				if (canShareThisContact != data->canShareThisContact()) {
+					update.flags |= UpdateFlag::UserCanShareContact;
+				}
 			} break;
 			case mtpc_user: {
 				const auto &d(user.c_user());
@@ -396,6 +404,8 @@ namespace {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
+				auto canShareThisContact = data->canShareThisContact();
+
 				if (!minimal) {
 					data->flags = d.vflags.v;
 					if (d.is_self()) {
@@ -478,6 +488,10 @@ namespace {
 						if (App::wnd()) App::wnd()->updateGlobalMenu();
 					}
 				}
+
+				if (canShareThisContact != data->canShareThisContact()) {
+					update.flags |= UpdateFlag::UserCanShareContact;
+				}
 			} break;
 			}
 
@@ -513,22 +527,33 @@ namespace {
 
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(data);
+					if (update.flags) {
+						update.peer = data;
+						Notify::peerUpdated(update);
+					}
 				} else {
 					markPeerUpdated(data);
+					if (update.flags) {
+						update.peer = data;
+						Notify::peerUpdatedDelayed(update);
+					}
 				}
 			}
+			result = data;
 		}
 
-		return data;
+		return result;
 	}
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated) {
-		PeerData *data = 0;
-		const auto &v(chats.c_vector().v);
-		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const auto &chat(*i);
-			data = 0;
+		PeerData *result = nullptr;
+		for_const (auto &chat, chats.c_vector().v) {
+			PeerData *data = nullptr;
 			bool minimal = false;
+
+			Notify::PeerUpdate update;
+			using UpdateFlag = Notify::PeerUpdateFlag;
+
 			switch (chat.type()) {
 			case mtpc_chat: {
 				const auto &d(chat.c_chat());
@@ -621,6 +646,8 @@ namespace {
 				}
 
 				ChannelData *cdata = data->asChannel();
+				auto wasInChannel = cdata->amIn();
+
 				if (minimal) {
 					int32 mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
@@ -644,6 +671,10 @@ namespace {
 				cdata->isForbidden = false;
 				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
+
+				if (wasInChannel != cdata->amIn() && !cdata->isMegagroup()) {
+					update.flags |= UpdateFlag::ChannelAmIn;
+				}
 			} break;
 			case mtpc_channelForbidden: {
 				const auto &d(chat.c_channelForbidden());
@@ -653,6 +684,8 @@ namespace {
 				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
 
 				ChannelData *cdata = data->asChannel();
+				auto wasInChannel = cdata->amIn();
+
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
 				cdata->setName(qs(d.vtitle), QString());
@@ -662,6 +695,10 @@ namespace {
 				cdata->date = 0;
 				cdata->count = 0;
 				cdata->isForbidden = true;
+
+				if (wasInChannel != cdata->amIn() && !cdata->isMegagroup()) {
+					update.flags |= UpdateFlag::ChannelAmIn;
+				}
 			} break;
 			}
 			if (!data) continue;
@@ -676,12 +713,21 @@ namespace {
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(data);
+					if (update.flags) {
+						update.peer = data;
+						Notify::peerUpdated(update);
+					}
 				} else {
 					markPeerUpdated(data);
+					if (update.flags) {
+						update.peer = data;
+						Notify::peerUpdatedDelayed(update);
+					}
 				}
 			}
+			result = data;
 		}
-		return data;
+		return result;
 	}
 
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated) {
@@ -1245,6 +1291,7 @@ namespace {
 				App::main()->peerUpdated(i.key());
 			}
 		}
+		Notify::peerUpdatedSendDelayed();
 	}
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert) {

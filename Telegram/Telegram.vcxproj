@@ -1162,6 +1162,7 @@
     <ClCompile Include="SourceFiles\core\basic_types.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler_types.cpp" />
+    <ClCompile Include="SourceFiles\core\observer.cpp" />
     <ClCompile Include="SourceFiles\dialogswidget.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_layout.cpp" />
@@ -1206,6 +1207,7 @@
     <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp" />
     <ClCompile Include="SourceFiles\mtproto\scheme_auto.cpp" />
     <ClCompile Include="SourceFiles\mtproto\session.cpp" />
+    <ClCompile Include="SourceFiles\observer_peer.cpp" />
     <ClCompile Include="SourceFiles\overviewwidget.cpp" />
     <ClCompile Include="SourceFiles\overview\overview_layout.cpp" />
     <ClCompile Include="SourceFiles\passcodewidget.cpp" />
@@ -1356,6 +1358,8 @@
     <ClInclude Include="Resources\winrc\resource.h" />
     <ClInclude Include="SourceFiles\core\click_handler.h" />
     <ClInclude Include="SourceFiles\core\click_handler_types.h" />
+    <ClInclude Include="SourceFiles\core\observer.h" />
+    <ClInclude Include="SourceFiles\core\vector_of_moveable.h" />
     <ClInclude Include="SourceFiles\core\version.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_common.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h" />
@@ -1484,6 +1488,7 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/mtproto/session.h"</Command>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\observer_peer.h" />
     <ClInclude Include="SourceFiles\overview\overview_layout.h" />
     <CustomBuild Include="SourceFiles\profile\profile_widget.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
@@ -2554,6 +2559,7 @@
     <Image Include="Resources\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ClassDiagram.cd" />
     <None Include="Resources\langs\download.sh" />
     <CustomBuild Include="Resources\langs\lang.strings">
       <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>

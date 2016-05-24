@@ -419,6 +419,9 @@ public:
 	bool canWrite() const {
 		return access != UserNoAccess;
 	}
+	bool canShareThisContact() const {
+		return contact >= 0;
+	}
 
 	MTPInputUser inputUser;
 
@@ -675,9 +678,6 @@ public:
 	bool isPublic() const {
 		return flags & MTPDchannel::Flag::f_username;
 	}
-	bool canEditUsername() const {
-		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
-	}
 	bool amCreator() const {
 		return flags & MTPDchannel::Flag::f_creator;
 	}
@@ -714,6 +714,12 @@ public:
 	}
 	bool canAddParticipants() const {
 		return amCreator() || amEditor() || (flags & MTPDchannel::Flag::f_democracy);
+	}
+	bool canEditPhoto() const {
+		return amCreator() || (amEditor() && isMegagroup());
+	}
+	bool canEditUsername() const {
+		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
 	}
 
 //	ImagePtr photoFull;

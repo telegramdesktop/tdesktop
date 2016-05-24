@@ -20,16 +20,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/observer.h"
+
 namespace Ui {
 class RoundButton;
 } // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 namespace Profile {
 
 class BackButton;
 class PhotoButton;
 
-class CoverWidget final : public TWidget {
+class CoverWidget final : public TWidget, public Notify::Observer {
 	Q_OBJECT
 
 public:
@@ -41,10 +47,10 @@ public:
 private slots:
 	void onPhotoShow();
 
-	void onSetPhoto();
-	void onAddMember();
 	void onSendMessage();
 	void onShareContact();
+	void onSetPhoto();
+	void onAddMember();
 	void onJoin();
 	void onViewChannel();
 
@@ -54,6 +60,24 @@ protected:
 private:
 	void updateStatusText();
 	bool isUsingMegagroupOnlineCount() const;
+
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void updateButtons();
+	void setUserButtons();
+	void setChatButtons();
+	void setMegagroupButtons();
+	void setChannelButtons();
+
+	void setPrimaryButton(const QString &text, const char *slot);
+	void setSecondaryButton(const QString &text, const char *slot);
+	void clearPrimaryButton() {
+		setPrimaryButton(QString(), nullptr);
+	}
+	void clearSecondaryButton() {
+		setSecondaryButton(QString(), nullptr);
+	}
 
 	void paintDivider(Painter &p);
 

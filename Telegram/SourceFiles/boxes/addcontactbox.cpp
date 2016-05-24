@@ -222,7 +222,8 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (isHidden() || !App::main()) return;
 
 	const auto &d(res.c_contacts_importedContacts());
-	App::feedUsers(d.vusers);
+	App::feedUsers(d.vusers, false);
+	App::emitPeerUpdated();
 
 	const auto &v(d.vimported.c_vector().v);
 	UserData *user = nullptr;

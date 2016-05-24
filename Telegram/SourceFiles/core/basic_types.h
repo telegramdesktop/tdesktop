@@ -421,6 +421,24 @@ inline bool operator!=(std::nullptr_t a, const unique_ptr<T> &b) noexcept {
 	return !(a == b);
 }
 
+using _yes = char(&)[1];
+using _no  = char(&)[2];
+
+template <typename Base, typename Derived>
+struct _host {
+	operator Base*() const;
+	operator Derived*();
+};
+
+template <typename Base, typename Derived>
+struct is_base_of {
+	template <typename T>
+	static _yes check(Derived*, T);
+	static _no check(Base*, int);
+
+	static constexpr bool value = sizeof(check(_host<Base, Derived>(), int())) == sizeof(_yes);
+};
+
 } // namespace std_
 
 #include "logs.h"
@@ -1182,16 +1200,20 @@ NullFunctionImplementation<R, Args...> NullFunctionImplementation<R, Args...>::S
 template <typename R, typename... Args>
 class Function {
 public:
-	Function() : _implementation(&NullFunctionImplementation<R, Args...>::SharedInstance) {}
+	Function() : _implementation(nullImpl()) {}
 	Function(FunctionImplementation<R, Args...> *implementation) : _implementation(implementation) {}
 	Function(const Function<R, Args...> &other) = delete;
 	Function<R, Args...> &operator=(const Function<R, Args...> &other) = delete;
 	Function(Function<R, Args...> &&other) : _implementation(other._implementation) {
-		other._implementation = &NullFunctionImplementation<R, Args...>::SharedInstance;
+		other._implementation = nullImpl();
 	}
 	Function<R, Args...> &operator=(Function<R, Args...> &&other) {
 		std::swap(_implementation, other._implementation);
 		return *this;
+	}
+
+	bool isNull() const {
+		return (_implementation == nullImpl());
 	}
 
 	R call(Args... args) { return _implementation->call(args...); }
@@ -1204,6 +1226,10 @@ public:
 	}
 
 private:
+	static FunctionImplementation<R, Args...> *nullImpl() {
+		return &NullFunctionImplementation<R, Args...>::SharedInstance;
+	}
+
 	FunctionImplementation<R, Args...> *_implementation;
 
 };

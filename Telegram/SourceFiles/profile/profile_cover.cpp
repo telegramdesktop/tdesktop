@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "ui/buttons/round_button.h"
+#include "observer_peer.h"
 #include "lang.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -58,6 +59,12 @@ private:
 
 };
 
+const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserCanShareContact
+	| Notify::PeerUpdateFlag::ChatCanEdit
+	| Notify::PeerUpdateFlag::MegagroupCanEditPhoto
+	| Notify::PeerUpdateFlag::MegagroupCanAddMembers
+	| Notify::PeerUpdateFlag::ChannelAmIn;
+
 } // namespace
 
 class PhotoButton final : public Button {
@@ -91,14 +98,17 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _photoButton(this, peer) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	using Flag = Notify::PeerUpdateFlag;
+	auto observeEvents = ButtonsUpdateFlags;
+	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
+
 	_photoButton->photoUpdated();
 	connect(_photoButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 
 	_nameText.setText(st::profileNameFont, App::peerName(_peer));
 	updateStatusText();
 
-	_primaryButton = new Ui::RoundButton(this, "SEND MESSAGE", st::profilePrimaryButton);
-	_secondaryButton = new Ui::RoundButton(this, "SHARE CONTACT", st::profileSecondaryButton);
+	updateButtons();
 }
 
 void CoverWidget::onPhotoShow() {
@@ -111,19 +121,19 @@ void CoverWidget::onPhotoShow() {
 	}
 }
 
-void CoverWidget::onSetPhoto() {
-
-}
-
-void CoverWidget::onAddMember() {
-
-}
-
 void CoverWidget::onSendMessage() {
 
 }
 
 void CoverWidget::onShareContact() {
+
+}
+
+void CoverWidget::onSetPhoto() {
+
+}
+
+void CoverWidget::onAddMember() {
 
 }
 
@@ -242,6 +252,88 @@ bool CoverWidget::isUsingMegagroupOnlineCount() const {
 	}
 
 	return true;
+}
+
+void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+	if (update.flags & ButtonsUpdateFlags) {
+		updateButtons();
+	}
+}
+
+void CoverWidget::updateButtons() {
+	if (_peerUser) {
+		setUserButtons();
+	} else if (_peerChat) {
+		setChatButtons();
+	} else if (_peerMegagroup) {
+		setMegagroupButtons();
+	} else if (_peerChannel) {
+		setChannelButtons();
+	}
+	resizeToWidth(width());
+}
+
+void CoverWidget::setUserButtons() {
+	setPrimaryButton(lang(lng_profile_send_message), SLOT(onSendMessage()));
+	if (_peerUser->canShareThisContact()) {
+		setSecondaryButton(lang(lng_profile_share_contact), SLOT(onShareContact()));
+	} else {
+		clearSecondaryButton();
+	}
+}
+
+void CoverWidget::setChatButtons() {
+	if (_peerChat->canEdit()) {
+		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+		setSecondaryButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
+	} else {
+		clearPrimaryButton();
+		clearSecondaryButton();
+	}
+}
+
+void CoverWidget::setMegagroupButtons() {
+	if (_peerMegagroup->canEditPhoto()) {
+		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+	} else {
+		clearPrimaryButton();
+	}
+	if (_peerMegagroup->canAddParticipants()) {
+		setSecondaryButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
+	} else {
+		clearSecondaryButton();
+	}
+}
+
+void CoverWidget::setChannelButtons() {
+	if (_peerChannel->amCreator()) {
+		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+	} else if (_peerChannel->amIn()) {
+		setPrimaryButton(lang(lng_profile_view_channel), SLOT(onViewChannel()));
+	} else {
+		setPrimaryButton(lang(lng_profile_join_channel), SLOT(onJoin()));
+	}
+	clearSecondaryButton();
+}
+
+void CoverWidget::setPrimaryButton(const QString &text, const char *slot) {
+	delete _primaryButton;
+	_primaryButton = nullptr;
+	if (!text.isEmpty()) {
+		_primaryButton = new Ui::RoundButton(this, text, st::profilePrimaryButton);
+		connect(_primaryButton, SIGNAL(clicked()), this, slot);
+		_primaryButton->show();
+	}
+}
+
+void CoverWidget::setSecondaryButton(const QString &text, const char *slot) {
+	delete _secondaryButton;
+	_secondaryButton = nullptr;
+	if (!text.isEmpty()) {
+		_secondaryButton = new Ui::RoundButton(this, text, st::profileSecondaryButton);
+		connect(_secondaryButton, SIGNAL(clicked()), this, slot);
+		_secondaryButton->show();
+	}
 }
 
 } // namespace Profile

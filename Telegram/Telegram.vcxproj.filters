@@ -1203,6 +1203,12 @@
     <ClCompile Include="SourceFiles\ui\buttons\round_button.cpp">
       <Filter>SourceFiles\ui\buttons</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\core\observer.cpp">
+      <Filter>SourceFiles\core</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\observer_peer.cpp">
+      <Filter>SourceFiles</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1390,6 +1396,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\buttons\round_button.h">
       <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\vector_of_moveable.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\observer.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\observer_peer.h">
+      <Filter>SourceFiles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1704,6 +1719,7 @@
     <None Include="Resources\langs\upload.sh">
       <Filter>Resources\langs</Filter>
     </None>
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">

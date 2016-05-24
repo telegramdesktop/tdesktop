@@ -21,10 +21,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "profile/profile_section_memento.h"
+#include "core/vector_of_moveable.h"
+#include "core/click_handler_types.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "core/click_handler_types.h"
 #include "boxes/confirmbox.h"
 #include "layerwidget.h"
 #include "lang.h"

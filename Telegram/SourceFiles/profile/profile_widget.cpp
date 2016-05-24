@@ -42,7 +42,7 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
 
-	_scroll->setWidget(_inner);
+	_scroll->setOwnedWidget(_inner);
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
