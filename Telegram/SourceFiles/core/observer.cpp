@@ -22,49 +22,68 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 namespace Notify {
+namespace internal {
 namespace {
 
-using StartCallbacksList = QVector<StartObservedEventCallback>;
-using FinishCallbacksList = QVector<FinishObservedEventCallback>;
+struct StartCallbackData {
+	void *that;
+	StartCallback call;
+};
+struct FinishCallbackData {
+	void *that;
+	FinishCallback call;
+};
+struct UnregisterCallbackData {
+	void *that;
+	UnregisterCallback call;
+};
+using StartCallbacksList = QVector<StartCallbackData>;
+using FinishCallbacksList = QVector<FinishCallbackData>;
 NeverFreedPointer<StartCallbacksList> StartCallbacks;
 NeverFreedPointer<FinishCallbacksList> FinishCallbacks;
-UnregisterObserverCallback UnregisterCallbacks[256]/* = { nullptr }*/;
+UnregisterCallbackData UnregisterCallbacks[256]/* = { nullptr }*/;
 
 ObservedEvent LastRegisteredEvent/* = 0*/;
 
 } // namespace
+} // namespace internal
 
 void startObservers() {
-	if (!StartCallbacks) return;
+	if (!internal::StartCallbacks) return;
 
-	for (auto &callback : *StartCallbacks) {
-		callback();
+	for (auto &callback : *internal::StartCallbacks) {
+		callback.call(callback.that);
 	}
 }
 
 void finishObservers() {
-	if (!FinishCallbacks) return;
+	if (!internal::FinishCallbacks) return;
 
-	for (auto &callback : *FinishCallbacks) {
-		callback();
+	for (auto &callback : *internal::FinishCallbacks) {
+		callback.call(callback.that);
 	}
-	StartCallbacks.clear();
-	FinishCallbacks.clear();
+	internal::StartCallbacks.clear();
+	internal::FinishCallbacks.clear();
 }
 
-ObservedEventRegistrator::ObservedEventRegistrator(StartObservedEventCallback startCallback
-, FinishObservedEventCallback finishCallback
-, UnregisterObserverCallback unregisterCallback) {
+namespace internal {
+
+BaseObservedEventRegistrator::BaseObservedEventRegistrator(void *that
+, StartCallback startCallback
+, FinishCallback finishCallback
+, UnregisterCallback unregisterCallback) {
 	_event = LastRegisteredEvent++;
 
 	StartCallbacks.makeIfNull();
-	StartCallbacks->push_back(startCallback);
+	StartCallbacks->push_back({ that, startCallback });
 
 	FinishCallbacks.makeIfNull();
-	FinishCallbacks->push_back(finishCallback);
+	FinishCallbacks->push_back({ that, finishCallback });
 
-	UnregisterCallbacks[_event] = unregisterCallback;
+	UnregisterCallbacks[_event] = { that, unregisterCallback };
 }
+
+} // namespace internal
 
 // Observer base interface.
 Observer::~Observer() {
@@ -78,10 +97,11 @@ void Observer::observerRegistered(ConnectionId connection) {
 }
 
 void unregisterObserver(ConnectionId connection) {
-	auto event = static_cast<ObservedEvent>(connection >> 24);
+	auto event = static_cast<internal::ObservedEvent>(connection >> 24);
 	auto connectionIndex = int(connection & 0x00FFFFFFU) - 1;
-	if (connectionIndex >= 0 && UnregisterCallbacks[event]) {
-		UnregisterCallbacks[event](connectionIndex);
+	auto &callback = internal::UnregisterCallbacks[event];
+	if (connectionIndex >= 0 && callback.call && callback.that) {
+		callback.call(callback.that, connectionIndex);
 	}
 }
 

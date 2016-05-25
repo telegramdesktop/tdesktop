@@ -1100,38 +1100,18 @@ namespace {
 
 using internal::ImageLoadedHandler;
 
-using ImageLoadedObserversList = Notify::ObserversList<int, ImageLoadedHandler>;
-NeverFreedPointer<ImageLoadedObserversList> ImageLoadedObservers;
-
-void StartCallback() {
-	ImageLoadedObservers.makeIfNull();
-}
-void FinishCallback() {
-	ImageLoadedObservers.clear();
-}
-void UnregisterCallback(int connectionIndex) {
-	t_assert(!ImageLoadedObservers.isNull());
-	Notify::unregisterObserver(*ImageLoadedObservers, connectionIndex);
-}
-Notify::ObservedEventRegistrator creator(StartCallback, FinishCallback, UnregisterCallback);
-
-bool Started() {
-	return !ImageLoadedObservers.isNull();
-}
+Notify::SimpleObservedEventRegistrator<ImageLoadedHandler> creator(nullptr, nullptr);
 
 } // namespace
 
 namespace internal {
 
 Notify::ConnectionId plainRegisterImageLoadedObserver(ImageLoadedHandler &&handler) {
-	t_assert(Started());
-	auto connectionId = Notify::registerObserver(creator.event(), *ImageLoadedObservers
-		, Notify::UniversalFlag, std_::forward<ImageLoadedHandler>(handler));
-	return connectionId;
+	return creator.registerObserver(std_::forward<ImageLoadedHandler>(handler));
 }
 
 void notifyImageLoaded() {
-	Notify::notifyObservers(*ImageLoadedObservers, Notify::UniversalFlag);
+	creator.notify();
 }
 
 } // namespace internal

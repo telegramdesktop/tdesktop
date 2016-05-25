@@ -29,11 +29,9 @@ void emitPeerUpdated();
 } // namespace App
 
 namespace Notify {
-namespace internal {
 namespace {
 
-using PeerObserversList = ObserversList<PeerUpdateFlags, PeerUpdateHandler>;
-NeverFreedPointer<PeerObserversList> PeerUpdateObservers;
+using internal::PeerUpdateHandler;
 
 using SmallUpdatesList = QVector<PeerUpdate>;
 NeverFreedPointer<SmallUpdatesList> SmallUpdates;
@@ -41,33 +39,24 @@ using AllUpdatesList = QMap<PeerData*, PeerUpdate>;
 NeverFreedPointer<AllUpdatesList> AllUpdates;
 
 void StartCallback() {
-	PeerUpdateObservers.makeIfNull();
 	SmallUpdates.makeIfNull();
 	AllUpdates.makeIfNull();
 }
 void FinishCallback() {
-	PeerUpdateObservers.clear();
 	SmallUpdates.clear();
 	AllUpdates.clear();
 }
-void UnregisterCallback(int connectionIndex) {
-	t_assert(!PeerUpdateObservers.isNull());
-	unregisterObserver(*PeerUpdateObservers, connectionIndex);
-}
-ObservedEventRegistrator creator(StartCallback, FinishCallback, UnregisterCallback);
-
-bool Started() {
-	return !PeerUpdateObservers.isNull();
-}
+ObservedEventRegistrator<PeerUpdateFlags, PeerUpdateHandler> creator(StartCallback, FinishCallback);
 
 } // namespace
 
+namespace internal {
+
 ConnectionId plainRegisterPeerObserver(PeerUpdateFlags events, PeerUpdateHandler &&handler) {
-	t_assert(Started());
-	auto connectionId = registerObserver(creator.event(), *PeerUpdateObservers
-		, events, std_::forward<PeerUpdateHandler>(handler));
-	return connectionId;
+	return creator.registerObserver(events, std_::forward<PeerUpdateHandler>(handler));
 }
+
+} // namespace internal
 
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 	if (!(mergeTo.flags & PeerUpdateFlag::NameChanged)) {
@@ -79,53 +68,51 @@ void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 	mergeTo.flags |= mergeFrom.flags;
 }
 
-} // namespace internal
-
 void peerUpdatedDelayed(const PeerUpdate &update) {
-	t_assert(internal::Started());
+	t_assert(creator.started());
 
-	int existingUpdatesCount = internal::SmallUpdates->size();
+	int existingUpdatesCount = SmallUpdates->size();
 	for (int i = 0; i < existingUpdatesCount; ++i) {
-		auto &existingUpdate = (*internal::SmallUpdates)[i];
+		auto &existingUpdate = (*SmallUpdates)[i];
 		if (existingUpdate.peer == update.peer) {
-			internal::mergePeerUpdate(existingUpdate, update);
+			mergePeerUpdate(existingUpdate, update);
 			return;
 		}
 	}
-	if (internal::AllUpdates->isEmpty()) {
+	if (AllUpdates->isEmpty()) {
 		if (existingUpdatesCount < 5) {
-			internal::SmallUpdates->push_back(update);
+			SmallUpdates->push_back(update);
 		} else {
-			internal::AllUpdates->insert(update.peer, update);
+			AllUpdates->insert(update.peer, update);
 		}
 	} else {
-		auto it = internal::AllUpdates->find(update.peer);
-		if (it != internal::AllUpdates->cend()) {
-			internal::mergePeerUpdate(it.value(), update);
+		auto it = AllUpdates->find(update.peer);
+		if (it != AllUpdates->cend()) {
+			mergePeerUpdate(it.value(), update);
 			return;
 		}
-		internal::AllUpdates->insert(update.peer, update);
+		AllUpdates->insert(update.peer, update);
 	}
 }
 
 void peerUpdatedSendDelayed() {
 	App::emitPeerUpdated();
 
-	t_assert(internal::Started());
+	t_assert(creator.started());
 
-	if (internal::SmallUpdates->isEmpty()) return;
+	if (SmallUpdates->isEmpty()) return;
 
-	auto smallList = createAndSwap(*internal::SmallUpdates);
-	auto allList = createAndSwap(*internal::AllUpdates);
+	auto smallList = createAndSwap(*SmallUpdates);
+	auto allList = createAndSwap(*AllUpdates);
 	for_const (auto &update, smallList) {
-		notifyObservers(*internal::PeerUpdateObservers, update.flags, update);
+		creator.notify(update.flags, update);
 	}
 	for_const (auto &update, allList) {
-		notifyObservers(*internal::PeerUpdateObservers, update.flags, update);
+		creator.notify(update.flags, update);
 	}
-	if (internal::SmallUpdates->isEmpty()) {
-		std::swap(smallList, *internal::SmallUpdates);
-		internal::SmallUpdates->resize(0);
+	if (SmallUpdates->isEmpty()) {
+		std::swap(smallList, *SmallUpdates);
+		SmallUpdates->resize(0);
 	}
 }
 

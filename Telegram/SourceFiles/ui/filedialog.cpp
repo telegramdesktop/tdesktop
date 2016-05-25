@@ -240,9 +240,6 @@ namespace {
 
 using internal::QueryUpdateHandler;
 
-using QueryObserversList = Notify::ObserversList<int, QueryUpdateHandler>;
-NeverFreedPointer<QueryObserversList> QueryUpdateObservers;
-
 struct Query {
 	enum class Type {
 		ReadFile,
@@ -268,55 +265,51 @@ using QueryList = QList<Query>;
 NeverFreedPointer<QueryList> Queries;
 
 void StartCallback() {
-	QueryUpdateObservers.makeIfNull();
 	Queries.makeIfNull();
 }
+
 void FinishCallback() {
-	QueryUpdateObservers.clear();
 	Queries.clear();
 }
-void UnregisterCallback(int connectionIndex) {
-	t_assert(!QueryUpdateObservers.isNull());
-	Notify::unregisterObserver(*QueryUpdateObservers, connectionIndex);
-}
-Notify::ObservedEventRegistrator creator(StartCallback, FinishCallback, UnregisterCallback);
 
-bool Started() {
-	return !QueryUpdateObservers.isNull();
-}
+Notify::SimpleObservedEventRegistrator<QueryUpdateHandler> creator(StartCallback, FinishCallback);
 
 } // namespace
 
 QueryId queryReadFile(const QString &caption, const QString &filter) {
-	t_assert(Started());
+	t_assert(creator.started());
+
 	Queries->push_back(Query(Query::Type::ReadFile, caption, filter));
 	Global::RefHandleFileDialogQueue().call();
 	return Queries->back().id;
 }
 
 QueryId queryReadFiles(const QString &caption, const QString &filter) {
-	t_assert(Started());
+	t_assert(creator.started());
+
 	Queries->push_back(Query(Query::Type::ReadFiles, caption, filter));
 	Global::RefHandleFileDialogQueue().call();
 	return Queries->back().id;
 }
 
 QueryId queryWriteFile(const QString &caption, const QString &filter, const QString &filePath) {
-	t_assert(Started());
+	t_assert(creator.started());
+
 	Queries->push_back(Query(Query::Type::WriteFile, caption, filter, filePath));
 	Global::RefHandleFileDialogQueue().call();
 	return Queries->back().id;
 }
 
 QueryId queryReadFolder(const QString &caption) {
-	t_assert(Started());
+	t_assert(creator.started());
+
 	Queries->push_back(Query(Query::Type::ReadFolder, caption));
 	Global::RefHandleFileDialogQueue().call();
 	return Queries->back().id;
 }
 
 bool processQuery() {
-	if (!Started() || !Global::started() || Queries->isEmpty()) return false;
+	if (!creator.started() || !Global::started() || Queries->isEmpty()) return false;
 
 	auto query = Queries->front();
 	Queries->pop_front();
@@ -364,19 +357,16 @@ bool processQuery() {
 	}
 
 	// No one know what happened during filedialogGet*() call in the event loop.
-	if (!Started() || !Global::started()) return false;
+	if (!creator.started() || !Global::started()) return false;
 
-	Notify::notifyObservers(*QueryUpdateObservers, Notify::UniversalFlag, update);
+	creator.notify(update);
 	return true;
 }
 
 namespace internal {
 
 Notify::ConnectionId plainRegisterObserver(QueryUpdateHandler &&handler) {
-	t_assert(Started());
-	auto connectionId = Notify::registerObserver(creator.event(), *QueryUpdateObservers
-		, Notify::UniversalFlag, std_::forward<QueryUpdateHandler>(handler));
-	return connectionId;
+	return creator.registerObserver(std_::forward<QueryUpdateHandler>(handler));
 }
 
 } // namespace internal

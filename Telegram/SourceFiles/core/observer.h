@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Notify {
 
-using ObservedEvent = uchar;
 using ConnectionId = uint32;
 
 // startObservers() must be called after main() started (not in a global variable constructor).
@@ -33,25 +32,161 @@ void startObservers();
 void finishObservers();
 
 using StartObservedEventCallback = void(*)();
-using UnregisterObserverCallback = void(*)(int connectionIndex);
 using FinishObservedEventCallback = void(*)();
 
-// Objects of this class should be constructed in global scope.
-// startCallback will be called from Notify::startObservers().
-// finishCallback will be called from Notify::finishObservers().
-// unregisterCallback will be used to destroy connections.
-class ObservedEventRegistrator {
-public:
-	ObservedEventRegistrator(StartObservedEventCallback startCallback,
-		FinishObservedEventCallback finishCallback,
-		UnregisterObserverCallback unregisterCallback);
+namespace internal {
 
+using ObservedEvent = uchar;
+using StartCallback = void(*)(void*);
+using FinishCallback = void(*)(void*);
+using UnregisterCallback = void(*)(void*,int connectionIndex);
+
+class BaseObservedEventRegistrator {
+public:
+	BaseObservedEventRegistrator(void *that
+		, StartCallback startCallback
+		, FinishCallback finishCallback
+		, UnregisterCallback unregisterCallback);
+
+protected:
 	inline ObservedEvent event() const {
 		return _event;
 	}
 
 private:
 	ObservedEvent _event;
+
+};
+
+// Handler is one of Function<> instantiations.
+template <typename Flags, typename Handler>
+struct ObserversList {
+	struct Entry {
+		Flags flags;
+		Handler handler;
+	};
+	std_::vector_of_moveable<Entry> entries;
+	QVector<int> freeIndices;
+};
+
+// If no filtering by flags is done, you can use Flags=int and this value.
+constexpr int UniversalFlag = 0x01;
+
+} // namespace internal
+
+// Objects of this class should be constructed in global scope.
+// startCallback will be called from Notify::startObservers().
+// finishCallback will be called from Notify::finishObservers().
+template <typename Flags, typename Handler>
+class ObservedEventRegistrator : public internal::BaseObservedEventRegistrator {
+public:
+	ObservedEventRegistrator(StartObservedEventCallback startCallback,
+		FinishObservedEventCallback finishCallback) : internal::BaseObservedEventRegistrator(reinterpret_cast<void*>(this),
+			ObservedEventRegistrator<Flags, Handler>::start,
+			ObservedEventRegistrator<Flags, Handler>::finish,
+			ObservedEventRegistrator<Flags, Handler>::unregister)
+		, _startCallback(startCallback), _finishCallback(finishCallback) {
+	}
+
+	bool started() const {
+		return _list != nullptr;
+	}
+
+	ConnectionId registerObserver(Flags flags, Handler &&handler) {
+		t_assert(started());
+
+		int connectionIndex = doRegisterObserver(flags, std_::forward<Handler>(handler));
+		return (static_cast<uint32>(event()) << 24) | static_cast<uint32>(connectionIndex + 1);
+	}
+
+	template <typename... Args>
+	void notify(Flags flags, Args&&... args) {
+		t_assert(started());
+
+		for (auto &entry : _list->entries) {
+			if (!entry.handler.isNull() && (flags & entry.flags)) {
+				entry.handler.call(std_::forward<Args>(args)...);
+			}
+		}
+	}
+
+private:
+	using Self = ObservedEventRegistrator<Flags, Handler>;
+	static void start(void *vthat) {
+		Self *that = reinterpret_cast<Self*>(vthat);
+
+		t_assert(!that->started());
+		if (that->_startCallback) that->_startCallback();
+		that->_list = new internal::ObserversList<Flags, Handler>();
+	}
+	static void finish(void *vthat) {
+		Self *that = reinterpret_cast<Self*>(vthat);
+
+		if (that->_finishCallback) that->_finishCallback();
+		delete that->_list;
+		that->_list = nullptr;
+	}
+	static void unregister(void *vthat, int connectionIndex) {
+		Self *that = reinterpret_cast<Self*>(vthat);
+
+		t_assert(that->started());
+
+		auto &entries(that->_list->entries);
+		if (entries.size() <= connectionIndex) return;
+
+		if (entries.size() == connectionIndex + 1) {
+			for (entries.pop_back(); !entries.isEmpty() && entries.back().handler.isNull();) {
+				entries.pop_back();
+			}
+		} else {
+			entries[connectionIndex].handler = Handler();
+			that->_list->freeIndices.push_back(connectionIndex);
+		}
+	}
+
+	int doRegisterObserver(Flags flags, Handler &&handler) {
+		while (!_list->freeIndices.isEmpty()) {
+			auto freeIndex = _list->freeIndices.back();
+			_list->freeIndices.pop_back();
+
+			if (freeIndex < _list->entries.size()) {
+				_list->entries[freeIndex] = { flags, std_::move(handler) };
+				return freeIndex;
+			}
+		}
+		_list->entries.push_back({ flags, std_::move(handler) });
+		return _list->entries.size() - 1;
+	}
+
+	StartObservedEventCallback _startCallback;
+	FinishObservedEventCallback _finishCallback;
+	internal::ObserversList<Flags, Handler> *_list = nullptr;
+
+};
+
+// If no filtering of notifications by Flags is intended use this class.
+template <typename Handler>
+class SimpleObservedEventRegistrator {
+public:
+	SimpleObservedEventRegistrator(StartObservedEventCallback startCallback,
+		FinishObservedEventCallback finishCallback) : _implementation(startCallback, finishCallback) {
+	}
+
+	bool started() const {
+		return _implementation.started();
+	}
+
+	ConnectionId registerObserver(Handler &&handler) {
+		return _implementation.registerObserver(internal::UniversalFlag, std_::forward<Handler>(handler));
+	}
+
+	template <typename... Args>
+	void notify(Args&&... args) {
+		return _implementation.notify(internal::UniversalFlag, std_::forward<Args>(args)...);
+	}
+
+private:
+	ObservedEventRegistrator<int, Handler> _implementation;
 
 };
 
@@ -77,66 +212,6 @@ private:
 	QVector<ConnectionId> _connections;
 
 };
-
-inline ConnectionId observerConnectionId(ObservedEvent event, int connectionIndex) {
-	t_assert(connectionIndex >= 0 && connectionIndex < 0x01000000);
-	return (static_cast<uint32>(event) << 24) | (connectionIndex + 1);
-}
-
-// Handler is one of Function<> instantiations.
-template <typename Flags, typename Handler>
-struct ObserversList {
-	struct Entry {
-		Flags flags;
-		Handler handler;
-	};
-	std_::vector_of_moveable<Entry> entries;
-	QVector<int> freeIndices;
-};
-
-// If no filtering by flags is done, you can use this value in both
-// Notify::registerObserver() and Notify::notifyObservers()
-constexpr int UniversalFlag = 0x01;
-
-template <typename Flags, typename Handler>
-ConnectionId registerObserver(ObservedEvent event, ObserversList<Flags, Handler> &list, Flags flags, Handler &&handler) {
-	while (!list.freeIndices.isEmpty()) {
-		auto freeIndex = list.freeIndices.back();
-		list.freeIndices.pop_back();
-
-		if (freeIndex < list.entries.size()) {
-			list.entries[freeIndex] = { flags, std_::move(handler) };
-			return freeIndex;
-		}
-	}
-	list.entries.push_back({ flags, std_::move(handler) });
-	int connectionIndex = list.entries.size() - 1;
-	return (static_cast<uint32>(event) << 24) | static_cast<uint32>(connectionIndex + 1);
-}
-
-template <typename Flags, typename Handler>
-void unregisterObserver(ObserversList<Flags, Handler> &list, int connectionIndex) {
-	auto &entries(list.entries);
-	if (entries.size() <= connectionIndex) return;
-
-	if (entries.size() == connectionIndex + 1) {
-		for (entries.pop_back(); !entries.isEmpty() && entries.back().handler.isNull();) {
-			entries.pop_back();
-		}
-	} else {
-		entries[connectionIndex].handler = Handler();
-		list.freeIndices.push_back(connectionIndex);
-	}
-}
-
-template <typename Flags, typename Handler, typename... Args>
-void notifyObservers(ObserversList<Flags, Handler> &list, Flags flags, Args&&... args) {
-	for (auto &entry : list.entries) {
-		if (!entry.handler.isNull() && (flags & entry.flags)) {
-			entry.handler.call(std_::forward<Args>(args)...);
-		}
-	}
-}
 
 namespace internal {
 
