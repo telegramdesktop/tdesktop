@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/observer.h"
+#include "ui/filedialog.h"
 
 namespace Ui {
 class RoundButton;
@@ -60,6 +61,7 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	void refreshNameText();
 	void refreshStatusText();
@@ -71,14 +73,8 @@ private:
 	void setMegagroupButtons();
 	void setChannelButtons();
 
-	void setPrimaryButton(const QString &text, const char *slot);
-	void setSecondaryButton(const QString &text, const char *slot);
-	void clearPrimaryButton() {
-		setPrimaryButton(QString(), nullptr);
-	}
-	void clearSecondaryButton() {
-		setSecondaryButton(QString(), nullptr);
-	}
+	void clearButtons();
+	void addButton(const QString &text, const char *slot);
 
 	void paintDivider(Painter &p);
 
@@ -97,10 +93,11 @@ private:
 	QPoint _statusPosition;
 	QString _statusText;
 
-	int _dividerTop;
+	QList<Ui::RoundButton*> _buttons;
 
-	ChildWidget<Ui::RoundButton> _primaryButton = { nullptr };
-	ChildWidget<Ui::RoundButton> _secondaryButton = { nullptr };
+	int _dividerTop = 0;
+
+	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 

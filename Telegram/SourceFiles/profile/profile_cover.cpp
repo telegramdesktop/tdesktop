@@ -23,8 +23,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "ui/buttons/round_button.h"
+#include "ui/filedialog.h"
 #include "observer_peer.h"
+#include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
+#include "boxes/photocropbox.h"
 #include "lang.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -62,31 +65,61 @@ private:
 
 const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserCanShareContact
 	| Notify::PeerUpdateFlag::ChatCanEdit
-	| Notify::PeerUpdateFlag::MegagroupCanEditPhoto
-	| Notify::PeerUpdateFlag::MegagroupCanAddMembers
+	| Notify::PeerUpdateFlag::ChannelCanEditPhoto
+	| Notify::PeerUpdateFlag::ChannelCanAddMembers
 	| Notify::PeerUpdateFlag::ChannelAmIn;
 
 } // namespace
 
-class PhotoButton final : public Button {
+class PhotoButton final : public Button, public Notify::Observer {
 public:
 	PhotoButton(QWidget *parent, PeerData *peer) : Button(parent), _peer(peer) {
 		resize(st::profilePhotoSize, st::profilePhotoSize);
-	}
-	void photoUpdated() {
-		bool hasPhoto = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId);
-		setCursor(hasPhoto ? style::cur_pointer : style::cur_default);
+
+		processNewPeerPhoto();
+
+		Notify::registerPeerObserver(Notify::PeerUpdateFlag::PhotoChanged, this, &PhotoButton::notifyPeerUpdated);
+		FileDownload::registerImageLoadedObserver(this, &PhotoButton::notifyImageLoaded);
 	}
 
 protected:
 	void paintEvent(QPaintEvent *e) {
 		Painter p(this);
-
-		_peer->paintUserpic(p, st::profilePhotoSize, 0, 0);
+		p.drawPixmap(0, 0, _userpic);
 	}
 
 private:
+	void notifyPeerUpdated(const Notify::PeerUpdate &update) {
+		if (update.peer != _peer) {
+			return;
+		}
+
+		processNewPeerPhoto();
+		this->update();
+	}
+
+	void notifyImageLoaded() {
+		if (_waiting && _peer->userpicLoaded()) {
+			_waiting = false;
+			_userpic = _peer->genUserpic(st::profilePhotoSize);
+			update();
+		}
+	}
+
+	void processNewPeerPhoto() {
+		bool hasPhoto = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId);
+		setCursor(hasPhoto ? style::cur_pointer : style::cur_default);
+		_waiting = !_peer->userpicLoaded();
+		if (_waiting) {
+			_peer->loadUserpic(true);
+		} else {
+			_userpic = _peer->genUserpic(st::profilePhotoSize);
+		}
+	}
+
 	PeerData *_peer;
+	bool _waiting = false;
+	QPixmap _userpic;
 
 };
 
@@ -101,8 +134,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 
 	auto observeEvents = ButtonsUpdateFlags | Notify::PeerUpdateFlag::NameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
+	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
 
-	_photoButton->photoUpdated();
 	connect(_photoButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 
 	refreshNameText();
@@ -132,12 +165,9 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _photoButton->y() + st::profileStatusTop);
 
 	int buttonLeft = st::profilePhotoLeft + _photoButton->width() + st::profileButtonLeft;
-	if (_primaryButton) {
-		_primaryButton->moveToLeft(buttonLeft, st::profileButtonTop);
-		buttonLeft += _primaryButton->width() + st::profileButtonSkip;
-	}
-	if (_secondaryButton) {
-		_secondaryButton->moveToLeft(buttonLeft, st::profileButtonTop);
+	for_const (auto button, _buttons) {
+		button->moveToLeft(buttonLeft, st::profileButtonTop);
+		buttonLeft += button->width() + st::profileButtonSkip;
 	}
 
 	newHeight += st::profilePhotoSize;
@@ -178,13 +208,14 @@ void CoverWidget::paintDivider(Painter &p) {
 }
 
 void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
-	if (update.peer == _peer) {
-		if ((update.flags & ButtonsUpdateFlags) != 0) {
-			refreshButtons();
-		}
-		if (update.flags & Notify::PeerUpdateFlag::NameChanged) {
-			refreshNameText();
-		}
+	if (update.peer != _peer) {
+		return;
+	}
+	if ((update.flags & ButtonsUpdateFlags) != 0) {
+		refreshButtons();
+	}
+	if (update.flags & Notify::PeerUpdateFlag::NameChanged) {
+		refreshNameText();
 	}
 }
 
@@ -247,6 +278,7 @@ bool CoverWidget::isUsingMegagroupOnlineCount() const {
 }
 
 void CoverWidget::refreshButtons() {
+	clearButtons();
 	if (_peerUser) {
 		setUserButtons();
 	} else if (_peerChat) {
@@ -260,65 +292,51 @@ void CoverWidget::refreshButtons() {
 }
 
 void CoverWidget::setUserButtons() {
-	setPrimaryButton(lang(lng_profile_send_message), SLOT(onSendMessage()));
+	addButton(lang(lng_profile_send_message), SLOT(onSendMessage()));
 	if (_peerUser->canShareThisContact()) {
-		setSecondaryButton(lang(lng_profile_share_contact), SLOT(onShareContact()));
-	} else {
-		clearSecondaryButton();
+		addButton(lang(lng_profile_share_contact), SLOT(onShareContact()));
 	}
 }
 
 void CoverWidget::setChatButtons() {
 	if (_peerChat->canEdit()) {
-		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
-		setSecondaryButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
-	} else {
-		clearPrimaryButton();
-		clearSecondaryButton();
+		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
 	}
 }
 
 void CoverWidget::setMegagroupButtons() {
 	if (_peerMegagroup->canEditPhoto()) {
-		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
-	} else {
-		clearPrimaryButton();
+		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 	}
 	if (_peerMegagroup->canAddParticipants()) {
-		setSecondaryButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
-	} else {
-		clearSecondaryButton();
+		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
 	}
 }
 
 void CoverWidget::setChannelButtons() {
 	if (_peerChannel->amCreator()) {
-		setPrimaryButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 	} else if (_peerChannel->amIn()) {
-		setPrimaryButton(lang(lng_profile_view_channel), SLOT(onViewChannel()));
+		addButton(lang(lng_profile_view_channel), SLOT(onViewChannel()));
 	} else {
-		setPrimaryButton(lang(lng_profile_join_channel), SLOT(onJoin()));
-	}
-	clearSecondaryButton();
-}
-
-void CoverWidget::setPrimaryButton(const QString &text, const char *slot) {
-	delete _primaryButton;
-	_primaryButton = nullptr;
-	if (!text.isEmpty()) {
-		_primaryButton = new Ui::RoundButton(this, text, st::profilePrimaryButton);
-		connect(_primaryButton, SIGNAL(clicked()), this, slot);
-		_primaryButton->show();
+		addButton(lang(lng_profile_join_channel), SLOT(onJoin()));
 	}
 }
 
-void CoverWidget::setSecondaryButton(const QString &text, const char *slot) {
-	delete _secondaryButton;
-	_secondaryButton = nullptr;
+void CoverWidget::clearButtons() {
+	auto buttons = createAndSwap(_buttons);
+	for_const (auto button, buttons) {
+		delete button;
+	}
+}
+
+void CoverWidget::addButton(const QString &text, const char *slot) {
 	if (!text.isEmpty()) {
-		_secondaryButton = new Ui::RoundButton(this, text, st::profileSecondaryButton);
-		connect(_secondaryButton, SIGNAL(clicked()), this, slot);
-		_secondaryButton->show();
+		auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
+		_buttons.push_back(new Ui::RoundButton(this, text, buttonStyle));
+		connect(_buttons.back(), SIGNAL(clicked()), this, slot);
+		_buttons.back()->show();
 	}
 }
 
@@ -331,7 +349,37 @@ void CoverWidget::onShareContact() {
 }
 
 void CoverWidget::onSetPhoto() {
+	QStringList imgExtensions(cImgExtensions());
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
+	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+}
+
+void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
+	if (_setPhotoFileQueryId != update.queryId) {
+		return;
+	}
+	_setPhotoFileQueryId = 0;
+
+	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
+		return;
+	}
+
+	QImage img;
+	if (!update.remoteContent.isEmpty()) {
+		img = App::readImage(update.remoteContent);
+	} else {
+		img = App::readImage(update.filePaths.front());
+	}
+
+	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
+		Ui::showLayer(new InformBox(lang(lng_bad_photo)));
+		return;
+	}
+
+	auto box = new PhotoCropBox(img, _peer);
+	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
+	Ui::showLayer(box);
 }
 
 void CoverWidget::onAddMember() {
@@ -339,15 +387,17 @@ void CoverWidget::onAddMember() {
 		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
-		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
-			already.insert(*i, true);
+		for_const (auto user, _peerChannel->mgInfo->lastParticipants) {
+			already.insert(user);
 		}
 		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
 	}
 }
 
 void CoverWidget::onJoin() {
+	if (!_peerChannel) return;
 
+	App::api()->joinChannel(_peerChannel);
 }
 
 void CoverWidget::onViewChannel() {

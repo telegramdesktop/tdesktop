@@ -2003,11 +2003,11 @@ MembersFilter MembersInner::filter() const {
 	return _filter;
 }
 
-QMap<UserData*, bool> MembersInner::already() const {
+MembersAlreadyIn MembersInner::already() const {
 	MembersAlreadyIn result;
-	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
-		if (_rows.at(i)->isUser()) {
-			result.insert(_rows.at(i)->asUser(), true);
+	for_const (auto peer, _rows) {
+		if (peer->isUser()) {
+			result.insert(peer->asUser());
 		}
 	}
 	return result;

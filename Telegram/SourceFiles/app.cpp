@@ -369,7 +369,7 @@ namespace {
         UserData *result = nullptr;
 		for_const (auto &user, users.c_vector().v) {
             UserData *data = nullptr;
-			bool wasContact = false, canShareContact = false, minimal = false;
+			bool wasContact = false, minimal = false;
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			Notify::PeerUpdate update;
@@ -548,12 +548,13 @@ namespace {
 
 			switch (chat.type()) {
 			case mtpc_chat: {
-				const auto &d(chat.c_chat());
+				auto &d(chat.c_chat());
 
 				data = App::chat(peerFromChat(d.vid.v));
-				data->input = MTP_inputPeerChat(d.vid);
+				auto cdata = data->asChat();
+				auto canEdit = cdata->canEdit();
 
-				ChatData *cdata = data->asChat();
+				data->input = MTP_inputPeerChat(d.vid);
 				cdata->setNameDelayed(qs(d.vtitle));
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
@@ -604,14 +605,18 @@ namespace {
 					cdata->version = d.vversion.v;
 					cdata->invalidateParticipants();
 				}
+				if (canEdit != cdata->canEdit()) {
+					update.flags |= UpdateFlag::ChatCanEdit;
+				}
 			} break;
 			case mtpc_chatForbidden: {
-				const auto &d(chat.c_chatForbidden());
+				auto &d(chat.c_chatForbidden());
 
 				data = App::chat(peerFromChat(d.vid.v));
-				data->input = MTP_inputPeerChat(d.vid);
+				auto cdata = data->asChat();
+				auto canEdit = cdata->canEdit();
 
-				ChatData *cdata = data->asChat();
+				data->input = MTP_inputPeerChat(d.vid);
 				cdata->setNameDelayed(qs(d.vtitle));
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
@@ -619,27 +624,32 @@ namespace {
 				cdata->invalidateParticipants();
 				cdata->flags = 0;
 				cdata->isForbidden = true;
+				if (canEdit != cdata->canEdit()) {
+					update.flags |= UpdateFlag::ChatCanEdit;
+				}
 			} break;
 			case mtpc_channel: {
-				const auto &d(chat.c_channel());
+				auto &d(chat.c_channel());
 
-				PeerId peer(peerFromChannel(d.vid.v));
+				auto peerId = peerFromChannel(d.vid.v);
 				minimal = d.is_min();
 				if (minimal) {
-					data = App::channelLoaded(peer);
+					data = App::channelLoaded(peerId);
 					if (!data) {
 						continue; // minimal is not loaded, need to make getDifference
 					}
 				} else {
-					data = App::channel(peer);
+					data = App::channel(peerId);
 					data->input = MTP_inputPeerChannel(d.vid, d.has_access_hash() ? d.vaccess_hash : MTP_long(0));
 				}
 
-				ChannelData *cdata = data->asChannel();
+				auto cdata = data->asChannel();
 				auto wasInChannel = cdata->amIn();
+				auto canEditPhoto = cdata->canEditPhoto();
+				auto canAddMembers = cdata->canAddParticipants();
 
 				if (minimal) {
-					int32 mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
+					MTPDchannel::Flags mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 				} else {
 					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -662,19 +672,27 @@ namespace {
 				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
 
-				if (wasInChannel != cdata->amIn() && !cdata->isMegagroup()) {
+				if (wasInChannel != cdata->amIn()) {
 					update.flags |= UpdateFlag::ChannelAmIn;
+				}
+				if (canEditPhoto != cdata->canEditPhoto()) {
+					update.flags |= UpdateFlag::ChannelCanEditPhoto;
+				}
+				if (canAddMembers != cdata->canAddParticipants()) {
+					update.flags |= UpdateFlag::ChannelCanAddMembers;
 				}
 			} break;
 			case mtpc_channelForbidden: {
-				const auto &d(chat.c_channelForbidden());
+				auto &d(chat.c_channelForbidden());
 
-				PeerId peer(peerFromChannel(d.vid.v));
-				data = App::channel(peer);
+				auto peerId = peerFromChannel(d.vid.v);
+				data = App::channel(peerId);
 				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
 
-				ChannelData *cdata = data->asChannel();
+				auto cdata = data->asChannel();
 				auto wasInChannel = cdata->amIn();
+				auto canEditPhoto = cdata->canEditPhoto();
+				auto canAddMembers = cdata->canAddParticipants();
 
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
@@ -686,8 +704,14 @@ namespace {
 				cdata->count = 0;
 				cdata->isForbidden = true;
 
-				if (wasInChannel != cdata->amIn() && !cdata->isMegagroup()) {
+				if (wasInChannel != cdata->amIn()) {
 					update.flags |= UpdateFlag::ChannelAmIn;
+				}
+				if (canEditPhoto != cdata->canEditPhoto()) {
+					update.flags |= UpdateFlag::ChannelCanEditPhoto;
+				}
+				if (canAddMembers != cdata->canAddParticipants()) {
+					update.flags |= UpdateFlag::ChannelCanAddMembers;
 				}
 			} break;
 			}

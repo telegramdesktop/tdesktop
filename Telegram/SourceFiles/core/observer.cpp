@@ -30,6 +30,8 @@ NeverFreedPointer<StartCallbacksList> StartCallbacks;
 NeverFreedPointer<FinishCallbacksList> FinishCallbacks;
 UnregisterObserverCallback UnregisterCallbacks[256]/* = { nullptr }*/;
 
+ObservedEvent LastRegisteredEvent/* = 0*/;
+
 } // namespace
 
 void startObservers() {
@@ -50,17 +52,18 @@ void finishObservers() {
 	FinishCallbacks.clear();
 }
 
-ObservedEventRegistrator::ObservedEventRegistrator(ObservedEvent event
-, StartObservedEventCallback startCallback
+ObservedEventRegistrator::ObservedEventRegistrator(StartObservedEventCallback startCallback
 , FinishObservedEventCallback finishCallback
 , UnregisterObserverCallback unregisterCallback) {
+	_event = LastRegisteredEvent++;
+
 	StartCallbacks.makeIfNull();
 	StartCallbacks->push_back(startCallback);
 
 	FinishCallbacks.makeIfNull();
 	FinishCallbacks->push_back(finishCallback);
 
-	UnregisterCallbacks[event] = unregisterCallback;
+	UnregisterCallbacks[_event] = unregisterCallback;
 }
 
 // Observer base interface.

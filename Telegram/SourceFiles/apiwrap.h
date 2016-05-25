@@ -28,7 +28,7 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	typedef SharedCallback<void, ChannelData*, MsgId> RequestMessageDataCallback;
+	using RequestMessageDataCallback = SharedCallback<void, ChannelData*, MsgId>;
 	void requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback);
 
 	void requestFullPeer(PeerData *peer);
@@ -50,6 +50,9 @@ public:
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
 
+	void joinChannel(ChannelData *channel);
+	void leaveChannel(ChannelData *channel);
+
 	~ApiWrap();
 
 signals:
@@ -64,6 +67,8 @@ public slots:
 	void delayedRequestParticipantsCount();
 
 private:
+
+	void updatesReceived(const MTPUpdates &updates);
 
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	struct MessageDataRequest {
@@ -119,5 +124,10 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 	bool gotStickerSetFail(uint64 setId, const RPCError &error);
+
+	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
+	void channelAmInUpdated(ChannelData *channel);
+	void channelAmInDone(ChannelData *channel, const MTPUpdates &updates);
+	bool channelAmInFail(ChannelData *channel, const RPCError &error);
 
 };

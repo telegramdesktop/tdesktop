@@ -38,7 +38,7 @@ public:
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e) {
+	void paintEvent(QPaintEvent *e) override {
 		Painter p(this);
 
 		p.fillRect(e->rect(), st::profileBg);
@@ -47,6 +47,11 @@ protected:
 		p.setFont(st::profileTopBarBackFont);
 		p.setPen(st::profileTopBarBackFg);
 		p.drawTextLeft(st::profileTopBarBackPosition.x(), st::profileTopBarBackPosition.y(), width(), lang(lng_menu_back));
+	}
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override {
+		if ((_state & Button::StateDown) && !(oldState & Button::StateDown)) {
+			emit clicked();
+		}
 	}
 
 private:

@@ -48,6 +48,7 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 
 	connect(_scroll, SIGNAL(scrolled()), _inner, SLOT(updateSelected()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(_inner, SIGNAL(cancelled()), _fixedBar, SLOT(onBack()));
 }
 
 void Widget::updateAdaptiveLayout() {

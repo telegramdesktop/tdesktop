@@ -41,9 +41,12 @@ public:
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
+signals:
+	void cancelled();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override; // TEMP for testing
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	// Resizes content and counts natural widget height for the desired width.

@@ -396,8 +396,8 @@ void ProfileInner::onAddParticipant() {
 		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
-		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
-			already.insert(*i, true);
+		for_const (auto user, _peerChannel->mgInfo->lastParticipants) {
+			already.insert(user);
 		}
 		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
 	}

@@ -208,6 +208,7 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 	}
 	emit App::wnd()->imageLoaded();
 	emit progress(this);
+	FileDownload::internal::notifyImageLoaded();
 	loadNext();
 }
 
@@ -549,6 +550,9 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
 	}
 	emit progress(this);
+	if (_complete) {
+		FileDownload::internal::notifyImageLoaded();
+	}
 	loadNext();
 }
 
@@ -678,6 +682,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 		Local::writeWebFile(_url, _data);
 	}
 	emit progress(this);
+	FileDownload::internal::notifyImageLoaded();
 	loadNext();
 }
 
@@ -1088,4 +1093,46 @@ namespace MTP {
 	void clearLoaderPriorities() {
 		++GlobalPriority;
 	}
+}
+
+namespace FileDownload {
+namespace {
+
+using internal::ImageLoadedHandler;
+
+using ImageLoadedObserversList = Notify::ObserversList<int, ImageLoadedHandler>;
+NeverFreedPointer<ImageLoadedObserversList> ImageLoadedObservers;
+
+void StartCallback() {
+	ImageLoadedObservers.makeIfNull();
+}
+void FinishCallback() {
+	ImageLoadedObservers.clear();
+}
+void UnregisterCallback(int connectionIndex) {
+	t_assert(!ImageLoadedObservers.isNull());
+	Notify::unregisterObserver(*ImageLoadedObservers, connectionIndex);
+}
+Notify::ObservedEventRegistrator creator(StartCallback, FinishCallback, UnregisterCallback);
+
+bool Started() {
+	return !ImageLoadedObservers.isNull();
+}
+
+} // namespace
+
+namespace internal {
+
+Notify::ConnectionId plainRegisterImageLoadedObserver(ImageLoadedHandler &&handler) {
+	t_assert(Started());
+	auto connectionId = Notify::registerObserver(creator.event(), *ImageLoadedObservers
+		, Notify::UniversalFlag, std_::forward<ImageLoadedHandler>(handler));
+	return connectionId;
+}
+
+void notifyImageLoaded() {
+	Notify::notifyObservers(*ImageLoadedObservers, Notify::UniversalFlag);
+}
+
+} // namespace internal
 }

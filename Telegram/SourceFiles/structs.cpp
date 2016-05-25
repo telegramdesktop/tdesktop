@@ -229,6 +229,10 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		if (App::main()) {
 			emit App::main()->peerPhotoChanged(this);
 		}
+
+		Notify::PeerUpdate update(this);
+		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
+		Notify::peerUpdatedDelayed(update);
 	}
 }
 
@@ -401,6 +405,10 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
+
+		Notify::PeerUpdate update(this);
+		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
+		Notify::peerUpdatedDelayed(update);
 	}
 }
 
@@ -439,6 +447,10 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) emit App::main()->peerPhotoChanged(this);
+
+		Notify::PeerUpdate update(this);
+		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
+		Notify::peerUpdatedDelayed(update);
 	}
 }
 

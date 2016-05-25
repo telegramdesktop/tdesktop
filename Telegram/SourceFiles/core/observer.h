@@ -42,10 +42,16 @@ using FinishObservedEventCallback = void(*)();
 // unregisterCallback will be used to destroy connections.
 class ObservedEventRegistrator {
 public:
-	ObservedEventRegistrator(ObservedEvent event
-		, StartObservedEventCallback startCallback
-		, FinishObservedEventCallback finishCallback
-		, UnregisterObserverCallback unregisterCallback);
+	ObservedEventRegistrator(StartObservedEventCallback startCallback,
+		FinishObservedEventCallback finishCallback,
+		UnregisterObserverCallback unregisterCallback);
+
+	inline ObservedEvent event() const {
+		return _event;
+	}
+
+private:
+	ObservedEvent _event;
 
 };
 
@@ -88,8 +94,12 @@ struct ObserversList {
 	QVector<int> freeIndices;
 };
 
+// If no filtering by flags is done, you can use this value in both
+// Notify::registerObserver() and Notify::notifyObservers()
+constexpr int UniversalFlag = 0x01;
+
 template <typename Flags, typename Handler>
-int registerObserver(ObserversList<Flags, Handler> &list, Flags flags, Handler &&handler) {
+ConnectionId registerObserver(ObservedEvent event, ObserversList<Flags, Handler> &list, Flags flags, Handler &&handler) {
 	while (!list.freeIndices.isEmpty()) {
 		auto freeIndex = list.freeIndices.back();
 		list.freeIndices.pop_back();
@@ -100,7 +110,8 @@ int registerObserver(ObserversList<Flags, Handler> &list, Flags flags, Handler &
 		}
 	}
 	list.entries.push_back({ flags, std_::move(handler) });
-	return list.entries.size() - 1;
+	int connectionIndex = list.entries.size() - 1;
+	return (static_cast<uint32>(event) << 24) | static_cast<uint32>(connectionIndex + 1);
 }
 
 template <typename Flags, typename Handler>
@@ -131,17 +142,26 @@ namespace internal {
 
 template <typename ObserverType, int>
 struct ObserverRegisteredGeneric {
-	static void call(ObserverType *observer, ConnectionId connection) {
+	static inline void call(ObserverType *observer, ConnectionId connection) {
 		observer->observerRegistered(connection);
 	}
 };
 
-template<typename ObserverType>
+template <typename ObserverType>
 struct ObserverRegisteredGeneric<ObserverType, true> {
-	static void call(ObserverType *observer, ConnectionId connection) {
+	static inline void call(ObserverType *observer, ConnectionId connection) {
 		observerRegisteredDefault(observer, connection);
 	}
 };
 
 } // namespace internal
+
+template <typename ObserverType>
+inline void observerRegistered(ObserverType *observer, ConnectionId connection) {
+	// For derivatives of the Observer class we call special friend function observerRegistered().
+	// For all other classes we call just a member function observerRegistered().
+	using ObserverRegistered = internal::ObserverRegisteredGeneric<ObserverType, std_::is_base_of<Observer, ObserverType>::value>;
+	ObserverRegistered::call(observer, connection);
+}
+
 } // namespace Notify

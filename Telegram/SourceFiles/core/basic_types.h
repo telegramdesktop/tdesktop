@@ -33,6 +33,13 @@ T *getPointerAndReset(T *&ptr) {
 	return result;
 }
 
+template <typename T>
+T createAndSwap(T &value) {
+	T result;
+	std::swap(result, value);
+	return result;
+}
+
 struct NullType {
 };
 

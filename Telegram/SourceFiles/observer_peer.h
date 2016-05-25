@@ -30,16 +30,17 @@ namespace Notify {
 // 0xFFFF0000U for specific peer updates (valid for user / chat / channel).
 
 enum class PeerUpdateFlag {
-	NameChanged            = 0x00000001U,
-	UsernameChanged        = 0x00000002U,
+	NameChanged          = 0x00000001U,
+	UsernameChanged      = 0x00000002U,
+	PhotoChanged         = 0x00000004U,
 
-	UserCanShareContact    = 0x00010000U,
+	UserCanShareContact  = 0x00010000U,
 
-	ChatCanEdit            = 0x00010000U,
+	ChatCanEdit          = 0x00010000U,
 
-	ChannelAmIn            = 0x00010000U,
-	MegagroupCanEditPhoto  = 0x00020000U,
-	MegagroupCanAddMembers = 0x00040000U,
+	ChannelAmIn          = 0x00010000U,
+	ChannelCanEditPhoto  = 0x00020000U,
+	ChannelCanAddMembers = 0x00040000U,
 };
 Q_DECLARE_FLAGS(PeerUpdateFlags, PeerUpdateFlag);
 Q_DECLARE_OPERATORS_FOR_FLAGS(PeerUpdateFlags);
@@ -68,11 +69,7 @@ ConnectionId plainRegisterPeerObserver(PeerUpdateFlags events, PeerUpdateHandler
 template <typename ObserverType>
 void registerPeerObserver(PeerUpdateFlags events, ObserverType *observer, void (ObserverType::*handler)(const PeerUpdate &)) {
 	auto connection = internal::plainRegisterPeerObserver(events, func(observer, handler));
-
-	// For derivatives of the Observer class we call special friend function observerRegistered().
-	// For all other classes we call just a member function observerRegistered().
-	using ObserverRegistered = internal::ObserverRegisteredGeneric<ObserverType, std_::is_base_of<Observer, ObserverType>::value>;
-	ObserverRegistered::call(observer, connection);
+	observerRegistered(observer, connection);
 }
 
 } // namespace Notify

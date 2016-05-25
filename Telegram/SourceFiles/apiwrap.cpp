@@ -97,6 +97,10 @@ void ApiWrap::resolveMessageDatas() {
 	}
 }
 
+void ApiWrap::updatesReceived(const MTPUpdates &updates) {
+	App::main()->sentUpdatesReceived(updates);
+}
+
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
@@ -678,6 +682,45 @@ void ApiWrap::requestStickerSets() {
 		i.value().second = MTP::send(MTPmessages_GetStickerSet(MTP_inputStickerSetID(MTP_long(i.key()), MTP_long(i.value().first))), rpcDone(&ApiWrap::gotStickerSet, i.key()), rpcFail(&ApiWrap::gotStickerSetFail, i.key()), 0, wait);
 	}
 }
+
+void ApiWrap::joinChannel(ChannelData *channel) {
+	if (channel->amIn()) {
+		channelAmInUpdated(channel);
+	} else if (!_channelAmInRequests.contains(channel)) {
+		auto requestId = MTP::send(MTPchannels_JoinChannel(channel->inputChannel), rpcDone(&ApiWrap::channelAmInDone, channel), rpcFail(&ApiWrap::channelAmInFail, channel));
+		_channelAmInRequests.insert(channel, requestId);
+	}
+}
+
+void ApiWrap::leaveChannel(ChannelData *channel) {
+	if (!channel->amIn()) {
+		channelAmInUpdated(channel);
+	} else if (!_channelAmInRequests.contains(channel)) {
+		auto requestId = MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), rpcDone(&ApiWrap::channelAmInDone, channel), rpcFail(&ApiWrap::channelAmInFail, channel));
+		_channelAmInRequests.insert(channel, requestId);
+	}
+}
+
+void ApiWrap::channelAmInUpdated(ChannelData *channel) {
+	Notify::PeerUpdate update(channel);
+	update.flags |= Notify::PeerUpdateFlag::ChannelAmIn;
+	Notify::peerUpdatedDelayed(update);
+	Notify::peerUpdatedSendDelayed();
+}
+
+void ApiWrap::channelAmInDone(ChannelData *channel, const MTPUpdates &updates) {
+	_channelAmInRequests.remove(channel);
+
+	updatesReceived(updates);
+}
+
+bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_channelAmInRequests.remove(channel);
+	return true;
+}
+
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);

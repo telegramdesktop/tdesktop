@@ -204,6 +204,7 @@ void finish();
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
+DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
 
 DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);

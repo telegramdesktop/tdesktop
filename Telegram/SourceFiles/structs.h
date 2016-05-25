@@ -309,6 +309,9 @@ public:
 	void loadUserpic(bool loadFirst = false, bool prior = true) {
 		_userpic->load(loadFirst, prior);
 	}
+	bool userpicLoaded() const {
+		return _userpic->loaded();
+	}
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path) const;
 	QPixmap genUserpic(int size) const;

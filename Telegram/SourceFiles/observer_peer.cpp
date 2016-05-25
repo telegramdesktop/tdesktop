@@ -32,7 +32,6 @@ namespace Notify {
 namespace internal {
 namespace {
 
-constexpr ObservedEvent PeerUpdateEvent = 0x01;
 using PeerObserversList = ObserversList<PeerUpdateFlags, PeerUpdateHandler>;
 NeverFreedPointer<PeerObserversList> PeerUpdateObservers;
 
@@ -55,7 +54,7 @@ void UnregisterCallback(int connectionIndex) {
 	t_assert(!PeerUpdateObservers.isNull());
 	unregisterObserver(*PeerUpdateObservers, connectionIndex);
 }
-ObservedEventRegistrator creator(PeerUpdateEvent, StartCallback, FinishCallback, UnregisterCallback);
+ObservedEventRegistrator creator(StartCallback, FinishCallback, UnregisterCallback);
 
 bool Started() {
 	return !PeerUpdateObservers.isNull();
@@ -65,9 +64,9 @@ bool Started() {
 
 ConnectionId plainRegisterPeerObserver(PeerUpdateFlags events, PeerUpdateHandler &&handler) {
 	t_assert(Started());
-	auto connectionId = registerObserver(*PeerUpdateObservers, events, std_::forward<PeerUpdateHandler>(handler));
-	t_assert(connectionId >= 0 && connectionId < 0x01000000);
-	return (static_cast<uint32>(PeerUpdateEvent) << 24) | static_cast<uint32>(connectionId + 1);
+	auto connectionId = registerObserver(creator.event(), *PeerUpdateObservers
+		, events, std_::forward<PeerUpdateHandler>(handler));
+	return connectionId;
 }
 
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
@@ -116,10 +115,8 @@ void peerUpdatedSendDelayed() {
 
 	if (internal::SmallUpdates->isEmpty()) return;
 
-	internal::SmallUpdatesList smallList;
-	internal::AllUpdatesList allList;
-	std::swap(smallList, *internal::SmallUpdates);
-	std::swap(allList, *internal::AllUpdates);
+	auto smallList = createAndSwap(*internal::SmallUpdates);
+	auto allList = createAndSwap(*internal::AllUpdates);
 	for_const (auto &update, smallList) {
 		notifyObservers(*internal::PeerUpdateObservers, update.flags, update);
 	}
