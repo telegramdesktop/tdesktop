@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
+#include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
@@ -3489,7 +3490,7 @@ namespace Local {
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 			if (!wasLoaded) {
-				user->setName(first, last, pname, username);
+				user->setNameDelayed(first, last, pname, username);
 
 				user->access = access;
 				user->flags = MTPDuser::Flags(flags);
@@ -3524,7 +3525,7 @@ namespace Local {
 				flags = (flagsData == 1) ? MTPDchat::Flags(MTPDchat::Flag::f_left) : MTPDchat::Flags(0);
 			}
 			if (!wasLoaded) {
-				chat->updateName(name, QString(), QString());
+				chat->setNameDelayed(name);
 				chat->count = count;
 				chat->date = date;
 				chat->version = version;
@@ -3547,7 +3548,7 @@ namespace Local {
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
 			if (!wasLoaded) {
-				channel->updateName(name, QString(), QString());
+				channel->setNameDelayed(name, QString());
 				channel->access = access;
 				channel->date = date;
 				channel->version = version;
@@ -3743,7 +3744,8 @@ namespace Local {
 			cRefSavedPeersByTime().insert(t, peer);
 			peers.push_back(peer);
 		}
-		App::emitPeerUpdated();
+
+		Notify::peerUpdatedSendDelayed();
 		if (App::api()) App::api()->requestPeers(peers);
 	}
 

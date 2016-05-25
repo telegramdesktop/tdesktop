@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
+#include "core/observer.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -200,6 +201,7 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
+	Notify::startObservers();
 	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
@@ -336,6 +338,8 @@ void Application::closeApplication() {
 	if (_updateThread) _updateThread->quit();
 	_updateThread = 0;
 #endif
+
+	Notify::finishObservers();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

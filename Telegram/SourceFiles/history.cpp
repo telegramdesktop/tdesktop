@@ -1153,9 +1153,10 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditTitle: {
-				const auto &d(action.c_messageActionChatEditTitle());
-				ChatData *chat = peer->asChat();
-				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
+				auto &d(action.c_messageActionChatEditTitle());
+				if (auto chat = peer->asChat()) {
+					chat->setName(qs(d.vtitle));
+				}
 			} break;
 
 			case mtpc_messageActionChatMigrateTo: {

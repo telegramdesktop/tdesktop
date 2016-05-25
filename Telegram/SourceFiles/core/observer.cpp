@@ -24,9 +24,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Notify {
 namespace {
 
-UnregisterObserverCallback UnregisterCallbacks[256];
+using StartCallbacksList = QVector<StartObservedEventCallback>;
+using FinishCallbacksList = QVector<FinishObservedEventCallback>;
+NeverFreedPointer<StartCallbacksList> StartCallbacks;
+NeverFreedPointer<FinishCallbacksList> FinishCallbacks;
+UnregisterObserverCallback UnregisterCallbacks[256]/* = { nullptr }*/;
 
 } // namespace
+
+void startObservers() {
+	if (!StartCallbacks) return;
+
+	for (auto &callback : *StartCallbacks) {
+		callback();
+	}
+}
+
+void finishObservers() {
+	if (!FinishCallbacks) return;
+
+	for (auto &callback : *FinishCallbacks) {
+		callback();
+	}
+	StartCallbacks.clear();
+	FinishCallbacks.clear();
+}
+
+ObservedEventRegistrator::ObservedEventRegistrator(ObservedEvent event
+, StartObservedEventCallback startCallback
+, FinishObservedEventCallback finishCallback
+, UnregisterObserverCallback unregisterCallback) {
+	StartCallbacks.makeIfNull();
+	StartCallbacks->push_back(startCallback);
+
+	FinishCallbacks.makeIfNull();
+	FinishCallbacks->push_back(finishCallback);
+
+	UnregisterCallbacks[event] = unregisterCallback;
+}
 
 // Observer base interface.
 Observer::~Observer() {
@@ -47,10 +82,6 @@ void unregisterObserver(ConnectionId connection) {
 	}
 }
 
-UnregisterObserverCallbackCreator::UnregisterObserverCallbackCreator(ObservedEvent event, UnregisterObserverCallback callback) {
-	UnregisterCallbacks[event] = callback;
-}
-
 namespace internal {
 
 void observerRegisteredDefault(Observer *observer, ConnectionId connection) {
@@ -58,5 +89,4 @@ void observerRegisteredDefault(Observer *observer, ConnectionId connection) {
 }
 
 } // namespace internal
-
 } // namespace Notify

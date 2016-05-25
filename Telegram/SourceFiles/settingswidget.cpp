@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settingswidget.h"
 
+#include "observer_peer.h"
 #include "lang.h"
 #include "boxes/aboutbox.h"
 #include "mainwidget.h"
@@ -205,6 +206,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _telegramFAQ(this, lang(lng_settings_faq))
 , _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
+	Notify::registerPeerObserver(Notify::PeerUpdateFlag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
+
 	if (self()) {
 		self()->loadUserpic();
 
@@ -269,13 +272,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->width(_newVersionText);
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
 	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
 	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
 	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-	#endif
+#endif
 
 	// chat options
 	connect(&_replaceEmojis, SIGNAL(changed()), this, SLOT(onReplaceEmojis()));
@@ -347,6 +350,14 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	updateConnectionType();
 
 	setMouseTracking(true);
+}
+
+void SettingsInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+	if (update.peer == App::self()) {
+		if (update.flags & Notify::PeerUpdateFlag::UsernameChanged) {
+			usernameChanged();
+		}
+	}
 }
 
 void SettingsInner::peerUpdated(PeerData *data) {
@@ -1975,10 +1986,6 @@ void SettingsWidget::updateConnectionType() {
 
 void SettingsWidget::rpcClear() {
 	_inner.rpcClear();
-}
-
-void SettingsWidget::usernameChanged() {
-	_inner.usernameChanged();
 }
 
 void SettingsWidget::setInnerFocus() {

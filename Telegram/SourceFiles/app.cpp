@@ -365,7 +365,7 @@ namespace {
 		return (online > now);
 	}
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated) {
+	UserData *feedUsersDelayed(const MTPVector<MTPUser> &users) {
         UserData *result = nullptr;
 		for_const (auto &user, users.c_vector().v) {
             UserData *data = nullptr;
@@ -385,7 +385,7 @@ namespace {
 
 				data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
 				data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
-				data->setName(lang(lng_deleted), QString(), QString(), QString());
+				data->setNameDelayed(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
 				data->flags = 0;
@@ -426,7 +426,7 @@ namespace {
 				}
 				if (d.is_deleted()) {
 					data->setPhone(QString());
-					data->setName(lang(lng_deleted), QString(), QString(), QString());
+					data->setNameDelayed(lang(lng_deleted), QString(), QString(), QString());
 					data->setPhoto(MTP_userProfilePhotoEmpty());
 					data->access = UserNoAccess;
 					status = &emptyStatus;
@@ -459,7 +459,7 @@ namespace {
 					if (!minimal && d.is_self() && uname != data->username) {
 						SignalHandlers::setCrashAnnotation("Username", uname);
 					}
-					data->setName(fname, lname, pname, uname);
+					data->setNameDelayed(fname, lname, pname, uname);
 					if (d.has_photo()) {
 						data->setPhoto(d.vphoto);
 					} else {
@@ -525,18 +525,10 @@ namespace {
 					Notify::userIsContactChanged(data);
 				}
 
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(data);
-					if (update.flags) {
-						update.peer = data;
-						Notify::peerUpdated(update);
-					}
-				} else {
-					markPeerUpdated(data);
-					if (update.flags) {
-						update.peer = data;
-						Notify::peerUpdatedDelayed(update);
-					}
+				markPeerUpdated(data);
+				if (update.flags) {
+					update.peer = data;
+					Notify::peerUpdatedDelayed(update);
 				}
 			}
 			result = data;
@@ -545,7 +537,7 @@ namespace {
 		return result;
 	}
 
-	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated) {
+	PeerData *feedChatsDelayed(const MTPVector<MTPChat> &chats) {
 		PeerData *result = nullptr;
 		for_const (auto &chat, chats.c_vector().v) {
 			PeerData *data = nullptr;
@@ -561,9 +553,8 @@ namespace {
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
 
-				data->updateName(qs(d.vtitle), QString(), QString());
-
 				ChatData *cdata = data->asChat();
+				cdata->setNameDelayed(qs(d.vtitle));
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 
@@ -620,9 +611,8 @@ namespace {
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
 
-				data->updateName(qs(d.vtitle), QString(), QString());
-
 				ChatData *cdata = data->asChat();
+				cdata->setNameDelayed(qs(d.vtitle));
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
@@ -666,7 +656,7 @@ namespace {
 					}
 				}
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
-				cdata->setName(qs(d.vtitle), uname);
+				cdata->setNameDelayed(qs(d.vtitle), uname);
 
 				cdata->isForbidden = false;
 				cdata->flagsUpdated();
@@ -688,7 +678,7 @@ namespace {
 
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
-				cdata->setName(qs(d.vtitle), QString());
+				cdata->setNameDelayed(qs(d.vtitle), QString());
 
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(MTP_chatPhotoEmpty());
@@ -711,22 +701,26 @@ namespace {
 				data->loadedStatus = PeerData::FullLoaded;
 			}
 			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(data);
-					if (update.flags) {
-						update.peer = data;
-						Notify::peerUpdated(update);
-					}
-				} else {
-					markPeerUpdated(data);
-					if (update.flags) {
-						update.peer = data;
-						Notify::peerUpdatedDelayed(update);
-					}
+				markPeerUpdated(data);
+				if (update.flags) {
+					update.peer = data;
+					Notify::peerUpdatedDelayed(update);
 				}
 			}
 			result = data;
 		}
+		return result;
+	}
+
+	UserData *feedUsers(const MTPVector<MTPUser> &users) {
+		auto result = feedUsersDelayed(users);
+		Notify::peerUpdatedSendDelayed();
+		return result;
+	}
+
+	PeerData *feedChats(const MTPVector<MTPChat> &chats) {
+		auto result = feedChatsDelayed(chats);
+		Notify::peerUpdatedSendDelayed();
 		return result;
 	}
 
@@ -1206,30 +1200,7 @@ namespace {
 		}
 	}
 
-	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated) {
-		const auto &v(links.c_vector().v);
-		for (QVector<MTPcontacts_Link>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const auto &dv(i->c_contacts_link());
-			UserData *user = feedUsers(MTP_vector<MTPUser>(1, dv.vuser), false);
-			MTPint userId(MTP_int(0));
-			switch (dv.vuser.type()) {
-			case mtpc_userEmpty: userId = dv.vuser.c_userEmpty().vid; break;
-			case mtpc_user: userId = dv.vuser.c_user().vid; break;
-			}
-			if (userId.v) {
-				feedUserLink(userId, dv.vmy_link, dv.vforeign_link, false);
-			}
-			if (user && App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(user);
-				} else {
-					markPeerUpdated(user);
-				}
-			}
-		}
-	}
-
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated) {
+	void feedUserLinkDelayed(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
 		UserData *user = userLoaded(userId.v);
 		if (user) {
 			bool wasContact = (user->contact > 0);
@@ -1262,15 +1233,9 @@ namespace {
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
 			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
-				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
+				user->setNameDelayed(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
 			}
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(user);
-				} else {
-					markPeerUpdated(user);
-				}
-			}
+			markPeerUpdated(user);
 		}
 	}
 
@@ -1291,7 +1256,6 @@ namespace {
 				App::main()->peerUpdated(i.key());
 			}
 		}
-		Notify::peerUpdatedSendDelayed();
 	}
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert) {

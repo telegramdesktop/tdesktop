@@ -58,13 +58,14 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void updateStatusText();
-	bool isUsingMegagroupOnlineCount() const;
-
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	void updateButtons();
+	void refreshNameText();
+	void refreshStatusText();
+	bool isUsingMegagroupOnlineCount() const;
+
+	void refreshButtons();
 	void setUserButtons();
 	void setChatButtons();
 	void setMegagroupButtons();

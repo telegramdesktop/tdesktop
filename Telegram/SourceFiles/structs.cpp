@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "observer_peer.h"
 #include "history.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -99,18 +100,14 @@ NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
 PeerData::PeerData(const PeerId &id) : id(id)
-, loadedStatus(NotLoaded)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photoId(UnknownPeerPhotoId)
-, nameVersion(0)
-, notify(UnknownNotifySettings)
 , _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
-	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
+	nameText.setText(st::msgNameFont, QString(), _textNameOptions);
 }
 
-void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
-	if (name == newName && nameVersion > 0) {
+void PeerData::updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
+	if (name == newName) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone && asUser()->username == newUsername) {
 				return;
@@ -127,8 +124,17 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	++nameVersion;
 	name = newName;
 	nameText.setText(st::msgNameFont, name, _textNameOptions);
+
+	Notify::PeerUpdate update(this);
+	update.flags |= Notify::PeerUpdateFlag::NameChanged;
+	update.oldNames = names;
+	update.oldNameFirstChars = chars;
+
 	if (isUser()) {
-		asUser()->username = newUsername;
+		if (asUser()->username != newUsername) {
+			asUser()->username = newUsername;
+			update.flags |= Notify::PeerUpdateFlag::UsernameChanged;
+		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
 		if (asChannel()->username != newUsername) {
@@ -138,19 +144,14 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 			} else {
 				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
-			if (App::main()) {
-				App::main()->peerUsernameChanged(this);
-			}
+			update.flags |= Notify::PeerUpdateFlag::UsernameChanged;
 		}
 	}
-
-	Names oldNames = names;
-	NameFirstChars oldChars = chars;
 	fillNames();
-
 	if (App::main()) {
-		emit App::main()->peerNameChanged(this, oldNames, oldChars);
+		emit App::main()->peerNameChanged(this, update.oldNames, update.oldNameFirstChars);
 	}
+	Notify::peerUpdatedDelayed(update);
 }
 
 void PeerData::setUserpic(ImagePtr userpic) {
@@ -253,25 +254,27 @@ void PeerData::fillNames() {
 	}
 }
 
-void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
-	bool updName = !first.isEmpty() || !last.isEmpty(), updUsername = (username != usern);
+void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
+	setNameDelayed(newFirstName, newLastName, newPhoneName, newUsername);
+	Notify::peerUpdatedSendDelayed();
+}
 
-	if (updName && first.trimmed().isEmpty()) {
-		firstName = last;
+void UserData::setNameDelayed(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
+	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
+
+	QString newFullName;
+	if (changeName && newFirstName.trimmed().isEmpty()) {
+		firstName = newLastName;
 		lastName = QString();
-		updateName(firstName, phoneName, usern);
+		newFullName = firstName;
 	} else {
-		if (updName) {
-			firstName = first;
-			lastName = last;
+		if (changeName) {
+			firstName = newFirstName;
+			lastName = newLastName;
 		}
-		updateName(lastName.isEmpty() ? firstName : lng_full_name(lt_first_name, firstName, lt_last_name, lastName), phoneName, usern);
+		newFullName = lastName.isEmpty() ? firstName : lng_full_name(lt_first_name, firstName, lt_last_name, lastName);
 	}
-	if (updUsername) {
-		if (App::main()) {
-			App::main()->peerUsernameChanged(this);
-		}
-	}
+	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
 
 void UserData::setPhone(const QString &newPhone) {
@@ -401,6 +404,15 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 	}
 }
 
+void ChatData::setName(const QString &newName) {
+	setNameDelayed(newName);
+	Notify::peerUpdatedSendDelayed();
+}
+
+void ChatData::setNameDelayed(const QString &newName) {
+	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
+}
+
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
@@ -430,10 +442,13 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 	}
 }
 
-void ChannelData::setName(const QString &newName, const QString &usern) {
-	bool updName = !newName.isEmpty(), updUsername = (username != usern);
+void ChannelData::setName(const QString &newName, const QString &newUsername) {
+	setNameDelayed(newName, newUsername);
+	Notify::peerUpdatedSendDelayed();
+}
 
-	updateName(newName.isEmpty() ? name : newName, QString(), usern);
+void ChannelData::setNameDelayed(const QString &newName, const QString &newUsername) {
+	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 
 void ChannelData::updateFull(bool force) {

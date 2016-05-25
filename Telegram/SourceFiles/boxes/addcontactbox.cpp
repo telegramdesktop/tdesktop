@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "observer_peer.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
 , _user(0)
@@ -206,7 +207,7 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 	QString err(error.type());
 	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
-		_user->updateName(firstName, QString(), QString());
+		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
 		emit closed();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
@@ -222,8 +223,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (isHidden() || !App::main()) return;
 
 	const auto &d(res.c_contacts_importedContacts());
-	App::feedUsers(d.vusers, false);
-	App::emitPeerUpdated();
+	App::feedUsers(d.vusers);
 
 	const auto &v(d.vimported.c_vector().v);
 	UserData *user = nullptr;
@@ -1157,7 +1157,9 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 	_requestId = 0;
 	QString err(error.type());
 	if (err == qstr("CHAT_TITLE_NOT_MODIFIED") || err == qstr("CHAT_NOT_MODIFIED")) {
-		_peer->updateName(_sentName, QString(), QString());
+		if (auto chatData = _peer->asChat()) {
+			chatData->setName(_sentName);
+		}
 		emit closed();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {

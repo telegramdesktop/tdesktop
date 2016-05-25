@@ -274,10 +274,6 @@ public:
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
 
-	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
-
-	void fillNames();
-
 	const Text &dialogName() const;
 	const QString &shortName() const;
 	const QString &userName() const;
@@ -299,7 +295,7 @@ public:
 		MinimalLoaded = 0x01,
 		FullLoaded = 0x02,
 	};
-	LoadedStatus loadedStatus;
+	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
 	int colorIndex;
@@ -317,12 +313,12 @@ public:
 	void saveUserpic(const QString &path) const;
 	QPixmap genUserpic(int size) const;
 
-	PhotoId photoId;
+	PhotoId photoId = UnknownPeerPhotoId;
 	StorageImageLocation photoLoc;
 
-	int nameVersion;
+	int nameVersion = 1;
 
-	NotifySettingsPtr notify;
+	NotifySettingsPtr notify = UnknownNotifySettings;
 
 	// if this string is not empty we must not allow to open the
 	// conversation and we must show this string instead
@@ -338,10 +334,15 @@ public:
 	}
 
 protected:
+	// Requires Notify::peerUpdatedSendDelayed() call after.
+	void updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
+
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
 
 private:
+	void fillNames();
+
 	ClickHandlerPtr _openLink;
 
 };
@@ -395,10 +396,16 @@ class UserData : public PeerData {
 public:
 
 	UserData(const PeerId &id) : PeerData(id) {
-		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
-	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
+
+	void setName(const QString &newFirstName, const QString &newLastName
+		, const QString &newPhoneName, const QString &newUsername);
+
+	// Requires Notify::peerUpdatedSendDelayed() call after.
+	void setNameDelayed(const QString &newFirstName, const QString &newLastName
+		, const QString &newPhoneName, const QString &newUsername);
+
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int version);
 	void setBotInfo(const MTPBotInfo &info);
@@ -458,18 +465,15 @@ private:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id)
-		, inputChat(MTP_int(bareId()))
-		, migrateToPtr(0)
-		, count(0)
-		, date(0)
-		, version(0)
-		, creator(0)
-		, flags(0)
-		, isForbidden(false)
-		, botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+
+	void setName(const QString &newName);
+
+	// Requires Notify::peerUpdatedSendDelayed() call after.
+	void setNameDelayed(const QString &newName);
+
 	void invalidateParticipants() {
 		participants = ChatData::Participants();
 		admins = ChatData::Admins();
@@ -483,15 +487,15 @@ public:
 
 	MTPint inputChat;
 
-	ChannelData *migrateToPtr;
+	ChannelData *migrateToPtr = nullptr;
 
-	int count;
-	TimeId date;
-	int version;
-	UserId creator;
+	int count = 0;
+	TimeId date = 0;
+	int version = 0;
+	UserId creator = 0;
 
-	MTPDchat::Flags flags;
-	bool isForbidden;
+	MTPDchat::Flags flags = 0;
+	bool isForbidden = false;
 	bool amIn() const {
 		return !isForbidden && !haveLeft() && !wasKicked();
 	}
@@ -532,7 +536,7 @@ public:
 	LastAuthors lastAuthors;
 	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 	QString invitationUrl;
 };
@@ -634,13 +638,14 @@ struct MegagroupInfo {
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id)
-		, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
-		, mgInfo(nullptr) {
-		setName(QString(), QString());
+	ChannelData(const PeerId &id) : PeerData(id), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+
 	void setName(const QString &name, const QString &username);
+
+	// Requires Notify::peerUpdatedSendDelayed() call after.
+	void setNameDelayed(const QString &name, const QString &username);
 
 	void updateFull(bool force = false);
 	void fullUpdated();

@@ -24,13 +24,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Notify {
 
-class Observer;
+using ObservedEvent = uchar;
 using ConnectionId = uint32;
+
+// startObservers() must be called after main() started (not in a global variable constructor).
+// finishObservers() must be called before main() finished (not in a global variable destructor).
+void startObservers();
+void finishObservers();
+
+using StartObservedEventCallback = void(*)();
+using UnregisterObserverCallback = void(*)(int connectionIndex);
+using FinishObservedEventCallback = void(*)();
+
+// Objects of this class should be constructed in global scope.
+// startCallback will be called from Notify::startObservers().
+// finishCallback will be called from Notify::finishObservers().
+// unregisterCallback will be used to destroy connections.
+class ObservedEventRegistrator {
+public:
+	ObservedEventRegistrator(ObservedEvent event
+		, StartObservedEventCallback startCallback
+		, FinishObservedEventCallback finishCallback
+		, UnregisterObserverCallback unregisterCallback);
+
+};
 
 // Each observer type should have observerRegistered(Notify::ConnectionId connection) method.
 // Usually it is done by deriving the type from the Notify::Observer base class.
 // In destructor it should call Notify::unregisterObserver(connection) for all the connections.
 
+class Observer;
 namespace internal {
 void observerRegisteredDefault(Observer *observer, ConnectionId connection);
 } // namespace internal
@@ -49,20 +72,10 @@ private:
 
 };
 
-using ObservedEvent = uchar;
 inline ConnectionId observerConnectionId(ObservedEvent event, int connectionIndex) {
 	t_assert(connectionIndex >= 0 && connectionIndex < 0x01000000);
 	return (static_cast<uint32>(event) << 24) | (connectionIndex + 1);
 }
-
-using UnregisterObserverCallback = void(*)(int connectionIndex);
-
-// Usage: UnregisterObserverCallbackCreator creator(myEvent, myCallback); in global scope.
-class UnregisterObserverCallbackCreator {
-public:
-	UnregisterObserverCallbackCreator(ObservedEvent event, UnregisterObserverCallback callback);
-
-};
 
 // Handler is one of Function<> instantiations.
 template <typename Flags, typename Handler>

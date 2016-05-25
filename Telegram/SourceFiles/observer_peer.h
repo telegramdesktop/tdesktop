@@ -26,27 +26,35 @@ namespace Notify {
 
 // Generic notifications about updates of some PeerData.
 // You can subscribe to them by Notify::registerPeerObserver().
+// 0x0000FFFFU for general peer updates (valid for any peer).
+// 0xFFFF0000U for specific peer updates (valid for user / chat / channel).
 
 enum class PeerUpdateFlag {
-	//PeerNameChanged      = 0x0001,
+	NameChanged            = 0x00000001U,
+	UsernameChanged        = 0x00000002U,
 
-	UserCanShareContact    = 0x1001,
+	UserCanShareContact    = 0x00010000U,
 
-	ChatCanEdit            = 0x2001,
+	ChatCanEdit            = 0x00010000U,
 
-	MegagroupCanEditPhoto  = 0x4001,
-	MegagroupCanAddMembers = 0x4002,
-
-	ChannelAmIn            = 0x8001,
+	ChannelAmIn            = 0x00010000U,
+	MegagroupCanEditPhoto  = 0x00020000U,
+	MegagroupCanAddMembers = 0x00040000U,
 };
 Q_DECLARE_FLAGS(PeerUpdateFlags, PeerUpdateFlag);
 Q_DECLARE_OPERATORS_FOR_FLAGS(PeerUpdateFlags);
+
 struct PeerUpdate {
-	PeerData *peer = nullptr;
+	PeerUpdate(PeerData *updated = nullptr) : peer(updated) {
+	}
+	PeerData *peer;
 	PeerUpdateFlags flags = 0;
+
+	// NameChanged data
+	PeerData::Names oldNames;
+	PeerData::NameFirstChars oldNameFirstChars;
 };
 
-void peerUpdated(const PeerUpdate &update);
 void peerUpdatedDelayed(const PeerUpdate &update);
 void peerUpdatedSendDelayed();
 

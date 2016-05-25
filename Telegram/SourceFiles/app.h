@@ -64,8 +64,13 @@ namespace App {
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 	bool onlineColorUse(UserData *user, int32 now);
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated = true); // returns last user
-	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
+	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
+	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
+
+	// Requires Notify::peerUpdatedSendDelayed() call after.
+	UserData *feedUsersDelayed(const MTPVector<MTPUser> &users); // returns last user
+	PeerData *feedChatsDelayed(const MTPVector<MTPChat> &chats); // returns last chat
+
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
@@ -80,12 +85,10 @@ namespace App {
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
-	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated = true);
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated = true);
+	void feedUserLinkDelayed(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	void markPeerUpdated(PeerData *data);
 	void clearPeerUpdated(PeerData *data);
-	void emitPeerUpdated();
 
 	ImagePtr image(const MTPPhotoSize &size);
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);

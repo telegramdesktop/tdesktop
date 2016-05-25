@@ -322,7 +322,6 @@ public:
 	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
-	void peerUsernameChanged(PeerData *peer);
 
 	void checkLastUpdate(bool afterSleep);
 	void showAddContact();

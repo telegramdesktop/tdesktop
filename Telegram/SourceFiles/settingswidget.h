@@ -23,8 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatbutton.h"
 #include "ui/flatcheckbox.h"
 #include "sysbuttons.h"
-
-#include <QtWidgets/QWidget>
+#include "core/observer.h"
 
 class MainWindow;
 class Settings;
@@ -57,7 +56,11 @@ private:
 
 };
 
-class SettingsInner : public TWidget, public RPCSender {
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
+class SettingsInner : public TWidget, public RPCSender, public Notify::Observer {
 	Q_OBJECT
 
 public:
@@ -188,6 +191,7 @@ public slots:
 	void onTelegramFAQ();
 
 private:
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
 	void saveError(const QString &str = QString());
 
@@ -332,7 +336,6 @@ public:
 	void updateDisplayNotify();
 
 	void rpcClear();
-	void usernameChanged();
 
 	void setInnerFocus();
 	void needBackgroundUpdate(bool tile);

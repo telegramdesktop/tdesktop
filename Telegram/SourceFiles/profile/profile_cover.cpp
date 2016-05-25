@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "ui/buttons/round_button.h"
 #include "observer_peer.h"
+#include "boxes/contactsbox.h"
 #include "lang.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -98,17 +99,16 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _photoButton(this, peer) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	using Flag = Notify::PeerUpdateFlag;
-	auto observeEvents = ButtonsUpdateFlags;
+	auto observeEvents = ButtonsUpdateFlags | Notify::PeerUpdateFlag::NameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
 
 	_photoButton->photoUpdated();
 	connect(_photoButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 
-	_nameText.setText(st::profileNameFont, App::peerName(_peer));
-	updateStatusText();
+	refreshNameText();
+	refreshStatusText();
 
-	updateButtons();
+	refreshButtons();
 }
 
 void CoverWidget::onPhotoShow() {
@@ -120,31 +120,6 @@ void CoverWidget::onPhotoShow() {
 		App::wnd()->showPhoto(photo, _peer);
 	}
 }
-
-void CoverWidget::onSendMessage() {
-
-}
-
-void CoverWidget::onShareContact() {
-
-}
-
-void CoverWidget::onSetPhoto() {
-
-}
-
-void CoverWidget::onAddMember() {
-
-}
-
-void CoverWidget::onJoin() {
-
-}
-
-void CoverWidget::onViewChannel() {
-
-}
-
 
 void CoverWidget::resizeToWidth(int newWidth) {
 	int newHeight = 0;
@@ -202,7 +177,23 @@ void CoverWidget::paintDivider(Painter &p) {
 	st::profileDividerFill.fill(p, toFill);
 }
 
-void CoverWidget::updateStatusText() {
+void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+	if (update.peer == _peer) {
+		if ((update.flags & ButtonsUpdateFlags) != 0) {
+			refreshButtons();
+		}
+		if (update.flags & Notify::PeerUpdateFlag::NameChanged) {
+			refreshNameText();
+		}
+	}
+}
+
+void CoverWidget::refreshNameText() {
+	_nameText.setText(st::profileNameFont, App::peerName(_peer));
+	update();
+}
+
+void CoverWidget::refreshStatusText() {
 	int currentTime = unixtime();
 	if (_peerUser) {
 		_statusText = App::onlineText(_peerUser, currentTime, true);
@@ -235,6 +226,7 @@ void CoverWidget::updateStatusText() {
 	} else {
 		_statusText = lang(lng_chat_status_unaccessible);
 	}
+	update();
 }
 
 bool CoverWidget::isUsingMegagroupOnlineCount() const {
@@ -254,13 +246,7 @@ bool CoverWidget::isUsingMegagroupOnlineCount() const {
 	return true;
 }
 
-void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
-	if (update.flags & ButtonsUpdateFlags) {
-		updateButtons();
-	}
-}
-
-void CoverWidget::updateButtons() {
+void CoverWidget::refreshButtons() {
 	if (_peerUser) {
 		setUserButtons();
 	} else if (_peerChat) {
@@ -334,6 +320,38 @@ void CoverWidget::setSecondaryButton(const QString &text, const char *slot) {
 		connect(_secondaryButton, SIGNAL(clicked()), this, slot);
 		_secondaryButton->show();
 	}
+}
+
+void CoverWidget::onSendMessage() {
+	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId);
+}
+
+void CoverWidget::onShareContact() {
+	App::main()->shareContactLayer(_peerUser);
+}
+
+void CoverWidget::onSetPhoto() {
+
+}
+
+void CoverWidget::onAddMember() {
+	if (_peerChat) {
+		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+	} else if (_peerChannel && _peerChannel->mgInfo) {
+		MembersAlreadyIn already;
+		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
+			already.insert(*i, true);
+		}
+		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
+	}
+}
+
+void CoverWidget::onJoin() {
+
+}
+
+void CoverWidget::onViewChannel() {
+	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId);
 }
 
 } // namespace Profile

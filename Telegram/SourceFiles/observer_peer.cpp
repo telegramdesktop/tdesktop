@@ -23,81 +23,112 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/observer.h"
 
+namespace App {
+// Temp forward declaration (while all peer updates are not done through observers).
+void emitPeerUpdated();
+} // namespace App
+
 namespace Notify {
 namespace internal {
 namespace {
 
 constexpr ObservedEvent PeerUpdateEvent = 0x01;
-ObserversList<PeerUpdateFlags, PeerUpdateHandler> PeerUpdateObservers;
+using PeerObserversList = ObserversList<PeerUpdateFlags, PeerUpdateHandler>;
+NeverFreedPointer<PeerObserversList> PeerUpdateObservers;
 
-void UnregisterCallback(int connectionIndex) {
-	unregisterObserver(PeerUpdateObservers, connectionIndex);
+using SmallUpdatesList = QVector<PeerUpdate>;
+NeverFreedPointer<SmallUpdatesList> SmallUpdates;
+using AllUpdatesList = QMap<PeerData*, PeerUpdate>;
+NeverFreedPointer<AllUpdatesList> AllUpdates;
+
+void StartCallback() {
+	PeerUpdateObservers.makeIfNull();
+	SmallUpdates.makeIfNull();
+	AllUpdates.makeIfNull();
 }
-UnregisterObserverCallbackCreator creator(PeerUpdateEvent, UnregisterCallback);
+void FinishCallback() {
+	PeerUpdateObservers.clear();
+	SmallUpdates.clear();
+	AllUpdates.clear();
+}
+void UnregisterCallback(int connectionIndex) {
+	t_assert(!PeerUpdateObservers.isNull());
+	unregisterObserver(*PeerUpdateObservers, connectionIndex);
+}
+ObservedEventRegistrator creator(PeerUpdateEvent, StartCallback, FinishCallback, UnregisterCallback);
 
-QVector<PeerUpdate> SmallPeerUpdates;
-QMap<PeerData*, PeerUpdate> AllPeerUpdates;
+bool Started() {
+	return !PeerUpdateObservers.isNull();
+}
 
 } // namespace
 
 ConnectionId plainRegisterPeerObserver(PeerUpdateFlags events, PeerUpdateHandler &&handler) {
-	auto connectionId = registerObserver(PeerUpdateObservers, events, std_::forward<PeerUpdateHandler>(handler));
+	t_assert(Started());
+	auto connectionId = registerObserver(*PeerUpdateObservers, events, std_::forward<PeerUpdateHandler>(handler));
 	t_assert(connectionId >= 0 && connectionId < 0x01000000);
 	return (static_cast<uint32>(PeerUpdateEvent) << 24) | static_cast<uint32>(connectionId + 1);
 }
 
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
+	if (!(mergeTo.flags & PeerUpdateFlag::NameChanged)) {
+		if (mergeFrom.flags & PeerUpdateFlag::NameChanged) {
+			mergeTo.oldNames = mergeFrom.oldNames;
+			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
+		}
+	}
 	mergeTo.flags |= mergeFrom.flags;
-
-	// merge fields used in mergeFrom.flags
 }
 
 } // namespace internal
 
-void peerUpdated(const PeerUpdate &update) {
-	notifyObservers(internal::PeerUpdateObservers, update.flags, update);
-}
-
 void peerUpdatedDelayed(const PeerUpdate &update) {
-	int alreadySavedCount = internal::SmallPeerUpdates.size();
-	for (int i = 0; i < alreadySavedCount; ++i) {
-		if (internal::SmallPeerUpdates.at(i).peer == update.peer) {
-			internal::mergePeerUpdate(internal::SmallPeerUpdates[i], update);
+	t_assert(internal::Started());
+
+	int existingUpdatesCount = internal::SmallUpdates->size();
+	for (int i = 0; i < existingUpdatesCount; ++i) {
+		auto &existingUpdate = (*internal::SmallUpdates)[i];
+		if (existingUpdate.peer == update.peer) {
+			internal::mergePeerUpdate(existingUpdate, update);
 			return;
 		}
 	}
-	if (internal::AllPeerUpdates.isEmpty()) {
-		if (alreadySavedCount < 5) {
-			internal::SmallPeerUpdates.push_back(update);
+	if (internal::AllUpdates->isEmpty()) {
+		if (existingUpdatesCount < 5) {
+			internal::SmallUpdates->push_back(update);
 		} else {
-			internal::AllPeerUpdates.insert(update.peer, update);
+			internal::AllUpdates->insert(update.peer, update);
 		}
 	} else {
-		auto it = internal::AllPeerUpdates.find(update.peer);
-		if (it != internal::AllPeerUpdates.cend()) {
+		auto it = internal::AllUpdates->find(update.peer);
+		if (it != internal::AllUpdates->cend()) {
 			internal::mergePeerUpdate(it.value(), update);
 			return;
 		}
-		internal::AllPeerUpdates.insert(update.peer, update);
+		internal::AllUpdates->insert(update.peer, update);
 	}
 }
 
 void peerUpdatedSendDelayed() {
-	if (internal::SmallPeerUpdates.isEmpty()) return;
+	App::emitPeerUpdated();
 
-	decltype(internal::SmallPeerUpdates) smallList;
-	decltype(internal::AllPeerUpdates) allList;
-	std::swap(smallList, internal::SmallPeerUpdates);
-	std::swap(allList, internal::AllPeerUpdates);
+	t_assert(internal::Started());
+
+	if (internal::SmallUpdates->isEmpty()) return;
+
+	internal::SmallUpdatesList smallList;
+	internal::AllUpdatesList allList;
+	std::swap(smallList, *internal::SmallUpdates);
+	std::swap(allList, *internal::AllUpdates);
 	for_const (auto &update, smallList) {
-		peerUpdated(update);
+		notifyObservers(*internal::PeerUpdateObservers, update.flags, update);
 	}
 	for_const (auto &update, allList) {
-		peerUpdated(update);
+		notifyObservers(*internal::PeerUpdateObservers, update.flags, update);
 	}
-	if (internal::SmallPeerUpdates.isEmpty()) {
-		std::swap(smallList, internal::SmallPeerUpdates);
-		internal::SmallPeerUpdates.resize(0);
+	if (internal::SmallUpdates->isEmpty()) {
+		std::swap(smallList, *internal::SmallUpdates);
+		internal::SmallUpdates->resize(0);
 	}
 }
 

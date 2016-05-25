@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "apiwrap.h"
 
+#include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -178,8 +179,8 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_channel && vc.at(0).c_channel().vversion.v < peer->asChannel()->version);
 	}
 
-	App::feedUsers(d.vusers, false);
-	App::feedChats(d.vchats, false);
+	App::feedUsersDelayed(d.vusers);
+	App::feedChatsDelayed(d.vchats);
 
 	if (peer->isChat()) {
 		if (d.vfull_chat.type() != mtpc_chatFull) {
@@ -317,16 +318,17 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-	App::emitPeerUpdated();
+
+	Notify::peerUpdatedSendDelayed();
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const auto &d(result.c_userFull());
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
+	App::feedUsersDelayed(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
 	}
-	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
+	App::feedUserLinkDelayed(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 	}
@@ -347,7 +349,8 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-	App::emitPeerUpdated();
+
+	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
