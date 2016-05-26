@@ -36,6 +36,7 @@ namespace Profile {
 
 class BackButton;
 class PhotoButton;
+class DropArea;
 
 class CoverWidget final : public TWidget, public Notify::Observer {
 	Q_OBJECT
@@ -58,6 +59,9 @@ private slots:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
 
 private:
 	// Observed notifications.
@@ -85,8 +89,8 @@ private:
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	// Cover content
 	ChildWidget<PhotoButton> _photoButton;
+	ChildWidget<DropArea> _dropArea = { nullptr };
 
 	FlatLabel _name;
 

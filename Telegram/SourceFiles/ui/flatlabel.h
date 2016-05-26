@@ -64,6 +64,8 @@ private slots:
 	void onTouchSelect();
 	void onContextMenuDestroy(QObject *obj);
 
+	void onExecuteDrag();
+
 private:
 	Text::StateResult dragActionUpdate();
 	Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
@@ -100,10 +102,10 @@ private:
 		NoDrag = 0x00,
 		PrepareDrag = 0x01,
 		Dragging = 0x02,
-		PrepareSelect = 0x03,
 		Selecting = 0x04,
 	};
 	DragAction _dragAction = NoDrag;
+	QPoint _dragStartPosition;
 	uint16 _dragSymbol = 0;
 	bool _dragWasInactive = false;
 

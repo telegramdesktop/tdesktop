@@ -123,6 +123,50 @@ private:
 
 };
 
+class DropArea : public TWidget {
+public:
+	DropArea(QWidget *parent) : TWidget(parent) {
+	}
+
+	void showAnimated() {
+		show();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override {
+		Painter p(this);
+		p.fillRect(e->rect(), st::profileDropAreaBg);
+
+		if (width() < st::profileDropAreaPadding.left() + st::profileDropAreaPadding.right()) return;
+		if (height() < st::profileDropAreaPadding.top() + st::profileDropAreaPadding.bottom()) return;
+
+		auto border = st::profileDropAreaBorderWidth;
+		auto &borderFg = st::profileDropAreaBorderFg;
+		auto inner = rect().marginsRemoved(st::profileDropAreaPadding);
+		p.fillRect(inner.x(), inner.y(), inner.width(), border, borderFg);
+		p.fillRect(inner.x(), inner.y() + inner.height() - border, inner.width(), border, borderFg);
+		p.fillRect(inner.x(), inner.y() + border, border, inner.height() - 2 * border, borderFg);
+		p.fillRect(inner.x() + inner.width() - border, inner.y() + border, border, inner.height() - 2 * border, borderFg);
+
+		auto title = lang(lng_profile_drop_area_title);
+		int titleWidth = st::profileDropAreaTitleFont->width(title);
+		int titleLeft = inner.x() + (inner.width() - titleWidth) / 2;
+		int titleTop = inner.y() + st::profileDropAreaTitleTop + st::profileDropAreaTitleFont->ascent;
+		p.setFont(st::profileDropAreaTitleFont);
+		p.setPen(st::profileDropAreaFg);
+		p.drawText(titleLeft, titleTop, title);
+
+		auto subtitle = lang(lng_profile_drop_area_subtitle);
+		int subtitleWidth = st::profileDropAreaSubtitleFont->width(subtitle);
+		int subtitleLeft = inner.x() + (inner.width() - subtitleWidth) / 2;
+		int subtitleTop = inner.y() + st::profileDropAreaSubtitleTop + st::profileDropAreaSubtitleFont->ascent;
+		p.setFont(st::profileDropAreaSubtitleFont);
+		p.setPen(st::profileDropAreaFg);
+		p.drawText(subtitleLeft, subtitleTop, subtitle);
+	}
+
+};
+
 CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peer(peer)
 , _peerUser(peer->asUser())
@@ -132,6 +176,7 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _photoButton(this, peer)
 , _name(this, QString(), st::profileNameLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAcceptDrops(true);
 
 	_name.setSelectable(true);
 	_name.setContextCopyText(lang(lng_profile_copy_fullname));
@@ -202,6 +247,23 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
 
 	paintDivider(p);
+}
+
+void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
+	_dropArea = new DropArea(this);
+	_dropArea->setGeometry(0, 0, width(), _dividerTop);
+	_dropArea->showAnimated();
+	e->accept();
+}
+
+void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
+	delete _dropArea;
+	_dropArea = nullptr;
+}
+
+void CoverWidget::dropEvent(QDropEvent *e) {
+	delete _dropArea;
+	_dropArea = nullptr;
 }
 
 void CoverWidget::paintDivider(Painter &p) {

@@ -120,6 +120,7 @@ Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton bu
 	if (_dragWasInactive) App::wnd()->inactivePress(false);
 
 	if (ClickHandler::getPressed()) {
+		_dragStartPosition = mapFromGlobal(_lastMousePos);
 		_dragAction = PrepareDrag;
 	}
 	if (!_selectable || _dragAction != NoDrag) {
@@ -147,6 +148,7 @@ Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton bu
 			}
 		}
 		if (uponSelected) {
+			_dragStartPosition = mapFromGlobal(_lastMousePos);
 			_dragAction = PrepareDrag; // start text drag
 		} else if (!_dragWasInactive) {
 			if (state.afterSymbol) ++_dragSymbol;
@@ -391,6 +393,33 @@ void FlatLabel::onContextMenuDestroy(QObject *obj) {
 	}
 }
 
+void FlatLabel::onExecuteDrag() {
+	if (_dragAction != Dragging) return;
+
+	auto state = getTextState(_dragStartPosition);
+	bool uponSelected = state.uponSymbol && _selection.from <= state.symbol;
+	if (uponSelected) {
+		if (_dragSymbol < _selection.from || _dragSymbol >= _selection.to) {
+			uponSelected = false;
+		}
+	}
+
+	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
+	QString selectedText;
+	if (uponSelected) {
+		selectedText = _text.originalText(_selection, ExpandLinksAll);
+	} else if (pressedHandler) {
+		selectedText = pressedHandler->dragText();
+	}
+	if (!selectedText.isEmpty()) {
+		auto mimeData = new QMimeData();
+		mimeData->setText(selectedText);
+		auto drag = new QDrag(App::wnd());
+		drag->setMimeData(mimeData);
+		drag->exec(Qt::CopyAction);
+	}
+}
+
 void FlatLabel::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	update();
 }
@@ -400,10 +429,15 @@ void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool a
 }
 
 Text::StateResult FlatLabel::dragActionUpdate() {
-	QPoint m(mapFromGlobal(_lastMousePos));
-	LOG(("DRAG ACTION UPDATE: %1 %2").arg(m.x()).arg(m.y()));
+	auto m = mapFromGlobal(_lastMousePos);
 	auto state = getTextState(m);
 	updateHover(state);
+
+	if (_dragAction == PrepareDrag && (m - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+		_dragAction = Dragging;
+		QTimer::singleShot(1, this, SLOT(onExecuteDrag()));
+	}
+
 	return state;
 }
 
