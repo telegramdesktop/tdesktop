@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
+#include "ui/flatlabel.h"
 
 class IntroStart final : public IntroStep {
 public:

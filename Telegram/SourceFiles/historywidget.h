@@ -204,7 +204,7 @@ private:
 		Selecting     = 0x04,
 	};
 	DragAction _dragAction = NoDrag;
-	TextSelectType _dragSelType = TextSelectLetters;
+	TextSelectType _dragSelType = TextSelectType::Letters;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem = nullptr;
 	HistoryCursorState _dragCursorState = HistoryDefaultCursorState;

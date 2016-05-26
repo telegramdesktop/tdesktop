@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "ui/flatlabel.h"
+#include "mainwindow.h"
+#include "lang.h"
 
 namespace {
 	TextParseOptions _labelOptions = {
@@ -34,30 +36,59 @@ namespace {
 FlatLabel::FlatLabel(QWidget *parent, const QString &text, const style::flatLabel &st, const style::textStyle &tst) : TWidget(parent),
 _text(st.width ? st.width : QFIXED_MAX), _st(st), _tst(tst), _opacity(1) {
 	setRichText(text);
+	_trippleClickTimer.setSingleShot(true);
+
+	_touchSelectTimer.setSingleShot(true);
+	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 }
 
 void FlatLabel::setText(const QString &text) {
 	textstyleSet(&_tst);
 	_text.setText(_st.font, text, _labelOptions);
-	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
+	refreshSize();
 	textstyleRestore();
-	resize(w, h);
+	setMouseTracking(_selectable || _text.hasLinks());
 }
 
 void FlatLabel::setRichText(const QString &text) {
 	textstyleSet(&_tst);
 	_text.setRichText(_st.font, text, _labelOptions);
-	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
+	refreshSize();
 	textstyleRestore();
-	resize(w, h);
-	setMouseTracking(_text.hasLinks());
+	setMouseTracking(_selectable || _text.hasLinks());
+}
+
+void FlatLabel::setSelectable(bool selectable) {
+	_selectable = selectable;
+	setMouseTracking(_selectable || _text.hasLinks());
+}
+
+void FlatLabel::setContextCopyText(const QString &copyText) {
+	_contextCopyText = copyText;
 }
 
 void FlatLabel::resizeToWidth(int32 width) {
 	textstyleSet(&_tst);
-	int32 w = width, h = _text.countHeight(w);
+	_allowedWidth = width;
+	refreshSize();
 	textstyleRestore();
-	resize(w, h);
+}
+
+int FlatLabel::countTextWidth() const {
+	return _allowedWidth ? (_allowedWidth - _st.margin.left() - _st.margin.right()) : (_st.width ? _st.width : _text.maxWidth());
+}
+
+int FlatLabel::countTextHeight(int textWidth) {
+	_fullTextHeight = _text.countHeight(textWidth);
+	return _st.maxHeight ? qMin(_fullTextHeight, _st.maxHeight) : _fullTextHeight;
+}
+
+void FlatLabel::refreshSize() {
+	int textWidth = countTextWidth();
+	int textHeight = countTextHeight(textWidth);
+	int fullWidth = _st.margin.left() + textWidth + _st.margin.right();
+	int fullHeight = _st.margin.top() + textHeight + _st.margin.bottom();
+	resize(fullWidth, fullHeight);
 }
 
 void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
@@ -66,34 +97,301 @@ void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 
 void FlatLabel::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
-	updateHover();
+	dragActionUpdate();
 }
 
 void FlatLabel::mousePressEvent(QMouseEvent *e) {
-	_lastMousePos = e->globalPos();
-	updateHover();
+	if (_contextMenu) {
+		e->accept();
+		return; // ignore mouse press, that was hiding context menu
+	}
+	dragActionStart(e->globalPos(), e->button());
+}
+
+Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
+	_lastMousePos = p;
+	auto state = dragActionUpdate();
+
+	if (button != Qt::LeftButton) return state;
+
 	ClickHandler::pressed();
+	_dragAction = NoDrag;
+	_dragWasInactive = App::wnd()->inactivePress();
+	if (_dragWasInactive) App::wnd()->inactivePress(false);
+
+	if (ClickHandler::getPressed()) {
+		_dragAction = PrepareDrag;
+	}
+	if (!_selectable || _dragAction != NoDrag) {
+		return state;
+	}
+
+	if (_trippleClickTimer.isActive() && (_lastMousePos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
+		if (state.uponSymbol) {
+			_selection = { state.symbol, state.symbol };
+			_savedSelection = { 0, 0 };
+			_dragSymbol = state.symbol;
+			_dragAction = Selecting;
+			_selectionType = TextSelectType::Paragraphs;
+			updateHover(state);
+			_trippleClickTimer.start(QApplication::doubleClickInterval());
+			update();
+		}
+	}
+	if (_selectionType != TextSelectType::Paragraphs) {
+		_dragSymbol = state.symbol;
+		bool uponSelected = state.uponSymbol;
+		if (uponSelected) {
+			if (_dragSymbol < _selection.from || _dragSymbol >= _selection.to) {
+				uponSelected = false;
+			}
+		}
+		if (uponSelected) {
+			_dragAction = PrepareDrag; // start text drag
+		} else if (!_dragWasInactive) {
+			if (state.afterSymbol) ++_dragSymbol;
+			_selection = { _dragSymbol, _dragSymbol };
+			_savedSelection = { 0, 0 };
+			_dragAction = Selecting;
+			update();
+		}
+	}
+	return state;
+}
+
+Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
+	_lastMousePos = p;
+	auto state = dragActionUpdate();
+
+	ClickHandlerPtr activated = ClickHandler::unpressed();
+	if (_dragAction == Dragging) {
+		activated.clear();
+	} else if (_dragAction == PrepareDrag) {
+		_selection = { 0, 0 };
+		_savedSelection = { 0, 0 };
+		update();
+	}
+	_dragAction = NoDrag;
+	_selectionType = TextSelectType::Letters;
+
+	if (activated) {
+		App::activateClickHandler(activated, button);
+	}
+	return state;
 }
 
 void FlatLabel::mouseReleaseEvent(QMouseEvent *e) {
-	_lastMousePos = e->globalPos();
-	updateHover();
-	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
-		App::activateClickHandler(activated, e->button());
+	dragActionFinish(e->globalPos(), e->button());
+	if (!rect().contains(e->pos())) {
+		leaveEvent(e);
+	}
+}
+
+void FlatLabel::mouseDoubleClickEvent(QMouseEvent *e) {
+	auto state = dragActionStart(e->globalPos(), e->button());
+	if (((_dragAction == Selecting) || (_dragAction == NoDrag)) && _selectionType == TextSelectType::Letters) {
+		if (state.uponSymbol) {
+			_dragSymbol = state.symbol;
+			_selectionType = TextSelectType::Words;
+			if (_dragAction == NoDrag) {
+				_dragAction = Selecting;
+				_selection = { state.symbol, state.symbol };
+				_savedSelection = { 0, 0 };
+			}
+			mouseMoveEvent(e);
+
+			_trippleClickPoint = e->globalPos();
+			_trippleClickTimer.start(QApplication::doubleClickInterval());
+		}
 	}
 }
 
 void FlatLabel::enterEvent(QEvent *e) {
 	_lastMousePos = QCursor::pos();
-	updateHover();
+	dragActionUpdate();
 }
 
 void FlatLabel::leaveEvent(QEvent *e) {
 	ClickHandler::clearActive(this);
 }
 
+void FlatLabel::focusOutEvent(QFocusEvent *e) {
+	if (!_selection.empty()) {
+		_savedSelection = _selection;
+		_selection = { 0, 0 };
+		update();
+	}
+}
+
+void FlatLabel::focusInEvent(QFocusEvent *e) {
+	if (!_savedSelection.empty()) {
+		_selection = _savedSelection;
+		_savedSelection = { 0, 0 };
+		update();
+	}
+}
+
+void FlatLabel::keyPressEvent(QKeyEvent *e) {
+	e->ignore();
+	if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
+		if (!_selection.empty()) {
+			onCopySelectedText();
+			e->accept();
+		}
+	}
+}
+
+void FlatLabel::contextMenuEvent(QContextMenuEvent *e) {
+	showContextMenu(e, ContextMenuReason::FromEvent);
+}
+
+bool FlatLabel::event(QEvent *e) {
+	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
+		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
+		if (ev->device()->type() == QTouchDevice::TouchScreen) {
+			touchEvent(ev);
+			return true;
+		}
+	}
+	return QWidget::event(e);
+}
+
+void FlatLabel::touchEvent(QTouchEvent *e) {
+	const Qt::TouchPointStates &states(e->touchPointStates());
+	if (e->type() == QEvent::TouchCancel) { // cancel
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		_touchSelectTimer.stop();
+		_touchSelect = false;
+		_dragAction = NoDrag;
+		return;
+	}
+
+	if (!e->touchPoints().isEmpty()) {
+		_touchPrevPos = _touchPos;
+		_touchPos = e->touchPoints().cbegin()->screenPos().toPoint();
+	}
+
+	switch (e->type()) {
+	case QEvent::TouchBegin:
+		if (_contextMenu) {
+			e->accept();
+			return; // ignore mouse press, that was hiding context menu
+		}
+		if (_touchInProgress) return;
+		if (e->touchPoints().isEmpty()) return;
+
+		_touchInProgress = true;
+		_touchSelectTimer.start(QApplication::startDragTime());
+		_touchSelect = false;
+		_touchStart = _touchPrevPos = _touchPos;
+	break;
+
+	case QEvent::TouchUpdate:
+		if (!_touchInProgress) return;
+		if (_touchSelect) {
+			_lastMousePos = _touchPos;
+			dragActionUpdate();
+		}
+	break;
+
+	case QEvent::TouchEnd:
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		if (_touchSelect) {
+			dragActionFinish(_touchPos, Qt::RightButton);
+			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
+			showContextMenu(&contextMenu, ContextMenuReason::FromTouch);
+		} else { // one short tap -- like mouse click
+			dragActionStart(_touchPos, Qt::LeftButton);
+			dragActionFinish(_touchPos, Qt::LeftButton);
+		}
+		_touchSelectTimer.stop();
+		_touchSelect = false;
+	break;
+	}
+}
+
+void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) {
+	if (_contextMenu) {
+		_contextMenu->deleteLater();
+		_contextMenu = nullptr;
+	}
+
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		_lastMousePos = e->globalPos();
+	} else {
+		_lastMousePos = QCursor::pos();
+	}
+	auto state = dragActionUpdate();
+
+	bool hasSelection = !_selection.empty();
+	bool uponSelection = state.uponSymbol && (state.symbol >= _selection.from) && (state.symbol < _selection.to);
+	bool fullSelection = _text.isFullSelection(_selection);
+	if (reason == ContextMenuReason::FromTouch && hasSelection && !uponSelection) {
+		uponSelection = hasSelection;
+	}
+
+	_contextMenu = new PopupMenu();
+
+	_contextMenuClickHandler = ClickHandler::getActive();
+
+	if (fullSelection) {
+		_contextMenu->addAction(contextCopyText(), this, SLOT(onCopyContextText()))->setEnabled(true);
+	} else if (uponSelection) {
+		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()))->setEnabled(true);
+	} else if (!hasSelection) {
+		_contextMenu->addAction(contextCopyText(), this, SLOT(onCopyContextText()))->setEnabled(true);
+	}
+
+	QString linkCopyToClipboardText = _contextMenuClickHandler ? _contextMenuClickHandler->copyToClipboardContextItemText() : QString();
+	if (!linkCopyToClipboardText.isEmpty()) {
+		_contextMenu->addAction(linkCopyToClipboardText, this, SLOT(onCopyContextUrl()))->setEnabled(true);
+	}
+
+	if (_contextMenu->actions().isEmpty()) {
+		delete _contextMenu;
+		_contextMenu = nullptr;
+	} else {
+		connect(_contextMenu, SIGNAL(destroyed(QObject*)), this, SLOT(onContextMenuDestroy(QObject*)));
+		_contextMenu->popup(e->globalPos());
+		e->accept();
+	}
+}
+
+QString FlatLabel::contextCopyText() const {
+	return _contextCopyText.isEmpty() ? lang(lng_context_copy_text) : _contextCopyText;
+}
+
+void FlatLabel::onCopySelectedText() {
+	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
+	if (!selection.empty()) {
+		QApplication::clipboard()->setText(_text.originalText(selection, ExpandLinksAll));
+	}
+}
+
+void FlatLabel::onCopyContextText() {
+	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, ExpandLinksAll));
+}
+
+void FlatLabel::onCopyContextUrl() {
+	if (_contextMenuClickHandler) {
+		_contextMenuClickHandler->copyToClipboard();
+	}
+}
+
+void FlatLabel::onTouchSelect() {
+	_touchSelect = true;
+	dragActionStart(_touchPos, Qt::LeftButton);
+}
+
+void FlatLabel::onContextMenuDestroy(QObject *obj) {
+	if (obj == _contextMenu) {
+		_contextMenu = nullptr;
+	}
+}
+
 void FlatLabel::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
-	setCursor(active ? style::cur_pointer : style::cur_default);
 	update();
 }
 
@@ -101,21 +399,97 @@ void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool a
 	update();
 }
 
-void FlatLabel::updateLink() {
-	_lastMousePos = QCursor::pos();
-	updateHover();
+Text::StateResult FlatLabel::dragActionUpdate() {
+	QPoint m(mapFromGlobal(_lastMousePos));
+	LOG(("DRAG ACTION UPDATE: %1 %2").arg(m.x()).arg(m.y()));
+	auto state = getTextState(m);
+	updateHover(state);
+	return state;
 }
 
-void FlatLabel::updateHover() {
-	QPoint m(mapFromGlobal(_lastMousePos));
+void FlatLabel::updateHover(const Text::StateResult &state) {
+	bool lnkChanged = ClickHandler::setActive(state.link, this);
+
+	if (!_selectable) {
+		refreshCursor(state.uponSymbol);
+		return;
+	}
+
+	Qt::CursorShape cur = style::cur_default;
+	if (_dragAction == NoDrag) {
+		if (state.link) {
+			cur = style::cur_pointer;
+		} else if (state.uponSymbol) {
+			cur = style::cur_text;
+		}
+	} else {
+		if (_dragAction == Selecting) {
+			uint16 second = state.symbol;
+			if (state.afterSymbol && _selectionType == TextSelectType::Letters) {
+				++second;
+			}
+			auto selection = _text.adjustSelection({ qMin(second, _dragSymbol), qMax(second, _dragSymbol) }, _selectionType);
+			if (_selection != selection) {
+				_selection = selection;
+				_savedSelection = { 0, 0 };
+				setFocus();
+				update();
+			}
+		} else if (_dragAction == Dragging) {
+		}
+
+		if (ClickHandler::getPressed()) {
+			cur = style::cur_pointer;
+		} else if (_dragAction == Selecting) {
+			cur = style::cur_text;
+		}
+	}
+	if (_dragAction == Selecting) {
+//		checkSelectingScroll();
+	} else {
+//		noSelectingScroll();
+	}
+
+	if (_dragAction == NoDrag && (lnkChanged || cur != _cursor)) {
+		setCursor(_cursor = cur);
+	}
+}
+
+void FlatLabel::refreshCursor(bool uponSymbol) {
+	if (_dragAction != NoDrag) {
+		return;
+	}
+	bool needTextCursor = _selectable && uponSymbol;
+	style::cursor newCursor = needTextCursor ? style::cur_text : style::cur_default;
+	if (ClickHandler::getActive()) {
+		newCursor = style::cur_pointer;
+	}
+	if (newCursor != _cursor) {
+		_cursor = newCursor;
+		setCursor(_cursor);
+	}
+}
+
+Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
+	Text::StateRequestElided request;
+	request.align = _st.align;
+	if (_selectable) {
+		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+	}
+	int textWidth = width() - _st.margin.left() - _st.margin.right();
 
 	textstyleSet(&_tst);
-	Text::StateRequest request;
-	request.align = _st.align;
-	auto state = _text.getState(m.x(), m.y(), width(), request);
+	Text::StateResult state;
+	if (_st.maxHeight && _st.maxHeight < _fullTextHeight) {
+		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
+		request.lines = qMax(_st.maxHeight / lineHeight, 1);
+		state = _text.getStateElided(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
+	} else {
+		state = _text.getState(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
+	}
 	textstyleRestore();
 
-	ClickHandler::setActive(state.link, this);
+	return state;
 }
 
 void FlatLabel::setOpacity(float64 o) {
@@ -124,9 +498,18 @@ void FlatLabel::setOpacity(float64 o) {
 }
 
 void FlatLabel::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	p.setOpacity(_opacity);
+	p.setPen(_st.textFg);
 	textstyleSet(&_tst);
-	_text.draw(p, 0, 0, width(), _st.align, e->rect().y(), e->rect().bottom());
+	int textWidth = width() - _st.margin.left() - _st.margin.right();
+	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
+	if (_st.maxHeight && _st.maxHeight < _fullTextHeight) {
+		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
+		auto lines = qMax(_st.maxHeight / lineHeight, 1);
+		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, false, selection);
+	} else {
+		_text.draw(p, _st.margin.left(), _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
+	}
 	textstyleRestore();
 }

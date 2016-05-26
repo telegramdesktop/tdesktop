@@ -72,9 +72,10 @@ overBg: #edf2f5;
 
 labelDefFlat: flatLabel {
 	font: font(fsize);
-	minWidth: 100px;
 	width: 0px;
+	maxHeight: 0px;
 	align: align(left);
+	textFg: windowTextFg;
 }
 
 boxBg: white;

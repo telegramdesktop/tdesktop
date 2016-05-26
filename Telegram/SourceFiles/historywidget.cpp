@@ -654,7 +654,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 					_selected.insert(_dragItem, selStatus);
 					_dragSymbol = dragState.symbol;
 					_dragAction = Selecting;
-					_dragSelType = TextSelectParagraphs;
+					_dragSelType = TextSelectType::Paragraphs;
 					dragActionUpdate(_dragPos);
 				    _trippleClickTimer.start(QApplication::doubleClickInterval());
 				}
@@ -664,7 +664,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
 			dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
 		}
-		if (_dragSelType != TextSelectParagraphs) {
+		if (_dragSelType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
 				_dragSymbol = dragState.symbol;
 				bool uponSelected = (dragState.cursor == HistoryInTextCursorState);
@@ -711,7 +711,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (!_dragItem) {
 		_dragAction = NoDrag;
 	} else if (_dragAction == NoDrag) {
-		_dragItem = 0;
+		_dragItem = nullptr;
 	}
 }
 
@@ -902,7 +902,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	}
 	_dragAction = NoDrag;
 	_dragItem = 0;
-	_dragSelType = TextSelectLetters;
+	_dragSelType = TextSelectType::Letters;
 	_widget->noSelectingScroll();
 	_widget->updateTopBarSelection();
 }
@@ -918,13 +918,13 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (!_history) return;
 
 	dragActionStart(e->globalPos(), e->button());
-	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection))) && _dragSelType == TextSelectLetters && _dragItem) {
+	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection))) && _dragSelType == TextSelectType::Letters && _dragItem) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
 		auto dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
 		if (dragState.cursor == HistoryInTextCursorState) {
 			_dragSymbol = dragState.symbol;
-			_dragSelType = TextSelectWords;
+			_dragSelType = TextSelectType::Words;
 			if (_dragAction == NoDrag) {
 				_dragAction = Selecting;
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
@@ -1815,7 +1815,7 @@ void HistoryInner::onUpdateSelected() {
 			bool canSelectMany = (_history != nullptr);
 			if (selectingText) {
 				uint16 second = dragState.symbol;
-				if (dragState.afterSymbol && _dragSelType == TextSelectLetters) {
+				if (dragState.afterSymbol && _dragSelType == TextSelectType::Letters) {
 					++second;
 				}
 				auto selState = _dragItem->adjustSelection({ qMin(second, _dragSymbol), qMax(second, _dragSymbol) }, _dragSelType);

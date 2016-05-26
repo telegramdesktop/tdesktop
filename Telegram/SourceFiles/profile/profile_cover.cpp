@@ -129,8 +129,12 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChat(peer->asChat())
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
-, _photoButton(this, peer) {
+, _photoButton(this, peer)
+, _name(this, QString(), st::profileNameLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	_name.setSelectable(true);
+	_name.setContextCopyText(lang(lng_profile_copy_fullname));
 
 	auto observeEvents = ButtonsUpdateFlags | Notify::PeerUpdateFlag::NameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
@@ -161,7 +165,13 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	_photoButton->moveToLeft(st::profilePhotoLeft, newHeight);
 
 	int infoLeft = _photoButton->x() + _photoButton->width();
-	_namePosition = QPoint(infoLeft + st::profileNameLeft, _photoButton->y() + st::profileNameTop);
+	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
+	int nameTop = _photoButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
+	_name.moveToLeft(nameLeft, nameTop);
+	int nameWidth = width() - infoLeft - st::profileNameLeft - st::profileButtonSkip;
+	nameWidth += st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
+	_name.resizeToWidth(nameWidth);
+
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _photoButton->y() + st::profileStatusTop);
 
 	int buttonLeft = st::profilePhotoLeft + _photoButton->width() + st::profileButtonLeft;
@@ -186,11 +196,6 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.fillRect(e->rect(), st::profileBg);
-
-	int availWidth = width() - _namePosition.x() - _photoButton->x();
-	p.setFont(st::profileNameFont);
-	p.setPen(st::profileNameFg);
-	_nameText.drawLeftElided(p, _namePosition.x(), _namePosition.y(), availWidth, width());
 
 	p.setFont(st::profileStatusFont);
 	p.setPen(st::profileStatusFg);
@@ -220,7 +225,7 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 }
 
 void CoverWidget::refreshNameText() {
-	_nameText.setText(st::profileNameFont, App::peerName(_peer));
+	_name.setText(App::peerName(_peer));
 	update();
 }
 

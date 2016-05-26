@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/observer.h"
 #include "ui/filedialog.h"
+#include "ui/flatlabel.h"
 
 namespace Ui {
 class RoundButton;
@@ -87,8 +88,7 @@ private:
 	// Cover content
 	ChildWidget<PhotoButton> _photoButton;
 
-	QPoint _namePosition;
-	Text _nameText;
+	FlatLabel _name;
 
 	QPoint _statusPosition;
 	QString _statusText;

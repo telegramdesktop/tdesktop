@@ -210,9 +210,11 @@ slider {
 
 flatLabel {
 	font: font;
-	minWidth: pixels;
+	margin: margins;
 	width: pixels;
 	align: align;
+	textFg: color;
+	maxHeight: pixels;
 }
 
 switcher {

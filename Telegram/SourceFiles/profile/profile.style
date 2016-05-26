@@ -38,8 +38,14 @@ profilePhotoSize: 112px;
 profilePhotoLeft: 35px;
 profileNameLeft: 26px;
 profileNameTop: 9px;
-profileNameFont: font(16px);
-profileNameFg: windowTextFg;
+profileNameLabel: flatLabel(labelDefFlat) {
+	margin: margins(10px, 5px, 10px, 5px);
+	font: font(16px);
+	width: 160px;
+	maxHeight: 24px;
+}
+profileNameTextStyle: textStyle(defaultTextStyle) {
+}
 profileStatusLeft: 27px;
 profileStatusTop: 35px;
 profileStatusFont: normalFont;
