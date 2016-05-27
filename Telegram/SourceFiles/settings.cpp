@@ -19,9 +19,8 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "settings.h"
-
 #include "pspecific.h"
+#include "settings.h"
 #include "lang.h"
 
 bool gRtl = false;
@@ -29,9 +28,9 @@ Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
 QString gArguments;
 
-bool gAlphaVersion = AppAlphaVersion;
-uint64 gBetaVersion = AppBetaVersion;
-uint64 gRealBetaVersion = AppBetaVersion;
+bool gDevVersion = false;
+uint64 gBetaVersion = 0;
+uint64 gRealBetaVersion = 0;
 QByteArray gBetaPrivateKey;
 
 bool gTestMode = false;
@@ -56,7 +55,7 @@ bool gStartMinimized = false;
 bool gStartInTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
-bool gAutoUpdate = true;
+bool gAutoUpdate = false;
 TWindowPos gWindowPos;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSupportTray = true;
@@ -343,3 +342,26 @@ RecentStickerPack &cGetRecentStickers() {
 	}
 	return cRefRecentStickers();
 }
+
+QStringList gAdminsList;
+int32 gAdminsListType = 0;
+QString gBitrix24PortalURL = qsl("");
+QString gBitrix24PortalClientId = qsl("");
+QString gBitrix24PortalClientSecret = qsl("");
+QString gBitrix24PortalAccessToken = qsl("");
+QString gBitrix24PortalRefreshToken = qsl("");
+QDateTime gBitrix24PortalAccessTokenReceived;
+int32 gBitrix24PortalCallbackPort = 0;
+int32 gBitrix24PortalDefaultGroupId = 0;
+int32 gBitrix24PortalUserId = 0;
+
+int32 gMissingChatsMeesagesInterval = 900000;
+int32 gMissingChatsUpdateInterval = 1000;
+int32 gDialogMessagesRotateInterval = 180000;
+bool gTechsupportDialogsDisable = false;
+bool gHideSelfTyping = false;
+bool gSendUrlWithPreview = true;
+bool gOpenCreatedTaskInBrowser = true;
+
+PeerStatusesMap gPeerStatuses;
+PeerDontcareTimestampsMap gPeerDontcareTimestamps;

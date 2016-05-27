@@ -20,6 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <QtWidgets/QScrollArea>
+#include "ui/style.h"
+
 enum TouchScrollState {
 	TouchScrollManual, // Scrolling manually with the finger on the screen
 	TouchScrollAuto, // Scrolling automatically

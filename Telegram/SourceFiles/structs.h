@@ -1395,23 +1395,22 @@ public:
 	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
 		setup();
 	}
-
-	void onClick(Qt::MouseButton button) const override;
-
-	QString tooltip() const override {
-		return QString();
-	}
-
-	QString dragText() const override {
-		return _text;
-	}
+	QString copyToClipboardContextItem() const override;
 
 	void copyToClipboard() const override {
 		if (!_text.isEmpty()) {
 			QApplication::clipboard()->setText(_text);
 		}
 	}
-	QString copyToClipboardContextItemText() const override;
+
+	QString tooltip() const override {
+		return QString();
+	}
+
+	QString text() const override {
+		return _text;
+	}
+	void onClick(Qt::MouseButton button) const override;
 
 private:
 

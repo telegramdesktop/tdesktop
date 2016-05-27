@@ -19,10 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "intro/introphone.h"
-
 #include "lang.h"
+#include "ui/style.h"
+
 #include "application.h"
+
+#include "intro/introphone.h"
 #include "intro/introcode.h"
 
 namespace {

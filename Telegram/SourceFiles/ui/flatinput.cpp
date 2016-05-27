@@ -19,10 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/flatinput.h"
+#include "ui/style.h"
 
+#include "flatinput.h"
 #include "mainwindow.h"
 #include "countryinput.h"
+
 #include "lang.h"
 #include "numbers.h"
 
@@ -31,7 +33,6 @@ namespace {
 	class InputStyle : public QCommonStyle {
 	public:
 		InputStyle() {
-			setParent(QCoreApplication::instance());
 		}
 
 		void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget = 0) const {
@@ -45,29 +46,9 @@ namespace {
 			}
 			return QCommonStyle::subElementRect(r, opt, widget);
 		}
-
-		static InputStyle<InputClass> *instance() {
-			if (!_instance) {
-				if (!QGuiApplication::instance()) {
-					return nullptr;
-				}
-				_instance = new InputStyle<InputClass>();
-			}
-			return _instance;
-		}
-
-		~InputStyle() {
-			_instance = nullptr;
-		}
-
-	private:
-		static InputStyle<InputClass> *_instance;
-
 	};
-
-	template <typename InputClass>
-	InputStyle<InputClass> *InputStyle<InputClass>::_instance = nullptr;
-
+	InputStyle<FlatInput> _flatInputStyle;
+	InputStyle<MaskedInputField> _inputFieldStyle;
 }
 
 FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent)
@@ -97,7 +78,7 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 	connect(this, SIGNAL(textEdited(const QString &)), this, SLOT(onTextEdited()));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
-	setStyle(InputStyle<FlatInput>::instance());
+	setStyle(&_flatInputStyle);
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
 
@@ -183,7 +164,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, _st.borderWidth, _st.borderWidth, height() - _st.borderWidth, b);
 	}
 	if (_st.imgRect.pxWidth()) {
-		p.drawSprite(_st.imgPos, _st.imgRect);
+		p.drawPixmap(_st.imgPos, App::sprite(), _st.imgRect);
 	}
 
 	bool phDraw = _phVisible;
@@ -234,8 +215,13 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+//#include "../../../QtStatic/qtbase/src/widgets/widgets/qwidgettextcontrol_p.h"
+
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (QMenu *menu = createStandardContextMenu()) {
+		//menu->addSeparator(); // testing two level menu
+		//QUnicodeControlCharacterMenu *ctrlCharacterMenu = new QUnicodeControlCharacterMenu(this, menu);
+		//menu->addMenu(ctrlCharacterMenu);
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }
@@ -1011,8 +997,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 			if (!_inner.document()->pageSize().isNull()) {
 				_inner.document()->setPageSize(QSizeF(0, 0));
 			}
-			QTextCursor c(doc->docHandle(), 0);
-			c.setPosition(replacePosition);
+			QTextCursor c(doc->docHandle(), replacePosition);
 			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
 			if (emoji) {
 				insertEmoji(emoji, c);
@@ -2040,7 +2025,7 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 	connect(this, SIGNAL(textEdited(const QString&)), this, SLOT(onTextEdited()));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
-	setStyle(InputStyle<MaskedInputField>::instance());
+	setStyle(&_inputFieldStyle);
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
 

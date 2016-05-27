@@ -19,10 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "boxes/photosendbox.h"
-
+#include "ui/style.h"
 #include "lang.h"
+
 #include "localstorage.h"
+
 #include "mainwidget.h"
 #include "photosendbox.h"
 
@@ -414,7 +415,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			image = doc->thumb;
 		} break;
 		}
-		caption = media->getCaption().text;
+		caption = media->getCaption();
 	}
 	if ((!_animated && (dimensions.isEmpty() || doc)) || image->isNull()) {
 		_animated = false;
@@ -492,8 +493,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		_field->setMaxLength(MaxPhotoCaption);
 		_field->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
 	} else {
-		auto original = msg->originalText();
-		QString text = textApplyEntities(original.text, original.entities);
+		QString text = textApplyEntities(msg->originalText(), msg->originalEntities());
 		_field = new InputArea(this, st::editTextArea, lang(lng_photo_caption), text);
 //		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
 		_field->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);

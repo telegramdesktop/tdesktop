@@ -4,8 +4,6 @@
 
 Choose a folder for the future build, for example **/Users/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-**IMPORTANT** You are required to build and install Qt 5.6.0 from the [Xcode 7](building-xcode.md) instructions first.
-
 ###Clone source code
 
 By git – in Terminal go to **/Users/user/TBuild** and run
@@ -175,11 +173,11 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
-    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_3_2.diff
+    git apply ../../../tdesktop/Telegram/_qtbase_5_3_2_patch.diff
 
 From **/Users/user/TBuild/Libraries/QtStatic/qtimageformats**, run:
 
-    git apply ../../../tdesktop/Telegram/Patches/qtimageformats_5_3_2.diff
+    git apply ../../../tdesktop/Telegram/_qtimageformats_5_3_2_patch.diff
 
 #####Building library
 
@@ -194,6 +192,7 @@ building (**make** command) will take really long time.
 ###Building Telegram Desktop
 
 * Launch Xcode, all projects will be taken from **/Users/user/TBuild/tdesktop/Telegram**
+* Open MetaStyle.xcodeproj and build for Debug (Release optionally)
 * Open MetaEmoji.xcodeproj and build for Debug (Release optionally)
 * Open MetaLang.xcodeproj and build for Debug (Release optionally)
 * Open Telegram.xcodeproj and build for Debug

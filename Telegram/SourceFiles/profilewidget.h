@@ -243,7 +243,7 @@ public:
     void dropEvent(QDropEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;

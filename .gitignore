@@ -1,4 +1,4 @@
-/Telegram/build/target
+/Telegram/Target
 /Telegram/GeneratedFiles/
 /Telegram/SourceFiles/art/grid.png
 /Telegram/SourceFiles/art/grid_125x.png
@@ -18,8 +18,7 @@
 *.sdf
 *.opensdf
 *.opendb
-*.VC.db
-*.aps
+/Telegram/*.aps
 /Win32/
 ipch/
 
@@ -34,11 +33,10 @@ ipch/
 ._*
 .qmake.stash
 /Mac/
-project.xcworkspace
-xcuserdata
+/Telegram/*.xcodeproj/xcuserdata/
+/Telegram/*.xcodeproj/project.xcworkspace/
 
 /Telegram/*.user.*
-*.pro.user
 /Linux/
 /Telegram/Makefile
 *.*~

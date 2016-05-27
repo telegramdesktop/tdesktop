@@ -19,10 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "passcodewidget.h"
-
 #include "lang.h"
+#include "ui/style.h"
+
 #include "localstorage.h"
+
+#include "passcodewidget.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
@@ -170,7 +172,7 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 	setMouseTracking(true);
 
-	Painter p(this);
+	QPainter p(this);
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
@@ -184,7 +186,7 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else {
 		p.fillRect(rect(), st::setBG->b);
 

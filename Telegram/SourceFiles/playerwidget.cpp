@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 
 #include "shortcuts.h"
+#include "ui/style.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "application.h"
@@ -88,19 +89,19 @@ void PlayerWidget::paintEvent(QPaintEvent *e) {
 				mid = width() - mid;
 				right = width() - right;
 				if (mid < left) {
-					p.drawPixmap(QRect(mid, top, left - mid, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.rect().x() + (mid - right) * cIntRetinaFactor(), st::playerVolume.rect().y(), (left - mid) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
+					p.drawPixmap(QRect(mid, top, left - mid, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.x() + (mid - right) * cIntRetinaFactor(), st::playerVolume.y(), (left - mid) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
 				}
 				if (right < mid) {
 					p.setOpacity(st::playerUnavailableOpacity);
-					p.drawPixmap(QRect(right, top, mid - right, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.rect().x(), st::playerVolume.rect().y(), (mid - right) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
+					p.drawPixmap(QRect(right, top, mid - right, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.x(), st::playerVolume.y(), (mid - right) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
 				}
 			} else {
 				if (mid > left) {
-					p.drawPixmap(QRect(left, top, mid - left, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.rect().x(), st::playerVolume.rect().y(), (mid - left) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
+					p.drawPixmap(QRect(left, top, mid - left, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.x(), st::playerVolume.y(), (mid - left) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
 				}
 				if (right > mid) {
 					p.setOpacity(st::playerUnavailableOpacity);
-					p.drawPixmap(QRect(mid, top, right - mid, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.rect().x() + (mid - left) * cIntRetinaFactor(), st::playerVolume.rect().y(), (right - mid) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
+					p.drawPixmap(QRect(mid, top, right - mid, st::playerVolume.pxHeight()), App::sprite(), QRect(st::playerVolume.x() + (mid - left) * cIntRetinaFactor(), st::playerVolume.y(), (right - mid) * cIntRetinaFactor(), st::playerVolume.pxHeight() * cIntRetinaFactor()));
 				}
 			}
 		}

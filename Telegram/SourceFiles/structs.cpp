@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "structs.h"
 
+#include "ui/style.h"
 #include "lang.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "history.h"
@@ -1622,19 +1623,4 @@ MsgId clientMsgId() {
 	static MsgId currentClientMsgId = StartClientMsgId;
 	Q_ASSERT(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
-}
-
-QString LocationClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_link);
-}
-
-void LocationClickHandler::onClick(Qt::MouseButton button) const {
-	if (!psLaunchMaps(_coords)) {
-		QDesktopServices::openUrl(_text);
-	}
-}
-
-void LocationClickHandler::setup() {
-	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
-	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }

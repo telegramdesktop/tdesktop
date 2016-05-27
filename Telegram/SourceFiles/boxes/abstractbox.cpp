@@ -31,7 +31,7 @@ void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(e->rect());
-	p.drawPixmap(QRect(r.left(), 0, r.width(), height()), App::sprite(), st::boxBlueShadow.rect());
+	p.drawPixmap(QRect(r.left(), 0, r.width(), height()), App::sprite(), st::boxBlueShadow);
 }
 
 BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)

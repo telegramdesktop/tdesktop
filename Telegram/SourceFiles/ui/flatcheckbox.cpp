@@ -19,9 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/flatcheckbox.h"
-
+#include "ui/style.h"
 #include "lang.h"
+
+#include "flatcheckbox.h"
 
 FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st) : Button(parent)
 , _st(st)
@@ -79,7 +80,7 @@ void FlatCheckbox::onStateChange(int oldState, ButtonStateChangeSource source) {
 }
 
 void FlatCheckbox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	QPainter p(this);
 
 	p.setOpacity(_opacity);
 	if (_st.bgColor != st::transparent) {
@@ -99,21 +100,21 @@ void FlatCheckbox::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_state & StateDisabled) {
-		const style::sprite &sRect(_checked ? _st.chkDisImageRect : _st.disImageRect);
-		p.drawSprite(_st.imagePos, sRect);
+		QRect sRect(_checked ? _st.chkDisImageRect : _st.disImageRect);
+		p.drawPixmap(_st.imagePos, App::sprite(), sRect);
 	} else if ((_checked && _st.chkImageRect == _st.chkOverImageRect) || (!_checked && _st.imageRect == _st.overImageRect)) {
 		p.setOpacity(_opacity);
-		const style::sprite &sRect(_checked ? _st.chkImageRect : _st.imageRect);
-		p.drawSprite(_st.imagePos, sRect);
+		QRect sRect(_checked ? _st.chkImageRect : _st.imageRect);
+		p.drawPixmap(_st.imagePos, App::sprite(), sRect);
 	} else {
 		if (a_over.current() < 1) {
-			const style::sprite &sRect(_checked ? _st.chkImageRect : _st.imageRect);
-			p.drawSprite(_st.imagePos, sRect);
+			QRect sRect(_checked ? _st.chkImageRect : _st.imageRect);
+			p.drawPixmap(_st.imagePos, App::sprite(), sRect);
 		}
 		if (a_over.current() > 0) {
 			p.setOpacity(_opacity * a_over.current());
-			const style::sprite &sRect(_checked ? _st.chkOverImageRect : _st.overImageRect);
-			p.drawSprite(_st.imagePos, sRect);
+			QRect sRect(_checked ? _st.chkOverImageRect : _st.overImageRect);
+			p.drawPixmap(_st.imagePos, App::sprite(), sRect);
 		}
 	}
 }
@@ -249,7 +250,7 @@ Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const sty
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1.));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);
@@ -391,7 +392,7 @@ Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, con
 		resize(_textWidth - _st.width, _st.height);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1.));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width, _st.height);

@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "private/qfontengine_p.h"
+#include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
 
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
@@ -97,7 +97,7 @@ public:
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
 	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
-	void setMarkedText(style::font font, const TextWithEntities &textWithEntities, const TextParseOptions &options = _defaultOptions);
+	void setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 	bool hasLinks() const;
@@ -178,9 +178,13 @@ public:
 	int length() const {
 		return _text.size();
 	}
-
-	TextWithEntities originalTextWithEntities(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
-	QString originalText(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	enum ExpandLinksMode {
+		ExpandLinksNone,
+		ExpandLinksShortened,
+		ExpandLinksAll,
+	};
+	QString original(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	EntitiesInText originalEntities() const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;
@@ -207,10 +211,6 @@ public:
 	}
 
 private:
-
-	// Template method for originalText(), originalTextWithEntities().
-	template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
-	void enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const;
 
 	void recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir = Qt::LayoutDirectionAuto);
 
@@ -278,7 +278,7 @@ QString textcmdStopSemibold();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 inline bool chIsSpace(QChar ch, bool rich = false) {
-	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
+	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
 }
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	return (ch.category() == QChar::Mark_NonSpacing) || (ch.unicode() == 1652);

@@ -391,7 +391,7 @@ bool genLang(const QString &lang_in, const QString &lang_out) {
 			th.setCodec("ISO 8859-1");
 			th << "\
 /*\n\
-Created from \'/Resources/langs/lang.strings\' by \'/MetaLang\' project\n\
+Created from \'/Resources/lang.strings\' by \'/MetaLang\' project\n\
 \n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
@@ -475,7 +475,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 
 			tcpp << "\
 /*\n\
-Created from \'/Resources/langs/lang.strings\' by \'/MetaLang\' project\n\
+Created from \'/Resources/lang.strings\' by \'/MetaLang\' project\n\
 \n\
 WARNING! All changes made in this file will be lost!\n\
 \n\

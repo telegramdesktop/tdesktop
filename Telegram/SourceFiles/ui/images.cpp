@@ -407,11 +407,11 @@ const QPixmap &circleMask(int width, int height) {
 	auto i = masks.constFind(key);
 	if (i == masks.cend()) {
 		QImage mask(width, height, QImage::Format_ARGB32_Premultiplied);
+		mask.fill(st::transparent);
 		{
 			Painter p(&mask);
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(0, 0, width, height, st::transparent);
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			p.setBrush(st::white);
 			p.setPen(Qt::NoPen);
 			p.drawEllipse(0, 0, width, height);

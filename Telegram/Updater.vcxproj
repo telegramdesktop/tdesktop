@@ -136,8 +136,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Resources\winrc\resource1.h" />
+    <ClInclude Include="resource1.h" />
     <ClInclude Include="SourceFiles\_other\updater.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Updater.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="SourceFiles\_other\updater_osx.m">
@@ -145,9 +148,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Resources\winrc\Updater.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

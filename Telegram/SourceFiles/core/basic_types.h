@@ -166,16 +166,6 @@ template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
-// For QFlags<> declared in private section of a class we need to declare
-// operators from Q_DECLARE_OPERATORS_FOR_FLAGS as friend functions.
-#define Q_DECLARE_FRIEND_INCOMPATIBLE_FLAGS(Flags) \
-friend Q_DECL_CONSTEXPR QIncompatibleFlag operator|(Flags::enum_type f1, int f2) Q_DECL_NOTHROW;
-
-#define Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(Flags) \
-friend Q_DECL_CONSTEXPR QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) Q_DECL_NOTHROW; \
-friend Q_DECL_CONSTEXPR QFlags<Flags::enum_type> operator|(Flags::enum_type f1, QFlags<Flags::enum_type> f2) Q_DECL_NOTHROW; \
-Q_DECLARE_FRIEND_INCOMPATIBLE_FLAGS(Flags)
-
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator
 // it is important for the copy-on-write Qt containers
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
@@ -222,10 +212,6 @@ private:
 	const std::size_t _size;
 
 };
-
-inline QString str_const_toString(const str_const &str) {
-	return QString::fromUtf8(str.c_str(), str.size());
-}
 
 template <typename T>
 inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
@@ -827,7 +813,8 @@ inline QSharedPointer<T> MakeShared(Args&&... args) {
 template <typename T>
 class NeverFreedPointer {
 public:
-	NeverFreedPointer() = default;
+	explicit NeverFreedPointer() {
+	}
 	NeverFreedPointer(const NeverFreedPointer<T> &other) = delete;
 	NeverFreedPointer &operator=(const NeverFreedPointer<T> &other) = delete;
 
@@ -874,7 +861,7 @@ public:
 	}
 
 private:
-	T *_p;
+	T *_p = nullptr;
 
 };
 
@@ -1010,7 +997,7 @@ public:
 
 	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
-			uint64 m = (1ULL << i);
+			uint64 m = (1 << i);
 			if (_mask & m) {
 				int s = ComponentWraps[i].Size;
 				if (s) {

@@ -21,17 +21,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "app.h"
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-#include <libexif/exif-data.h>
-#endif
-
-#include "styles/style_overview.h"
 #include "lang.h"
 #include "dialogs/dialogs_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#include <libexif/exif-data.h>
+#endif
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
@@ -84,7 +82,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *emoji = 0, *emojiLarge = 0;
+	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -968,9 +966,7 @@ namespace {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			auto text = qs(m.vmessage);
-			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText();
-			existing->setText({ text, entities });
+			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
@@ -2007,6 +2003,14 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
+		if (!::sprite) {
+			if (rtl()) {
+				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
+			} else {
+				::sprite = new QPixmap(st::spriteFile);
+			}
+            if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
+		}
 		emojiInit();
 		if (!::emoji) {
 			::emoji = new QPixmap(QLatin1String(EName));
@@ -2067,6 +2071,8 @@ namespace {
 	void deinitMedia() {
 		audioFinish();
 
+		delete ::sprite;
+		::sprite = 0;
 		delete ::emoji;
 		::emoji = 0;
 		delete ::emojiLarge;
@@ -2144,7 +2150,7 @@ namespace {
 	}
 
 	const QPixmap &sprite() {
-		return style::spritePixmap();
+		return *::sprite;
 	}
 
 	const QPixmap &emoji() {
@@ -2536,7 +2542,7 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg);
 		QImage::Format f = dog.format();
 		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
 			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);

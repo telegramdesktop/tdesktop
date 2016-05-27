@@ -236,10 +236,6 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	}
 }
 
-void showPeerProfile(const PeerId &peer) {
-	if (MainWidget *m = App::main()) m->showPeerProfile(App::peer(peer));
-}
-
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
 	if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
 }
@@ -394,10 +390,10 @@ void WorkingDirReady() {
 		cSetDebug(true);
 	}
 	if (cBetaVersion()) {
-		cSetAlphaVersion(false);
-	} else if (!cAlphaVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
-		cSetAlphaVersion(true);
-	} else if (AppAlphaVersion) {
+		cSetDevVersion(false);
+	} else if (!cDevVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
+		cSetDevVersion(true);
+	} else if (DevVersion) {
 		QFile f(cWorkingDir() + qsl("tdata/devversion"));
 		if (!f.exists() && f.open(QIODevice::WriteOnly)) {
 			f.write("1");

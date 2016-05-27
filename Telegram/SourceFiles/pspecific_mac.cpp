@@ -84,13 +84,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
 
-	MainWidget::MessageToSend message;
-	message.history = history;
-	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
-	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
-	message.broadcast = false;
-	message.silent = false;
-	App::main()->sendMessage(message);
+	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false, false);
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
@@ -122,7 +116,7 @@ void PsMainWindow::psSetupTrayIcon() {
         icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
 
         trayIcon->setIcon(icon);
-        trayIcon->setToolTip(str_const_toString(AppName));
+        trayIcon->setToolTip(QString::fromStdWString(AppName));
         connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
         App::wnd()->updateTrayMenu();
     }
@@ -162,7 +156,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 		skip = 2;
 		fontSize = 16;
 	}
-	style::font f(fontSize, 0, 0);
+	style::font f(fontSize);
 	int32 w = f->width(cnt), d, r;
 	if (size == 22) {
 		d = (cntSize < 2) ? 3 : 2;
@@ -431,7 +425,7 @@ void PsMainWindow::psMacUpdateMenu() {
 		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = !edit->isEmpty();
+		canSelectAll = !edit->getLastText().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();

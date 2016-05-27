@@ -21,10 +21,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "intro/intropwdcheck.h"
 
+#include "lang.h"
+#include "ui/style.h"
 #include "ui/filedialog.h"
 #include "boxes/confirmbox.h"
-#include "lang.h"
+
 #include "application.h"
+
 #include "intro/introsignup.h"
 
 IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)

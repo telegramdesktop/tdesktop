@@ -1,100 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="src">
+    <Filter Include="Source Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;cxx;c;def</Extensions>
     </Filter>
-    <Filter Include="src\common">
-      <UniqueIdentifier>{e722d237-774c-46d8-91c4-732e0c12d848}</UniqueIdentifier>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h</Extensions>
     </Filter>
-    <Filter Include="src\style">
-      <UniqueIdentifier>{fbf050c2-2ecd-4469-a24f-1dcf27e2520f}</UniqueIdentifier>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>moc;h;cpp</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\SourceFiles\codegen\style\main.cpp">
-      <Filter>src\style</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.cpp">
-      <Filter>src\common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\common\logging.cpp">
-      <Filter>src\common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\common\clean_file.cpp">
-      <Filter>src\common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.cpp">
-      <Filter>src\common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\options.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\parsed_file.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\structure_types.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\module.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\common\cpp_file.cpp">
-      <Filter>src\common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\processor.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\generator.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\SourceFiles\codegen\style\sprite_generator.cpp">
-      <Filter>src\style</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\checked_utf8_string.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\logging.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\const_utf8_string.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\clean_file_reader.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\basic_tokenized_file.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\options.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\parsed_file.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\structure_types.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\module.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\common\cpp_file.h">
-      <Filter>src\common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\processor.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\generator.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\SourceFiles\codegen\style\sprite_generator.h">
-      <Filter>src\style</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

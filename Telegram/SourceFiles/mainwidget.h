@@ -154,7 +154,7 @@ public:
 	void updateAdaptiveLayout();
 	bool needBackButton();
 
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	Window::TopBarWidget *topBar();
 
 	PlayerWidget *player();
@@ -284,15 +284,7 @@ public:
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
 
-	struct MessageToSend {
-		History *history = nullptr;
-		TextWithTags textWithTags;
-		MsgId replyTo = 0;
-		bool broadcast = false;
-		bool silent = false;
-		WebPageId webPageId = 0;
-	};
-	void sendMessage(const MessageToSend &message);
+	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
 
     void readServerHistory(History *history, bool force = true);

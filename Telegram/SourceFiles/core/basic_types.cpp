@@ -45,22 +45,52 @@ uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
 
-static_assert(sizeof(char) == 1, "Basic types size check failed");
-static_assert(sizeof(uchar) == 1, "Basic types size check failed");
-static_assert(sizeof(int16) == 2, "Basic types size check failed");
-static_assert(sizeof(uint16) == 2, "Basic types size check failed");
-static_assert(sizeof(int32) == 4, "Basic types size check failed");
-static_assert(sizeof(uint32) == 4, "Basic types size check failed");
-static_assert(sizeof(int64) == 8, "Basic types size check failed");
-static_assert(sizeof(uint64) == 8, "Basic types size check failed");
-static_assert(sizeof(float32) == 4, "Basic types size check failed");
-static_assert(sizeof(float64) == 8, "Basic types size check failed");
-static_assert(sizeof(mtpPrime) == 4, "Basic types size check failed");
-static_assert(sizeof(MTPint) == 4, "Basic types size check failed");
-static_assert(sizeof(MTPlong) == 8, "Basic types size check failed");
-static_assert(sizeof(MTPint128) == 16, "Basic types size check failed");
-static_assert(sizeof(MTPint256) == 32, "Basic types size check failed");
-static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+NullPointerClass nullptr;
+#endif
+
+namespace {
+	template <typename T, int N>
+	class _TypeSizeCheckerHelper {
+	public:
+		_TypeSizeCheckerHelper() {
+            int _BadTypeSize[N ? -1 : 1];
+            (void)sizeof(_BadTypeSize);
+		}
+	};
+
+	template <typename T>
+	class _TypeSizeCheckerHelper<T, 0> {
+	public:
+		_TypeSizeCheckerHelper() {
+		}
+	};
+
+	template <typename T, int N>
+	class _TypeSizeChecker {
+		_TypeSizeCheckerHelper<T, N - sizeof(T)> checker;
+	};
+
+	void _typesCheck() {
+        _TypeSizeChecker<char, 1>();
+		_TypeSizeChecker<uchar, 1>();
+        _TypeSizeChecker<int16, 2>();
+		_TypeSizeChecker<uint16, 2>();
+        _TypeSizeChecker<int32, 4>();
+		_TypeSizeChecker<uint32, 4>();
+        _TypeSizeChecker<int64, 8>();
+		_TypeSizeChecker<uint64, 8>();
+		_TypeSizeChecker<float32, 4>();
+        _TypeSizeChecker<float64, 8>();
+
+        _TypeSizeChecker<mtpPrime, 4>();
+		_TypeSizeChecker<MTPint, 4>();
+		_TypeSizeChecker<MTPlong, 8>();
+		_TypeSizeChecker<MTPint128, 16>();
+		_TypeSizeChecker<MTPint256, 32>();
+        _TypeSizeChecker<MTPdouble, 8>();
+	}
+}
 
 // Unixtime functions
 

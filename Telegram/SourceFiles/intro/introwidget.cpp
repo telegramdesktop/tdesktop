@@ -19,10 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "intro/introwidget.h"
-
 #include "lang.h"
+#include "ui/style.h"
+
 #include "localstorage.h"
+
+#include "intro/introwidget.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"
@@ -267,7 +269,7 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else if (_a_stage.animating()) {
 		p.setOpacity(a_opacityHide.current());
 		p.drawPixmap(step()->x() + st::introSlideShift + a_coordHide.current(), step()->y(), _cacheHide);

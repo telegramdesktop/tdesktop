@@ -21,16 +21,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "overview/overview_layout.h"
 
-#include "styles/style_overview.h"
-#include "ui/filedialog.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwindow.h"
+#include "ui/filedialog.h"
 #include "playerwidget.h"
+#include "boxes/addcontactbox.h"
+#include "boxes/confirmbox.h"
 #include "audio.h"
 #include "localstorage.h"
 
@@ -140,21 +139,6 @@ void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 }
 
-namespace {
-
-void paintPhotoVideoCheck(Painter &p, int width, int height, bool selected) {
-	int checkPosX = width - st::overviewPhotoCheck.width();
-	int checkPosY = height - st::overviewPhotoCheck.height();
-	if (selected) {
-		p.fillRect(QRect(0, 0, width, height), st::overviewPhotoSelectOverlay);
-		st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width);
-	} else {
-		st::overviewPhotoCheck.paint(p, QPoint(checkPosX, checkPosY), width);
-	}
-}
-
-} // namespace
-
 Photo::Photo(PhotoData *photo, HistoryItem *parent) : ItemBase(parent)
 , _data(photo)
 , _link(new PhotoOpenClickHandler(photo))
@@ -176,7 +160,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 }
 
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
-	bool good = _data->loaded(), selected = (selection == FullSelection);
+	bool good = _data->loaded();
 	if (!good) {
 		_data->medium->automaticLoad(_parent);
 		good = _data->medium->loaded();
@@ -213,8 +197,12 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	} else {
 		p.drawPixmap(0, 0, _pix);
 	}
-	if (selected || context->selecting) {
-		paintPhotoVideoCheck(p, _width, _height, selected);
+
+	if (selection == FullSelection) {
+		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
+	} else if (context->selecting) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
 	}
 }
 
@@ -347,8 +335,11 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 		}
 	}
-	if (selected || context->selecting) {
-		paintPhotoVideoCheck(p, _width, _height, selected);
+
+	if (selected) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
+	} else if (context->selecting) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
 	}
 }
 
@@ -898,40 +889,31 @@ bool Document::updateStatusText() const {
 Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
-	const auto textWithEntities = _parent->originalText();
-	QString mainUrl;
+	QString text = _parent->originalText();
+	EntitiesInText entities = _parent->originalEntities();
 
-	auto text = textWithEntities.text;
-	auto &entities = textWithEntities.entities;
 	int32 from = 0, till = text.size(), lnk = entities.size();
-	for_const (const auto &entity, entities) {
-		auto type = entity.type();
-		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
+	for (int32 i = 0; i < lnk; ++i) {
+		if (entities[i].type != EntityInTextUrl && entities[i].type != EntityInTextCustomUrl && entities[i].type != EntityInTextEmail) {
 			continue;
 		}
-		auto customUrl = entity.data(), entityText = text.mid(entity.offset(), entity.length());
-		auto url = customUrl.isEmpty() ? entityText : customUrl;
-		if (_links.isEmpty()) {
-			mainUrl = url;
-		}
-		_links.push_back(LinkEntry(url, entityText));
+		QString u = entities[i].text, t = text.mid(entities[i].offset, entities[i].length);
+		_links.push_back(LinkEntry(u.isEmpty() ? t : u, t));
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		const auto &entity = entities.at(lnk);
-		auto type = entity.type();
-		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
+		if (entities[lnk].type != EntityInTextUrl && entities[lnk].type != EntityInTextCustomUrl && entities[lnk].type != EntityInTextEmail) {
 			++lnk;
 			break;
 		}
-		int32 afterLinkStart = entity.offset() + entity.length();
+		int32 afterLinkStart = entities[lnk].offset + entities[lnk].length;
 		if (till > afterLinkStart) {
 			if (!QRegularExpression(qsl("^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
 				++lnk;
 				break;
 			}
 		}
-		till = entity.offset();
+		till = entities[lnk].offset;
 	}
 	if (!lnk) {
 		if (QRegularExpression(qsl("^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(from, till - from)).hasMatch()) {
@@ -941,7 +923,6 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 
 	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
 	if (_page) {
-		mainUrl = _page->url;
 		if (_page->document) {
 			_photol.reset(new DocumentOpenClickHandler(_page->document));
 		} else if (_page->photo) {
@@ -955,8 +936,8 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 		} else {
 			_photol = MakeShared<UrlClickHandler>(_page->url);
 		}
-	} else if (!mainUrl.isEmpty()) {
-		_photol = MakeShared<UrlClickHandler>(mainUrl);
+	} else if (!_links.isEmpty()) {
+		_photol = MakeShared<UrlClickHandler>(_links.front().lnk->text());
 	}
 	if (from >= till && _page) {
 		text = _page->description;
@@ -994,7 +975,8 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	if (_page) {
 		_title = _page->title;
 	}
-	QVector<QStringRef> parts = mainUrl.splitRef('/');
+	QString url(_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text()));
+	QVector<QStringRef> parts = url.splitRef('/');
 	if (!parts.isEmpty()) {
 		QStringRef domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
@@ -1078,9 +1060,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 
 		if (selection == FullSelection) {
 			App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::overviewPhotoSelectOverlay, PhotoSelectOverlayCorners);
-			st::overviewLinksChecked.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksChecked.width(), top + st::dlgPhotoSize - st::overviewLinksChecked.height()), _width);
+			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoChecked);
 		} else if (context->selecting) {
-			st::overviewLinksCheck.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksCheck.width(), top + st::dlgPhotoSize - st::overviewLinksCheck.height()), _width);
+			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoCheck);
 		}
 	}
 

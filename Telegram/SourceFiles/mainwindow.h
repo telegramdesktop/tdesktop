@@ -230,8 +230,6 @@ public:
 
 	void updateUnreadCounter();
 
-	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
-
 	bool contentOverlapped(const QRect &globalRect);
 	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
 		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
@@ -283,6 +281,8 @@ public slots:
 	void onLogout();
 	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu
+
+	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
 
 	void notifyUpdateAllPhotos();
 

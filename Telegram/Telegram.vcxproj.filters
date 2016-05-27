@@ -4,6 +4,9 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{df139398-6d5d-4bd5-8abe-b509b102f5d8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Version">
+      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ThirdParty">
       <UniqueIdentifier>{cda95767-f353-4a6b-a124-73632e61028a}</UniqueIdentifier>
     </Filter>
@@ -79,17 +82,8 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
-    <Filter Include="GeneratedFiles\styles">
-      <UniqueIdentifier>{3397dfda-79f1-4a4c-940b-be26b001baf5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="SourceFiles\ui\style">
-      <UniqueIdentifier>{58dd7db6-06a2-4076-964d-aec4e106c8c8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="OtherPlatforms">
-      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resources\winrc">
-      <UniqueIdentifier>{6b33ddc0-a7e2-4961-81dc-e1b5de2e2c60}</UniqueIdentifier>
+    <Filter Include="SourceFiles\its">
+      <UniqueIdentifier>{238928bb-1af0-4938-bac8-f51d4446a9cd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -116,6 +110,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\mainwidget.cpp">
       <Filter>SourceFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\style_auto.cpp">
+      <Filter>GeneratedFiles</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\app.cpp">
       <Filter>SourceFiles</Filter>
@@ -978,6 +975,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_scrollarea.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\ui\style_core.cpp">
+      <Filter>SourceFiles\ui</Filter>
+    </ClCompile>
     <ClCompile Include="SourceFiles\ui\twidget.cpp">
       <Filter>SourceFiles\ui</Filter>
     </ClCompile>
@@ -1080,40 +1080,40 @@
     <ClCompile Include="SourceFiles\ui\text\text_block.cpp">
       <Filter>SourceFiles\ui\text</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\styles\style_basic.cpp">
-      <Filter>GeneratedFiles\styles</Filter>
+    <ClCompile Include="SourceFiles\its\itsbitrix24.cpp">
+      <Filter>SourceFiles\its</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp">
-      <Filter>GeneratedFiles\styles</Filter>
+    <ClCompile Include="SourceFiles\its\itssettingsbox.cpp">
+      <Filter>SourceFiles\its</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\styles\style_overview.cpp">
-      <Filter>GeneratedFiles\styles</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\ui\style\style_core.cpp">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\ui\style\style_core_types.cpp">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\ui\style\style_core_font.cpp">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\ui\style\style_core_color.cpp">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\ui\style\style_core_icon.cpp">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_field_autocomplete.cpp">
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itsbitrix24.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\history\field_autocomplete.cpp">
-      <Filter>SourceFiles\history</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_field_autocomplete.cpp">
+    <ClCompile Include="GeneratedFiles\Debug\moc_itsbitrix24.cpp">
       <Filter>GeneratedFiles\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
+    <ClCompile Include="GeneratedFiles\Release\moc_itsbitrix24.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\its\itscreatetaskbox.cpp">
+      <Filter>SourceFiles\its</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itscreatetaskbox.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_itscreatetaskbox.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_itscreatetaskbox.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1124,11 +1124,20 @@
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratedFiles\style_auto.h">
+      <Filter>GeneratedFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\style_classes.h">
+      <Filter>GeneratedFiles</Filter>
+    </ClInclude>
     <ClInclude Include="SourceFiles\countries.h">
       <Filter>SourceFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\app.h">
       <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>GeneratedFiles</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\settings.h">
       <Filter>SourceFiles</Filter>
@@ -1147,6 +1156,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
       <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\numbers.h">
+      <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\config.h">
+      <Filter>Version</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\minizip\crypt.h">
       <Filter>ThirdParty\minizip</Filter>
@@ -1202,6 +1217,12 @@
     <ClInclude Include="SourceFiles\ui\images.h">
       <Filter>SourceFiles\ui</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\ui\style.h">
+      <Filter>SourceFiles\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\style_core.h">
+      <Filter>SourceFiles\ui</Filter>
+    </ClInclude>
     <ClInclude Include="SourceFiles\ui\toast\toast.h">
       <Filter>SourceFiles\ui\toast</Filter>
     </ClInclude>
@@ -1252,42 +1273,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\text\text_block.h">
       <Filter>SourceFiles\ui\text</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\styles\style_basic.h">
-      <Filter>GeneratedFiles\styles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\styles\style_basic_types.h">
-      <Filter>GeneratedFiles\styles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\numbers.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\styles\style_overview.h">
-      <Filter>GeneratedFiles\styles</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_core.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_core_types.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_core_font.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_core_color.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_core_icon.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\core\version.h">
-      <Filter>SourceFiles\core</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\config.h">
-      <Filter>SourceFiles</Filter>
-    </ClInclude>
-    <ClInclude Include="Resources\winrc\resource.h">
-      <Filter>Resources\winrc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1423,7 +1408,16 @@
     <CustomBuild Include="SourceFiles\playerwidget.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
+    <CustomBuild Include="Resources\lang.strings">
+      <Filter>Resources</Filter>
+    </CustomBuild>
     <CustomBuild Include="Resources\numbers.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style_classes.txt">
       <Filter>Resources</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\telegram.qrc">
@@ -1525,11 +1519,14 @@
     <CustomBuild Include="SourceFiles\core\basic_types.h">
       <Filter>SourceFiles\core</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\history\field_autocomplete.h">
-      <Filter>SourceFiles\history</Filter>
+    <CustomBuild Include="SourceFiles\its\itsbitrix24.h">
+      <Filter>SourceFiles\its</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\langs\lang.strings">
-      <Filter>Resources\langs</Filter>
+    <CustomBuild Include="SourceFiles\its\itssettingsbox.h">
+      <Filter>SourceFiles\its</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\its\itscreatetaskbox.h">
+      <Filter>SourceFiles\its</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -1552,16 +1549,19 @@
       <Filter>Resources\langs</Filter>
     </None>
     <None Include="Telegram.xcodeproj\project.pbxproj">
-      <Filter>OtherPlatforms</Filter>
+      <Filter>Version</Filter>
     </None>
     <None Include="Telegram.plist">
-      <Filter>OtherPlatforms</Filter>
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Version">
+      <Filter>Version</Filter>
     </None>
     <None Include="Telegram.xcodeproj\qt_preprocess.mak">
-      <Filter>OtherPlatforms</Filter>
+      <Filter>Version</Filter>
     </None>
     <None Include="Telegram.pro">
-      <Filter>OtherPlatforms</Filter>
+      <Filter>Version</Filter>
     </None>
     <None Include="SourceFiles\mtproto\generate.py">
       <Filter>SourceFiles\mtproto</Filter>
@@ -1572,15 +1572,6 @@
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>SourceFiles</Filter>
     </None>
-    <None Include="Resources\langs\download.sh">
-      <Filter>Resources\langs</Filter>
-    </None>
-    <None Include="Resources\langs\list">
-      <Filter>Resources\langs</Filter>
-    </None>
-    <None Include="Resources\langs\upload.sh">
-      <Filter>Resources\langs</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">
@@ -1588,22 +1579,8 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <CodegenStyleItem Include="Resources\all_files.style">
-      <Filter>Resources</Filter>
-    </CodegenStyleItem>
-    <CustomBuild Include="Resources\basic.style">
-      <Filter>Resources</Filter>
-    </CustomBuild>
-    <CodegenStyleItem Include="Resources\basic_types.style">
-      <Filter>Resources</Filter>
-    </CodegenStyleItem>
-    <CodegenStyleItem Include="SourceFiles\overview\overview.style">
-      <Filter>SourceFiles\overview</Filter>
-    </CodegenStyleItem>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Resources\winrc\Telegram.rc">
-      <Filter>Resources\winrc</Filter>
+    <ResourceCompile Include="Telegram.rc">
+      <Filter>Version</Filter>
     </ResourceCompile>
   </ItemGroup>
 </Project>

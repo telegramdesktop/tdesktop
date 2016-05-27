@@ -19,12 +19,14 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "intro/introsignup.h"
-
+#include "lang.h"
+#include "ui/style.h"
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
-#include "lang.h"
+
 #include "application.h"
+
+#include "intro/introsignup.h"
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -124,15 +126,15 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 
 	if (_photoSmall.isNull()) {
 		if (a_photoOver.current() < 1) {
-			QRect pix(st::setPhotoImg.rect());
-			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
-			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
+			QRect pix(st::setPhotoImg);
+			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
+			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 		}
 		if (a_photoOver.current() > 0) {
-			QRect pix(st::setOverPhotoImg.rect());
-			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
-			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
+			QRect pix(st::setOverPhotoImg);
+			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
+			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
 			p.setOpacity(a_photoOver.current());
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 			p.setOpacity(1);

@@ -19,23 +19,21 @@ downloadLibs() {
 	# Download libraries
 	info_msg "QT-Version: ${_qtver}, SRC-Dir: ${srcdir}"
 
-	echo -e "Clone Qt\n"
-	git clone git://code.qt.io/qt/qt5.git qt5_6_0
-	cd qt5_6_0
-	git checkout 5.6
-	perl init-repository --module-subset=qtbase,qtimageformats
-	git checkout v5.6.0
-	cd qtbase && git checkout v5.6.0 && cd ..
-	cd qtimageformats && git checkout v5.6.0 && cd ..
-	cd ..
+	echo -e "\nDownload and extract qt"
+	qt_file=qt-everywhere-opensource-src-$_qtver.tar.xz
+	echo -e "QT-File: ${qt_file}"
 
-	echo -e "Clone Breakpad\n"
+	wget "http://download.qt.io/official_releases/qt/${_qtver%.*}/$_qtver/single/$qt_file"
+	tar xf $qt_file
+	rm $qt_file
+
+	echo -e "Clone Breakpad"
 	git clone https://chromium.googlesource.com/breakpad/breakpad breakpad
 
-	echo -e "Clone Linux Syscall Support\n"
+	echo -e "\nClone Linux Syscall Support"
 	git clone https://chromium.googlesource.com/linux-syscall-support breakpad-lss
 
-	echo -e "Lets view the folder content\n"
+	echo -e "\nLets view the folder content"
 	ls
 	travis_fold_end "download_libs"
 }
@@ -48,9 +46,13 @@ prepare() {
 
 	mkdir -p "$srcdir/Libraries"
 
-	ln -s "$srcdir/qt5_6_0" "$srcdir/Libraries/qt5_6_0"
-	cd "$srcdir/Libraries/qt5_6_0/qtbase"
-	git apply "$srcdir/tdesktop/Telegram/Patches/qtbase_5_6_0.diff"
+	local qt_patch_file="$srcdir/tdesktop/Telegram/_qtbase_${_qtver//./_}_patch.diff"
+	if [ "$qt_patch_file" -nt "$srcdir/Libraries/QtStatic" ]; then
+		rm -rf "$srcdir/Libraries/QtStatic"
+		mv "$srcdir/qt-everywhere-opensource-src-$_qtver" "$srcdir/Libraries/QtStatic"
+		cd "$srcdir/Libraries/QtStatic/qtbase"
+		patch -p1 -i "$qt_patch_file"
+	fi
 
 	if [ ! -h "$srcdir/Libraries/breakpad" ]; then
 		ln -s "$srcdir/breakpad" "$srcdir/Libraries/breakpad"
@@ -60,10 +62,9 @@ prepare() {
 	sed -i 's/CUSTOM_API_ID//g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 	sed -i 's,LIBS += /usr/local/lib/libxkbcommon.a,,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 	sed -i 's,LIBS += /usr/local/lib/libz.a,LIBS += -lz,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
-	sed -i "s,/usr/local/tdesktop/Qt-5.6.0,$srcdir/qt,g" "$srcdir/tdesktop/Telegram/Telegram.pro"
 
 	local options=""
-
+	
 	if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
 		options+="\nDEFINES += TDESKTOP_DISABLE_AUTOUPDATE"
 	fi
@@ -84,9 +85,9 @@ prepare() {
 	options+='\nINCLUDEPATH += "/usr/lib/gtk-2.0/include"'
 	options+='\nINCLUDEPATH += "/usr/include/opus"'
 	options+='\nLIBS += -lcrypto -lssl'
-
+	
 	info_msg "Build options: ${options}"
-
+	
 	echo -e "${options}" >> "$srcdir/tdesktop/Telegram/Telegram.pro"
 
 	success_msg "Prepare done! :)"
@@ -98,12 +99,12 @@ build() {
 
 	info_msg "Build patched Qt"
 	# Build patched Qt
-	cd "$srcdir/Libraries/qt5_6_0"
+	cd "$srcdir/Libraries/QtStatic"
 	./configure -prefix "$srcdir/qt" -release -opensource -confirm-license -qt-zlib \
 	            -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
 	            -qt-xkbcommon-x11 -no-opengl -static -nomake examples -nomake tests
-	make --silent -j4
-	make --silent -j4 install
+	make --silent module-qtbase module-qtimageformats
+	make --silent module-qtbase-install_subtargets module-qtimageformats-install_subtargets
 
 	export PATH="$srcdir/qt/bin:$PATH"
 
@@ -111,43 +112,37 @@ build() {
 	# Build breakpad
 	cd "$srcdir/Libraries/breakpad"
 	./configure
-	make --silent -j4
+	make --silent
 
-	info_msg "Build codegen_style"
-	# Build codegen_style
-	mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
-	cd "$srcdir/tdesktop/Linux/obj/codegen_style/Debug"
-	qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_style/codegen_style.pro"
-	make --silent -j4
-
-	info_msg "Build codegen_numbers"
-	# Build codegen_numbers
-	mkdir -p "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
-	cd "$srcdir/tdesktop/Linux/obj/codegen_numbers/Debug"
-	qmake CONFIG+=debug "../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro"
-	make --silent -j4
+	info_msg "Build MetaStyle"
+	# Build MetaStyle
+	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
+	cd "$srcdir/tdesktop/Linux/DebugIntermediateStyle"
+	qmake CONFIG+=debug "../../Telegram/MetaStyle.pro"
+	make --silent
 
 	info_msg "Build MetaLang"
 	# Build MetaLang
 	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediateLang"
 	cd "$srcdir/tdesktop/Linux/DebugIntermediateLang"
 	qmake CONFIG+=debug "../../Telegram/MetaLang.pro"
-	make --silent -j4
+	make --silent
 
 	info_msg "Build Telegram Desktop"
 	# Build Telegram Desktop
-	mkdir -p "$srcdir/tdesktop/Linux/DebugIntermediate"
-	cd "$srcdir/tdesktop/Linux/DebugIntermediate"
+	mkdir -p "$srcdir/tdesktop/Linux/ReleaseIntermediate"
+	cd "$srcdir/tdesktop/Linux/ReleaseIntermediate"
 
-	./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
-	./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
-	./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
-	qmake CONFIG+=debug "../../Telegram/Telegram.pro"
-	make -j4
+	qmake CONFIG+=release "../../Telegram/Telegram.pro"
+	local pattern="^PRE_TARGETDEPS +="
+	grep "$pattern" "$srcdir/tdesktop/Telegram/Telegram.pro" | sed "s/$pattern//g" | xargs make
+
+	qmake CONFIG+=release "../../Telegram/Telegram.pro"
+	make
 }
 
 check() {
-	local filePath="$srcdir/tdesktop/Linux/Debug/Telegram"
+	local filePath="$srcdir/tdesktop/Linux/Release/Telegram"
 	if test -f "$filePath"; then
 		success_msg "Build successful done! :)"
 

@@ -148,7 +148,22 @@ void createCircleMask(int size) {
 }
 
 QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
-	auto result = style::colorizeImage(unreadBadgeStyle->circle, color, QRect(xoffset, 0, half, size));
+	int a = color->c.alpha() + 1;
+	int fg_r = color->c.red() * a, fg_g = color->c.green() * a, fg_b = color->c.blue() * a, fg_a = 255 * a;
+
+	QImage result(half, size, QImage::Format_ARGB32_Premultiplied);
+	uchar *bits = result.bits(), *maskbits = unreadBadgeStyle->circle.bits();
+	int bpl = result.bytesPerLine(), maskbpl = unreadBadgeStyle->circle.bytesPerLine();
+	for (int x = 0; x < half; ++x) {
+		for (int y = 0; y < size; ++y) {
+			int s = y * bpl + (x * 4);
+			int o = maskbits[y * maskbpl + x + xoffset] + 1;
+			bits[s + 0] = (fg_b * o) >> 16;
+			bits[s + 1] = (fg_g * o) >> 16;
+			bits[s + 2] = (fg_r * o) >> 16;
+			bits[s + 3] = (fg_a * o) >> 16;
+		}
+	}
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
 }

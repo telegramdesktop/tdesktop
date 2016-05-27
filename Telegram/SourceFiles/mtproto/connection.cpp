@@ -1900,7 +1900,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return (badTime ? 0 : 1);
 
-		QVector<quint64> toResend(ids.size());
+		QVector<quint64> toResend(ids.size(), Qt::Uninitialized);
 		for (int32 i = 0, l = ids.size(); i < l; ++i) {
 			toResend[i] = ids.at(i).v;
 		}

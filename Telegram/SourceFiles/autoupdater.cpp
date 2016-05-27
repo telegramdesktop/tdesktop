@@ -276,15 +276,15 @@ void UpdateChecker::unpackUpdate() {
 		return fatalFail();
 	}
 
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicAlphaKey : UpdatesPublicKey), -1), 0, 0, 0);
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevVersion ? UpdatesPublicDevKey : UpdatesPublicKey), -1), 0, 0, 0);
 	if (!pbKey) {
 		LOG(("Update Error: cant read public rsa key!"));
 		return fatalFail();
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 		RSA_free(pbKey);
-		if (cAlphaVersion() || cBetaVersion()) { // try other public key, if we are in alpha or beta version
-			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicKey : UpdatesPublicAlphaKey), -1), 0, 0, 0);
+		if (cDevVersion() || cBetaVersion()) { // try other public key, if we are in dev or beta version
+			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevVersion ? UpdatesPublicKey : UpdatesPublicDevKey), -1), 0, 0, 0);
 			if (!pbKey) {
 				LOG(("Update Error: cant read public rsa key!"));
 				return fatalFail();

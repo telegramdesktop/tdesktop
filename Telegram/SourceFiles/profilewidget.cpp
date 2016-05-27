@@ -858,11 +858,11 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		_peer->paintUserpic(p, st::profilePhotoSize, _left, top);
 	} else {
 		if (a_photoOver.current() < 1) {
-			p.drawSprite(QPoint(_left, top), st::setPhotoImg);
+			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
 		}
 		if (a_photoOver.current() > 0) {
 			p.setOpacity(a_photoOver.current());
-			p.drawSprite(QPoint(_left, top), st::setOverPhotoImg);
+			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
 			p.setOpacity(1);
 		}
 	}
@@ -1048,21 +1048,21 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				if (!data) {
 					data = _participantsData[cnt] = new ParticipantData();
 					data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-					if (_peerChat) {
-						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
-					} else if (_peerChannel) {
-						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
-					} else {
-						data->admin = false;
-					}
 					if (user->botInfo) {
-						if (user->botInfo->readsAllHistory || data->admin) {
+						if (user->botInfo->readsAllHistory) {
 							data->online = lang(lng_status_bot_reads_all);
 						} else {
 							data->online = lang(lng_status_bot_not_reads_all);
 						}
 					} else {
 						data->online = App::onlineText(user, l_time);
+					}
+					if (_peerChat) {
+						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
+					} else if (_peerChannel) {
+						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
+					} else {
+						data->admin = false;
 					}
 					if (_amCreator) {
 						data->cankick = (user != App::self());
@@ -1959,7 +1959,7 @@ void ProfileWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else {
 		p.fillRect(e->rect(), st::white->b);
 	}
@@ -1975,17 +1975,17 @@ void ProfileWidget::keyPressEvent(QKeyEvent *e) {
 	return _inner.keyPressEvent(e);
 }
 
-void ProfileWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
 		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
 		return;
 	}
 
 	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-	p.drawSprite(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), st::topBarBackImg);
+	p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
 	p.setFont(st::topBarBackFont->f);
 	p.setPen(st::topBarBackColor->p);
 	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : ((peer()->isChat() || peer()->isMegagroup()) ? lng_profile_group_info : lng_profile_channel_info)));
