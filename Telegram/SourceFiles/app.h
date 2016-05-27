@@ -234,6 +234,7 @@ namespace App {
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
+	QPixmap pixmapFromImageInPlace(QImage &&image);
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item);
 	void unregPhotoItem(PhotoData *data, HistoryItem *item);

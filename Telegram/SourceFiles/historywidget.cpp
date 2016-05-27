@@ -5590,8 +5590,7 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
 		if (!i->isLocalFile()) return DragStateNone;
 
-		QString file(i->toLocalFile());
-		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+		auto file = psConvertFileUrl(*i);
 
 		QFileInfo info(file);
 		if (info.isDir()) return DragStateNone;
@@ -8420,8 +8419,7 @@ QStringList HistoryWidget::getMediasFromMime(const QMimeData *d) {
 	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
 		if (!i->isLocalFile()) return QStringList();
 
-		QString file(i->toLocalFile());
-		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+		auto file = psConvertFileUrl(*i);
 
 		QFileInfo info(file);
 		uint64 s = info.size();

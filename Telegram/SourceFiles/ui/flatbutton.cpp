@@ -335,10 +335,10 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 void EmojiButton::setLoading(bool loading) {
 	if (_loading != loading) {
-		EnsureAnimation(a_loading, _loading ? 1. : 0., func(this, &EmojiButton::updateCallback));
-		a_loading.start(loading ? 1. : 0., st::emojiCircleDuration);
 		_loading = loading;
-		if (_loading) {
+		auto from = loading ? 0. : 1., to = loading ? 1. : 0.;
+		START_ANIMATION(a_loading, func(this, &EmojiButton::updateCallback), from, to, st::emojiCircleDuration, anim::linear);
+		if (loading) {
 			_a_loading.start();
 		} else {
 			_a_loading.stop();

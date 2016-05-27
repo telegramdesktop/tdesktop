@@ -2304,6 +2304,10 @@ namespace {
 		return result;
 	}
 
+	QPixmap pixmapFromImageInPlace(QImage &&image) {
+		return QPixmap::fromImage(std_::forward<QImage>(image), Qt::ColorOnly);
+	}
+
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {
 		::photoItems[data].insert(item, NullType());
 	}

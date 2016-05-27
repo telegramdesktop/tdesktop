@@ -362,7 +362,6 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 template <typename AnimType>
 class SimpleAnimation {
 public:
-
 	using Callback = Function<void>;
 
 	SimpleAnimation() {
@@ -464,7 +463,16 @@ using FloatAnimation = SimpleAnimation<anim::fvalue>;
 using IntAnimation = SimpleAnimation<anim::ivalue>;
 using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
-#define EnsureAnimation(animation, from, callback) if ((animation).isNull()) { (animation).setup((from), (callback)); }
+
+// Macro allows us to lazily create updateCallback.
+#define ENSURE_ANIMATION(animation, updateCallback, from) \
+if ((animation).isNull()) { \
+	(animation).setup((from), (updateCallback)); \
+}
+
+#define START_ANIMATION(animation, updateCallback, from, to, duration, transition) \
+ENSURE_ANIMATION(animation, updateCallback, from); \
+(animation).start((to), (duration), (transition))
 
 class ClipReader;
 

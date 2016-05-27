@@ -109,10 +109,9 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 QString _getCrashReportFile(const QMimeData *m) {
-	if (!m || m->urls().size() != 1) return QString();
+	if (!m || m->urls().size() != 1 || !m->urls().at(0).isLocalFile()) return QString();
 
-	QString file(m->urls().at(0).toLocalFile());
-	if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+	auto file = psConvertFileUrl(m->urls().at(0));
 
 	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
 }

@@ -97,7 +97,6 @@ void FixedBar::onDeleteContact() {
 
 }
 
-
 void FixedBar::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 

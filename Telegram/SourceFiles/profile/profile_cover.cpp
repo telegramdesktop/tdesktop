@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_cover.h"
 
 #include "styles/style_profile.h"
+#include "profile/profile_cover_drop_area.h"
+#include "profile/profile_userpic_button.h"
 #include "ui/buttons/round_button.h"
 #include "ui/filedialog.h"
 #include "observer_peer.h"
@@ -71,109 +73,13 @@ const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserC
 
 } // namespace
 
-class PhotoButton final : public Button, public Notify::Observer {
-public:
-	PhotoButton(QWidget *parent, PeerData *peer) : Button(parent), _peer(peer) {
-		resize(st::profilePhotoSize, st::profilePhotoSize);
-
-		processNewPeerPhoto();
-
-		Notify::registerPeerObserver(Notify::PeerUpdateFlag::PhotoChanged, this, &PhotoButton::notifyPeerUpdated);
-		FileDownload::registerImageLoadedObserver(this, &PhotoButton::notifyImageLoaded);
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) {
-		Painter p(this);
-		p.drawPixmap(0, 0, _userpic);
-	}
-
-private:
-	void notifyPeerUpdated(const Notify::PeerUpdate &update) {
-		if (update.peer != _peer) {
-			return;
-		}
-
-		processNewPeerPhoto();
-		this->update();
-	}
-
-	void notifyImageLoaded() {
-		if (_waiting && _peer->userpicLoaded()) {
-			_waiting = false;
-			_userpic = _peer->genUserpic(st::profilePhotoSize);
-			update();
-		}
-	}
-
-	void processNewPeerPhoto() {
-		bool hasPhoto = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId);
-		setCursor(hasPhoto ? style::cur_pointer : style::cur_default);
-		_waiting = !_peer->userpicLoaded();
-		if (_waiting) {
-			_peer->loadUserpic(true);
-		} else {
-			_userpic = _peer->genUserpic(st::profilePhotoSize);
-		}
-	}
-
-	PeerData *_peer;
-	bool _waiting = false;
-	QPixmap _userpic;
-
-};
-
-class DropArea : public TWidget {
-public:
-	DropArea(QWidget *parent) : TWidget(parent) {
-	}
-
-	void showAnimated() {
-		show();
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override {
-		Painter p(this);
-		p.fillRect(e->rect(), st::profileDropAreaBg);
-
-		if (width() < st::profileDropAreaPadding.left() + st::profileDropAreaPadding.right()) return;
-		if (height() < st::profileDropAreaPadding.top() + st::profileDropAreaPadding.bottom()) return;
-
-		auto border = st::profileDropAreaBorderWidth;
-		auto &borderFg = st::profileDropAreaBorderFg;
-		auto inner = rect().marginsRemoved(st::profileDropAreaPadding);
-		p.fillRect(inner.x(), inner.y(), inner.width(), border, borderFg);
-		p.fillRect(inner.x(), inner.y() + inner.height() - border, inner.width(), border, borderFg);
-		p.fillRect(inner.x(), inner.y() + border, border, inner.height() - 2 * border, borderFg);
-		p.fillRect(inner.x() + inner.width() - border, inner.y() + border, border, inner.height() - 2 * border, borderFg);
-
-		auto title = lang(lng_profile_drop_area_title);
-		int titleWidth = st::profileDropAreaTitleFont->width(title);
-		int titleLeft = inner.x() + (inner.width() - titleWidth) / 2;
-		int titleTop = inner.y() + st::profileDropAreaTitleTop + st::profileDropAreaTitleFont->ascent;
-		p.setFont(st::profileDropAreaTitleFont);
-		p.setPen(st::profileDropAreaFg);
-		p.drawText(titleLeft, titleTop, title);
-
-		auto subtitle = lang(lng_profile_drop_area_subtitle);
-		int subtitleWidth = st::profileDropAreaSubtitleFont->width(subtitle);
-		int subtitleLeft = inner.x() + (inner.width() - subtitleWidth) / 2;
-		int subtitleTop = inner.y() + st::profileDropAreaSubtitleTop + st::profileDropAreaSubtitleFont->ascent;
-		p.setFont(st::profileDropAreaSubtitleFont);
-		p.setPen(st::profileDropAreaFg);
-		p.drawText(subtitleLeft, subtitleTop, subtitle);
-	}
-
-};
-
 CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peer(peer)
 , _peerUser(peer->asUser())
 , _peerChat(peer->asChat())
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
-, _photoButton(this, peer)
+, _userpicButton(this, peer)
 , _name(this, QString(), st::profileNameLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAcceptDrops(true);
@@ -185,7 +91,7 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
 	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
 
-	connect(_photoButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
+	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 
 	refreshNameText();
 	refreshStatusText();
@@ -207,19 +113,19 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 
 	newHeight += st::profileMarginTop;
-	_photoButton->moveToLeft(st::profilePhotoLeft, newHeight);
+	_userpicButton->moveToLeft(st::profilePhotoLeft, newHeight);
 
-	int infoLeft = _photoButton->x() + _photoButton->width();
+	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
-	int nameTop = _photoButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
+	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
 	_name.moveToLeft(nameLeft, nameTop);
 	int nameWidth = width() - infoLeft - st::profileNameLeft - st::profileButtonSkip;
 	nameWidth += st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
 	_name.resizeToWidth(nameWidth);
 
-	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _photoButton->y() + st::profileStatusTop);
+	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _userpicButton->y() + st::profileStatusTop);
 
-	int buttonLeft = st::profilePhotoLeft + _photoButton->width() + st::profileButtonLeft;
+	int buttonLeft = st::profilePhotoLeft + _userpicButton->width() + st::profileButtonLeft;
 	for_const (auto button, _buttons) {
 		button->moveToLeft(buttonLeft, st::profileButtonTop);
 		buttonLeft += button->width() + st::profileButtonSkip;
@@ -233,8 +139,13 @@ void CoverWidget::resizeToWidth(int newWidth) {
 
 	newHeight += st::profileBlocksTop;
 
+	resizeDropArea();
 	resize(newWidth, newHeight);
 	update();
+}
+
+void CoverWidget::showFinished() {
+	_userpicButton->showFinished();
 }
 
 void CoverWidget::paintEvent(QPaintEvent *e) {
@@ -249,21 +160,109 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	paintDivider(p);
 }
 
+void CoverWidget::resizeDropArea() {
+	if (_dropArea) {
+		_dropArea->setGeometry(0, 0, width(), _dividerTop);
+	}
+}
+
+void CoverWidget::dropAreaHidden(CoverDropArea *dropArea) {
+	if (_dropArea == dropArea) {
+		_dropArea->deleteLater();
+		_dropArea = nullptr;
+	}
+}
+
+bool CoverWidget::canEditPhoto() const {
+	if (_peerChat && _peerChat->canEdit()) {
+		return true;
+	} else if (_peerMegagroup && _peerMegagroup->canEditPhoto()) {
+		return true;
+	} else if (_peerChannel && _peerChannel->canEditPhoto()) {
+		return true;
+	}
+	return false;
+}
+
+bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
+	if (!mimeData) return false;
+
+	if (mimeData->hasImage()) return true;
+
+	auto uriListFormat = qsl("text/uri-list");
+	if (!mimeData->hasFormat(uriListFormat)) return false;
+
+	auto &urls = mimeData->urls();
+	if (urls.size() != 1) return false;
+
+	auto &url = urls.at(0);
+	if (!url.isLocalFile()) return false;
+
+	auto file = psConvertFileUrl(url);
+
+	QFileInfo info(file);
+	if (info.isDir()) return false;
+
+	quint64 s = info.size();
+	if (s >= MaxUploadDocumentSize) return false;
+
+	for (auto &ext : cImgExtensions()) {
+		if (file.endsWith(ext, Qt::CaseInsensitive)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
-	_dropArea = new DropArea(this);
-	_dropArea->setGeometry(0, 0, width(), _dividerTop);
+	if (!canEditPhoto() || !mimeDataHasImage(e->mimeData())) {
+		e->ignore();
+		return;
+	}
+	if (!_dropArea) {
+		auto title = lang(lng_profile_drop_area_title);
+		QString subtitle;
+		if (_peerChat || _peerMegagroup) {
+			subtitle = lang(lng_profile_drop_area_subtitle);
+		} else {
+			subtitle = lang(lng_profile_drop_area_subtitle_channel);
+		}
+		_dropArea = new CoverDropArea(this, title, subtitle);
+		resizeDropArea();
+	}
 	_dropArea->showAnimated();
+	e->setDropAction(Qt::CopyAction);
 	e->accept();
 }
 
 void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
-	delete _dropArea;
-	_dropArea = nullptr;
+	if (_dropArea && !_dropArea->hiding()) {
+		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+	}
 }
 
 void CoverWidget::dropEvent(QDropEvent *e) {
-	delete _dropArea;
-	_dropArea = nullptr;
+	auto mimeData = e->mimeData();
+
+	QImage img;
+	if (mimeData->hasImage()) {
+		img = qvariant_cast<QImage>(mimeData->imageData());
+	} else {
+		auto &urls = mimeData->urls();
+		if (urls.size() == 1) {
+			auto &url = urls.at(0);
+			if (url.isLocalFile()) {
+				img = App::readImage(psConvertFileUrl(url));
+			}
+		}
+	}
+
+	if (!_dropArea->hiding()) {
+		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+	}
+	e->acceptProposedAction();
+
+	showSetPhotoBox(img);
 }
 
 void CoverWidget::paintDivider(Painter &p) {
@@ -439,6 +438,10 @@ void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) 
 		img = App::readImage(update.filePaths.front());
 	}
 
+	showSetPhotoBox(img);
+}
+
+void CoverWidget::showSetPhotoBox(const QImage &img) {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		Ui::showLayer(new InformBox(lang(lng_bad_photo)));
 		return;

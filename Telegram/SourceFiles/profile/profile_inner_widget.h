@@ -41,6 +41,8 @@ public:
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
+	void showFinished();
+
 signals:
 	void cancelled();
 

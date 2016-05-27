@@ -1209,6 +1209,12 @@
     <ClCompile Include="SourceFiles\observer_peer.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_cover_drop_area.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_userpic_button.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1405,6 +1411,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\observer_peer.h">
       <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_cover_drop_area.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_userpic_button.h">
+      <Filter>SourceFiles\profile</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

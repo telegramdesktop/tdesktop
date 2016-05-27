@@ -56,6 +56,10 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 }
 
+void InnerWidget::showFinished() {
+	_cover->showFinished();
+}
+
 void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
 	resizeToWidth(width(), height() - removeHeight);
 }

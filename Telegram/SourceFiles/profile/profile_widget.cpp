@@ -130,6 +130,7 @@ void Widget::showAnimatedHook() {
 
 void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
+	_inner->showFinished();
 }
 
 } // namespace Profile

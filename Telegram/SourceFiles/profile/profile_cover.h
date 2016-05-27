@@ -35,8 +35,8 @@ struct PeerUpdate;
 namespace Profile {
 
 class BackButton;
-class PhotoButton;
-class DropArea;
+class UserpicButton;
+class CoverDropArea;
 
 class CoverWidget final : public TWidget, public Notify::Observer {
 	Q_OBJECT
@@ -46,6 +46,8 @@ public:
 
 	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth);
+
+	void showFinished();
 
 private slots:
 	void onPhotoShow();
@@ -83,14 +85,20 @@ private:
 
 	void paintDivider(Painter &p);
 
+	bool canEditPhoto() const;
+	void showSetPhotoBox(const QImage &img);
+	void resizeDropArea();
+	void dropAreaHidden(CoverDropArea *dropArea);
+	bool mimeDataHasImage(const QMimeData *mimeData) const;
+
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	ChildWidget<PhotoButton> _photoButton;
-	ChildWidget<DropArea> _dropArea = { nullptr };
+	ChildWidget<UserpicButton> _userpicButton;
+	ChildWidget<CoverDropArea> _dropArea = { nullptr };
 
 	FlatLabel _name;
 

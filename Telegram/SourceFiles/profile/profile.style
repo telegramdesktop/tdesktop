@@ -36,6 +36,7 @@ profileTopBarBackPosition: point(32px, 17px);
 profileMarginTop: 13px;
 profilePhotoSize: 112px;
 profilePhotoLeft: 35px;
+profilePhotoDuration: 500;
 profileNameLeft: 26px;
 profileNameTop: 9px;
 profileNameLabel: flatLabel(labelDefFlat) {
@@ -78,13 +79,14 @@ profileSecondaryButton: BoxButton(profilePrimaryButton) {
 
 profileDropAreaBg: profileBg;
 profileDropAreaFg: #3fb0e4;
-profileDropAreaPadding: margins(30px, 20px, 30px, 20px);
+profileDropAreaPadding: margins(25px, 3px, 25px, 20px);
 profileDropAreaTitleFont: font(24px);
-profileDropAreaTitleTop: 36px;
+profileDropAreaTitleTop: 30px;
 profileDropAreaSubtitleFont: font(16px);
-profileDropAreaSubtitleTop: 72px;
+profileDropAreaSubtitleTop: 68px;
 profileDropAreaBorderFg: profileDropAreaFg;
 profileDropAreaBorderWidth: 3px;
+profileDropAreaDuration: 200;
 
 profileDividerFg: black;
 profileDividerLeft: icon {
