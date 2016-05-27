@@ -35,12 +35,14 @@ enum class PeerUpdateFlag {
 	PhotoChanged         = 0x00000004U,
 
 	UserCanShareContact  = 0x00010000U,
+	UserIsContact        = 0x00020000U,
 
 	ChatCanEdit          = 0x00010000U,
 
 	ChannelAmIn          = 0x00010000U,
-	ChannelCanEditPhoto  = 0x00020000U,
-	ChannelCanAddMembers = 0x00040000U,
+	ChannelAmEditor      = 0x00020000U,
+	ChannelCanEditPhoto  = 0x00040000U,
+	ChannelCanAddMembers = 0x00080000U,
 };
 Q_DECLARE_FLAGS(PeerUpdateFlags, PeerUpdateFlag);
 Q_DECLARE_OPERATORS_FOR_FLAGS(PeerUpdateFlags);

@@ -41,7 +41,7 @@ void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDel
 }
 
 void SectionWidget::showAnimated(SlideDirection direction, const SectionSlideParams &params) {
-	t_assert(_showAnimation == nullptr);
+	if (_showAnimation) return;
 
 	showChildren();
 	auto myContentCache = grabForShowAnimation(params);
@@ -69,6 +69,7 @@ void SectionWidget::paintEvent(QPaintEvent *e) {
 }
 
 void SectionWidget::showFinished() {
+	_showAnimation.reset();
 	if (isHidden()) return;
 
 	App::app()->mtpUnpause();

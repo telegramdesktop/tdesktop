@@ -109,7 +109,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 //		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height() * 2); // testing
 	}
-	_fixedBar->setHideShareContactButton(!_inner->shareContactButtonShown());
+	_fixedBar->setHideShareContactButton(_inner->shareContactButtonShown());
 
 	if (!_scroll->isHidden()) {
 		if (topDelta()) {

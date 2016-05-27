@@ -429,8 +429,20 @@ public:
 	bool canWrite() const {
 		return access != UserNoAccess;
 	}
-	bool canShareThisContact() const {
-		return contact >= 0;
+	bool isContact() const {
+		return (contact > 0);
+	}
+
+	bool canShareThisContact() const;
+	bool canAddContact() const {
+		return canShareThisContact() && !isContact();
+	}
+
+	// In feedUsers() we check only that.
+	// When actually trying to share contact we perform
+	// a full check by canShareThisContact() call.
+	bool canShareThisContactFast() const {
+		return !phone.isEmpty();
 	}
 
 	MTPInputUser inputUser;

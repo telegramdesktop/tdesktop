@@ -381,7 +381,8 @@ namespace {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				auto canShareThisContact = data->canShareThisContact();
+				auto canShareThisContact = data->canShareThisContactFast();
+				wasContact = data->isContact();
 
 				data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
 				data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
@@ -390,12 +391,14 @@ namespace {
 				data->access = UserNoAccess;
 				data->flags = 0;
 				data->setBotInfoVersion(-1);
-				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
 
-				if (canShareThisContact != data->canShareThisContact()) {
+				if (canShareThisContact != data->canShareThisContactFast()) {
 					update.flags |= UpdateFlag::UserCanShareContact;
+				}
+				if (wasContact != data->isContact()) {
+					update.flags |= UpdateFlag::UserIsContact;
 				}
 			} break;
 			case mtpc_user: {
@@ -404,8 +407,8 @@ namespace {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				auto canShareThisContact = data->canShareThisContact();
-
+				auto canShareThisContact = data->canShareThisContactFast();
+				wasContact = data->isContact();
 				if (!minimal) {
 					data->flags = d.vflags.v;
 					if (d.is_self()) {
@@ -468,7 +471,6 @@ namespace {
 					if (d.has_access_hash()) data->access = d.vaccess_hash.v;
 					status = d.has_status() ? &d.vstatus : &emptyStatus;
 				}
-				wasContact = (data->contact > 0);
 				if (!minimal) {
 					if (d.has_bot_info_version()) {
 						data->setBotInfoVersion(d.vbot_info_version.v);
@@ -489,8 +491,11 @@ namespace {
 					}
 				}
 
-				if (canShareThisContact != data->canShareThisContact()) {
+				if (canShareThisContact != data->canShareThisContactFast()) {
 					update.flags |= UpdateFlag::UserCanShareContact;
+				}
+				if (wasContact != data->isContact()) {
+					update.flags |= UpdateFlag::UserIsContact;
 				}
 			} break;
 			}
@@ -647,6 +652,7 @@ namespace {
 				auto wasInChannel = cdata->amIn();
 				auto canEditPhoto = cdata->canEditPhoto();
 				auto canAddMembers = cdata->canAddParticipants();
+				auto wasEditor = cdata->amEditor();
 
 				if (minimal) {
 					MTPDchannel::Flags mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
@@ -681,6 +687,9 @@ namespace {
 				if (canAddMembers != cdata->canAddParticipants()) {
 					update.flags |= UpdateFlag::ChannelCanAddMembers;
 				}
+				if (wasEditor != cdata->amEditor()) {
+					update.flags |= UpdateFlag::ChannelAmEditor;
+				}
 			} break;
 			case mtpc_channelForbidden: {
 				auto &d(chat.c_channelForbidden());
@@ -693,6 +702,7 @@ namespace {
 				auto wasInChannel = cdata->amIn();
 				auto canEditPhoto = cdata->canEditPhoto();
 				auto canAddMembers = cdata->canAddParticipants();
+				auto wasEditor = cdata->amEditor();
 
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
@@ -712,6 +722,9 @@ namespace {
 				}
 				if (canAddMembers != cdata->canAddParticipants()) {
 					update.flags |= UpdateFlag::ChannelCanAddMembers;
+				}
+				if (wasEditor != cdata->amEditor()) {
+					update.flags |= UpdateFlag::ChannelAmEditor;
 				}
 			} break;
 			}
@@ -1227,7 +1240,7 @@ namespace {
 	void feedUserLinkDelayed(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
 		UserData *user = userLoaded(userId.v);
 		if (user) {
-			bool wasContact = (user->contact > 0);
+			auto wasContact = user->isContact();
 			bool wasShowPhone = !user->contact;
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
@@ -1249,6 +1262,12 @@ namespace {
 				if (user->contact < 0 && !user->phone.isEmpty() && peerToUser(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
+			}
+
+			if (wasContact != user->isContact()) {
+				Notify::PeerUpdate update(user);
+				update.flags |= Notify::PeerUpdateFlag::UserIsContact;
+				Notify::peerUpdatedDelayed(update);
 			}
 			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
 				Notify::userIsContactChanged(user);
@@ -2353,11 +2372,25 @@ namespace {
 	}
 
 	void regSharedContactItem(int32 userId, HistoryItem *item) {
+		auto user = App::userLoaded(userId);
+		auto canShareThisContact = user ? user->canShareThisContact() : false;
 		::sharedContactItems[userId].insert(item, NullType());
+		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
+			Notify::PeerUpdate update(user);
+			update.flags |= Notify::PeerUpdateFlag::UserCanShareContact;
+			Notify::peerUpdatedDelayed(update);
+		}
 	}
 
 	void unregSharedContactItem(int32 userId, HistoryItem *item) {
+		auto user = App::userLoaded(userId);
+		auto canShareThisContact = user ? user->canShareThisContact() : false;
 		::sharedContactItems[userId].remove(item);
+		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
+			Notify::PeerUpdate update(user);
+			update.flags |= Notify::PeerUpdateFlag::UserCanShareContact;
+			Notify::peerUpdatedDelayed(update);
+		}
 	}
 
 	const SharedContactItems &sharedContactItems() {

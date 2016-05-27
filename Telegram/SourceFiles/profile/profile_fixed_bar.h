@@ -20,11 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/observer.h"
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 namespace Profile {
 
 class BackButton;
 
-class FixedBar final : public TWidget {
+class FixedBar final : public TWidget, public Notify::Observer {
 	Q_OBJECT
 
 public:
@@ -57,6 +63,8 @@ private slots:
 	void onLeaveGroupSure();
 
 private:
+	void notifyPeerUpdate(const Notify::PeerUpdate &update);
+
 	void refreshRightActions();
 	void setUserActions();
 	void setChatActions();
@@ -64,6 +72,7 @@ private:
 	void setChannelActions();
 
 	enum class RightActionType {
+		None,
 		EditChannel,
 		EditGroup,
 		LeaveGroup,
@@ -86,8 +95,8 @@ private:
 
 	int _currentAction = 0;
 	struct RightAction {
-		RightActionType type;
-		FlatButton *button;
+		RightActionType type = RightActionType::None;
+		FlatButton *button = nullptr;
 	};
 	QList<RightAction> _rightActions;
 

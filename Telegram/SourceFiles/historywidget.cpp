@@ -5034,12 +5034,14 @@ void HistoryWidget::onBroadcastSilentChange() {
 }
 
 void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
-	if (!contact || contact->phone.isEmpty()) return;
+	auto phone = contact->phone;
+	if (phone.isEmpty()) phone = App::phoneFromSharedContact(peerToUser(contact->id));
+	if (!contact || phone.isEmpty()) return;
 
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 	if (!_history) return;
 
-	shareContact(peer, contact->phone, contact->firstName, contact->lastName, replyToId(), peerToUser(contact->id));
+	shareContact(peer, phone, contact->firstName, contact->lastName, replyToId(), peerToUser(contact->id));
 }
 
 void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId) {

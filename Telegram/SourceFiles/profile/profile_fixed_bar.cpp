@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
+#include "observer_peer.h"
 
 namespace Profile {
 
@@ -60,6 +61,15 @@ private:
 
 };
 
+namespace {
+
+const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserCanShareContact
+	| Notify::PeerUpdateFlag::UserIsContact
+	| Notify::PeerUpdateFlag::ChatCanEdit
+	| Notify::PeerUpdateFlag::ChannelAmEditor;
+
+} // namespace
+
 FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peer(peer)
 , _peerUser(peer->asUser())
@@ -70,7 +80,18 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_backButton->moveToLeft(0, 0);
 	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
 
+	Notify::registerPeerObserver(ButtonsUpdateFlags, this, &FixedBar::notifyPeerUpdate);
+
 	refreshRightActions();
+}
+
+void FixedBar::notifyPeerUpdate(const Notify::PeerUpdate &update) {
+	if (update.peer != _peer) {
+		return;
+	}
+	if ((update.flags & ButtonsUpdateFlags) != 0) {
+		refreshRightActions();
+	}
 }
 
 void FixedBar::refreshRightActions() {
@@ -92,13 +113,14 @@ void FixedBar::refreshRightActions() {
 }
 
 void FixedBar::setUserActions() {
-	if (_peerUser->contact > 0) {
+	if (_peerUser->canShareThisContact()) {
+		addRightAction(RightActionType::ShareContact, lang(lng_profile_top_bar_share_contact), SLOT(onShareContact()));
+	}
+	if (_peerUser->isContact()) {
 		addRightAction(RightActionType::EditContact, lang(lng_profile_edit_contact), SLOT(onEditContact()));
 		addRightAction(RightActionType::DeleteContact, lang(lng_profile_delete_contact), SLOT(onDeleteContact()));
-		addRightAction(RightActionType::ShareContact, lang(lng_profile_top_bar_share_contact), SLOT(onShareContact()));
-	} else if (_peerUser->contact == 0 || !App::phoneFromSharedContact(peerToUser(_peer->id)).isEmpty()) {
+	} else if (_peerUser->canAddContact()) {
 		addRightAction(RightActionType::AddContact, lang(lng_profile_add_contact), SLOT(onAddContact()));
-		addRightAction(RightActionType::ShareContact, lang(lng_profile_top_bar_share_contact), SLOT(onShareContact()));
 	}
 }
 
@@ -129,9 +151,10 @@ void FixedBar::addRightAction(RightActionType type, const QString &text, const c
 		}
 	} else {
 		t_assert(_rightActions.size() == _currentAction);
-		_rightActions.push_back({});
+		_rightActions.push_back(RightAction());
 	}
 	_rightActions[_currentAction].type = type;
+	delete _rightActions[_currentAction].button;
 	_rightActions[_currentAction].button = new FlatButton(this, text, st::profileFixedBarButton);
 	connect(_rightActions[_currentAction].button, SIGNAL(clicked()), this, slot);
 	bool showButton = !_animatingMode && (type != RightActionType::ShareContact || !_hideShareContactButton);
@@ -235,7 +258,7 @@ void FixedBar::setHideShareContactButton(bool hideButton) {
 void FixedBar::applyHideShareContactButton() {
 	for_const (auto &action, _rightActions) {
 		if (action.type == RightActionType::ShareContact) {
-			action.button->setVisible(_hideShareContactButton);
+			action.button->setVisible(!_hideShareContactButton);
 		}
 	}
 }

@@ -198,6 +198,10 @@ const Text &BotCommand::descriptionText() const {
 	return _descriptionText;
 }
 
+bool UserData::canShareThisContact() const {
+	return canShareThisContactFast() || !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
+}
+
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
@@ -490,7 +494,7 @@ void ChannelData::flagsUpdated() {
 		}
 	} else if (mgInfo) {
 		delete mgInfo;
-		mgInfo = 0;
+		mgInfo = nullptr;
 	}
 }
 
