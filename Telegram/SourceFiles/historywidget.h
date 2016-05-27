@@ -45,8 +45,8 @@ public:
 
 	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	bool event(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -90,8 +90,6 @@ public:
 
 	bool wasSelectedText() const;
 	void setFirstLoading(bool loading);
-
-	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
 
 	// updates history->scrollTopItem/scrollTopOffset
 	void visibleAreaUpdated(int top, int bottom);
@@ -470,14 +468,6 @@ private:
 
 };
 
-class CollapseButton : public FlatButton {
-public:
-
-	CollapseButton(QWidget *parent);
-	void paintEvent(QPaintEvent *e);
-
-};
-
 class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
 public:
 
@@ -578,7 +568,6 @@ public:
 	PeerData *peer() const;
 	void setMsgId(MsgId showAtMsgId);
 	MsgId msgId() const;
-	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	void step_show(float64 ms, bool timer);
@@ -645,7 +634,6 @@ public:
 
 	void contactsReceived();
 	void updateToEndVisibility();
-	void updateCollapseCommentsVisibility();
 
 	void updateAfterDrag();
 	void updateFieldSubmitSettings();
@@ -743,7 +731,6 @@ public slots:
 
 	void onScroll();
 	void onHistoryToEnd();
-	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 
 	void onUnblock();
@@ -908,8 +895,8 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
+	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	struct BotCallbackInfo {
 		FullMsgId msgId;
@@ -987,7 +974,6 @@ private:
 	void visibleAreaUpdated();
 
 	bool readyToForward() const;
-	bool hasBroadcastToggle() const;
 	bool hasSilentToggle() const;
 
 	PeerData *_peer = nullptr;
@@ -998,8 +984,6 @@ private:
 	ChannelId _channel = NoChannel;
 	bool _canSendMessages = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
-	MsgId _fixedInScrollMsgId = 0;
-	int32 _fixedInScrollMsgTop = 0;
 
 	mtpRequestId _firstLoadRequest = 0;
 	mtpRequestId _preloadRequest = 0;
@@ -1022,7 +1006,6 @@ private:
 	QTimer _updateHistoryItems;
 
 	ChildWidget<Ui::HistoryDownButton> _historyToEnd;
-	CollapseButton _collapseComments;
 
 	ChildWidget<FieldAutocomplete> _fieldAutocomplete;
 
@@ -1047,7 +1030,6 @@ private:
 	IconedButton _attachDocument, _attachPhoto;
 	EmojiButton _attachEmoji;
 	IconedButton _kbShow, _kbHide, _cmdStart;
-	FlatCheckbox _broadcast;
 	SilentToggle _silent;
 	bool _cmdStartShown = false;
 	MessageField _field;

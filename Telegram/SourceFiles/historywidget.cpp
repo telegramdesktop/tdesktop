@@ -112,27 +112,27 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 	setMouseTracking(true);
 }
 
-void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
+void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {
 	if (_history && _history->peer == peer) {
-		_history->addOlderSlice(messages, collapsed);
+		_history->addOlderSlice(messages);
 	} else if (_migrated && _migrated->peer == peer) {
 		bool newLoaded = (_migrated && _migrated->isEmpty() && !_history->isEmpty());
-		_migrated->addOlderSlice(messages, collapsed);
+		_migrated->addOlderSlice(messages);
 		if (newLoaded) {
-			_migrated->addNewerSlice(QVector<MTPMessage>(), 0);
+			_migrated->addNewerSlice(QVector<MTPMessage>());
 		}
 	}
 }
 
-void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
+void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages) {
 	if (_history && _history->peer == peer) {
 		bool oldLoaded = (_migrated && _history->isEmpty() && !_migrated->isEmpty());
-		_history->addNewerSlice(messages, collapsed);
+		_history->addNewerSlice(messages);
 		if (oldLoaded) {
-			_history->addOlderSlice(QVector<MTPMessage>(), 0);
+			_history->addOlderSlice(QVector<MTPMessage>());
 		}
 	} else if (_migrated && _migrated->peer == peer) {
-		_migrated->addNewerSlice(messages, collapsed);
+		_migrated->addNewerSlice(messages);
 	}
 }
 
@@ -1454,38 +1454,6 @@ void HistoryInner::setFirstLoading(bool loading) {
 	update();
 }
 
-HistoryItem *HistoryInner::atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const {
-	adjustCurrent(top);
-	if (!_curHistory || _curHistory->isEmpty() || _curHistory != _history) return 0;
-
-	for (int32 blockIndex = _curBlock + 1, itemIndex = _curItem + 1; blockIndex > 0;) {
-		--blockIndex;
-		HistoryBlock *block = _history->blocks[blockIndex];
-		if (!itemIndex) itemIndex = block->items.size();
-		for (; itemIndex > 0;) {
-			--itemIndex;
-			HistoryItem *item = block->items[itemIndex];
-			if (item->isImportant()) {
-				bottomUnderScrollTop = qMin(0, itemTop(item) + item->height() - top);
-				return item;
-			}
-		}
-		itemIndex = 0;
-	}
-	for (int32 blockIndex = _curBlock, itemIndex = _curItem + 1; blockIndex < _history->blocks.size(); ++blockIndex) {
-		HistoryBlock *block = _history->blocks[blockIndex];
-		for (; itemIndex < block->items.size(); ++itemIndex) {
-			HistoryItem *item = block->items[itemIndex];
-			if (item->isImportant()) {
-				bottomUnderScrollTop = qMin(0, itemTop(item) + item->height() - top);
-				return item;
-			}
-		}
-		itemIndex = 0;
-	}
-	return 0;
-}
-
 void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	_visibleAreaTop = top;
 	_visibleAreaBottom = bottom;
@@ -2745,15 +2713,6 @@ HistoryHider::~HistoryHider() {
 	parent()->noHider(this);
 }
 
-CollapseButton::CollapseButton(QWidget *parent) : FlatButton(parent, lang(lng_channel_hide_comments), st::collapseButton) {
-}
-
-void CollapseButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	App::roundRect(p, rect(), App::msgServiceBg(), ServiceCorners);
-	FlatButton::paintEvent(e);
-}
-
 SilentToggle::SilentToggle(QWidget *parent) : FlatCheckbox(parent, QString(), false, st::silentToggle) {
 	setMouseTracking(true);
 }
@@ -2829,7 +2788,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::replyCancel)
 , _scroll(this, st::historyScroll, false)
 , _historyToEnd(this)
-, _collapseComments(this)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
@@ -2843,7 +2801,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _kbShow(this, st::btnBotKbShow)
 , _kbHide(this, st::btnBotKbHide)
 , _cmdStart(this, st::btnBotCmdStart)
-, _broadcast(this, QString(), true, st::broadcastToggle)
 , _silent(this)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _a_record(animation(this, &HistoryWidget::step_record))
@@ -2869,14 +2826,12 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
 	connect(&_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
 	connect(_historyToEnd, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
-	connect(&_collapseComments, SIGNAL(clicked()), this, SLOT(onCollapseComments()));
 	connect(&_fieldBarCancel, SIGNAL(clicked()), this, SLOT(onFieldBarCancel()));
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_unblock, SIGNAL(clicked()), this, SLOT(onUnblock()));
 	connect(&_botStart, SIGNAL(clicked()), this, SLOT(onBotStart()));
 	connect(&_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(&_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
-	connect(&_broadcast, SIGNAL(changed()), this, SLOT(onBroadcastSilentChange()));
 	connect(&_silent, SIGNAL(clicked()), this, SLOT(onBroadcastSilentChange()));
 	connect(&_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
@@ -2922,7 +2877,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_fieldBarCancel.hide();
 
 	_scroll.hide();
-	_collapseComments.setParent(&_scroll);
 
 	_kbScroll.setFocusPolicy(Qt::NoFocus);
 	_kbScroll.viewport()->setFocusPolicy(Qt::NoFocus);
@@ -2935,9 +2889,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	_historyToEnd->hide();
 	_historyToEnd->installEventFilter(this);
-
-	_collapseComments.hide();
-	_collapseComments.installEventFilter(this);
 
 	_fieldAutocomplete->hide();
 	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
@@ -2963,7 +2914,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachEmoji.hide();
 	_kbShow.hide();
 	_kbHide.hide();
-	_broadcast.hide();
 	_silent.hide();
 	_cmdStart.hide();
 
@@ -3095,7 +3045,7 @@ void HistoryWidget::onTextChange() {
 	updateInlineBotQuery();
 	updateStickersByEmoji();
 
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
+	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
 		if (!_inlineBot && !_editMsgId && (_textUpdateEvents.testFlag(TextUpdateEvent::SendTyping))) {
 			updateSendAction(_history, SendActionTyping);
 		}
@@ -3320,7 +3270,7 @@ void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint
 
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
-	_fileLoader.addTask(new FileLoadTask(result, duration, waveform, FileLoadTo(_peer->id, _broadcast.checked(), _silent.checked(), replyToId())));
+	_fileLoader.addTask(new FileLoadTask(result, duration, waveform, FileLoadTo(_peer->id, _silent.checked(), replyToId())));
 	cancelReply(lastForceReplyReplied());
 }
 
@@ -3336,7 +3286,7 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 		stopRecording(_peer && samples > 0 && _inField);
 	}
 	updateField();
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
+	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
 		updateSendAction(_history, SendActionRecordVoice);
 	}
 }
@@ -3662,23 +3612,21 @@ void HistoryWidget::calcNextReplyReturn() {
 
 void HistoryWidget::fastShowAtEnd(History *h) {
 	if (h == _history) {
-		h->getReadyFor(ShowAtTheEndMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+		h->getReadyFor(ShowAtTheEndMsgId);
 
 		clearAllLoadRequests();
 
 		setMsgId(ShowAtUnreadMsgId);
 		_histInited = false;
 
-		if (h->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
+		if (h->isReadyFor(_showAtMsgId)) {
 			historyLoaded();
 		} else {
 			firstLoadMessages();
 			doneShow();
 		}
 	} else if (h) {
-		MsgId fixInScrollMsgId = 0;
-		int32 fixInScrollMsgTop = 0;
-		h->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
+		h->getReadyFor(ShowAtTheEndMsgId);
 	}
 }
 
@@ -3726,22 +3674,13 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
-			bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
-
-			bool canShowNow = _history->isReadyFor(showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
-			if (_fixedInScrollMsgId) {
-				_fixedInScrollMsgTop += _list->height() - _scroll.scrollTop() - st::historyPadding;
-			}
+			bool canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
 			} else {
 				_history->forgetScrollState();
 				if (_migrated) {
 					_migrated->forgetScrollState();
-				}
-
-				if (_history->isChannel() && wasOnlyImportant != _history->asChannelHistory()->onlyImportant()) {
-					clearAllLoadRequests();
 				}
 
 				clearDelayedShowAt();
@@ -3894,9 +3833,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_updateHistoryItems.stop();
 
 		pinnedMsgVisibilityUpdated();
-		if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem) || _history->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
-			_fixedInScrollMsgId = 0;
-			_fixedInScrollMsgTop = 0;
+		if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem) || _history->isReadyFor(_showAtMsgId)) {
 			historyLoaded();
 		} else {
 			firstLoadMessages();
@@ -4110,10 +4047,8 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachDocument.hide();
 		_attachPhoto.hide();
 		_attachEmoji.hide();
-		_broadcast.hide();
 		_silent.hide();
 		_historyToEnd->hide();
-		_collapseComments.hide();
 		_kbShow.hide();
 		_kbHide.hide();
 		_cmdStart.hide();
@@ -4171,7 +4106,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart.hide();
 		_attachDocument.hide();
 		_attachPhoto.hide();
-		_broadcast.hide();
 		_silent.hide();
 		_kbScroll.hide();
 		_fieldBarCancel.hide();
@@ -4210,7 +4144,6 @@ void HistoryWidget::updateControlsVisibility() {
 			_cmdStart.hide();
 			_attachDocument.hide();
 			_attachPhoto.hide();
-			_broadcast.hide();
 			_silent.hide();
 			_kbScroll.hide();
 			_fieldBarCancel.hide();
@@ -4241,7 +4174,6 @@ void HistoryWidget::updateControlsVisibility() {
 				_cmdStart.hide();
 				_attachDocument.hide();
 				_attachPhoto.hide();
-				_broadcast.hide();
 				_silent.hide();
 				if (_kbShown) {
 					_kbScroll.show();
@@ -4285,11 +4217,6 @@ void HistoryWidget::updateControlsVisibility() {
 					_attachDocument.show();
 					_attachPhoto.hide();
 				}
-				if (hasBroadcastToggle()) {
-					_broadcast.show();
-				} else {
-					_broadcast.hide();
-				}
 				if (hasSilentToggle()) {
 					_silent.show();
 				} else {
@@ -4317,7 +4244,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_muteUnmute.hide();
 		_attachDocument.hide();
 		_attachPhoto.hide();
-		_broadcast.hide();
 		_silent.hide();
 		_kbScroll.hide();
 		_fieldBarCancel.hide();
@@ -4430,24 +4356,23 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 
 	int32 count = 0;
 	const QVector<MTPMessage> emptyList, *histList = &emptyList;
-	const QVector<MTPMessageGroup> *histCollapsed = 0;
 	switch (messages.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(messages.c_messages_messages());
+		auto &d(messages.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		histList = &d.vmessages.c_vector().v;
 		count = histList->size();
 	} break;
 	case mtpc_messages_messagesSlice: {
-		const auto &d(messages.c_messages_messagesSlice());
+		auto &d(messages.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		histList = &d.vmessages.c_vector().v;
 		count = d.vcount.v;
 	} break;
 	case mtpc_messages_channelMessages: {
-		const auto &d(messages.c_messages_channelMessages());
+		auto &d(messages.c_messages_channelMessages());
 		if (peer && peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
@@ -4456,13 +4381,12 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		histList = &d.vmessages.c_vector().v;
-		if (d.has_collapsed()) histCollapsed = &d.vcollapsed.c_vector().v;
 		count = d.vcount.v;
 	} break;
 	}
 
 	if (_preloadRequest == requestId) {
-		addMessagesToFront(peer, *histList, histCollapsed);
+		addMessagesToFront(peer, *histList);
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_reportSpamStatus == dbiprsUnknown) {
@@ -4470,7 +4394,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			if (_reportSpamStatus != dbiprsUnknown) updateControlsVisibility();
 		}
 	} else if (_preloadDownRequest == requestId) {
-		addMessagesToBack(peer, *histList, histCollapsed);
+		addMessagesToBack(peer, *histList);
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
@@ -4480,10 +4404,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		} else if (_migrated) {
 			_migrated->clear(true);
 		}
-		addMessagesToFront(peer, *histList, histCollapsed);
-		if (_fixedInScrollMsgId && _history->isChannel()) {
-			_history->asChannelHistory()->insertCollapseItem(_fixedInScrollMsgId);
-		}
+		addMessagesToFront(peer, *histList);
 		_firstLoadRequest = 0;
 		if (_history->loadedAtTop()) {
 			if (_history->unreadCount() > count) {
@@ -4503,21 +4424,14 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			_migrated->clear(true);
 		}
 		_delayedShowAtRequest = 0;
-		bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
-		_history->getReadyFor(_delayedShowAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
-		if (_fixedInScrollMsgId) {
-			_fixedInScrollMsgTop += _list->height() - _scroll.scrollTop() - st::historyPadding;
-		}
+		_history->getReadyFor(_delayedShowAtMsgId);
 		if (_history->isEmpty()) {
 			if (_preloadRequest) MTP::cancel(_preloadRequest);
 			if (_preloadDownRequest) MTP::cancel(_preloadDownRequest);
 			if (_firstLoadRequest) MTP::cancel(_firstLoadRequest);
 			_preloadRequest = _preloadDownRequest = 0;
 			_firstLoadRequest = -1; // hack - don't updateListSize yet
-			addMessagesToFront(peer, *histList, histCollapsed);
-			if (_fixedInScrollMsgId && _history->isChannel()) {
-				_history->asChannelHistory()->insertCollapseItem(_fixedInScrollMsgId);
-			}
+			addMessagesToFront(peer, *histList);
 			_firstLoadRequest = 0;
 			if (_history->loadedAtTop()) {
 				if (_history->unreadCount() > count) {
@@ -4540,10 +4454,6 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		setMsgId(_delayedShowAtMsgId);
 
 		_histInited = false;
-
-		if (_history->isChannel() && wasOnlyImportant != _history->asChannelHistory()->onlyImportant()) {
-			clearAllLoadRequests();
-		}
 
 		historyLoaded();
 	}
@@ -4571,68 +4481,40 @@ bool HistoryWidget::isActive() const {
 void HistoryWidget::firstLoadMessages() {
 	if (!_history || _firstLoadRequest) return;
 
-	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
-	bool wasOnlyImportant = loadImportant;
 	PeerData *from = _peer;
 	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
 		if (_migrated && _migrated->unreadCount()) {
-			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+			_history->getReadyFor(_showAtMsgId);
 			from = _migrated->peer;
 			offset = -loadCount / 2;
 			offset_id = _migrated->inboxReadBefore;
 		} else if (_history->unreadCount()) {
-			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+			_history->getReadyFor(_showAtMsgId);
 			offset = -loadCount / 2;
 			offset_id = _history->inboxReadBefore;
 		} else {
-			_history->getReadyFor(ShowAtTheEndMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+			_history->getReadyFor(ShowAtTheEndMsgId);
 		}
 	} else if (_showAtMsgId == ShowAtTheEndMsgId) {
-		_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+		_history->getReadyFor(_showAtMsgId);
 		loadCount = MessagesFirstLoad;
 	} else if (_showAtMsgId > 0) {
-		_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+		_history->getReadyFor(_showAtMsgId);
 		offset = -loadCount / 2;
 		offset_id = _showAtMsgId;
 	} else if (_showAtMsgId < 0 && _history->isChannel()) {
 		if (_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId && _migrated) {
-			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+			_history->getReadyFor(_showAtMsgId);
 			from = _migrated->peer;
 			offset = -loadCount / 2;
 			offset_id = -_showAtMsgId;
 		} else if (_showAtMsgId == SwitchAtTopMsgId) {
-			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
-			loadImportant = true;
-		} else if (HistoryItem *item = App::histItemById(_channel, _showAtMsgId)) {
-			if (item->type() == HistoryItemGroup) {
-				_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
-				offset = -loadCount / 2;
-				offset_id = qMax(static_cast<HistoryGroup*>(item)->minId(), 1);
-				loadImportant = false;
-			} else if (item->type() == HistoryItemCollapse) {
-				_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
-				offset = -loadCount / 2;
-				offset_id = qMax(static_cast<HistoryCollapse*>(item)->wasMinId(), 1);
-				loadImportant = true;
-			}
-		}
-		if (_fixedInScrollMsgId) {
-			_fixedInScrollMsgTop += _list->height() - _scroll.scrollTop() - st::historyPadding;
-		}
-		if (_history->isMegagroup()) {
-			loadImportant = false;
-		}
-		if (_history->isEmpty() || wasOnlyImportant != loadImportant) {
-			clearAllLoadRequests();
+			_history->getReadyFor(_showAtMsgId);
 		}
 	}
 
-	if (loadImportant) {
-		_firstLoadRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
-	} else {
-		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
-	}
+	_firstLoadRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 }
 
 void HistoryWidget::loadMessages() {
@@ -4648,15 +4530,10 @@ void HistoryWidget::loadMessages() {
 		return;
 	}
 
-	bool loadImportant = (from->isChannel() && !from->isMegagroup()) ? from->asChannelHistory()->onlyImportant() : false;
 	MsgId offset_id = from->minMsgId();
 	int32 offset = 0, loadCount = offset_id ? MessagesPerPage : MessagesFirstLoad;
 
-	if (loadImportant) {
-		_preloadRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
-	} else {
-		_preloadRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
-	}
+	_preloadRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 }
 
 void HistoryWidget::loadMessagesDown() {
@@ -4672,7 +4549,6 @@ void HistoryWidget::loadMessagesDown() {
 		return;
 	}
 
-	bool loadImportant = (from->isChannel() && !from->isMegagroup()) ? from->asChannelHistory()->onlyImportant() : false;
 	int32 loadCount = MessagesPerPage, offset = -loadCount;
 
 	MsgId offset_id = from->maxMsgId();
@@ -4682,11 +4558,7 @@ void HistoryWidget::loadMessagesDown() {
 		++offset;
 	}
 
-	if (loadImportant) {
-		_preloadDownRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id + 1), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
-	} else {
-		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id + 1), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
-	}
+	_preloadDownRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id + 1), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 }
 
 void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
@@ -4695,7 +4567,6 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	clearDelayedShowAt();
 	_delayedShowAtMsgId = showAtMsgId;
 
-	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
 	PeerData *from = _peer;
 	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
@@ -4714,39 +4585,15 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	} else if (_delayedShowAtMsgId > 0) {
 		offset = -loadCount / 2;
 		offset_id = _delayedShowAtMsgId;
-		if (HistoryItem *item = App::histItemById(_channel, _delayedShowAtMsgId)) {
-			if (!item->isImportant()) {
-				loadImportant = false;
-			}
-		}
 	} else if (_delayedShowAtMsgId < 0 && _history->isChannel()) {
 		if (_delayedShowAtMsgId < 0 && -_delayedShowAtMsgId < ServerMaxMsgId && _migrated) {
 			from = _migrated->peer;
 			offset = -loadCount / 2;
 			offset_id = -_delayedShowAtMsgId;
-		} else if (_delayedShowAtMsgId == SwitchAtTopMsgId) {
-			loadImportant = true;
-		} else if (HistoryItem *item = App::histItemById(_channel, _delayedShowAtMsgId)) {
-			if (item->type() == HistoryItemGroup) {
-				offset = -loadCount / 2;
-				offset_id = qMax(static_cast<HistoryGroup*>(item)->minId(), 1);
-				loadImportant = false;
-			} else if (item->type() == HistoryItemCollapse) {
-				offset = -loadCount / 2;
-				offset_id = qMax(static_cast<HistoryCollapse*>(item)->wasMinId(), 1);
-				loadImportant = true;
-			}
-		}
-		if (_history->isMegagroup()) {
-			loadImportant = false;
 		}
 	}
 
-	if (loadImportant) {
-		_delayedShowAtRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
-	} else {
-		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
-	}
+	_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 }
 
 void HistoryWidget::onScroll() {
@@ -4766,7 +4613,6 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	if (_firstLoadRequest || _scroll.isHidden() || !_peer) return;
 
 	updateToEndVisibility();
-	updateCollapseCommentsVisibility();
 
 	int st = _scroll.scrollTop(), stm = _scroll.scrollTopMax(), sh = _scroll.height();
 	if (st + PreloadHeightsCount * sh > stm) {
@@ -4816,24 +4662,6 @@ void HistoryWidget::onHistoryToEnd() {
 	} else if (_peer) {
 		showHistory(_peer->id, ShowAtUnreadMsgId);
 	}
-}
-
-void HistoryWidget::onCollapseComments() {
-	if (!_peer) return;
-
-	MsgId switchAt = SwitchAtTopMsgId;
-	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
-	if (collapseCommentsVisible) {
-		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
-			if (!collapse->detached()) {
-				int32 collapseY = _list->itemTop(collapse) - _scroll.scrollTop();
-				if (collapseY >= 0 && collapseY < _scroll.height()) {
-					switchAt = collapse->id;
-				}
-			}
-		}
-	}
-	showHistory(_peer->id, switchAt);
 }
 
 void HistoryWidget::saveEditMsg() {
@@ -4924,7 +4752,6 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	message.history = _history;
 	message.textWithTags = _field.getTextWithTags();
 	message.replyTo = replyTo;
-	message.broadcast = _broadcast.checked();
 	message.silent = _silent.checked();
 	message.webPageId = webPageId;
 	App::main()->sendMessage(message);
@@ -5064,11 +4891,10 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 
-	bool channelPost = p->isChannel() && !p->isMegagroup() && p->asChannel()->canPublish() && (p->asChannel()->isBroadcast() || _broadcast.checked());
+	bool channelPost = p->isChannel() && !p->isMegagroup();
 	bool showFromName = !channelPost || p->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent.checked();
 	if (channelPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
@@ -5083,7 +4909,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 
 	App::historyRegRandom(randomId, newId);
 
-	App::main()->finishForwarding(h, _broadcast.checked(), _silent.checked());
+	App::main()->finishForwarding(h, _silent.checked());
 	cancelReply(lastKeyboardUsed);
 }
 
@@ -5119,14 +4945,6 @@ MsgId HistoryWidget::msgId() const {
 	return _showAtMsgId;
 }
 
-HistoryItem *HistoryWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const {
-	if (!_list || !_history->isChannel()) {
-		bottomUnderScrollTop = 0;
-		return 0;
-	}
-	return _list->atTopImportantMsg(_scroll.scrollTop(), _scroll.height(), bottomUnderScrollTop);
-}
-
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
 	if (App::app()) App::app()->mtpPause();
 
@@ -5141,12 +4959,10 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_kbScroll.hide();
 	_reportSpamPanel.hide();
 	_historyToEnd->hide();
-	_collapseComments.hide();
 	_attachDocument.hide();
 	_attachPhoto.hide();
 	_attachEmoji.hide();
 	_fieldAutocomplete->hide();
-	_broadcast.hide();
 	_silent.hide();
 	_kbShow.hide();
 	_kbHide.hide();
@@ -5403,7 +5219,7 @@ void HistoryWidget::stopRecording(bool send) {
 
 	_recording = false;
 	_recordingSamples = 0;
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
+	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
 		updateSendAction(_history, SendActionRecordVoice, -1);
 	}
 
@@ -5437,7 +5253,6 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 	message.history = _history;
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.replyTo = replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0;
-	message.broadcast = false;
 	message.silent = false;
 	App::main()->sendMessage(message);
 	if (replyTo) {
@@ -5564,7 +5379,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
-	if ((obj == _historyToEnd || obj == &_collapseComments) && e->type() == QEvent::Wheel) {
+	if (obj == _historyToEnd && e->type() == QEvent::Wheel) {
 		return _scroll.viewportEvent(e);
 	}
 	return TWidget::eventFilter(obj, e);
@@ -5650,10 +5465,6 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 
 bool HistoryWidget::readyToForward() const {
 	return _canSendMessages && App::main()->hasForwardingItems();
-}
-
-bool HistoryWidget::hasBroadcastToggle() const {
-	return _peer && _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && !_peer->asChannel()->isBroadcast();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -6053,8 +5864,6 @@ void HistoryWidget::moveFieldControls() {
 	_send.move(right - _send.width(), buttonsBottom);
 	if (_inlineBotCancel) _inlineBotCancel->move(_send.pos());
 	right -= _send.width();
-	_broadcast.move(right - _broadcast.width(), buttonsBottom);
-	if (hasBroadcastToggle()) right -= _broadcast.width();
 	_attachEmoji.move(right - _attachEmoji.width(), buttonsBottom);
 	_kbHide.move(right - _kbHide.width(), buttonsBottom);
 	right -= _attachEmoji.width();
@@ -6080,7 +5889,6 @@ void HistoryWidget::updateFieldSize() {
 	fieldWidth -= _attachEmoji.width();
 	if (kbShowShown) fieldWidth -= _kbShow.width();
 	if (_cmdStartShown) fieldWidth -= _cmdStart.width();
-	if (hasBroadcastToggle()) fieldWidth -= _broadcast.width();
 	if (hasSilentToggle()) fieldWidth -= _silent.width();
 
 	if (_field.width() != fieldWidth) {
@@ -6148,10 +5956,8 @@ void HistoryWidget::updateFieldPlaceholder() {
 	} else {
 		if (_inlineBot && _inlineBot != LookingUpInlineBot) {
 			_field.setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
-		} else if (hasBroadcastToggle()) {
-			_field.setPlaceholder(lang(_broadcast.checked() ? (_silent.checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_comment_ph));
 		} else {
-			_field.setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_peer->asChannel()->canPublish() ? (_silent.checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_comment_ph) : lng_message_ph));
+			_field.setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent.checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
 		}
 		_send.setText(lang(lng_send_button));
 	}
@@ -6161,7 +5967,7 @@ void HistoryWidget::uploadImage(const QImage &img, PrepareMediaType type, FileLo
 	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	FileLoadTask *task = new FileLoadTask(img, type, FileLoadTo(_peer->id, _broadcast.checked(), _silent.checked(), replyToId()), confirm, source);
+	FileLoadTask *task = new FileLoadTask(img, type, FileLoadTo(_peer->id, _silent.checked(), replyToId()), confirm, source);
 	if (withText) {
 		_confirmWithTextId = task->fileid();
 	}
@@ -6172,7 +5978,7 @@ void HistoryWidget::uploadFile(const QString &file, PrepareMediaType type, FileL
 	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	FileLoadTask *task = new FileLoadTask(file, type, FileLoadTo(_peer->id, _broadcast.checked(), _silent.checked(), replyToId()), confirm);
+	FileLoadTask *task = new FileLoadTask(file, type, FileLoadTo(_peer->id, _silent.checked(), replyToId()), confirm);
 	if (withText) {
 		_confirmWithTextId = task->fileid();
 	}
@@ -6186,7 +5992,7 @@ void HistoryWidget::uploadFiles(const QStringList &files, PrepareMediaType type)
 
 	App::wnd()->activateWindow();
 
-	FileLoadTo to(_peer->id, _broadcast.checked(), _silent.checked(), replyToId());
+	FileLoadTo to(_peer->id, _silent.checked(), replyToId());
 
 	TasksList tasks;
 	tasks.reserve(files.size());
@@ -6202,7 +6008,7 @@ void HistoryWidget::uploadFileContent(const QByteArray &fileContent, PrepareMedi
 	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	_fileLoader.addTask(new FileLoadTask(fileContent, type, FileLoadTo(_peer->id, _broadcast.checked(), _silent.checked(), replyToId())));
+	_fileLoader.addTask(new FileLoadTask(fileContent, type, FileLoadTo(_peer->id, _silent.checked(), replyToId())));
 	cancelReply(lastForceReplyReplied());
 }
 
@@ -6238,7 +6044,7 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 
 	MTPDmessage::Flags flags = newMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
 	if (file->to.replyTo) flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-	bool channelPost = h->peer->isChannel() && !h->peer->isMegagroup() && h->peer->asChannel()->canPublish() && (h->peer->asChannel()->isBroadcast() || file->to.broadcast);
+	bool channelPost = h->peer->isChannel() && !h->peer->isMegagroup();
 	bool showFromName = !channelPost || h->peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && file->to.silent;
 	if (channelPost) {
@@ -6310,11 +6116,8 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 			sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 		}
 
-		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->isPost();
+		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
 		bool silentPost = channelPost && silent;
-		if (channelPost) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
-		}
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
@@ -6362,11 +6165,8 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 			}
 
-			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->isPost();
+			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
 			bool silentPost = channelPost && silent;
-			if (channelPost) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
-			}
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
@@ -6391,11 +6191,8 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 			}
 
-			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->isPost();
+			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
 			bool silentPost = channelPost && silent;
-			if (channelPost) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
-			}
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
@@ -6627,7 +6424,6 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	updateFieldSize();
 
 	_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
-	updateCollapseCommentsVisibility();
 
 	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 
@@ -6729,7 +6525,6 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 
 		_fieldAutocomplete->setBoundings(_scroll.geometry());
 		_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
-		updateCollapseCommentsVisibility();
 	}
 
 	_list->recountHeight();
@@ -6800,39 +6595,6 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
 			}
 		}
-	} else if (initial && _fixedInScrollMsgId > 0) {
-		HistoryItem *item = App::histItemById(_channel, _fixedInScrollMsgId);
-		int32 iy = _list->itemTop(item);
-		if (iy < 0) {
-			item = 0;
-			for (int32 blockIndex = 0, blocksCount = _history->blocks.size(); blockIndex < blocksCount; ++blockIndex) {
-				HistoryBlock *block = _history->blocks.at(blockIndex);
-				for (int32 itemIndex = 0, itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
-					item = block->items.at(itemIndex);
-					if (item->id > _fixedInScrollMsgId) {
-						break;
-					} else if (item->id < 0) {
-						if (item->type() == HistoryItemGroup && qMax(static_cast<HistoryGroup*>(item)->minId(), 1) >= _fixedInScrollMsgId) {
-							break;
-						} else if (item->type() == HistoryItemCollapse && static_cast<HistoryCollapse*>(item)->wasMinId() >= _fixedInScrollMsgId) {
-							break;
-						}
-					}
-				}
-			}
-			iy = _list->itemTop(item);
-			if (iy >= 0) {
-				toY = qMax(iy - _fixedInScrollMsgTop, 0);
-			} else {
-				setMsgId(ShowAtUnreadMsgId);
-				_fixedInScrollMsgId = 0;
-				_fixedInScrollMsgTop = 0;
-				_histInited = false;
-				return updateListSize(initial, false, change);
-			}
-		} else {
-			toY = qMax(iy + item->height() - _fixedInScrollMsgTop, 0);
-		}
 	} else if (initial && (_history->unreadBar || (_migrated && _migrated->unreadBar))) {
 		toY = unreadBarTop();
 	} else if (_migrated && _migrated->showFrom) {
@@ -6889,9 +6651,9 @@ int HistoryWidget::unreadBarTop() const {
 	return -1;
 }
 
-void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
+void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
 	int oldH = _list->historyHeight();
-	_list->messagesReceived(peer, messages, collapsed);
+	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateListSize();
 		if (_animActiveTimer.isActive() && _activeAnimMsgId > 0 && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop() && _history) {
@@ -6904,8 +6666,8 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 	}
 }
 
-void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
-	_list->messagesReceivedDown(peer, messages, collapsed);
+void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages) {
+	_list->messagesReceivedDown(peer, messages);
 	if (!_firstLoadRequest) {
 		updateListSize(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
@@ -7014,31 +6776,6 @@ void HistoryWidget::updateToEndVisibility() {
 	}
 }
 
-void HistoryWidget::updateCollapseCommentsVisibility() {
-	int32 collapseCommentsLeft = (width() - _collapseComments.width()) / 2, collapseCommentsTop = st::msgServiceMargin.top();
-	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->isMegagroup() && !_history->asChannelHistory()->onlyImportant();
-	if (collapseCommentsVisible) {
-		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
-			if (!collapse->detached()) {
-				int32 collapseY = _list->itemTop(collapse) - _scroll.scrollTop();
-				if (collapseY > _scroll.height()) {
-					collapseCommentsTop += qMin(collapseY - _scroll.height() - collapse->height(), 0);
-				} else {
-					collapseCommentsTop += qMax(collapseY, 0);
-				}
-			}
-		}
-	}
-	if (_collapseComments.x() != collapseCommentsLeft || _collapseComments.y() != collapseCommentsTop) {
-		_collapseComments.move(collapseCommentsLeft, collapseCommentsTop);
-	}
-	if (collapseCommentsVisible && _collapseComments.isHidden()) {
-		_collapseComments.show();
-	} else if (!collapseCommentsVisible && !_collapseComments.isHidden()) {
-		_collapseComments.hide();
-	}
-}
-
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	_replyForwardPressed = QRect(0, _field.y() - st::sendPadding - st::replyHeight, st::replySkip, st::replyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_fieldBarCancel.isHidden()) {
@@ -7127,11 +6864,10 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && (_peer->asChannel()->isBroadcast() || _broadcast.checked());
+	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
 	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent.checked();
 	if (channelPost) {
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_broadcast;
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
@@ -7153,7 +6889,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId());
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
-	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
+	App::main()->finishForwarding(_history, _silent.checked());
 	cancelReply(lastKeyboardUsed);
 
 	App::historyRegRandom(randomId, newId);
@@ -7308,11 +7044,10 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && (_peer->asChannel()->isBroadcast() || _broadcast.checked());
+	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
 	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent.checked();
 	if (channelPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
@@ -7325,7 +7060,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, doc, caption, MTPnullMarkup);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(mtpInput, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
-	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
+	App::main()->finishForwarding(_history, _silent.checked());
 	cancelReply(lastKeyboardUsed);
 
 	if (doc->sticker()) App::main()->incrementSticker(doc);
@@ -7364,11 +7099,10 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && (_peer->asChannel()->isBroadcast() || _broadcast.checked());
+	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
 	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent.checked();
 	if (channelPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_broadcast;
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
@@ -7381,7 +7115,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, photo, caption, MTPnullMarkup);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
-	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
+	App::main()->finishForwarding(_history, _silent.checked());
 	cancelReply(lastKeyboardUsed);
 
 	App::historyRegRandom(randomId, newId);

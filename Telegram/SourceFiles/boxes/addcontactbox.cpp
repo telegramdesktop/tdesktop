@@ -608,11 +608,9 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 , _existing(existing)
 , _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true)
 , _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title))
-, _comments(this, lang(lng_create_channel_comments), false)
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x())
 , _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::defaultInputField, QString(), channel->username, true)
 , _linkOver(false)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
@@ -631,7 +629,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
-	_comments.hide();
 
 	connect(&_link, SIGNAL(changed()), this, SLOT(onChange()));
 
@@ -647,7 +644,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 void SetupChannelBox::hideAll() {
 	_public.hide();
 	_private.hide();
-	_comments.hide();
 	_link.hide();
 	_save.hide();
 	_skip.hide();
@@ -656,7 +652,6 @@ void SetupChannelBox::hideAll() {
 void SetupChannelBox::showAll() {
 	_public.show();
 	_private.show();
-	//_comments.show();
 	if (_public.checked()) {
 		_link.show();
 	} else {
@@ -672,9 +667,9 @@ void SetupChannelBox::showDone() {
 
 void SetupChannelBox::updateMaxHeight() {
 	if (!_channel->isMegagroup() || _public.checked()) {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	}
 }
 
@@ -704,9 +699,6 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
-
-	//QRect aboutComments(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), _aboutPublicWidth, _aboutPublicHeight);
-	//_aboutComments.drawLeft(p, aboutComments.x(), aboutComments.y(), aboutComments.width(), width());
 
 	if (!_channel->isMegagroup() || !_link.isHidden()) {
 		p.setPen(st::black);
@@ -745,10 +737,8 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 	_public.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
 	_private.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip);
-	//_comments.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip);
 
 	_link.resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link.height());
-	//_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::boxTextFont->height, _link.width(), 2 * st::boxTextFont->height);
 
@@ -804,9 +794,6 @@ void SetupChannelBox::closePressed() {
 
 void SetupChannelBox::onSave() {
 	if (!_public.checked()) {
-		if (!_existing && !_comments.isHidden() && _comments.checked()) {
-			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)));
-		}
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
@@ -824,9 +811,6 @@ void SetupChannelBox::onSave() {
 		return;
 	}
 
-	if (!_existing && !_comments.isHidden() && _comments.checked()) {
-		MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)), RPCResponseHandler(), 0, 5);
-	}
 	_sentUsername = link;
 	_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 }

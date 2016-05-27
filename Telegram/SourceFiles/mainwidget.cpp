@@ -253,7 +253,7 @@ void MainWidget::cancelForwarding() {
 	_history->cancelForwarding();
 }
 
-void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
+void MainWidget::finishForwarding(History *hist, bool silent) {
 	if (!hist) return;
 
 	if (!_toForward.isEmpty()) {
@@ -263,11 +263,10 @@ void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 
 		MTPDmessage::Flags flags = 0;
 		MTPmessages_ForwardMessages::Flags sendFlags = 0;
-		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
+		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
 		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && silent;
 		if (channelPost) {
-			sendFlags |= MTPmessages_ForwardMessages::Flag::f_broadcast;
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
 		}
@@ -738,9 +737,6 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 		h->clear();
 		h->newLoaded = true;
 		h->oldLoaded = deleteHistory;
-		if (h->isChannel()) {
-			h->asChannelHistory()->clearOther();
-		}
 	}
 	if (peer->isChannel()) {
 		peer->asChannel()->ptsWaitingForShortPoll(-1);
@@ -874,40 +870,33 @@ bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
 }
 
 void MainWidget::checkPeerHistory(PeerData *peer) {
-	if (peer->isChannel() && !peer->isMegagroup()) {
-		MTP::send(MTPchannels_GetImportantHistory(peer->asChannel()->inputChannel, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
-	} else {
-		MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
-	}
+	MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
 }
 
 void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &result) {
 	const QVector<MTPMessage> *v = 0;
-	const QVector<MTPMessageGroup> *collapsed = 0;
 	switch (result.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(result.c_messages_messages());
+		auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const auto &d(result.c_messages_messagesSlice());
+		auto &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const auto &d(result.c_messages_channelMessages());
+		auto &d(result.c_messages_channelMessages());
 		if (peer && peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::checkedHistory)"));
 		}
-
-		collapsed = &d.vcollapsed.c_vector().v;
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
@@ -923,7 +912,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
 					History *h = App::history(peer->id);
 					h->clear(true);
-					h->addNewerSlice(QVector<MTPMessage>(), 0);
+					h->addNewerSlice(QVector<MTPMessage>());
 					h->asChannelHistory()->insertJoinedMessage(true);
 					_history->peerMessagesUpdated(h->peer->id);
 				}
@@ -935,16 +924,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	} else {
 		History *h = App::history(peer->id);
 		if (!h->lastMsg) {
-			HistoryItem *item = h->addNewMessage((*v)[0], NewMessageLast);
-			if (item && collapsed && !collapsed->isEmpty() && collapsed->at(0).type() == mtpc_messageGroup && h->isChannel()) {
-				if (collapsed->at(0).c_messageGroup().vmax_id.v > item->id) {
-					if (h->asChannelHistory()->onlyImportant()) {
-						h->asChannelHistory()->clearOther();
-					} else {
-						h->setNotLoadedAtBottom();
-					}
-				}
-			}
+			h->addNewMessage((*v)[0], NewMessageLast);
 		}
 		if (!h->lastMsgDate.isNull() && h->loadedAtBottom()) {
 			if (peer->isChannel() && peer->asChannel()->inviter > 0 && h->lastMsgDate <= peer->asChannel()->inviteDate && peer->asChannel()->amIn()) {
@@ -1106,11 +1086,10 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
-		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup() && history->peer->asChannel()->canPublish() && (history->peer->asChannel()->isBroadcast() || message.broadcast);
+		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
 		bool showFromName = !channelPost || history->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && message.silent;
 		if (channelPost) {
-			sendFlags |= MTPmessages_SendMessage::Flag::f_broadcast;
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
 		}
@@ -1130,7 +1109,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 
 	history->lastSentMsg = lastMessage;
 
-	finishForwarding(history, message.broadcast, message.silent);
+	finishForwarding(history, message.silent);
 
 	executeParsedCommand(command);
 }
@@ -1224,9 +1203,6 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 	}
 
 	MTPmessages_Search::Flags flags = 0;
-	if (peer->isChannel() && !peer->isMegagroup()) {
-		flags |= MTPmessages_Search::Flag::f_important_only;
-	}
 	_overviewPreload[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, 10));
 	return true;
 }
@@ -1360,9 +1336,6 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	if (type == OverviewCount) return;
 
 	MTPmessages_Search::Flags flags = 0;
-	if (peer->isChannel() && !peer->isMegagroup()) {
-		flags |= MTPmessages_Search::Flag::f_important_only;
-	}
 	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, history)));
 }
 
@@ -1724,26 +1697,22 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(msgs.c_messages_messages());
+		auto &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageLast);
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const auto &d(msgs.c_messages_messagesSlice());
+		auto &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageLast);
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const auto &d(msgs.c_messages_channelMessages());
+		auto &d(msgs.c_messages_channelMessages());
 		LOG(("API Error: received messages.channelMessages! (MainWidget::serviceHistoryDone)"));
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (MainWidget::serviceHistoryDone)"));
-		}
-
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageLast);
@@ -1950,10 +1919,6 @@ bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 		_viewsIncrementTimer.start(SendViewsTimeout);
 	}
 	return false;
-}
-
-HistoryItem *MainWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const {
-	return _history->atTopImportantMsg(bottomUnderScrollTop);
 }
 
 void MainWidget::createDialog(History *history) {
@@ -2759,21 +2724,14 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		History *h = App::historyLoaded(channel->id);
 		if (h) {
 			h->setNotLoadedAtBottom();
-			h->asChannelHistory()->clearOther();
 		}
 		App::feedMsgs(d.vmessages, NewMessageLast);
 		if (h) {
-			MsgId topMsg = h->isMegagroup() ? d.vtop_message.v : d.vtop_important_message.v;
-			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), topMsg)) {
+			if (auto item = App::histItemById(peerToChannel(channel->id), d.vtop_message.v)) {
 				h->setLastMessage(item);
 			}
-			int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
-			if (unreadCount >= h->unreadCount()) {
-				h->setUnreadCount(unreadCount);
-				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
-			}
-			if (d.vunread_count.v >= h->asChannelHistory()->unreadCountAll) {
-				h->asChannelHistory()->unreadCountAll = d.vunread_count.v;
+			if (d.vunread_count.v >= h->unreadCount()) {
+				h->setUnreadCount(d.vunread_count.v);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}
 			if (_history->peer() == channel) {
@@ -2816,20 +2774,6 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i + 1); break;
 			}
 		}
-		const auto &vother(d.vother_updates.c_vector().v);
-		for (int32 i = 0, l = vother.size(); i < l; ++i) {
-			if (vother.at(i).type() == mtpc_updateChannelGroup) {
-				const auto &updateGroup(vother.at(i).c_updateChannelGroup());
-				if (updateGroup.vgroup.type() == mtpc_messageGroup) {
-					const auto &group(updateGroup.vgroup.c_messageGroup());
-					if (updateGroup.vchannel_id.v != peerToChannel(channel->id)) {
-						LOG(("API Error: updateChannelGroup with invalid channel_id returned in channelDifference, channelId: %1, channel_id: %2").arg(peerToChannel(channel->id)).arg(updateGroup.vchannel_id.v));
-						continue;
-					}
-					msgsIds.insert((uint64((uint32(group.vmin_id.v) + uint32(group.vmax_id.v)) / 2) << 32), -i - 1);
-				}
-			}
-		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 			if (i.value() > 0) { // add message
 				const auto &msg(vmsgs.at(i.value() - 1));
@@ -2838,9 +2782,6 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 					continue; // wtf
 				}
 				h->addNewMessage(msg, NewMessageUnread);
-			} else { // add group
-				const auto &updateGroup(vother.at(-i.value() - 1).c_updateChannelGroup());
-				h->asChannelHistory()->addNewGroup(updateGroup.vgroup);
 			}
 		}
 
@@ -3167,21 +3108,7 @@ void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifference
 	LOG(("Getting channel difference for %1").arg(channel->pts()));
 	channel->ptsSetRequesting(true);
 
-	MTPChannelMessagesFilter filter;
-	if (activePeer() == channel) {
-		filter = MTP_channelMessagesFilterEmpty();
-	} else {
-		filter = MTP_channelMessagesFilterEmpty(); //MTP_channelMessagesFilterCollapsed(); - not supported
-		if (History *history = App::historyLoaded(channel->id)) {
-			if (!history->isMegagroup() && !history->asChannelHistory()->onlyImportant()) {
-				MsgId fixInScrollMsgId = 0;
-				int32 fixInScrollMsgTop = 0;
-				history->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-				history->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-				history->forgetScrollState();
-			}
-		}
-	}
+	auto filter = MTP_channelMessagesFilterEmpty();
 	MTP::send(MTPupdates_GetChannelDifference(channel->inputChannel, filter, MTP_int(channel->pts()), MTP_int(MTPChannelGetDifferenceLimit)), rpcDone(&MainWidget::gotChannelDifference, channel), rpcFail(&MainWidget::failChannelDifference, channel));
 }
 
@@ -4515,12 +4442,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 		if (channel && !_handlingChannelDifference) {
 			channel->ptsApplySkippedUpdates();
-		}
-	} break;
-
-	case mtpc_updateChannelGroup: {
-		if (!_handlingChannelDifference) {
-			LOG(("API Error: got updateChannelGroup not in channelDifference!"));
 		}
 	} break;
 

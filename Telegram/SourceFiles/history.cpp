@@ -151,7 +151,7 @@ void History::clearLastKeyboard() {
 bool History::canHaveFromPhotos() const {
 	if (peer->isUser() && !Adaptive::Wide()) {
 		return false;
-	} else if (isChannel() && asChannelHistory()->onlyImportant()) {
+	} else if (isChannel() && !peer->isMegagroup()) {
 		return false;
 	}
 	return true;
@@ -223,135 +223,7 @@ bool History::updateTyping(uint64 ms, bool force) {
 }
 
 ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer)
-, unreadCountAll(0)
-, _onlyImportant(!isMegagroup())
-, _otherOldLoaded(false)
-, _otherNewLoaded(true)
-, _collapseMessage(nullptr)
 , _joinedMessage(nullptr) {
-}
-
-bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
-	if (switchId == SwitchAtTopMsgId) {
-		if (_onlyImportant) {
-			if (isMegagroup()) switchMode();
-			return true;
-		}
-
-		int32 bottomUnderScrollTop = 0;
-		HistoryItem *atTopItem = App::main()->atTopImportantMsg(bottomUnderScrollTop);
-		if (atTopItem) {
-			fixInScrollMsgId = atTopItem->id;
-			fixInScrollMsgTop = atTopItem->y + atTopItem->block()->y + atTopItem->height() - bottomUnderScrollTop - height;
-			if (_otherList.indexOf(atTopItem) >= 0) {
-				switchMode();
-				return true;
-			}
-			return false;
-		}
-		if (!_otherList.isEmpty()) {
-			switchMode();
-			return true;
-		}
-		return false;
-	}
-	if (HistoryItem *item = App::histItemById(channelId(), switchId)) {
-		HistoryItemType itemType = item->type();
-		if (itemType == HistoryItemGroup || itemType == HistoryItemCollapse) {
-			if (isMegagroup()) return true;
-			if (itemType == HistoryItemGroup && !_onlyImportant) return true;
-			if (itemType == HistoryItemCollapse && _onlyImportant) return true;
-			bool willNeedCollapse = (itemType == HistoryItemGroup);
-
-			HistoryItem *prev = findPrevItem(item);
-			if (prev) {
-				fixInScrollMsgId = prev->id;
-				fixInScrollMsgTop = prev->y + prev->block()->y + prev->height() - height;
-				if (_otherList.indexOf(prev) >= 0) {
-					switchMode();
-					insertCollapseItem(fixInScrollMsgId);
-					return true;
-				}
-				return false;
-			}
-			if (itemType == HistoryItemGroup) {
-				fixInScrollMsgId = qMax(static_cast<HistoryGroup*>(item)->minId(), 1);
-				fixInScrollMsgTop = item->y + item->block()->y - height;
-				if (oldLoaded && _otherOldLoaded) {
-					switchMode();
-					insertCollapseItem(fixInScrollMsgId);
-					return true;
-				}
-			} else if (itemType == HistoryItemCollapse) {
-				fixInScrollMsgId = qMax(static_cast<HistoryCollapse*>(item)->wasMinId(), 1);
-				fixInScrollMsgTop = item->y + item->block()->y - height;
-				if (oldLoaded && _otherOldLoaded) {
-					switchMode();
-					return true;
-				}
-			}
-			return false;
-		}
-		if (item->history() == this) {
-			if (_onlyImportant && !item->isImportant()) {
-				if (_otherList.indexOf(item) >= 0) {
-					switchMode();
-					return true;
-				}
-				return false;
-			} else if (!item->detached()) {
-				return true;
-			}
-		}
-	} else if (switchId < 0) {
-		LOG(("App Error: isSwitchReadyFor() switchId not found!"));
-		switchMode();
-		return true;
-	}
-	return false;
-}
-
-void ChannelHistory::getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
-	if (!isSwitchReadyFor(switchId, fixInScrollMsgId, fixInScrollMsgTop)) {
-		if (switchId > 0) {
-			if (HistoryItem *item = App::histItemById(channelId(), switchId)) {
-				if (_onlyImportant && !item->isImportant()) {
-					_otherList.clear();
-					_otherNewLoaded = _otherOldLoaded = false;
-
-					switchMode();
-				} else {
-					clear(true);
-				}
-			} else {
-				clear(true);
-			}
-		} else {
-			_otherList.clear();
-			_otherNewLoaded = _otherOldLoaded = false;
-
-			switchMode();
-		}
-	}
-}
-
-void ChannelHistory::insertCollapseItem(MsgId wasMinId) {
-	if (_onlyImportant || isMegagroup()) return;
-
-	bool insertAfter = false;
-	for (int32 blockIndex = 0, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
-		HistoryBlock *block = blocks.at(blockIndex);
-		for (int32 itemIndex = 0, itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
-			HistoryItem *item = block->items.at(itemIndex);
-			if (insertAfter || item->id > wasMinId || (item->id == wasMinId && !item->isImportant())) {
-				_collapseMessage = HistoryCollapse::create((History*)this, wasMinId, item->date);
-				addNewInTheMiddle(_collapseMessage, blockIndex, itemIndex);
-				return;
-			} else if (item->id == wasMinId && item->isImportant()) {
-				insertAfter = true;
-			}
-		}
-	}
 }
 
 void ChannelHistory::getRangeDifference() {
@@ -362,9 +234,6 @@ void ChannelHistory::getRangeDifference() {
 			HistoryItem *item = block->items.at(itemIndex);
 			if (item->type() == HistoryItemMsg && item->id > 0) {
 				fromId = item->id;
-				break;
-			} else if (item->type() == HistoryItemGroup) {
-				fromId = static_cast<HistoryGroup*>(item)->minId() + 1;
 				break;
 			}
 		}
@@ -377,9 +246,6 @@ void ChannelHistory::getRangeDifference() {
 			HistoryItem *item = block->items.at(--itemIndex);
 			if (item->type() == HistoryItemMsg && item->id > 0) {
 				toId = item->id;
-				break;
-			} else if (item->type() == HistoryItemGroup) {
-				toId = static_cast<HistoryGroup*>(item)->maxId() - 1;
 				break;
 			}
 		}
@@ -402,30 +268,6 @@ void ChannelHistory::getRangeDifferenceNext(int32 pts) {
 
 	int32 limit = _rangeDifferenceToId + 1 - _rangeDifferenceFromId;
 	_rangeDifferenceRequestId = MTP::send(MTPupdates_GetChannelDifference(peer->asChannel()->inputChannel, MTP_channelMessagesFilter(MTP_flags(MTPDchannelMessagesFilter::Flags(0)), MTP_vector<MTPMessageRange>(1, MTP_messageRange(MTP_int(_rangeDifferenceFromId), MTP_int(_rangeDifferenceToId)))), MTP_int(pts), MTP_int(limit)), App::main()->rpcDone(&MainWidget::gotRangeDifference, peer->asChannel()));
-}
-
-void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
-	if (group.type() != mtpc_messageGroup) return;
-	const auto &d(group.c_messageGroup());
-
-	if (onlyImportant()) {
-		_otherNewLoaded = false;
-	} else if (_otherNewLoaded) {
-		if (_otherList.isEmpty() || _otherList.back()->type() != HistoryItemGroup) {
-			_otherList.push_back(HistoryGroup::create(this, d, _otherList.isEmpty() ? date(d.vdate) : _otherList.back()->date));
-		} else {
-			static_cast<HistoryGroup*>(_otherList.back())->uniteWith(d.vmin_id.v, d.vmax_id.v, d.vcount.v);
-		}
-	}
-
-	if (onlyImportant()) {
-		if (newLoaded) {
-			t_assert(!isBuildingFrontBlock());
-			addMessageGroup(d);
-		}
-	} else {
-		setNotLoadedAtBottom();
-	}
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
@@ -456,7 +298,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
 			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg || type == HistoryItemGroup) {
+			if (type == HistoryItemMsg) {
 				if (item->date <= inviteDate) {
 					if (peer->isMegagroup() && peer->migrateFrom() && item->isGroupMigrate()) {
 						peer->asChannel()->mgInfo->joinedMessageFound = true;
@@ -511,7 +353,7 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 		for (; itemIndex < itemsCount; ++itemIndex) {
 			HistoryItem *item = block->items.at(itemIndex);
 			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg || type == HistoryItemGroup) {
+			if (type == HistoryItemMsg) {
 				firstDate = item->date;
 				break;
 			}
@@ -524,7 +366,7 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 		for (; itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
 			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg || type == HistoryItemGroup) {
+			if (type == HistoryItemMsg) {
 				lastDate = item->date;
 				++itemIndex;
 				break;
@@ -550,7 +392,7 @@ void ChannelHistory::checkMaxReadMessageDate() {
 		HistoryBlock *block = blocks.at(--blockIndex);
 		for (int itemIndex = block->items.size(); itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
-			if ((item->isImportant() || isMegagroup()) && !item->unread()) {
+			if (!item->unread()) {
 				_maxReadMessageDate = item->date;
 				if (item->isGroupMigrate() && isMegagroup() && peer->migrateFrom()) {
 					_maxReadMessageDate = date(MTP_int(peer->asChannel()->date + 1)); // no report spam panel
@@ -571,18 +413,13 @@ const QDateTime &ChannelHistory::maxReadMessageDate() {
 HistoryItem *ChannelHistory::addNewChannelMessage(const MTPMessage &msg, NewMessageType type) {
 	if (type == NewMessageExisting) return addToHistory(msg);
 
-	HistoryItem *result = addNewToBlocks(msg, type);
-	if (result) addNewToOther(result, type);
-	return result;
+	return addNewToBlocks(msg, type);
 }
 
 HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageType type) {
-	bool isImportantFlags = isImportantChannelMessage(idFromMessage(msg), flagsFromMessage(msg));
-	bool isImportant = (isChannel() && !isMegagroup()) ? isImportantFlags : true;
-
 	if (!loadedAtBottom()) {
 		HistoryItem *item = addToHistory(msg);
-		if (item && isImportant) {
+		if (item) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
 				newItemAdded(item);
@@ -591,209 +428,11 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		return item;
 	}
 
-	if (!isImportant && onlyImportant()) {
-		HistoryItem *item = addToHistory(msg);
-
-		t_assert(!isBuildingFrontBlock());
-		addMessageGroup([item, this](HistoryItem *previous) -> HistoryGroup* { // create(..)
-			return HistoryGroup::create(this, item, previous ? previous->date : item->date);
-		}, [item](HistoryGroup *existing) { // unite(..)
-			existing->uniteWith(item);
-		});
-
-		return item;
-	}
-
-	// when we are receiving channel dialog rows we get one important and one not important
-	// message for each history, adding all of them with type == NewMessageLast
-	// if we get a second (not important) message of this two we need to clear the history
-	// because a lot of messages in between those two are skipped
-	if (!isImportantFlags && !onlyImportant() && !isEmpty() && type == NewMessageLast) {
-		clear(true);
-		newLoaded = true; // adding the last message
-	}
-
 	return addNewToLastBlock(msg, type);
 }
 
-void ChannelHistory::addNewToOther(HistoryItem *item, NewMessageType type) {
-	if (!_otherNewLoaded || isMegagroup()) return;
-
-	if (!item->isImportant()) {
-		if (onlyImportant()) {
-			if (type == NewMessageLast) {
-				_otherList.clear();
-				_otherOldLoaded = false;
-			}
-		} else {
-			if (_otherList.isEmpty() || _otherList.back()->type() != HistoryItemGroup) {
-				_otherList.push_back(HistoryGroup::create(this, item, _otherList.isEmpty() ? item->date : _otherList.back()->date));
-			} else {
-				static_cast<HistoryGroup*>(_otherList.back())->uniteWith(item);
-			}
-			return;
-		}
-	}
-	_otherList.push_back(item);
-}
-
-void ChannelHistory::switchMode() {
-	if (isMegagroup() && !_onlyImportant) return;
-
-	OtherList savedList;
-	if (!blocks.isEmpty()) {
-		savedList.reserve(((blocks.size() - 1) * MessagesPerPage + blocks.back()->items.size()) * (onlyImportant() ? 2 : 1));
-		for_const (const HistoryBlock *block, blocks) {
-			for_const (HistoryItem *item, block->items) {
-				HistoryItemType itemType = item->type();
-				if (itemType == HistoryItemMsg || itemType == HistoryItemGroup) {
-					savedList.push_back(item);
-				}
-			}
-		}
-	}
-	bool savedNewLoaded = newLoaded, savedOldLoaded = oldLoaded;
-
-	clear(true);
-
-	t_assert(!isBuildingFrontBlock());
-
-	newLoaded = _otherNewLoaded;
-	oldLoaded = _otherOldLoaded;
-	if (int count = _otherList.size()) {
-		blocks.reserve((count / MessagesPerPage) + 1);
-		for (int i = 0; i < count; ++i) {
-			t_assert(_otherList.at(i)->detached());
-			addItemToBlock(_otherList.at(i));
-		}
-	}
-
-	_otherList = savedList;
-	_otherNewLoaded = savedNewLoaded;
-	_otherOldLoaded = savedOldLoaded;
-
-	_onlyImportant = !_onlyImportant;
-
-	// scroll to the bottom if nothing special is intended
-	// (like scrolling to the collapse item)
-	scrollTopItem = nullptr;
-
-	checkJoinedMessage();
-}
-
 void ChannelHistory::cleared(bool leaveItems) {
-	_collapseMessage = nullptr;
 	_joinedMessage = nullptr;
-	if (!leaveItems) {
-		_otherList.clear();
-	}
-}
-
-HistoryGroup *ChannelHistory::findGroup(MsgId msgId) const { // find message group using binary search
-	if (!_onlyImportant) return findGroupInOther(msgId);
-
-	HistoryBlock *block = findGroupBlock(msgId);
-	if (!block) return nullptr;
-
-	int32 itemIndex = 0;
-	if (block->items.size() > 1) for (int32 minItem = 0, maxItem = block->items.size();;) {
-		for (int32 startCheckItem = (minItem + maxItem) / 2, checkItem = startCheckItem;;) {
-			HistoryItem *item = block->items.at(checkItem); // out msgs could be a mess in monotonic ids
-			if ((item->id > 0 && !item->out()) || item->type() == HistoryItemGroup) {
-				MsgId threshold = (item->id > 0) ? item->id : static_cast<HistoryGroup*>(item)->minId();
-				if (threshold > msgId) {
-					maxItem = startCheckItem;
-				} else {
-					minItem = checkItem;
-				}
-				break;
-			}
-			if (++checkItem == maxItem) {
-				maxItem = startCheckItem;
-				break;
-			}
-		}
-		if (minItem + 1 == maxItem) {
-			itemIndex = minItem;
-			break;
-		}
-	}
-
-	auto item = block->items.at(itemIndex);
-	if (item->type() == HistoryItemGroup) {
-		auto result = static_cast<HistoryGroup*>(item);
-		if (result->minId() < msgId && result->maxId() > msgId) {
-			return result;
-		}
-	}
-	return nullptr;
-}
-
-HistoryBlock *ChannelHistory::findGroupBlock(MsgId msgId) const { // find block with message group using binary search
-	if (isEmpty()) return nullptr;
-
-	int blockIndex = 0;
-	if (blocks.size() > 1) for (int minBlock = 0, maxBlock = blocks.size();;) {
-		for (int startCheckBlock = (minBlock + maxBlock) / 2, checkBlock = startCheckBlock;;) {
-			HistoryBlock *block = blocks.at(checkBlock);
-			auto i = block->items.cbegin(), e = block->items.cend();
-			for (; i != e; ++i) { // out msgs could be a mess in monotonic ids
-				if (((*i)->id > 0 && !(*i)->out()) || (*i)->type() == HistoryItemGroup) {
-					MsgId threshold = ((*i)->id > 0) ? (*i)->id : static_cast<HistoryGroup*>(*i)->minId();
-					if (threshold > msgId) {
-						maxBlock = startCheckBlock;
-					} else {
-						minBlock = checkBlock;
-					}
-					break;
-				}
-			}
-			if (i != e) {
-				break;
-			}
-			if (++checkBlock == maxBlock) {
-				maxBlock = startCheckBlock;
-				break;
-			}
-		}
-		if (minBlock + 1 == maxBlock) {
-			blockIndex = minBlock;
-			break;
-		}
-	}
-	return blocks.at(blockIndex);
-}
-
-HistoryGroup *ChannelHistory::findGroupInOther(MsgId msgId) const { // find message group using binary search in _otherList
-	if (_otherList.isEmpty()) return 0;
-	int32 otherIndex = 0;
-	if (_otherList.size() > 1) for (int32 minOther = 0, maxOther = _otherList.size();;) {
-		for (int32 startCheckOther = (minOther + maxOther) / 2, checkOther = startCheckOther;;) {
-			HistoryItem *item = _otherList.at(checkOther); // out msgs could be a mess in monotonic ids
-			if ((item->id > 0 && !item->out()) || item->type() == HistoryItemGroup) {
-				MsgId threshold = (item->id > 0) ? item->id : static_cast<HistoryGroup*>(item)->minId();
-				if (threshold > msgId) {
-					maxOther = startCheckOther;
-				} else {
-					minOther = checkOther;
-				}
-				break;
-			}
-			if (++checkOther == maxOther) {
-				maxOther = startCheckOther;
-				break;
-			}
-		}
-		if (minOther + 1 == maxOther) {
-			otherIndex = minOther;
-			break;
-		}
-	}
-	HistoryItem *item = _otherList.at(otherIndex);
-	if (item->type() != HistoryItemGroup) return nullptr;
-
-	HistoryGroup *result = static_cast<HistoryGroup*>(item);
-	return (result->minId() < msgId && result->maxId() > msgId) ? result : nullptr;
 }
 
 HistoryItem *ChannelHistory::findPrevItem(HistoryItem *item) const {
@@ -816,35 +455,8 @@ HistoryItem *ChannelHistory::findPrevItem(HistoryItem *item) const {
 }
 
 void ChannelHistory::messageDetached(HistoryItem *msg) {
-	if (_collapseMessage == msg) {
-		_collapseMessage = nullptr;
-	} else if (_joinedMessage == msg) {
+	if (_joinedMessage == msg) {
 		_joinedMessage = nullptr;
-	}
-}
-
-void ChannelHistory::messageDeleted(HistoryItem *msg) {
-	int32 otherIndex = _otherList.indexOf(msg);
-	if (otherIndex >= 0) _otherList.removeAt(otherIndex);
-	if (msg->isImportant()) { // unite message groups around this important message in _otherList
-		if (!_onlyImportant && otherIndex > 0 && otherIndex < _otherList.size()) {
-			if (HistoryGroup *groupPrev = (_otherList[otherIndex - 1]->type() == HistoryItemGroup) ? static_cast<HistoryGroup*>(_otherList[otherIndex - 1]) : 0) {
-				if (HistoryGroup *groupNext = (_otherList[otherIndex]->type() == HistoryItemGroup) ? static_cast<HistoryGroup*>(_otherList[otherIndex]) : 0) {
-					groupPrev->uniteWith(groupNext);
-					groupNext->destroy();
-				}
-			}
-		}
-	} else {
-		messageWithIdDeleted(msg->id);
-	}
-}
-
-void ChannelHistory::messageWithIdDeleted(MsgId msgId) {
-	if (HistoryGroup *group = findGroup(msgId)) {
-		if (!group->decrementCount()) {
-			group->destroy();
-		}
 	}
 }
 
@@ -1474,42 +1086,24 @@ void History::addItemToBlock(HistoryItem *item) {
 	}
 }
 
-void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed) {
+void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		oldLoaded = true;
-		if (!collapsed || collapsed->isEmpty() || !isChannel()) {
-			if (isChannel()) {
-				asChannelHistory()->checkJoinedMessage();
-				asChannelHistory()->checkMaxReadMessageDate();
-			}
-			return;
+		if (isChannel()) {
+			asChannelHistory()->checkJoinedMessage();
+			asChannelHistory()->checkMaxReadMessageDate();
 		}
+		return;
 	}
 
-	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
-
-	startBuildingFrontBlock(slice.size() + (collapsed ? collapsed->size() : 0));
+	startBuildingFrontBlock(slice.size());
 
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
 		HistoryItem *adding = createItem(*i, false, true);
 		if (!adding) continue;
 
-		for (; groupsIt != groupsEnd; ++groupsIt) {
-			if (groupsIt->type() != mtpc_messageGroup) continue;
-			const auto &group(groupsIt->c_messageGroup());
-			if (group.vmin_id.v >= adding->id) break;
-
-			addMessageGroup(group);
-		}
-
 		addItemToBlock(adding);
-	}
-	for (; groupsIt != groupsEnd; ++groupsIt) {
-		if (groupsIt->type() != mtpc_messageGroup) continue;
-		const auto &group(groupsIt->c_messageGroup());
-
-		addMessageGroup(group);
 	}
 
 	HistoryBlock *block = finishBuildingFrontBlock();
@@ -1599,7 +1193,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	checkLastMsg();
 }
 
-void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed) {
+void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	bool wasEmpty = isEmpty(), wasLoadedAtBottom = loadedAtBottom();
 
 	if (slice.isEmpty()) {
@@ -1610,31 +1204,15 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	}
 
 	t_assert(!isBuildingFrontBlock());
-	if (!slice.isEmpty() || (isChannel() && collapsed && !collapsed->isEmpty())) {
-		const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
-
+	if (!slice.isEmpty()) {
 		bool atLeastOneAdded = false;
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
 			HistoryItem *adding = createItem(*i, false, true);
 			if (!adding) continue;
 
-			for (; groupsIt != groupsEnd; ++groupsIt) {
-				if (groupsIt->type() != mtpc_messageGroup) continue;
-				const auto &group(groupsIt->c_messageGroup());
-				if (group.vmin_id.v >= adding->id) break;
-
-				addMessageGroup(group);
-			}
-
 			addItemToBlock(adding);
 			atLeastOneAdded = true;
-		}
-		for (; groupsIt != groupsEnd; ++groupsIt) {
-			if (groupsIt->type() != mtpc_messageGroup) continue;
-			const auto &group(groupsIt->c_messageGroup());
-
-			addMessageGroup(group);
 		}
 
 		if (!atLeastOneAdded) {
@@ -1669,7 +1247,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 void History::checkLastMsg() {
 	if (lastMsg) {
-		if (!newLoaded && !lastMsg->detached() && (!isChannel() || asChannelHistory()->onlyImportant())) {
+		if (!newLoaded && !lastMsg->detached()) {
 			newLoaded = true;
 		}
 	} else if (newLoaded) {
@@ -1760,7 +1338,7 @@ HistoryItem *History::lastImportantMessage() const {
 		HistoryBlock *block = blocks.at(--blockIndex);
 		for (int itemIndex = block->items.size(); itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
-			if (importantOnly ? item->isImportant() : (item->type() == HistoryItemMsg)) {
+			if (item->type() == HistoryItemMsg) {
 				return item;
 			}
 		}
@@ -1973,14 +1551,6 @@ void History::addMessageGroup(CreateGroup create, UniteGroup unite) {
 	}
 }
 
-void History::addMessageGroup(const MTPDmessageGroup &group) {
-	addMessageGroup([&group, this](HistoryItem *previous) -> HistoryGroup* { // create(..)
-		return HistoryGroup::create(this, group, previous ? previous->date : date(group.vdate));
-	}, [&group](HistoryGroup *existing) { // unite(..)
-		existing->uniteWith(group.vmin_id.v, group.vmax_id.v, group.vcount.v);
-	});
-}
-
 void History::startBuildingFrontBlock(int expectedItemsCount) {
 	t_assert(!isBuildingFrontBlock());
 	t_assert(expectedItemsCount > 0);
@@ -2001,18 +1571,6 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 		// we've added a new front block, so previous item for
 		// the old first item of a first block was changed
 		first->previousItemChanged();
-
-		// we've added a new front block, now we check if both
-		// last message of the first block and first message of
-		// the second block are groups, if they are - unite them
-		if (first->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
-			static_cast<HistoryGroup*>(first)->uniteWith(static_cast<HistoryGroup*>(last));
-			last->destroy();
-
-			// last->destroy() could've destroyed this new block
-			// so we can't rely on this pointer any more
-			block = _buildingFrontBlock->block;
-		}
 	}
 
 	_buildingFrontBlock = nullptr;
@@ -2031,16 +1589,11 @@ bool History::loadedAtTop() const {
 	return oldLoaded;
 }
 
-bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
+bool History::isReadyFor(MsgId msgId) {
 	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) { // old group history
-		return App::history(peer->migrateFrom()->id)->isReadyFor(-msgId, fixInScrollMsgId, fixInScrollMsgTop);
+		return App::history(peer->migrateFrom()->id)->isReadyFor(-msgId);
 	}
 
-	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
-		return asChannelHistory()->isSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
-	}
-	fixInScrollMsgId = 0;
-	fixInScrollMsgTop = 0;
 	if (msgId == ShowAtTheEndMsgId) {
 		return loadedAtBottom();
 	}
@@ -2048,7 +1601,7 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 		if (peer->migrateFrom()) { // old group history
 			if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
 				if (h->unreadCount()) {
-					return h->isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
+					return h->isReadyFor(msgId);
 				}
 			}
 		}
@@ -2064,28 +1617,25 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 	return item && (item->history() == this) && !item->detached();
 }
 
-void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
+void History::getReadyFor(MsgId msgId) {
 	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) {
 		History *h = App::history(peer->migrateFrom()->id);
-		h->getReadyFor(-msgId, fixInScrollMsgId, fixInScrollMsgTop);
+		h->getReadyFor(-msgId);
 		if (h->isEmpty()) {
 			clear(true);
 		}
 		return;
 	}
-	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
-		return asChannelHistory()->getSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
-	}
 	if (msgId == ShowAtUnreadMsgId && peer->migrateFrom()) {
 		if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
 			if (h->unreadCount()) {
 				clear(true);
-				h->getReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
+				h->getReadyFor(msgId);
 				return;
 			}
 		}
 	}
-	if (!isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop)) {
+	if (!isReadyFor(msgId)) {
 		clear(true);
 		if (msgId == ShowAtTheEndMsgId) {
 			newLoaded = true;
@@ -2340,7 +1890,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	const QVector<MTPMessage> *v = 0;
 	switch (result.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(result.c_messages_messages());
+		auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
@@ -2348,7 +1898,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const auto &d(result.c_messages_messagesSlice());
+		auto &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
@@ -2356,16 +1906,12 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const auto &d(result.c_messages_channelMessages());
+		auto &d(result.c_messages_channelMessages());
 		if (peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
 		}
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
-		}
-
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
@@ -2469,6 +2015,7 @@ void HistoryBlock::clear(bool leaveItems) {
 void HistoryBlock::removeItem(HistoryItem *item) {
 	t_assert(item->block() == this);
 
+	int blockIndex = indexInHistory();
 	int itemIndex = item->indexInBlock();
 	if (history->showFrom == item) {
 		history->getNextShowFrom(this, itemIndex);
@@ -2482,67 +2029,6 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	if (history->scrollTopItem == item) {
 		history->getNextScrollTopItem(this, itemIndex);
 	}
-
-	int blockIndex = indexInHistory();
-	if (blockIndex >= 0) { // fix message groups
-		if (item->isImportant()) { // unite message groups around this important message
-			HistoryGroup *nextGroup = nullptr;
-			HistoryGroup *prevGroup = nullptr;
-			HistoryCollapse *nextCollapse = nullptr;
-			HistoryItem *prevItem = nullptr;
-			for (int nextBlock = blockIndex, nextIndex = qMin(items.size(), itemIndex + 1); nextBlock < history->blocks.size(); ++nextBlock) {
-				HistoryBlock *block = history->blocks.at(nextBlock);
-				for (; nextIndex < block->items.size(); ++nextIndex) {
-					HistoryItem *item = block->items.at(nextIndex);
-					if (item->type() == HistoryItemMsg) {
-						break;
-					} else if (item->type() == HistoryItemGroup) {
-						nextGroup = static_cast<HistoryGroup*>(item);
-						break;
-					} else if (item->type() == HistoryItemCollapse) {
-						nextCollapse = static_cast<HistoryCollapse*>(item);
-						break;
-					}
-				}
-				if (nextIndex == block->items.size()) {
-					nextIndex = 0;
-				} else {
-					break;
-				}
-			}
-			for (int prevBlock = blockIndex + 1, prevIndex = qMax(1, itemIndex); prevBlock > 0;) {
-				--prevBlock;
-				HistoryBlock *block = history->blocks.at(prevBlock);
-				if (!prevIndex) prevIndex = block->items.size();
-				for (; prevIndex > 0;) {
-					--prevIndex;
-					HistoryItem *item = block->items.at(prevIndex);
-					if (item->type() == HistoryItemMsg || item->type() == HistoryItemCollapse) {
-						prevItem = item;
-						++prevIndex;
-						break;
-					} else if (item->type() == HistoryItemGroup) {
-						prevGroup = static_cast<HistoryGroup*>(item);
-						++prevIndex;
-						break;
-					}
-				}
-				if (prevIndex != 0) {
-					break;
-				}
-			}
-			if (nextGroup && prevGroup) {
-				prevGroup->uniteWith(nextGroup);
-				nextGroup->destroy();
-			} else if (nextCollapse && (!prevItem || !prevItem->isImportant())) {
-				nextCollapse->destroy();
-			}
-		}
-	}
-
-	// itemIndex/blockIndex can be invalid now, because of destroying previous items/blocks
-	blockIndex = indexInHistory();
-	itemIndex = item->indexInBlock();
 
 	item->detachFast();
 	items.remove(itemIndex);
@@ -3066,7 +2552,6 @@ void HistoryItem::destroy() {
 	_history->removeNotification(this);
 	detach();
 	if (history()->isChannel()) {
-		history()->asChannelHistory()->messageDeleted(this);
 		if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
 			history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
 		}
@@ -8532,96 +8017,6 @@ HistoryService::~HistoryService() {
 		}
 	}
 	_media.clear();
-}
-
-HistoryGroup::HistoryGroup(History *history, const MTPDmessageGroup &group, const QDateTime &date)
-	: HistoryService(history, clientMsgId(), date, lng_channel_comments_count(lt_count, group.vcount.v)/* + qsl(" (%1 ... %2)").arg(group.vmin_id.v).arg(group.vmax_id.v)*/)
-	, _minId(group.vmin_id.v)
-	, _maxId(group.vmax_id.v)
-	, _count(group.vcount.v)
-	, _lnk(new CommentsClickHandler(this)) {
-}
-
-HistoryGroup::HistoryGroup(History *history, HistoryItem *newItem, const QDateTime &date)
-	: HistoryService(history, clientMsgId(), date, lng_channel_comments_count(lt_count, 1)/* + qsl(" (%1 ... %2)").arg(newItem->id - 1).arg(newItem->id + 1)*/)
-	, _minId(newItem->id - 1)
-	, _maxId(newItem->id + 1)
-	, _count(1)
-	, _lnk(new CommentsClickHandler(this)) {
-}
-
-HistoryTextState HistoryGroup::getState(int x, int y, HistoryStateRequest request) const {
-	HistoryTextState result;
-
-	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
-	countPositionAndSize(left, width);
-	if (width < 1) return result;
-
-	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
-	if (width > _maxw) {
-		left += (width - _maxw) / 2;
-		width = _maxw;
-	}
-	if (QRect(left, st::msgServiceMargin.top(), width, height).contains(x, y)) {
-		result.link = _lnk;
-	}
-	return result;
-}
-
-void HistoryGroup::uniteWith(MsgId minId, MsgId maxId, int32 count) {
-	if (minId < 0 || maxId < 0) return;
-
-	if (minId == _minId && maxId == _maxId && count == _count) return;
-
-	if (minId < _minId) {
-		if (maxId <= _minId + 1) {
-			_count += count;
-		} else if (maxId <= _maxId) { // :( smth not precise
-			_count += qMax(0, count - (maxId - _minId - 1));
-		} else { // :( smth not precise
-			_count = qMax(count, _count);
-			_maxId = maxId;
-		}
-		_minId = minId;
-	} else if (maxId > _maxId) {
-		if (minId + 1 >= _maxId) {
-			_count += count;
-		} else if (minId >= _minId) { // :( smth not precise
-			_count += qMax(0, count - (_maxId - minId - 1));
-		} else { // :( smth not precise
-			_count = qMax(count, _count);
-			_minId = minId;
-		}
-		_maxId = maxId;
-	} else if (count > _count) { // :( smth not precise
-		_count = count;
-	}
-	updateText();
-}
-
-bool HistoryGroup::decrementCount() {
-	if (_count > 1) {
-		--_count;
-		updateText();
-		return true;
-	}
-	return false;
-}
-
-void HistoryGroup::updateText() {
-	setServiceText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 ... %2)").arg(_minId).arg(_maxId)*/);
-}
-
-HistoryCollapse::HistoryCollapse(History *history, MsgId wasMinId, const QDateTime &date)
-	: HistoryService(history, clientMsgId(), date, qsl("-"))
-	, _wasMinId(wasMinId) {
-}
-
-void HistoryCollapse::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
-}
-
-HistoryTextState HistoryCollapse::getState(int x, int y, HistoryStateRequest request) const {
-	return HistoryTextState();
 }
 
 HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, UserData *inviter, MTPDmessage::Flags flags)

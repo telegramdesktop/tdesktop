@@ -238,8 +238,8 @@ public:
 	HistoryItem *addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
 	HistoryItem *addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
 
-	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
-	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
+	void addOlderSlice(const QVector<MTPMessage> &slice);
+	void addNewerSlice(const QVector<MTPMessage> &slice);
 	bool addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method);
 	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
@@ -271,8 +271,8 @@ public:
 	bool loadedAtBottom() const; // last message is in the list
 	void setNotLoadedAtBottom();
 	bool loadedAtTop() const; // nothing was added after loading history back
-	bool isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop); // has messages for showing history at msgId
-	void getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
+	bool isReadyFor(MsgId msgId); // has messages for showing history at msgId
+	void getReadyFor(MsgId msgId);
 
 	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
@@ -509,14 +509,6 @@ protected:
 	// depending on if we are in isBuildingFronBlock() state.
 	// The last block is created on the go if it is needed.
 
-	// If the previous item is a message group the new group is
-	// not created but is just united with the previous one.
-	// create(HistoryItem *previous) should return a new HistoryGroup*
-	// unite(HistoryGroup *existing) should unite a new group with an existing
-	template <typename CreateGroup, typename UniteGroup>
-	void addMessageGroup(CreateGroup create, UniteGroup unite);
-	void addMessageGroup(const MTPDmessageGroup &group);
-
 	// Adds the item to the back or front block, depending on
 	// isBuildingFrontBlock(), creating the block if necessary.
 	void addItemToBlock(HistoryItem *item);
@@ -589,8 +581,6 @@ private:
 
  };
 
-class HistoryGroup;
-class HistoryCollapse;
 class HistoryJoined;
 class ChannelHistory : public History {
 public:
@@ -598,32 +588,9 @@ public:
 	ChannelHistory(const PeerId &peer);
 
 	void messageDetached(HistoryItem *msg);
-	void messageDeleted(HistoryItem *msg);
-	void messageWithIdDeleted(MsgId msgId);
 
-	bool isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop); // has messages for showing history after switching mode at switchId
-	void getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
-
-	void insertCollapseItem(MsgId wasMinId);
 	void getRangeDifference();
 	void getRangeDifferenceNext(int32 pts);
-
-	void addNewGroup(const MTPMessageGroup &group);
-
-	int32 unreadCountAll;
-	bool onlyImportant() const {
-		return _onlyImportant;
-	}
-
-	HistoryCollapse *collapse() const {
-		return _collapseMessage;
-	}
-
-	void clearOther() {
-		_otherNewLoaded = true;
-		_otherOldLoaded = false;
-		_otherList.clear();
-	}
 
 	HistoryJoined *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
@@ -636,27 +603,15 @@ private:
 	friend class History;
 	HistoryItem* addNewChannelMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addNewToBlocks(const MTPMessage &msg, NewMessageType type);
-	void addNewToOther(HistoryItem *item, NewMessageType type);
 
 	void checkMaxReadMessageDate();
 
-	HistoryGroup *findGroup(MsgId msgId) const;
-	HistoryBlock *findGroupBlock(MsgId msgId) const;
-	HistoryGroup *findGroupInOther(MsgId msgId) const;
 	HistoryItem *findPrevItem(HistoryItem *item) const;
-	void switchMode();
 
 	void cleared(bool leaveItems);
 
-	bool _onlyImportant;
-
 	QDateTime _maxReadMessageDate;
 
-	typedef QList<HistoryItem*> OtherList;
-	OtherList _otherList;
-	bool _otherOldLoaded, _otherNewLoaded;
-
-	HistoryCollapse *_collapseMessage;
 	HistoryJoined *_joinedMessage;
 
 	MsgId _rangeDifferenceFromId, _rangeDifferenceToId;
@@ -778,14 +733,8 @@ enum InfoDisplayType {
 	InfoDisplayOverBackground,
 };
 
-inline bool isImportantChannelMessage(MsgId id, MTPDmessage::Flags flags) { // client-side important msgs always has_views or has_from_id
-	return (flags & MTPDmessage::Flag::f_out) || (flags & MTPDmessage::Flag::f_mentioned) || (flags & MTPDmessage::Flag::f_post);
-}
-
 enum HistoryItemType {
 	HistoryItemMsg = 0,
-	HistoryItemGroup,
-	HistoryItemCollapse,
 	HistoryItemJoined
 };
 
@@ -1234,9 +1183,6 @@ public:
 	}
 	bool isPost() const {
 		return _flags & MTPDmessage::Flag::f_post;
-	}
-	bool isImportant() const {
-		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
 	bool indexInOverview() const {
 		return (id > 0) && (!history()->isChannel() || history()->isMegagroup() || isPost());
@@ -2881,89 +2827,6 @@ protected:
 	void setMessageByAction(const MTPmessageAction &action);
 	bool updatePinned(bool force = false);
 	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
-
-};
-
-class HistoryGroup : public HistoryService, private HistoryItemInstantiated<HistoryGroup> {
-public:
-
-	static HistoryGroup *create(History *history, const MTPDmessageGroup &group, const QDateTime &date) {
-		return _create(history, group, date);
-	}
-	static HistoryGroup *create(History *history, HistoryItem *newItem, const QDateTime &date) {
-		return _create(history, newItem, date);
-	}
-
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
-
-	TextWithEntities selectedText(TextSelection selection) const override {
-		return { QString(), EntitiesInText() };
-	}
-	HistoryItemType type() const override {
-		return HistoryItemGroup;
-	}
-	void uniteWith(MsgId minId, MsgId maxId, int32 count);
-	void uniteWith(HistoryItem *item) {
-		uniteWith(item->id - 1, item->id + 1, 1);
-	}
-	void uniteWith(HistoryGroup *other) {
-		uniteWith(other->_minId, other->_maxId, other->_count);
-	}
-
-	bool decrementCount(); // returns true if result count > 0
-
-	MsgId minId() const {
-		return _minId;
-	}
-	MsgId maxId() const {
-		return _maxId;
-	}
-
-protected:
-
-	HistoryGroup(History *history, const MTPDmessageGroup &group, const QDateTime &date);
-	HistoryGroup(History *history, HistoryItem *newItem, const QDateTime &date);
-	using HistoryItemInstantiated<HistoryGroup>::_create;
-	friend class HistoryItemInstantiated<HistoryGroup>;
-
-private:
-	MsgId _minId, _maxId;
-	int32 _count;
-
-	ClickHandlerPtr _lnk;
-
-	void updateText();
-
-};
-
-class HistoryCollapse : public HistoryService, private HistoryItemInstantiated<HistoryCollapse> {
-public:
-
-	static HistoryCollapse *create(History *history, MsgId wasMinId, const QDateTime &date) {
-		return _create(history, wasMinId, date);
-	}
-
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
-
-	TextWithEntities selectedText(TextSelection selection) const override {
-		return { QString(), EntitiesInText() };
-	}
-	HistoryItemType type() const override {
-		return HistoryItemCollapse;
-	}
-	MsgId wasMinId() const {
-		return _wasMinId;
-	}
-
-protected:
-
-	HistoryCollapse(History *history, MsgId wasMinId, const QDateTime &date);
-	using HistoryItemInstantiated<HistoryCollapse>::_create;
-	friend class HistoryItemInstantiated<HistoryCollapse>;
-
-private:
-	MsgId _wasMinId;
 
 };
 

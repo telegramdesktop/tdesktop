@@ -218,7 +218,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		const QVector<MTPMessage> *messages = 0;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			const auto &d(result.c_messages_messages());
+			auto &d(result.c_messages_messages());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -226,7 +226,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			const auto &d(result.c_messages_messagesSlice());
+			auto &d(result.c_messages_messagesSlice());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -234,16 +234,12 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			const auto &d(result.c_messages_channelMessages());
+			auto &d(result.c_messages_channelMessages());
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
 				LOG(("API Error: received messages.channelMessages when no channel was passed! (OverviewInner::searchReceived)"));
 			}
-			if (d.has_collapsed()) { // should not be returned
-				LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (OverviewInner::searchReceived)"));
-			}
-
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -752,18 +748,12 @@ void OverviewInner::preloadMore() {
 			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
 				MTPmessages_Search::Flags flags = 0;
-				if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
-					flags |= MTPmessages_Search::Flag::f_important_only;
-				}
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
 				MTPmessages_Search::Flags flags = 0;
-				if (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) {
-					flags |= MTPmessages_Search::Flag::f_important_only;
-				}
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
@@ -1478,9 +1468,6 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
 		MTPmessages_Search::Flags flags = 0;
-		if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
-			flags |= MTPmessages_Search::Flag::f_important_only;
-		}
 		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);

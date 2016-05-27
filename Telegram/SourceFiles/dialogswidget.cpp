@@ -982,30 +982,17 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		case mtpc_dialog: {
 			auto &d(dialog.c_dialog());
 			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
-			if (App::main()) {
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
-			}
-		} break;
-
-		case mtpc_dialogChannel: {
-			auto &d(dialog.c_dialogChannel());
-			PeerData *peer = App::peerLoaded(peerFromMTP(d.vpeer));
-			int32 unreadCount = (peer && peer->isMegagroup()) ? d.vunread_count.v : d.vunread_important_count.v;
-			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), unreadCount, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
-			if (history->peer->isChannel()) {
-				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
-				history->peer->asChannel()->ptsReceived(d.vpts.v);
-				if (!history->peer->asChannel()->amCreator()) {
-					MsgId topMsg = history->isMegagroup() ? d.vtop_message.v : d.vtop_important_message.v;
-					if (HistoryItem *top = App::histItemById(history->channelId(), topMsg)) {
-						if (top->date <= date(history->peer->asChannel()->date) && App::api()) {
-							App::api()->requestSelfParticipant(history->peer->asChannel());
+			if (auto channel = history->peer->asChannel()) {
+				if (d.has_pts()) {
+					channel->ptsReceived(d.vpts.v);
+				}
+				if (!channel->amCreator()) {
+					if (auto topMsg = App::histItemById(channel, d.vtop_message.v)) {
+						if (topMsg->date <= date(channel->date) && App::api()) {
+							App::api()->requestSelfParticipant(channel);
 						}
 					}
 				}
-			}
-			if (!history->isMegagroup() && d.vtop_message.v > d.vtop_important_message.v) {
-				history->setNotLoadedAtBottom();
 			}
 			if (App::main()) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
@@ -1931,29 +1918,13 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 		switch (dialog.type()) {
 		case mtpc_dialog: {
 			auto &d(dialog.c_dialog());
-			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
+			if (auto h = App::historyLoaded(peerFromMTP(d.vpeer))) {
+				if (h->peer->isChannel() && d.has_pts()) {
+					h->peer->asChannel()->ptsReceived(d.vpts.v);
+				}
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
 				if (d.vunread_count.v >= h->unreadCount()) {
 					h->setUnreadCount(d.vunread_count.v);
-					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
-				}
-				accumulate_max(h->outboxReadBefore, d.vread_outbox_max_id.v + 1);
-			}
-		} break;
-		case mtpc_dialogChannel: {
-			auto &d(dialog.c_dialogChannel());
-			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
-				if (h->peer->isChannel()) {
-					h->peer->asChannel()->ptsReceived(d.vpts.v);
-					if (d.vunread_count.v >= h->asChannelHistory()->unreadCountAll) {
-						h->asChannelHistory()->unreadCountAll = d.vunread_count.v;
-						h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
-					}
-				}
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
-				int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
-				if (unreadCount >= h->unreadCount()) {
-					h->setUnreadCount(unreadCount);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 				accumulate_max(h->outboxReadBefore, d.vread_outbox_max_id.v + 1);
@@ -2009,12 +1980,6 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 			case mtpc_dialog:
 				msgId = d.c_dialog().vtop_message.v;
 				peer = peerFromMTP(d.c_dialog().vpeer);
-			break;
-			case mtpc_dialogChannel:
-				//msgId = d.c_dialogChannel().vtop_important_message.v;
-				//if (!msgId) msgId = d.c_dialogChannel().vtop_message.v;
-				msgId = d.c_dialogChannel().vtop_message.v;
-				peer = peerFromMTP(d.c_dialogChannel().vpeer);
 			break;
 			}
 			if (peer) {
@@ -2091,9 +2056,6 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		}
 		if (_searchInPeer) {
 			MTPmessages_Search::Flags flags = 0;
-			if (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) {
-				flags |= MTPmessages_Search::Flag::f_important_only;
-			}
 			_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
 		} else {
 			_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(0), MTP_inputPeerEmpty(), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
@@ -2155,9 +2117,6 @@ void DialogsWidget::onSearchMore() {
 			MsgId offsetId = _inner.lastSearchId();
 			if (_searchInPeer) {
 				MTPmessages_Search::Flags flags = 0;
-				if (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) {
-					flags |= MTPmessages_Search::Flag::f_important_only;
-				}
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
 			} else {
 				_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(offsetDate), offsetPeer ? offsetPeer->input : MTP_inputPeerEmpty(), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
@@ -2168,9 +2127,6 @@ void DialogsWidget::onSearchMore() {
 		} else if (_searchInMigrated && !_searchFullMigrated) {
 			MsgId offsetMigratedId = _inner.lastSearchMigratedId();
 			MTPmessages_Search::Flags flags = 0;
-			if (_searchInMigrated->isChannel() && !_searchInMigrated->isMegagroup()) {
-				flags |= MTPmessages_Search::Flag::f_important_only;
-			}
 			_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInMigrated->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetMigratedId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart), rpcFail(&DialogsWidget::searchFailed, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart));
 		}
 	}
@@ -2218,10 +2174,10 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 	if (_searchRequest == req) {
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			const auto &d(result.c_messages_messages());
+			auto &d(result.c_messages_messages());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			const auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs(d.vmessages.c_vector().v);
 			if (!_inner.searchReceived(msgs, type, msgs.size())) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;
@@ -2232,10 +2188,10 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			const auto &d(result.c_messages_messagesSlice());
+			auto &d(result.c_messages_messagesSlice());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			const auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs(d.vmessages.c_vector().v);
 			if (!_inner.searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;
@@ -2246,19 +2202,15 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			const auto &d(result.c_messages_channelMessages());
+			auto &d(result.c_messages_channelMessages());
 			if (_searchInPeer && _searchInPeer->isChannel()) {
 				_searchInPeer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
 				LOG(("API Error: received messages.channelMessages when no channel was passed! (DialogsWidget::searchReceived)"));
 			}
-			if (d.has_collapsed()) { // should not be returned
-				LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (DialogsWidget::searchReceived)"));
-			}
-
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			const auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs(d.vmessages.c_vector().v);
 			if (!_inner.searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;

@@ -487,8 +487,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_group_about" = "Anyone can find the group in search and join, chat history is available to everybody";
 "lng_create_private_group_title" = "Private Group";
 "lng_create_private_group_about" = "People can only join if they were invited or have an invite link";
-"lng_create_channel_comments" = "Enable Comments";
-"lng_create_channel_comments_about" = "If you enable comments, members will be able to discuss your posts in the channel";
 "lng_create_group_skip" = "Skip";
 
 "lng_create_channel_link_invalid" = "This link is invalid";
@@ -570,8 +568,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_confirm" = "Convert";
 "lng_profile_add_more_after_upgrade" = "You will be able to add up to {count:_not_used_|# member|# members} after you upgrade your group to a supergroup.";
 
-"lng_channel_comments_count" = "{count:_not_used_|# comment|# comments}";
-"lng_channel_hide_comments" = "Hide comments";
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
 
@@ -700,7 +696,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message...";
-"lng_comment_ph" = "Write a comment...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
 "lng_record_cancel" = "Release outside this field to cancel";

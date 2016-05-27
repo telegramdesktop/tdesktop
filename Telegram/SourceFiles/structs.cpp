@@ -454,13 +454,6 @@ void ChannelData::flagsUpdated() {
 		if (!mgInfo) {
 			mgInfo = new MegagroupInfo();
 		}
-		if (History *h = App::historyLoaded(id)) {
-			if (h->asChannelHistory()->onlyImportant()) {
-				MsgId fixInScrollMsgId = 0;
-				int32 fixInScrollMsgTop = 0;
-				h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-			}
-		}
 	} else if (mgInfo) {
 		delete mgInfo;
 		mgInfo = 0;

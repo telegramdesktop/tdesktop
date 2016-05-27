@@ -285,7 +285,6 @@ public:
 		History *history = nullptr;
 		TextWithTags textWithTags;
 		MsgId replyTo = 0;
-		bool broadcast = false;
 		bool silent = false;
 		WebPageId webPageId = 0;
 	};
@@ -341,7 +340,7 @@ public:
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
 	void cancelForwarding();
-	void finishForwarding(History *hist, bool broadcast, bool silent); // send them
+	void finishForwarding(History *hist, bool silent); // send them
 
 	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
@@ -365,8 +364,6 @@ public:
 	void setInnerFocus();
 
 	void scheduleViewIncrement(HistoryItem *item);
-
-	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);

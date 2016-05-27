@@ -99,30 +99,26 @@ void ApiWrap::resolveMessageDatas() {
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(msgs.c_messages_messages());
+		auto &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const auto &d(msgs.c_messages_messagesSlice());
+		auto &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const auto &d(msgs.c_messages_channelMessages());
+		auto &d(msgs.c_messages_channelMessages());
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
 			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotDependencyItem)"));
 		}
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotDependencyItem)"));
-		}
-
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageExisting);
@@ -284,10 +280,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
 		if (History *h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
-				h->setUnreadCount(channel->isMegagroup() ? f.vunread_count.v : f.vunread_important_count.v);
+				h->setUnreadCount(f.vunread_count.v);
 				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
-				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
 			}
+			accumulate_max(h->outboxReadBefore, f.vread_outbox_max_id.v + 1);
 		}
 		if (channel->isMegagroup()) {
 			if (f.has_pinned_msg_id()) {
@@ -875,16 +871,12 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const auto &d(msgs.c_messages_channelMessages());
+		auto &d(msgs.c_messages_channelMessages());
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotWebPages)"));
 		}
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotWebPages)"));
-		}
-
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;

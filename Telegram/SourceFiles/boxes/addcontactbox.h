@@ -217,9 +217,8 @@ private:
 	bool _existing;
 
 	Radiobutton _public, _private;
-	Checkbox _comments;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate, _aboutComments;
+	Text _aboutPublic, _aboutPrivate;
 	UsernameInput _link;
 	QRect _invitationLink;
 	bool _linkOver;

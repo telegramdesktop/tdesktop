@@ -1146,7 +1146,6 @@ namespace {
 				if (!h->lastMsg) historiesToCheck.insert(h, true);
 			} else {
 				if (channelHistory) {
-					channelHistory->messageWithIdDeleted(i->v);
 					if (channelHistory->unreadCount() > 0 && i->v >= channelHistory->inboxReadBefore) {
 						channelHistory->setUnreadCount(channelHistory->unreadCount() - 1);
 					}
