@@ -73,9 +73,10 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::introHeaderFont->f);
 	p.setPen(st::introColor->p);
-	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
+	p.drawText((width() - _headerWidth) / 2 - 40, hy, qsl("ITSumma Telegram Client"));
 
-	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
+	//p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
+	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2 + 10, hy - st::introIconSkip - st::aboutIcon.pxHeight() - 10), itsLogo()->pix(80));
 }
 
 void IntroStart::resizeEvent(QResizeEvent *e) {

@@ -52,6 +52,14 @@ public:
 		return _index.value(ch, empty.data());
 	}
 
+	QList<History*>
+		pinnedDialogsList,
+		missedDialogsList,
+		unreadDialogsList,
+		techsupportDialogList;
+
+	void specialResorting(bool unreadToTop, bool missedToTop, bool techsupportToTop);
+
 	~IndexedList();
 
 	// Part of List interface is duplicated here for all() list.

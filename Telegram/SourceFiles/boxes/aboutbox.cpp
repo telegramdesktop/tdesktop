@@ -34,16 +34,17 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 , _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), st::aboutLabel, st::aboutTextStyle)
 , _text2(this, lang(lng_about_text_2), st::aboutLabel, st::aboutTextStyle)
-, _text3(this, QString(), st::aboutLabel, st::aboutTextStyle)
+, _text3(this, lang(lng_about_text_3), st::aboutLabel, st::aboutTextStyle)
 , _done(this, lang(lng_close), st::defaultBoxButton) {
-	_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
+
+    //_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 
 	setMaxHeight(st::boxTitleHeight + st::aboutTextTop + _text1.height() + st::aboutSkip + _text2.height() + st::aboutSkip + _text3.height() + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
 
 	connect(&_version, SIGNAL(clicked()), this, SLOT(onVersion()));
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	prepare();
+    prepare();
 
 	setAcceptDrops(true);
 }
@@ -104,7 +105,11 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, qsl("Telegram Desktop"));
+	p.drawPixmap(25, 10, itsLogo()->pix(24));
+	p.save();
+	p.translate(25, 0);
+    paintTitle(p, qsl("ITSumma Telegram Desktop"));
+	p.restore();
 }
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS

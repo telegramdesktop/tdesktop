@@ -82,6 +82,9 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
+    <Filter Include="SourceFiles\its">
+      <UniqueIdentifier>{238928bb-1af0-4938-bac8-f51d4446a9cd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1077,6 +1080,42 @@
     <ClCompile Include="SourceFiles\ui\text\text_block.cpp">
       <Filter>SourceFiles\ui\text</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\its\itsbitrix24.cpp">
+      <Filter>SourceFiles\its</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\its\itssettingsbox.cpp">
+      <Filter>SourceFiles\its</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itsbitrix24.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_itsbitrix24.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_itsbitrix24.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_itssettingsbox.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\its\itscreatetaskbox.cpp">
+      <Filter>SourceFiles\its</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_itscreatetaskbox.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_itscreatetaskbox.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_itscreatetaskbox.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1479,6 +1518,15 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\core\basic_types.h">
       <Filter>SourceFiles\core</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\its\itsbitrix24.h">
+      <Filter>SourceFiles\its</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\its\itssettingsbox.h">
+      <Filter>SourceFiles\its</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\its\itscreatetaskbox.h">
+      <Filter>SourceFiles\its</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

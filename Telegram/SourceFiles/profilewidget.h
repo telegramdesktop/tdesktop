@@ -84,6 +84,7 @@ public slots:
 	void onSearchInPeer();
 	void onConvertToSupergroup();
 	void onEnableNotifications();
+	void onTechsupportChat();
 
 	void onClearHistory();
 	void onClearHistorySure();
@@ -184,7 +185,7 @@ private:
 	FlatButton _migrate;
 
 	// settings
-	FlatCheckbox _enableNotifications;
+	FlatCheckbox _enableNotifications, _techsupportChat;
 
 	// shared media
 	bool _notAllMediaLoaded;

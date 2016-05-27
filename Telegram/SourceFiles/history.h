@@ -71,6 +71,12 @@ public:
 	bool unreadOnlyMuted() const {
 		return cIncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
 	}
+	void setUnreadCount(int32 count) {
+		_unreadFull = count;
+	}
+	void setMutedUnreadCount(int32 count) {
+		_unreadMuted = count;
+	}
 	void unreadIncrement(int32 count, bool muted) {
 		_unreadFull += count;
 		if (muted) {
@@ -357,6 +363,7 @@ public:
 	bool newLoaded = true;
 	HistoryItem *lastMsg = nullptr;
 	QDateTime lastMsgDate;
+	QDateTime prevLastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
@@ -485,6 +492,7 @@ protected:
 	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
 
 	friend class HistoryBlock;
+	friend class DialogsInner;
 
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and

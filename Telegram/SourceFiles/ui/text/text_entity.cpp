@@ -1818,10 +1818,6 @@ QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 
 		entities = textParseEntities(result, flags);
 	}
 
-	replaceStringWithEntities(qstr("--"), QChar(8212), result, entities, true);
-	replaceStringWithEntities(qstr("<<"), QChar(171), result, entities);
-	replaceStringWithEntities(qstr(">>"), QChar(187), result, entities);
-
 	if (cReplaceEmojis()) {
 		result = replaceEmojis(result, entities);
 	}

@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
@@ -40,7 +40,8 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 , contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _addContactLnk(this, lang(lng_add_contact_button))
-, _cancelSearchInPeer(this, st::btnCancelSearch) {
+, _cancelSearchInPeer(this, st::btnCancelSearch) 
+, _menu(0){
 	if (Global::DialogsModeEnabled()) {
 		importantDialogs = std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 	}
@@ -49,9 +50,13 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*,Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*,Dialogs::Row*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
-	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
+	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));	
+	connect(&_updateMissingChatsTimer, SIGNAL(timeout()), this, SLOT(onUpdateMissingChats()));
+	
 	_cancelSearchInPeer.hide();
 	refresh();
+
+	_updateMissingChatsTimer.start(cMissingChatsUpdateInterval());
 }
 
 int DialogsInner::dialogsOffset() const {
@@ -70,6 +75,67 @@ int DialogsInner::searchedOffset() const {
 	int result = peopleOffset() + (_peopleResults.isEmpty() ? 0 : ((_peopleResults.size() * st::dlgHeight) + st::searchedBarHeight));
 	if (_searchInPeer) result += st::dlgHeight;
 	return result;
+}
+
+
+typedef QPair<QString, QVector<Dialogs::FakeRow*>> searchItemType;
+
+bool searchItemSortByDate(const searchItemType &s1, const searchItemType &s2)
+{
+	if (s1.second.count() == 0 || s2.second.count() == 0) return false;
+	return s1.second[0]->item()->date >= s2.second[0]->item()->date;
+}
+
+void DialogsInner::sortAndUnionSearchResults(QVector<Dialogs::FakeRow*> &searchResults) {
+
+	QVector<Dialogs::FakeRow*> titleDialogRows;
+	foreach (Dialogs::FakeRow *searchResult, searchResults)
+	{
+		if (searchResult->isTitle) titleDialogRows.push_back(searchResult);
+	}
+
+	foreach(Dialogs::FakeRow *titleDialogRow, titleDialogRows)
+	{
+		searchResults.removeOne(titleDialogRow);
+		delete titleDialogRow;
+	}
+
+	QMap<QString, QVector<Dialogs::FakeRow*>> cacheSearchDialogs;
+
+	foreach(Dialogs::FakeRow* currentDialogRow, searchResults)
+	{		
+		if (cacheSearchDialogs.contains(currentDialogRow->item()->history()->peer->name)) {
+			cacheSearchDialogs[currentDialogRow->item()->history()->peer->name].push_back(currentDialogRow);
+		}
+		else {
+			QVector<Dialogs::FakeRow*> newVector;
+			newVector.push_back(currentDialogRow);
+			cacheSearchDialogs.insert(currentDialogRow->item()->history()->peer->name, newVector);
+		}
+	}
+
+	searchResults.clear();
+
+	QVector<searchItemType> sortedByDate;
+	foreach(QString currentCasheDialog, cacheSearchDialogs.keys()) {
+		sortedByDate.push_back(qMakePair(currentCasheDialog, cacheSearchDialogs[currentCasheDialog]));
+	}
+
+	qSort(sortedByDate.begin(), sortedByDate.end(), searchItemSortByDate);
+
+	foreach(searchItemType currentSortedItem, sortedByDate)
+	{
+		QVector<Dialogs::FakeRow*> fakeDialogRows = cacheSearchDialogs[currentSortedItem.first];
+
+		if (fakeDialogRows.count()) {
+			fakeDialogRows.push_front(new Dialogs::FakeRow(fakeDialogRows[0]->item()->history()->lastMsg, true));
+		}		
+
+		foreach(Dialogs::FakeRow* currenFaketDialogRow, fakeDialogRows)
+		{
+			searchResults.push_back(currenFaketDialogRow);
+		}
+	}
 }
 
 void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingOther) {
@@ -215,6 +281,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			}
 			p.translate(0, st::searchedBarHeight);
 
+			sortAndUnionSearchResults(_searchResults);
+
 			int32 skip = searchedOffset();
 			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _searchResults.size());
 			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _searchResults.size());
@@ -295,7 +363,7 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor * 2 - st::btnCancelSearch.width;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
+	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop + 2, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
 	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
@@ -305,11 +373,6 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	}
-
-	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
-	p.setFont(st::dlgHistFont->f);
-	p.setPen(st::dlgTextColor->p);
-	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(lang((_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? lng_dlg_search_channel : lng_dlg_search_chat), tr.width()));
 
 	p.setPen(st::dlgNameColor->p);
 	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
@@ -431,41 +494,73 @@ void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRo
 }
 
 void DialogsInner::createDialog(History *history) {
+
+	if (history->peer && history->peer->isTechsupportChat()) {
+		if (!techsupportDialogs.contains(history)) techsupportDialogs.push_back(history);
+		if (cTechsupportDialogsDisable() && !PeerData::peerStatus(history->peer->id, PeerStatus::needmanager)) return;
+	}
+
 	bool creating = !history->inChatList(Dialogs::Mode::All);
 	if (creating) {
 		Dialogs::Row *mainRow = history->addToChatList(Dialogs::Mode::All, dialogs.get());
 		contactsNoDialogs->del(history->peer, mainRow);
 	}
-	if (importantDialogs && !history->inChatList(Dialogs::Mode::Important) && !history->mute()) {
-		if (Global::DialogsMode() == Dialogs::Mode::Important) {
-			creating = true;
-		}
-		history->addToChatList(Dialogs::Mode::Important, importantDialogs.get());
-	}
 
-	auto changed = history->adjustByPosInChatList(Dialogs::Mode::All, dialogs.get());
+	auto _dialogMoved = [&]() {
 
-	if (importantDialogs) {
-		if (history->mute()) {
+		if (importantDialogs && !history->inChatList(Dialogs::Mode::Important) && !history->mute()) {
 			if (Global::DialogsMode() == Dialogs::Mode::Important) {
-				return;
+				creating = true;
 			}
-		} else {
-			auto importantChanged = history->adjustByPosInChatList(Dialogs::Mode::Important, importantDialogs.get());
-			if (Global::DialogsMode() == Dialogs::Mode::Important) {
-				changed = importantChanged;
+			history->addToChatList(Dialogs::Mode::Important, importantDialogs.get());
+		}
+
+		auto changed = history->adjustByPosInChatList(Dialogs::Mode::All, dialogs.get());
+
+		if (importantDialogs) {
+			if (history->mute()) {
+				if (Global::DialogsMode() == Dialogs::Mode::Important) {
+					return;
+				}
+			}
+			else {
+				auto importantChanged = history->adjustByPosInChatList(Dialogs::Mode::Important, importantDialogs.get());
+				if (Global::DialogsMode() == Dialogs::Mode::Important) {
+					changed = importantChanged;
+				}
 			}
 		}
+
+		int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
+		int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
+		emit dialogMoved(from, to);
+	};
+
+	if (!PeerData::peerStatus(history->peer->id, PeerStatus::pinned)) {
+
+		if (history->lastMsg) {
+
+			if (history->lastMsg->out())
+				_dialogMoved();
+			else if (history->prevLastMsgDate.isValid() && history->prevLastMsgDate.addMSecs(cDialogMessagesRotateInterval()) < history->lastMsgDate)
+				_dialogMoved();
+			else if (!history->prevLastMsgDate.isValid()) {
+				_dialogMoved();
+			}
+		}
+
+		dialogs.get()->pinnedDialogsList.removeOne(history);
 	}
-
-	int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
-	int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
-	emit dialogMoved(from, to);
-
+	else {
+		if (!dialogs.get()->pinnedDialogsList.contains(history)) dialogs.get()->pinnedDialogsList.push_back(history);
+	}
+	
+	if(!creating) dialogs.get()->specialResorting(false, false, false);
+	
 	if (creating) {
 		refresh();
-	} else if (_state == DefaultState && changed.movedFrom != changed.movedTo) {
-		update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dlgHeight);
+	} else if (_state == DefaultState) {
+		update(0, 0, fullWidth(), height());
 	}
 }
 
@@ -635,6 +730,11 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	_menuPeer = history->peer;
 
 	_menu = new PopupMenu();
+	_menu->addAction(lang(PeerData::peerStatus(_menuPeer->id, PeerStatus::marked) ? lng_context_unmark : lng_context_mark), this, SLOT(onContextMark()))->setEnabled(true);
+	if (PeerData::peerStatus(_menuPeer->id, PeerStatus::missed)) {
+		_menu->addAction(lang(lng_context_its_ok), this, SLOT(onContextItsOk()))->setEnabled(true);
+	}
+	_menu->addAction(lang(PeerData::peerStatus(_menuPeer->id, PeerStatus::pinned) ? lng_context_unpin : lng_context_pin), this, SLOT(onContextPin()))->setEnabled(true);
 	_menu->addAction(lang((_menuPeer->isChat() || _menuPeer->isMegagroup()) ? lng_context_view_group : (_menuPeer->isUser() ? lng_context_view_profile : lng_context_view_channel)), this, SLOT(onContextProfile()))->setEnabled(true);
 	_menu->addAction(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray), this, SLOT(onContextToggleNotifications()))->setEnabled(true);
 	_menu->addAction(lang(lng_profile_search_messages), this, SLOT(onContextSearch()))->setEnabled(true);
@@ -655,6 +755,49 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));
 	_menu->popup(e->globalPos());
 	e->accept();
+}
+
+void DialogsInner::onContextPin() {
+	if (!_menuPeer) return;
+	History *historyByPeer = App::history(_menuPeer->id);
+
+	if (PeerData::peerStatus(_menuPeer->id, PeerStatus::pinned)) {
+		PeerData::unsetPeerStatus(_menuPeer->id, PeerStatus::pinned);
+	}
+	else {
+		PeerData::setPeerStatus(_menuPeer->id, PeerStatus::pinned);
+		History *historyByPeer = App::history(_menuPeer->id);
+	}
+
+	if (historyByPeer) {
+		createDialog(historyByPeer);
+	}
+	refresh();
+}
+
+void DialogsInner::onContextMark() {
+	if (!_menuPeer) return;
+
+	if (PeerData::peerStatus(_menuPeer->id, PeerStatus::marked)) {
+		PeerData::unsetPeerStatus(_menuPeer->id, PeerStatus::marked);
+	}
+	else {
+		PeerData::setPeerStatus(_menuPeer->id, PeerStatus::marked);
+	}
+	refresh();
+}
+
+void DialogsInner::onContextItsOk() {
+
+	if (!_menuPeer) return;
+
+	History *_history = App::history(_menuPeer->id);
+	if (_history) {
+		PeerData::setPeerDontcareTimestamp(_menuPeer->id, QDateTime::currentDateTime());
+		if (PeerData::peerStatus(_menuPeer->id, PeerStatus::missed)) PeerData::unsetPeerStatus(_menuPeer->id, PeerStatus::missed);
+	}
+
+	refresh();
 }
 
 bool DialogsInner::menuPeerMuted() {
@@ -1721,6 +1864,120 @@ void DialogsInner::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&out
 	outMsg = 0;
 }
 
+void DialogsInner::onUpdateMissingChats() {
+	
+	//if (gAdminsList.count() <= 0) return;
+
+	QList<History*> historyList = App::histories().map.values();
+	foreach(History* history, historyList)
+	{
+		if (history->peer->isTechsupportChat()) {
+			if (!dialogs.get()->techsupportDialogList.contains(history)) { dialogs.get()->techsupportDialogList.push_back(history); }
+		}
+		else{ 
+			dialogs.get()->techsupportDialogList.removeOne(history);
+			if (!history->lastMsg || !history->inChatList(Dialogs::Mode::All)) continue;
+		}
+
+		if (!history->lastMsg || !history->peer->isTechsupportChat() || !history->inChatList(Dialogs::Mode::All)) continue;
+				
+		if (!App::peerIsAdmin(history->lastMsg->author()->userName()) && !history->lastMsg->serviceMsg()) {
+
+			if (!history->lastMsgDate.isValid()) {
+				if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {	
+					PeerData::unsetPeerStatus(history->peer->id, PeerStatus::missed);
+					dialogs.get()->missedDialogsList.removeOne(history);
+					continue;
+				}					
+			}
+
+			if ((QDateTime(history->lastMsgDate.addMSecs(cMissingChatsMeesagesInterval())) <= QDateTime::currentDateTime())) {
+
+				if (!PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {					
+					PeerData::setPeerStatus(history->peer->id, PeerStatus::missed);					
+				}					
+
+				QDateTime dontcareTimestamp = PeerData::getPeerDontcareTimestamp(history->peer->id);
+				if (dontcareTimestamp.isValid() && dontcareTimestamp > history->lastMsgDate) {
+					if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {						
+						PeerData::unsetPeerStatus(history->peer->id, PeerStatus::missed);						
+					}						
+				}
+			}
+			else {
+				if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) PeerData::unsetPeerStatus(history->peer->id, PeerStatus::missed);
+			}
+		}
+		else {
+
+			if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) PeerData::unsetPeerStatus(history->peer->id, PeerStatus::missed);							
+		}
+
+		if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {
+			if (!dialogs.get()->missedDialogsList.contains(history)) { dialogs.get()->missedDialogsList.push_back(history); }
+		} else
+			dialogs.get()->missedDialogsList.removeOne(history);		
+	}
+
+	refresh();
+}
+
+void DialogsInner::onMissingChatsGroup() {
+
+	if (dialogs.get()->all().isEmpty() || cTechsupportDialogsDisable()) return;
+	
+	dialogs.get()->specialResorting(false, true, false);
+	refresh();
+}
+
+void DialogsInner::onTechsupportChatsGroup() {
+
+	if (dialogs.get()->all().isEmpty() || cTechsupportDialogsDisable()) return;
+
+	dialogs.get()->specialResorting(false, false, true);
+	refresh();
+}
+
+void DialogsInner::onSortByUnreaded() {
+
+	if (dialogs.get()->all().isEmpty() || cTechsupportDialogsDisable()) return;
+	
+	dialogs.get()->specialResorting(true, false, false);
+	refresh();
+}
+
+void DialogsInner::onMarkAllReaded() {
+
+	QList<History*> historyList = App::histories().map.values();
+	int32 exportItemsCount = 0;
+
+	foreach(History* history, historyList)
+	{
+		if (history->unreadCount() > 0) App::main()->readServerHistory(history);
+	}
+
+	refresh();
+}
+
+void DialogsInner::onItsAllOk() {
+
+	if (dialogs.get()->isEmpty() || cTechsupportDialogsDisable()) return;
+
+	QList<History*> historyList = App::histories().map.values();
+	int32 exportItemsCount = 0;
+
+	foreach(History* history, historyList)
+	{
+		if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {
+
+			PeerData::setPeerDontcareTimestamp(history->peer->id, QDateTime::currentDateTime());
+			PeerData::unsetPeerStatus(history->peer->id, PeerStatus::missed);
+		}
+	}
+
+	refresh();
+}
+
 Dialogs::IndexedList *DialogsInner::contactsList() {
 	return contacts.get();
 }
@@ -1767,8 +2024,8 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dialogsRequest(0)
 , _contactsRequest(0)
 , _filter(this, st::dlgFilter, lang(lng_dlg_filter))
-, _newGroup(this, st::btnNewGroup)
 , _addContact(this, st::btnAddContact)
+, _contextSubmenu(this, st::btnContextSubmenu)
 , _cancelSearch(this, st::btnCancelSearch)
 , _scroll(this, st::dlgScroll)
 , _inner(&_scroll, parent)
@@ -1778,6 +2035,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _searchFull(false)
 , _searchFullMigrated(false)
 , _peopleFull(false)
+, _contextSubmenuPopup(0)
 {
 	_scroll.setWidget(&_inner);
 	_scroll.setFocusPolicy(Qt::NoFocus);
@@ -1796,8 +2054,8 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 	connect(parent, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
-	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+	connect(&_contextSubmenu, SIGNAL(clicked()), this, SLOT(onContextSubmenuClick()));
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -1813,9 +2071,9 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	_filter.setFocusPolicy(Qt::StrongFocus);
 	_filter.customUpDown(true);
 	_addContact.hide();
-	_newGroup.show();
+	_contextSubmenu.show();
 	_cancelSearch.hide();
-	_newGroup.move(width() - _newGroup.width() - st::dlgPaddingHor, 0);
+	_contextSubmenu.move(width() - _contextSubmenu.width() - st::dlgPaddingHor, 0);
 	_addContact.move(width() - _addContact.width() - st::dlgPaddingHor, 0);
 	_cancelSearch.move(width() - _cancelSearch.width() - st::dlgPaddingHor, 0);
 }
@@ -1834,6 +2092,22 @@ void DialogsWidget::createDialog(History *history) {
 				removeDialog(h);
 			}
 		}
+	}
+}
+
+void DialogsWidget::showTechsupportDialogs() {
+
+	foreach(History* techsupportDialog, _inner.techsupportDialogs)
+	{
+		_inner.createDialog(techsupportDialog);
+	}
+}
+
+void DialogsWidget::hideTechsuppoerDialogs() {
+
+	foreach(History* techsupportDialog, _inner.techsupportDialogs)
+	{
+		_inner.removeDialog(techsupportDialog);
 	}
 }
 
@@ -1864,7 +2138,7 @@ void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
 	_scroll.hide();
 	_filter.hide();
 	_cancelSearch.hide();
-	_newGroup.hide();
+	_contextSubmenu.hide();
 
 	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
@@ -2418,10 +2692,10 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_cancelSearch.hide();
-		_newGroup.show();
+		_contextSubmenu.show();
 	} else if (_cancelSearch.isHidden()) {
 		_cancelSearch.show();
-		_newGroup.hide();
+		_contextSubmenu.hide();
 	}
 	if (filterText.size() < MinUsernameLength) {
 		_peopleCache.clear();
@@ -2484,7 +2758,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	int32 w = width();
 	_filter.setGeometry(st::dlgPaddingHor, st::dlgFilterPadding, w - 2 * st::dlgPaddingHor, _filter.height());
-	_newGroup.move(w - _newGroup.width() - st::dlgPaddingHor, _filter.y());
+	_contextSubmenu.move(w - _contextSubmenu.width() - st::dlgPaddingHor, _filter.y());
 	_addContact.move(w - _addContact.width() - st::dlgPaddingHor, _filter.y());
 	_cancelSearch.move(w - _cancelSearch.width() - st::dlgPaddingHor, _filter.y());
 	_scroll.move(0, _filter.height() + 2 * st::dlgFilterPadding);
@@ -2641,5 +2915,45 @@ void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
 	int32 st = _scroll.scrollTop();
 	if (st > movedTo && st < movedFrom) {
 		_scroll.scrollToY(st + st::dlgHeight);
+	}
+}
+
+void DialogsWidget::onContextSubmenuClick() {
+
+	if (dialogsList()->all().isEmpty()) return;
+
+	if (_contextSubmenuPopup) {
+		_contextSubmenuPopup->deleteLater();
+		_contextSubmenuPopup = 0;
+	}
+
+	_contextSubmenuPopup = new PopupMenu();
+	_contextSubmenuPopup->addAction("Group unread", &_inner, SLOT(onSortByUnreaded()))->setEnabled(true);
+	_contextSubmenuPopup->addAction("Group missing chats", &_inner, SLOT(onMissingChatsGroup()))->setEnabled(true);
+	_contextSubmenuPopup->addAction("Group techsupport chats", &_inner, SLOT(onTechsupportChatsGroup()))->setEnabled(true);
+	_contextSubmenuPopup->addAction("Read all", &_inner, SLOT(onMarkAllReaded()))->setEnabled(true);
+	_contextSubmenuPopup->addAction("New chat", this, SLOT(onNewGroup()))->setEnabled(true);
+
+	QList<History*> historiesList = App::histories().map.values();
+	bool hasMissedDialogs = false;
+	foreach (History* history, historiesList)
+	{
+		if (PeerData::peerStatus(history->peer->id, PeerStatus::missed)) {
+			hasMissedDialogs = true;
+			break;
+		}
+	}
+
+	if(hasMissedDialogs) _contextSubmenuPopup->addAction("it's all ok", &_inner, SLOT(onItsAllOk()))->setEnabled(true);
+	
+	if (_contextSubmenuPopup) {
+		connect(_contextSubmenuPopup, SIGNAL(destroyed(QObject*)), this, SLOT(onContextSubmenuDestroy(QObject*)));
+		_contextSubmenuPopup->popup(this->mapToGlobal(_contextSubmenu.pos()));
+	}
+}
+
+void DialogsWidget::onContextSubmenuDestroy(QObject *obj) {
+	if (_contextSubmenuPopup == obj) {
+		_contextSubmenuPopup = 0;
 	}
 }

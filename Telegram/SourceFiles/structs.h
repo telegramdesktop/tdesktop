@@ -232,6 +232,31 @@ protected:
 	void onClickImpl() const override;
 };
 
+class MsgPeerOpenClickHandler : public PeerClickHandler {
+public:
+	MsgPeerOpenClickHandler(PeerData *peer, MsgId msgId) : PeerClickHandler(peer), peer(peer), msgId(msgId) {
+	}
+
+protected:
+	void onClickImpl() const override;
+private:
+	PeerData *peer;
+	MsgId msgId;	
+};
+
+enum PeerStatus {
+	directMsg = 0,
+	pinned = 0x01,
+	marked = 0x02,
+	alert = 0x04,
+	missed = 0x08,
+	needmanager = 0x10,
+	techsupport = 0x20,
+};
+
+ImagePtr dialogStatus(PeerStatus peerStatus);
+ImagePtr itsLogo();
+
 class UserData;
 class ChatData;
 class ChannelData;
@@ -282,6 +307,10 @@ public:
 	const QString &shortName() const;
 	const QString &userName() const;
 
+	bool isTechsupportChat();
+	bool missingChatNeedBacklighting();
+	bool userIsAdmin();
+
 	const PeerId id;
 	int32 bareId() const {
 		return int32(uint32(id & 0xFFFFFFFFULL));
@@ -324,6 +353,14 @@ public:
 
 	NotifySettingsPtr notify;
 
+	bool hasUnreadDirectMsg;
+
+	static void setPeerStatus(PeerId id, PeerStatus flag);
+	static void unsetPeerStatus(PeerId id, PeerStatus flag);
+	static bool peerStatus(PeerId id, PeerStatus flag);
+	static void setPeerDontcareTimestamp(PeerId peerId, QDateTime lastMessageDateTime);
+	static QDateTime getPeerDontcareTimestamp(PeerId id);
+
 	// if this string is not empty we must not allow to open the
 	// conversation and we must show this string instead
 	virtual QString restrictionReason() const {
@@ -337,12 +374,22 @@ public:
 		return _openLink;
 	}
 
+	const ClickHandlerPtr &msgOpenLink(MsgId msgId) {
+		if (!_msgOpenLinks.contains(msgId)) {			
+			ClickHandlerPtr _newClickHandler;
+			_newClickHandler.reset(new MsgPeerOpenClickHandler(this, msgId));
+			_msgOpenLinks.insert(msgId, _newClickHandler);
+		}
+		return _msgOpenLinks[msgId];
+	}
+
 protected:
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
 
 private:
 	ClickHandlerPtr _openLink;
+	QMap<MsgId, ClickHandlerPtr> _msgOpenLinks;
 
 };
 
@@ -827,8 +874,8 @@ inline ChatData *PeerData::migrateFrom() const {
 inline ChannelData *PeerData::migrateTo() const {
 	return (isChat() && asChat()->migrateToPtr && asChat()->migrateToPtr->amIn()) ? asChat()->migrateToPtr : nullptr;
 }
-inline const Text &PeerData::dialogName() const {
-	return migrateTo() ? migrateTo()->dialogName() : ((isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText);
+inline const Text &PeerData::dialogName() const {	
+	return migrateTo() ? migrateTo()->dialogName() : nameText;
 }
 inline const QString &PeerData::shortName() const {
 	return isUser() ? asUser()->firstName : name;

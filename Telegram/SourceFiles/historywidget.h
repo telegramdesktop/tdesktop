@@ -24,6 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/boxshadow.h"
 #include "dropdown.h"
 #include "history/history_common.h"
+#include "its/itsbitrix24.h"
+#include <memory>
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -800,6 +802,9 @@ public slots:
 
 	void onUpdateHistoryItems();
 
+	void createTask();
+	//void onCreateTaskFinished();
+
 	// checks if we are too close to the top or to the bottom
 	// in the scroll area and preloads history if needed
 	void preloadHistoryIfNeeded();
@@ -841,6 +846,10 @@ private:
 		PlainShadow shadow;
 	};
 	PinnedBar *_pinnedBar = nullptr;
+
+	QNetworkAccessManager
+		_createTaskRequestManager;
+
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();

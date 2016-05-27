@@ -113,6 +113,7 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, chooseText);
 	}
 	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
+	//p.drawPixmap(12, 2, itsLogo()->pix(18));
 	if (Adaptive::OneColumn() && !_counter.isNull() && App::main()) {
 		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
 	}

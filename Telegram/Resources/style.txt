@@ -596,6 +596,28 @@ taDefFlat: flatTextarea {
 	phColorFunc: transition(linear);
 }
 
+
+taskDescriptionFlat: flatTextarea {
+	textColor: #000;
+	bgColor: #FFF;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: inpDefFont;
+	cursor: cursor(text);
+
+	phColor: #999;
+	phFocusColor: #AAA;
+	phAlign: align(topleft);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+	phLeftFunc: transition(linear);
+	phAlphaFunc: transition(linear);
+	phColorFunc: transition(linear);	
+
+	font: boxTextFont;
+}
+
 scrollDef: flatScroll {
 	barColor: rgba(0, 0, 0, 83);
 	bgColor: rgba(0, 0, 0, 26);
@@ -880,10 +902,10 @@ btnLogout: flatButton(btnDefFlat, btnDefBig) {
 
 //// dialogs
 dlgFilterPadding: 10px;
-dlgPhotoSize: 46px;
-dlgPaddingHor: 10px;
-dlgPaddingVer: 8px;
-dlgHeight: 62px;
+dlgPhotoSize: 28px;
+dlgPaddingHor: 2px;
+dlgPaddingVer: 2px;
+dlgHeight: 36px;
 dlgPhotoPadding: 12px;
 
 dlgImportantHeight: 37px;
@@ -896,7 +918,7 @@ dlgSep: 8px;
 
 dlgMinWidth: 260px;
 dlgRichMinWidth: 150px;
-dlgMaxWidth: 540px;
+dlgMaxWidth: 340px;
 dlgFilter: flatInput(inpDefGray) {
 	font: font(fsize);
 	height: 34px;
@@ -958,6 +980,8 @@ dlgUnreadPaddingHor: 5px;
 dlgUnreadRadius: 2px;
 dlgBG: #FFF;
 dlgHoverBG: #f5f5f5;
+dlgPinnedBG: #00007D28;
+dlgMissedBG: #ff8566;
 
 dlgActiveBG: #6a91b1;
 dlgActiveUnreadColor: #5b94bf;
@@ -1044,7 +1068,7 @@ activeFadeOutDuration: 3000;
 
 msgRadius: 3px;
 
-msgMaxWidth: 430px;
+msgMaxWidth: 2000px;
 msgFont: font(fsize);
 msgNameFont: semiboldFont;
 msgServiceFont: semiboldFont;
@@ -1052,24 +1076,24 @@ msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
 msgMinWidth: 190px;
-msgPhotoSize: 33px;
-msgPhotoSkip: 40px;
-msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 10px, 53px, 2px);
-msgMarginTopAttached: 3px;
-msgLnkPadding: 2px; // for media open / save links
+msgPhotoSize: 25px;
+msgPhotoSkip: 30px;
+msgPadding: margins(13px, 2px, 13px, 4px);
+msgMargin: margins(13px, 10px, 53px, 0px);
+msgMarginTopAttached: 0px;
+msgLnkPadding: 2px;
 msgBorder: #f0f0f0;
-msgInBg: #fff;
-msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
-msgOutBg: #effdde;
-msgOutBgSelected: #b7dbdb;
+msgInBg: #ffffff00;
+msgInBgSelected: #78b1ca;
+msgOutBg: #dfe0e080;
+msgOutBgSelected: #a4c9c8;
 msgSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
 msgInServiceFg: #0e7acd;
 msgInServiceFgSelected: #0e7acd;
 msgOutServiceFg: #3a8e26;
 msgOutServiceFgSelected: #367570;
-msgShadow: 2px;
+msgShadow: 0px;
 msgInShadow: #748ea229;
 msgInShadowSelected: #548dbb29;
 msgOutShadow: #3ac34740;
@@ -1106,7 +1130,7 @@ msgBotKbButton: botKeyboardButton {
 
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
-msgServiceColor: #FFF;
+msgServiceColor: #000;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
@@ -1624,6 +1648,10 @@ btnAddContact: iconedButton(btnNewGroup) {
 btnCancelSearch: iconedButton(btnNewGroup) {
 	icon: sprite(188px, 43px, 18px, 18px);
 	downIcon: sprite(188px, 43px, 18px, 18px);
+}
+btnContextSubmenu: iconedButton(btnNewGroup) {
+	icon: sprite(375px, 74px, 21px, 21px);
+	downIcon: sprite(375px, 74px, 21px, 21px);
 }
 
 notifyBG: white;

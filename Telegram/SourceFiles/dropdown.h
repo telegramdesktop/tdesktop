@@ -803,6 +803,8 @@ private:
 	bool _previewShown;
 
 	QTimer _previewTimer;
+
+	friend class MentionsDropdown;
 };
 
 class MentionsDropdown : public TWidget {

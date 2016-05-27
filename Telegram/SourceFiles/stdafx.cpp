@@ -43,5 +43,5 @@ Q_IMPORT_PLUGIN(QWebpPlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
+//Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif

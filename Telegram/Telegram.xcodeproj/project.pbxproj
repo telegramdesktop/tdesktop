@@ -234,6 +234,12 @@
 		CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 21F907AB8D19BD779147A085 /* AVFoundation.framework */; };
 		CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = B3062303CE8F4EB9325CB3DC /* emoji_config.cpp */; settings = {ATTRIBUTES = (); }; };
 		D0EECF370C58DDCACBC71BAD /* CoreWLAN.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F26998DF735BCE5F975508ED /* CoreWLAN.framework */; };
+		D1475AE61CF72B3F001A98CB /* itscreatetaskbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1475AE41CF72B3F001A98CB /* itscreatetaskbox.cpp */; };
+		D1475AE91CF72CA9001A98CB /* moc_itscreatetaskbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1475AE81CF72CA9001A98CB /* moc_itscreatetaskbox.cpp */; };
+		D1706DC81CF4EEEE00021518 /* moc_itsbitrix24.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1706DC61CF4EEEE00021518 /* moc_itsbitrix24.cpp */; };
+		D1706DC91CF4EEEE00021518 /* moc_itssettingsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1706DC71CF4EEEE00021518 /* moc_itssettingsbox.cpp */; };
+		D1706DCC1CF4F0AC00021518 /* itsbitrix24.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1706DCA1CF4F0AC00021518 /* itsbitrix24.cpp */; };
+		D1706DCD1CF4F0AC00021518 /* itssettingsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1706DCB1CF4F0AC00021518 /* itssettingsbox.cpp */; };
 		D1FA8AF31837B51C762A9D4D /* qcocoa in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = D53D8E6A188E05078A114294 /* qcocoa */; };
 		D1FC601FC2F9F3E33F3A14E9 /* animation.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D3FE9C29B6A61D7C3C4B731B /* animation.cpp */; settings = {ATTRIBUTES = (); }; };
 		D22929A2B8C5281567FCACDC /* Qt5PlatformSupport in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = E7B2F248E3F7970788F35BF5 /* Qt5PlatformSupport */; };
@@ -641,6 +647,15 @@
 		CF1690B68F3B278E78823DB9 /* history.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = history.h; path = SourceFiles/history.h; sourceTree = "<absolute>"; };
 		CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = profilewidget.cpp; path = SourceFiles/profilewidget.cpp; sourceTree = "<absolute>"; };
 		D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flattextarea.cpp; path = GeneratedFiles/Debug/moc_flattextarea.cpp; sourceTree = "<absolute>"; };
+		D1475AE41CF72B3F001A98CB /* itscreatetaskbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = itscreatetaskbox.cpp; path = SourceFiles/its/itscreatetaskbox.cpp; sourceTree = SOURCE_ROOT; };
+		D1475AE51CF72B3F001A98CB /* itscreatetaskbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = itscreatetaskbox.h; path = SourceFiles/its/itscreatetaskbox.h; sourceTree = SOURCE_ROOT; };
+		D1475AE81CF72CA9001A98CB /* moc_itscreatetaskbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_itscreatetaskbox.cpp; path = GeneratedFiles/Debug/moc_itscreatetaskbox.cpp; sourceTree = SOURCE_ROOT; };
+		D1706DC61CF4EEEE00021518 /* moc_itsbitrix24.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_itsbitrix24.cpp; path = GeneratedFiles/Debug/moc_itsbitrix24.cpp; sourceTree = SOURCE_ROOT; };
+		D1706DC71CF4EEEE00021518 /* moc_itssettingsbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_itssettingsbox.cpp; path = GeneratedFiles/Debug/moc_itssettingsbox.cpp; sourceTree = SOURCE_ROOT; };
+		D1706DCA1CF4F0AC00021518 /* itsbitrix24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = itsbitrix24.cpp; path = SourceFiles/its/itsbitrix24.cpp; sourceTree = SOURCE_ROOT; };
+		D1706DCB1CF4F0AC00021518 /* itssettingsbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = itssettingsbox.cpp; path = SourceFiles/its/itssettingsbox.cpp; sourceTree = SOURCE_ROOT; };
+		D1706DCF1CF4F0DE00021518 /* itsbitrix24.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = itsbitrix24.h; path = SourceFiles/its/itsbitrix24.h; sourceTree = SOURCE_ROOT; };
+		D1706DD01CF4F0DE00021518 /* itssettingsbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = itssettingsbox.h; path = SourceFiles/its/itssettingsbox.h; sourceTree = SOURCE_ROOT; };
 		D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = photosendbox.cpp; path = SourceFiles/boxes/photosendbox.cpp; sourceTree = "<absolute>"; };
 		D3D1BE0BEA3AEE0551AD39AC /* qdds */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qdds; path = "/usr/local/Qt-5.5.1/plugins/imageformats/libqdds$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		D3FE9C29B6A61D7C3C4B731B /* animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = animation.cpp; path = SourceFiles/ui/animation.cpp; sourceTree = "<absolute>"; };
@@ -792,6 +807,7 @@
 		076B1C4F1CBFC6DC002C0BC2 /* core */ = {
 			isa = PBXGroup;
 			children = (
+				0702E99F1CB8D290007A7495 /* serialize */,
 				7D075A915E8739C1B6BC5F43 /* basic_types.cpp */,
 				1DC02F674A7192FF8BE391A7 /* basic_types.h */,
 				076B1C501CBFC6F2002C0BC2 /* click_handler_types.cpp */,
@@ -1014,6 +1030,7 @@
 		73F2E45FDEB381A085D37A49 /* SourceFiles */ = {
 			isa = PBXGroup;
 			children = (
+				D1706DCE1CF4F0B900021518 /* its */,
 				ADC8DBF4C6F26E14C77F68B4 /* boxes */,
 				076B1C4F1CBFC6DC002C0BC2 /* core */,
 				07B816FF1CB9A219006F7869 /* dialogs */,
@@ -1022,7 +1039,6 @@
 				5E35A03E5F2C51353EBCBF00 /* intro */,
 				1A6AA22F4A758C4B5F5138FB /* mtproto */,
 				076B1C5C1CBFC97D002C0BC2 /* overview */,
-				0702E99F1CB8D290007A7495 /* serialize */,
 				579DA7AEF5751DF4988869A0 /* ui */,
 				076B1C581CBFC8DF002C0BC2 /* window */,
 				0764D5581ABAD6F900FBFEED /* apiwrap.cpp */,
@@ -1114,6 +1130,9 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				D1706DC61CF4EEEE00021518 /* moc_itsbitrix24.cpp */,
+				D1475AE81CF72CA9001A98CB /* moc_itscreatetaskbox.cpp */,
+				D1706DC71CF4EEEE00021518 /* moc_itssettingsbox.cpp */,
 				076B1C621CBFCC53002C0BC2 /* moc_top_bar_widget.cpp */,
 				07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */,
 				077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */,
@@ -1280,6 +1299,19 @@
 			);
 			name = Frameworks;
 			sourceTree = "<Group>";
+		};
+		D1706DCE1CF4F0B900021518 /* its */ = {
+			isa = PBXGroup;
+			children = (
+				D1475AE41CF72B3F001A98CB /* itscreatetaskbox.cpp */,
+				D1475AE51CF72B3F001A98CB /* itscreatetaskbox.h */,
+				D1706DCF1CF4F0DE00021518 /* itsbitrix24.h */,
+				D1706DD01CF4F0DE00021518 /* itssettingsbox.h */,
+				D1706DCA1CF4F0AC00021518 /* itsbitrix24.cpp */,
+				D1706DCB1CF4F0AC00021518 /* itssettingsbox.cpp */,
+			);
+			name = its;
+			sourceTree = "<group>";
 		};
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
@@ -1486,6 +1518,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1475AE91CF72CA9001A98CB /* moc_itscreatetaskbox.cpp in Compile Sources */,
+				D1706DCC1CF4F0AC00021518 /* itsbitrix24.cpp in Compile Sources */,
+				D1706DCD1CF4F0AC00021518 /* itssettingsbox.cpp in Compile Sources */,
 				1299DDAE203A7EDFED9F5D6B /* main.cpp in Compile Sources */,
 				D87463318C8E5211C8C8670A /* stdafx.cpp in Compile Sources */,
 				7BEFA1D273AD62772AA33D73 /* app.cpp in Compile Sources */,
@@ -1548,6 +1583,7 @@
 				07C8FE041CB66D97007A8702 /* inline_bot_send_data.cpp in Compile Sources */,
 				03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */,
 				E3D7A5CA24541D5DB69D6606 /* images.cpp in Compile Sources */,
+				D1706DC81CF4EEEE00021518 /* moc_itsbitrix24.cpp in Compile Sources */,
 				ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */,
 				07129D6A1C16D230002DC495 /* auth_key.cpp in Compile Sources */,
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
@@ -1592,6 +1628,7 @@
 				352349751855EF76DECA4D60 /* moc_historywidget.cpp in Compile Sources */,
 				4B0036C794BEA27AF9419768 /* moc_layerwidget.cpp in Compile Sources */,
 				07C8FE101CB80890007A8702 /* toast.cpp in Compile Sources */,
+				D1475AE61CF72B3F001A98CB /* itscreatetaskbox.cpp in Compile Sources */,
 				077A4AF71CA41C38002188D2 /* connection_abstract.cpp in Compile Sources */,
 				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
 				071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */,
@@ -1628,6 +1665,7 @@
 				07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */,
 				07E373941CBBC11000934F77 /* peer_avatar_button.cpp in Compile Sources */,
 				B0B88EFE444C0DE673389418 /* moc_flatbutton.cpp in Compile Sources */,
+				D1706DC91CF4EEEE00021518 /* moc_itssettingsbox.cpp in Compile Sources */,
 				1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */,
 				565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */,
 				8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */,
@@ -2036,6 +2074,30 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
+				HEADER_SEARCH_PATHS = (
+					./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui,
+					./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore,
+					./../../Libraries/QtStatic/qtbase/include,
+					./SourceFiles,
+					./GeneratedFiles,
+					/usr/local/include,
+					./../../Libraries/opus/include,
+					"./../../Libraries/openal-soft/include",
+					"./../../Libraries/libexif-0.6.20",
+					"/usr/local/Qt-5.5.1/include",
+					"/usr/local/Qt-5.5.1/include/QtWidgets",
+					"/usr/local/Qt-5.5.1/include/QtNetwork",
+					"/usr/local/Qt-5.5.1/include/QtGui",
+					"/usr/local/Qt-5.5.1/include/QtCore",
+					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
+					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
+					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
+					./ThirdParty/breakpad,
+					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					./SourceFiles/its,
+				);
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
@@ -2053,6 +2115,30 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
+				HEADER_SEARCH_PATHS = (
+					./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui,
+					./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore,
+					./../../Libraries/QtStatic/qtbase/include,
+					./SourceFiles,
+					./GeneratedFiles,
+					/usr/local/include,
+					./../../Libraries/opus/include,
+					"./../../Libraries/openal-soft/include",
+					"./../../Libraries/libexif-0.6.20",
+					"/usr/local/Qt-5.5.1/include",
+					"/usr/local/Qt-5.5.1/include/QtWidgets",
+					"/usr/local/Qt-5.5.1/include/QtNetwork",
+					"/usr/local/Qt-5.5.1/include/QtGui",
+					"/usr/local/Qt-5.5.1/include/QtCore",
+					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
+					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
+					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
+					./ThirdParty/breakpad,
+					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					./SourceFiles/its,
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediate;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";

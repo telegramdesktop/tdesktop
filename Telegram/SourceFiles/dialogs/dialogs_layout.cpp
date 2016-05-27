@@ -30,67 +30,84 @@ namespace Layout {
 namespace {
 
 template <typename PaintItemCallback>
-void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
+void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback, int fakeRowStatus = 0) {
+	
+	bool
+		pinned = PeerData::peerStatus(history->peer->id, PeerStatus::pinned),
+		marked = PeerData::peerStatus(history->peer->id, PeerStatus::marked),
+		techsupportChat = PeerData::peerStatus(history->peer->id, PeerStatus::techsupport),
+		hasUnreadDirectMsg = history->peer->hasUnreadDirectMsg;
+		
+
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, active ? st::dlgActiveBG : (selected ? st::dlgHoverBG : st::dlgBG));
+	if (pinned) {
+		p.fillRect(fullRect, st::dlgPinnedBG->b);
+	}
+
+	if (history->peer->missingChatNeedBacklighting()) {
+		p.fillRect(fullRect, st::dlgMissedBG->b);
+	}
 	if (onlyBackground) return;
 
 	PeerData *userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
-	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, w);
-
+	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer + 2, w);
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
-	int32 namewidth = w - nameleft - st::dlgPaddingHor;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
-	// draw chat icon
-	if (history->peer->isChat() || history->peer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	} else if (history->peer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+	if (techsupportChat) {
+		nameleft += 16;
+		p.drawPixmap(nameleft - 16 - 5, st::dlgPaddingVer + st::dlgNameTop + 7, dialogStatus(PeerStatus::techsupport)->pix(16));
 	}
 
-	if (!item) {
-		p.setFont(st::dlgHistFont);
-		p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			p.drawText(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgFont->ascent + st::dlgSep, lang(lng_empty_history));
-		} else {
-			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth);
-		}
-	} else {
-		// draw date
-		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt;
-		if (lastDate == nowDate) {
-			dt = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
-			dt = langDayOfWeek(lastDate);
-		} else {
-			dt = lastDate.toString(qsl("d.MM.yy"));
-		}
-		int32 dtWidth = st::dlgDateFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-		p.setFont(st::dlgDateFont);
-		p.setPen(active ? st::dlgActiveDateColor : st::dlgDateColor);
-		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
+	if (marked) {
+		nameleft += 16;
+		p.drawPixmap(nameleft - 16 - 5, st::dlgPaddingVer + st::dlgNameTop + 7, dialogStatus(PeerStatus::marked)->pix(16));
+	}
 
-		// draw check
-		if (item->needCheck()) {
-			const style::sprite *check;
-			if (item->id > 0) {
-				if (item->unread()) {
-					check = active ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
-				} else {
-					check = active ? &st::dlgActiveDblCheckImg : &st::dlgDblCheckImg;
-				}
+	if (hasUnreadDirectMsg) {
+		nameleft += 16;
+		p.drawPixmap(nameleft - 16 - 5, st::dlgPaddingVer + st::dlgNameTop + 7, dialogStatus(PeerStatus::directMsg)->pix(16));
+	}
+
+	int32 namewidth = w - nameleft - st::dlgPaddingHor - 45;
+	if (fakeRowStatus == 1) namewidth -= 30;
+	else if (fakeRowStatus == 2) namewidth -= 15;
+
+	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop + 4, namewidth, st::msgNameFont->height);
+
+	// draw chat icon
+	
+	if (history->peer->isChat() || history->peer->isMegagroup()) {
+		if (fakeRowStatus == 0 || fakeRowStatus == 2) {
+			p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
+			rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		}		
+	} else if (history->peer->isChannel()) {
+		if (fakeRowStatus == 0 || fakeRowStatus == 2) {
+			p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
+			rectForName.setLeft(rectForName.left() + st::dlgImgSkip);		
+		}		
+	}
+
+	if (item) {
+		if (fakeRowStatus == 1)	{
+			//draw date
+			QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
+			QDate nowDate(now.date()), lastDate(lastTime.date());
+			QString dt;
+			if (lastDate == nowDate) {
+				dt = lastTime.toString(cTimeFormat());
+			} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
+				dt = langDayOfWeek(lastDate);
 			} else {
-				check = active ? &st::dlgActiveSendImg : &st::dlgSendImg;
+				dt = lastDate.toString(qsl("d.MM.yy"));
 			}
-			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
-			p.drawSprite(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), *check);
+			int32 dtWidth = st::dlgDateFont->width(dt);
+			rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
+			p.setFont(st::dlgDateFont);
+			p.setPen(active ? st::dlgActiveDateColor : st::dlgDateColor);
+			p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip + 65, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
+
 		}
 
 		paintItemCallback(nameleft, namewidth, item);
@@ -102,7 +119,9 @@ void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool activ
 	}
 
 	p.setPen(active ? st::dlgActiveColor : st::dlgNameColor);
-	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	if (fakeRowStatus == 0 || fakeRowStatus == 2) {
+		history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	}
 }
 
 class UnreadBadgeStyle : public StyleSheet {
@@ -176,8 +195,8 @@ void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool acti
 	int unreadRectHeight = st::dlgUnreadHeight;
 	accumulate_max(unreadRectWidth, unreadRectHeight);
 
-	int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-	int unreadRectTop =top;
+	int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth - 10;
+	int unreadRectTop = top - 20;
 	if (outAvailableWidth) {
 		*outAvailableWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
 	}
@@ -207,12 +226,6 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
 			paintUnreadCount(p, QString::number(unread), unreadTop, w, active, history->mute(), &availableWidth);
 		}
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
-		} else {
-			p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
-			history->typingText.drawElided(p, nameleft, texttop, availableWidth);
-		}
 	});
 }
 
@@ -220,9 +233,14 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool 
 	auto item = row->item();
 	auto history = item->history();
 	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
-		int lastWidth = namewidth, texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
-		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
-	});
+		int lastWidth = namewidth, texttop = st::dlgPaddingVer + 5; //st::dlgFont->height + st::dlgSep;
+
+		if (!row->isTitle){
+			item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
+			//_item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgNameTop + 5, rectForName.width(), st::msgNameFont->height), act, _cacheFor, _cache);
+		}
+
+	}, (!row->isTitle) ? 1 : 2);
 }
 
 void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground) {

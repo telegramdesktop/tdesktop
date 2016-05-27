@@ -117,6 +117,8 @@ signals:
 	void tabbed();
 	void spacedReturnedPasted();
 	void linksChanged();
+	void focusIn();
+	void focusOut();
 
 protected:
 

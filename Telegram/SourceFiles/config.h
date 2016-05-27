@@ -20,13 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9044;
-static const wchar_t *AppVersionStr = L"0.9.44";
+//static const int32 AppVersion = 9044;
+//static const wchar_t *AppVersionStr = L"0.9.44";
+static const int32 AppVersion = 11044;
+static const wchar_t *AppVersionStr = L"0.11.44";
 static const bool DevVersion = false;
-//#define BETA_VERSION (9044000ULL) // just comment this line to build public version
 
-static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
-static const wchar_t *AppName = L"Telegram Desktop";
+static const wchar_t *AppNameOld = L"ITSumma_Telegram Win (Unofficial)";
+static const wchar_t *AppName = L"ITSumma_Telegram";
 
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
@@ -279,24 +280,8 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-#ifdef CUSTOM_API_ID
-#include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
-#else
 static const int32 ApiId = 17349;
 static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
-#endif
-
-#ifndef BETA_VERSION
-#define BETA_VERSION (0)
-#endif
-
-#if (defined CUSTOM_API_ID) && (BETA_VERSION > 0)
-#include "../../../TelegramPrivate/beta_private.h" // private key for downloading closed betas
-#else
-static const char *BetaPrivateKey = "";
-#undef BETA_VERSION
-#define BETA_VERSION (0)
-#endif
 
 inline const char *cApiDeviceModel() {
 #ifdef Q_OS_WIN

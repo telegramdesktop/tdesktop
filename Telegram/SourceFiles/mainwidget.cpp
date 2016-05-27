@@ -1093,6 +1093,10 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		return;
 	}
 
+    if (!_toForward.isEmpty()) {
+        const_cast<QString&>(text) = QString("[#!%1#!]\n").arg(_toForward.cbegin().value()->history()->peer->name) += text;
+    }
+
 	saveRecentHashtags(text);
 
 	EntitiesInText sendingEntities, leftEntities;
@@ -1974,6 +1978,14 @@ HistoryItem *MainWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const {
 
 void MainWidget::createDialog(History *history) {
 	_dialogs->createDialog(history);
+}
+
+void MainWidget::showTechsupportDialogs() {
+	_dialogs->showTechsupportDialogs();
+}
+
+void MainWidget::hideTechsuppoerDialogs() {
+	_dialogs->hideTechsuppoerDialogs();
 }
 
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {

@@ -13,6 +13,7 @@
         <file>art/blank.gif</file>
         <file>art/icon256.png</file>
         <file>art/iconbig256.png</file>
+        <file>art/itslogo.png</file>
     </qresource>
     <qresource prefix="/ava">
         <file>art/chatcolor1.png</file>
@@ -42,5 +43,13 @@
         <file alias="lang_nl.strings">langs/lang_nl.strings</file>
         <file alias="lang_pt_BR.strings">langs/lang_pt_BR.strings</file>
         <file alias="lang_ko.strings">langs/lang_ko.strings</file>
+    </qresource>
+    <qresource prefix="/dialogStatuses">
+        <file>art/dialogStatuses/directMsg.png</file>
+        <file>art/dialogStatuses/marked.png</file>
+        <file>art/dialogStatuses/techsupport.png</file>
+    </qresource>
+    <qresource prefix="/pages">
+        <file>pages/callback.html</file>
     </qresource>
 </RCC>

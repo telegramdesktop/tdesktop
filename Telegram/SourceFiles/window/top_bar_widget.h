@@ -65,6 +65,8 @@ public:
 		_sideShadow->setVisible(!Adaptive::OneColumn());
 	}
 
+	QString currentItemTime;
+
 	public slots:
 
 	void onForwardSelection();

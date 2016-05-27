@@ -35,27 +35,28 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle) : AbstractBox(st::boxWidth)
-, _informative(false)
-, _text(100)
-, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
-, _cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle, int32 fixedTextWidth) : AbstractBox(st::boxWidth),
+_informative(false),
+_text(100),
+_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
+_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
+
+	init(text, fixedTextWidth);
+}
+
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth),
+_informative(true),
+_text(100),
+_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
+_cancel(this, QString(), st::cancelBoxButton) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth)
-, _informative(true)
-, _text(100)
-, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
-, _cancel(this, QString(), st::cancelBoxButton) {
-	init(text);
-}
-
-void ConfirmBox::init(const QString &text) {
+void ConfirmBox::init(const QString &text, int32 fixedTextWidth) {
 	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 
 	textstyleSet(&st::boxTextStyle);
-	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
+	_textWidth = (fixedTextWidth == 0) ?  st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right() : fixedTextWidth;
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();

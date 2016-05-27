@@ -4656,7 +4656,7 @@ void MentionsDropdown::hideFinish() {
 	hide();
 	_hiding = false;
 	_filter = qsl("-");
-	_inner.clearSel(true);
+	_inner.setSel(-1);
 }
 
 void MentionsDropdown::showStart() {
@@ -4667,6 +4667,7 @@ void MentionsDropdown::showStart() {
 		_scroll.show();
 		_cache = myGrab(this);
 	}
+	_inner.setSel(-1);
 	_scroll.hide();
 	_hiding = false;
 	show();
@@ -4686,7 +4687,7 @@ void MentionsDropdown::step_appearance(float64 ms, bool timer) {
 			hideFinish();
 		} else {
 			_scroll.show();
-			_inner.clearSel();
+			_inner.setSel(-1);
 		}
 	} else {
 		a_opacity.update(dt, anim::linear);

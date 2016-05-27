@@ -1442,6 +1442,16 @@ namespace {
 		return ::self;
 	}
 
+	bool selfIsAdmin() {
+		if (gAdminsList.count() == 0 || !self()) return false;
+		return gAdminsList.contains(self()->userName());
+	}
+
+	bool peerIsAdmin(QString username) {
+		if (gAdminsList.count() == 0) return false;
+		return gAdminsList.contains(username);
+	}
+
 	PeerData *peerByName(const QString &username) {
 		QString uname(username.trimmed());
 		for_const (PeerData *peer, peersData) {

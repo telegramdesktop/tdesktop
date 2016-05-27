@@ -139,6 +139,7 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
+class ProfileInner;
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -184,6 +185,8 @@ public:
 
 	void createDialog(History *history);
 	void removeDialog(History *history);
+	void showTechsupportDialogs();
+	void hideTechsuppoerDialogs();
 	void dlgUpdated();
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
@@ -640,4 +643,5 @@ private:
 
 	std_::unique_ptr<ApiWrap> _api;
 
+	friend class ProfileInner;
 };

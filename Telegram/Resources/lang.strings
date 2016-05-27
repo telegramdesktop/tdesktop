@@ -137,7 +137,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
 
-"lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
+"lng_intro" = "Free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nwith specific ITSumma ChatOps features";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
@@ -414,6 +414,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
 "lng_profile_enable_notifications" = "Notifications";
+"lng_profile_techsupport_chat" = "Techsupport chat";
 "lng_profile_clear_history" = "Clear history";
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_clear_and_exit" = "Delete and exit";
@@ -666,6 +667,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_restore" = "Restore";
 "lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
 
+"lng_settings_hide_self_typing" = "Don't show when I typing";
+"lng_settings_techsupport_dialogs_disable" = "Hide techsupport chats";
+"lng_settings_send_url_with_preview" = "Show url preview";
+"lng_itssettings_button" = "ITS Settings";
+"lng_itssettings_about" = "IVAN mne nuzhet text? da i voobche kak pravilno vse eto obozvat potomu chto ia nichego ne zhau v etih vashih angliyskih\n\n vo slavu ktulhu \n\n !!!!";
+"lng_itssettings_title" = "ITS Settings";
+
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video file";
 "lng_in_dlg_audio_file" = "Audio file";
@@ -755,6 +763,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Choose images";
 
+"lng_context_pin" = "Pin";
+"lng_context_unpin" = "Unpin";
+"lng_context_dont_care" = "Don't Care";
+"lng_context_mute" = "Mute";
+"lng_context_unmute" = "Unmute";
+"lng_context_its_ok" = "It's OK";
+"lng_context_mark" = "Mark";
+"lng_context_unmark" = "Unmark";
+
 "lng_context_view_profile" = "View profile";
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
@@ -789,6 +806,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
+"lng_context_create_task_by_msg" = "Create Task";
 "lng_context_pin_msg" = "Pin Message";
 "lng_context_unpin_msg" = "Unpin Message";
 "lng_context_cancel_upload" = "Cancel Upload";
@@ -860,9 +878,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "Leave";
 
 "lng_about_version" = "version {version}";
-"lng_about_text_1" = "Official free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security";
-"lng_about_text_2" = "This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3.\nSource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
-"lng_about_text_3" = "Visit {faq_open}Telegram FAQ{faq_close} for more info.";
+"lng_about_text_1" = "Free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a], with specific ITSumma ChatOps features.";
+"lng_about_text_2" = "Software licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3. Source code is available on [a href=\"https://github.com/github.com/itsumma/itstelegram\"]GitHub[/a].";
+"lng_about_text_3" = "More info in [a href=\"https://www.itsumma.ru/blog/8/\"]our blog[/a].";
 "lng_about_done" = "Done";
 
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";

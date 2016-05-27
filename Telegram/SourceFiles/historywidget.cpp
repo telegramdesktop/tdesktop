@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
@@ -39,6 +39,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
 #include "playerwidget.h"
+#include "its/itscreatetaskbox.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -247,7 +248,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			HistoryBlock *block = _migrated->blocks[iBlock];
 			int32 iItem = (_curHistory == _migrated ? _curItem : (block->items.size() - 1));
 			HistoryItem *item = block->items[iItem];
-
+			App::main()->topBar()->currentItemTime = item->date.toString("dd MMMM yyyy");
+			App::main()->topBar()->update();
 			int32 y = mtop + block->y + item->y;
 			p.save();
 			p.translate(0, y);
@@ -291,7 +293,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			HistoryBlock *block = _history->blocks[iBlock];
 			int32 iItem = (_curHistory == _history ? _curItem : 0);
 			HistoryItem *item = block->items[iItem];
-
+			App::main()->topBar()->currentItemTime = item->date.toString("dd MMMM yyyy");
+			App::main()->topBar()->update();
 			QRect historyRect = r.intersected(QRect(0, hdrawtop, width(), r.top() + r.height()));
 			int32 y = htop + block->y + item->y;
 			p.save();
@@ -341,8 +344,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				}
 
 				// paint the userpic if it intersects the painted rect
-				if (userpicTop < r.top() + r.height()) {
-					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop, message->history()->width);
+				if (userpicTop < r.top() + r.height() && message->hasFromPhoto() && !message->history()->peer->isUser() && !message->out()) {
+					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop + 5, message->history()->width);
 				}
 				return true;
 			});
@@ -1105,6 +1108,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				item = App::mousedItem();
 			}
 		}
+		
+		ITSBitrix24& bitrix24 = ITSBitrix24::Instance();
+		bitrix24.loadConfigFromLocalStorage();
+		if (bitrix24.checkBitrix24RegData() && this->_history->peer->isTechsupportChat()) {
+			_menu->addAction(lang(lng_context_create_task_by_msg), _widget, SLOT(createTask()))->setEnabled(true);
+		}
+
 		App::contextItem(item);
 	}
 
@@ -1723,15 +1733,15 @@ void HistoryInner::onUpdateSelected() {
 		lnkhost = item;
 		if (!dragState.link && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
 			if (HistoryMessage *msg = item->toHistoryMessage()) {
-				if (msg->hasFromPhoto()) {
+				if (msg->hasFromPhoto() && !msg->history()->peer->isUser() && !msg->out()) {
 					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
 						// stop enumeration if the userpic is above our point
-						if (userpicTop + st::msgPhotoSize <= point.y()) {
+						if (userpicTop + 5 + st::msgPhotoSize <= point.y()) {
 							return false;
 						}
 
 						// stop enumeration if we've found a userpic under the cursor
-						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+						if (point.y() >= userpicTop + 5 && point.y() < userpicTop + 5 + st::msgPhotoSize) {
 							dragState.link = message->from()->openLink();
 							lnkhost = message;
 							return false;
@@ -1835,6 +1845,14 @@ void HistoryInner::onUpdateSelected() {
 	if (_dragAction == NoDrag && (lnkChanged || cur != _cursor)) {
 		setCursor(_cursor = cur);
 	}
+
+#ifdef Q_OS_LINUX
+	QString selText = getSelectedText();
+	QClipboard *clipboard = QApplication::clipboard();
+	if (!selText.isEmpty() && clipboard) {
+		clipboard->setText(selText, QClipboard::Selection);
+	}
+#endif
 }
 
 void HistoryInner::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force) {
@@ -2977,7 +2995,7 @@ void HistoryWidget::onTextChange() {
 
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
 		if (!_inlineBot && !_editMsgId && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
-			updateSendAction(_history, SendActionTyping);
+			if (!gHideSelfTyping) updateSendAction(_history, SendActionTyping);
 		}
 	}
 
@@ -5778,6 +5796,8 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
 	}
+
+	p.drawText(width() / 2, st::topBarHeight - 10, App::main()->topBar()->currentItemTime);
 }
 
 void HistoryWidget::topBarClick() {
@@ -8245,6 +8265,26 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 
 	_scroll.scrollToY(scNew);
 	return true;
+}
+
+void HistoryWidget::createTask() {	
+
+	QString
+		taskDescription = _list->getSelectedText(),
+		taskTitle = _history->peer->name;
+
+	if (taskDescription.isEmpty()) {
+		HistoryItem *item = App::contextItem();
+		if (item || item->type() == HistoryItemMsg || !item->serviceMsg()) {
+			HistoryMessage *historyMessage = 0;
+			if ((historyMessage = dynamic_cast<HistoryMessage*>(item)) != 0) {
+				taskDescription.append(historyMessage->originalText());
+			}
+		}
+	}
+
+	ITSCreateTaskBox *createTaskBox = new ITSCreateTaskBox(taskTitle, taskDescription);
+	Ui::showLayer(createTaskBox);	
 }
 
 HistoryWidget::~HistoryWidget() {

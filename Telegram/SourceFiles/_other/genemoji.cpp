@@ -38,8 +38,6 @@ Q_IMPORT_PLUGIN(QTgaPlugin)
 Q_IMPORT_PLUGIN(QTiffPlugin)
 Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
-#else
-#error Only Mac OS X is supported
 #endif
 
 typedef quint32 uint32;

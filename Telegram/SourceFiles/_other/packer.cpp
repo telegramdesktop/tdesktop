@@ -36,30 +36,6 @@ Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif
 
 bool DevChannel = false;
-quint64 BetaVersion = 0;
-
-const char *PublicKey = "\
------BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
-BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
-+9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
------END RSA PUBLIC KEY-----\
-";
-
-const char *PublicDevKey = "\
------BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
-0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
-w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
------END RSA PUBLIC KEY-----\
-";
-
-extern const char *PrivateKey;
-extern const char *PrivateDevKey;
-#include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
-#include "../../../../TelegramPrivate/beta_private.h" // private key for beta version file generation
-
-QString countBetaVersionSignature(quint64 version);
 
 // sha1 hash
 typedef unsigned char uchar;
@@ -142,8 +118,6 @@ int32 *hashSha1(const void *data, uint32 len, void *dest) {
 	return (int32*)sha1To;
 }
 
-QString BetaSignature;
-
 int main(int argc, char *argv[])
 {
 	QString workDir;
@@ -173,18 +147,6 @@ int main(int argc, char *argv[])
 			version = QString(argv[i + 1]).toInt();
 		} else if (string("-dev") == argv[i]) {
 			DevChannel = true;
-		} else if (string("-beta") == argv[i] && i + 1 < argc) {
-			BetaVersion = QString(argv[i + 1]).toULongLong();
-			if (BetaVersion > version * 1000ULL && BetaVersion < (version + 1) * 1000ULL) {
-				DevChannel = false;
-				BetaSignature = countBetaVersionSignature(BetaVersion);
-				if (BetaSignature.isEmpty()) {
-					return -1;
-				}
-			} else {
-				cout << "Bad -beta param value passed, should be for the same version: " << version << ", beta: " << BetaVersion << "\n";
-				return -1;
-			}
 		}
 	}
 
@@ -238,12 +200,7 @@ int main(int argc, char *argv[])
 		QDataStream stream(&buffer);
 		stream.setVersion(QDataStream::Qt_5_1);
 
-		if (BetaVersion) {
-			stream << quint32(0x7FFFFFFF);
-			stream << quint64(BetaVersion);
-		} else {
-			stream << quint32(version);
-		}
+		stream << quint32(version);
 
 		stream << quint32(files.size());
 		cout << "Found " << files.size() << " file" << (files.size() == 1 ? "" : "s") << "..\n";
@@ -434,55 +391,18 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PrivateDevKey : PrivateKey), -1), 0, 0, 0);
-	if (!prKey) {
-		cout << "Could not read RSA private key!\n";
-		return -1;
-	}
-	if (RSA_size(prKey) != hSigLen) {
-		cout << "Bad private key, size: " << RSA_size(prKey) << "\n";
-		RSA_free(prKey);
-		return -1;
-	}
-	if (RSA_sign(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (uchar*)(compressed.data()), &siglen, prKey) != 1) { // count signature
-		cout << "Signing failed!\n";
-		RSA_free(prKey);
-		return -1;
-	}
-	RSA_free(prKey);
 
-	if (siglen != hSigLen) {
-		cout << "Bad signature length: " << siglen << "\n";
-		return -1;
-	}
-
-	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PublicDevKey : PublicKey), -1), 0, 0, 0);
-	if (!pbKey) {
-		cout << "Could not read RSA public key!\n";
-		return -1;
-	}
-	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), siglen, pbKey) != 1) { // verify signature
-		RSA_free(pbKey);
-		cout << "Signature verification failed!\n";
-		return -1;
-	}
-	cout << "Signature verified!\n";
-	RSA_free(pbKey);
 #ifdef Q_OS_WIN
-	QString outName(QString("tupdate%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName(QString("tupdate%1").arg(version));
 #elif defined Q_OS_MAC
-	QString outName(QString("tmacupd%1").arg(BetaVersion ? BetaVersion : version));
-#elif defined Q_OS_LINUX32
-    QString outName(QString("tlinux32upd%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName(QString("tmacupd%1").arg(version));
+#elif defined Q_OS_LINUX32    
+	QString outName(QString("tlinux32upd%1").arg(version));
 #elif defined Q_OS_LINUX64
-    QString outName(QString("tlinuxupd%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName(QString("tlinuxupd%1").arg(version));
 #else
 #error Unknown platform!
 #endif
-	if (BetaVersion) {
-		outName += "_" + BetaSignature;
-	}
 	QFile out(outName);
 	if (!out.open(QIODevice::WriteOnly)) {
 		cout << "Can't open '" << outName.toUtf8().constData() << "' for write..\n";
@@ -491,63 +411,7 @@ int main(int argc, char *argv[])
 	out.write(compressed);
 	out.close();
 
-	if (BetaVersion) {
-		QString keyName(QString("tbeta_%1_key").arg(BetaVersion));
-		QFile key(keyName);
-		if (!key.open(QIODevice::WriteOnly)) {
-			cout << "Can't open '" << keyName.toUtf8().constData() << "' for write..\n";
-			return -1;
-		}
-		key.write(BetaSignature.toUtf8());
-		key.close();
-	}
-
 	cout << "Update file '" << outName.toUtf8().constData() << "' written successfully!\n";
 
 	return 0;
-}
-
-QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdate.cpp
-	QByteArray cBetaPrivateKey(BetaPrivateKey);
-	if (cBetaPrivateKey.isEmpty()) {
-		cout << "Error: Trying to count beta version signature without beta private key!\n";
-		return QString();
-	}
-
-	QByteArray signedData = (QLatin1String("TelegramBeta_") + QString::number(version, 16).toLower()).toUtf8();
-
-	static const int32 shaSize = 20, keySize = 128;
-
-	uchar sha1Buffer[shaSize];
-	hashSha1(signedData.constData(), signedData.size(), sha1Buffer); // count sha1
-
-	uint32 siglen = 0;
-
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(cBetaPrivateKey.constData()), -1), 0, 0, 0);
-	if (!prKey) {
-		cout << "Error: Could not read beta private key!\n";
-		return QString();
-	}
-	if (RSA_size(prKey) != keySize) {
-		cout << "Error: Bad beta private key size: " << RSA_size(prKey) << "\n";
-		RSA_free(prKey);
-		return QString();
-	}
-	QByteArray signature;
-	signature.resize(keySize);
-	if (RSA_sign(NID_sha1, (const uchar*)(sha1Buffer), shaSize, (uchar*)(signature.data()), &siglen, prKey) != 1) { // count signature
-		cout << "Error: Counting beta version signature failed!\n";
-		RSA_free(prKey);
-		return QString();
-	}
-	RSA_free(prKey);
-
-	if (siglen != keySize) {
-		cout << "Error: Bad beta version signature length: " << siglen << "\n";
-		return QString();
-	}
-
-	signature = signature.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	signature = signature.replace('-', '8').replace('_', 'B');
-	return QString::fromUtf8(signature.mid(19, 32));
 }

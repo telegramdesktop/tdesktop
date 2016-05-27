@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
+#include "dialogswidget.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer) : TWidget(0)
 , _profile(profile)
@@ -82,6 +83,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 // settings
 , _enableNotifications(this, lang(lng_profile_enable_notifications))
+, _techsupportChat(this, lang(lng_profile_techsupport_chat))
 
 // shared media
 , _notAllMediaLoaded(false)
@@ -212,6 +214,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 	// settings
 	connect(&_enableNotifications, SIGNAL(clicked()), this, SLOT(onEnableNotifications()));
+	connect(&_techsupportChat, SIGNAL(clicked()), this, SLOT(onTechsupportChat()));
 
 	// shared media
 	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
@@ -258,6 +261,20 @@ void ProfileInner::onConvertToSupergroup() {
 
 void ProfileInner::onEnableNotifications() {
 	App::main()->updateNotifySetting(_peer, _enableNotifications.checked() ? NotifySettingSetNotify : NotifySettingSetMuted);
+}
+
+void ProfileInner::onTechsupportChat() {
+
+	if (_techsupportChat.checked()) {
+		if (!PeerData::peerStatus(_peer->id, PeerStatus::techsupport)) PeerData::setPeerStatus(_peer->id, PeerStatus::techsupport);		
+	}
+	else {
+		if (PeerData::peerStatus(_peer->id, PeerStatus::techsupport)) PeerData::unsetPeerStatus(_peer->id, PeerStatus::techsupport);
+	}
+
+	//unset missed status
+	if (PeerData::peerStatus(_peer->id, PeerStatus::missed)) PeerData::unsetPeerStatus(_peer->id, PeerStatus::missed);
+	App::main()->_dialogs->_inner.refresh();
 }
 
 void ProfileInner::saveError(const QString &str) {
@@ -943,6 +960,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	}
 
 	top += _enableNotifications.height();
+	if(!_peer->isUser()) top += _techsupportChat.height();
 
 	// shared media
 	p.setFont(st::profileHeaderFont->f);
@@ -1459,6 +1477,12 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	}
 
 	_enableNotifications.move(_left, top); top += _enableNotifications.height();
+	if (!_peer->isUser()) {
+		top += 10;
+		_techsupportChat.move(_left, top); 
+		top += _techsupportChat.height();
+	}
+		
 
 	// shared media
 	top += st::profileHeaderSkip;
@@ -1801,7 +1825,15 @@ void ProfileInner::showAll() {
 	}
 	_enableNotifications.show();
 	updateNotifySettings();
-
+	
+	if (!_peer->isUser()) {
+		_techsupportChat.show();
+		_techsupportChat.setChecked(PeerData::peerStatus(_peer->id, PeerStatus::techsupport));
+	}
+	else {
+		_techsupportChat.hide();
+	}
+	
 	// participants
 	reorderParticipants();
 	resize(width(), countMinHeight() + _addToHeight);

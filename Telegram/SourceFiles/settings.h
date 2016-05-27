@@ -313,3 +313,32 @@ DeclareSetting(int32, AutoDownloadGif);
 DeclareSetting(bool, AutoPlayGif);
 
 void settingsParseArgs(int argc, char *argv[]);
+
+DeclareSetting(QStringList, AdminsList);
+DeclareSetting(int32, AdminsListType);
+DeclareSetting(QString, Bitrix24PortalURL);
+DeclareSetting(QString, Bitrix24PortalClientId);
+DeclareSetting(QString, Bitrix24PortalClientSecret);
+DeclareSetting(QString, Bitrix24PortalAccessToken);
+DeclareSetting(QDateTime, Bitrix24PortalAccessTokenReceived);
+DeclareSetting(QString, Bitrix24PortalRefreshToken);
+DeclareSetting(int32, Bitrix24PortalCallbackPort);
+DeclareSetting(int32, Bitrix24PortalDefaultGroupId);
+DeclareSetting(int32, Bitrix24PortalUserId);
+
+DeclareReadSetting(int32, MissingChatsMeesagesInterval);
+DeclareReadSetting(int32, MissingChatsUpdateInterval);
+DeclareReadSetting(int32, DialogMessagesRotateInterval);
+DeclareReadSetting(int32, ManagersChatsDisactivateInterval);
+
+DeclareSetting(bool, TechsupportDialogsDisable);
+DeclareSetting(bool, TechsupportDialogsReadOnly);
+DeclareSetting(bool, HideSelfTyping);
+DeclareSetting(bool, SendUrlWithPreview);
+DeclareSetting(bool, OpenCreatedTaskInBrowser);
+
+typedef QMap<uint64, int32> PeerStatusesMap;
+DeclareSetting(PeerStatusesMap, PeerStatuses);
+
+typedef QMap<uint64, QDateTime> PeerDontcareTimestampsMap;
+DeclareSetting(PeerDontcareTimestampsMap, PeerDontcareTimestamps);

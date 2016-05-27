@@ -143,6 +143,8 @@ namespace App {
 	}
 
 	UserData *self();
+	bool selfIsAdmin();
+	bool peerIsAdmin(QString username);
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
