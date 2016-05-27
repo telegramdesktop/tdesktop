@@ -134,6 +134,7 @@ private:
 		{ "align"     , { structure::TypeTag::Align } },
 		{ "margins"   , { structure::TypeTag::Margins } },
 		{ "font"      , { structure::TypeTag::Font } },
+		{ "icon"      , { structure::TypeTag::Icon } },
 	};
 
 };

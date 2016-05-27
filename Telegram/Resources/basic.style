@@ -58,6 +58,7 @@ adaptiveWideWidth: 1366px;
 windowBg: #fff; // fallback for background: white
 windowTextFg: #000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowShadowFg: #000; // fallback for shadow color
 
 wndMinHeight: 480px;
 wndDefWidth: 800px;

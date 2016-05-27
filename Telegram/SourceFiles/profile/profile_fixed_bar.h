@@ -36,6 +36,9 @@ public:
 	// whole fixed bar acts like a back button.
 	void setAnimatingMode(bool enabled);
 
+	// The "Share contact" button should be hidden if it is shown in the profile cover.
+	void setHideShareContactButton(bool hideButton);
+
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
 
@@ -45,21 +48,33 @@ public slots:
 private slots:
 	void onEditChannel();
 	void onEditGroup();
-	void onLeaveGroup();
 	void onAddContact();
 	void onEditContact();
+	void onShareContact();
 	void onDeleteContact();
+	void onDeleteContactSure();
+	void onLeaveGroup();
+	void onLeaveGroupSure();
 
 private:
 	void refreshRightActions();
+	void setUserActions();
+	void setChatActions();
+	void setMegagroupActions();
+	void setChannelActions();
+
 	enum class RightActionType {
 		EditChannel,
 		EditGroup,
 		LeaveGroup,
 		AddContact,
 		EditContact,
-		DeleteContact
+		DeleteContact,
+		ShareContact,
 	};
+
+	void addRightAction(RightActionType type, const QString &text, const char *slot);
+	void applyHideShareContactButton();
 
 	PeerData *_peer;
 	UserData *_peerUser;
@@ -68,10 +83,16 @@ private:
 	ChannelData *_peerMegagroup;
 
 	ChildWidget<BackButton> _backButton;
-	QList<FlatButton*> _rightActions;
-	QList<RightActionType> _rightActionTypes;
+
+	int _currentAction = 0;
+	struct RightAction {
+		RightActionType type;
+		FlatButton *button;
+	};
+	QList<RightAction> _rightActions;
 
 	bool _animatingMode = false;
+	bool _hideShareContactButton = false;
 
 };
 

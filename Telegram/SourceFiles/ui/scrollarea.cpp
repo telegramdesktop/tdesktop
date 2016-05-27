@@ -677,6 +677,7 @@ void ScrollArea::leaveEvent(QEvent *e) {
 
 void ScrollArea::scrollToY(int toTop, int toBottom) {
 	myEnsureResized(widget());
+	myEnsureResized(this);
 
 	int toMin = 0, toMax = scrollTopMax();
 	if (toTop < toMin) {

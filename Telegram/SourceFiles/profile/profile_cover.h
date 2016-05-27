@@ -49,6 +49,11 @@ public:
 
 	void showFinished();
 
+	// Profile fixed top bar should use this flag to decide
+	// if it shows "Share contact" button or not.
+	// It should show it only if it is hidden in the cover.
+	bool shareContactButtonShown() const;
+
 private slots:
 	void onPhotoShow();
 
@@ -70,6 +75,7 @@ private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
+	void moveAndToggleButtons(int newWiddth);
 	void refreshNameText();
 	void refreshStatusText();
 	bool isUsingMegagroupOnlineCount() const;
@@ -82,6 +88,7 @@ private:
 
 	void clearButtons();
 	void addButton(const QString &text, const char *slot);
+	void addButton(const style::BoxButton &buttonStyle, const char *slot);
 
 	void paintDivider(Painter &p);
 

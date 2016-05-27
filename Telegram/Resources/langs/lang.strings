@@ -460,6 +460,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_drop_area_title" = "Drop your image here";
 "lng_profile_drop_area_subtitle" = "to set it as a group photo";
 "lng_profile_drop_area_subtitle_channel" = "to set it as a channel photo";
+"lng_profile_top_bar_share_contact" = "Share";
 
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";

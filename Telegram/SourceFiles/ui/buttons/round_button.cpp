@@ -65,12 +65,17 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		p.setOpacity(o);
 		App::roundRect(p, rect(), _st.textBgOver);
 		p.setOpacity(1);
-		p.setPen(a_textFg.current());
-	} else {
-		p.setPen(_st.textFg);
 	}
-	p.setFont(_st.font);
-	p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
+	if (!_text.isEmpty()) {
+		if (o > 0) {
+			p.setPen(a_textFg.current());
+		} else {
+			p.setPen(_st.textFg);
+		}
+		p.setFont(_st.font);
+		p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
+	}
+	_st.icon.paint(p, QPoint(0, 0), width());
 }
 
 void RoundButton::step_over(float64 ms, bool timer) {

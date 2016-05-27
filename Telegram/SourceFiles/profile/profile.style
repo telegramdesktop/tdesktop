@@ -32,6 +32,8 @@ profileTopBarBackIconPosition: point(15px, 19px);
 profileTopBarBackFont: font(14px);
 profileTopBarBackFg: #1485c2;
 profileTopBarBackPosition: point(32px, 17px);
+profileFixedBarButton: flatButton(topBarButton) {
+}
 
 profileMarginTop: 13px;
 profilePhotoSize: 112px;
@@ -76,6 +78,13 @@ profileSecondaryButton: BoxButton(profilePrimaryButton) {
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
+profileAddMemberIcon: icon {
+	{ "profile_add_member", #3fb0e4, point(20px, 10px) },
+};
+profileAddMemberButton: BoxButton(profileSecondaryButton) {
+	width: 62px;
+	icon: profileAddMemberIcon;
+}
 
 profileDropAreaBg: profileBg;
 profileDropAreaFg: #3fb0e4;
@@ -88,7 +97,7 @@ profileDropAreaBorderFg: profileDropAreaFg;
 profileDropAreaBorderWidth: 3px;
 profileDropAreaDuration: 200;
 
-profileDividerFg: black;
+profileDividerFg: windowShadowFg;
 profileDividerLeft: icon {
 	{ "profile_divider_left", profileDividerFg },
 };

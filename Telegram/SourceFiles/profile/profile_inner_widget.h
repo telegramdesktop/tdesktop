@@ -41,6 +41,11 @@ public:
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
+	// Profile fixed top bar should use this flag to decide
+	// if it shows "Share contact" button or not.
+	// It should show it only if it is hidden in the cover.
+	bool shareContactButtonShown() const;
+
 	void showFinished();
 
 signals:

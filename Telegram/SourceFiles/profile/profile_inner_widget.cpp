@@ -45,7 +45,7 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 
 	int notDisplayedAtBottom = height() - _visibleBottom;
 	if (notDisplayedAtBottom > 0) {
-		decreaseAdditionalHeight(notDisplayedAtBottom);
+//		decreaseAdditionalHeight(notDisplayedAtBottom); // testing
 	}
 
 	//loadProfilePhotos(_visibleTop);
@@ -54,6 +54,10 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 			App::api()->requestLastParticipants(peer()->asChannel(), false);
 		}
 	}
+}
+
+bool InnerWidget::shareContactButtonShown() const {
+	return _cover->shareContactButtonShown();
 }
 
 void InnerWidget::showFinished() {

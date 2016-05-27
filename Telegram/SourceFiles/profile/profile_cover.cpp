@@ -119,17 +119,13 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
 	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
 	_name.moveToLeft(nameLeft, nameTop);
-	int nameWidth = width() - infoLeft - st::profileNameLeft - st::profileButtonSkip;
+	int nameWidth = newWidth - infoLeft - st::profileNameLeft - st::profileButtonSkip;
 	nameWidth += st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
 	_name.resizeToWidth(nameWidth);
 
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _userpicButton->y() + st::profileStatusTop);
 
-	int buttonLeft = st::profilePhotoLeft + _userpicButton->width() + st::profileButtonLeft;
-	for_const (auto button, _buttons) {
-		button->moveToLeft(buttonLeft, st::profileButtonTop);
-		buttonLeft += button->width() + st::profileButtonSkip;
-	}
+	moveAndToggleButtons(newWidth);
 
 	newHeight += st::profilePhotoSize;
 	newHeight += st::profileMarginBottom;
@@ -144,8 +140,39 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	update();
 }
 
+// A more generic solution would be allowing an optional icon button
+// for each text button. But currently we use only one, so it is done easily:
+// There can be primary + secondary + icon buttons. If primary + secondary fit,
+// then icon is hidden, otherwise secondary is hidden and icon is shown.
+void CoverWidget::moveAndToggleButtons(int newWiddth) {
+	bool showNextButton = true;
+	int buttonLeft = st::profilePhotoLeft + _userpicButton->width() + st::profileButtonLeft;
+	int buttonsRight = newWiddth - st::profileButtonSkip;
+	for (int i = 0, count = _buttons.size(); i < count; ++i) {
+		auto button = _buttons.at(i);
+		button->moveToLeft(buttonLeft, st::profileButtonTop);
+		if (i == 1) {
+			// If second button is not fitting.
+			if (buttonLeft + button->width() > buttonsRight) {
+				button->hide();
+			} else {
+				button->show();
+				buttonLeft += button->width() + st::profileButtonSkip;
+				showNextButton = false;
+			}
+		} else {
+			button->setVisible(showNextButton);
+			buttonLeft += button->width() + st::profileButtonSkip;
+		}
+	}
+}
+
 void CoverWidget::showFinished() {
 	_userpicButton->showFinished();
+}
+
+bool CoverWidget::shareContactButtonShown() const {
+	return _peerUser && (_buttons.size() > 1) && !(_buttons.at(1)->isHidden());
 }
 
 void CoverWidget::paintEvent(QPaintEvent *e) {
@@ -368,6 +395,7 @@ void CoverWidget::setChatButtons() {
 	if (_peerChat->canEdit()) {
 		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
+		addButton(st::profileAddMemberButton, SLOT(onAddMember()));
 	}
 }
 
@@ -377,6 +405,7 @@ void CoverWidget::setMegagroupButtons() {
 	}
 	if (_peerMegagroup->canAddParticipants()) {
 		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
+		addButton(st::profileAddMemberButton, SLOT(onAddMember()));
 	}
 }
 
@@ -398,12 +427,16 @@ void CoverWidget::clearButtons() {
 }
 
 void CoverWidget::addButton(const QString &text, const char *slot) {
-	if (!text.isEmpty()) {
-		auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
-		_buttons.push_back(new Ui::RoundButton(this, text, buttonStyle));
-		connect(_buttons.back(), SIGNAL(clicked()), this, slot);
-		_buttons.back()->show();
-	}
+	auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
+	_buttons.push_back(new Ui::RoundButton(this, text, buttonStyle));
+	connect(_buttons.back(), SIGNAL(clicked()), this, slot);
+	_buttons.back()->show();
+}
+
+void CoverWidget::addButton(const style::BoxButton &buttonStyle, const char *slot) {
+	_buttons.push_back(new Ui::RoundButton(this, QString(), buttonStyle));
+	connect(_buttons.back(), SIGNAL(clicked()), this, slot);
+	_buttons.back()->hide();
 }
 
 void CoverWidget::onSendMessage() {

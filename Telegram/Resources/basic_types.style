@@ -308,6 +308,8 @@ BoxButton {
 
 	textTop: pixels;
 
+	icon: icon;
+
 	font: font;
 	duration: int;
 }

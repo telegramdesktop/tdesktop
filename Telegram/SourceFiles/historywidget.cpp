@@ -6867,7 +6867,8 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 	} else {
 	}
-	if (toY > _scroll.scrollTopMax()) toY = _scroll.scrollTopMax();
+	auto scrollMax = _scroll.scrollTopMax();
+	accumulate_min(toY, scrollMax);
 	if (_scroll.scrollTop() == toY) {
 		visibleAreaUpdated();
 	} else {
