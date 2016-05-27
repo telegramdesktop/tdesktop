@@ -36,6 +36,7 @@ enum DialogsSearchRequestType {
 	DialogsSearchMigratedFromOffset,
 };
 
+class ProfileInner;
 class DialogsInner : public SplittedWidget, public RPCSender {
 	Q_OBJECT
 
@@ -89,6 +90,7 @@ public:
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
 	FilteredDialogs &filteredList();
+	QVector<History *> techsupportDialogs;
 	PeopleResults &peopleList();
 	SearchResults &searchList();
 	int32 lastSearchDate() const;
@@ -129,7 +131,9 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
-
+	void onContextPin();
+	void onContextMark();
+	void onContextItsOk();
 	void onContextProfile();
 	void onContextToggleNotifications();
 	void onContextSearch();
@@ -143,6 +147,13 @@ public slots:
 
 	void peerUpdated(PeerData *peer);
 
+	void onUpdateMissingChats();
+	void onMissingChatsGroup();
+	void onTechsupportChatsGroup();
+	void onSortByUnreaded();
+	void onMarkAllReaded();
+	void onItsAllOk();
+
 signals:
 
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
@@ -155,6 +166,7 @@ signals:
 
 protected:
 
+	void sortAndUnionSearchResults(QVector<Dialogs::FakeRow*> &searchResults);
 	void paintRegion(Painter &p, const QRegion &region, bool paintingOther);
 
 private:
@@ -172,6 +184,8 @@ private:
 	void updateSelectedRow(PeerData *peer = 0);
 	bool menuPeerMuted();
 	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
+
+	QTimer _updateMissingChatsTimer;
 
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? importantDialogs.get() : dialogs.get();
@@ -228,6 +242,7 @@ private:
 
 	PopupMenu *_menu = nullptr;
 
+	friend class ProfileInner;
 };
 
 class DialogsWidget : public TWidget, public RPCSender {
@@ -255,6 +270,8 @@ public:
 
 	void loadDialogs();
 	void createDialog(History *history);
+	void showTechsupportDialogs();
+	void hideTechsuppoerDialogs();
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 
@@ -313,6 +330,9 @@ public slots:
 
 	void onChooseByDrag();
 
+	void onContextSubmenuClick();
+	void onContextSubmenuDestroy(QObject *obj);
+
 private:
 
 	bool _dragInScroll, _dragForward;
@@ -331,9 +351,10 @@ private:
 	mtpRequestId _dialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
-	IconedButton _newGroup, _addContact, _cancelSearch;
+	IconedButton _addContact, _cancelSearch, _contextSubmenu;
 	ScrollArea _scroll;
 	DialogsInner _inner;
+	PopupMenu *_contextSubmenuPopup;
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;
@@ -359,4 +380,5 @@ private:
 	typedef QMap<mtpRequestId, QString> PeopleQueries;
 	PeopleQueries _peopleQueries;
 
+	friend class ProfileInner;
 };

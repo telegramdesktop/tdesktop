@@ -59,12 +59,14 @@ private:
 
 class FakeRow {
 public:
-	FakeRow(HistoryItem *item) : _item(item) {
+	FakeRow(HistoryItem *item, bool isTitle = false) : _item(item), isTitle(isTitle) {
 	}
 
 	HistoryItem *item() const {
 		return _item;
 	}
+
+	bool isTitle;
 
 private:
 	friend class Layout::RowPainter;

@@ -95,6 +95,35 @@ ImagePtr channelDefPhoto(int index) {
 	return channelDefPhotos[index];
 }
 
+ImagePtr dialogStatus(PeerStatus peerStatus) {
+	static const ImagePtr dialogStatusImgs[4] = {
+		ImagePtr(qsl(":/dialogStatuses/art/dialogStatuses/marked.png"), "PNG"),
+		ImagePtr(qsl(":/dialogStatuses/art/dialogStatuses/directMsg.png"), "PNG"),
+		ImagePtr(qsl(":/dialogStatuses/art/dialogStatuses/techsupport.png"), "PNG"),
+	};
+
+	switch (peerStatus)
+	{
+	case directMsg:
+		return dialogStatusImgs[1];
+		break;
+	case marked:
+		return dialogStatusImgs[0];
+		break;
+	case techsupport:
+		return dialogStatusImgs[2];
+	default:
+		break;
+	}
+
+	return dialogStatusImgs[0];
+}
+
+ImagePtr itsLogo() {
+	static const ImagePtr itsLogoImagePtr = ImagePtr(qsl(":/gui/art/itslogo.png"), "PNG");
+	return itsLogoImagePtr;
+}
+
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
@@ -105,8 +134,86 @@ PeerData::PeerData(const PeerId &id) : id(id)
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
-, _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
+, _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)))
+, hasUnreadDirectMsg(false)  {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
+}
+
+bool PeerData::isTechsupportChat() {
+	return PeerData::peerStatus(id, PeerStatus::techsupport);
+}
+
+bool PeerData::missingChatNeedBacklighting() {
+
+	if (isTechsupportChat() && PeerData::peerStatus(id, PeerStatus::missed)) {
+		return true;
+	}
+
+	return false;
+}
+
+bool PeerData::userIsAdmin() {
+	return isUser() && gAdminsList.contains(this->userName());
+}
+
+void PeerData::setPeerStatus(PeerId id, PeerStatus flag) {
+
+	if (!gPeerStatuses.contains(id)) gPeerStatuses.insert(id, 0);
+	gPeerStatuses[id] = gPeerStatuses[id] | flag;
+	Local::writeUserSettings();
+	
+
+	/*QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "ITSTelegram", "ChatsSettings");
+	if (!settings.contains(QString::number(id))) settings.setValue(QString::number(id), 0);
+
+	settings.setValue(QString::number(id), settings.value(QString::number(id), 0).toInt() | flag);*/
+}
+
+void PeerData::unsetPeerStatus(PeerId id, PeerStatus flag) {
+
+	if (!gPeerStatuses.contains(id)) return;
+	gPeerStatuses[id] = gPeerStatuses[id] ^ flag;
+	Local::writeUserSettings();
+
+
+	//QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "ITSTelegram", "ChatsSettings");
+	//if (settings.contains(QString::number(id)))
+	//	settings.setValue(QString::number(id), settings.value(QString::number(id), 0).toInt() ^ flag);
+}
+
+bool PeerData::peerStatus(PeerId id, PeerStatus flag) {
+	
+	if (!gPeerStatuses.contains(id)) return false;
+	return ((gPeerStatuses[id] & flag) == flag);
+	
+	//QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "ITSTelegram", "ChatsSettings");
+	//if (!settings.contains(QString::number(id)))
+	//	return false;
+
+	//return ((settings.value(QString::number(id), 0).toInt() & flag) == flag);
+}
+
+void PeerData::setPeerDontcareTimestamp(PeerId peerId, QDateTime lastMessageDateTime) {
+	
+	if (!gPeerDontcareTimestamps.contains(peerId)) gPeerDontcareTimestamps.insert(peerId, lastMessageDateTime);
+	gPeerDontcareTimestamps[peerId] = lastMessageDateTime;
+	Local::writeUserSettings();
+
+	//QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "ITSTelegram", "DontCareChatsSettings");
+	//settings.setValue(QString::number(peerId), lastMessageDateTime);
+}
+
+QDateTime PeerData::getPeerDontcareTimestamp(PeerId id) {
+
+	if (!gPeerDontcareTimestamps.contains(id)) return QDateTime();
+	return gPeerDontcareTimestamps[id];
+		
+
+	//QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "ITSTelegram", "DontCareChatsSettings");
+	//if (!settings.contains(QString::number(id)))
+	//	return QDateTime();
+
+	//return settings.value(QString::number(id), 0).toDateTime();
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
@@ -1505,6 +1612,10 @@ void PeerOpenClickHandler::onClickImpl() const {
 			App::main()->showPeerProfile(peer());
 		}
 	}
+}
+
+void MsgPeerOpenClickHandler::onClickImpl() const {
+	App::main()->choosePeer(peer->id, msgId);
 }
 
 MsgId clientMsgId() {

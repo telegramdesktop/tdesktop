@@ -99,11 +99,12 @@ private:
 
 	SingleTimer _updateCheckTimer;
 	QNetworkReply *_updateReply = nullptr;
-	QNetworkAccessManager _updateManager;
+	QNetworkAccessManager _updateManager, _requestManager;
 	QThread *_updateThread = nullptr;
 	UpdateChecker *_updateChecker = nullptr;
 
 #endif
+
 };
 
 namespace Sandbox {

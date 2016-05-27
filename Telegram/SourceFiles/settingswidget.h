@@ -93,6 +93,7 @@ public slots:
 	void updateConnectionType();
 
 	void passcodeChanged();
+	void itssettingsChanged();
 
 	void updateBackgroundRect();
 
@@ -143,6 +144,11 @@ public slots:
 	void onReplaceEmojis();
 	void onViewEmojis();
 	void onStickers();
+
+	void onTechsupportDialogsDisable();
+	void onHideSelfTyping();
+	void onSendUrlWithPreview();
+	void onITSSettings();
 
 	void onEnterSend();
 	void onCtrlEnterSend();
@@ -221,6 +227,10 @@ private:
 
 	// notifications
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify, _includeMuted;
+
+	//its settings
+	FlatCheckbox _sendUrlWithPreview, _hideSelfTyping, _techsupportDialogsDisable;
+	LinkButton _itssettings;
 
 	// general
 	LinkButton _changeLanguage;

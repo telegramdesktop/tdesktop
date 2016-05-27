@@ -170,6 +170,54 @@ void IndexedList::clear() {
 	}
 }
 
+bool pinnedSortedById(const History* s1, const History* s2)
+{
+	return s1->peer->id > s2->peer->id;
+}
+
+void IndexedList::specialResorting(bool unreadToTop, bool missedToTop, bool techsupportToTop) {
+	
+	if (unreadToTop) {
+		foreach(History *unreadHistory, unreadDialogsList)
+		{
+			if (!unreadHistory->peer->isTechsupportChat()) continue;
+			Dialogs::Row *unreadDialogRow = _list.getRow(unreadHistory->peer->id);
+			if (unreadDialogRow) {
+				_list.insertBefore(*_list.find(unreadDialogRow), *_list.begin());
+			}
+		}
+	}
+
+	if (missedToTop) {
+		foreach(History *missedHistory, missedDialogsList)
+		{
+			Dialogs::Row *missedDialogRow = _list.getRow(missedHistory->peer->id);
+			if (missedDialogRow) {
+				_list.insertBefore(*_list.find(missedDialogRow), *_list.begin());
+			}
+		}
+	}
+
+	if (techsupportToTop) {
+		foreach(History *techsupportHistory, techsupportDialogList)
+		{
+			Dialogs::Row *techsupportDialogRow = _list.getRow(techsupportHistory->peer->id);
+			if (techsupportHistory) {
+				_list.insertBefore(*_list.find(techsupportDialogRow), *_list.begin());
+			}
+		}
+	}
+	
+	qSort(pinnedDialogsList.begin(), pinnedDialogsList.end(), pinnedSortedById);
+	foreach(History *pinnedHistory, pinnedDialogsList)
+	{
+		Dialogs::Row *pinnedDialogRow = _list.getRow(pinnedHistory->peer->id);
+		if (pinnedDialogRow) {
+			_list.insertBefore(pinnedDialogRow, *_list.begin());
+		}
+	}	
+}
+
 IndexedList::~IndexedList() {
 	clear();
 }

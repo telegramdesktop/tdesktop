@@ -383,43 +383,6 @@ uint64 SandboxUserTag = 0;
 namespace Sandbox {
 
 bool CheckBetaVersionDir() {
-	QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
-	if (cBetaVersion()) {
-		cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
-		QDir().mkpath(cWorkingDir() + qstr("tdata"));
-		if (*BetaPrivateKey) {
-			cSetBetaPrivateKey(QByteArray(BetaPrivateKey));
-		}
-		if (beta.open(QIODevice::WriteOnly)) {
-			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_3);
-			dataStream << quint64(cRealBetaVersion()) << cBetaPrivateKey();
-		} else {
-			LOG(("FATAL: Could not open '%1' for writing private key!").arg(beta.fileName()));
-			return false;
-		}
-	} else if (beta.exists()) {
-		cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
-		if (beta.open(QIODevice::ReadOnly)) {
-			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_3);
-
-			quint64 v;
-			QByteArray k;
-			dataStream >> v >> k;
-			if (dataStream.status() == QDataStream::Ok) {
-				cSetBetaVersion(qMax(v, AppVersion * 1000ULL));
-				cSetBetaPrivateKey(k);
-				cSetRealBetaVersion(v);
-			} else {
-				LOG(("FATAL: '%1' is corrupted, reinstall private beta!").arg(beta.fileName()));
-				return false;
-			}
-		} else {
-			LOG(("FATAL: could not open '%1' for reading private key!").arg(beta.fileName()));
-			return false;
-		}
-	}
 	return true;
 }
 

@@ -545,6 +545,26 @@ namespace {
 		// 500-600 reserved
 
 		dbiVersion              = 666,
+
+		// ITSSettings 700 
+		dbiHideSelfTyping = 700,
+		dbiSendUrlWithPreview = 701,
+		dbiTechsupportDialogsDisable = 702,
+		dbiAdminsList = 703,
+		dbiAdminsListType = 704,
+		dbiCreateTaskUrl = 705,
+		dbiBitrix24PortalURL = 706,
+		dbiBitrix24PortalAccessToken = 707,
+		dbiBitrix24PortalRefreshToken = 708,
+		dbiBitrix24PortalClientId = 709,
+		dbiBitrix24PortalClientSecret = 710,
+		dbiBitrix24PortalAccessTokenReceived = 711,
+		dbiBitrix24PortalCallbackPort = 712,
+		dbiBitrix24PortalDefaultGroupId = 713,
+		dbiBitrix24PortalUserId = 714,
+		dbiOpenCreatedTaskInBrowser = 715,
+		dbiPeerStatuses = 716,
+		dbiPeerDontcareTimestamps = 717,
 	};
 
 
@@ -1284,6 +1304,74 @@ namespace {
 			Global::SetHiddenPinnedMessages(v);
 		} break;
 
+		case dbiTechsupportDialogsDisable: {
+			stream >> gTechsupportDialogsDisable;
+		} break;
+
+		case dbiHideSelfTyping: {
+			stream >> gHideSelfTyping;
+		} break;
+
+		case dbiSendUrlWithPreview: {
+			stream >> gSendUrlWithPreview;
+		} break;
+
+		case dbiAdminsList: {
+			stream >> gAdminsList;
+		} break;
+
+		case dbiAdminsListType: {
+			stream >> gAdminsListType;
+		} break;
+
+		case dbiBitrix24PortalURL: {
+			stream >> gBitrix24PortalURL;
+		} break;
+
+		case dbiBitrix24PortalAccessToken: {
+			stream >> gBitrix24PortalAccessToken;
+		} break;
+
+		case dbiBitrix24PortalRefreshToken: {
+			stream >> gBitrix24PortalRefreshToken;
+		} break;
+
+		case dbiBitrix24PortalClientId: {
+			stream >> gBitrix24PortalClientId;
+		} break;
+
+		case dbiBitrix24PortalClientSecret: {
+			stream >> gBitrix24PortalClientSecret;
+		} break;
+
+		case dbiBitrix24PortalAccessTokenReceived: {
+			stream >> gBitrix24PortalAccessTokenReceived;
+		} break;
+
+		case dbiBitrix24PortalCallbackPort: {
+			stream >> gBitrix24PortalCallbackPort;
+		} break;
+
+		case dbiBitrix24PortalDefaultGroupId: {
+			stream >> gBitrix24PortalDefaultGroupId;
+		} break;
+
+		case dbiBitrix24PortalUserId: {
+			stream >> gBitrix24PortalUserId;
+		} break;			
+
+		case dbiOpenCreatedTaskInBrowser: {
+			stream >> gOpenCreatedTaskInBrowser;
+		} break;
+
+		case dbiPeerStatuses: {
+			stream >> gPeerStatuses;
+		} break;
+
+		case dbiPeerDontcareTimestamps: {
+			stream >> gPeerDontcareTimestamps;
+		} break;
+
 		case dbiDialogLastPath: {
 			QString path;
 			stream >> path;
@@ -1579,6 +1667,24 @@ namespace {
 		if (!Global::HiddenPinnedMessages().isEmpty()) {
 			data.stream << quint32(dbiHiddenPinnedMessages) << Global::HiddenPinnedMessages();
 		}
+
+		data.stream << quint32(dbiHideSelfTyping) << gHideSelfTyping;
+		data.stream << quint32(dbiTechsupportDialogsDisable) << gTechsupportDialogsDisable;		
+		data.stream << quint32(dbiSendUrlWithPreview) << gSendUrlWithPreview;
+		data.stream << quint32(dbiAdminsList) << gAdminsList;
+		data.stream << quint32(dbiAdminsListType) << gAdminsListType;
+		data.stream << quint32(dbiBitrix24PortalURL) << gBitrix24PortalURL;
+		data.stream << quint32(dbiBitrix24PortalAccessToken) << gBitrix24PortalAccessToken;
+		data.stream << quint32(dbiBitrix24PortalRefreshToken) << gBitrix24PortalRefreshToken;
+		data.stream << quint32(dbiBitrix24PortalClientId) << gBitrix24PortalClientId;
+		data.stream << quint32(dbiBitrix24PortalClientSecret) << gBitrix24PortalClientSecret;
+		data.stream << quint32(dbiBitrix24PortalAccessTokenReceived) << gBitrix24PortalAccessTokenReceived;
+		data.stream << quint32(dbiBitrix24PortalCallbackPort) << gBitrix24PortalCallbackPort;
+		data.stream << quint32(dbiBitrix24PortalDefaultGroupId) << gBitrix24PortalDefaultGroupId;
+		data.stream << quint32(dbiBitrix24PortalUserId) << gBitrix24PortalUserId;
+		data.stream << quint32(dbiOpenCreatedTaskInBrowser) << gOpenCreatedTaskInBrowser;
+		data.stream << quint32(dbiPeerStatuses) << gPeerStatuses;
+		data.stream << quint32(dbiPeerDontcareTimestamps) << gPeerDontcareTimestamps;
 
 		FileWriteDescriptor file(_userSettingsKey);
 		file.writeEncrypted(data);

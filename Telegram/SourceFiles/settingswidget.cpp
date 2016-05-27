@@ -38,6 +38,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/autolockbox.h"
 #include "boxes/sessionsbox.h"
 #include "boxes/stickersetbox.h"
+#include "its/itssettingsbox.h"
 #include "langloaderplain.h"
 #include "ui/filedialog.h"
 #include "apiwrap.h"
@@ -161,6 +162,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _viewEmojis(this, lang(lng_settings_view_emojis))
 , _stickers(this, lang(lng_stickers_you_have))
 
+, _hideSelfTyping(this, lang(lng_settings_hide_self_typing), cHideSelfTyping())
+, _techsupportDialogsDisable(this, lang(lng_settings_techsupport_dialogs_disable), cTechsupportDialogsDisable())
+, _sendUrlWithPreview(this, lang(lng_settings_send_url_with_preview), cSendUrlWithPreview())
+, _itssettings(this, lang(lng_itssettings_button))
+
 , _enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter())
 , _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter())
 
@@ -281,6 +287,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_replaceEmojis, SIGNAL(changed()), this, SLOT(onReplaceEmojis()));
 	connect(&_viewEmojis, SIGNAL(clicked()), this, SLOT(onViewEmojis()));
 	connect(&_stickers, SIGNAL(clicked()), this, SLOT(onStickers()));
+
+	connect(&_hideSelfTyping, SIGNAL(clicked()), this, SLOT(onHideSelfTyping()));
+	connect(&_techsupportDialogsDisable, SIGNAL(changed()), this, SLOT(onTechsupportDialogsDisable()));
+	connect(&_sendUrlWithPreview, SIGNAL(clicked()), this, SLOT(onSendUrlWithPreview()));
+	connect(&_itssettings, SIGNAL(clicked()), this, SLOT(onITSSettings()));
 
 	connect(&_enterSend, SIGNAL(changed()), this, SLOT(onEnterSend()));
 	connect(&_ctrlEnterSend, SIGNAL(changed()), this, SLOT(onCtrlEnterSend()));
@@ -534,6 +545,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += _enterSend.height() + st::setLittleSkip;
 		top += _ctrlEnterSend.height() + st::setSectionSkip;
 
+		top += _hideSelfTyping.height() + st::setLittleSkip;
+		top += _techsupportDialogsDisable.height() + st::setLittleSkip;
+		top += _sendUrlWithPreview.height() + st::setSectionSkip;
+		top += _itssettings.height() + st::setSectionSkip;
+
 		top += _dontAskDownloadPath.height();
 		if (!cAskDownloadPath()) {
 			top += st::setLittleSkip;
@@ -729,6 +745,12 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_replaceEmojis.move(_left, top); top += _replaceEmojis.height() + st::setLittleSkip;
 		_stickers.move(_left + st::cbDefFlat.textLeft, top); top += _stickers.height() + st::setSectionSkip;
 		_enterSend.move(_left, top); top += _enterSend.height() + st::setLittleSkip;
+
+		_hideSelfTyping.move(_left, top); top += _hideSelfTyping.height() + st::setLittleSkip;
+		_techsupportDialogsDisable.move(_left, top); top += _techsupportDialogsDisable.height() + st::setLittleSkip;
+		_sendUrlWithPreview.move(_left, top); top += _sendUrlWithPreview.height() + st::setSectionSkip;
+		_itssettings.move(_left, top); top += _itssettings.height() + st::setSectionSkip;
+
 		_ctrlEnterSend.move(_left, top); top += _ctrlEnterSend.height() + st::setSectionSkip;
 		_dontAskDownloadPath.move(_left, top); top += _dontAskDownloadPath.height();
 		if (!cAskDownloadPath()) {
@@ -1091,6 +1113,12 @@ void SettingsInner::showAll() {
 			_viewEmojis.hide();
 		}
 		_stickers.show();
+
+		_hideSelfTyping.show();
+		_techsupportDialogsDisable.show();
+		_sendUrlWithPreview.show();
+		_itssettings.show();
+
 		_enterSend.show();
 		_ctrlEnterSend.show();
 		_dontAskDownloadPath.show();
@@ -1110,6 +1138,12 @@ void SettingsInner::showAll() {
 		_replaceEmojis.hide();
 		_viewEmojis.hide();
 		_stickers.hide();
+
+		_hideSelfTyping.hide();
+		_techsupportDialogsDisable.hide();
+		_sendUrlWithPreview.hide();
+		_itssettings.hide();
+
 		_enterSend.hide();
 		_ctrlEnterSend.hide();
 		_dontAskDownloadPath.hide();
@@ -1235,6 +1269,45 @@ void SettingsInner::onUpdatePhoto() {
 	PhotoCropBox *box = new PhotoCropBox(img, self());
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
 	Ui::showLayer(box);
+}
+
+void SettingsInner::onTechsupportDialogsDisable() {
+
+	gTechsupportDialogsDisable = _techsupportDialogsDisable.checked();
+	Local::writeUserSettings();
+
+	if (cTechsupportDialogsDisable()) {
+		App::main()->hideTechsuppoerDialogs();
+	}
+	else {
+		App::main()->showTechsupportDialogs();
+	}
+
+	Notify::unreadCounterUpdated();
+}
+
+void SettingsInner::onHideSelfTyping() {
+
+	gHideSelfTyping = _hideSelfTyping.checked();
+	Local::writeUserSettings();
+}
+
+void SettingsInner::onSendUrlWithPreview() {
+
+	gSendUrlWithPreview = _sendUrlWithPreview.checked();
+	Local::writeUserSettings();
+}
+
+void SettingsInner::onITSSettings() {
+	ITSSettingsBox *box = new ITSSettingsBox();
+	connect(box, SIGNAL(closed()), this, SLOT(itssettingsChanged()));
+	Ui::showLayer(box);
+}
+
+void SettingsInner::itssettingsChanged() {
+	//_chooseUsername.setText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username));
+	showAll();
+	update();
 }
 
 void SettingsInner::onShowSessions() {

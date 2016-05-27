@@ -301,12 +301,14 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phFocusColor->c);
 	_a_appearance.start();
+	emit focusIn();
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phColor->c);
 	_a_appearance.start();
+	emit focusOut();
 	QTextEdit::focusOutEvent(e);
 }
 
@@ -1308,6 +1310,7 @@ void FlatTextarea::setSubmitSettings(SubmitSettings settings) {
 }
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
+
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);

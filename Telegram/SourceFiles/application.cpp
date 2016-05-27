@@ -31,6 +31,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "autoupdater.h"
 
+//=>
+#include "its/itsbitrix24.h"
+//<=
+
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
 		if (App::wnd()) {
@@ -86,6 +90,7 @@ namespace {
 AppClass *AppObject = 0;
 
 Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
+
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -113,7 +118,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	} else {
         LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
-	}
+	}	
 }
 
 void Application::socketConnected() {
@@ -336,6 +341,7 @@ void Application::closeApplication() {
 	if (_updateThread) _updateThread->quit();
 	_updateThread = 0;
 #endif
+
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

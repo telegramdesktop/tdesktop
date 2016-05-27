@@ -28,7 +28,7 @@ class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 
 public:
 
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::BoxButton &cancelStyle = st::cancelBoxButton);
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::BoxButton &cancelStyle = st::cancelBoxButton, int32 fixedTextWidth = 0);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -63,7 +63,7 @@ private:
 	ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative);
 	friend class InformBox;
 
-	void init(const QString &text);
+	void init(const QString &text, int32 fixedTextWidth = 0);
 
 	bool _informative;
 

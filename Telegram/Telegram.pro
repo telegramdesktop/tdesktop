@@ -3,14 +3,14 @@ QT += core gui network widgets
 CONFIG += plugin static c++11
 
 CONFIG(debug, debug|release) {
-    DEFINES += _DEBUG
+    DEFINES += _DEBUG TDESKTOP_DISABLE_AUTOUPDATE
     OBJECTS_DIR = ./../DebugIntermediate
     MOC_DIR = ./GeneratedFiles/Debug
     RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += CUSTOM_API_ID
+    DEFINES += CUSTOM_API_ID TDESKTOP_DISABLE_AUTOUPDATE
     OBJECTS_DIR = ./../ReleaseIntermediate
     MOC_DIR = ./GeneratedFiles/Release
     RCC_DIR = ./GeneratedFiles
@@ -119,6 +119,9 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
+    ./SourceFiles/its/itssettingsbox.cpp \
+    ./SourceFiles/its/itsbitrix24.cpp \
+    ./SourceFiles/its/itscreatetaskbox.cpp \
     ./SourceFiles/core/basic_types.cpp \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
@@ -180,7 +183,7 @@ SOURCES += \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/twidget.cpp \
-    ./SourceFiles/window/top_bar_widget.cpp
+    ./SourceFiles/window/top_bar_widget.cpp    
 
 HEADERS += \
     ./GeneratedFiles/lang_auto.h \
@@ -239,6 +242,9 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
+    ./SourceFiles/its/itssettingsbox.h \
+    ./SourceFiles/its/itsbitrix24.h \
+    ./SourceFiles/its/itscreatetaskbox.h \
     ./SourceFiles/core/basic_types.h \
     ./SourceFiles/core/click_handler.h \
     ./SourceFiles/core/click_handler_types.h \
@@ -305,7 +311,8 @@ HEADERS += \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/twidget.h \
-    ./SourceFiles/window/top_bar_widget.h
+    ./SourceFiles/window/top_bar_widget.h \
+    SourceFiles/its/itscreatetaskbox.h
 
 win32 {
 SOURCES += \
