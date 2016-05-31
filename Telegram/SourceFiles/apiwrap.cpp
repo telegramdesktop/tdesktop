@@ -276,7 +276,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} break;
 			}
 		}
-		channel->about = qs(f.vabout);
+		channel->setAbout(qs(f.vabout));
 		int32 newCount = f.has_participants_count() ? f.vparticipants_count.v : 0;
 		if (newCount != channel->count) {
 			if (channel->isMegagroup() && !channel->mgInfo->lastParticipants.isEmpty()) {
@@ -343,7 +343,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 		peer->asUser()->setBotInfoVersion(-1);
 	}
 	peer->asUser()->blocked = d.is_blocked() ? UserIsBlocked : UserIsNotBlocked;
-	peer->asUser()->about = d.has_about() ? qs(d.vabout) : QString();
+	peer->asUser()->setAbout(d.has_about() ? qs(d.vabout) : QString());
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);

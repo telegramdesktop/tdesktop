@@ -24,18 +24,31 @@ class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-	FlatLabel(QWidget *parent, const QString &text, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
+	FlatLabel(QWidget *parent, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
+
+	enum class InitType {
+		Simple,
+		Rich,
+	};
+	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
 
 	void setOpacity(float64 o);
 
 	void setText(const QString &text);
 	void setRichText(const QString &text);
+	void setMarkedText(const TextWithEntities &textWithEntities);
 	void setSelectable(bool selectable);
+	void setDoubleClickSelectsParagraph(bool doubleClickSelectsParagraph);
 	void setContextCopyText(const QString &copyText);
+	void setExpandLinksMode(ExpandLinksMode mode);
 
 	void resizeToWidth(int32 width);
+	int naturalWidth() const;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
+
+	using ClickHandlerHook = Function<bool, const ClickHandlerPtr &, Qt::MouseButton>;
+	void setClickHandlerHook(ClickHandlerHook &&hook);
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
@@ -67,6 +80,8 @@ private slots:
 	void onExecuteDrag();
 
 private:
+	void init();
+
 	Text::StateResult dragActionUpdate();
 	Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
 	Text::StateResult dragActionFinish(const QPoint &p, Qt::MouseButton button);
@@ -83,12 +98,11 @@ private:
 		FromTouch,
 	};
 	void showContextMenu(QContextMenuEvent *e, ContextMenuReason reason);
-	QString contextCopyText() const;
 
 	Text _text;
 	style::flatLabel _st;
 	style::textStyle _tst;
-	float64 _opacity;
+	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;
 	int _fullTextHeight = 0;
@@ -97,6 +111,7 @@ private:
 	bool _selectable = false;
 	TextSelection _selection, _savedSelection;
 	TextSelectType _selectionType = TextSelectType::Letters;
+	bool _doubleClickSelectsParagraph = false;
 
 	enum DragAction {
 		NoDrag = 0x00,
@@ -117,6 +132,9 @@ private:
 	PopupMenu *_contextMenu = nullptr;
 	ClickHandlerPtr _contextMenuClickHandler;
 	QString _contextCopyText;
+	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
+
+	ClickHandlerHook _clickHandlerHook;
 
 	// text selection and context menu by touch support (at least Windows Surface tablets)
 	bool _touchSelect = false;

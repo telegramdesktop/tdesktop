@@ -80,7 +80,7 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
 , _userpicButton(this, peer)
-, _name(this, QString(), st::profileNameLabel) {
+, _name(this, st::profileNameLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAcceptDrops(true);
 
@@ -109,20 +109,23 @@ void CoverWidget::onPhotoShow() {
 	}
 }
 
+int CoverWidget::countPhotoLeft(int newWidth) const {
+	int result = st::profilePhotoLeftMin;
+	result += (newWidth - st::wndMinWidth) / 2;
+	return qMin(result, st::profilePhotoLeftMax);
+}
+
 void CoverWidget::resizeToWidth(int newWidth) {
 	int newHeight = 0;
 
 	newHeight += st::profileMarginTop;
-	_userpicButton->moveToLeft(st::profilePhotoLeft, newHeight);
+
+	_photoLeft = countPhotoLeft(newWidth);
+	_userpicButton->moveToLeft(_photoLeft, newHeight);
+
+	refreshNameGeometry(newWidth);
 
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
-	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
-	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
-	_name.moveToLeft(nameLeft, nameTop);
-	int nameWidth = newWidth - infoLeft - st::profileNameLeft - st::profileButtonSkip;
-	nameWidth += st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
-	_name.resizeToWidth(nameWidth);
-
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _userpicButton->y() + st::profileStatusTop);
 
 	moveAndToggleButtons(newWidth);
@@ -140,29 +143,43 @@ void CoverWidget::resizeToWidth(int newWidth) {
 	update();
 }
 
+void CoverWidget::refreshNameGeometry(int newWidth) {
+	int infoLeft = _userpicButton->x() + _userpicButton->width();
+	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
+	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
+	int nameWidth = newWidth - infoLeft - st::profileNameLeft - st::profileButtonSkip;
+	int marginsAdd = st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
+	_name.resizeToWidth(qMin(nameWidth, _name.naturalWidth()) + marginsAdd);
+	_name.moveToLeft(nameLeft, nameTop);
+}
+
 // A more generic solution would be allowing an optional icon button
 // for each text button. But currently we use only one, so it is done easily:
 // There can be primary + secondary + icon buttons. If primary + secondary fit,
 // then icon is hidden, otherwise secondary is hidden and icon is shown.
 void CoverWidget::moveAndToggleButtons(int newWiddth) {
-	bool showNextButton = true;
-	int buttonLeft = st::profilePhotoLeft + _userpicButton->width() + st::profileButtonLeft;
+	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::profileButtonLeft;
 	int buttonsRight = newWiddth - st::profileButtonSkip;
 	for (int i = 0, count = _buttons.size(); i < count; ++i) {
-		auto button = _buttons.at(i);
-		button->moveToLeft(buttonLeft, st::profileButtonTop);
-		if (i == 1) {
-			// If second button is not fitting.
-			if (buttonLeft + button->width() > buttonsRight) {
-				button->hide();
+		auto &button = _buttons.at(i);
+		button.widget->moveToLeft(buttonLeft, st::profileButtonTop);
+		if (button.replacement) {
+			button.replacement->moveToLeft(buttonLeft, st::profileButtonTop);
+			if (buttonLeft + button.widget->width() > buttonsRight) {
+				button.widget->hide();
+				button.replacement->show();
+				buttonLeft += button.replacement->width() + st::profileButtonSkip;
 			} else {
-				button->show();
-				buttonLeft += button->width() + st::profileButtonSkip;
-				showNextButton = false;
+				button.widget->show();
+				button.replacement->hide();
+				buttonLeft += button.widget->width() + st::profileButtonSkip;
 			}
+		} else if (i == 1 && (buttonLeft + button.widget->width() > buttonsRight)) {
+			// If second button is not fitting.
+			button.widget->hide();
 		} else {
-			button->setVisible(showNextButton);
-			buttonLeft += button->width() + st::profileButtonSkip;
+			button.widget->show();
+			buttonLeft += button.widget->width() + st::profileButtonSkip;
 		}
 	}
 }
@@ -172,7 +189,7 @@ void CoverWidget::showFinished() {
 }
 
 bool CoverWidget::shareContactButtonShown() const {
-	return _peerUser && (_buttons.size() > 1) && !(_buttons.at(1)->isHidden());
+	return _peerUser && (_buttons.size() > 1) && !(_buttons.at(1).widget->isHidden());
 }
 
 void CoverWidget::paintEvent(QPaintEvent *e) {
@@ -195,8 +212,7 @@ void CoverWidget::resizeDropArea() {
 
 void CoverWidget::dropAreaHidden(CoverDropArea *dropArea) {
 	if (_dropArea == dropArea) {
-		_dropArea->deleteLater();
-		_dropArea = nullptr;
+		_dropArea.destroyDelayed();
 	}
 }
 
@@ -314,7 +330,7 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 void CoverWidget::refreshNameText() {
 	_name.setText(App::peerName(_peer));
-	update();
+	refreshNameGeometry(width());
 }
 
 void CoverWidget::refreshStatusText() {
@@ -394,8 +410,7 @@ void CoverWidget::setUserButtons() {
 void CoverWidget::setChatButtons() {
 	if (_peerChat->canEdit()) {
 		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
-		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
-		addButton(st::profileAddMemberButton, SLOT(onAddMember()));
+		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()), &st::profileAddMemberButton);
 	}
 }
 
@@ -404,8 +419,7 @@ void CoverWidget::setMegagroupButtons() {
 		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 	}
 	if (_peerMegagroup->canAddParticipants()) {
-		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()));
-		addButton(st::profileAddMemberButton, SLOT(onAddMember()));
+		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()), &st::profileAddMemberButton);
 	}
 }
 
@@ -422,21 +436,24 @@ void CoverWidget::setChannelButtons() {
 void CoverWidget::clearButtons() {
 	auto buttons = createAndSwap(_buttons);
 	for_const (auto button, buttons) {
-		delete button;
+		delete button.widget;
+		delete button.replacement;
 	}
 }
 
-void CoverWidget::addButton(const QString &text, const char *slot) {
+void CoverWidget::addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle) {
 	auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
-	_buttons.push_back(new Ui::RoundButton(this, text, buttonStyle));
-	connect(_buttons.back(), SIGNAL(clicked()), this, slot);
-	_buttons.back()->show();
-}
+	auto button = new Ui::RoundButton(this, text, buttonStyle);
+	connect(button, SIGNAL(clicked()), this, slot);
+	button->show();
 
-void CoverWidget::addButton(const style::BoxButton &buttonStyle, const char *slot) {
-	_buttons.push_back(new Ui::RoundButton(this, QString(), buttonStyle));
-	connect(_buttons.back(), SIGNAL(clicked()), this, slot);
-	_buttons.back()->hide();
+	auto replacement = replacementStyle ? new Ui::RoundButton(this, QString(), *replacementStyle) : nullptr;
+	if (replacement) {
+		connect(replacement, SIGNAL(clicked()), this, slot);
+		replacement->hide();
+	}
+
+	_buttons.push_back({ button, replacement });
 }
 
 void CoverWidget::onSendMessage() {

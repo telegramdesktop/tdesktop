@@ -19,35 +19,33 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "profile/profile_block_widget.h"
+#include "profile/profile_members_widget.h"
 
 #include "styles/style_profile.h"
+#include "lang.h"
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
-, _peer(peer)
-, _title(title) {
+MembersWidget::MembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section))
+{
+	show();
 }
 
-void BlockWidget::resizeToWidth(int newWidth) {
-	resize(newWidth, resizeGetHeight(newWidth));
+int MembersWidget::resizeGetHeight(int newWidth) {
+	int newHeight = contentTop();
+
+	return newHeight;
 }
 
-int BlockWidget::contentTop() const {
-	return st::profileBlockMarginTop + st::profileBlockTitleHeight;
+ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section))
+{
+	show();
 }
 
-void BlockWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+int ChannelMembersWidget::resizeGetHeight(int newWidth) {
+	int newHeight = contentTop();
 
-	p.setFont(st::profileBlockTitleFont);
-	p.setPen(st::profileBlockTitleFg);
-	int titleLeft = st::profileBlockTitlePosition.x();
-	int titleTop = st::profileBlockMarginTop + st::profileBlockTitlePosition.y();
-	p.drawTextLeft(titleLeft, titleTop, width(), _title);
-
-	paintContents(p);
+	return newHeight;
 }
 
 } // namespace Profile

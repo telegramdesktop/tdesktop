@@ -262,6 +262,18 @@ void PeerData::fillNames() {
 	}
 }
 
+bool UserData::setAbout(const QString &newAbout) {
+	if (_about == newAbout) {
+		return false;
+	}
+
+	_about = newAbout;
+	Notify::PeerUpdate update(this);
+	update.flags |= Notify::PeerUpdateFlag::AboutChanged;
+	Notify::peerUpdatedDelayed(update);
+	return true;
+}
+
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
 	setNameDelayed(newFirstName, newLastName, newPhoneName, newUsername);
 	Notify::peerUpdatedSendDelayed();
@@ -286,7 +298,7 @@ void UserData::setNameDelayed(const QString &newFirstName, const QString &newLas
 }
 
 void UserData::setPhone(const QString &newPhone) {
-	phone = newPhone;
+	_phone = newPhone;
 }
 
 void UserData::setBotInfoVersion(int version) {
@@ -478,6 +490,18 @@ void ChannelData::updateFull(bool force) {
 
 void ChannelData::fullUpdated() {
 	_lastFullUpdate = getms(true);
+}
+
+bool ChannelData::setAbout(const QString &newAbout) {
+	if (_about == newAbout) {
+		return false;
+	}
+
+	_about = newAbout;
+	Notify::PeerUpdate update(this);
+	update.flags |= Notify::PeerUpdateFlag::AboutChanged;
+	Notify::peerUpdatedDelayed(update);
+	return true;
 }
 
 void ChannelData::flagsUpdated() {

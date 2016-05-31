@@ -312,6 +312,20 @@ public:
 		return _widget;
 	}
 
+	void destroy() {
+		if (_widget) {
+			delete _widget;
+			_widget = nullptr;
+		}
+	}
+	void destroyDelayed() {
+		if (_widget) {
+			_widget->hide();
+			_widget->deleteLater();
+			_widget = nullptr;
+		}
+	}
+
 private:
 	T *_widget;
 

@@ -428,7 +428,10 @@ namespace {
 					}
 				}
 				if (d.is_deleted()) {
-					data->setPhone(QString());
+					if (!data->phone().isEmpty()) {
+						data->setPhone(QString());
+						update.flags |= UpdateFlag::UserPhoneChanged;
+					}
 					data->setNameDelayed(lang(lng_deleted), QString(), QString(), QString());
 					data->setPhoto(MTP_userProfilePhotoEmpty());
 					data->access = UserNoAccess;
@@ -440,12 +443,14 @@ namespace {
 					QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString()) : data->firstName;
 					QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString()) : data->lastName;
 
-					QString phone = minimal ? data->phone : (d.has_phone() ? qs(d.vphone) : QString());
+					QString phone = minimal ? data->phone() : (d.has_phone() ? qs(d.vphone) : QString());
 					QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
 
-					bool phoneChanged = (data->phone != phone);
-					if (phoneChanged) data->setPhone(phone);
-
+					bool phoneChanged = (data->phone() != phone);
+					if (phoneChanged) {
+						data->setPhone(phone);
+						update.flags |= UpdateFlag::UserPhoneChanged;
+					}
 					bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
 
 					bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
@@ -480,7 +485,7 @@ namespace {
 					} else {
 						data->setBotInfoVersion(-1);
 					}
-					data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+					data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone().isEmpty() ? -1 : 0);
 					if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsHidden) != dbiprsHidden) {
 						cRefReportSpamStatuses().insert(data->id, dbiprsHidden);
 						Local::writeReportSpamStatuses();
@@ -522,7 +527,7 @@ namespace {
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
 			}
 
-            if (data->contact < 0 && !data->phone.isEmpty() && peerToUser(data->id) != MTP::authedId()) {
+            if (data->contact < 0 && !data->phone().isEmpty() && peerToUser(data->id) != MTP::authedId()) {
 				data->contact = 0;
 			}
 			if (App::main()) {
@@ -1259,7 +1264,7 @@ namespace {
 			break;
 			}
 			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone.isEmpty() && peerToUser(user->id) != MTP::authedId()) {
+				if (user->contact < 0 && !user->phone().isEmpty() && peerToUser(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
 			}
@@ -1276,7 +1281,7 @@ namespace {
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
 			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
-				user->setNameDelayed(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
+				user->setNameDelayed(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), textOneLine(user->username));
 			}
 			markPeerUpdated(user);
 		}

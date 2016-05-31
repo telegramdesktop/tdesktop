@@ -18,36 +18,20 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-#include "profile/profile_block_widget.h"
+#pragma once
 
-#include "styles/style_profile.h"
+#include "profile/profile_block_widget.h"
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
-, _peer(peer)
-, _title(title) {
-}
+class SharedMediaWidget : public BlockWidget {
+public:
+	SharedMediaWidget(QWidget *parent, PeerData *peer);
 
-void BlockWidget::resizeToWidth(int newWidth) {
-	resize(newWidth, resizeGetHeight(newWidth));
-}
+protected:
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
 
-int BlockWidget::contentTop() const {
-	return st::profileBlockMarginTop + st::profileBlockTitleHeight;
-}
-
-void BlockWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	p.setFont(st::profileBlockTitleFont);
-	p.setPen(st::profileBlockTitleFg);
-	int titleLeft = st::profileBlockTitlePosition.x();
-	int titleTop = st::profileBlockMarginTop + st::profileBlockTitlePosition.y();
-	p.drawTextLeft(titleLeft, titleTop, width(), _title);
-
-	paintContents(p);
-}
+};
 
 } // namespace Profile

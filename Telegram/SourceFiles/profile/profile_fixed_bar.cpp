@@ -177,7 +177,7 @@ void FixedBar::onEditGroup() {
 void FixedBar::onAddContact() {
 	auto firstName = _peerUser->firstName;
 	auto lastName = _peerUser->lastName;
-	auto phone = _peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peer->id)) : _peerUser->phone;
+	auto phone = _peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peer->id)) : _peerUser->phone();
 	Ui::showLayer(new AddContactBox(firstName, lastName, phone));
 }
 
@@ -223,8 +223,8 @@ void FixedBar::resizeToWidth(int newWidth) {
 		i->button->moveToLeft(buttonLeft, 0);
 	}
 
-	_backButton->moveToLeft(0, 0);
 	_backButton->resizeToWidth(newWidth);
+	_backButton->moveToLeft(0, 0);
 	newHeight += _backButton->height();
 
 	resize(newWidth, newHeight);

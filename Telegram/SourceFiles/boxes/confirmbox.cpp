@@ -381,11 +381,10 @@ void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
 PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st::boxWidth)
 , _channel(channel)
 , _msgId(msgId)
-, _text(this, lang(lng_pinned_pin_sure), st::boxLabel)
+, _text(this, lang(lng_pinned_pin_sure), FlatLabel::InitType::Simple, st::boxLabel)
 , _notify(this, lang(lng_pinned_notify), true)
 , _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _requestId(0) {
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
 	setMaxHeight(st::boxPadding.top() + _text.height() + st::boxMediumSkip + _notify.height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin.height() + st::boxButtonPadding.bottom());
 
@@ -441,7 +440,7 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 , _channel(channel)
 , _from(from)
 , _msgId(msgId)
-, _text(this, lang(lng_selected_delete_sure_this), st::boxLabel)
+, _text(this, lang(lng_selected_delete_sure_this), FlatLabel::InitType::Simple, st::boxLabel)
 , _banUser(this, lang(lng_ban_user), false)
 , _reportSpam(this, lang(lng_report_spam), false)
 , _deleteAll(this, lang(lng_delete_all_from), false)

@@ -87,7 +87,7 @@ void TopBarWidget::onInfoClicked() {
 void TopBarWidget::onAddContact() {
 	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
-	if (u) Ui::showLayer(new AddContactBox(u->firstName, u->lastName, u->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone));
+	if (u) Ui::showLayer(new AddContactBox(u->firstName, u->lastName, u->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone()));
 }
 
 void TopBarWidget::onEdit() {

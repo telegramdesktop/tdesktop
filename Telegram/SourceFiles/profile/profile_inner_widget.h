@@ -51,13 +51,36 @@ public:
 signals:
 	void cancelled();
 
+private slots:
+	void onBlockHeightUpdated();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	void createBlocks();
+
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth);
+
+	// Counts the natural widget height after resizing of child widgets.
+	int countHeight() const;
+
+	enum class Mode {
+		OneColumn,
+		TwoColumn,
+	};
+	enum class BlockSide {
+		Left,
+		Right,
+	};
+	int countBlocksLeft(int newWidth) const;
+	Mode countBlocksMode(int newWidth) const;
+	int countLeftColumnWidth(int newWidth) const;
+	int countBlocksHeight(BlockSide countSide) const;
+	void resizeBlocks(int newWidth);
+	void refreshBlocksPositions();
 
 	// Sometimes height of this widget is larger than it is required
 	// so that it is allowed to scroll down to the desired position.
@@ -73,8 +96,18 @@ private:
 	int _visibleBottom = 0;
 
 	ChildWidget<CoverWidget> _cover;
-	QList<BlockWidget*> _blocks;
 
+	int _blocksLeft = 0; // Caching countBlocksLeft() result.
+	int _blocksTop = 0;
+	int _columnDivider = 0;
+	int _leftColumnWidth = 0; // Caching countLeftColumnWidth() result.
+	struct Block {
+		BlockWidget *block;
+		BlockSide side;
+	};
+	QList<Block> _blocks;
+
+	Mode _mode = Mode::OneColumn;
 };
 
 } // namespace Profile

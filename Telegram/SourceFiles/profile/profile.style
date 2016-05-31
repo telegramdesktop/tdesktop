@@ -37,7 +37,8 @@ profileFixedBarButton: flatButton(topBarButton) {
 
 profileMarginTop: 13px;
 profilePhotoSize: 112px;
-profilePhotoLeft: 35px;
+profilePhotoLeftMin: 18px;
+profilePhotoLeftMax: 45px;
 profilePhotoDuration: 500;
 profileNameLeft: 26px;
 profileNameTop: 9px;
@@ -106,7 +107,28 @@ profileDividerFill: icon {
 };
 
 profileBlocksTop: 7px;
+profileBlocksBottom: 20px;
+profileBlockLeftMin: 8px;
+profileBlockLeftMax: 25px;
+profileBlockNarrowWidthMin: 220px;
+profileBlockWideWidthMin: 300px;
+profileBlockWideWidthMax: 340px;
 profileBlockMarginTop: 21px;
-profileBlockTitleFont: semiboldFont;
+profileBlockMarginRight: 10px;
+profileBlockMarginBottom: 4px;
+profileBlockTitleHeight: 22px;
+profileBlockTitleFont: font(14px semibold);
 profileBlockTitleFg: black;
-profileBlockTitlePosition: point(16px, profileBlockMarginTop);
+profileBlockTitlePosition: point(24px, -7px);
+profileBlockLabel: flatLabel(labelDefFlat) {
+	textFg: windowSubTextFg;
+}
+profileBlockTextPart: flatLabel(labelDefFlat) {
+	width: 180px;
+	margin: margins(5px, 5px, 5px, 5px);
+}
+profileBlockOneLineTextPart: flatLabel(profileBlockTextPart) {
+	width: 0px; // No need to set minWidth in one-line text.
+	maxHeight: 20px;
+}
+profileBlockOneLineSkip: 9px;

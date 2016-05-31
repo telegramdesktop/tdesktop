@@ -75,6 +75,10 @@ private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
+	// Counts userpic button left offset for a new widget width.
+	int countPhotoLeft(int newWidth) const;
+
+	void refreshNameGeometry(int newWidth);
 	void moveAndToggleButtons(int newWiddth);
 	void refreshNameText();
 	void refreshStatusText();
@@ -87,8 +91,7 @@ private:
 	void setChannelButtons();
 
 	void clearButtons();
-	void addButton(const QString &text, const char *slot);
-	void addButton(const style::BoxButton &buttonStyle, const char *slot);
+	void addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle = nullptr);
 
 	void paintDivider(Painter &p);
 
@@ -112,8 +115,13 @@ private:
 	QPoint _statusPosition;
 	QString _statusText;
 
-	QList<Ui::RoundButton*> _buttons;
+	struct Button {
+		Ui::RoundButton *widget;
+		Ui::RoundButton *replacement;
+	};
+	QList<Button> _buttons;
 
+	int _photoLeft = 0; // Caching countPhotoLeft() result.
 	int _dividerTop = 0;
 
 	FileDialog::QueryId _setPhotoFileQueryId = 0;

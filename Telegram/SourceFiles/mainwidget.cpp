@@ -4389,9 +4389,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserPhone: {
 		auto &d(update.c_updateUserPhone());
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
-			user->setPhone(qs(d.vphone));
-			user->setNameDelayed(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), user->username);
-			App::markPeerUpdated(user);
+			auto newPhone = qs(d.vphone);
+			if (newPhone != user->phone()) {
+				user->setPhone(newPhone);
+				user->setNameDelayed(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone().isEmpty()) ? QString() : App::formatPhone(user->phone()), user->username);
+				App::markPeerUpdated(user);
+
+				Notify::PeerUpdate update(user);
+				update.flags |= Notify::PeerUpdateFlag::UserPhoneChanged;
+				Notify::peerUpdatedDelayed(update);
+			}
 		}
 	} break;
 

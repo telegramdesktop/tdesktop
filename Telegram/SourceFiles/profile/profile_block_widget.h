@@ -35,13 +35,24 @@ public:
 	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 
+signals:
+	void heightUpdated();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	virtual void paintContents(Painter &p) {
 	}
 
+	// Where does the block content start (after the title).
+	int contentTop() const;
+
 	// Resizes content and counts natural widget height for the desired width.
 	virtual int resizeGetHeight(int newWidth) = 0;
+
+	void contentSizeUpdated() {
+		resizeToWidth(width());
+		emit heightUpdated();
+	}
 
 	PeerData *peer() const {
 		return _peer;

@@ -3407,7 +3407,7 @@ namespace Local {
 			UserData *user = peer->asUser();
 
 			// first + last + phone + username + access
-			result += Serialize::stringSize(user->firstName) + Serialize::stringSize(user->lastName) + Serialize::stringSize(user->phone) + Serialize::stringSize(user->username) + sizeof(quint64);
+			result += Serialize::stringSize(user->firstName) + Serialize::stringSize(user->lastName) + Serialize::stringSize(user->phone()) + Serialize::stringSize(user->username) + sizeof(quint64);
 
 			// flags
 			if (AppVersion >= 9012) {
@@ -3436,7 +3436,7 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
+			stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->access);
 			if (AppVersion >= 9012) {
 				stream << qint32(user->flags);
 			}
@@ -3490,6 +3490,7 @@ namespace Local {
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 			if (!wasLoaded) {
+				user->setPhone(phone);
 				user->setNameDelayed(first, last, pname, username);
 
 				user->access = access;

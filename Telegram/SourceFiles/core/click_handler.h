@@ -27,6 +27,7 @@ enum ExpandLinksMode {
 	ExpandLinksNone,
 	ExpandLinksShortened,
 	ExpandLinksAll,
+	ExpandLinksUrlOnly, // For custom urls leaves only url instead of text.
 };
 
 class ClickHandlerHost {

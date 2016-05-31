@@ -1188,18 +1188,6 @@
     <ClCompile Include="SourceFiles\profile\profile_section_memento.cpp">
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_block_widget.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_profile_block_widget.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_profile_block_widget.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\profile\profile_block_widget.cpp">
-      <Filter>SourceFiles\profile</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\ui\buttons\round_button.cpp">
       <Filter>SourceFiles\ui\buttons</Filter>
     </ClCompile>
@@ -1213,6 +1201,36 @@
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\profile\profile_userpic_button.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_block_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_info_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_actions_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_invite_link_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_members_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_settings_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_shared_media_widget.cpp">
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1416,6 +1434,24 @@
       <Filter>SourceFiles\profile</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\profile\profile_userpic_button.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_info_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_actions_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_invite_link_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_members_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_settings_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_shared_media_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </ClInclude>
   </ItemGroup>

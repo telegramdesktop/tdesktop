@@ -123,7 +123,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _a_photo(animation(this, &SettingsInner::step_photo))
 
 // contact info
-, _phoneText(self() ? App::formatPhone(self()->phone) : QString())
+, _phoneText(self() ? App::formatPhone(self()->phone()) : QString())
 , _chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username))
 
 // notifications

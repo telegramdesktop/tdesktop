@@ -5034,7 +5034,7 @@ void HistoryWidget::onBroadcastSilentChange() {
 }
 
 void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
-	auto phone = contact->phone;
+	auto phone = contact->phone();
 	if (phone.isEmpty()) phone = App::phoneFromSharedContact(peerToUser(contact->id));
 	if (!contact || phone.isEmpty()) return;
 

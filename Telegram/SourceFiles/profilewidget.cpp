@@ -115,7 +115,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 		if (_peerUser->blocked == UserIsBlocked) {
 			_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
 		}
-		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone);
+		_phoneText = App::formatPhone(_peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone());
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink.reset(new PhotoOpenClickHandler(userPhoto, _peer));
@@ -168,7 +168,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 		QString maxStr;
 		if (_peerUser->botInfo && !_peerUser->botInfo->cantJoinGroups) {
 			maxStr = lang(_sendMessage.textWidth() > _inviteToGroup.textWidth() ? lng_profile_send_message : lng_profile_invite_to_group);
-		} else if (!_peerUser->phone.isEmpty()) {
+		} else if (!_peerUser->phone().isEmpty()) {
 			maxStr = lang(_sendMessage.textWidth() > _shareContact.textWidth() ? lng_profile_send_message : lng_profile_share_contact);
 		} else {
 			maxStr = lang(lng_profile_send_message);
@@ -193,13 +193,13 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 
 	// about
 	if (_peerUser) {
-		if (!_peerUser->about.isEmpty()) {
-			_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
+		if (!_peerUser->about().isEmpty()) {
+			_about.setText(st::linkFont, _peerUser->about(), _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 		}
 		updateBotLinksVisibility();
 	} else {
-		if (_peerChannel && !_peerChannel->about.isEmpty()) {
-			_about.setText(st::linkFont, _peerChannel->about, _historyTextNoMonoOptions);
+		if (_peerChannel && !_peerChannel->about().isEmpty()) {
+			_about.setText(st::linkFont, _peerChannel->about(), _historyTextNoMonoOptions);
 		}
 		_botSettings.hide();
 		_botHelp.hide();
@@ -538,10 +538,10 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 			_photoLink.clear();
 		}
 		if (_peerUser) {
-			if (_peerUser->about.isEmpty()) {
+			if (_peerUser->about().isEmpty()) {
 				_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 			} else {
-				_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
+				_about.setText(st::linkFont, _peerUser->about(), _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 			}
 			updateBotLinksVisibility();
 			resizeEvent(0);
@@ -557,10 +557,10 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
 		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
-		if (_peerChannel->about.isEmpty()) {
+		if (_peerChannel->about().isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 		} else {
-			_about.setText(st::linkFont, _peerChannel->about, _historyTextNoMonoOptions);
+			_about.setText(st::linkFont, _peerChannel->about(), _historyTextNoMonoOptions);
 		}
 		showAll();
 		resizeEvent(0);
@@ -607,7 +607,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
 		if (_peerUser) {
-			_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone);
+			_phoneText = App::formatPhone(_peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone());
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
 			if (_wasBlocked != _peerUser->blocked) {
 				_wasBlocked = _peerUser->blocked;
@@ -1668,7 +1668,7 @@ void ProfileInner::showAll() {
 		_createInvitationLink.hide();
 		_invitationLink.hide();
 		_sendMessage.show();
-		if (_peerUser->phone.isEmpty()) {
+		if (_peerUser->phone().isEmpty()) {
 			_shareContact.hide();
 			if (_peerUser->botInfo && !_peerUser->botInfo->cantJoinGroups) {
 				_inviteToGroup.show();
@@ -1950,7 +1950,7 @@ void ProfileWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	p.drawSprite(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), st::topBarBackImg);
 	p.setFont(st::topBarBackFont->f);
 	p.setPen(st::topBarBackColor->p);
-	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : ((peer()->isChat() || peer()->isMegagroup()) ? lng_profile_group_info : lng_profile_channel_info)));
+//	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : ((peer()->isChat() || peer()->isMegagroup()) ? lng_profile_group_info : lng_profile_channel_info)));
 }
 
 void ProfileWidget::topBarClick() {

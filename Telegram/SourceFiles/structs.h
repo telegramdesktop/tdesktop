@@ -442,7 +442,7 @@ public:
 	// When actually trying to share contact we perform
 	// a full check by canShareThisContact() call.
 	bool canShareThisContactFast() const {
-		return !phone.isEmpty();
+		return !_phone.isEmpty();
 	}
 
 	MTPInputUser inputUser;
@@ -450,7 +450,9 @@ public:
 	QString firstName;
 	QString lastName;
 	QString username;
-	QString phone;
+	const QString &phone() const {
+		return _phone;
+	}
 	QString nameOrPhone;
 	Text phoneText;
 	TimeId onlineTill = 0;
@@ -461,7 +463,10 @@ public:
 	Photos photos;
 	int photosCount = -1; // -1 not loaded, 0 all loaded
 
-	QString about;
+	bool setAbout(const QString &newAbout);
+	const QString &about() const {
+		return _about;
+	}
 
 	BotInfo *botInfo = nullptr;
 
@@ -474,6 +479,8 @@ public:
 
 private:
 	QString _restrictionReason;
+	QString _about;
+	QString _phone;
 
 };
 
@@ -669,7 +676,13 @@ public:
 
 	MTPinputChannel inputChannel;
 
-	QString username, about;
+	QString username;
+
+	// Returns true if about text was changed.
+	bool setAbout(const QString &newAbout);
+	const QString &about() const {
+		return _about;
+	}
 
 	int count = 1;
 	int adminsCount = 1;
@@ -791,11 +804,11 @@ public:
 	~ChannelData();
 
 private:
-
 	PtsWaiter _ptsWaiter;
 	uint64 _lastFullUpdate = 0;
 
 	QString _restrictionReason;
+	QString _about;
 
 };
 

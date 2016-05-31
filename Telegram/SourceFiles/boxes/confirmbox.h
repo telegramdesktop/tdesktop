@@ -217,7 +217,7 @@ private:
 
 	BoxButton _pin, _cancel;
 
-	mtpRequestId _requestId;
+	mtpRequestId _requestId = 0;
 
 };
 
