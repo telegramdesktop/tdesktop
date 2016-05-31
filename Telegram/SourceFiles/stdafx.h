@@ -71,5 +71,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatlabel.h"
 
 #include "app.h"
+#include "facades.h"
 
 #endif // __cplusplus

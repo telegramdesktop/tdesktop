@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 
 #include "dialogs/dialogs_list.h"
+#include "styles/style_dialogs.h"
+#include "localstorage.h"
 #include "lang.h"
 
 namespace Dialogs {
@@ -162,7 +164,7 @@ void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool acti
 	accumulate_max(unreadRectWidth, unreadRectHeight);
 
 	int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-	int unreadRectTop =top;
+	int unreadRectTop = top;
 	if (outAvailableWidth) {
 		*outAvailableWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
 	}
@@ -188,9 +190,20 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 		}
 		int availableWidth = namewidth;
 		int texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
-		if (unread) {
+		bool hasDraftIcon = active ? false : Local::hasDraft(history->peer->id);
+		if (unread || hasDraftIcon) {
+			QString counter;
+			bool mutedCounter = false;
+			bool showUnreadCounter = unread && (!hasDraftIcon || !history->mute());
+			if (showUnreadCounter) {
+				counter = QString::number(unread);
+				mutedCounter = history->mute();
+			}
 			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
-			paintUnreadCount(p, QString::number(unread), unreadTop, w, active, history->mute(), &availableWidth);
+			paintUnreadCount(p, counter, unreadTop, w, active, mutedCounter, &availableWidth);
+			if (!showUnreadCounter) {
+				st::dialogsDraft.paint(p, QPoint(w - st::dlgPaddingHor - st::dlgUnreadHeight, unreadTop), w);
+			}
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);

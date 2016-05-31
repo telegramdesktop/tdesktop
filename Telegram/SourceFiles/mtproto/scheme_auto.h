@@ -499,7 +499,7 @@ enum {
 	mtpc_contacts_topPeersNotModified = 0xde266ef5,
 	mtpc_contacts_topPeers = 0x70b772a8,
 	mtpc_draftMessageEmpty = 0xba4baec5,
-	mtpc_draftMessage = 0x2a280746,
+	mtpc_draftMessage = 0xfd8e711f,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -14388,13 +14388,14 @@ public:
 
 	MTPDdraftMessage() {
 	}
-	MTPDdraftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) : vflags(_flags), vreply_to_msg_id(_reply_to_msg_id), vmessage(_message), ventities(_entities) {
+	MTPDdraftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, MTPint _date) : vflags(_flags), vreply_to_msg_id(_reply_to_msg_id), vmessage(_message), ventities(_entities), vdate(_date) {
 	}
 
 	MTPflags<MTPDdraftMessage::Flags> vflags;
 	MTPint vreply_to_msg_id;
 	MTPstring vmessage;
 	MTPVector<MTPMessageEntity> ventities;
+	MTPint vdate;
 };
 
 // RPC methods
@@ -23552,8 +23553,8 @@ public:
 	inline static MTPdraftMessage new_draftMessageEmpty() {
 		return MTPdraftMessage(mtpc_draftMessageEmpty);
 	}
-	inline static MTPdraftMessage new_draftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPdraftMessage(new MTPDdraftMessage(_flags, _reply_to_msg_id, _message, _entities));
+	inline static MTPdraftMessage new_draftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, MTPint _date) {
+		return MTPdraftMessage(new MTPDdraftMessage(_flags, _reply_to_msg_id, _message, _entities, _date));
 	}
 	};
 
@@ -34814,7 +34815,7 @@ inline uint32 MTPdraftMessage::innerLength() const {
 	switch (_type) {
 		case mtpc_draftMessage: {
 			const MTPDdraftMessage &v(c_draftMessage());
-			return v.vflags.innerLength() + (v.has_reply_to_msg_id() ? v.vreply_to_msg_id.innerLength() : 0) + v.vmessage.innerLength() + (v.has_entities() ? v.ventities.innerLength() : 0);
+			return v.vflags.innerLength() + (v.has_reply_to_msg_id() ? v.vreply_to_msg_id.innerLength() : 0) + v.vmessage.innerLength() + (v.has_entities() ? v.ventities.innerLength() : 0) + v.vdate.innerLength();
 		}
 	}
 	return 0;
@@ -34834,6 +34835,7 @@ inline void MTPdraftMessage::read(const mtpPrime *&from, const mtpPrime *end, mt
 			if (v.has_reply_to_msg_id()) { v.vreply_to_msg_id.read(from, end); } else { v.vreply_to_msg_id = MTPint(); }
 			v.vmessage.read(from, end);
 			if (v.has_entities()) { v.ventities.read(from, end); } else { v.ventities = MTPVector<MTPMessageEntity>(); }
+			v.vdate.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPdraftMessage");
 	}
@@ -34846,6 +34848,7 @@ inline void MTPdraftMessage::write(mtpBuffer &to) const {
 			if (v.has_reply_to_msg_id()) v.vreply_to_msg_id.write(to);
 			v.vmessage.write(to);
 			if (v.has_entities()) v.ventities.write(to);
+			v.vdate.write(to);
 		} break;
 	}
 }
@@ -34862,8 +34865,8 @@ inline MTPdraftMessage MTP_draftMessageEmpty() {
 	return MTP::internal::TypeCreator::new_draftMessageEmpty();
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDdraftMessage::Flags)
-inline MTPdraftMessage MTP_draftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
-	return MTP::internal::TypeCreator::new_draftMessage(_flags, _reply_to_msg_id, _message, _entities);
+inline MTPdraftMessage MTP_draftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, MTPint _date) {
+	return MTP::internal::TypeCreator::new_draftMessage(_flags, _reply_to_msg_id, _message, _entities, _date);
 }
 inline MTPDmessage::Flags mtpCastFlags(MTPDmessageService::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
 inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDmessageService::Flags> flags) { return mtpCastFlags(flags.v); }

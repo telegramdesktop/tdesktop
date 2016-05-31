@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/buttons/peer_avatar_button.h"
 #include "window/top_bar_widget.h"
+#include "data/drafts.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
 #include "historywidget.h"
@@ -4554,9 +4555,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::main()->updateStickers();
 	} break;
 
+	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
 		cSetLastSavedGifsUpdate(0);
 		App::main()->updateStickers();
 	} break;
+
+	////// Cloud drafts
+	case mtpc_updateDraftMessage: {
+		auto &peerDraft = update.c_updateDraftMessage();
+		auto peerId = peerFromMTP(peerDraft.vpeer);
+
+		auto &draftMessage = peerDraft.vdraft;
+		if (draftMessage.type() == mtpc_draftMessage) {
+			auto &draft = draftMessage.c_draftMessage();
+			Data::applyPeerCloudDraft(peerId, draft);
+		}
+	} break;
+
 	}
 }

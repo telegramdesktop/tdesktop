@@ -91,6 +91,9 @@
     <Filter Include="Resources\winrc">
       <UniqueIdentifier>{6b33ddc0-a7e2-4961-81dc-e1b5de2e2c60}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\data">
+      <UniqueIdentifier>{606a297a-0b85-4df9-a6bc-39de5beed362}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1131,6 +1134,12 @@
     <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\data\drafts.cpp">
+      <Filter>SourceFiles\data</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1306,6 +1315,12 @@
     </ClInclude>
     <ClInclude Include="GeneratedFiles\styles\style_history.h">
       <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_dialogs.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\data\drafts.h">
+      <Filter>SourceFiles\data</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1623,6 +1638,9 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\history\history.style">
       <Filter>SourceFiles\history</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\dialogs\dialogs.style">
+      <Filter>SourceFiles\dialogs</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

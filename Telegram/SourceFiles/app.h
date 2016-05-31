@@ -300,5 +300,3 @@ namespace App {
 	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };
-
-#include "facades.h"

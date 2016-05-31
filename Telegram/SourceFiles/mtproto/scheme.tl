@@ -693,7 +693,7 @@ contacts.topPeersNotModified#de266ef5 = contacts.TopPeers;
 contacts.topPeers#70b772a8 categories:Vector<TopPeerCategoryPeers> chats:Vector<Chat> users:Vector<User> = contacts.TopPeers;
 
 draftMessageEmpty#ba4baec5 = DraftMessage;
-draftMessage#2a280746 flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int message:string entities:flags.3?Vector<MessageEntity> = DraftMessage;
+draftMessage#fd8e711f flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int message:string entities:flags.3?Vector<MessageEntity> date:int = DraftMessage;
 
 ---functions---
 

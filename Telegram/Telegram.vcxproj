@@ -1075,6 +1075,7 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_basic.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp" />
+    <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_history.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_overview.cpp" />
     <ClCompile Include="SourceFiles\apiwrap.cpp" />
@@ -1102,6 +1103,7 @@
     <ClCompile Include="SourceFiles\core\basic_types.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler_types.cpp" />
+    <ClCompile Include="SourceFiles\data\drafts.cpp" />
     <ClCompile Include="SourceFiles\dialogswidget.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_layout.cpp" />
@@ -1283,12 +1285,14 @@
     <ClInclude Include="GeneratedFiles\numbers.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h" />
+    <ClInclude Include="GeneratedFiles\styles\style_dialogs.h" />
     <ClInclude Include="GeneratedFiles\styles\style_history.h" />
     <ClInclude Include="GeneratedFiles\styles\style_overview.h" />
     <ClInclude Include="Resources\winrc\resource.h" />
     <ClInclude Include="SourceFiles\core\click_handler.h" />
     <ClInclude Include="SourceFiles\core\click_handler_types.h" />
     <ClInclude Include="SourceFiles\core\version.h" />
+    <ClInclude Include="SourceFiles\data\drafts.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_common.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_layout.h" />
@@ -2457,6 +2461,7 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling style %(Identity)...</Message>
     </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style" />
+    <CodegenStyleItem Include="SourceFiles\dialogs\dialogs.style" />
     <CodegenStyleItem Include="SourceFiles\history\history.style" />
     <CodegenStyleItem Include="SourceFiles\overview\overview.style" />
   </ItemGroup>

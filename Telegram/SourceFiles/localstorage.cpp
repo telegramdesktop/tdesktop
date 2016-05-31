@@ -2439,7 +2439,11 @@ namespace Local {
 	}
 
 	bool hasDraftCursors(const PeerId &peer) {
-		return (_draftCursorsMap.constFind(peer) != _draftCursorsMap.cend());
+		return _draftCursorsMap.contains(peer);
+	}
+
+	bool hasDraft(const PeerId &peer) {
+		return _draftsMap.contains(peer);
 	}
 
 	void writeFileLocation(MediaKey location, const FileLocation &local) {

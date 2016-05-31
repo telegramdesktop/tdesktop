@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
+#include "data/drafts.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -977,42 +978,47 @@ void DialogsInner::itemRemoved(HistoryItem *item) {
 
 void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 	for_const (auto &dialog, added) {
-		History *history = nullptr;
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			auto &d(dialog.c_dialog());
-			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
-			if (auto channel = history->peer->asChannel()) {
-				if (d.has_pts()) {
-					channel->ptsReceived(d.vpts.v);
-				}
-				if (!channel->amCreator()) {
-					if (auto topMsg = App::histItemById(channel, d.vtop_message.v)) {
-						if (topMsg->date <= date(channel->date) && App::api()) {
-							App::api()->requestSelfParticipant(channel);
-						}
+		if (dialog.type() != mtpc_dialog) {
+			continue;
+		}
+
+		auto &d = dialog.c_dialog();
+		auto peerId = peerFromMTP(d.vpeer);
+		if (!peerId) {
+			continue;
+		}
+
+		auto history = App::historyFromDialog(peerId, d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
+		auto peer = history->peer;
+		if (auto channel = peer->asChannel()) {
+			if (d.has_pts()) {
+				channel->ptsReceived(d.vpts.v);
+			}
+			if (!channel->amCreator()) {
+				if (auto topMsg = App::histItemById(channel, d.vtop_message.v)) {
+					if (topMsg->date <= date(channel->date) && App::api()) {
+						App::api()->requestSelfParticipant(channel);
 					}
 				}
 			}
-			if (App::main()) {
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
-			}
-		} break;
+		}
+		App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+
+		if (!history->lastMsgDate.isNull()) {
+			addSavedPeersAfter(history->lastMsgDate);
+		}
+		contactsNoDialogs->del(peer);
+		if (peer->migrateFrom()) {
+			removeDialog(App::historyLoaded(peer->migrateFrom()->id));
+		} else if (peer->migrateTo() && peer->migrateTo()->amIn()) {
+			removeDialog(history);
 		}
 
-		if (history) {
-			if (!history->lastMsgDate.isNull()) {
-				addSavedPeersAfter(history->lastMsgDate);
-			}
-			contactsNoDialogs->del(history->peer);
-			if (history->peer->migrateFrom()) {
-				removeDialog(App::historyLoaded(history->peer->migrateFrom()->id));
-			} else if (history->peer->migrateTo() && history->peer->migrateTo()->amIn()) {
-				removeDialog(history);
-			}
+		if (d.has_draft() && d.vdraft.type() == mtpc_draftMessage) {
+			auto &draft = d.vdraft.c_draftMessage();
+			Data::applyPeerCloudDraft(peerId, draft);
 		}
 	}
-
 	Notify::unreadCounterUpdated();
 	if (!_sel && !shownDialogs()->isEmpty()) {
 		_sel = *shownDialogs()->cbegin();
@@ -1914,46 +1920,28 @@ void DialogsWidget::notify_historyMuteUpdated(History *history) {
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
-	for_const (auto &dialog, dialogs) {
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			auto &d(dialog.c_dialog());
-			if (auto h = App::historyLoaded(peerFromMTP(d.vpeer))) {
-				if (h->peer->isChannel() && d.has_pts()) {
-					h->peer->asChannel()->ptsReceived(d.vpts.v);
-				}
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
-				if (d.vunread_count.v >= h->unreadCount()) {
-					h->setUnreadCount(d.vunread_count.v);
-					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
-				}
-				accumulate_max(h->outboxReadBefore, d.vread_outbox_max_id.v + 1);
-			}
-		} break;
-		}
-	}
 }
 
 void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req) {
 	if (_dialogsRequest != req) return;
 
-	const QVector<MTPDialog> *v = 0;
-	const QVector<MTPMessage> *m = 0;
+	const QVector<MTPDialog> *dialogsList = 0;
+	const QVector<MTPMessage> *messagesList = 0;
 	switch (dialogs.type()) {
 	case mtpc_messages_dialogs: {
 		const auto &data(dialogs.c_messages_dialogs());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		m = &data.vmessages.c_vector().v;
-		v = &data.vdialogs.c_vector().v;
+		messagesList = &data.vmessages.c_vector().v;
+		dialogsList = &data.vdialogs.c_vector().v;
 		_dialogsFull = true;
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		const auto &data(dialogs.c_messages_dialogsSlice());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		m = &data.vmessages.c_vector().v;
-		v = &data.vdialogs.c_vector().v;
+		messagesList = &data.vmessages.c_vector().v;
+		dialogsList = &data.vdialogs.c_vector().v;
 	} break;
 	}
 
@@ -1961,36 +1949,33 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		_contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
-	if (m) {
-		App::feedMsgs(*m, NewMessageLast);
+	if (messagesList) {
+		App::feedMsgs(*messagesList, NewMessageLast);
 	}
-	if (v) {
-		unreadCountsReceived(*v);
-		_inner.dialogsReceived(*v);
+	if (dialogsList) {
+		unreadCountsReceived(*dialogsList);
+		_inner.dialogsReceived(*dialogsList);
 		onListScroll();
 
-		int32 lastDate = 0;
+		TimeId lastDate = 0;
 		PeerId lastPeer = 0;
 		MsgId lastMsgId = 0;
-		for (int32 i = v->size(); i > 0;) {
-			PeerId peer = 0;
-			MsgId msgId = 0;
-			const auto &d(v->at(--i));
-			switch (d.type()) {
-			case mtpc_dialog:
-				msgId = d.c_dialog().vtop_message.v;
-				peer = peerFromMTP(d.c_dialog().vpeer);
-			break;
+		for (int i = dialogsList->size(); i > 0;) {
+			auto &dialog = dialogsList->at(--i);
+			if (dialog.type() != mtpc_dialog) {
+				continue;
 			}
-			if (peer) {
+
+			if (auto peer = peerFromMTP(dialog.c_dialog().vpeer)) {
 				if (!lastPeer) lastPeer = peer;
-				if (msgId) {
+				if (auto msgId = dialog.c_dialog().vtop_message.v) {
 					if (!lastMsgId) lastMsgId = msgId;
-					for (int32 j = m->size(); j > 0;) {
-						const auto &d(m->at(--j));
-						if (idFromMessage(d) == msgId && peerFromMessage(d) == peer) {
-							int32 date = dateFromMessage(d);
-							if (date) lastDate = date;
+					for (int j = messagesList->size(); j > 0;) {
+						auto &message = messagesList->at(--j);
+						if (idFromMessage(message) == msgId && peerFromMessage(message) == peer) {
+							if (auto date = dateFromMessage(message)) {
+								lastDate = date;
+							}
 							break;
 						}
 					}

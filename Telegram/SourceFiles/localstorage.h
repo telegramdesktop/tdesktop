@@ -120,6 +120,7 @@ namespace Local {
 	void readDraftsWithCursors(History *h);
 	void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const MessageCursor &editCursor);
 	bool hasDraftCursors(const PeerId &peer);
+	bool hasDraft(const PeerId &peer);
 
 	void writeFileLocation(MediaKey location, const FileLocation &local);
 	FileLocation readFileLocation(MediaKey location, bool check = true);

@@ -474,10 +474,18 @@ History *Histories::find(const PeerId &peerId) {
 History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
-		i = map.insert(peerId, peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId)));
-		i.value()->setUnreadCount(unreadCount);
-		i.value()->inboxReadBefore = maxInboxRead + 1;
-		i.value()->outboxReadBefore = maxOutboxRead + 1;
+		auto history = peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId));
+		i = map.insert(peerId, history);
+		history->setUnreadCount(unreadCount);
+		history->inboxReadBefore = maxInboxRead + 1;
+		history->outboxReadBefore = maxOutboxRead + 1;
+	} else {
+		auto history = i.value();
+		if (unreadCount >= history->unreadCount()) {
+			history->setUnreadCount(unreadCount);
+			history->inboxReadBefore = maxInboxRead + 1;
+		}
+		accumulate_max(history->outboxReadBefore, maxOutboxRead + 1);
 	}
 	return i.value();
 }
