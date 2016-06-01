@@ -36,7 +36,7 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : Button(parent), 
 		_userpic = prepareUserpicPixmap();
 	}
 
-	Notify::registerPeerObserver(Notify::PeerUpdateFlag::PhotoChanged, this, &UserpicButton::notifyPeerUpdated);
+	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::PhotoChanged, this, &UserpicButton::notifyPeerUpdated);
 	FileDownload::registerImageLoadedObserver(this, &UserpicButton::notifyImageLoaded);
 }
 

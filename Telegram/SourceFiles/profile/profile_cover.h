@@ -77,6 +77,7 @@ private:
 
 	// Counts userpic button left offset for a new widget width.
 	int countPhotoLeft(int newWidth) const;
+	PhotoData *validatePhoto() const;
 
 	void refreshNameGeometry(int newWidth);
 	void moveAndToggleButtons(int newWiddth);

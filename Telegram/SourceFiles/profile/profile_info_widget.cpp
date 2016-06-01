@@ -29,11 +29,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
+using UpdateFlag = Notify::PeerUpdate::Flag;
+
 InfoWidget::InfoWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_info_section)) {
-	auto observeEvents = Notify::PeerUpdateFlag::AboutChanged
-		| Notify::PeerUpdateFlag::UsernameChanged
-		| Notify::PeerUpdateFlag::UserPhoneChanged
-		| Notify::PeerUpdateFlag::UserCanShareContact;
+	auto observeEvents = UpdateFlag::AboutChanged
+		| UpdateFlag::UsernameChanged
+		| UpdateFlag::UserPhoneChanged
+		| UpdateFlag::UserCanShareContact;
 	Notify::registerPeerObserver(observeEvents, this, &InfoWidget::notifyPeerUpdated);
 
 	refreshLabels();
@@ -44,14 +46,14 @@ void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & Notify::PeerUpdateFlag::AboutChanged) {
+	if (update.flags & UpdateFlag::AboutChanged) {
 		refreshAbout();
 	}
-	if (update.flags & Notify::PeerUpdateFlag::UsernameChanged) {
+	if (update.flags & UpdateFlag::UsernameChanged) {
 		refreshUsername();
 		refreshChannelLink();
 	}
-	if (update.flags & (Notify::PeerUpdateFlag::UserPhoneChanged | Notify::PeerUpdateFlag::UserCanShareContact)) {
+	if (update.flags & (UpdateFlag::UserPhoneChanged | UpdateFlag::UserCanShareContact)) {
 		refreshMobileNumber();
 	}
 	refreshVisibility();

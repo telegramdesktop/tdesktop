@@ -37,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
+#include "observer_peer.h"
 #include "playerwidget.h"
 
 namespace {
@@ -4951,7 +4952,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 void HistoryWidget::onUnblock() {
 	if (_unblockRequest) return;
-	if (!_peer || !_peer->isUser() || _peer->asUser()->blocked != UserIsBlocked) {
+	if (!_peer || !_peer->isUser() || !_peer->asUser()->isBlocked()) {
 		updateControlsVisibility();
 		return;
 	}
@@ -4962,8 +4963,9 @@ void HistoryWidget::onUnblock() {
 void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
 	if (!peer->isUser()) return;
 	if (_unblockRequest == req) _unblockRequest = 0;
-	peer->asUser()->blocked = UserIsNotBlocked;
+	peer->asUser()->setBlockStatus(UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(peer);
+	Notify::peerUpdatedSendDelayed();
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
@@ -4976,8 +4978,9 @@ bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
 void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
 	if (!peer->isUser()) return;
 
-	peer->asUser()->blocked = UserIsBlocked;
+	peer->asUser()->setBlockStatus(UserData::BlockStatus::Blocked);
 	emit App::main()->peerUpdated(peer);
+	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::onBotStart() {
@@ -5720,7 +5723,7 @@ bool HistoryWidget::isBotStart() const {
 }
 
 bool HistoryWidget::isBlocked() const {
-	return _peer && _peer->isUser() && _peer->asUser()->blocked == UserIsBlocked;
+	return _peer && _peer->isUser() && _peer->asUser()->isBlocked();
 }
 
 bool HistoryWidget::isJoinChannel() const {
@@ -7896,7 +7899,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		if (App::api()) {
 			if (data->isChat() && data->asChat()->noParticipantInfo()) {
 				App::api()->requestFullPeer(data);
-			} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
+			} else if (data->isUser() && data->asUser()->blockStatus() == UserData::BlockStatus::Unknown) {
 				App::api()->requestFullPeer(data);
 			} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
 				App::api()->requestBots(data->asChannel());

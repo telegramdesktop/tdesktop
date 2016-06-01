@@ -766,6 +766,11 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	}
 }
 
+void MainWidget::deleteAndExit(ChatData *chat) {
+	PeerData *peer = chat;
+	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), rpcDone(&MainWidget::deleteHistoryAfterLeave, peer), rpcFail(&MainWidget::leaveChatFailed, peer));
+}
+
 void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 	t_assert(channel != nullptr && from != nullptr);
 
@@ -3593,9 +3598,7 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		}
 		_dialogs->updateNotifySettings(updatePeer);
 
-		Notify::PeerUpdate update(updatePeer);
-		update.flags |= Notify::PeerUpdateFlag::NotificationsEnabled;
-		Notify::peerUpdatedDelayed(update);
+		Notify::peerUpdatedDelayed(updatePeer, Notify::PeerUpdate::Flag::NotificationsEnabled);
 	}
 }
 
@@ -4368,9 +4371,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				user->setNameDelayed(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone().isEmpty()) ? QString() : App::formatPhone(user->phone()), user->username);
 				App::markPeerUpdated(user);
 
-				Notify::PeerUpdate update(user);
-				update.flags |= Notify::PeerUpdateFlag::UserPhoneChanged;
-				Notify::peerUpdatedDelayed(update);
+				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserPhoneChanged);
 			}
 		}
 	} break;
@@ -4394,7 +4395,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserBlocked: {
 		const auto &d(update.c_updateUserBlocked());
 		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
-			user->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
+			user->setBlockStatus(mtpIsTrue(d.vblocked) ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 			App::markPeerUpdated(user);
 		}
 	} break;

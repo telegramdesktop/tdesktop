@@ -96,6 +96,8 @@ ImagePtr channelDefPhoto(int index) {
 	return channelDefPhotos[index];
 }
 
+using UpdateFlag = Notify::PeerUpdate::Flag;
+
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
@@ -126,14 +128,14 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 	nameText.setText(st::msgNameFont, name, _textNameOptions);
 
 	Notify::PeerUpdate update(this);
-	update.flags |= Notify::PeerUpdateFlag::NameChanged;
+	update.flags |= UpdateFlag::NameChanged;
 	update.oldNames = names;
 	update.oldNameFirstChars = chars;
 
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
 			asUser()->username = newUsername;
-			update.flags |= Notify::PeerUpdateFlag::UsernameChanged;
+			update.flags |= UpdateFlag::UsernameChanged;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
@@ -144,7 +146,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 			} else {
 				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
-			update.flags |= Notify::PeerUpdateFlag::UsernameChanged;
+			update.flags |= UpdateFlag::UsernameChanged;
 		}
 	}
 	fillNames();
@@ -233,10 +235,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		if (App::main()) {
 			emit App::main()->peerPhotoChanged(this);
 		}
-
-		Notify::PeerUpdate update(this);
-		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
-		Notify::peerUpdatedDelayed(update);
+		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
 
@@ -266,11 +265,8 @@ bool UserData::setAbout(const QString &newAbout) {
 	if (_about == newAbout) {
 		return false;
 	}
-
 	_about = newAbout;
-	Notify::PeerUpdate update(this);
-	update.flags |= Notify::PeerUpdateFlag::AboutChanged;
-	Notify::peerUpdatedDelayed(update);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
 	return true;
 }
 
@@ -395,6 +391,13 @@ void UserData::madeAction() {
 	}
 }
 
+void UserData::setBlockStatus(BlockStatus blockStatus) {
+	if (blockStatus != _blockStatus) {
+		_blockStatus = blockStatus;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::UserIsBlocked);
+	}
+}
+
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
@@ -420,11 +423,10 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 		photoId = newPhotoId;
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
-
-		Notify::PeerUpdate update(this);
-		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
-		Notify::peerUpdatedDelayed(update);
+		if (App::main()) {
+			emit App::main()->peerPhotoChanged(this);
+		}
+		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
 
@@ -440,10 +442,7 @@ void ChatData::setNameDelayed(const QString &newName) {
 void ChatData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;
-
-		Notify::PeerUpdate update(this);
-		update.flags |= Notify::PeerUpdateFlag::InviteLinkChanged;
-		Notify::peerUpdatedDelayed(update);
+		Notify::peerUpdatedDelayed(this, UpdateFlag::InviteLinkChanged);
 	}
 }
 
@@ -472,11 +471,10 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photoId = newPhotoId;
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		if (App::main()) emit App::main()->peerPhotoChanged(this);
-
-		Notify::PeerUpdate update(this);
-		update.flags = Notify::PeerUpdateFlag::PhotoChanged;
-		Notify::peerUpdatedDelayed(update);
+		if (App::main()) {
+			emit App::main()->peerPhotoChanged(this);
+		}
+		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
 
@@ -506,21 +504,15 @@ bool ChannelData::setAbout(const QString &newAbout) {
 	if (_about == newAbout) {
 		return false;
 	}
-
 	_about = newAbout;
-	Notify::PeerUpdate update(this);
-	update.flags |= Notify::PeerUpdateFlag::AboutChanged;
-	Notify::peerUpdatedDelayed(update);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
 	return true;
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;
-
-		Notify::PeerUpdate update(this);
-		update.flags |= Notify::PeerUpdateFlag::InviteLinkChanged;
-		Notify::peerUpdatedDelayed(update);
+		Notify::peerUpdatedDelayed(this, UpdateFlag::InviteLinkChanged);
 	}
 }
 

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_section_memento.h"
 #include "core/vector_of_moveable.h"
 #include "core/click_handler_types.h"
+#include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -305,7 +306,10 @@ void userIsContactChanged(UserData *user, bool fromThisApp) {
 }
 
 void botCommandsChanged(UserData *user) {
-	if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
+	if (MainWidget *m = App::main()) {
+		m->notify_botCommandsChanged(user);
+	}
+	peerUpdatedDelayed(user, PeerUpdate::Flag::BotCommandsChanged);
 }
 
 void inlineBotRequesting(bool requesting) {

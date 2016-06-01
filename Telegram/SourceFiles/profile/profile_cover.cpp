@@ -65,11 +65,12 @@ private:
 
 };
 
-const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserCanShareContact
-	| Notify::PeerUpdateFlag::ChatCanEdit
-	| Notify::PeerUpdateFlag::ChannelCanEditPhoto
-	| Notify::PeerUpdateFlag::ChannelCanAddMembers
-	| Notify::PeerUpdateFlag::ChannelAmIn;
+using UpdateFlag = Notify::PeerUpdate::Flag;
+const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
+	| UpdateFlag::ChatCanEdit
+	| UpdateFlag::ChannelCanEditPhoto
+	| UpdateFlag::ChannelCanAddMembers
+	| UpdateFlag::ChannelAmIn;
 
 } // namespace
 
@@ -87,11 +88,12 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_name.setSelectable(true);
 	_name.setContextCopyText(lang(lng_profile_copy_fullname));
 
-	auto observeEvents = ButtonsUpdateFlags | Notify::PeerUpdateFlag::NameChanged;
+	auto observeEvents = ButtonsUpdateFlags | UpdateFlag::NameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
 	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
 
 	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
+	validatePhoto();
 
 	refreshNameText();
 	refreshStatusText();
@@ -99,12 +101,17 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	refreshButtons();
 }
 
-void CoverWidget::onPhotoShow() {
+PhotoData *CoverWidget::validatePhoto() const {
 	PhotoData *photo = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId) ? App::photo(_peer->photoId) : nullptr;
-	if ((_peer->photoId == UnknownPeerPhotoId) || (_peer->photoId && !photo->date)) {
+	if ((_peer->photoId == UnknownPeerPhotoId) || (_peer->photoId && (!photo || !photo->date))) {
 		App::api()->requestFullPeer(_peer);
+		return nullptr;
 	}
-	if (photo && photo->date) {
+	return photo;
+}
+
+void CoverWidget::onPhotoShow() {
+	if (auto photo = validatePhoto()) {
 		App::wnd()->showPhoto(photo, _peer);
 	}
 }
@@ -323,7 +330,7 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if ((update.flags & ButtonsUpdateFlags) != 0) {
 		refreshButtons();
 	}
-	if (update.flags & Notify::PeerUpdateFlag::NameChanged) {
+	if (update.flags & UpdateFlag::NameChanged) {
 		refreshNameText();
 	}
 }

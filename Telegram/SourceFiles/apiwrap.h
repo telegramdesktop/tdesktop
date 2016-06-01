@@ -53,6 +53,9 @@ public:
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
 
+	void blockUser(UserData *user);
+	void unblockUser(UserData *user);
+
 	void exportInviteLink(PeerData *peer);
 	void requestNotifySetting(PeerData *peer);
 
@@ -132,6 +135,11 @@ private:
 	void channelAmInUpdated(ChannelData *channel);
 	void channelAmInDone(ChannelData *channel, const MTPUpdates &updates);
 	bool channelAmInFail(ChannelData *channel, const RPCError &error);
+
+	QMap<UserData*, mtpRequestId> _blockRequests;
+	void blockDone(UserData *user, const MTPBool &result);
+	void unblockDone(UserData *user, const MTPBool &result);
+	bool blockFail(UserData *user, const RPCError &error);
 
 	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
 	void exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result);

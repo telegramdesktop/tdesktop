@@ -388,12 +388,6 @@ struct BotInfo {
 	PeerId inlineReturnPeerId = 0;
 };
 
-enum UserBlockedStatus {
-	UserBlockUnknown = 0,
-	UserIsBlocked,
-	UserIsNotBlocked,
-};
-
 class PhotoData;
 class UserData : public PeerData {
 public:
@@ -457,7 +451,19 @@ public:
 	Text phoneText;
 	TimeId onlineTill = 0;
 	int32 contact = -1; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
-	UserBlockedStatus blocked = UserBlockUnknown;
+
+	enum class BlockStatus {
+		Unknown,
+		Blocked,
+		NotBlocked,
+	};
+	BlockStatus blockStatus() const {
+		return _blockStatus;
+	}
+	bool isBlocked() const {
+		return (blockStatus() == BlockStatus::Blocked);
+	}
+	void setBlockStatus(BlockStatus blockStatus);
 
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
@@ -481,6 +487,7 @@ private:
 	QString _restrictionReason;
 	QString _about;
 	QString _phone;
+	BlockStatus _blockStatus = BlockStatus::Unknown;
 
 };
 

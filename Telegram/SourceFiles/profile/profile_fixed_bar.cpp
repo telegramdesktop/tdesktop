@@ -63,10 +63,11 @@ private:
 
 namespace {
 
-const Notify::PeerUpdateFlags ButtonsUpdateFlags = Notify::PeerUpdateFlag::UserCanShareContact
-	| Notify::PeerUpdateFlag::UserIsContact
-	| Notify::PeerUpdateFlag::ChatCanEdit
-	| Notify::PeerUpdateFlag::ChannelAmEditor;
+using UpdateFlag = Notify::PeerUpdate::Flag;
+const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
+	| UpdateFlag::UserIsContact
+	| UpdateFlag::ChatCanEdit
+	| UpdateFlag::ChannelAmEditor;
 
 } // namespace
 
@@ -210,7 +211,7 @@ void FixedBar::onLeaveGroup() {
 void FixedBar::onLeaveGroupSure() {
 	Ui::showChatsList();
 	Ui::hideLayer();
-	MTP::send(MTPmessages_DeleteChatUser(_peerChat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
+	App::main()->deleteAndExit(_peerChat);
 }
 
 void FixedBar::resizeToWidth(int newWidth) {

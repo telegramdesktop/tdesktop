@@ -373,7 +373,7 @@ namespace {
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			Notify::PeerUpdate update;
-			using UpdateFlag = Notify::PeerUpdateFlag;
+			using UpdateFlag = Notify::PeerUpdate::Flag;
 
 			switch (user.type()) {
 			case mtpc_userEmpty: {
@@ -554,7 +554,7 @@ namespace {
 			bool minimal = false;
 
 			Notify::PeerUpdate update;
-			using UpdateFlag = Notify::PeerUpdateFlag;
+			using UpdateFlag = Notify::PeerUpdate::Flag;
 
 			switch (chat.type()) {
 			case mtpc_chat: {
@@ -1270,9 +1270,7 @@ namespace {
 			}
 
 			if (wasContact != user->isContact()) {
-				Notify::PeerUpdate update(user);
-				update.flags |= Notify::PeerUpdateFlag::UserIsContact;
-				Notify::peerUpdatedDelayed(update);
+				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsContact);
 			}
 			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
 				Notify::userIsContactChanged(user);
@@ -2381,9 +2379,7 @@ namespace {
 		auto canShareThisContact = user ? user->canShareThisContact() : false;
 		::sharedContactItems[userId].insert(item, NullType());
 		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
-			Notify::PeerUpdate update(user);
-			update.flags |= Notify::PeerUpdateFlag::UserCanShareContact;
-			Notify::peerUpdatedDelayed(update);
+			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserCanShareContact);
 		}
 	}
 
@@ -2392,9 +2388,7 @@ namespace {
 		auto canShareThisContact = user ? user->canShareThisContact() : false;
 		::sharedContactItems[userId].remove(item);
 		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
-			Notify::PeerUpdate update(user);
-			update.flags |= Notify::PeerUpdateFlag::UserCanShareContact;
-			Notify::peerUpdatedDelayed(update);
+			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserCanShareContact);
 		}
 	}
 

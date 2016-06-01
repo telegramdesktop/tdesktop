@@ -342,7 +342,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	} else {
 		peer->asUser()->setBotInfoVersion(-1);
 	}
-	peer->asUser()->blocked = d.is_blocked() ? UserIsBlocked : UserIsNotBlocked;
+	peer->asUser()->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	peer->asUser()->setAbout(d.has_about() ? qs(d.vabout) : QString());
 
 	if (req) {
@@ -702,9 +702,7 @@ void ApiWrap::leaveChannel(ChannelData *channel) {
 }
 
 void ApiWrap::channelAmInUpdated(ChannelData *channel) {
-	Notify::PeerUpdate update(channel);
-	update.flags |= Notify::PeerUpdateFlag::ChannelAmIn;
-	Notify::peerUpdatedDelayed(update);
+	Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
 	Notify::peerUpdatedSendDelayed();
 }
 
@@ -718,6 +716,47 @@ bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_channelAmInRequests.remove(channel);
+	return true;
+}
+
+void ApiWrap::blockUser(UserData *user) {
+	if (user->isBlocked()) {
+		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
+		Notify::peerUpdatedSendDelayed();
+	} else if (!_blockRequests.contains(user)) {
+		auto requestId = MTP::send(MTPcontacts_Block(user->inputUser), rpcDone(&ApiWrap::blockDone, user), rpcFail(&ApiWrap::blockFail, user));
+		_blockRequests.insert(user, requestId);
+	}
+}
+
+void ApiWrap::unblockUser(UserData *user) {
+	if (!user->isBlocked()) {
+		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
+		Notify::peerUpdatedSendDelayed();
+	} else if (!_blockRequests.contains(user)) {
+		auto requestId = MTP::send(MTPcontacts_Unblock(user->inputUser), rpcDone(&ApiWrap::unblockDone, user), rpcFail(&ApiWrap::blockFail, user));
+		_blockRequests.insert(user, requestId);
+	}
+}
+
+void ApiWrap::blockDone(UserData *user, const MTPBool &result) {
+	_blockRequests.remove(user);
+	user->setBlockStatus(UserData::BlockStatus::Blocked);
+	emit App::main()->peerUpdated(user);
+	Notify::peerUpdatedSendDelayed();
+}
+
+void ApiWrap::unblockDone(UserData *user, const MTPBool &result) {
+	_blockRequests.remove(user);
+	user->setBlockStatus(UserData::BlockStatus::NotBlocked);
+	emit App::main()->peerUpdated(user);
+	Notify::peerUpdatedSendDelayed();
+}
+
+bool ApiWrap::blockFail(UserData *user, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_blockRequests.remove(user);
 	return true;
 }
 

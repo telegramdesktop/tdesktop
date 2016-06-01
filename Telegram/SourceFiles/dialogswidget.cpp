@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
+#include "observer_peer.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 
@@ -640,7 +641,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
 		_menu->addAction(lang(lng_profile_delete_conversation), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
 		if (_menuPeer->asUser()->access != UserNoAccess && _menuPeer != App::self()) {
-			_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
+			_menu->addAction(lang(_menuPeer->asUser()->isBlocked() ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
 			connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 		}
 	} else if (_menuPeer->isChat()) {
@@ -717,7 +718,7 @@ void DialogsInner::onContextDeleteAndLeaveSure() {
 
 void DialogsInner::onContextToggleBlock() {
 	if (!_menuPeer || !_menuPeer->isUser()) return;
-	if (_menuPeer->asUser()->blocked == UserIsBlocked) {
+	if (_menuPeer->asUser()->isBlocked()) {
 		MTP::send(MTPcontacts_Unblock(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), false)));
 	} else {
 		MTP::send(MTPcontacts_Block(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), true)));
@@ -725,8 +726,9 @@ void DialogsInner::onContextToggleBlock() {
 }
 
 void DialogsInner::contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result) {
-	data.first->blocked = data.second ? UserIsBlocked : UserIsNotBlocked;
+	data.first->setBlockStatus(data.second ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(data.first);
+	Notify::peerUpdatedSendDelayed();
 }
 
 void DialogsInner::onMenuDestroyed(QObject *obj) {
@@ -934,7 +936,7 @@ void DialogsInner::updateNotifySettings(PeerData *peer) {
 
 void DialogsInner::peerUpdated(PeerData *peer) {
 	if (_menu && _menuPeer == peer && _menuPeer->isUser() && _menu->actions().size() > 5) {
-		_menu->actions().at(5)->setText(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
+		_menu->actions().at(5)->setText(lang(_menuPeer->asUser()->isBlocked() ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
 	}
 }
 

@@ -27,6 +27,7 @@ LeftOutlineButton::LeftOutlineButton(QWidget *parent, const QString &text, const
 , _text(text)
 , _fullText(text)
 , _textWidth(st.font->width(_text))
+, _fullTextWidth(_textWidth)
 , _st(st) {
 	resizeToWidth(_textWidth + _st.padding.left() + _st.padding.right());
 
@@ -36,13 +37,14 @@ LeftOutlineButton::LeftOutlineButton(QWidget *parent, const QString &text, const
 void LeftOutlineButton::setText(const QString &text) {
 	_text = text;
 	_fullText = text;
-	_textWidth = _st.font->width(_text);
+	_fullTextWidth = _textWidth = _st.font->width(_text);
 	resizeToWidth(width());
+	update();
 }
 
 void LeftOutlineButton::resizeToWidth(int newWidth) {
 	int availableWidth = qMax(newWidth - _st.padding.left() - _st.padding.right(), 1);
-	if (availableWidth < _textWidth) {
+	if ((availableWidth < _fullTextWidth) || (_textWidth < availableWidth)) {
 		_text = _st.font->elided(_fullText, availableWidth);
 		_textWidth = _st.font->width(_text);
 	}

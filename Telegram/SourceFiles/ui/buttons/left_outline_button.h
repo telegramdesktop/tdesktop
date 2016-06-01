@@ -38,7 +38,7 @@ protected:
 
 private:
 	QString _text, _fullText;
-	int _textWidth;
+	int _textWidth, _fullTextWidth;
 
 	const style::OutlineButton &_st;
 

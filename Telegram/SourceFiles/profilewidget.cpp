@@ -90,7 +90,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 , _convertToSupergroup(this, lang(lng_profile_convert_button))
 , _clearHistory(this, lang(lng_profile_clear_history))
 , _deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : (_peer->isChat() ? lng_profile_clear_and_exit : (_peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel))))
-, _wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown)
+//, _wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown)
 , _blockRequest(0)
 , _blockUser(this, lang((_peerUser && _peerUser->botInfo) ? lng_profile_block_bot : lng_profile_block_user), st::btnRedLink)
 , _deleteChannel(this, lang(_peer->isMegagroup() ? lng_profile_delete_group : lng_profile_delete_channel), st::btnRedLink)
@@ -112,17 +112,17 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
 	if (_peerUser) {
-		if (_peerUser->blocked == UserIsBlocked) {
-			_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
-		}
+		//if (_peerUser->blocked == UserIsBlocked) {
+		//	_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
+		//}
 		_phoneText = App::formatPhone(_peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone());
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink.reset(new PhotoOpenClickHandler(userPhoto, _peer));
 		}
-		if ((_peerUser->botInfo && !_peerUser->botInfo->inited) || (_peerUser->photoId == UnknownPeerPhotoId) || (_peerUser->photoId && !userPhoto->date) || (_peerUser->blocked == UserBlockUnknown)) {
-			if (App::api()) App::api()->requestFullPeer(_peer);
-		}
+		//if ((_peerUser->botInfo && !_peerUser->botInfo->inited) || (_peerUser->photoId == UnknownPeerPhotoId) || (_peerUser->photoId && !userPhoto->date) || (_peerUser->blocked == UserBlockUnknown)) {
+		//	if (App::api()) App::api()->requestFullPeer(_peer);
+		//}
 	} else if (_peerChat) {
 		PhotoData *chatPhoto = (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) ? App::photo(_peerChat->photoId) : 0;
 		if (chatPhoto && chatPhoto->date) {
@@ -370,26 +370,26 @@ void ProfileInner::onDeleteChannelSure() {
 }
 void ProfileInner::onBlockUser() {
 	if (!_peerUser || _blockRequest) return;
-	if (_peerUser->blocked == UserIsBlocked) {
-		_blockRequest = MTP::send(MTPcontacts_Unblock(_peerUser->inputUser), rpcDone(&ProfileInner::blockDone, false), rpcFail(&ProfileInner::blockFail));
-	} else {
-		_blockRequest = MTP::send(MTPcontacts_Block(_peerUser->inputUser), rpcDone(&ProfileInner::blockDone, true), rpcFail(&ProfileInner::blockFail));
-	}
+//	if (_peerUser->blocked == UserIsBlocked) {
+//		_blockRequest = MTP::send(MTPcontacts_Unblock(_peerUser->inputUser), rpcDone(&ProfileInner::blockDone, false), rpcFail(&ProfileInner::blockFail));
+//	} else {
+//		_blockRequest = MTP::send(MTPcontacts_Block(_peerUser->inputUser), rpcDone(&ProfileInner::blockDone, true), rpcFail(&ProfileInner::blockFail));
+//	}
 }
-
-void ProfileInner::blockDone(bool blocked, const MTPBool &result) {
-	_blockRequest = 0;
-	if (!_peerUser) return;
-	_peerUser->blocked = blocked ? UserIsBlocked : UserIsNotBlocked;
-	emit App::main()->peerUpdated(_peerUser);
-}
-
-bool ProfileInner::blockFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	_blockRequest = 0;
-	return false;
-}
+//
+//void ProfileInner::blockDone(bool blocked, const MTPBool &result) {
+//	_blockRequest = 0;
+//	if (!_peerUser) return;
+//	_peerUser->blocked = blocked ? UserIsBlocked : UserIsNotBlocked;
+//	emit App::main()->peerUpdated(_peerUser);
+//}
+//
+//bool ProfileInner::blockFail(const RPCError &error) {
+//	if (MTP::isDefaultHandledError(error)) return false;
+//
+//	_blockRequest = 0;
+//	return false;
+//}
 
 void ProfileInner::onAddParticipant() {
 	if (_peerChat) {
@@ -609,10 +609,10 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		if (_peerUser) {
 			_phoneText = App::formatPhone(_peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone());
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
-			if (_wasBlocked != _peerUser->blocked) {
-				_wasBlocked = _peerUser->blocked;
-				_blockUser.setText(lang((_peerUser->blocked == UserIsBlocked) ? (_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_peerUser->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
-			}
+			//if (_wasBlocked != _peerUser->blocked) {
+			//	_wasBlocked = _peerUser->blocked;
+			//	_blockUser.setText(lang((_peerUser->blocked == UserIsBlocked) ? (_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_peerUser->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
+			//}
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));

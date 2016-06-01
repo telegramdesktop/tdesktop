@@ -21,16 +21,79 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
+#include "core/observer.h"
+
+namespace Ui {
+class LeftOutlineButton;
+} // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 namespace Profile {
 
-class ActionsWidget : public BlockWidget {
+class ActionsWidget : public BlockWidget, public Notify::Observer {
+	Q_OBJECT
+
 public:
 	ActionsWidget(QWidget *parent, PeerData *peer);
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+
+private slots:
+	void onBotHelp();
+	void onBotSettings();
+	void onClearHistory();
+	void onClearHistorySure();
+	void onDeleteConversation();
+	void onDeleteConversationSure();
+	void onBlockUser();
+	void onUpgradeToSupergroup();
+	void onDeleteChannel();
+	void onDeleteChannelSure();
+	void onLeaveChannel();
+	void onLeaveChannelSure();
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void validateBlockStatus() const;
+
+	int buttonsBottom() const;
+
+	void refreshButtons();
+	void refreshBlockUser();
+	void refreshLeaveChannel();
+	void refreshVisibility();
+
+	Ui::LeftOutlineButton *addButton(const QString &text, const char *slot
+		, const style::OutlineButton &st = st::defaultLeftOutlineButton, int skipHeight = 0);
+	void resizeButton(Ui::LeftOutlineButton *button, int top);
+
+	QString getBlockButtonText() const;
+	bool hasBotCommand(const QString &command) const;
+	void sendBotCommand(const QString &command);
+
+	QList<Ui::LeftOutlineButton*> _buttons;
+	//ChildWidget<Ui::LeftOutlineButton> _botHelp = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _botSettings = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _reportChannel = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _leaveChannel = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _deleteChannel = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _upgradeToSupergroup = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _clearHistory = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _deleteConversation = { nullptr };
+	//ChildWidget<Ui::LeftOutlineButton> _blockUser = { nullptr };
+
+	// Hold some button pointers to update / toggle them.
+	bool _hasBotHelp = false;
+	bool _hasBotSettings = false;
+	Ui::LeftOutlineButton *_blockUser = nullptr;
+	Ui::LeftOutlineButton *_leaveChannel = nullptr;
 
 };
 

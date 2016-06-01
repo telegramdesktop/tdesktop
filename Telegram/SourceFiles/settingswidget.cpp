@@ -206,7 +206,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _telegramFAQ(this, lang(lng_settings_faq))
 , _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
-	Notify::registerPeerObserver(Notify::PeerUpdateFlag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
+	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
 
 	if (self()) {
 		self()->loadUserpic();
@@ -354,7 +354,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 void SettingsInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.peer == App::self()) {
-		if (update.flags & Notify::PeerUpdateFlag::UsernameChanged) {
+		if (update.flags & Notify::PeerUpdate::Flag::UsernameChanged) {
 			usernameChanged();
 		}
 	}

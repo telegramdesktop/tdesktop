@@ -30,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Profile {
 
 InviteLinkWidget::InviteLinkWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_invite_link_section)) {
-	auto observeEvents = Notify::PeerUpdateFlag::InviteLinkChanged;
+	auto observeEvents = Notify::PeerUpdate::Flag::InviteLinkChanged;
 	Notify::registerPeerObserver(observeEvents, this, &InviteLinkWidget::notifyPeerUpdated);
 
 	refreshLink();
@@ -42,7 +42,7 @@ void InviteLinkWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & Notify::PeerUpdateFlag::InviteLinkChanged) {
+	if (update.flags & Notify::PeerUpdate::Flag::InviteLinkChanged) {
 		refreshLink();
 		refreshVisibility();
 

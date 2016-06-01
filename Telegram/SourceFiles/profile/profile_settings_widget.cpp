@@ -35,18 +35,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
+using UpdateFlag = Notify::PeerUpdate::Flag;
+
 SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_settings_section))
 , _enableNotifications(this, lang(lng_profile_enable_notifications), true, st::defaultCheckbox) {
 	connect(_enableNotifications, SIGNAL(changed()), this, SLOT(onNotificationsChange()));
 
-	Notify::PeerUpdateFlags observeEvents = Notify::PeerUpdateFlag::NotificationsEnabled;
+	Notify::PeerUpdate::Flags observeEvents = UpdateFlag::NotificationsEnabled;
 	if (auto chat = peer->asChat()) {
 		if (chat->amCreator()) {
-			observeEvents |= Notify::PeerUpdateFlag::ChatCanEdit | Notify::PeerUpdateFlag::InviteLinkChanged;
+			observeEvents |= UpdateFlag::ChatCanEdit | UpdateFlag::InviteLinkChanged;
 		}
 	} else if (auto channel = peer->asChannel()) {
 		if (channel->amCreator()) {
-			observeEvents |= Notify::PeerUpdateFlag::UsernameChanged | Notify::PeerUpdateFlag::InviteLinkChanged;
+			observeEvents |= UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged;
 		}
 	}
 	Notify::registerPeerObserver(observeEvents, this, &SettingsWidget::notifyPeerUpdated);
@@ -62,13 +64,13 @@ void SettingsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & Notify::PeerUpdateFlag::NotificationsEnabled) {
+	if (update.flags & UpdateFlag::NotificationsEnabled) {
 		refreshEnableNotifications();
 	}
-	if (update.flags & (Notify::PeerUpdateFlag::ChatCanEdit | Notify::PeerUpdateFlag::UsernameChanged | Notify::PeerUpdateFlag::InviteLinkChanged)) {
+	if (update.flags & (UpdateFlag::ChatCanEdit | UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged)) {
 		refreshInviteLinkButton();
 	}
-	if (update.flags & (Notify::PeerUpdateFlag::ChatCanEdit)) {
+	if (update.flags & (UpdateFlag::ChatCanEdit)) {
 		refreshManageAdminsButton();
 	}
 

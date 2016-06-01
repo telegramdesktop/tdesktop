@@ -192,7 +192,7 @@ private:
 
 	// actions
 	LinkButton _searchInPeer, _convertToSupergroup, _clearHistory, _deleteConversation;
-	UserBlockedStatus _wasBlocked;
+	//UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
 	bool canDeleteChannel() const;

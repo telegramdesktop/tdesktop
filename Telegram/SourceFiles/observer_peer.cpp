@@ -46,21 +46,21 @@ void FinishCallback() {
 	SmallUpdates.clear();
 	AllUpdates.clear();
 }
-ObservedEventRegistrator<PeerUpdateFlags, PeerUpdateHandler> creator(StartCallback, FinishCallback);
+ObservedEventRegistrator<PeerUpdate::Flags, PeerUpdateHandler> creator(StartCallback, FinishCallback);
 
 } // namespace
 
 namespace internal {
 
-ConnectionId plainRegisterPeerObserver(PeerUpdateFlags events, PeerUpdateHandler &&handler) {
+ConnectionId plainRegisterPeerObserver(PeerUpdate::Flags events, PeerUpdateHandler &&handler) {
 	return creator.registerObserver(events, std_::forward<PeerUpdateHandler>(handler));
 }
 
 } // namespace internal
 
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
-	if (!(mergeTo.flags & PeerUpdateFlag::NameChanged)) {
-		if (mergeFrom.flags & PeerUpdateFlag::NameChanged) {
+	if (!(mergeTo.flags & PeerUpdate::Flag::NameChanged)) {
+		if (mergeFrom.flags & PeerUpdate::Flag::NameChanged) {
 			mergeTo.oldNames = mergeFrom.oldNames;
 			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
 		}
