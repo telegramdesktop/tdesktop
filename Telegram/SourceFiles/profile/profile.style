@@ -133,3 +133,7 @@ profileBlockOneLineTextPart: flatLabel(profileBlockTextPart) {
 }
 profileBlockOneLineSkip: 9px;
 profileBlockOneLineWidthMax: 240px;
+
+profileInviteLinkText: flatLabel(profileBlockTextPart) {
+	width: 1px; // Required for BreakEverywhere
+}

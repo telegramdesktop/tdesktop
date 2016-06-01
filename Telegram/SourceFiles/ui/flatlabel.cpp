@@ -108,6 +108,10 @@ void FlatLabel::setExpandLinksMode(ExpandLinksMode mode) {
 	_contextExpandLinksMode = mode;
 }
 
+void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
+	_breakEverywhere = breakEverywhere;
+}
+
 void FlatLabel::resizeToWidth(int32 width) {
 	textstyleSet(&_tst);
 	_allowedWidth = width;
@@ -465,6 +469,9 @@ void FlatLabel::onExecuteDrag() {
 		mimeData->setText(selectedText);
 		auto drag = new QDrag(App::wnd());
 		drag->setMimeData(mimeData);
+
+		// We don't receive mouseReleaseEvent when drag is finished.
+		ClickHandler::unpressed();
 		drag->exec(Qt::CopyAction);
 	}
 }
@@ -563,9 +570,15 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 
 	textstyleSet(&_tst);
 	Text::StateResult state;
-	if (_st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth())) {
+	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
+	bool renderElided = _breakEverywhere || heightExceeded;
+	if (renderElided) {
 		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
-		request.lines = qMax(_st.maxHeight / lineHeight, 1);
+		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
+		request.lines = lines;
+		if (_breakEverywhere) {
+			request.flags |= Text::StateRequest::Flag::BreakEverywhere;
+		}
 		state = _text.getStateElided(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
 	} else {
 		state = _text.getState(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
@@ -587,10 +600,12 @@ void FlatLabel::paintEvent(QPaintEvent *e) {
 	textstyleSet(&_tst);
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
-	if (_st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth())) {
+	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
+	bool renderElided = _breakEverywhere || heightExceeded;
+	if (renderElided) {
 		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
-		auto lines = qMax(_st.maxHeight / lineHeight, 1);
-		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, false, selection);
+		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
+		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
 	} else {
 		_text.draw(p, _st.margin.left(), _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
 	}

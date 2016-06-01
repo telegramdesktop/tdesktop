@@ -615,6 +615,9 @@ void OverviewInner::onDragExec() {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
+
+		// We don't receive mouseReleaseEvent when drag is finished.
+		ClickHandler::unpressed();
 		drag->exec(Qt::CopyAction);
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
@@ -643,6 +646,9 @@ void OverviewInner::onDragExec() {
 			}
 
 			drag->setMimeData(mimeData);
+
+			// We don't receive mouseReleaseEvent when drag is finished.
+			ClickHandler::unpressed();
 			drag->exec(Qt::CopyAction);
 			if (App::main()) App::main()->updateAfterDrag();
 			return;

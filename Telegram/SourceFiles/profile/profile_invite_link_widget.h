@@ -21,16 +21,35 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
+#include "core/observer.h"
+
+class FlatLabel;
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 namespace Profile {
 
-class InviteLinkWidget : public BlockWidget {
+class InviteLinkWidget : public BlockWidget, public Notify::Observer {
 public:
 	InviteLinkWidget(QWidget *parent, PeerData *peer);
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	QString getInviteLink() const;
+	void refreshLink();
+	void refreshVisibility();
+
+	bool clickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
+
+	ChildWidget<FlatLabel> _link = { nullptr };
 
 };
 

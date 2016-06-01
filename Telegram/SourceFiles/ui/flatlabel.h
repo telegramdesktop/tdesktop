@@ -41,6 +41,7 @@ public:
 	void setDoubleClickSelectsParagraph(bool doubleClickSelectsParagraph);
 	void setContextCopyText(const QString &copyText);
 	void setExpandLinksMode(ExpandLinksMode mode);
+	void setBreakEverywhere(bool breakEverywhere);
 
 	void resizeToWidth(int32 width);
 	int naturalWidth() const;
@@ -106,6 +107,7 @@ private:
 
 	int _allowedWidth = 0;
 	int _fullTextHeight = 0;
+	bool _breakEverywhere = false;
 
 	style::cursor _cursor = style::cur_default;
 	bool _selectable = false;
