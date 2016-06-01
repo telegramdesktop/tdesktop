@@ -145,6 +145,29 @@ boxLabel: flatLabel(labelDefFlat) {
 	align: align(topleft);
 }
 
+defaultLeftOutlineButton: OutlineButton {
+	outlineWidth: 3px;
+	outlineFg: windowBg;
+	outlineFgOver: #3fb0e4;
+
+	textBg: windowBg;
+	textBgOver: #f2f7fa;
+
+	textFg: #1485c2;
+	textFgOver: #1485c2;
+
+	font: normalFont;
+	padding: margins(11px, 6px, 11px, 6px);
+}
+attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
+	outlineFgOver: #e43f3f;
+
+	textBgOver: #faf2f2;
+
+	textFg: #d15948;
+	textFgOver: #d15948;
+}
+
 defaultInputArea: InputArea {
 	textFg: black;
 	textMargins: margins(5px, 6px, 5px, 4px);

@@ -38,6 +38,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "mediaview.h"
 #include "localstorage.h"
+#include "apiwrap.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
@@ -611,10 +612,6 @@ void MainWindow::setupIntro(bool anim) {
 		MTP::cancel(_serviceHistoryRequest);
 		_serviceHistoryRequest = 0;
 	}
-}
-
-void MainWindow::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
-	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
 }
 
 void MainWindow::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
@@ -1374,7 +1371,7 @@ void MainWindow::onClearFailed(int task, void *manager) {
 }
 
 void MainWindow::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !main) return;
+	if (App::quitting() || !history->currentNotification() || !App::api()) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
@@ -1394,7 +1391,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 						return;
 					}
 				} else {
-					App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input));
+					App::api()->requestNotifySetting(notifyByFrom);
 				}
 			} else {
 				history->popNotification(item);
@@ -1403,9 +1400,9 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 		}
 	} else {
 		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
-			App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input), 10);
+			App::api()->requestNotifySetting(notifyByFrom);
 		}
-		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
+		App::api()->requestNotifySetting(history->peer);
 	}
 	if (!item->notificationReady()) {
 		haveSetting = false;

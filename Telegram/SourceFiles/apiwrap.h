@@ -53,6 +53,9 @@ public:
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
 
+	void exportInviteLink(PeerData *peer);
+	void requestNotifySetting(PeerData *peer);
+
 	~ApiWrap();
 
 signals:
@@ -129,5 +132,15 @@ private:
 	void channelAmInUpdated(ChannelData *channel);
 	void channelAmInDone(ChannelData *channel, const MTPUpdates &updates);
 	bool channelAmInFail(ChannelData *channel, const RPCError &error);
+
+	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
+	void exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result);
+	bool exportInviteFail(PeerData *peer, const RPCError &error);
+
+	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
+	void notifySettingDone(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+	bool notifySettingFail(PeerData *peer, const RPCError &error);
+
 
 };

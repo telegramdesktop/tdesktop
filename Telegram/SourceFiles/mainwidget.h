@@ -186,8 +186,6 @@ public:
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
-	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange);
 

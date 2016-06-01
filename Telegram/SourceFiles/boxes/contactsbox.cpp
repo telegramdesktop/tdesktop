@@ -224,7 +224,7 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	_addAdminRequestId = 0;
 	if (_addAdminBox) _addAdminBox->onClose();
 	if (error.type() == "USERS_TOO_MUCH") {
-		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
@@ -728,7 +728,7 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		_checkedContacts.insert(peer, true);
 		++_selCount;
 	} else if (_channel && !_channel->isMegagroup()) {
-		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
 	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
@@ -2291,7 +2291,7 @@ void MembersBox::onScroll() {
 
 void MembersBox::onAdd() {
 	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= (_inner.channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
-		Ui::showLayer(new MaxInviteBox(_inner.channel()->invitationUrl), KeepOtherLayers);
+		Ui::showLayer(new MaxInviteBox(_inner.channel()->inviteLink()), KeepOtherLayers);
 		return;
 	}
 	ContactsBox *box = new ContactsBox(_inner.channel(), _inner.filter(), _inner.already());

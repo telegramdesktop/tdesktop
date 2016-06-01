@@ -415,3 +415,18 @@ PeerAvatarButton {
 	size: pixels;
 	photoSize: pixels;
 }
+
+OutlineButton {
+	outlineWidth: pixels;
+	outlineFg: color;
+	outlineFgOver: color;
+
+	textBg: color;
+	textBgOver: color;
+
+	textFg: color;
+	textFgOver: color;
+
+	font: font;
+	padding: margins;
+}

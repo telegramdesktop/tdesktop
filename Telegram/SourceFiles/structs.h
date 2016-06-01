@@ -486,7 +486,6 @@ private:
 
 class ChatData : public PeerData {
 public:
-
 	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -560,7 +559,15 @@ public:
 	MarkupSenders markupSenders;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
-	QString invitationUrl;
+
+	void setInviteLink(const QString &newInviteLink);
+	QString inviteLink() const {
+		return _inviteLink;
+	}
+
+private:
+	QString _inviteLink;
+
 };
 
 enum PtsSkippedQueue {
@@ -659,7 +666,6 @@ struct MegagroupInfo {
 
 class ChannelData : public PeerData {
 public:
-
 	ChannelData(const PeerId &id) : PeerData(id), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -756,7 +762,11 @@ public:
 	}
 
 //	ImagePtr photoFull;
-	QString invitationUrl;
+
+	void setInviteLink(const QString &newInviteLink);
+	QString inviteLink() const {
+		return _inviteLink;
+	}
 
 	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
 	QDateTime inviteDate;
@@ -809,6 +819,8 @@ private:
 
 	QString _restrictionReason;
 	QString _about;
+
+	QString _inviteLink;
 
 };
 

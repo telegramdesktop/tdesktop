@@ -3866,7 +3866,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		if (_channel) {
 			updateNotifySettings();
 			if (_peer->notify == UnknownNotifySettings) {
-				App::wnd()->getNotifySetting(MTP_inputNotifyPeer(_peer->input));
+				App::api()->requestNotifySetting(_peer);
 			}
 		}
 

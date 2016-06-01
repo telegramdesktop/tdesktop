@@ -469,7 +469,7 @@ void ProfileInner::onMediaLinks() {
 void ProfileInner::onInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
-	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
+//	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
 	Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
 }
 
@@ -500,9 +500,9 @@ void ProfileInner::onAdmins() {
 void ProfileInner::onCreateInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
-	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? lng_group_invite_about : lng_group_invite_about_new));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
-	Ui::showLayer(box);
+//	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? lng_group_invite_about : lng_group_invite_about_new));
+//	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
+//	Ui::showLayer(box);
 }
 
 void ProfileInner::onCreateInvitationLinkSure() {
@@ -518,9 +518,9 @@ void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
 	if (!_peerChat && !_peerChannel) return;
 
 	if (_peerChat) {
-		_peerChat->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+//		_peerChat->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
 	} else {
-		_peerChannel->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+//		_peerChannel->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
 	}
 	updateInvitationLink();
 	showAll();
@@ -932,12 +932,12 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 	// invite link stuff
 	if (_amCreator && ((_peerChat && _peerChat->canEdit()) || (_peerChannel && !_peerChannel->isPublic()))) {
-		if ((_peerChat && !_peerChat->invitationUrl.isEmpty()) || (_peerChannel && !_peerChannel->invitationUrl.isEmpty())) {
-			p.setPen(st::black);
-			p.setFont(st::linkFont);
-			p.drawText(_left, _invitationLink.y() + st::linkFont->ascent, lang(lng_group_invite_link));
-			top += _invitationLink.height() + st::setLittleSkip;
-		}
+		//if ((_peerChat && !_peerChat->invitationUrl.isEmpty()) || (_peerChannel && !_peerChannel->invitationUrl.isEmpty())) {
+		//	p.setPen(st::black);
+		//	p.setFont(st::linkFont);
+		//	p.drawText(_left, _invitationLink.y() + st::linkFont->ascent, lang(lng_group_invite_link));
+		//	top += _invitationLink.height() + st::setLittleSkip;
+		//}
 		top += _createInvitationLink.height() + st::setSectionSkip;
 	}
 
@@ -1447,13 +1447,13 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		if (!_invitationText.isEmpty()) {
 			_invitationLink.setText(st::linkFont->elided(_invitationText, _width - _inviteLinkTextWidth));
 		}
-		if ((_peerChat && !_peerChat->invitationUrl.isEmpty()) || (_peerChannel && !_peerChannel->invitationUrl.isEmpty())) {
-			_invitationLink.move(_left + _inviteLinkTextWidth, top);
-			top += _invitationLink.height() + st::setLittleSkip;
-			_createInvitationLink.move(_left, top);
-		} else {
-			_createInvitationLink.move(_left, top);
-		}
+		//if ((_peerChat && !_peerChat->invitationUrl.isEmpty()) || (_peerChannel && !_peerChannel->invitationUrl.isEmpty())) {
+		//	_invitationLink.move(_left + _inviteLinkTextWidth, top);
+		//	top += _invitationLink.height() + st::setLittleSkip;
+		//	_createInvitationLink.move(_left, top);
+		//} else {
+		//	_createInvitationLink.move(_left, top);
+		//}
 		top += _createInvitationLink.height() + st::setSectionSkip;
 	}
 
@@ -1709,11 +1709,11 @@ void ProfileInner::showAll() {
 			}
 			if (_amCreator) {
 				_createInvitationLink.show();
-				if (_peerChat->invitationUrl.isEmpty()) {
-					_invitationLink.hide();
-				} else {
-					_invitationLink.show();
-				}
+				//if (_peerChat->invitationUrl.isEmpty()) {
+				//	_invitationLink.hide();
+				//} else {
+				//	_invitationLink.show();
+				//}
 			} else {
 				_createInvitationLink.hide();
 				_invitationLink.hide();
@@ -1756,11 +1756,11 @@ void ProfileInner::showAll() {
 			}
 			if (_amCreator && !_peerChannel->isPublic()) {
 				_createInvitationLink.show();
-				if (_peerChannel->invitationUrl.isEmpty()) {
-					_invitationLink.hide();
-				} else {
-					_invitationLink.show();
-				}
+				//if (_peerChannel->invitationUrl.isEmpty()) {
+				//	_invitationLink.hide();
+				//} else {
+				//	_invitationLink.show();
+				//}
 			} else {
 				_createInvitationLink.hide();
 				_invitationLink.hide();
@@ -1809,17 +1809,17 @@ void ProfileInner::showAll() {
 void ProfileInner::updateInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
-	if ((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) {
-		_createInvitationLink.setText(lang(lng_group_invite_create));
-	} else {
-		_createInvitationLink.setText(lang(lng_group_invite_create_new));
-		_invitationText = _peerChat ? _peerChat->invitationUrl : _peerChannel->invitationUrl;
-		if (_invitationText.startsWith(qstr("http://"), Qt::CaseInsensitive)) {
-			_invitationText = _invitationText.mid(7);
-		} else if (_invitationText.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-			_invitationText = _invitationText.mid(8);
-		}
-	}
+	//if ((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) {
+	//	_createInvitationLink.setText(lang(lng_group_invite_create));
+	//} else {
+	//	_createInvitationLink.setText(lang(lng_group_invite_create_new));
+	//	_invitationText = _peerChat ? _peerChat->invitationUrl : _peerChannel->invitationUrl;
+	//	if (_invitationText.startsWith(qstr("http://"), Qt::CaseInsensitive)) {
+	//		_invitationText = _invitationText.mid(7);
+	//	} else if (_invitationText.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+	//		_invitationText = _invitationText.mid(8);
+	//	}
+	//}
 }
 
 void ProfileInner::updatePinnedMessageVisibility() {

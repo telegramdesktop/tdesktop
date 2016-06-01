@@ -21,16 +21,51 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
+#include "core/observer.h"
+
+class Checkbox;
+
+namespace Ui {
+class LeftOutlineButton;
+} // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 namespace Profile {
 
-class SettingsWidget : public BlockWidget {
+class SettingsWidget : public BlockWidget, public Notify::Observer {
+	Q_OBJECT
+
 public:
 	SettingsWidget(QWidget *parent, PeerData *peer);
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+
+private slots:
+	void onNotificationsChange();
+	void onManageAdmins();
+	void onInviteLink();
+	void onInviteLinkSure();
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void refreshButtons();
+	void refreshEnableNotifications();
+	void refreshManageAdminsButton();
+	void refreshInviteLinkButton();
+
+	ChildWidget<Checkbox> _enableNotifications;
+
+	// In groups: creator of non-deactivated groups can see this link.
+	// In channels: creator of supergroup can see this link.
+	ChildWidget<Ui::LeftOutlineButton> _manageAdmins = { nullptr };
+	ChildWidget<Ui::LeftOutlineButton> _inviteLink = { nullptr };
 
 };
 

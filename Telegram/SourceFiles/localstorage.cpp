@@ -3419,13 +3419,13 @@ namespace Local {
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
-			// name + count + date + version + admin + forbidden + left + invitationUrl
-			result += Serialize::stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(chat->invitationUrl);
+			// name + count + date + version + admin + forbidden + left + inviteLink
+			result += Serialize::stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(chat->inviteLink());
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			// name + access + date + version + forbidden + flags + invitationUrl
-			result += Serialize::stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(channel->invitationUrl);
+			// name + access + date + version + forbidden + flags + inviteLink
+			result += Serialize::stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(channel->inviteLink());
 		}
 		return result;
 	}
@@ -3450,12 +3450,12 @@ namespace Local {
 			qint32 flagsData = (AppVersion >= 9012) ? chat->flags : (chat->haveLeft() ? 1 : 0);
 
 			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->invitationUrl;
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->inviteLink();
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
 			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
-			stream << qint32(channel->isForbidden ? 1 : 0) << qint32(channel->flags) << channel->invitationUrl;
+			stream << qint32(channel->isForbidden ? 1 : 0) << qint32(channel->flags) << channel->inviteLink();
 		}
 	}
 
@@ -3515,9 +3515,9 @@ namespace Local {
 		} else if (result->isChat()) {
 			ChatData *chat = result->asChat();
 
-			QString name, invitationUrl;
+			QString name, inviteLink;
 			qint32 count, date, version, creator, forbidden, flagsData, flags;
-			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> invitationUrl;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> inviteLink;
 
 			if (from.version >= 9012) {
 				flags = flagsData;
@@ -3533,7 +3533,7 @@ namespace Local {
 				chat->creator = creator;
 				chat->isForbidden = (forbidden == 1);
 				chat->flags = MTPDchat::Flags(flags);
-				chat->invitationUrl = invitationUrl;
+				chat->setInviteLink(inviteLink);
 
 				chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 				chat->inputChat = MTP_int(peerToChat(chat->id));
@@ -3543,10 +3543,10 @@ namespace Local {
 		} else if (result->isChannel()) {
 			ChannelData *channel = result->asChannel();
 
-			QString name, invitationUrl;
+			QString name, inviteLink;
 			quint64 access;
 			qint32 date, version, forbidden, flags;
-			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
+			from.stream >> name >> access >> date >> version >> forbidden >> flags >> inviteLink;
 
 			if (!wasLoaded) {
 				channel->setNameDelayed(name, QString());
@@ -3555,7 +3555,7 @@ namespace Local {
 				channel->version = version;
 				channel->isForbidden = (forbidden == 1);
 				channel->flags = MTPDchannel::Flags(flags);
-				channel->invitationUrl = invitationUrl;
+				channel->setInviteLink(inviteLink);
 
 				channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 				channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));

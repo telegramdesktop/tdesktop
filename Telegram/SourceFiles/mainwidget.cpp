@@ -2096,9 +2096,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
-	if (_wideSection) {
-		//return _wideSection->ui_getPeerForMouseAction(); TODO
-	}
 	return _history->ui_getPeerForMouseAction();
 }
 
@@ -3595,35 +3592,11 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 			_history->updateNotifySettings();
 		}
 		_dialogs->updateNotifySettings(updatePeer);
-		//if (_profile && _profile->peer() == updatePeer) { TODO
-		//	_profile->updateNotifySettings();
-		//}
+
+		Notify::PeerUpdate update(updatePeer);
+		update.flags |= Notify::PeerUpdateFlag::NotificationsEnabled;
+		Notify::peerUpdatedDelayed(update);
 	}
-}
-
-void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings) {
-	switch (peer.type()) {
-	case mtpc_inputNotifyAll: applyNotifySetting(MTP_notifyAll(), settings); break;
-	case mtpc_inputNotifyUsers: applyNotifySetting(MTP_notifyUsers(), settings); break;
-	case mtpc_inputNotifyChats: applyNotifySetting(MTP_notifyChats(), settings); break;
-	case mtpc_inputNotifyPeer:
-		switch (peer.c_inputNotifyPeer().vpeer.type()) {
-		case mtpc_inputPeerEmpty: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
-		case mtpc_inputPeerSelf: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(MTP::authedId()))), settings); break;
-		case mtpc_inputPeerUser: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerUser().vuser_id)), settings); break;
-		case mtpc_inputPeerChat: applyNotifySetting(MTP_notifyPeer(MTP_peerChat(peer.c_inputNotifyPeer().vpeer.c_inputPeerChat().vchat_id)), settings); break;
-		case mtpc_inputPeerChannel: applyNotifySetting(MTP_notifyPeer(MTP_peerChannel(peer.c_inputNotifyPeer().vpeer.c_inputPeerChannel().vchannel_id)), settings); break;
-		}
-	break;
-	}
-	App::wnd()->notifySettingGot();
-}
-
-bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	gotNotifySetting(peer, MTP_peerNotifySettingsEmpty());
-	return true;
 }
 
 void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent) {

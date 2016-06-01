@@ -437,6 +437,16 @@ void ChatData::setNameDelayed(const QString &newName) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
 }
 
+void ChatData::setInviteLink(const QString &newInviteLink) {
+	if (newInviteLink != _inviteLink) {
+		_inviteLink = newInviteLink;
+
+		Notify::PeerUpdate update(this);
+		update.flags |= Notify::PeerUpdateFlag::InviteLinkChanged;
+		Notify::peerUpdatedDelayed(update);
+	}
+}
+
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
@@ -502,6 +512,16 @@ bool ChannelData::setAbout(const QString &newAbout) {
 	update.flags |= Notify::PeerUpdateFlag::AboutChanged;
 	Notify::peerUpdatedDelayed(update);
 	return true;
+}
+
+void ChannelData::setInviteLink(const QString &newInviteLink) {
+	if (newInviteLink != _inviteLink) {
+		_inviteLink = newInviteLink;
+
+		Notify::PeerUpdate update(this);
+		update.flags |= Notify::PeerUpdateFlag::InviteLinkChanged;
+		Notify::peerUpdatedDelayed(update);
+	}
 }
 
 void ChannelData::flagsUpdated() {

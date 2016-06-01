@@ -34,6 +34,8 @@ enum class PeerUpdateFlag {
 	UsernameChanged      = 0x00000002U,
 	PhotoChanged         = 0x00000004U,
 	AboutChanged         = 0x00000008U,
+	NotificationsEnabled = 0x00000010U,
+	InviteLinkChanged    = 0x00000020U,
 
 	UserCanShareContact  = 0x00010000U,
 	UserIsContact        = 0x00020000U,

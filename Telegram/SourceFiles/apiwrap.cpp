@@ -215,9 +215,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		} else {
 			chat->photoId = 0;
 		}
-		chat->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	} else if (peer->isChannel()) {
 		if (d.vfull_chat.type() != mtpc_channelFull) {
 			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
@@ -286,7 +286,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			channel->count = newCount;
 		}
 		channel->adminsCount = f.has_admins_count() ? f.vadmins_count.v : 0;
-		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (History *h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
 				h->setUnreadCount(channel->isMegagroup() ? f.vunread_count.v : f.vunread_important_count.v);
@@ -303,7 +303,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		channel->fullUpdated();
 
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
 
 	if (req) {
@@ -334,7 +334,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 	App::feedUserLinkDelayed(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 	}
 
 	if (d.has_bot_info()) {
@@ -721,6 +721,86 @@ bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 	return true;
 }
 
+void ApiWrap::exportInviteLink(PeerData *peer) {
+	if (_exportInviteRequests.contains(peer)) {
+		return;
+	}
+
+	mtpRequestId request = 0;
+	if (auto chat = peer->asChat()) {
+		request = MTP::send(MTPmessages_ExportChatInvite(chat->inputChat), rpcDone(&ApiWrap::exportInviteDone, peer), rpcFail(&ApiWrap::exportInviteFail, peer));
+	} else if (auto channel = peer->asChannel()) {
+		request = MTP::send(MTPchannels_ExportInvite(channel->inputChannel), rpcDone(&ApiWrap::exportInviteDone, peer), rpcFail(&ApiWrap::exportInviteFail, peer));
+	}
+	if (request) {
+		_exportInviteRequests.insert(peer, request);
+	}
+}
+
+void ApiWrap::exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result) {
+	_exportInviteRequests.remove(peer);
+	if (auto chat = peer->asChat()) {
+		chat->setInviteLink((result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString());
+	} else if (auto channel = peer->asChannel()) {
+		channel->setInviteLink((result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString());
+	}
+	Notify::peerUpdatedSendDelayed();
+}
+
+bool ApiWrap::exportInviteFail(PeerData *peer, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_exportInviteRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::requestNotifySetting(PeerData *peer) {
+	if (_notifySettingRequests.contains(peer)) return;
+
+	MTPInputNotifyPeer notifyPeer = MTP_inputNotifyPeer(peer->input);
+	auto requestId = MTP::send(MTPaccount_GetNotifySettings(notifyPeer), rpcDone(&ApiWrap::notifySettingDone, notifyPeer), rpcFail(&ApiWrap::notifySettingFail, peer));
+	_notifySettingRequests.insert(peer, requestId);
+}
+
+void ApiWrap::notifySettingDone(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &result) {
+	if (auto requestedPeer = notifySettingReceived(notifyPeer, result)) {
+		_notifySettingRequests.remove(requestedPeer);
+		Notify::peerUpdatedSendDelayed();
+	}
+}
+
+PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &settings) {
+	PeerData *requestedPeer = nullptr;
+	switch (notifyPeer.type()) {
+	case mtpc_inputNotifyAll: App::main()->applyNotifySetting(MTP_notifyAll(), settings); break;
+	case mtpc_inputNotifyUsers: App::main()->applyNotifySetting(MTP_notifyUsers(), settings); break;
+	case mtpc_inputNotifyChats: App::main()->applyNotifySetting(MTP_notifyChats(), settings); break;
+	case mtpc_inputNotifyPeer: {
+		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer;
+		switch (peer.type()) {
+		case mtpc_inputPeerEmpty: App::main()->applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
+		case mtpc_inputPeerSelf: requestedPeer = App::self(); break;
+		case mtpc_inputPeerUser: requestedPeer = App::user(peerFromUser(peer.c_inputPeerUser().vuser_id)); break;
+		case mtpc_inputPeerChat: requestedPeer = App::chat(peerFromChat(peer.c_inputPeerChat().vchat_id)); break;
+		case mtpc_inputPeerChannel: requestedPeer = App::channel(peerFromChannel(peer.c_inputPeerChannel().vchannel_id)); break;
+		}
+		if (requestedPeer) {
+			App::main()->applyNotifySetting(MTP_notifyPeer(peerToMTP(requestedPeer->id)), settings);
+		}
+	} break;
+	}
+	App::wnd()->notifySettingGot();
+	return requestedPeer;
+}
+
+bool ApiWrap::notifySettingFail(PeerData *peer, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	notifySettingReceived(MTP_inputNotifyPeer(peer->input), MTP_peerNotifySettingsEmpty());
+	_notifySettingRequests.remove(peer);
+	Notify::peerUpdatedSendDelayed();
+	return true;
+}
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);

@@ -132,3 +132,4 @@ profileBlockOneLineTextPart: flatLabel(profileBlockTextPart) {
 	maxHeight: 20px;
 }
 profileBlockOneLineSkip: 9px;
+profileBlockOneLineWidthMax: 240px;

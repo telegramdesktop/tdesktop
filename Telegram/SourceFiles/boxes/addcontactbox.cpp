@@ -544,7 +544,8 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	_creationRequestId = 0;
 	if (result.type() == mtpc_chatInviteExported) {
-		_createdChannel->invitationUrl = qs(result.c_chatInviteExported().vlink);
+		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
+		Notify::peerUpdatedSendDelayed();
 	}
 	Ui::showLayer(new SetupChannelBox(_createdChannel));
 }
@@ -716,7 +717,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::btnDefLink.color);
-			p.drawText(_invitationLink, _channel->invitationUrl, option);
+			p.drawText(_invitationLink, _channel->inviteLink(), option);
 			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 				p.setOpacity(a_goodOpacity.current());
 				p.setPen(st::setGoodColor);
@@ -759,7 +760,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->invitationUrl);
+		Application::clipboard()->setText(_channel->inviteLink());
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
 		_a_goodFade.start();

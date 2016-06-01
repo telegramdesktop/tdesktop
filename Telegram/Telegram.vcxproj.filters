@@ -1233,6 +1233,18 @@
     <ClCompile Include="SourceFiles\profile\profile_shared_media_widget.cpp">
       <Filter>SourceFiles\profile</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\left_outline_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1448,11 +1460,11 @@
     <ClInclude Include="SourceFiles\profile\profile_members_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\profile\profile_settings_widget.h">
-      <Filter>SourceFiles\profile</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\profile\profile_shared_media_widget.h">
       <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\left_outline_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1715,6 +1727,9 @@
       <Filter>SourceFiles\window</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_block_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_settings_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
   </ItemGroup>
