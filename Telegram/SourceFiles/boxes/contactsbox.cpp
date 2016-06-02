@@ -2124,7 +2124,7 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 			_channel->setAdminsCount(d.vcount.v);
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
-		App::feedUsersDelayed(d.vusers);
+		App::feedUsers(d.vusers);
 
 		for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			int32 userId = 0, addedTime = 0;

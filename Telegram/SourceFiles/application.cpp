@@ -819,7 +819,6 @@ void AppClass::doMtpUnpause() {
 void AppClass::selfPhotoCleared(const MTPUserProfilePhoto &result) {
 	if (!App::self()) return;
 	App::self()->setPhoto(result);
-	Notify::peerUpdatedSendDelayed();
 	emit peerPhotoDone(App::self()->id);
 }
 

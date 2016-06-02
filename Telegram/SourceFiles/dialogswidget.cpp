@@ -31,7 +31,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
-#include "observer_peer.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 
@@ -728,7 +727,6 @@ void DialogsInner::onContextToggleBlock() {
 void DialogsInner::contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result) {
 	data.first->setBlockStatus(data.second ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(data.first);
-	Notify::peerUpdatedSendDelayed();
 }
 
 void DialogsInner::onMenuDestroyed(QObject *obj) {

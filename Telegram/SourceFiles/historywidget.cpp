@@ -4967,7 +4967,6 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpReques
 	if (_unblockRequest == req) _unblockRequest = 0;
 	peer->asUser()->setBlockStatus(UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(peer);
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
@@ -4982,7 +4981,6 @@ void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
 
 	peer->asUser()->setBlockStatus(UserData::BlockStatus::Blocked);
 	emit App::main()->peerUpdated(peer);
-	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::onBotStart() {
@@ -5096,8 +5094,6 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 
 	App::main()->finishForwarding(h, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
-
-	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
@@ -6290,8 +6286,6 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	}
 	App::main()->dialogsToUp();
 	peerMessagesUpdated(file->to.peer);
-
-	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
@@ -6926,7 +6920,6 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 		}
 		updateBotKeyboard();
 	}
-	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
@@ -6934,7 +6927,6 @@ void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> 
 	if (!_firstLoadRequest) {
 		updateListSize(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
-	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::countHistoryShowFrom() {
@@ -7181,8 +7173,6 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
-
-	Notify::peerUpdatedSendDelayed();
 
 	App::historyRegRandom(randomId, newId);
 
@@ -7971,7 +7961,6 @@ void HistoryWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Notify::peerUpdatedSendDelayed();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -7990,7 +7979,6 @@ void HistoryWidget::onDeleteContextSure() {
 	History *h = item->history();
 	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
 	item->destroy();
-	Notify::peerUpdatedSendDelayed();
 
 	if (!wasOnServer && wasLast && !h->lastMsg) {
 		App::main()->checkPeerHistory(h->peer);

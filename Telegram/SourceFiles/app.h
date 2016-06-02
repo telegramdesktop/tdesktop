@@ -67,10 +67,6 @@ namespace App {
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
-	// Requires Notify::peerUpdatedSendDelayed() call after.
-	UserData *feedUsersDelayed(const MTPVector<MTPUser> &users); // returns last user
-	PeerData *feedChatsDelayed(const MTPVector<MTPChat> &chats); // returns last chat
-
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
@@ -85,7 +81,7 @@ namespace App {
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
-	void feedUserLinkDelayed(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	void markPeerUpdated(PeerData *data);
 	void clearPeerUpdated(PeerData *data);

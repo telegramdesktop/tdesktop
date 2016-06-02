@@ -271,11 +271,6 @@ bool UserData::setAbout(const QString &newAbout) {
 }
 
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
-	setNameDelayed(newFirstName, newLastName, newPhoneName, newUsername);
-	Notify::peerUpdatedSendDelayed();
-}
-
-void UserData::setNameDelayed(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
 	QString newFullName;
@@ -431,11 +426,6 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 }
 
 void ChatData::setName(const QString &newName) {
-	setNameDelayed(newName);
-	Notify::peerUpdatedSendDelayed();
-}
-
-void ChatData::setNameDelayed(const QString &newName) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
 }
 
@@ -479,11 +469,6 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 }
 
 void ChannelData::setName(const QString &newName, const QString &newUsername) {
-	setNameDelayed(newName, newUsername);
-	Notify::peerUpdatedSendDelayed();
-}
-
-void ChannelData::setNameDelayed(const QString &newName, const QString &newUsername) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 

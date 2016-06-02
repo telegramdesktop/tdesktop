@@ -545,7 +545,6 @@ void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	_creationRequestId = 0;
 	if (result.type() == mtpc_chatInviteExported) {
 		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
-		Notify::peerUpdatedSendDelayed();
 	}
 	Ui::showLayer(new SetupChannelBox(_createdChannel));
 }
@@ -1357,7 +1356,6 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 				if (App::api()) {
 					emit App::api()->fullPeerUpdated(_channel);
 				}
-				Notify::peerUpdatedSendDelayed();
 			}
 			saveSign();
 			return true;
@@ -1388,7 +1386,6 @@ void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 		if (App::api()) {
 			emit App::api()->fullPeerUpdated(_channel);
 		}
-		Notify::peerUpdatedSendDelayed();
 	}
 	saveSign();
 }

@@ -337,7 +337,6 @@ public:
 	}
 
 protected:
-	// Requires Notify::peerUpdatedSendDelayed() call after.
 	void updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
 	ImagePtr _userpic;
@@ -397,10 +396,6 @@ public:
 	void setPhoto(const MTPUserProfilePhoto &photo);
 
 	void setName(const QString &newFirstName, const QString &newLastName
-		, const QString &newPhoneName, const QString &newUsername);
-
-	// Requires Notify::peerUpdatedSendDelayed() call after.
-	void setNameDelayed(const QString &newFirstName, const QString &newLastName
 		, const QString &newPhoneName, const QString &newUsername);
 
 	void setPhone(const QString &newPhone);
@@ -498,9 +493,6 @@ public:
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
 	void setName(const QString &newName);
-
-	// Requires Notify::peerUpdatedSendDelayed() call after.
-	void setNameDelayed(const QString &newName);
 
 	void invalidateParticipants() {
 		participants = ChatData::Participants();
@@ -678,9 +670,6 @@ public:
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
 	void setName(const QString &name, const QString &username);
-
-	// Requires Notify::peerUpdatedSendDelayed() call after.
-	void setNameDelayed(const QString &name, const QString &username);
 
 	void updateFull(bool force = false);
 	void fullUpdated();

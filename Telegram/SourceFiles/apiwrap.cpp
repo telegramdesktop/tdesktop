@@ -183,8 +183,8 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_channel && vc.at(0).c_channel().vversion.v < peer->asChannel()->version);
 	}
 
-	App::feedUsersDelayed(d.vusers);
-	App::feedChatsDelayed(d.vchats);
+	App::feedUsers(d.vusers);
+	App::feedChats(d.vchats);
 
 	if (peer->isChat()) {
 		if (d.vfull_chat.type() != mtpc_chatFull) {
@@ -322,17 +322,15 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-
-	Notify::peerUpdatedSendDelayed();
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const auto &d(result.c_userFull());
-	App::feedUsersDelayed(MTP_vector<MTPUser>(1, d.vuser));
+	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
 	}
-	App::feedUserLinkDelayed(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
+	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 	}
@@ -353,8 +351,6 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
@@ -558,7 +554,6 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	}
 	peer->mgInfo->botStatus = botStatus;
 	if (App::main()) emit fullPeerUpdated(peer);
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req) {
@@ -663,7 +658,6 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 		}
 	}
 	emit fullPeerUpdated(kick.first);
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req) {
@@ -708,7 +702,6 @@ void ApiWrap::leaveChannel(ChannelData *channel) {
 
 void ApiWrap::channelAmInUpdated(ChannelData *channel) {
 	Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
-	Notify::peerUpdatedSendDelayed();
 }
 
 void ApiWrap::channelAmInDone(ChannelData *channel, const MTPUpdates &updates) {
@@ -727,7 +720,6 @@ bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 void ApiWrap::blockUser(UserData *user) {
 	if (user->isBlocked()) {
 		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
-		Notify::peerUpdatedSendDelayed();
 	} else if (!_blockRequests.contains(user)) {
 		auto requestId = MTP::send(MTPcontacts_Block(user->inputUser), rpcDone(&ApiWrap::blockDone, user), rpcFail(&ApiWrap::blockFail, user));
 		_blockRequests.insert(user, requestId);
@@ -737,7 +729,6 @@ void ApiWrap::blockUser(UserData *user) {
 void ApiWrap::unblockUser(UserData *user) {
 	if (!user->isBlocked()) {
 		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
-		Notify::peerUpdatedSendDelayed();
 	} else if (!_blockRequests.contains(user)) {
 		auto requestId = MTP::send(MTPcontacts_Unblock(user->inputUser), rpcDone(&ApiWrap::unblockDone, user), rpcFail(&ApiWrap::blockFail, user));
 		_blockRequests.insert(user, requestId);
@@ -748,14 +739,12 @@ void ApiWrap::blockDone(UserData *user, const MTPBool &result) {
 	_blockRequests.remove(user);
 	user->setBlockStatus(UserData::BlockStatus::Blocked);
 	emit App::main()->peerUpdated(user);
-	Notify::peerUpdatedSendDelayed();
 }
 
 void ApiWrap::unblockDone(UserData *user, const MTPBool &result) {
 	_blockRequests.remove(user);
 	user->setBlockStatus(UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(user);
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::blockFail(UserData *user, const RPCError &error) {
@@ -788,7 +777,6 @@ void ApiWrap::exportInviteDone(PeerData *peer, const MTPExportedChatInvite &resu
 	} else if (auto channel = peer->asChannel()) {
 		channel->setInviteLink((result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString());
 	}
-	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::exportInviteFail(PeerData *peer, const RPCError &error) {
@@ -809,7 +797,6 @@ void ApiWrap::requestNotifySetting(PeerData *peer) {
 void ApiWrap::notifySettingDone(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &result) {
 	if (auto requestedPeer = notifySettingReceived(notifyPeer, result)) {
 		_notifySettingRequests.remove(requestedPeer);
-		Notify::peerUpdatedSendDelayed();
 	}
 }
 
@@ -842,7 +829,6 @@ bool ApiWrap::notifySettingFail(PeerData *peer, const RPCError &error) {
 
 	notifySettingReceived(MTP_inputNotifyPeer(peer->input), MTP_peerNotifySettingsEmpty());
 	_notifySettingRequests.remove(peer);
-	Notify::peerUpdatedSendDelayed();
 	return true;
 }
 

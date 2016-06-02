@@ -3491,7 +3491,7 @@ namespace Local {
 
 			if (!wasLoaded) {
 				user->setPhone(phone);
-				user->setNameDelayed(first, last, pname, username);
+				user->setName(first, last, pname, username);
 
 				user->access = access;
 				user->flags = MTPDuser::Flags(flags);
@@ -3526,7 +3526,7 @@ namespace Local {
 				flags = (flagsData == 1) ? MTPDchat::Flags(MTPDchat::Flag::f_left) : MTPDchat::Flags(0);
 			}
 			if (!wasLoaded) {
-				chat->setNameDelayed(name);
+				chat->setName(name);
 				chat->count = count;
 				chat->date = date;
 				chat->version = version;
@@ -3549,7 +3549,7 @@ namespace Local {
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> inviteLink;
 
 			if (!wasLoaded) {
-				channel->setNameDelayed(name, QString());
+				channel->setName(name, QString());
 				channel->access = access;
 				channel->date = date;
 				channel->version = version;
@@ -3746,7 +3746,6 @@ namespace Local {
 			peers.push_back(peer);
 		}
 
-		Notify::peerUpdatedSendDelayed();
 		if (App::api()) App::api()->requestPeers(peers);
 	}
 
