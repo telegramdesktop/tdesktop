@@ -34,7 +34,10 @@ namespace Profile {
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
 ActionsWidget::ActionsWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_actions_section)) {
-	auto observeEvents = UpdateFlag::ChannelAmIn | UpdateFlag::UserIsBlocked | UpdateFlag::BotCommandsChanged;
+	auto observeEvents = UpdateFlag::ChannelAmIn
+		| UpdateFlag::UserIsBlocked
+		| UpdateFlag::BotCommandsChanged
+		| UpdateFlag::MembersChanged;
 	Notify::registerPeerObserver(observeEvents, this, &ActionsWidget::notifyPeerUpdated);
 
 	validateBlockStatus();
@@ -57,6 +60,9 @@ void ActionsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (needFullRefresh()) {
 		refreshButtons();
 	} else {
+		if (update.flags & UpdateFlag::MembersChanged) {
+			refreshDeleteChannel();
+		}
 		if (update.flags & UpdateFlag::ChannelAmIn) {
 			refreshLeaveChannel();
 		}
@@ -99,11 +105,11 @@ Ui::LeftOutlineButton *ActionsWidget::addButton(const QString &text, const char 
 };
 
 void ActionsWidget::resizeButton(Ui::LeftOutlineButton *button, int top) {
-	int left = st::profileBlockTitlePosition.x();
-	int availableWidth = width() - left + st::defaultLeftOutlineButton.padding.left() - st::profileBlockMarginRight;
+	int left = defaultOutlineButtonLeft();
+	int availableWidth = width() - left - st::profileBlockMarginRight;
 	accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
 	button->resizeToWidth(availableWidth);
-	button->moveToLeft(left - st::defaultLeftOutlineButton.padding.left(), top);
+	button->moveToLeft(left, top);
 }
 
 void ActionsWidget::refreshButtons() {
@@ -131,9 +137,7 @@ void ActionsWidget::refreshButtons() {
 		addButton(lang(lng_profile_clear_and_exit), SLOT(onDeleteConversation()));
 	} else if (auto channel = peer()->asChannel()) {
 //		addButton(lang(lng_profile_report), SLOT(onReport()));
-		if (channel->amCreator()) {
-			addButton(lang(channel->isMegagroup() ? lng_profile_delete_group : lng_profile_delete_channel), SLOT(onDeleteChannel()), st::attentionLeftOutlineButton);
-		}
+		refreshDeleteChannel();
 		refreshLeaveChannel();
 	}
 
@@ -204,6 +208,18 @@ void ActionsWidget::refreshBlockUser() {
 			}
 		} else if (!blockText.isEmpty()) {
 			_blockUser = addButton(blockText, SLOT(onBlockUser()), st::attentionLeftOutlineButton, st::profileBlockOneLineSkip);
+		}
+	}
+}
+
+void ActionsWidget::refreshDeleteChannel() {
+	if (auto channel = peer()->asChannel()) {
+		if (channel->canDelete() && !_deleteChannel) {
+			_deleteChannel = addButton(lang(channel->isMegagroup() ? lng_profile_delete_group : lng_profile_delete_channel), SLOT(onDeleteChannel()), st::attentionLeftOutlineButton);
+		} else if (!channel->canDelete() && _deleteChannel) {
+			_buttons.removeOne(_deleteChannel);
+			delete _deleteChannel;
+			_deleteChannel = nullptr;
 		}
 	}
 }

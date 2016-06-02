@@ -764,6 +764,7 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	if (deleteHistory) {
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 	}
+	Notify::peerUpdatedSendDelayed();
 }
 
 void MainWidget::deleteAndExit(ChatData *chat) {
@@ -788,6 +789,7 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 				item->destroy();
 			}
 		}
+		Notify::peerUpdatedSendDelayed();
 	}
 	MTP::send(MTPchannels_DeleteUserHistory(channel->inputChannel, from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
 }
@@ -820,6 +822,7 @@ void MainWidget::clearHistory(PeerData *peer) {
 	}
 	Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	Notify::peerUpdatedSendDelayed();
 }
 
 void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users) {
@@ -976,6 +979,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 			}
 		}
 	}
+	Notify::peerUpdatedSendDelayed();
 }
 
 bool MainWidget::sendMessageFail(const RPCError &error) {
@@ -1240,7 +1244,7 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 	if (type == OverviewCount) return false;
 
 	History *h = App::history(peer->id);
-	if (h->overviewCountLoaded(type) || _overviewPreload[type].constFind(peer) != _overviewPreload[type].cend()) {
+	if (h->overviewCountLoaded(type) || _overviewPreload[type].contains(peer)) {
 		return false;
 	}
 
@@ -1280,11 +1284,11 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 
 	App::history(peer->id)->overviewSliceDone(type, result, true);
 
-	mediaOverviewUpdated(peer, type);
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+	Notify::peerUpdatedSendDelayed();
 }
 
 void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-//	if (_profile) _profile->mediaOverviewUpdated(peer, type); TODO
 	if (!_player->isHidden()) _player->mediaOverviewUpdated(peer, type);
 	if (_overview && (_overview->peer() == peer || _overview->peer()->migrateFrom() == peer)) {
 		_overview->mediaOverviewUpdated(peer, type);
@@ -1419,6 +1423,7 @@ void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &re
 	history->overviewSliceDone(type, result);
 
 	if (App::wnd()) App::wnd()->mediaOverviewUpdated(history->peer, type);
+	Notify::peerUpdatedSendDelayed();
 }
 
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
@@ -4451,7 +4456,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			// Request last active supergroup participants if the 'from' user was not loaded yet.
 			// This will optimize similar getDifference() calls for almost all next messages.
 			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup() && App::api()) {
-				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.isEmpty() || channel->mgInfo->lastParticipants.size() < channel->count)) {
+				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.isEmpty() || channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
 					App::api()->requestLastParticipants(channel);
 				}
 			}

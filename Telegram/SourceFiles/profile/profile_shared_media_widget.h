@@ -22,15 +22,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace Ui {
+class LeftOutlineButton;
+} // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 namespace Profile {
 
 class SharedMediaWidget : public BlockWidget {
+	Q_OBJECT
+
 public:
 	SharedMediaWidget(QWidget *parent, PeerData *peer);
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+
+private slots:
+	void onMediaChosen();
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void refreshButtons();
+	void refreshButton(MediaOverviewType type);
+	void refreshVisibility();
+
+	void resizeButtons(int *top);
+
+	Ui::LeftOutlineButton *_mediaButtons[OverviewCount] = { nullptr };
+	History *_history;
+	History *_migrated;
 
 };
 

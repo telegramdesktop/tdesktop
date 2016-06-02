@@ -1098,26 +1098,29 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					if (App::main()) App::main()->updateBotKeyboard(this);
 				}
 				if (peer->isMegagroup()) {
-					if (UserData *user = App::userLoaded(uid)) {
-						int32 index = peer->asChannel()->mgInfo->lastParticipants.indexOf(user);
+					if (auto user = App::userLoaded(uid)) {
+						auto channel = peer->asChannel();
+						auto megagroupInfo = channel->mgInfo;
+
+						int32 index = megagroupInfo->lastParticipants.indexOf(user);
 						if (index >= 0) {
-							peer->asChannel()->mgInfo->lastParticipants.removeAt(index);
+							megagroupInfo->lastParticipants.removeAt(index);
 						}
-						if (peer->asChannel()->count > 1) {
-							--peer->asChannel()->count;
+						if (peer->asChannel()->membersCount() > 1) {
+							peer->asChannel()->setMembersCount(channel->membersCount() - 1);
 						} else {
-							peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-							peer->asChannel()->mgInfo->lastParticipantsCount = 0;
+							megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+							megagroupInfo->lastParticipantsCount = 0;
 						}
-						if (peer->asChannel()->mgInfo->lastAdmins.contains(user)) {
-							peer->asChannel()->mgInfo->lastAdmins.remove(user);
-							if (peer->asChannel()->adminsCount > 1) {
-								--peer->asChannel()->adminsCount;
+						if (megagroupInfo->lastAdmins.contains(user)) {
+							megagroupInfo->lastAdmins.remove(user);
+							if (channel->adminsCount() > 1) {
+								channel->setAdminsCount(channel->adminsCount() - 1);
 							}
 						}
-						peer->asChannel()->mgInfo->bots.remove(user);
-						if (peer->asChannel()->mgInfo->bots.isEmpty() && peer->asChannel()->mgInfo->botStatus > 0) {
-							peer->asChannel()->mgInfo->botStatus = -1;
+						megagroupInfo->bots.remove(user);
+						if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
+							megagroupInfo->botStatus = -1;
 						}
 					}
 				}
@@ -2059,6 +2062,7 @@ void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScro
 		if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
 			if (h->unreadCount()) {
 				clear(true);
+
 				h->getReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 				return;
 			}
@@ -2066,6 +2070,7 @@ void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScro
 	}
 	if (!isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop)) {
 		clear(true);
+
 		if (msgId == ShowAtTheEndMsgId) {
 			newLoaded = true;
 		}

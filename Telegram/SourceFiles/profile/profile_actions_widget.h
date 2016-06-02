@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
-#include "core/observer.h"
 
 namespace Ui {
 class LeftOutlineButton;
@@ -33,7 +32,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class ActionsWidget : public BlockWidget, public Notify::Observer {
+class ActionsWidget : public BlockWidget {
 	Q_OBJECT
 
 public:
@@ -67,6 +66,7 @@ private:
 
 	void refreshButtons();
 	void refreshBlockUser();
+	void refreshDeleteChannel();
 	void refreshLeaveChannel();
 	void refreshVisibility();
 
@@ -93,6 +93,7 @@ private:
 	bool _hasBotHelp = false;
 	bool _hasBotSettings = false;
 	Ui::LeftOutlineButton *_blockUser = nullptr;
+	Ui::LeftOutlineButton *_deleteChannel = nullptr;
 	Ui::LeftOutlineButton *_leaveChannel = nullptr;
 
 };

@@ -226,6 +226,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		const auto &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
+
+		auto canViewAdmins = channel->canViewAdmins();
+		auto canViewMembers = channel->canViewMembers();
+
 		channel->flagsFull = f.vflags.v;
 		if (photo) {
 			channel->photoId = photo->id;
@@ -277,15 +281,8 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			}
 		}
 		channel->setAbout(qs(f.vabout));
-		int32 newCount = f.has_participants_count() ? f.vparticipants_count.v : 0;
-		if (newCount != channel->count) {
-			if (channel->isMegagroup() && !channel->mgInfo->lastParticipants.isEmpty()) {
-				channel->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-				channel->mgInfo->lastParticipantsCount = channel->count;
-			}
-			channel->count = newCount;
-		}
-		channel->adminsCount = f.has_admins_count() ? f.vadmins_count.v : 0;
+		channel->setMembersCount(f.has_participants_count() ? f.vparticipants_count.v : 0);
+		channel->setAdminsCount(f.has_admins_count() ? f.vadmins_count.v : 0);
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (History *h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
@@ -302,6 +299,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			}
 		}
 		channel->fullUpdated();
+
+		if (canViewAdmins != channel->canViewAdmins()) Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelCanViewAdmins);
+		if (canViewMembers != channel->canViewMembers()) Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelCanViewMembers);
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
@@ -549,16 +549,16 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		h->clearLastKeyboard();
 		if (App::main()) App::main()->updateBotKeyboard(h);
 	}
-	if (d.vcount.v > peer->count) {
-		peer->count = d.vcount.v;
-	} else if (v.count() > peer->count) {
-		peer->count = v.count();
+	int newMembersCount = qMax(d.vcount.v, v.count());
+	if (newMembersCount > peer->membersCount()) {
+		peer->setMembersCount(newMembersCount);
 	}
 	if (!bots && v.isEmpty()) {
-		peer->count = peer->mgInfo->lastParticipants.size();
+		peer->setMembersCount(peer->mgInfo->lastParticipants.size());
 	}
 	peer->mgInfo->botStatus = botStatus;
 	if (App::main()) emit fullPeerUpdated(peer);
+	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req) {
@@ -637,28 +637,33 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mtpRequestId req) {
 	_kickRequests.remove(kick);
 	if (kick.first->isMegagroup()) {
-		int32 i = kick.first->asChannel()->mgInfo->lastParticipants.indexOf(kick.second);
+		auto channel = kick.first->asChannel();
+		auto megagroupInfo = channel->mgInfo;
+
+		int32 i = megagroupInfo->lastParticipants.indexOf(kick.second);
 		if (i >= 0) {
-			kick.first->asChannel()->mgInfo->lastParticipants.removeAt(i);
+			megagroupInfo->lastParticipants.removeAt(i);
 		}
-		if (kick.first->asChannel()->count > 1) {
-			--kick.first->asChannel()->count;
+
+		if (channel->membersCount() > 1) {
+			channel->setMembersCount(channel->membersCount() - 1);
 		} else {
-			kick.first->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-			kick.first->asChannel()->mgInfo->lastParticipantsCount = 0;
+			megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+			megagroupInfo->lastParticipantsCount = 0;
 		}
-		if (kick.first->asChannel()->mgInfo->lastAdmins.contains(kick.second)) {
-			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
-			if (kick.first->asChannel()->adminsCount > 1) {
-				--kick.first->asChannel()->adminsCount;
+		if (megagroupInfo->lastAdmins.contains(kick.second)) {
+			megagroupInfo->lastAdmins.remove(kick.second);
+			if (channel->adminsCount() > 1) {
+				channel->setAdminsCount(channel->adminsCount() - 1);
 			}
 		}
-		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
-		if (kick.first->asChannel()->mgInfo->bots.isEmpty() && kick.first->asChannel()->mgInfo->botStatus > 0) {
-			kick.first->asChannel()->mgInfo->botStatus = -1;
+		megagroupInfo->bots.remove(kick.second);
+		if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
+			megagroupInfo->botStatus = -1;
 		}
 	}
 	emit fullPeerUpdated(kick.first);
+	Notify::peerUpdatedSendDelayed();
 }
 
 bool ApiWrap::kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req) {

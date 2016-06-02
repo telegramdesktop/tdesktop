@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
-#include "core/observer.h"
 
 class Checkbox;
 
@@ -35,7 +34,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class SettingsWidget : public BlockWidget, public Notify::Observer {
+class SettingsWidget : public BlockWidget {
 	Q_OBJECT
 
 public:

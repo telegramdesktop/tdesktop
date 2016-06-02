@@ -656,7 +656,9 @@ namespace {
 				auto cdata = data->asChannel();
 				auto wasInChannel = cdata->amIn();
 				auto canEditPhoto = cdata->canEditPhoto();
-				auto canAddMembers = cdata->canAddParticipants();
+				auto canViewAdmins = cdata->canViewAdmins();
+				auto canViewMembers = cdata->canViewMembers();
+				auto canAddMembers = cdata->canAddMembers();
 				auto wasEditor = cdata->amEditor();
 
 				if (minimal) {
@@ -683,18 +685,12 @@ namespace {
 				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
 
-				if (wasInChannel != cdata->amIn()) {
-					update.flags |= UpdateFlag::ChannelAmIn;
-				}
-				if (canEditPhoto != cdata->canEditPhoto()) {
-					update.flags |= UpdateFlag::ChannelCanEditPhoto;
-				}
-				if (canAddMembers != cdata->canAddParticipants()) {
-					update.flags |= UpdateFlag::ChannelCanAddMembers;
-				}
-				if (wasEditor != cdata->amEditor()) {
-					update.flags |= UpdateFlag::ChannelAmEditor;
-				}
+				if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+				if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
+				if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
+				if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
+				if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
+				if (wasEditor != cdata->amEditor()) update.flags |= UpdateFlag::ChannelAmEditor;
 			} break;
 			case mtpc_channelForbidden: {
 				auto &d(chat.c_channelForbidden());
@@ -706,7 +702,9 @@ namespace {
 				auto cdata = data->asChannel();
 				auto wasInChannel = cdata->amIn();
 				auto canEditPhoto = cdata->canEditPhoto();
-				auto canAddMembers = cdata->canAddParticipants();
+				auto canViewAdmins = cdata->canViewAdmins();
+				auto canViewMembers = cdata->canViewMembers();
+				auto canAddMembers = cdata->canAddMembers();
 				auto wasEditor = cdata->amEditor();
 
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -716,21 +714,15 @@ namespace {
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
-				cdata->count = 0;
+				cdata->setMembersCount(0);
 				cdata->isForbidden = true;
 
-				if (wasInChannel != cdata->amIn()) {
-					update.flags |= UpdateFlag::ChannelAmIn;
-				}
-				if (canEditPhoto != cdata->canEditPhoto()) {
-					update.flags |= UpdateFlag::ChannelCanEditPhoto;
-				}
-				if (canAddMembers != cdata->canAddParticipants()) {
-					update.flags |= UpdateFlag::ChannelCanAddMembers;
-				}
-				if (wasEditor != cdata->amEditor()) {
-					update.flags |= UpdateFlag::ChannelAmEditor;
-				}
+				if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+				if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
+				if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
+				if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
+				if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
+				if (wasEditor != cdata->amEditor()) update.flags |= UpdateFlag::ChannelAmEditor;
 			} break;
 			}
 			if (!data) continue;

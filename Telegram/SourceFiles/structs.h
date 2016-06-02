@@ -697,8 +697,16 @@ public:
 		return _about;
 	}
 
-	int count = 1;
-	int adminsCount = 1;
+	int membersCount() const {
+		return _membersCount;
+	}
+	void setMembersCount(int newMembersCount);
+
+	int adminsCount() const {
+		return _adminsCount;
+	}
+	void setAdminsCount(int newAdminsCount);
+
 	int32 date = 0;
 	int version = 0;
 	MTPDchannel::Flags flags = { 0 };
@@ -708,7 +716,7 @@ public:
 		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
 			return false;
 		}
-		if (mgInfo->lastParticipantsCount == count) {
+		if (mgInfo->lastParticipantsCount == membersCount()) {
 			mgInfo->lastParticipantsStatus &= ~MegagroupInfo::LastParticipantsCountOutdated;
 			return false;
 		}
@@ -748,8 +756,11 @@ public:
 	bool canWrite() const {
 		return amIn() && (canPublish() || !isBroadcast());
 	}
-	bool canViewParticipants() const {
+	bool canViewMembers() const {
 		return flagsFull & MTPDchannelFull::Flag::f_can_view_participants;
+	}
+	bool canViewAdmins() const {
+		return (isMegagroup() || amCreator() || amEditor() || amModerator());
 	}
 	bool addsSignature() const {
 		return flags & MTPDchannel::Flag::f_signatures;
@@ -758,7 +769,7 @@ public:
 	bool isVerified() const {
 		return flags & MTPDchannel::Flag::f_verified;
 	}
-	bool canAddParticipants() const {
+	bool canAddMembers() const {
 		return amCreator() || amEditor() || (flags & MTPDchannel::Flag::f_democracy);
 	}
 	bool canEditPhoto() const {
@@ -766,6 +777,9 @@ public:
 	}
 	bool canEditUsername() const {
 		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
+	}
+	bool canDelete() const {
+		return amCreator() && (membersCount() <= 1000);
 	}
 
 //	ImagePtr photoFull;
@@ -823,6 +837,9 @@ public:
 private:
 	PtsWaiter _ptsWaiter;
 	uint64 _lastFullUpdate = 0;
+
+	int _membersCount = 1;
+	int _adminsCount = 1;
 
 	QString _restrictionReason;
 	QString _about;

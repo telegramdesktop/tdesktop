@@ -4485,6 +4485,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		} else if (_migrated) {
 			_migrated->clear(true);
 		}
+
 		addMessagesToFront(peer, *histList, histCollapsed);
 		if (_fixedInScrollMsgId && _history->isChannel()) {
 			_history->asChannelHistory()->insertCollapseItem(_fixedInScrollMsgId);
@@ -4507,6 +4508,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		} else if (_migrated) {
 			_migrated->clear(true);
 		}
+
 		_delayedShowAtRequest = 0;
 		bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
 		_history->getReadyFor(_delayedShowAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
@@ -5094,6 +5096,8 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 
 	App::main()->finishForwarding(h, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
+
+	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
@@ -5999,8 +6003,8 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			}
 		}
 	} else if (_peer->isChannel()) {
-		if (_peer->isMegagroup() && _peer->asChannel()->count > 0 && _peer->asChannel()->count <= Global::ChatSizeMax()) {
-			if (_peer->asChannel()->mgInfo->lastParticipants.size() < _peer->asChannel()->count || _peer->asChannel()->lastParticipantsCountOutdated()) {
+		if (_peer->isMegagroup() && _peer->asChannel()->membersCount() > 0 && _peer->asChannel()->membersCount() <= Global::ChatSizeMax()) {
+			if (_peer->asChannel()->mgInfo->lastParticipants.size() < _peer->asChannel()->membersCount() || _peer->asChannel()->lastParticipantsCountOutdated()) {
 				if (App::api()) App::api()->requestLastParticipants(_peer->asChannel());
 			}
 			int32 onlineCount = 0;
@@ -6012,12 +6016,12 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 				}
 			}
 			if (onlineCount && !onlyMe) {
-				text = lng_chat_status_members_online(lt_count, _peer->asChannel()->count, lt_count_online, onlineCount);
+				text = lng_chat_status_members_online(lt_count, _peer->asChannel()->membersCount(), lt_count_online, onlineCount);
 			} else {
-				text = lng_chat_status_members(lt_count, _peer->asChannel()->count);
+				text = lng_chat_status_members(lt_count, _peer->asChannel()->membersCount());
 			}
 		} else {
-			text = _peer->asChannel()->count ? lng_chat_status_members(lt_count, _peer->asChannel()->count) : lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
+			text = _peer->asChannel()->membersCount() ? lng_chat_status_members(lt_count, _peer->asChannel()->membersCount()) : lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 	}
 	if (_titlePeerText != text) {
@@ -6286,6 +6290,8 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	}
 	App::main()->dialogsToUp();
 	peerMessagesUpdated(file->to.peer);
+
+	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
@@ -6920,6 +6926,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 		}
 		updateBotKeyboard();
 	}
+	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
@@ -6927,6 +6934,7 @@ void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> 
 	if (!_firstLoadRequest) {
 		updateListSize(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
+	Notify::peerUpdatedSendDelayed();
 }
 
 void HistoryWidget::countHistoryShowFrom() {
@@ -7173,6 +7181,8 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
+
+	Notify::peerUpdatedSendDelayed();
 
 	App::historyRegRandom(randomId, newId);
 
@@ -7943,6 +7953,7 @@ void HistoryWidget::onDeleteSelected() {
 }
 
 void HistoryWidget::onDeleteSelectedSure() {
+	Ui::hideLayer();
 	if (!_list) return;
 
 	SelectedItemSet sel;
@@ -7960,7 +7971,7 @@ void HistoryWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Ui::hideLayer();
+	Notify::peerUpdatedSendDelayed();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -7968,6 +7979,8 @@ void HistoryWidget::onDeleteSelectedSure() {
 }
 
 void HistoryWidget::onDeleteContextSure() {
+	Ui::hideLayer();
+
 	HistoryItem *item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) {
 		return;
@@ -7977,11 +7990,11 @@ void HistoryWidget::onDeleteContextSure() {
 	History *h = item->history();
 	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
 	item->destroy();
+	Notify::peerUpdatedSendDelayed();
+
 	if (!wasOnServer && wasLast && !h->lastMsg) {
 		App::main()->checkPeerHistory(h->peer);
 	}
-
-	Ui::hideLayer();
 
 	if (wasOnServer) {
 		App::main()->deleteMessages(h->peer, toDelete);

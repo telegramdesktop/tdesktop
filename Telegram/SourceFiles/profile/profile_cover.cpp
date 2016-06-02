@@ -363,10 +363,10 @@ void CoverWidget::refreshStatusText() {
 		for_const (auto user, _peerMegagroup->mgInfo->lastParticipants) {
 			counter.feedUser(user);
 		}
-		_statusText = counter.result(_peerMegagroup->count);
+		_statusText = counter.result(_peerMegagroup->membersCount());
 	} else if (_peerChannel) {
-		if (_peerChannel->count > 0) {
-			_statusText = lng_chat_status_members(lt_count, _peerChannel->count);
+		if (_peerChannel->membersCount() > 0) {
+			_statusText = lng_chat_status_members(lt_count, _peerChannel->membersCount());
 		} else {
 			_statusText = lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
@@ -381,7 +381,7 @@ bool CoverWidget::isUsingMegagroupOnlineCount() const {
 		return false;
 	}
 
-	if (_peerMegagroup->count <= 0 || _peerMegagroup->count > Global::ChatSizeMax()) {
+	if (_peerMegagroup->membersCount() <= 0 || _peerMegagroup->membersCount() > Global::ChatSizeMax()) {
 		return false;
 	}
 
@@ -425,7 +425,7 @@ void CoverWidget::setMegagroupButtons() {
 	if (_peerMegagroup->canEditPhoto()) {
 		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 	}
-	if (_peerMegagroup->canAddParticipants()) {
+	if (_peerMegagroup->canAddMembers()) {
 		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()), &st::profileAddMemberButton);
 	}
 }

@@ -516,6 +516,24 @@ void ChannelData::setInviteLink(const QString &newInviteLink) {
 	}
 }
 
+void ChannelData::setMembersCount(int newMembersCount) {
+	if (_membersCount != newMembersCount) {
+		if (isMegagroup() && !mgInfo->lastParticipants.isEmpty()) {
+			mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+			mgInfo->lastParticipantsCount = membersCount();
+		}
+		_membersCount = newMembersCount;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::MembersChanged);
+	}
+}
+
+void ChannelData::setAdminsCount(int newAdminsCount) {
+	if (_adminsCount != newAdminsCount) {
+		_adminsCount = newAdminsCount;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::AdminsChanged);
+	}
+}
+
 void ChannelData::flagsUpdated() {
 	if (isMegagroup()) {
 		if (!mgInfo) {

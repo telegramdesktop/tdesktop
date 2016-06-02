@@ -50,4 +50,8 @@ void BlockWidget::paintEvent(QPaintEvent *e) {
 	paintContents(p);
 }
 
+int defaultOutlineButtonLeft() {
+	return st::profileBlockTitlePosition.x() - st::defaultLeftOutlineButton.padding.left();
+}
+
 } // namespace Profile

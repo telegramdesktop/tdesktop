@@ -54,10 +54,10 @@ void InnerWidget::createBlocks() {
 		_blocks.push_back({ new InviteLinkWidget(this, _peer), BlockSide::Right });
 	}
 	_blocks.push_back({ new SharedMediaWidget(this, _peer), BlockSide::Right });
-	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
 	if (channel && !megagroup) {
 		_blocks.push_back({ new ChannelMembersWidget(this, _peer), BlockSide::Right });
 	}
+	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
 	if (chat || megagroup) {
 		_blocks.push_back({ new MembersWidget(this, _peer), BlockSide::Left });
 	}
@@ -82,7 +82,7 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 
 	//loadProfilePhotos(_visibleTop);
-	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->count) {
+	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->membersCount()) {
 		if (_visibleTop + (PreloadHeightsCount + 1) * (_visibleBottom - _visibleTop) > height()) {
 			App::api()->requestLastParticipants(peer()->asChannel(), false);
 		}

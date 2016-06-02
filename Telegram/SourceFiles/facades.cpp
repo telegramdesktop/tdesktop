@@ -524,6 +524,7 @@ struct Data {
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
 	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
 	SingleDelayedCall HandleFileDialogQueue = { App::app(), "call_handleFileDialogQueue" };
+	SingleDelayedCall HandleDelayedPeerUpdates = { App::app(), "call_handleDelayedPeerUpdates" };
 
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
@@ -588,6 +589,7 @@ DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
 DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
 DefineRefVar(Global, SingleDelayedCall, HandleFileDialogQueue);
+DefineRefVar(Global, SingleDelayedCall, HandleDelayedPeerUpdates);
 
 DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);

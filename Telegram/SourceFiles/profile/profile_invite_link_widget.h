@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
-#include "core/observer.h"
 
 class FlatLabel;
 
@@ -31,7 +30,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class InviteLinkWidget : public BlockWidget, public Notify::Observer {
+class InviteLinkWidget : public BlockWidget {
 public:
 	InviteLinkWidget(QWidget *parent, PeerData *peer);
 

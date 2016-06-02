@@ -80,18 +80,17 @@ void SettingsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 int SettingsWidget::resizeGetHeight(int newWidth) {
 	int newHeight = contentTop();
 
-	int left = st::profileBlockTitlePosition.x();
-
-	_enableNotifications->moveToLeft(left, newHeight);
+	_enableNotifications->moveToLeft(st::profileBlockTitlePosition.x(), newHeight);
 	newHeight += _enableNotifications->height() + st::profileBlockOneLineSkip;
 
-	auto moveLink = [&newHeight, left, newWidth](Ui::LeftOutlineButton *button) {
+	auto moveLink = [&newHeight, newWidth](Ui::LeftOutlineButton *button) {
 		if (!button) return;
 
-		int availableWidth = newWidth - left + st::defaultLeftOutlineButton.padding.left() - st::profileBlockMarginRight;
+		int left = defaultOutlineButtonLeft();
+		int availableWidth = newWidth - left - st::profileBlockMarginRight;
 		accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
 		button->resizeToWidth(availableWidth);
-		button->moveToLeft(left - st::defaultLeftOutlineButton.padding.left(), newHeight);
+		button->moveToLeft(left, newHeight);
 		newHeight += button->height();
 	};
 	moveLink(_manageAdmins);

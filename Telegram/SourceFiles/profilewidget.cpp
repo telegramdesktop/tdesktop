@@ -61,8 +61,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, PeerData *peer) : TWidget(0)
 , _botHelp(this, lang(lng_profile_bot_help))
 , _pinnedMessage(this, lang(lng_pinned_message))
 , _username(this, (_peerChannel && _peerChannel->isPublic()) ? (qsl("telegram.me/") + _peerChannel->username) : lang(lng_profile_create_public_link))
-, _members(this, lng_channel_members_link(lt_count, (_peerChannel && _peerChannel->count > 0) ? _peerChannel->count : 1))
-, _admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled()) ? (_peerChat->admins.size() + 1) : 0))))
+, _members(this, lng_channel_members_link(lt_count, (_peerChannel && _peerChannel->membersCount() > 0) ? _peerChannel->membersCount() : 1))
+, _admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount() > 0 ? _peerChannel->adminsCount() : 1) : ((_peerChat && _peerChat->adminsEnabled()) ? (_peerChat->admins.size() + 1) : 0))))
 
 // about
 , _about(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right())
@@ -554,9 +554,9 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
 	} else if (_peerChannel) {
 		updateInvitationLink();
-		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
-		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->membersCount() > 0) ? _peerChannel->membersCount() : 1));
+		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount() > 0) ? _peerChannel->adminsCount() : 1));
+		_onlineText = (_peerChannel->membersCount() > 0) ? lng_chat_status_members(lt_count, _peerChannel->membersCount()) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		if (_peerChannel->about().isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 		} else {
@@ -623,9 +623,9 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			if (_peerChannel->isPublic() != _invitationLink.isHidden()) {
 				peerUsernameChanged();
 			}
-			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
-			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->membersCount() > 0) ? _peerChannel->membersCount() : 1));
+			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount() > 0) ? _peerChannel->adminsCount() : 1));
+			_onlineText = (_peerChannel->membersCount() > 0) ? lng_chat_status_members(lt_count, _peerChannel->membersCount()) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 			updatePinnedMessageVisibility();
 		}
 		if (photo && photo->date) {
@@ -719,7 +719,7 @@ void ProfileInner::reorderParticipants() {
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 		bool needAdmins = true, adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
-		bool orderByOnline = (_peerChannel->count > 0) && (_peerChannel->count <= Global::ChatSizeMax());
+		bool orderByOnline = (_peerChannel->membersCount() > 0) && (_peerChannel->membersCount() <= Global::ChatSizeMax());
 
 		_onlineText.clear();
 		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
@@ -758,9 +758,9 @@ void ProfileInner::reorderParticipants() {
 					}
 				}
 				if (onlineCount && !onlyMe) {
-					_onlineText = lng_chat_status_members_online(lt_count, _peerChannel->count, lt_count_online, onlineCount);
+					_onlineText = lng_chat_status_members_online(lt_count, _peerChannel->membersCount(), lt_count_online, onlineCount);
 				} else {
-					_onlineText = lng_chat_status_members(lt_count, _peerChannel->count);
+					_onlineText = lng_chat_status_members(lt_count, _peerChannel->membersCount());
 				}
 			} else {
 				for (int32 i = 0, l = _participants.size(); i < l; ++i) {
@@ -786,7 +786,7 @@ void ProfileInner::reorderParticipants() {
 			_participantsData.resize(s);
 		}
 		if (_onlineText.isEmpty()) {
-			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+			_onlineText = (_peerChannel->membersCount() > 0) ? lng_chat_status_members(lt_count, _peerChannel->membersCount()) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 		loadProfilePhotos(_lastPreload);
 	} else {
@@ -794,7 +794,7 @@ void ProfileInner::reorderParticipants() {
 		if (_peerUser) {
 			_onlineText = App::onlineText(_peerUser, t, true);
 		} else if (_peerChannel) {
-			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+			_onlineText = (_peerChannel->membersCount() > 0) ? lng_chat_status_members(lt_count, _peerChannel->membersCount()) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		} else {
 			_onlineText = lang(lng_chat_status_unaccessible);
 		}
@@ -867,7 +867,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	} else if (_peerChannel && (_peerChannel->isPublic() || _peerChannel->canEditUsername())) {
 //		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
-	if (!_peerChannel || !_peerChannel->canViewParticipants() || _peerChannel->isMegagroup()) {
+	if (!_peerChannel || !_peerChannel->canViewMembers() || _peerChannel->isMegagroup()) {
 		//p.setPen((_peerUser && App::onlineColorUse(_peerUser, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 		//p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	}
@@ -889,7 +889,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 //	top += st::profilePhotoSize;
 //	top += st::profileButtonTop;
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddMembers() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 //		top -= st::profileButtonTop;
@@ -1371,7 +1371,7 @@ bool ProfileInner::migrateFail(const RPCError &error) {
 }
 
 bool ProfileInner::canDeleteChannel() const {
-	return _peerChannel && _amCreator && (_peerChannel->count <= 1000);
+	return _peerChannel && _amCreator && (_peerChannel->membersCount() <= 1000);
 }
 
 void ProfileInner::resizeEvent(QResizeEvent *e) {
@@ -1406,7 +1406,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	//top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	if (_peerChannel && _peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
+	if (_peerChannel && _peerChannel->membersCount() < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddMembers()) {
 		_addParticipant.setGeometry(_left, top, btnWidth, _addParticipant.height());
 	} else {
 		_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
@@ -1416,7 +1416,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddMembers() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		//top -= st::profileButtonTop;
@@ -1766,7 +1766,7 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
+		if (_peerChannel->membersCount() < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && _peerChannel->canAddMembers()) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();
@@ -1787,7 +1787,7 @@ void ProfileInner::showAll() {
 		} else {
 			_admins.hide();
 		}
-		if (_peerChannel->canViewParticipants() && !_peerChannel->isMegagroup()) {
+		if (_peerChannel->canViewMembers() && !_peerChannel->isMegagroup()) {
 			_members.show();
 		} else {
 			_members.hide();
@@ -1880,7 +1880,7 @@ void ProfileWidget::onScroll() {
 	if (!_scroll.isHidden() && _scroll.scrollTop() < _scroll.scrollTopMax()) {
 		_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
 	}
-	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->count) {
+	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->membersCount()) {
 		if (_scroll.scrollTop() + PreloadHeightsCount * _scroll.height() > _scroll.scrollTopMax()) {
 			App::api()->requestLastParticipants(peer()->asChannel(), false);
 		}

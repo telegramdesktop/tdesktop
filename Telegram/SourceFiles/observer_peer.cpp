@@ -65,11 +65,16 @@ void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
 		}
 	}
+	if (mergeFrom.flags & PeerUpdate::Flag::SharedMediaChanged) {
+		mergeTo.mediaTypesMask |= mergeFrom.mediaTypesMask;
+	}
 	mergeTo.flags |= mergeFrom.flags;
 }
 
 void peerUpdatedDelayed(const PeerUpdate &update) {
 	t_assert(creator.started());
+
+	Global::RefHandleDelayedPeerUpdates().call();
 
 	int existingUpdatesCount = SmallUpdates->size();
 	for (int i = 0; i < existingUpdatesCount; ++i) {
@@ -96,9 +101,9 @@ void peerUpdatedDelayed(const PeerUpdate &update) {
 }
 
 void peerUpdatedSendDelayed() {
-	App::emitPeerUpdated();
+	if (!creator.started()) return;
 
-	t_assert(creator.started());
+	App::emitPeerUpdated();
 
 	if (SmallUpdates->isEmpty()) return;
 

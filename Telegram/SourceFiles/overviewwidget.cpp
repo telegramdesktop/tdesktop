@@ -2336,6 +2336,8 @@ void OverviewWidget::onDeleteSelected() {
 }
 
 void OverviewWidget::onDeleteSelectedSure() {
+	Ui::hideLayer();
+
 	SelectedItemSet sel;
 	_inner.fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
@@ -2351,7 +2353,6 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -2359,6 +2360,8 @@ void OverviewWidget::onDeleteSelectedSure() {
 }
 
 void OverviewWidget::onDeleteContextSure() {
+	Ui::hideLayer();
+
 	HistoryItem *item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) {
 		return;
@@ -2368,11 +2371,10 @@ void OverviewWidget::onDeleteContextSure() {
 	History *h = item->history();
 	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
 	item->destroy();
+
 	if (!wasOnServer && wasLast && !h->lastMsg) {
 		App::main()->checkPeerHistory(h->peer);
 	}
-
-	Ui::hideLayer();
 
 	if (wasOnServer) {
 		App::main()->deleteMessages(h->peer, toDelete);

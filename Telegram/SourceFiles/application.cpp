@@ -917,6 +917,10 @@ void AppClass::call_handleFileDialogQueue() {
 	}
 }
 
+void AppClass::call_handleDelayedPeerUpdates() {
+	Notify::peerUpdatedSendDelayed();
+}
+
 void AppClass::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {

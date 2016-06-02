@@ -20,9 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/observer.h"
+
 namespace Profile {
 
-class BlockWidget : public TWidget {
+class BlockWidget : public TWidget, public Notify::Observer {
 	Q_OBJECT
 
 public:
@@ -63,5 +65,7 @@ private:
 	QString _title;
 
 };
+
+int defaultOutlineButtonLeft();
 
 } // namespace Profile

@@ -1254,6 +1254,24 @@
     <ClCompile Include="GeneratedFiles\Release\moc_profile_actions_widget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1461,12 +1479,6 @@
       <Filter>SourceFiles\profile</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\profile\profile_invite_link_widget.h">
-      <Filter>SourceFiles\profile</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\profile\profile_members_widget.h">
-      <Filter>SourceFiles\profile</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\profile\profile_shared_media_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\buttons\left_outline_button.h">
@@ -1739,6 +1751,12 @@
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_actions_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_members_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_shared_media_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
   </ItemGroup>

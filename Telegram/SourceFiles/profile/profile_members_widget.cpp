@@ -22,9 +22,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_members_widget.h"
 
 #include "styles/style_profile.h"
+#include "ui/buttons/left_outline_button.h"
+#include "boxes/contactsbox.h"
+#include "observer_peer.h"
 #include "lang.h"
 
 namespace Profile {
+
+using UpdateFlag = Notify::PeerUpdate::Flag;
 
 MembersWidget::MembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section))
 {
@@ -37,15 +42,113 @@ int MembersWidget::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section))
-{
-	show();
+ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section)) {
+	auto observeEvents = UpdateFlag::ChannelCanViewAdmins
+		| UpdateFlag::ChannelCanViewMembers
+		| UpdateFlag::AdminsChanged
+		| UpdateFlag::MembersChanged;
+	Notify::registerPeerObserver(observeEvents, this, &ChannelMembersWidget::notifyPeerUpdated);
+
+	refreshButtons();
+}
+
+void ChannelMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+	if (update.peer != peer()) {
+		return;
+	}
+
+	if (update.flags & (UpdateFlag::ChannelCanViewAdmins | UpdateFlag::AdminsChanged)) {
+		refreshAdmins();
+	}
+	if (update.flags & (UpdateFlag::ChannelCanViewMembers | UpdateFlag::MembersChanged)) {
+		refreshMembers();
+	}
+	refreshVisibility();
+
+	contentSizeUpdated();
+}
+
+void ChannelMembersWidget::addButton(const QString &text, ChildWidget<Ui::LeftOutlineButton> *button, const char *slot) {
+	if (text.isEmpty()) {
+		button->destroy();
+	} else if (*button) {
+		(*button)->setText(text);
+	} else {
+		(*button) = new Ui::LeftOutlineButton(this, text);
+		(*button)->show();
+		connect(*button, SIGNAL(clicked()), this, slot);
+	}
+}
+
+void ChannelMembersWidget::refreshButtons() {
+	refreshAdmins();
+	refreshMembers();
+
+	refreshVisibility();
+}
+
+void ChannelMembersWidget::refreshAdmins() {
+	auto getAdminsText = [this]() -> QString {
+		if (auto channel = peer()->asChannel()) {
+			if (!channel->isMegagroup() && channel->canViewAdmins()) {
+				int adminsCount = qMax(channel->adminsCount(), 1);
+				return lng_channel_admins_link(lt_count, adminsCount);
+			}
+		}
+		return QString();
+	};
+	addButton(getAdminsText(), &_admins, SLOT(onAdmins()));
+}
+
+void ChannelMembersWidget::refreshMembers() {
+	auto getMembersText = [this]() -> QString {
+		if (auto channel = peer()->asChannel()) {
+			if (!channel->isMegagroup() && channel->canViewMembers()) {
+				int membersCount = qMax(channel->membersCount(), 1);
+				return lng_channel_members_link(lt_count, membersCount);
+			}
+		}
+		return QString();
+	};
+	addButton(getMembersText(), &_members, SLOT(onMembers()));
+}
+
+void ChannelMembersWidget::refreshVisibility() {
+	setVisible(_admins || _members);
 }
 
 int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 	int newHeight = contentTop();
 
+	auto resizeButton = [this, &newHeight, newWidth](ChildWidget<Ui::LeftOutlineButton> &button) {
+		if (!button) {
+			return;
+		}
+
+		int left = defaultOutlineButtonLeft();
+		int availableWidth = newWidth - left - st::profileBlockMarginRight;
+		accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
+		button->resizeToWidth(availableWidth);
+		button->moveToLeft(left, newHeight);
+		newHeight += button->height();
+	};
+
+	resizeButton(_admins);
+	resizeButton(_members);
+
 	return newHeight;
+}
+
+void ChannelMembersWidget::onAdmins() {
+	if (auto channel = peer()->asChannel()) {
+		Ui::showLayer(new MembersBox(channel, MembersFilterAdmins));
+	}
+}
+
+void ChannelMembersWidget::onMembers() {
+	if (auto channel = peer()->asChannel()) {
+		Ui::showLayer(new MembersBox(channel, MembersFilterRecent));
+	}
 }
 
 } // namespace Profile

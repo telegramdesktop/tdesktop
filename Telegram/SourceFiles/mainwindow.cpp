@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/addcontactbox.h"
+#include "observer_peer.h"
 #include "autoupdater.h"
 #include "mediaview.h"
 #include "localstorage.h"
@@ -1880,8 +1881,15 @@ void MainWindow::sendPaths() {
 
 void MainWindow::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (main) main->mediaOverviewUpdated(peer, type);
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->mediaOverviewUpdated(peer, type);
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->mediaOverviewUpdated(peer, type);
+	}
+	if (type != OverviewCount) {
+		Notify::PeerUpdate update(peer);
+		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+		update.mediaTypesMask |= (1 << type);
+		Notify::peerUpdatedDelayed(update);
+	}
 }
 
 void MainWindow::documentUpdated(DocumentData *doc) {

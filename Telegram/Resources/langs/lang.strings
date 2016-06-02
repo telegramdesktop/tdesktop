@@ -117,8 +117,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
 
-"lng_channel_members_link" = "{count:_not_used_|# member|# members} »";
-"lng_channel_admins_link" = "{count:Manage administrators|# administrator|# administrators} »";
+"lng_channel_members_link" = "{count:_not_used_|# member|# members}";
+"lng_channel_admins_link" = "{count:_not_used_|# administrator|# administrators}";
 
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
@@ -446,17 +446,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_loading" = "Loading...";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_no_media" = "No media in this conversation.";
-"lng_profile_photos" = "{count:_not_used_|# photo|# photos} »";
+"lng_profile_photos" = "{count:_not_used_|# photo|# photos}";
 "lng_profile_photos_header" = "Photos overview";
-"lng_profile_videos" = "{count:_not_used_|# video file|# video files} »";
+"lng_profile_videos" = "{count:_not_used_|# video file|# video files}";
 "lng_profile_videos_header" = "Video files overview";
-"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files} »";
+"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files}";
 "lng_profile_songs_header" = "Audio files overview";
-"lng_profile_files" = "{count:_not_used_|# file|# files} »";
+"lng_profile_files" = "{count:_not_used_|# file|# files}";
 "lng_profile_files_header" = "Files overview";
-"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
+"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages}";
 "lng_profile_audios_header" = "Voice messages overview";
-"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links} »";
+"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links}";
 "lng_profile_shared_links_header" = "Shared links overview";
 "lng_profile_copy_phone" = "Copy phone number";
 "lng_profile_copy_fullname" = "Copy name";
