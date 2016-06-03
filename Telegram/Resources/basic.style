@@ -949,7 +949,7 @@ dlgDateColor: #a8a8a8;
 dlgDateSkip: 5px;
 
 dlgUnreadColor: #FFF;
-dlgUnreadBG: #6fc766;
+dlgUnreadBG: #009ce6;//#6fc766;
 dlgUnreadMutedBG: #bbb;
 dlgUnreadFont: font(12px bold);
 dlgUnreadHeight: 19px;

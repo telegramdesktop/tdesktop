@@ -904,13 +904,13 @@ void MainWindow::hideConnecting() {
 	if (settings) settings->update();
 }
 
-bool MainWindow::historyIsActive() const {
-    return isActive(false) && main && main->historyIsActive() && (!settings || !settings->isVisible());
+bool MainWindow::doWeReadServerHistory() const {
+	return isActive(false) && main && (!settings || !settings->isVisible()) && main->doWeReadServerHistory();
 }
 
 void MainWindow::checkHistoryActivation() {
-	if (main && MTP::authedId() && historyIsActive()) {
-		main->historyWasRead();
+	if (main && MTP::authedId() && doWeReadServerHistory()) {
+		main->markActiveHistoryAsRead();
 	}
     QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 }

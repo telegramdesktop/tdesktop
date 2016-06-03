@@ -185,7 +185,7 @@ public:
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
 
-	bool historyIsActive() const;
+	bool doWeReadServerHistory() const;
 
 	void activate();
 

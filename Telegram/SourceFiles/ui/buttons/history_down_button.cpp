@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/history_down_button.h"
 
 #include "styles/style_history.h"
+#include "dialogs/dialogs_layout.h"
 
 namespace Ui {
 
@@ -29,16 +30,25 @@ HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
 , a_arrowOpacity(st::btnAttachEmoji.opacity, st::btnAttachEmoji.opacity)
 , _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
 	setCursor(style::cur_pointer);
-	resize(st::historyToDown.width(), st::historyToDown.height());
+	resize(st::historyToDown.width(), st::historyToDownPaddingTop + st::historyToDown.height());
 
 	connect(this, SIGNAL(stateChanged(int,ButtonStateChangeSource)), this, SLOT(onStateChange(int,ButtonStateChangeSource)));
 }
 
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	st::historyToDown.paint(p, QPoint(0, 0), width());
+	st::historyToDown.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
 	p.setOpacity(a_arrowOpacity.current());
-	st::historyToDownArrow.paint(p, QPoint(0, 0), width());
+	st::historyToDownArrow.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
+	if (_unreadCount > 0) {
+		p.setOpacity(1);
+		bool active = false, muted = false;
+		auto unreadString = QString::number(_unreadCount);
+		if (unreadString.size() > 4) {
+			unreadString = qsl("..") + unreadString.mid(unreadString.size() - 4);
+		}
+		Dialogs::Layout::paintUnreadCount(p, unreadString, width(), 0, style::al_center, active, muted, nullptr);
+	}
 }
 
 void HistoryDownButton::onStateChange(int oldState, ButtonStateChangeSource source) {
@@ -51,6 +61,11 @@ void HistoryDownButton::onStateChange(int oldState, ButtonStateChangeSource sour
 	} else {
 		_a_arrowOver.start();
 	}
+}
+
+void HistoryDownButton::setUnreadCount(int unreadCount) {
+	_unreadCount = unreadCount;
+	update();
 }
 
 void HistoryDownButton::step_arrowOver(float64 ms, bool timer) {

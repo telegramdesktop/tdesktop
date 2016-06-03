@@ -26,3 +26,8 @@ enum DragState {
 	DragStatePhotoFiles = 0x02,
 	DragStateImage = 0x03,
 };
+
+enum class ReadServerHistoryChecks {
+	OnlyIfUnread,
+	ForceRequest,
+};

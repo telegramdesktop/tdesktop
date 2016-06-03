@@ -622,7 +622,7 @@ namespace {
 
 				ChannelData *cdata = data->asChannel();
 				if (minimal) {
-					int32 mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
+					auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 				} else {
 					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -655,6 +655,9 @@ namespace {
 				ChannelData *cdata = data->asChannel();
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
+				auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
+				cdata->flags = (cdata->flags & ~mask) | (mtpCastFlags(d.vflags) & mask);
+
 				cdata->setName(qs(d.vtitle), QString());
 
 				cdata->access = d.vaccess_hash.v;
@@ -662,6 +665,7 @@ namespace {
 				cdata->date = 0;
 				cdata->count = 0;
 				cdata->isForbidden = true;
+				cdata->flagsUpdated();
 			} break;
 			}
 			if (!data) continue;

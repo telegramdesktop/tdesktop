@@ -227,6 +227,8 @@ public:
 	bool isEmpty() const {
 		return blocks.isEmpty();
 	}
+	bool isDisplayedEmpty() const;
+
 	void clear(bool leaveItems = false);
 
 	virtual ~History();
@@ -1421,6 +1423,10 @@ public:
 	}
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
+	}
+
+	bool isEmpty() const {
+		return _text.isEmpty() && !_media;
 	}
 
 	void clipCallback(ClipReaderNotification notification);

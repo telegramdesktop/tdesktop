@@ -253,18 +253,18 @@ void MainWidget::cancelForwarding() {
 	_history->cancelForwarding();
 }
 
-void MainWidget::finishForwarding(History *hist, bool silent) {
-	if (!hist) return;
+void MainWidget::finishForwarding(History *history, bool silent) {
+	if (!history) return;
 
 	if (!_toForward.isEmpty()) {
 		bool genClientSideMessage = (_toForward.size() < 2);
 		PeerData *forwardFrom = 0;
-		App::main()->readServerHistory(hist, false);
+		App::main()->readServerHistory(history);
 
 		MTPDmessage::Flags flags = 0;
 		MTPmessages_ForwardMessages::Flags sendFlags = 0;
-		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
-		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
+		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
+		bool showFromName = !channelPost || history->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && silent;
 		if (channelPost) {
 			flags |= MTPDmessage::Flag::f_views;
@@ -284,9 +284,9 @@ void MainWidget::finishForwarding(History *hist, bool silent) {
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
 			uint64 randomId = rand_value<uint64>();
 			if (genClientSideMessage) {
-				FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
+				FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
-				hist->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, msg);
+				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, msg);
 				if (HistoryMedia *media = msg->getMedia()) {
 					if (media->type() == MediaTypeSticker) {
 						App::main()->incrementSticker(media->getDocument());
@@ -296,7 +296,7 @@ void MainWidget::finishForwarding(History *hist, bool silent) {
 			}
 			if (forwardFrom != i.value()->history()->peer) {
 				if (forwardFrom) {
-					hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+					history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
 					ids.resize(0);
 					randomIds.resize(0);
 				}
@@ -305,18 +305,18 @@ void MainWidget::finishForwarding(History *hist, bool silent) {
 			ids.push_back(MTP_int(i.value()->id));
 			randomIds.push_back(MTP_long(randomId));
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
 
-		if (_history->peer() == hist->peer) {
+		if (_history->peer() == history->peer) {
 			_history->peerMessagesUpdated();
 		}
 
 		cancelForwarding();
 	}
 
-	historyToDown(hist);
+	historyToDown(history);
 	dialogsToUp();
-	_history->peerMessagesUpdated(hist->peer->id);
+	_history->peerMessagesUpdated(history->peer->id);
 }
 
 void MainWidget::webPageUpdated(WebPageData *data) {
@@ -675,7 +675,9 @@ void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updat
 	deleteConversation(peer);
 }
 
-void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
+void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result) {
+	auto peer = request.peer;
+
 	const auto &d(result.c_messages_affectedHistory());
 	if (peer && peer->isChannel()) {
 		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -697,7 +699,11 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 		return;
 	}
 
-	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	MTPmessages_DeleteHistory::Flags flags = 0;
+	if (request.justClearHistory) {
+		flags |= MTPmessages_DeleteHistory::Flag::f_just_clear;
+	}
+	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 }
 
 void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids) {
@@ -742,7 +748,9 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 		peer->asChannel()->ptsWaitingForShortPoll(-1);
 	}
 	if (deleteHistory) {
-		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+		DeleteHistoryRequest request = { peer, false };
+		MTPmessages_DeleteHistory::Flags flags = 0;
+		MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 	}
 }
 
@@ -794,7 +802,9 @@ void MainWidget::clearHistory(PeerData *peer) {
 		h->newLoaded = h->oldLoaded = true;
 	}
 	Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
-	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	MTPmessages_DeleteHistory::Flags flags = MTPmessages_DeleteHistory::Flag::f_just_clear;
+	DeleteHistoryRequest request = { peer, true };
+	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 }
 
 void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users) {
@@ -1045,7 +1055,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	auto history = message.history;
 	const auto &textWithTags = message.textWithTags;
 
-	readServerHistory(history, false);
+	readServerHistory(history);
 	_history->fastShowAtEnd(history);
 
 	if (!history || !_history->canSendMessages(history->peer)) {
@@ -1142,25 +1152,32 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 	}
 }
 
-void MainWidget::readServerHistory(History *hist, bool force) {
-	if (!hist || (!force && !hist->unreadCount())) return;
+void MainWidget::readServerHistory(History *history, ReadServerHistoryChecks checks) {
+	if (!history) return;
+	if (checks == ReadServerHistoryChecks::OnlyIfUnread && !history->unreadCount()) return;
 
-	MsgId upTo = hist->inboxRead(0);
-	if (hist->isChannel() && !hist->peer->asChannel()->amIn()) {
-		return; // no read request for channels that I didn't koin
+	auto peer = history->peer;
+	MsgId upTo = history->inboxRead(0);
+	if (auto channel = peer->asChannel()) {
+		if (!channel->amIn()) {
+			return; // no read request for channels that I didn't koin
+		}
 	}
 
-	ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
-    if (i == _readRequests.cend()) {
-		sendReadRequest(hist->peer, upTo);
-	} else {
-		ReadRequestsPending::iterator i = _readRequestsPending.find(hist->peer);
+	if (_readRequests.contains(peer)) {
+		auto i = _readRequestsPending.find(peer);
 		if (i == _readRequestsPending.cend()) {
-			_readRequestsPending.insert(hist->peer, upTo);
+			_readRequestsPending.insert(peer, upTo);
 		} else if (i.value() < upTo) {
 			i.value() = upTo;
 		}
+	} else {
+		sendReadRequest(peer, upTo);
 	}
+}
+
+void MainWidget::unreadCountChanged(History *history) {
+	_history->unreadCountChanged(history);
 }
 
 uint64 MainWidget::animActiveTimeStart(const HistoryItem *msg) const {
@@ -1385,17 +1402,17 @@ void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &re
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
 	if (!MTP::authedId()) return;
 	if (peer->isChannel()) {
-		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelWasRead, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
+		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	} else {
-		_readRequests.insert(peer, qMakePair(MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(upTo)), rpcDone(&MainWidget::historyWasRead, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
+		_readRequests.insert(peer, qMakePair(MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(upTo)), rpcDone(&MainWidget::historyReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	}
 }
 
-void MainWidget::channelWasRead(PeerData *peer, const MTPBool &result) {
+void MainWidget::channelReadDone(PeerData *peer, const MTPBool &result) {
 	readRequestDone(peer);
 }
 
-void MainWidget::historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result) {
+void MainWidget::historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result) {
 	messagesAffected(peer, result);
 	readRequestDone(peer);
 }
@@ -2341,24 +2358,24 @@ void MainWidget::onActiveChannelUpdateFull() {
 	}
 }
 
-void MainWidget::historyToDown(History *hist) {
-	_history->historyToDown(hist);
+void MainWidget::historyToDown(History *history) {
+	_history->historyToDown(history);
 }
 
 void MainWidget::dialogsToUp() {
 	_dialogs->dialogsToUp();
 }
 
-void MainWidget::newUnreadMsg(History *hist, HistoryItem *item) {
-	_history->newUnreadMsg(hist, item);
+void MainWidget::newUnreadMsg(History *history, HistoryItem *item) {
+	_history->newUnreadMsg(history, item);
 }
 
-void MainWidget::historyWasRead() {
-	_history->historyWasRead(false);
+void MainWidget::markActiveHistoryAsRead() {
+	_history->historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
 }
 
-void MainWidget::historyCleared(History *hist) {
-	_history->historyCleared(hist);
+void MainWidget::historyCleared(History *history) {
+	_history->historyCleared(history);
 }
 
 void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
@@ -3623,8 +3640,8 @@ bool MainWidget::isActive() const {
 	return !_isIdle && isVisible() && !_a_show.animating();
 }
 
-bool MainWidget::historyIsActive() const {
-	return isActive() && !_profile && !_overview && _history->isActive();
+bool MainWidget::doWeReadServerHistory() const {
+	return isActive() && !_profile && !_overview && _history->doWeReadServerHistory();
 }
 
 bool MainWidget::lastWasOnline() const {

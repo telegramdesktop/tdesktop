@@ -498,7 +498,7 @@ public:
 	void historyLoaded();
 
 	void windowShown();
-	bool isActive() const;
+	bool doWeReadServerHistory() const;
 
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -527,8 +527,9 @@ public:
 
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
-	void historyWasRead(bool force = true);
+	void historyWasRead(ReadServerHistoryChecks checks);
 	void historyCleared(History *history);
+	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
 

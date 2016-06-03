@@ -38,6 +38,7 @@ addChildParentFlags('MTPDreplyKeyboardHide', 'MTPDreplyKeyboardMarkup');
 addChildParentFlags('MTPDreplyKeyboardForceReply', 'MTPDreplyKeyboardMarkup');
 addChildParentFlags('MTPDinputPeerNotifySettings', 'MTPDpeerNotifySettings');
 addChildParentFlags('MTPDpeerNotifySettings', 'MTPDinputPeerNotifySettings');
+addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 
 # this is a map (key flags -> map (flag name -> flag bit))
 # each key flag of parentFlags should be a subset of the value flag here
