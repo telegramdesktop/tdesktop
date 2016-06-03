@@ -380,9 +380,11 @@ void UserData::madeAction() {
 	if (onlineTill <= 0 && -onlineTill < t) {
 		onlineTill = -t - SetOnlineAfterActivity;
 		App::markPeerUpdated(this);
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	} else if (onlineTill > 0 && onlineTill < t + 1) {
 		onlineTill = t + SetOnlineAfterActivity;
 		App::markPeerUpdated(this);
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	}
 }
 

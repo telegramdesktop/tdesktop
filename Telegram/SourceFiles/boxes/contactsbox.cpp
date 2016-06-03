@@ -202,16 +202,20 @@ void ContactsInner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
 
 	_addAdminRequestId = 0;
 	if (_addAdmin && _channel && _channel->isMegagroup()) {
+		Notify::PeerUpdate update(_channel);
 		if (_channel->mgInfo->lastParticipants.indexOf(_addAdmin) < 0) {
 			_channel->mgInfo->lastParticipants.push_front(_addAdmin);
+			update.flags |= Notify::PeerUpdate::Flag::MembersChanged;
 		}
 		_channel->mgInfo->lastAdmins.insert(_addAdmin);
+		update.flags |= Notify::PeerUpdate::Flag::AdminsChanged;
 		if (_addAdmin->botInfo) {
 			_channel->mgInfo->bots.insert(_addAdmin);
 			if (_channel->mgInfo->botStatus != 0 && _channel->mgInfo->botStatus < 2) {
 				_channel->mgInfo->botStatus = 2;
 			}
 		}
+		Notify::peerUpdatedDelayed(update);
 	}
 	if (_addAdminBox) _addAdminBox->onClose();
 	emit adminAdded();
@@ -2176,6 +2180,8 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 					_channel->mgInfo->lastAdmins.insert(_rows.at(i));
 				}
 			}
+
+			Notify::peerUpdatedDelayed(_channel, Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 	}
 	if (_rows.isEmpty()) {

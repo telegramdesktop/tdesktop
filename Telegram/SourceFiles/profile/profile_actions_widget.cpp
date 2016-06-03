@@ -77,7 +77,6 @@ void ActionsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 void ActionsWidget::validateBlockStatus() const {
 	auto needFullPeer = [this]() {
-		return true;
 		if (auto user = peer()->asUser()) {
 			if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 				return true;

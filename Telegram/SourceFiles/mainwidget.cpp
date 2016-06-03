@@ -1681,7 +1681,6 @@ void MainWidget::onParentResize(const QSize &newSize) {
 void MainWidget::updateOnlineDisplay() {
 	if (this != App::main()) return;
 	_history->updateOnlineDisplay(_history->x(), width() - _history->x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
-//	if (_profile) _profile->updateOnlineDisplay(); TODO
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }
 
@@ -3790,7 +3789,10 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		_lastSetOnline = ms;
 		_onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
 
-		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+		if (App::self()) {
+			App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+			Notify::peerUpdatedDelayed(App::self(), Notify::PeerUpdate::Flag::UserOnlineChanged);
+		}
 
 		_lastSetOnline = getms(true);
 
@@ -4280,6 +4282,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
 			}
 			App::markPeerUpdated(user);
+			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
 		if (d.vuser_id.v == MTP::authedId()) {
 			if (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty) {

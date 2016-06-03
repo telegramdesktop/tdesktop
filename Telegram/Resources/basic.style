@@ -58,6 +58,7 @@ adaptiveWideWidth: 1366px;
 windowBg: #fff; // fallback for background: white
 windowTextFg: #000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowActiveTextFg: #1485c2; // fallback for active color: blue online
 windowShadowFg: #000; // fallback for shadow color
 
 wndMinHeight: 480px;
@@ -153,8 +154,8 @@ defaultLeftOutlineButton: OutlineButton {
 	textBg: windowBg;
 	textBgOver: #f2f7fa;
 
-	textFg: #1485c2;
-	textFgOver: #1485c2;
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
 
 	font: normalFont;
 	padding: margins(11px, 6px, 11px, 6px);

@@ -223,11 +223,11 @@ namespace {
 		}
 	}
 
-	int32 onlineForSort(UserData *user, int32 now) {
+	TimeId onlineForSort(UserData *user, TimeId now) {
 		if (isServiceUser(user->id) || user->botInfo) {
 			return -1;
 		}
-		int32 online = user->onlineTill;
+		TimeId online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0:
@@ -253,11 +253,14 @@ namespace {
 		return online;
 	}
 
-	int32 onlineWillChangeIn(UserData *user, int32 now) {
+	int32 onlineWillChangeIn(UserData *user, TimeId now) {
 		if (isServiceUser(user->id) || user->botInfo) {
 			return 86400;
 		}
-		int32 online = user->onlineTill;
+		return onlineWillChangeIn(user->onlineTill, now);
+	}
+
+	int32 onlineWillChangeIn(TimeId online, TimeId now) {
 		if (online <= 0) {
             if (-online > now) return -online - now;
             return 86400;
@@ -277,7 +280,7 @@ namespace {
 		return dNow.secsTo(dTomorrow);
 	}
 
-	QString onlineText(UserData *user, int32 now, bool precise) {
+	QString onlineText(UserData *user, TimeId now, bool precise) {
 		if (isNotificationsUser(user->id)) {
 			return lang(lng_status_service_notifications);
 		} else if (isServiceUser(user->id)) {
@@ -285,7 +288,10 @@ namespace {
 		} else if (user->botInfo) {
 			return lang(lng_status_bot);
 		}
-		int32 online = user->onlineTill;
+		return onlineText(user->onlineTill, now, precise);
+	}
+
+	QString onlineText(TimeId online, TimeId now, bool precise) {
 		if (online <= 0) {
 			switch (online) {
 			case 0: return lang(lng_status_offline);
@@ -347,11 +353,14 @@ namespace {
 		}
 	}
 
-	bool onlineColorUse(UserData *user, int32 now) {
+	bool onlineColorUse(UserData *user, TimeId now) {
 		if (isServiceUser(user->id) || user->botInfo) {
 			return false;
 		}
-		int32 online = user->onlineTill;
+		return onlineColorUse(user->onlineTill, now);
+	}
+
+	bool onlineColorUse(TimeId online, TimeId now) {
 		if (online <= 0) {
 			switch (online) {
 			case 0:
@@ -394,12 +403,8 @@ namespace {
 				status = &emptyStatus;
 				data->contact = -1;
 
-				if (canShareThisContact != data->canShareThisContactFast()) {
-					update.flags |= UpdateFlag::UserCanShareContact;
-				}
-				if (wasContact != data->isContact()) {
-					update.flags |= UpdateFlag::UserIsContact;
-				}
+				if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
+				if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
 			} break;
 			case mtpc_user: {
 				const auto &d(user.c_user());
@@ -496,12 +501,8 @@ namespace {
 					}
 				}
 
-				if (canShareThisContact != data->canShareThisContactFast()) {
-					update.flags |= UpdateFlag::UserCanShareContact;
-				}
-				if (wasContact != data->isContact()) {
-					update.flags |= UpdateFlag::UserIsContact;
-				}
+				if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
+				if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
 			} break;
 			}
 
@@ -514,6 +515,8 @@ namespace {
 			} else if (data->loadedStatus != PeerData::FullLoaded) {
 				data->loadedStatus = PeerData::FullLoaded;
 			}
+
+			auto oldOnlineTill = data->onlineTill;
 			if (status && !minimal) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
 			case mtpc_userStatusRecently:
@@ -525,6 +528,9 @@ namespace {
 			case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
+			}
+			if (oldOnlineTill != data->onlineTill) {
+				update.flags |= UpdateFlag::UserOnlineChanged;
 			}
 
             if (data->contact < 0 && !data->phone().isEmpty() && peerToUser(data->id) != MTP::authedId()) {
@@ -832,6 +838,7 @@ namespace {
 			}
 		} break;
 		}
+		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 		if (chat && App::main()) {
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
@@ -878,6 +885,7 @@ namespace {
 				chat->invalidateParticipants();
 				chat->count++;
 			}
+			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -894,6 +902,7 @@ namespace {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			App::api()->requestPeer(chat);
+			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -944,6 +953,7 @@ namespace {
 				chat->invalidateParticipants();
 				chat->count--;
 			}
+			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);

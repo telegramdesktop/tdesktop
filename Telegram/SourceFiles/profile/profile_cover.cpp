@@ -38,33 +38,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Profile {
 namespace {
 
-class OnlineCounter {
-public:
-	OnlineCounter() : _currentTime(unixtime()), _self(App::self()) {
-	}
-	void feedUser(UserData *user) {
-		if (App::onlineForSort(user, _currentTime) > _currentTime) {
-			++_result;
-			if (user != _self) {
-				_onlyMe = false;
-			}
-		}
-	}
-	QString result(int fullCount) const {
-		if (_result > 0 && !_onlyMe) {
-			return lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _result);
-		}
-		return lng_chat_status_members(lt_count, fullCount);
-	}
-
-private:
-	bool _onlyMe = true;
-	int _result = 0;
-	int _currentTime;
-	UserData *_self;
-
-};
-
 using UpdateFlag = Notify::PeerUpdate::Flag;
 const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
 	| UpdateFlag::ChatCanEdit
@@ -345,27 +318,17 @@ void CoverWidget::refreshStatusText() {
 	if (_peerUser) {
 		_statusText = App::onlineText(_peerUser, currentTime, true);
 	} else if (_peerChat && _peerChat->amIn()) {
-		if (_peerChat->noParticipantInfo()) {
-			App::api()->requestFullPeer(_peer);
-			if (_statusText.isEmpty()) {
-				_statusText = lng_chat_status_members(lt_count, _peerChat->count);
-			}
+		int fullCount = qMax(_peerChat->count, _peerChat->participants.size());
+		if (_onlineCount > 0 && _onlineCount <= fullCount) {
+			_statusText = lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _onlineCount);
 		} else {
-			OnlineCounter counter;
-			auto &participants = _peerChat->participants;
-			for (auto i = participants.cbegin(), e = participants.cend(); i != e; ++i) {
-				counter.feedUser(i.key());
-			}
-			_statusText = counter.result(participants.size());
+			_statusText = lng_chat_status_members(lt_count, _peerChat->count);
 		}
-	} else if (isUsingMegagroupOnlineCount()) {
-		OnlineCounter counter;
-		for_const (auto user, _peerMegagroup->mgInfo->lastParticipants) {
-			counter.feedUser(user);
-		}
-		_statusText = counter.result(_peerMegagroup->membersCount());
 	} else if (_peerChannel) {
-		if (_peerChannel->membersCount() > 0) {
+		int fullCount = _peerChannel->membersCount();
+		if (_onlineCount > 0 && _onlineCount <= fullCount) {
+			_statusText = lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _onlineCount);
+		} else if (fullCount > 0 ) {
 			_statusText = lng_chat_status_members(lt_count, _peerChannel->membersCount());
 		} else {
 			_statusText = lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
@@ -374,23 +337,6 @@ void CoverWidget::refreshStatusText() {
 		_statusText = lang(lng_chat_status_unaccessible);
 	}
 	update();
-}
-
-bool CoverWidget::isUsingMegagroupOnlineCount() const {
-	if (!_peerMegagroup || !_peerMegagroup->amIn()) {
-		return false;
-	}
-
-	if (_peerMegagroup->membersCount() <= 0 || _peerMegagroup->membersCount() > Global::ChatSizeMax()) {
-		return false;
-	}
-
-	if (_peerMegagroup->mgInfo->lastParticipants.isEmpty() || _peerMegagroup->lastParticipantsCountOutdated()) {
-		App::api()->requestLastParticipants(_peerMegagroup);
-		return false;
-	}
-
-	return true;
 }
 
 void CoverWidget::refreshButtons() {
@@ -422,8 +368,12 @@ void CoverWidget::setChatButtons() {
 }
 
 void CoverWidget::setMegagroupButtons() {
-	if (_peerMegagroup->canEditPhoto()) {
-		addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+	if (_peerMegagroup->amIn()) {
+		if (_peerMegagroup->canEditPhoto()) {
+			addButton(lang(lng_profile_set_group_photo), SLOT(onSetPhoto()));
+		}
+	} else {
+		addButton(lang(lng_profile_join_channel), SLOT(onJoin()));
 	}
 	if (_peerMegagroup->canAddMembers()) {
 		addButton(lang(lng_profile_add_participant), SLOT(onAddMember()), &st::profileAddMemberButton);
@@ -461,6 +411,11 @@ void CoverWidget::addButton(const QString &text, const char *slot, const style::
 	}
 
 	_buttons.push_back({ button, replacement });
+}
+
+void CoverWidget::onOnlineCountUpdated(int onlineCount) {
+	_onlineCount = onlineCount;
+	refreshStatusText();
 }
 
 void CoverWidget::onSendMessage() {

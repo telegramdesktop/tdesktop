@@ -549,9 +549,15 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	if (newMembersCount > peer->membersCount()) {
 		peer->setMembersCount(newMembersCount);
 	}
-	if (!bots && v.isEmpty()) {
-		peer->setMembersCount(peer->mgInfo->lastParticipants.size());
+	if (!bots) {
+		if (v.isEmpty()) {
+			peer->setMembersCount(peer->mgInfo->lastParticipants.size());
+		}
+		Notify::PeerUpdate update(peer);
+		update.flags |= Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged;
+		Notify::peerUpdatedDelayed(update);
 	}
+
 	peer->mgInfo->botStatus = botStatus;
 	if (App::main()) emit fullPeerUpdated(peer);
 }
@@ -651,12 +657,14 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 			if (channel->adminsCount() > 1) {
 				channel->setAdminsCount(channel->adminsCount() - 1);
 			}
+			Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 		megagroupInfo->bots.remove(kick.second);
 		if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
 			megagroupInfo->botStatus = -1;
 		}
 	}
+	Notify::peerUpdatedDelayed(kick.first, Notify::PeerUpdate::Flag::MembersChanged);
 	emit fullPeerUpdated(kick.first);
 }
 

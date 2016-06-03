@@ -37,6 +37,9 @@ public:
 	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 
+	virtual ~BlockWidget() {
+	}
+
 signals:
 	void heightUpdated();
 

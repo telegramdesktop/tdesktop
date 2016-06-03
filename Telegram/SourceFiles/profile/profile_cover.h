@@ -54,6 +54,9 @@ public:
 	// It should show it only if it is hidden in the cover.
 	bool shareContactButtonShown() const;
 
+public slots:
+	void onOnlineCountUpdated(int onlineCount);
+
 private slots:
 	void onPhotoShow();
 
@@ -83,7 +86,6 @@ private:
 	void moveAndToggleButtons(int newWiddth);
 	void refreshNameText();
 	void refreshStatusText();
-	bool isUsingMegagroupOnlineCount() const;
 
 	void refreshButtons();
 	void setUserButtons();
@@ -124,6 +126,8 @@ private:
 
 	int _photoLeft = 0; // Caching countPhotoLeft() result.
 	int _dividerTop = 0;
+
+	int _onlineCount = 0;
 
 	FileDialog::QueryId _setPhotoFileQueryId = 0;
 

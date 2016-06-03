@@ -59,7 +59,10 @@ void InnerWidget::createBlocks() {
 	}
 	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
 	if (chat || megagroup) {
-		_blocks.push_back({ new MembersWidget(this, _peer), BlockSide::Left });
+		auto membersWidget = new MembersWidget(this, _peer);
+		connect(membersWidget, SIGNAL(onlineCountUpdated(int)), _cover, SLOT(onOnlineCountUpdated(int)));
+		_cover->onOnlineCountUpdated(membersWidget->onlineCount());
+		_blocks.push_back({ membersWidget, BlockSide::Left });
 	}
 	for_const (auto &blockData, _blocks) {
 		connect(blockData.block, SIGNAL(heightUpdated()), this, SLOT(onBlockHeightUpdated()));
@@ -81,11 +84,9 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 		decreaseAdditionalHeight(notDisplayedAtBottom);
 	}
 
-	//loadProfilePhotos(_visibleTop);
-	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->membersCount()) {
-		if (_visibleTop + (PreloadHeightsCount + 1) * (_visibleBottom - _visibleTop) > height()) {
-			App::api()->requestLastParticipants(peer()->asChannel(), false);
-		}
+	for_const (auto blockData, _blocks) {
+		int blockY = blockData.block->y();
+		blockData.block->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
 	}
 }
 
@@ -109,11 +110,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	if (_mode == Mode::TwoColumn) {
 		int leftHeight = countBlocksHeight(BlockSide::Left);
 		int rightHeight = countBlocksHeight(BlockSide::Right);
-		int minHeight = qMin(leftHeight, rightHeight);
+		int shadowHeight = rightHeight;// qMin(leftHeight, rightHeight);
 
 		int shadowLeft = _blocksLeft + _leftColumnWidth + _columnDivider;
 		int shadowTop = _blocksTop + st::profileBlockMarginTop;
-		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, minHeight - st::profileBlockMarginTop, width()), st::shadowColor);
+		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, shadowHeight - st::profileBlockMarginTop, width()), st::shadowColor);
 	}
 }
 
@@ -216,7 +217,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	_blocksTop = _cover->y() + _cover->height() + st::profileBlocksTop;
 	_blocksLeft = countBlocksLeft(newWidth);
-	_columnDivider = _blocksLeft;
+	_columnDivider = st::profileMemberPaddingLeft;
 	_mode = countBlocksMode(newWidth);
 	_leftColumnWidth = countLeftColumnWidth(newWidth);
 	resizeBlocks(newWidth);

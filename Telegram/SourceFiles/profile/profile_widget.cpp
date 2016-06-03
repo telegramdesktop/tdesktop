@@ -46,7 +46,6 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
-	connect(_scroll, SIGNAL(scrolled()), _inner, SLOT(updateSelected()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_inner, SIGNAL(cancelled()), _fixedBar, SLOT(onBack()));
 }

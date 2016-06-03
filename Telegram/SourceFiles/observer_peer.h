@@ -51,6 +51,7 @@ struct PeerUpdate {
 		UserPhoneChanged      = 0x00040000U,
 		UserIsBlocked         = 0x00080000U,
 		BotCommandsChanged    = 0x00100000U,
+		UserOnlineChanged     = 0x00200000U,
 
 		ChatCanEdit           = 0x00010000U,
 

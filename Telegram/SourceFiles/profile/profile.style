@@ -56,14 +56,15 @@ profileStatusFont: normalFont;
 profileStatusFg: windowSubTextFg;
 profileMarginBottom: 30px;
 
+profileActiveBg: #3fb0e4;
 profileButtonLeft: 27px;
 profileButtonTop: 88px;
 profileButtonSkip: 10px;
 profilePrimaryButton: BoxButton {
 	textFg: #ffffff;
 	textFgOver: #ffffff;
-	textBg: #3fb0e4;
-	textBgOver: #3fb0e4;
+	textBg: profileActiveBg;
+	textBgOver: profileActiveBg;
 
 	width: -34px;
 	height: 34px;
@@ -80,7 +81,7 @@ profileSecondaryButton: BoxButton(profilePrimaryButton) {
 	textBgOver: #f2f7fa;
 }
 profileAddMemberIcon: icon {
-	{ "profile_add_member", #3fb0e4, point(20px, 10px) },
+	{ "profile_add_member", profileActiveBg, point(20px, 10px) },
 };
 profileAddMemberButton: BoxButton(profileSecondaryButton) {
 	width: 62px;
@@ -88,7 +89,7 @@ profileAddMemberButton: BoxButton(profileSecondaryButton) {
 }
 
 profileDropAreaBg: profileBg;
-profileDropAreaFg: #3fb0e4;
+profileDropAreaFg: profileActiveBg;
 profileDropAreaPadding: margins(25px, 3px, 25px, 20px);
 profileDropAreaTitleFont: font(24px);
 profileDropAreaTitleTop: 30px;
@@ -113,13 +114,13 @@ profileBlockLeftMax: 25px;
 profileBlockNarrowWidthMin: 220px;
 profileBlockWideWidthMin: 300px;
 profileBlockWideWidthMax: 340px;
-profileBlockMarginTop: 21px;
+profileBlockMarginTop: 14px;
 profileBlockMarginRight: 10px;
 profileBlockMarginBottom: 4px;
-profileBlockTitleHeight: 22px;
+profileBlockTitleHeight: 25px;
 profileBlockTitleFont: font(14px semibold);
 profileBlockTitleFg: black;
-profileBlockTitlePosition: point(24px, -7px);
+profileBlockTitlePosition: point(24px, 0px);
 profileBlockLabel: flatLabel(labelDefFlat) {
 	textFg: windowSubTextFg;
 }
@@ -137,3 +138,19 @@ profileBlockOneLineWidthMax: 240px;
 profileInviteLinkText: flatLabel(profileBlockTextPart) {
 	width: 1px; // Required for BreakEverywhere
 }
+
+profileLimitReachedSkip: 6px;
+
+profileMemberHeight: 58px;
+profileMemberPaddingLeft: 16px;
+profileMemberPhotoSize: 46px;
+profileMemberPhotoPosition: point(12px, 6px);
+profileMemberNamePosition: point(68px, 11px);
+profileMemberNameFg: windowTextFg;
+profileMemberStatusPosition: point(68px, 31px);
+profileMemberStatusFg: windowSubTextFg;
+profileMemberStatusFgOver: windowSubTextFg;
+profileMemberStatusFgActive: windowActiveTextFg;
+profileMemberAdminIcon: icon {
+	{ "profile_admin_star", profileActiveBg, point(4px, 2px) },
+};

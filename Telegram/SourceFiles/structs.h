@@ -270,6 +270,8 @@ public:
 	const ChatData *asChat() const;
 	ChannelData *asChannel();
 	const ChannelData *asChannel() const;
+	ChannelData *asMegagroup();
+	const ChannelData *asMegagroup() const;
 
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
@@ -881,6 +883,18 @@ inline const ChannelData *PeerData::asChannel() const {
 }
 inline const ChannelData *asChannel(const PeerData *peer) {
 	return peer ? peer->asChannel() : nullptr;
+}
+inline ChannelData *PeerData::asMegagroup() {
+	return isMegagroup() ? static_cast<ChannelData*>(this) : nullptr;
+}
+inline ChannelData *asMegagroup(PeerData *peer) {
+	return peer ? peer->asMegagroup() : nullptr;
+}
+inline const ChannelData *PeerData::asMegagroup() const {
+	return isMegagroup() ? static_cast<const ChannelData*>(this) : nullptr;
+}
+inline const ChannelData *asMegagroup(const PeerData *peer) {
+	return peer ? peer->asMegagroup() : nullptr;
 }
 inline bool isMegagroup(const PeerData *peer) {
 	return peer ? peer->isMegagroup() : false;

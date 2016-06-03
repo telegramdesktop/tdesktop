@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+class FlatLabel;
+
 namespace Ui {
 class LeftOutlineButton;
 } // namespace Ui
@@ -33,12 +35,111 @@ struct PeerUpdate;
 namespace Profile {
 
 class MembersWidget : public BlockWidget {
+	Q_OBJECT
+
 public:
 	MembersWidget(QWidget *parent, PeerData *peer);
+
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+	int onlineCount() const {
+		return _onlineCount;
+	}
+
+	~MembersWidget();
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+
+	void paintContents(Painter &p) override;
+
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e) override {
+		enterEvent(e);
+	}
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override {
+		leaveEvent(e);
+	}
+
+signals:
+	void onlineCountUpdated(int onlineCount);
+
+private slots:
+	void onKickConfirm();
+	void onUpdateOnlineDisplay();
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void repaintCallback();
+
+	void preloadUserPhotos();
+
+	void refreshMembers();
+	void fillChatMembers(ChatData *chat);
+	void fillMegagroupMembers(ChannelData *megagroup);
+	void sortMembers();
+	void updateOnlineCount();
+	void checkSelfAdmin(ChatData *chat);
+	void checkSelfAdmin(ChannelData *megagroup);
+
+	void refreshVisibility();
+	void updateSelection();
+	void setSelected(int selected, bool selectedKick);
+	void repaintSelectedRow();
+	void refreshUserOnline(UserData *user);
+
+	int getListLeft() const;
+	int getListTop() const;
+
+	struct Member {
+		Member(UserData *user) : user(user) {
+		}
+		UserData *user;
+		Text name;
+		QString onlineText;
+		TimeId onlineTextTill = 0;
+		TimeId onlineTill = 0;
+		TimeId onlineForSort = 0;
+		bool online = false;
+		bool isAdmin = false;
+		bool canBeKicked = false;
+	};
+	Member *getMember(UserData *user);
+	void paintMember(Painter &p, int x, int y, Member *member, bool selected, bool selectedKick);
+	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
+	void setMemberFlags(Member *member, ChatData *chat);
+	Member *addUser(ChatData *chat, UserData *user);
+	void setMemberFlags(Member *member, ChannelData *megagroup);
+	Member *addUser(ChannelData *megagroup, UserData *user);
+	bool addUsersToEnd(ChannelData *megagroup);
+
+	ChildWidget<FlatLabel> _limitReachedInfo = { nullptr };
+
+	QList<Member*> _list;
+	QMap<UserData*, Member*> _membersByUser;
+	bool _sortByOnline = false;
+	TimeId _now = 0;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+
+	int _selected = -1;
+	int _pressed = -1;
+	bool _selectedKick = false;
+	bool _pressedKick = false;
+	UserData *_kicking = nullptr;
+	QPoint _mousePosition;
+
+	int _onlineCount = 0;
+	TimeId _updateOnlineAt = 0;
+	QTimer _updateOnlineTimer;
+
+	int _removeWidth = 0;
 
 };
 
