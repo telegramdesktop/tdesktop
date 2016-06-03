@@ -466,7 +466,11 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 
 void CoverWidget::onAddMember() {
 	if (_peerChat) {
-		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+		if (_peerChat->count >= Global::ChatSizeMax() && _peerChat->amCreator()) {
+			Ui::showLayer(new ConvertToSupergroupBox(_peerChat));
+		} else {
+			Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+		}
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
 		for_const (auto user, _peerChannel->mgInfo->lastParticipants) {

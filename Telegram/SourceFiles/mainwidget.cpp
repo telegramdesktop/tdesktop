@@ -879,7 +879,6 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 
 void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
 	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::kickParticipantFail, chat));
-	Ui::hideLayer();
 	Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
 }
 

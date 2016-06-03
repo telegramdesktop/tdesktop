@@ -86,6 +86,9 @@ private:
 	void updateOnlineCount();
 	void checkSelfAdmin(ChatData *chat);
 	void checkSelfAdmin(ChannelData *megagroup);
+	void refreshLimitReached();
+
+	bool limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
 
 	void refreshVisibility();
 	void updateSelection();

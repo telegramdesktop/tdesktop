@@ -27,7 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatlabel.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
+#include "core/click_handler_types.h"
 #include "apiwrap.h"
+#include "mainwidget.h"
 #include "observer_peer.h"
 #include "lang.h"
 
@@ -119,7 +121,10 @@ int MembersWidget::resizeGetHeight(int newWidth) {
 
 	if (_limitReachedInfo) {
 		int limitReachedInfoWidth = newWidth - getListLeft();
+		accumulate_min(limitReachedInfoWidth, st::profileBlockWideWidthMax);
+
 		_limitReachedInfo->resizeToWidth(limitReachedInfoWidth);
+		_limitReachedInfo->moveToLeft(getListLeft(), contentTop());
 		newHeight = getListTop();
 	}
 
@@ -131,10 +136,12 @@ int MembersWidget::resizeGetHeight(int newWidth) {
 void MembersWidget::paintContents(Painter &p) {
 	int left = getListLeft();
 	int top = getListTop();
+	int memberRowWidth = width() - left;
+	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
 	if (_limitReachedInfo) {
 		int infoTop = contentTop();
 		int infoHeight = top - infoTop - st::profileLimitReachedSkip;
-		paintOutlinedRect(p, left, infoTop, width() - left, infoHeight);
+		paintOutlinedRect(p, left, infoTop, memberRowWidth, infoHeight);
 	}
 
 	_now = unixtime();
@@ -215,7 +222,9 @@ void MembersWidget::updateSelection() {
 	if (rtl()) mouse.setX(width() - mouse.x());
 	int left = getListLeft();
 	int top = getListTop();
-	if (mouse.x() >= left && mouse.x() < width() && mouse.y() >= top) {
+	int memberRowWidth = width() - left;
+	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
+	if (mouse.x() >= left && mouse.x() < left + memberRowWidth && mouse.y() >= top) {
 		selected = (mouse.y() - top) / st::profileMemberHeight;
 		if (selected >= _list.size()) {
 			selected = -1;
@@ -223,7 +232,7 @@ void MembersWidget::updateSelection() {
 			int skip = st::profileMemberPhotoPosition.x();
 			int nameLeft = left + st::profileMemberNamePosition.x();
 			int nameTop = top + _selected * st::profileMemberHeight + st::profileMemberNamePosition.y();
-			int nameWidth = width() - nameLeft - skip;
+			int nameWidth = memberRowWidth - st::profileMemberNamePosition.x() - skip;
 			if (mouse.x() >= nameLeft + nameWidth - _removeWidth && mouse.x() < nameLeft + nameWidth) {
 				if (mouse.y() >= nameTop && mouse.y() < nameTop + st::normalFont->height) {
 					selectedKick = true;
@@ -267,9 +276,7 @@ int MembersWidget::getListLeft() const {
 int MembersWidget::getListTop() const {
 	int result = contentTop();
 	if (_limitReachedInfo) {
-		result += st::defaultLeftOutlineButton.padding.top();
 		result += _limitReachedInfo->height();
-		result += st::defaultLeftOutlineButton.padding.bottom();
 		result += st::profileLimitReachedSkip;
 	}
 	return result;
@@ -283,6 +290,7 @@ void MembersWidget::refreshMembers() {
 			App::api()->requestFullPeer(chat);
 		}
 		fillChatMembers(chat);
+		refreshLimitReached();
 	} else if (auto megagroup = peer()->asMegagroup()) {
 		checkSelfAdmin(megagroup);
 		auto megagroupInfo = megagroup->mgInfo;
@@ -294,6 +302,29 @@ void MembersWidget::refreshMembers() {
 	sortMembers();
 
 	refreshVisibility();
+}
+
+void MembersWidget::refreshLimitReached() {
+	auto chat = peer()->asChat();
+	if (!chat) return;
+
+	bool limitReachedShown = (_list.size() >= Global::ChatSizeMax()) && chat->amCreator();
+	if (limitReachedShown && !_limitReachedInfo) {
+		_limitReachedInfo = new FlatLabel(this, st::profileLimitReachedLabel, st::profileLimitReachedStyle);
+		QString title = textRichPrepare(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
+		QString body = textRichPrepare(lang(lng_profile_migrate_body));
+		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));
+		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
+		_limitReachedInfo->setRichText(text);
+		_limitReachedInfo->setClickHandlerHook(func(this, &MembersWidget::limitReachedHook));
+	} else if (!limitReachedShown && _limitReachedInfo) {
+		_limitReachedInfo.destroy();
+	}
+}
+
+bool MembersWidget::limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
+	Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
+	return false;
 }
 
 void MembersWidget::checkSelfAdmin(ChatData *chat) {
@@ -481,8 +512,10 @@ MembersWidget::Member *MembersWidget::getMember(UserData *user) {
 }
 
 void MembersWidget::paintMember(Painter &p, int x, int y, Member *member, bool selected, bool selectedKick) {
+	int memberRowWidth = width() - x;
 	if (selected) {
-		paintOutlinedRect(p, x, y, width() - x, st::profileMemberHeight);
+		accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
+		paintOutlinedRect(p, x, y, memberRowWidth, st::profileMemberHeight);
 	}
 	int skip = st::profileMemberPhotoPosition.x();
 
@@ -493,7 +526,7 @@ void MembersWidget::paintMember(Painter &p, int x, int y, Member *member, bool s
 	}
 	int nameLeft = x + st::profileMemberNamePosition.x();
 	int nameTop = y + st::profileMemberNamePosition.y();
-	int nameWidth = width() - nameLeft - skip;
+	int nameWidth = memberRowWidth - st::profileMemberNamePosition.x() - skip;
 	if (member->canBeKicked && selected) {
 		p.setFont(selectedKick ? st::normalFont->underline() : st::normalFont);
 		p.setPen(st::windowActiveTextFg);
@@ -534,7 +567,12 @@ void MembersWidget::paintMember(Painter &p, int x, int y, Member *member, bool s
 }
 
 void MembersWidget::onKickConfirm() {
-
+	Ui::hideLayer();
+	if (auto chat = peer()->asChat()) {
+		App::main()->kickParticipant(chat, _kicking);
+	} else if (auto channel = peer()->asChannel()) {
+		App::api()->kickParticipant(channel, _kicking);
+	}
 }
 
 void MembersWidget::onUpdateOnlineDisplay() {

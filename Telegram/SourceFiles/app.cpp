@@ -570,6 +570,11 @@ namespace {
 				auto cdata = data->asChat();
 				auto canEdit = cdata->canEdit();
 
+				if (cdata->version < d.vversion.v) {
+					cdata->version = d.vversion.v;
+					cdata->invalidateParticipants();
+				}
+
 				data->input = MTP_inputPeerChat(d.vid);
 				cdata->setName(qs(d.vtitle));
 				cdata->setPhoto(d.vphoto);
@@ -617,10 +622,6 @@ namespace {
 
 				cdata->count = d.vparticipants_count.v;
 				cdata->isForbidden = false;
-				if (cdata->version < d.vversion.v) {
-					cdata->version = d.vversion.v;
-					cdata->invalidateParticipants();
-				}
 				if (canEdit != cdata->canEdit()) {
 					update.flags |= UpdateFlag::ChatCanEdit;
 				}
@@ -765,6 +766,7 @@ namespace {
 		case mtpc_chatParticipants: {
 			const auto &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
+			auto canEdit = chat->canEdit();
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				const auto &v(d.vparticipants.c_vector().v);
@@ -836,9 +838,12 @@ namespace {
 					}
 				}
 			}
+			if (canEdit != chat->canEdit()) {
+				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
+			}
 		} break;
 		}
-		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
+		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged);
 		if (chat && App::main()) {
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
@@ -902,7 +907,6 @@ namespace {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			App::api()->requestPeer(chat);
-			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -912,6 +916,7 @@ namespace {
 			}
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
+			auto canEdit = chat->canEdit();
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty()) {
@@ -953,6 +958,9 @@ namespace {
 				chat->invalidateParticipants();
 				chat->count--;
 			}
+			if (canEdit != chat->canEdit()) {
+				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
+			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
@@ -974,13 +982,14 @@ namespace {
 			}
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				chat->flags |= MTPDchat::Flag::f_admins_enabled;
 				if (!badVersion) {
 					chat->invalidateParticipants();
 				}
+				chat->flags |= MTPDchat::Flag::f_admins_enabled;
 			} else {
 				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
 			}
+			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
 			} else {
@@ -1004,6 +1013,7 @@ namespace {
 			}
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
+			auto canEdit = chat->canEdit();
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
@@ -1024,6 +1034,10 @@ namespace {
 			} else {
 				chat->invalidateParticipants();
 			}
+			if (canEdit != chat->canEdit()) {
+				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
+			}
+			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);

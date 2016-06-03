@@ -301,6 +301,8 @@ void FlatLabel::keyPressEvent(QKeyEvent *e) {
 }
 
 void FlatLabel::contextMenuEvent(QContextMenuEvent *e) {
+	if (!_selectable) return;
+
 	showContextMenu(e, ContextMenuReason::FromEvent);
 }
 

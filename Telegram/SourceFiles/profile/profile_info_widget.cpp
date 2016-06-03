@@ -142,7 +142,7 @@ void InfoWidget::refreshAbout() {
 	_about.destroy();
 	auto aboutText = getAboutText();
 	if (!aboutText.isEmpty()) {
-		_about = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::profileBlockTextPart);
+		_about = new FlatLabel(this, st::profileBlockTextPart);
 		_about->show();
 
 		EntitiesInText aboutEntities;

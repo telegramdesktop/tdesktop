@@ -496,13 +496,7 @@ public:
 
 	void setName(const QString &newName);
 
-	void invalidateParticipants() {
-		participants = ChatData::Participants();
-		admins = ChatData::Admins();
-		flags &= ~MTPDchat::Flag::f_admin;
-		invitedByMe = ChatData::InvitedByMe();
-		botStatus = 0;
-	}
+	void invalidateParticipants();
 	bool noParticipantInfo() const {
 		return (count > 0 || amIn()) && participants.isEmpty();
 	}

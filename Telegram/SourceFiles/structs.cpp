@@ -431,6 +431,19 @@ void ChatData::setName(const QString &newName) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
 }
 
+void ChatData::invalidateParticipants() {
+	auto wasCanEdit = canEdit();
+	participants = ChatData::Participants();
+	admins = ChatData::Admins();
+	flags &= ~MTPDchat::Flag::f_admin;
+	invitedByMe = ChatData::InvitedByMe();
+	botStatus = 0;
+	if (wasCanEdit != canEdit()) {
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::ChatCanEdit);
+	}
+	Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged);
+}
+
 void ChatData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;

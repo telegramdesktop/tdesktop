@@ -154,3 +154,10 @@ profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {
 	{ "profile_admin_star", profileActiveBg, point(4px, 2px) },
 };
+profileLimitReachedLabel: flatLabel(labelDefFlat) {
+	width: 180px;
+	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
+}
+profileLimitReachedStyle: textStyle(defaultTextStyle) {
+	lineHeight: 19px;
+}

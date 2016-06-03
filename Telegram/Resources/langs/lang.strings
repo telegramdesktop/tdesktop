@@ -561,6 +561,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_sticker" = "a sticker";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
+"lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
+"lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";
 "lng_profile_migrate_feature1" = "— The members limit is {count:_not_used_|# user|# users}";
 "lng_profile_migrate_feature2" = "— New members see the entire chat history";
