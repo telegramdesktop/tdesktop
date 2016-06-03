@@ -155,40 +155,44 @@ struct SendAction {
 
 using TextWithTags = FlatTextarea::TextWithTags;
 struct HistoryDraft {
-	HistoryDraft() : msgId(0), previewCancelled(false) {
+	HistoryDraft() {
 	}
-	HistoryDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
+	HistoryDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequestId = 0)
 		: textWithTags(textWithTags)
 		, msgId(msgId)
 		, cursor(cursor)
-		, previewCancelled(previewCancelled) {
+		, previewCancelled(previewCancelled)
+		, saveRequestId(saveRequestId) {
 	}
-	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled)
+	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId = 0)
 		: textWithTags(field.getTextWithTags())
 		, msgId(msgId)
 		, cursor(field)
 		, previewCancelled(previewCancelled) {
 	}
+	QDateTime date;
 	TextWithTags textWithTags;
-	MsgId msgId; // replyToId for message draft, editMsgId for edit draft
+	MsgId msgId = 0; // replyToId for message draft, editMsgId for edit draft
 	MessageCursor cursor;
-	bool previewCancelled;
+	bool previewCancelled = false;
+	mtpRequestId saveRequestId = 0;
 };
-struct HistoryEditDraft : public HistoryDraft {
-	HistoryEditDraft()
-		: HistoryDraft()
-		, saveRequest(0) {
+
+inline bool historyDraftIsNull(HistoryDraft *draft) {
+	return (!draft || (!draft->msgId && draft->textWithTags.text.isEmpty()));
+}
+
+inline bool historyDraftsAreEqual(HistoryDraft *a, HistoryDraft *b) {
+	bool aIsNull = historyDraftIsNull(a);
+	bool bIsNull = historyDraftIsNull(b);
+	if (aIsNull) {
+		return bIsNull;
+	} else if (bIsNull) {
+		return false;
 	}
-	HistoryEditDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
-		: HistoryDraft(textWithTags, msgId, cursor, previewCancelled)
-		, saveRequest(saveRequest) {
-	}
-	HistoryEditDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequest = 0)
-		: HistoryDraft(field, msgId, previewCancelled)
-		, saveRequest(saveRequest) {
-	}
-	mtpRequestId saveRequest;
-};
+
+	return (a->textWithTags == b->textWithTags) && (a->msgId == b->msgId) && (a->previewCancelled == b->previewCancelled);
+}
 
 class HistoryMedia;
 class HistoryMessage;
@@ -279,6 +283,8 @@ public:
 	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
 
+	bool needUpdateInChatList() const;
+	void updateChatListSortPosition();
 	void setChatsListDate(const QDateTime &date);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
@@ -367,35 +373,48 @@ public:
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
 
-	HistoryDraft *msgDraft() {
-		return _msgDraft.get();
+	HistoryDraft *localDraft() {
+		return _localDraft.get();
 	}
-	HistoryEditDraft *editDraft() {
+	HistoryDraft *cloudDraft() {
+		return _cloudDraft.get();
+	}
+	HistoryDraft *editDraft() {
 		return _editDraft.get();
 	}
-	void setMsgDraft(std_::unique_ptr<HistoryDraft> &&draft) {
-		_msgDraft = std_::move(draft);
+	void setLocalDraft(std_::unique_ptr<HistoryDraft> &&draft) {
+		_localDraft = std_::move(draft);
 	}
-	void takeMsgDraft(History *from) {
-		if (auto &draft = from->_msgDraft) {
-			if (!draft->textWithTags.text.isEmpty() && !_msgDraft) {
-				_msgDraft = std_::move(draft);
-				_msgDraft->msgId = 0; // edit and reply to drafts can't migrate
+	void takeLocalDraft(History *from) {
+		if (auto &draft = from->_localDraft) {
+			if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
+				_localDraft = std_::move(draft);
+
+				// Edit and reply to drafts can't migrate.
+				// Cloud drafts do not migrate automatically.
+				_localDraft->msgId = 0;
 			}
-			from->clearMsgDraft();
+			from->clearLocalDraft();
 		}
 	}
-	void setEditDraft(std_::unique_ptr<HistoryEditDraft> &&draft) {
+	void createLocalDraftFromCloud();
+	void setCloudDraft(std_::unique_ptr<HistoryDraft> &&draft) {
+		_cloudDraft = std_::move(draft);
+		cloudDraftTextCache.clear();
+	}
+	HistoryDraft *createCloudDraft(HistoryDraft *fromDraft);
+	void setEditDraft(std_::unique_ptr<HistoryDraft> &&draft) {
 		_editDraft = std_::move(draft);
 	}
-	void clearMsgDraft() {
-		_msgDraft = nullptr;
+	void clearLocalDraft() {
+		_localDraft = nullptr;
 	}
+	void clearCloudDraft();
 	void clearEditDraft() {
 		_editDraft = nullptr;
 	}
 	HistoryDraft *draft() {
-		return _editDraft ? editDraft() : msgDraft();
+		return _editDraft ? editDraft() : localDraft();
 	}
 
 	// some fields below are a property of a currently displayed instance of this
@@ -484,6 +503,8 @@ public:
 	}
 
 	void changeMsgId(MsgId oldId, MsgId newId);
+
+	Text cloudDraftTextCache = Text { int(st::dlgRichMinWidth) };
 
 protected:
 
@@ -578,8 +599,8 @@ private:
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
-	std_::unique_ptr<HistoryDraft> _msgDraft;
-	std_::unique_ptr<HistoryEditDraft> _editDraft;
+	std_::unique_ptr<HistoryDraft> _localDraft, _cloudDraft;
+	std_::unique_ptr<HistoryDraft> _editDraft;
 
  };
 

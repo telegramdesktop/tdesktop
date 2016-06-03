@@ -89,6 +89,7 @@ void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *s
 	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
 	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
 	message.silent = false;
+	message.clearDraft = false;
 	App::main()->sendMessage(message);
 }
 

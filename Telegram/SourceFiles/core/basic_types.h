@@ -474,9 +474,15 @@ inline QDateTime date(int32 time = -1) {
 	return result;
 }
 
-inline QDateTime date(const MTPint &time) {
+inline QDateTime dateFromServerTime(const MTPint &time) {
 	return date(fromServerTime(time));
 }
+
+inline QDateTime date(const MTPint &time) {
+	return dateFromServerTime(time);
+}
+
+QDateTime dateFromServerTime(TimeId time);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN

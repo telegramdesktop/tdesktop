@@ -232,6 +232,9 @@ public:
 	bool lastWasOnline() const;
 	uint64 lastSetOnline() const;
 
+	void saveDraftToCloud();
+	void applyCloudDraft(History *history);
+
 	int32 dlgsWidth() const;
 
 	void forwardLayer(int32 forwardSelected = 0); // -1 - send paths
@@ -287,6 +290,7 @@ public:
 		MsgId replyTo = 0;
 		bool silent = false;
 		WebPageId webPageId = 0;
+		bool clearDraft = true;
 	};
 	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
@@ -488,6 +492,9 @@ private:
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
+
+	void saveCloudDraftDone(PeerData *peer, const MTPBool &result, mtpRequestId requestId);
+	bool saveCloudDraftFail(PeerData *peer, const RPCError &error, mtpRequestId requestId);
 
 	bool _started = false;
 

@@ -151,6 +151,7 @@ enum {
 
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
+	SaveCloudDraftTimeout = 14000, // save draft to the cloud after 14 more seconds
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface

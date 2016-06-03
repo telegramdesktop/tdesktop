@@ -31,8 +31,26 @@ namespace Layout {
 
 namespace {
 
+void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool active) {
+	QDateTime now(QDateTime::currentDateTime()), lastTime(date);
+	QDate nowDate(now.date()), lastDate(lastTime.date());
+	QString dt;
+	if (lastDate == nowDate) {
+		dt = lastTime.toString(cTimeFormat());
+	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
+		dt = langDayOfWeek(lastDate);
+	} else {
+		dt = lastDate.toString(qsl("d.MM.yy"));
+	}
+	int32 dtWidth = st::dlgDateFont->width(dt);
+	rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
+	p.setFont(st::dlgDateFont);
+	p.setPen(active ? st::dlgActiveDateColor : st::dlgDateColor);
+	p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
+}
+
 template <typename PaintItemCallback>
-void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
+void paintRow(Painter &p, History *history, HistoryItem *item, HistoryDraft *draft, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, active ? st::dlgActiveBG : (selected ? st::dlgHoverBG : st::dlgBG));
 	if (onlyBackground) return;
@@ -53,31 +71,56 @@ void paintRow(Painter &p, History *history, HistoryItem *item, int w, bool activ
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	}
 
-	if (!item) {
+	int texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
+	if (draft) {
+		paintRowDate(p, draft->date, rectForName, active);
+
+		// draw check
+		if (draft->saveRequestId) {
+			auto check = active ? &st::dlgActiveSendImg : &st::dlgSendImg;
+			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
+			p.drawSprite(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), *check);
+		}
+
+		bool hasDraftIcon = !active;
+		if (hasDraftIcon) {
+			QString counter;
+			bool mutedCounter = false;
+			int unreadRight = w - st::dlgPaddingHor;
+			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
+			int unreadWidth = 0;
+			paintUnreadCount(p, counter, unreadRight, unreadTop, style::al_right, active, mutedCounter, &unreadWidth);
+			st::dialogsDraft.paint(p, QPoint(w - st::dlgPaddingHor - st::dlgUnreadHeight, unreadTop), w);
+			namewidth -= unreadWidth + st::dlgUnreadPaddingHor;
+		}
+
 		p.setFont(st::dlgHistFont);
 		p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			p.drawText(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgFont->ascent + st::dlgSep, lang(lng_empty_history));
+			if (history->cloudDraftTextCache.isEmpty()) {
+				TextCustomTagsMap custom;
+				custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
+				QString msg = lng_message_with_from(lt_from, textRichPrepare(lang(lng_from_draft)), lt_message, textRichPrepare(draft->textWithTags.text));
+				history->cloudDraftTextCache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
+			}
+			textstyleSet(&(active ? st::dlgActiveTextStyle : st::dlgTextStyle));
+			p.setFont(st::dlgHistFont);
+			p.setPen(active ? st::dlgActiveColor : st::dlgTextColor);
+			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, st::dlgFont->height / st::dlgHistFont->height);
+			textstyleRestore();
 		} else {
-			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth);
+			history->typingText.drawElided(p, nameleft, texttop, namewidth);
+		}
+	} else if (!item) {
+		p.setFont(st::dlgHistFont);
+		p.setPen(active ? st::dlgActiveColor : st::dlgSystemColor);
+		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
+			p.drawText(nameleft, texttop + st::dlgFont->ascent, lang(lng_empty_history));
+		} else {
+			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else {
-		// draw date
-		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt;
-		if (lastDate == nowDate) {
-			dt = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
-			dt = langDayOfWeek(lastDate);
-		} else {
-			dt = lastDate.toString(qsl("d.MM.yy"));
-		}
-		int32 dtWidth = st::dlgDateFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-		p.setFont(st::dlgDateFont);
-		p.setPen(active ? st::dlgActiveDateColor : st::dlgDateColor);
-		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
+		paintRowDate(p, item->date, rectForName, active);
 
 		// draw check
 		if (item->needCheck()) {
@@ -186,7 +229,11 @@ void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::alig
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto history = row->history();
 	auto item = history->lastMsg;
-	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, w, active, history](int nameleft, int namewidth, HistoryItem *item) {
+	auto cloudDraft = history->cloudDraft();
+	if (item && cloudDraft && cloudDraft->date < item->date) {
+		cloudDraft = nullptr; // Draw item, if draft is older.
+	}
+	paintRow(p, history, item, cloudDraft, w, active, selected, onlyBackground, [&p, w, active, history](int nameleft, int namewidth, HistoryItem *item) {
 		int32 unread = history->unreadCount();
 		if (history->peer->migrateFrom()) {
 			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
@@ -195,7 +242,8 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 		}
 		int availableWidth = namewidth;
 		int texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
-		bool hasDraftIcon = active ? false : Local::hasDraft(history->peer->id);
+		auto cloudDraft = history->cloudDraft();
+		bool hasDraftIcon = active ? false : (cloudDraft && cloudDraft->date.isValid());
 		if (unread || hasDraftIcon) {
 			QString counter;
 			bool mutedCounter = false;
@@ -208,10 +256,10 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
 			int unreadWidth = 0;
 			paintUnreadCount(p, counter, unreadRight, unreadTop, style::al_right, active, mutedCounter, &unreadWidth);
-			availableWidth -= unreadWidth + st::dlgUnreadPaddingHor;
 			if (!showUnreadCounter) {
 				st::dialogsDraft.paint(p, QPoint(w - st::dlgPaddingHor - st::dlgUnreadHeight, unreadTop), w);
 			}
+			availableWidth -= unreadWidth + st::dlgUnreadPaddingHor;
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dlgFont->height), active, history->textCachedFor, history->lastItemTextCache);
@@ -225,7 +273,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, history, item, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, nullptr, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dlgPaddingVer + st::dlgFont->height + st::dlgSep;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dlgFont->height), active, row->_cacheFor, row->_cache);
 	});

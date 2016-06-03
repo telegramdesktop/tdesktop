@@ -2270,10 +2270,10 @@ namespace Local {
 		return _oldSettingsVersion;
 	}
 
-	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft) {
+	void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const MessageDraft &editDraft) {
 		if (!_working()) return;
 
-		if (msgDraft.msgId <= 0 && msgDraft.textWithTags.text.isEmpty() && editDraft.msgId <= 0) {
+		if (localDraft.msgId <= 0 && localDraft.textWithTags.text.isEmpty() && editDraft.msgId <= 0) {
 			auto i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
@@ -2291,17 +2291,17 @@ namespace Local {
 				_writeMap(WriteMapFast);
 			}
 
-			auto msgTags = FlatTextarea::serializeTagsList(msgDraft.textWithTags.tags);
+			auto msgTags = FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
 			auto editTags = FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
 
 			int size = sizeof(quint64);
-			size += Serialize::stringSize(msgDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
+			size += Serialize::stringSize(localDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
 			size += Serialize::stringSize(editDraft.textWithTags.text) + Serialize::bytearraySize(editTags) + 2 * sizeof(qint32);
 
 			EncryptedDescriptor data(size);
 			data.stream << quint64(peer);
-			data.stream << msgDraft.textWithTags.text << msgTags;
-			data.stream << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
+			data.stream << localDraft.textWithTags.text << msgTags;
+			data.stream << qint32(localDraft.msgId) << qint32(localDraft.previewCancelled ? 1 : 0);
 			data.stream << editDraft.textWithTags.text << editTags;
 			data.stream << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
 
@@ -2322,7 +2322,7 @@ namespace Local {
 		}
 	}
 
-	void _readDraftCursors(const PeerId &peer, MessageCursor &msgCursor, MessageCursor &editCursor) {
+	void _readDraftCursors(const PeerId &peer, MessageCursor &localCursor, MessageCursor &editCursor) {
 		DraftsMap::iterator j = _draftCursorsMap.find(peer);
 		if (j == _draftCursorsMap.cend()) {
 			return;
@@ -2334,9 +2334,9 @@ namespace Local {
 			return;
 		}
 		quint64 draftPeer;
-		qint32 msgPosition = 0, msgAnchor = 0, msgScroll = QFIXED_MAX;
+		qint32 localPosition = 0, localAnchor = 0, localScroll = QFIXED_MAX;
 		qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
-		draft.stream >> draftPeer >> msgPosition >> msgAnchor >> msgScroll;
+		draft.stream >> draftPeer >> localPosition >> localAnchor >> localScroll;
 		if (!draft.stream.atEnd()) {
 			draft.stream >> editPosition >> editAnchor >> editScroll;
 		}
@@ -2346,7 +2346,7 @@ namespace Local {
 			return;
 		}
 
-		msgCursor = MessageCursor(msgPosition, msgAnchor, msgScroll);
+		localCursor = MessageCursor(localPosition, localAnchor, localScroll);
 		editCursor = MessageCursor(editPosition, editAnchor, editScroll);
 	}
 
@@ -2404,15 +2404,17 @@ namespace Local {
 		MessageCursor msgCursor, editCursor;
 		_readDraftCursors(peer, msgCursor, editCursor);
 
-		if (msgData.text.isEmpty() && !msgReplyTo) {
-			h->clearMsgDraft();
-		} else {
-			h->setMsgDraft(std_::make_unique<HistoryDraft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
+		if (!h->localDraft()) {
+			if (msgData.text.isEmpty() && !msgReplyTo) {
+				h->clearLocalDraft();
+			} else {
+				h->setLocalDraft(std_::make_unique<HistoryDraft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
+			}
 		}
 		if (!editMsgId) {
 			h->clearEditDraft();
 		} else {
-			h->setEditDraft(std_::make_unique<HistoryEditDraft>(editData, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(std_::make_unique<HistoryDraft>(editData, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 

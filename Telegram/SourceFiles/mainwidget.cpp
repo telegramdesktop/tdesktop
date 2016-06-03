@@ -161,7 +161,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { url + '\n' + text, TextWithTags::Tags() };
 	MessageCursor cursor = { url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX };
-	h->setMsgDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -181,7 +181,7 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
-	h->setMsgDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -916,8 +916,9 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	if (!v) return;
 
 	if (v->isEmpty()) {
-		if (peer->isChat() && peer->asChat()->haveLeft()) {
-			deleteConversation(peer, false);
+		if (peer->isChat() && !peer->asChat()->haveLeft()) {
+			History *h = App::historyLoaded(peer->id);
+			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
 		} else if (peer->isChannel()) {
 			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
 				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
@@ -929,8 +930,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 				}
 			}
 		} else {
-			History *h = App::historyLoaded(peer->id);
-			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
+			deleteConversation(peer, false);
 		}
 	} else {
 		History *h = App::history(peer->id);
@@ -1113,6 +1113,10 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
 		if (!sentEntities.c_vector().v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
+		}
+		if (message.clearDraft) {
+			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
+			history->clearCloudDraft();
 		}
 		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		history->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), history->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
@@ -3695,15 +3699,78 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		_lastSetOnline = ms;
 		_onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
 
-		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+		if (App::self()) {
+			App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+		}
+		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
+			saveDraftToCloud();
+		}
 
-		_lastSetOnline = getms(true);
+		_lastSetOnline = ms;
 
 		updateOnlineDisplay();
 	} else if (isOnline) {
 		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
 	}
 	_onlineTimer.start(updateIn);
+}
+
+void MainWidget::saveDraftToCloud() {
+	_history->saveFieldToHistoryLocalDraft();
+
+	auto peer = _history->peer();
+	if (auto history = App::historyLoaded(peer)) {
+		auto localDraft = history->localDraft();
+		auto cloudDraft = history->cloudDraft();
+		if (!historyDraftsAreEqual(localDraft, cloudDraft)) {
+			if (cloudDraft && cloudDraft->saveRequestId) {
+				MTP::cancel(cloudDraft->saveRequestId);
+			}
+			cloudDraft = history->createCloudDraft(localDraft);
+
+			MTPmessages_SaveDraft::Flags flags = 0;
+			auto &textWithTags = cloudDraft->textWithTags;
+			if (cloudDraft->previewCancelled) {
+				flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
+			}
+			if (cloudDraft->msgId) {
+				flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
+			}
+			if (!textWithTags.tags.isEmpty()) {
+				flags |= MTPmessages_SaveDraft::Flag::f_entities;
+			}
+			auto entities = linksToMTP(entitiesFromTextTags(textWithTags.tags), true);
+			cloudDraft->saveRequestId = MTP::send(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), peer->input, MTP_string(textWithTags.text), entities), rpcDone(&MainWidget::saveCloudDraftDone, peer), rpcFail(&MainWidget::saveCloudDraftFail, peer));
+		}
+	}
+}
+
+void MainWidget::applyCloudDraft(History *history) {
+	_history->applyCloudDraft(history);
+}
+
+void MainWidget::saveCloudDraftDone(PeerData *peer, const MTPBool &result, mtpRequestId requestId) {
+	if (auto history = App::historyLoaded(peer)) {
+		if (auto cloudDraft = history->cloudDraft()) {
+			if (cloudDraft->saveRequestId == requestId) {
+				cloudDraft->saveRequestId = 0;
+				history->updateChatListEntry();
+			}
+		}
+	}
+}
+
+bool MainWidget::saveCloudDraftFail(PeerData *peer, const RPCError &error, mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	if (auto history = App::historyLoaded(peer)) {
+		if (auto cloudDraft = history->cloudDraft()) {
+			if (cloudDraft->saveRequestId == requestId) {
+				history->clearCloudDraft();
+			}
+		}
+	}
+	return true;
 }
 
 void MainWidget::checkIdleFinish() {

@@ -136,6 +136,10 @@ MTPint toServerTime(const TimeId &clientTime) {
 	return MTP_int(clientTime + unixtimeDelta);
 }
 
+QDateTime dateFromServerTime(TimeId time) {
+	return dateFromServerTime(MTP_int(time));
+}
+
 // Precise timing functions / rand init
 
 struct CRYPTO_dynlock_value {

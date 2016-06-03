@@ -162,6 +162,59 @@ void History::setHasPendingResizedItems() {
 	Global::RefHandleHistoryUpdate().call();
 }
 
+void History::createLocalDraftFromCloud() {
+	auto draft = cloudDraft();
+	if (historyDraftIsNull(draft) || !draft->date.isValid()) return;
+
+	auto existing = localDraft();
+	if (historyDraftIsNull(existing) || !existing->date.isValid() || draft->date > existing->date) {
+		if (!existing) {
+			setLocalDraft(std_::make_unique<HistoryDraft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
+			existing = localDraft();
+		} else if (existing != draft) {
+			existing->textWithTags = draft->textWithTags;
+			existing->msgId = draft->msgId;
+			existing->cursor = draft->cursor;
+			existing->previewCancelled = draft->previewCancelled;
+		}
+		existing->date = draft->date;
+	}
+}
+
+HistoryDraft *History::createCloudDraft(HistoryDraft *fromDraft) {
+	if (historyDraftIsNull(fromDraft)) {
+		setCloudDraft(std_::make_unique<HistoryDraft>(TextWithTags(), 0, MessageCursor(), false));
+		cloudDraft()->date = QDateTime();
+	} else {
+		auto existing = cloudDraft();
+		if (!existing) {
+			setCloudDraft(std_::make_unique<HistoryDraft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
+			existing = cloudDraft();
+		} else if (existing != fromDraft) {
+			existing->textWithTags = fromDraft->textWithTags;
+			existing->msgId = fromDraft->msgId;
+			existing->cursor = fromDraft->cursor;
+			existing->previewCancelled = fromDraft->previewCancelled;
+		}
+		existing->date = ::date(myunixtime());
+	}
+
+	cloudDraftTextCache.clear();
+	updateChatListSortPosition();
+	updateChatListEntry();
+
+	return cloudDraft();
+}
+
+void History::clearCloudDraft() {
+	if (_cloudDraft) {
+		_cloudDraft = nullptr;
+		cloudDraftTextCache.clear();
+		updateChatListSortPosition();
+		updateChatListEntry();
+	}
+}
+
 bool History::updateTyping(uint64 ms, bool force) {
 	bool changed = force;
 	for (TypingUsers::iterator i = typing.begin(), e = typing.end(); i != e;) {
@@ -1037,6 +1090,7 @@ void History::newItemAdded(HistoryItem *item) {
 		if (!item->unread()) {
 			outboxRead(item);
 		}
+		item->history()->clearCloudDraft();
 	} else if (item->unread()) {
 		bool skip = false;
 		if (!isChannel() || peer->asChannel()->amIn()) {
@@ -1679,19 +1733,38 @@ void History::setLastMessage(HistoryItem *msg) {
 	updateChatListEntry();
 }
 
-void History::setChatsListDate(const QDateTime &date) {
-	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || inChatList(Dialogs::Mode::All)));
-	if (peer->migrateTo() && !inChatList(Dialogs::Mode::All)) {
-		updateDialog = false;
+bool History::needUpdateInChatList() const {
+	if (inChatList(Dialogs::Mode::All)) {
+		return true;
+	} else if (peer->migrateTo()) {
+		return false;
 	}
+	return (!peer->isChannel() || peer->asChannel()->amIn());
+}
+
+void History::setChatsListDate(const QDateTime &date) {
+	bool updateDialog = needUpdateInChatList();
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
 		if (!updateDialog || !inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}
 	lastMsgDate = date;
-	_sortKeyInChatList = dialogPosFromDate(lastMsgDate);
-	if (updateDialog) {
+	updateChatListSortPosition();
+}
+
+void History::updateChatListSortPosition() {
+	auto chatListDate = [this]() {
+		if (auto draft = cloudDraft()) {
+			if (draft->date > lastMsgDate) {
+				return draft->date;
+			}
+		}
+		return lastMsgDate;
+	};
+
+	_sortKeyInChatList = dialogPosFromDate(chatListDate());
+	if (App::main() && needUpdateInChatList()) {
 		App::main()->createDialog(this);
 	}
 }

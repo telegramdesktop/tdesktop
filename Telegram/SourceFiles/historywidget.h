@@ -632,6 +632,9 @@ public:
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
+	void saveFieldToHistoryLocalDraft();
+
+	void applyCloudDraft(History *history);
 
 	void contactsReceived();
 	void updateToEndVisibility();
@@ -781,6 +784,7 @@ public slots:
 
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);
+	void onCloudDraftSave();
 
 	void updateStickers();
 
@@ -959,7 +963,7 @@ private:
 	Q_DECLARE_FLAGS(TextUpdateEvents, TextUpdateEvent);
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
 
-	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
+	void writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDraft);
 	void writeDrafts(History *history);
 	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory);
 	void clearFieldText(TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory) {
@@ -1088,7 +1092,7 @@ private:
 
 	uint64 _saveDraftStart = 0;
 	bool _saveDraftText = false;
-	QTimer _saveDraftTimer;
+	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
 	PlainShadow _sideShadow, _topShadow;
 	bool _inGrab = false;

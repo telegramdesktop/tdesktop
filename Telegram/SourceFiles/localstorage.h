@@ -116,9 +116,9 @@ namespace Local {
 		TextWithTags textWithTags;
 		bool previewCancelled;
 	};
-	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft);
+	void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const MessageDraft &editDraft);
 	void readDraftsWithCursors(History *h);
-	void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const MessageCursor &editCursor);
+	void writeDraftCursors(const PeerId &peer, const MessageCursor &localCursor, const MessageCursor &editCursor);
 	bool hasDraftCursors(const PeerId &peer);
 	bool hasDraft(const PeerId &peer);
 

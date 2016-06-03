@@ -3068,6 +3068,7 @@ void Text::clear() {
 		delete *i;
 	}
 	clearFields();
+	_text.clear();
 }
 
 void Text::clearFields() {
