@@ -35,6 +35,9 @@ public:
 
 void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground);
 
+void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::align align, bool active, bool muted, int *outUnreadWidth);
+void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted);
+
 // This will be moved somewhere outside as soon as anyone starts using that.
 class StyleSheet {
 public:

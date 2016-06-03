@@ -28,3 +28,4 @@ historyToDownPosition: point(12px, 10px);
 historyToDownArrow: icon {
 	{ "history_down_arrow", #b9b9b9, point(14px, 19px) },
 };
+historyToDownPaddingTop: 10px;

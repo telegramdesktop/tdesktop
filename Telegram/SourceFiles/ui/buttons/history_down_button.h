@@ -30,6 +30,11 @@ class HistoryDownButton : public Button {
 public:
 	HistoryDownButton(QWidget *parent);
 
+	void setUnreadCount(int unreadCount);
+	int unreadCount() const {
+		return _unreadCount;
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -41,6 +46,8 @@ private:
 
 	anim::fvalue a_arrowOpacity;
 	Animation _a_arrowOver;
+
+	int _unreadCount = 0;
 
 };
 

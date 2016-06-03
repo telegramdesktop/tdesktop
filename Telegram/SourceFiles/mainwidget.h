@@ -199,7 +199,7 @@ public:
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
-	void historyWasRead();
+	void markActiveHistoryAsRead();
 	void historyCleared(History *history);
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -228,7 +228,7 @@ public:
 	void updateOnlineDisplayIn(int32 msecs);
 
 	bool isActive() const;
-	bool historyIsActive() const;
+	bool doWeReadServerHistory() const;
 	bool lastWasOnline() const;
 	uint64 lastSetOnline() const;
 
@@ -291,7 +291,8 @@ public:
 	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
 
-    void readServerHistory(History *history, bool force = true);
+    void readServerHistory(History *history, ReadServerHistoryChecks checks = ReadServerHistoryChecks::OnlyIfUnread);
+	void unreadCountChanged(History *history);
 
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
@@ -480,8 +481,8 @@ public slots:
 private:
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
-	void channelWasRead(PeerData *peer, const MTPBool &result);
-    void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
+	void channelReadDone(PeerData *peer, const MTPBool &result);
+    void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
@@ -521,7 +522,11 @@ private:
 	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 
-	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	struct DeleteHistoryRequest {
+		PeerData *peer;
+		bool justClearHistory;
+	};
+	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
 	struct DeleteAllFromUserParams {
 		ChannelData *channel;
 		UserData *from;

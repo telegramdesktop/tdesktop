@@ -136,6 +136,8 @@ QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
 	return result;
 }
 
+} // namepsace
+
 void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted) {
 	int index = (active ? 0x01 : 0x00) | (muted ? 0x02 : 0x00);
 	int size = rect.height(), sizehalf = size / 2;
@@ -157,16 +159,21 @@ void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted) {
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), unreadBadgeStyle->right[index]);
 }
 
-void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool active, bool muted, int *outAvailableWidth) {
+void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::align align, bool active, bool muted, int *outUnreadWidth) {
 	int unreadWidth = st::dlgUnreadFont->width(text);
 	int unreadRectWidth = unreadWidth + 2 * st::dlgUnreadPaddingHor;
 	int unreadRectHeight = st::dlgUnreadHeight;
 	accumulate_max(unreadRectWidth, unreadRectHeight);
 
-	int unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
-	int unreadRectTop = top;
-	if (outAvailableWidth) {
-		*outAvailableWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
+	int unreadRectLeft = x;
+	if ((align & Qt::AlignHorizontal_Mask) & style::al_center) {
+		unreadRectLeft = (x - unreadRectWidth) / 2;
+	} else if ((align & Qt::AlignHorizontal_Mask) & style::al_right) {
+		unreadRectLeft = x - unreadRectWidth;
+	}
+	int unreadRectTop = y;
+	if (outUnreadWidth) {
+		*outUnreadWidth = unreadRectWidth;
 	}
 
 	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), active, muted);
@@ -175,8 +182,6 @@ void paintUnreadCount(Painter &p, const QString &text, int top, int w, bool acti
 	p.setPen(active ? st::dlgActiveUnreadColor : st::dlgUnreadColor);
 	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dlgUnreadTop + st::dlgUnreadFont->ascent, text);
 }
-
-} // namepsace
 
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto history = row->history();
@@ -199,8 +204,11 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 				counter = QString::number(unread);
 				mutedCounter = history->mute();
 			}
+			int unreadRight = w - st::dlgPaddingHor;
 			int unreadTop = texttop + st::dlgHistFont->ascent - st::dlgUnreadFont->ascent - st::dlgUnreadTop;
-			paintUnreadCount(p, counter, unreadTop, w, active, mutedCounter, &availableWidth);
+			int unreadWidth = 0;
+			paintUnreadCount(p, counter, unreadRight, unreadTop, style::al_right, active, mutedCounter, &unreadWidth);
+			availableWidth -= unreadWidth + st::dlgUnreadPaddingHor;
 			if (!showUnreadCounter) {
 				st::dialogsDraft.paint(p, QPoint(w - st::dlgPaddingHor - st::dlgUnreadHeight, unreadTop), w);
 			}
@@ -240,7 +248,8 @@ void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool o
 
 	if (mutedHidden) {
 		if (int32 unread = App::histories().unreadMutedCount()) {
-			paintUnreadCount(p, QString::number(unread), unreadTop, w, false, true, nullptr);
+			int unreadRight = w - st::dlgPaddingHor;
+			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, style::al_right, false, true, nullptr);
 		}
 	}
 }

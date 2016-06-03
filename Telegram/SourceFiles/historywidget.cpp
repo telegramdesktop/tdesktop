@@ -258,6 +258,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	}
 	uint64 ms = getms();
 
+	bool historyDisplayedEmpty = (_history->isDisplayedEmpty() && (!_migrated || _migrated->isDisplayedEmpty()));
+	bool noHistoryDisplayed = _firstLoading || historyDisplayedEmpty;
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		if (r.y() < _botAbout->rect.y() + _botAbout->rect.height() && r.y() + r.height() > _botAbout->rect.y()) {
 			textstyleSet(&st::inTextStyle);
@@ -271,11 +273,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 			textstyleRestore();
 		}
-	} else if (_firstLoading || (_history->isEmpty() && (!_migrated || _migrated->isEmpty()))) {
+	} else if (noHistoryDisplayed) {
 		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
 		p.drawPixmap(dogPos, *cChatDogImage());
 	}
-	if (!_firstLoading) {
+	if (!noHistoryDisplayed) {
 		adjustCurrent(r.top());
 
 		SelectedItems::const_iterator selEnd = _selected.cend();
@@ -3862,6 +3864,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
 			onBotStart();
 		}
+		unreadCountChanged(_history); // set _historyToEnd badge.
 	} else {
 		clearFieldText();
 		doneShow();
@@ -4276,25 +4279,17 @@ void HistoryWidget::destroyUnreadBar() {
 }
 
 void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
-	if (App::wnd()->historyIsActive()) {
-		if (_history == history) {
-			historyWasRead();
-			if (_scroll.scrollTop() + 1 > _scroll.scrollTopMax()) {
-				destroyUnreadBar();
-			}
-		} else {
-			App::wnd()->notifySchedule(history, item);
-			history->setUnreadCount(history->unreadCount() + 1);
+	if (_history == history) {
+		if (_scroll.scrollTop() + 1 > _scroll.scrollTopMax()) {
+			destroyUnreadBar();
 		}
-	} else {
-		if (_history == history) {
-			if (_scroll.scrollTop() + 1 > _scroll.scrollTopMax()) {
-				destroyUnreadBar();
-			}
+		if (App::wnd()->doWeReadServerHistory()) {
+			historyWasRead(ReadServerHistoryChecks::ForceRequest);
+			return;
 		}
-		App::wnd()->notifySchedule(history, item);
-		history->setUnreadCount(history->unreadCount() + 1);
 	}
+	App::wnd()->notifySchedule(history, item);
+	history->setUnreadCount(history->unreadCount() + 1);
 }
 
 void HistoryWidget::historyToDown(History *history) {
@@ -4307,9 +4302,20 @@ void HistoryWidget::historyToDown(History *history) {
 	}
 }
 
-void HistoryWidget::historyWasRead(bool force) {
-	App::main()->readServerHistory(_history, force);
-	if (_migrated) App::main()->readServerHistory(_migrated, force);
+void HistoryWidget::historyWasRead(ReadServerHistoryChecks checks) {
+	App::main()->readServerHistory(_history, checks);
+	if (_migrated) {
+		App::main()->readServerHistory(_migrated, ReadServerHistoryChecks::OnlyIfUnread);
+	}
+}
+
+void HistoryWidget::unreadCountChanged(History *history) {
+	if (history == _history || history == _migrated) {
+		updateToEndVisibility();
+		if (_historyToEnd) {
+			_historyToEnd->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
+		}
+	}
 }
 
 void HistoryWidget::historyCleared(History *history) {
@@ -4469,10 +4475,19 @@ void HistoryWidget::windowShown() {
 	resizeEvent(0);
 }
 
-bool HistoryWidget::isActive() const {
-	if (!_history) return true;
+bool HistoryWidget::doWeReadServerHistory() const {
+	if (!_history || !_list) return true;
 	if (_firstLoadRequest || _a_show.animating()) return false;
-	if (_history->loadedAtBottom()) return true;
+	if (_history->loadedAtBottom()) {
+		int scrollTop = _scroll.scrollTop();
+		if (scrollTop + 1 > _scroll.scrollTopMax()) return true;
+
+		auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
+		if (showFrom && !showFrom->detached()) {
+			int scrollBottom = scrollTop + _scroll.height();
+			if (scrollBottom > _list->itemTop(showFrom)) return true;
+		}
+	}
 	if (_history->showFrom && !_history->showFrom->detached() && _history->unreadBar) return true;
 	if (_migrated && _migrated->showFrom && !_migrated->showFrom->detached() && _migrated->unreadBar) return true;
 	return false;
@@ -4604,8 +4619,15 @@ void HistoryWidget::onScroll() {
 
 void HistoryWidget::visibleAreaUpdated() {
 	if (_list && !_scroll.isHidden()) {
-		int st = _scroll.scrollTop();
-		_list->visibleAreaUpdated(st, st + _scroll.height());
+		int scrollTop = _scroll.scrollTop();
+		int scrollBottom = scrollTop + _scroll.height();
+		_list->visibleAreaUpdated(scrollTop, scrollBottom);
+		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
+			auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
+			if (showFrom && !showFrom->detached() && scrollBottom > _list->itemTop(showFrom) && App::wnd()->doWeReadServerHistory()) {
+				historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
+			}
+		}
 	}
 }
 
@@ -4872,13 +4894,13 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 }
 
 void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId) {
-	History *h = App::history(peer);
+	auto history = App::history(peer);
 
 	uint64 randomId = rand_value<uint64>();
 	FullMsgId newId(peerToChannel(peer), clientMsgId());
 
-	App::main()->readServerHistory(h, false);
-	fastShowAtEnd(h);
+	App::main()->readServerHistory(history);
+	fastShowAtEnd(history);
 
 	PeerData *p = App::peer(peer);
 	MTPDmessage::Flags flags = newMessageFlags(p) | MTPDmessage::Flag::f_media; // unread, out
@@ -4904,12 +4926,12 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
-	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, h->sendRequestId);
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
+	history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 
-	App::main()->finishForwarding(h, _silent.checked());
+	App::main()->finishForwarding(history, _silent.checked());
 	cancelReply(lastKeyboardUsed);
 }
 
@@ -6678,7 +6700,7 @@ void HistoryWidget::countHistoryShowFrom() {
 		_migrated->updateShowFrom();
 	}
 	if ((_migrated && _migrated->showFrom) || _showAtMsgId != ShowAtUnreadMsgId || !_history->unreadCount()) {
-		_history->showFrom = 0;
+		_history->showFrom = nullptr;
 		return;
 	}
 	_history->updateShowFrom();
@@ -6768,7 +6790,22 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 }
 
 void HistoryWidget::updateToEndVisibility() {
-	bool toEndVisible = !_a_show.animating() && _history && !_firstLoadRequest && (!_history->loadedAtBottom() || _replyReturn || _scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax());
+	auto isToEndVisible = [this]() {
+		if (!_history || _a_show.animating() || _firstLoadRequest) {
+			return false;
+		}
+		if (!_history->loadedAtBottom() || _replyReturn) {
+			return true;
+		}
+		if (_scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax()) {
+			return true;
+		}
+		if (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0)) {
+			return true;
+		}
+		return false;
+	};
+	bool toEndVisible = isToEndVisible();
 	if (toEndVisible && _historyToEnd->isHidden()) {
 		_historyToEnd->show();
 	} else if (!toEndVisible && !_historyToEnd->isHidden()) {
@@ -6849,7 +6886,7 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot) {
 	if (!_history || !result || !canSendMessages(_peer)) return;
 
-	App::main()->readServerHistory(_history, false);
+	App::main()->readServerHistory(_history);
 	fastShowAtEnd(_history);
 
 	uint64 randomId = rand_value<uint64>();
@@ -7029,7 +7066,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 		return;
 	}
 
-	App::main()->readServerHistory(_history, false);
+	App::main()->readServerHistory(_history);
 	fastShowAtEnd(_history);
 
 	uint64 randomId = rand_value<uint64>();
@@ -7084,7 +7121,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) {
 	if (!_history || !photo || !canSendMessages(_peer)) return;
 
-	App::main()->readServerHistory(_history, false);
+	App::main()->readServerHistory(_history);
 	fastShowAtEnd(_history);
 
 	uint64 randomId = rand_value<uint64>();

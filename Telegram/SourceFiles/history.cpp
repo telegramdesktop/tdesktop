@@ -1362,6 +1362,8 @@ void History::setUnreadCount(int newUnreadCount) {
 		} else if (!newUnreadCount) {
 			showFrom = nullptr;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
+		} else {
+			if (!showFrom && !unreadBar && loadedAtBottom()) updateShowFrom();
 		}
 		if (inChatList(Dialogs::Mode::All)) {
 			App::histories().unreadIncrement(newUnreadCount - _unreadCount, mute());
@@ -1370,6 +1372,9 @@ void History::setUnreadCount(int newUnreadCount) {
 			}
 		}
 		_unreadCount = newUnreadCount;
+		if (auto main = App::main()) {
+			main->unreadCountChanged(this);
+		}
 		if (unreadBar) {
 			int32 count = _unreadCount;
 			if (peer->migrateTo()) {
@@ -1749,6 +1754,10 @@ ChannelHistory *History::asChannelHistory() {
 
 const ChannelHistory *History::asChannelHistory() const {
 	return isChannel() ? static_cast<const ChannelHistory*>(this) : 0;
+}
+
+bool History::isDisplayedEmpty() const {
+	return isEmpty() || (blocks.size() == 1) && blocks.front()->items.size() == 1 && blocks.front()->items.front()->isEmpty();
 }
 
 void History::clear(bool leaveItems) {
@@ -7587,6 +7596,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		}
 	} break;
 
+	case mtpc_messageActionHistoryClear: {
+		text = QString();
+	} break;
+
 	case mtpc_messageActionChatDeletePhoto: {
 		text = isPost() ? lang(lng_action_removed_photo_channel) : lng_action_removed_photo(lt_from, from);
 	} break;
@@ -7893,34 +7906,40 @@ void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, u
 }
 
 int32 HistoryService::resizeGetHeight_(int32 width) {
-	int32 maxwidth = _history->width;
-	if (Adaptive::Wide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	if (width > maxwidth) width = maxwidth;
-	width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
-	if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
-
-	int32 nwidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 0);
-	if (nwidth != _textWidth) {
-		_textWidth = nwidth;
-		textstyleSet(&st::serviceTextStyle);
-		_textHeight = _text.countHeight(nwidth);
-		textstyleRestore();
-	}
-	if (width >= _maxw) {
-		_height = _minh;
-	} else {
-		_height = _textHeight;
-	}
-	_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
-	if (_media) {
-		_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->currentWidth());
-	}
-	_height += displayedDateHeight();
+	_height = displayedDateHeight();
 	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		_height += unreadbar->height();
 	}
+
+	if (_text.isEmpty()) {
+		_textHeight = 0;
+	} else {
+		int32 maxwidth = _history->width;
+		if (Adaptive::Wide()) {
+			maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+		}
+		if (width > maxwidth) width = maxwidth;
+		width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+		if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+
+		int32 nwidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 0);
+		if (nwidth != _textWidth) {
+			_textWidth = nwidth;
+			textstyleSet(&st::serviceTextStyle);
+			_textHeight = _text.countHeight(nwidth);
+			textstyleRestore();
+		}
+		if (width >= _maxw) {
+			_height += _minh;
+		} else {
+			_height += _textHeight;
+		}
+		_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
+		if (_media) {
+			_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->currentWidth());
+		}
+	}
+
 	return _height;
 }
 
