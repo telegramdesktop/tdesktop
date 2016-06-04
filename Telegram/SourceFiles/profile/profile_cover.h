@@ -117,6 +117,7 @@ private:
 
 	QPoint _statusPosition;
 	QString _statusText;
+	bool _statusTextIsOnline = false;
 
 	struct Button {
 		Ui::RoundButton *widget;

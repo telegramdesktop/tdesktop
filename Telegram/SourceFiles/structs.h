@@ -708,6 +708,7 @@ public:
 		return true;
 	}
 	void flagsUpdated();
+	void selfAdminUpdated();
 	bool isMegagroup() const {
 		return flags & MTPDchannel::Flag::f_megagroup;
 	}

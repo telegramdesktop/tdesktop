@@ -609,9 +609,11 @@ namespace {
 							}
 						}
 						Notify::migrateUpdated(channel);
+						update.flags |= UpdateFlag::MigrationChanged;
 					}
 					if (updatedTo) {
 						Notify::migrateUpdated(cdata);
+						update.flags |= UpdateFlag::MigrationChanged;
 					}
 				}
 
@@ -697,7 +699,10 @@ namespace {
 				if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
 				if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
 				if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-				if (wasEditor != cdata->amEditor()) update.flags |= UpdateFlag::ChannelAmEditor;
+				if (wasEditor != cdata->amEditor()) {
+					cdata->selfAdminUpdated();
+					update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
+				}
 			} break;
 			case mtpc_channelForbidden: {
 				auto &d(chat.c_channelForbidden());
@@ -729,7 +734,10 @@ namespace {
 				if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
 				if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
 				if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-				if (wasEditor != cdata->amEditor()) update.flags |= UpdateFlag::ChannelAmEditor;
+				if (wasEditor != cdata->amEditor()) {
+					cdata->selfAdminUpdated();
+					update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
+				}
 			} break;
 			}
 			if (!data) continue;

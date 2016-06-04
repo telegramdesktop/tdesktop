@@ -61,7 +61,9 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_name.setSelectable(true);
 	_name.setContextCopyText(lang(lng_profile_copy_fullname));
 
-	auto observeEvents = ButtonsUpdateFlags | UpdateFlag::NameChanged;
+	auto observeEvents = ButtonsUpdateFlags
+		| UpdateFlag::NameChanged
+		| UpdateFlag::UserOnlineChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
 	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
 
@@ -178,7 +180,7 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::profileBg);
 
 	p.setFont(st::profileStatusFont);
-	p.setPen(st::profileStatusFg);
+	p.setPen(_statusTextIsOnline ? st::profileStatusFgActive : st::profileStatusFg);
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
 
 	paintDivider(p);
@@ -306,6 +308,9 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & UpdateFlag::NameChanged) {
 		refreshNameText();
 	}
+	if (update.flags & UpdateFlag::UserOnlineChanged) {
+		refreshStatusText();
+	}
 }
 
 void CoverWidget::refreshNameText() {
@@ -317,6 +322,7 @@ void CoverWidget::refreshStatusText() {
 	int currentTime = unixtime();
 	if (_peerUser) {
 		_statusText = App::onlineText(_peerUser, currentTime, true);
+		_statusTextIsOnline = App::onlineColorUse(_peerUser, currentTime);
 	} else if (_peerChat && _peerChat->amIn()) {
 		int fullCount = qMax(_peerChat->count, _peerChat->participants.size());
 		if (_onlineCount > 0 && _onlineCount <= fullCount) {

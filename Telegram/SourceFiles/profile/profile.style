@@ -54,6 +54,7 @@ profileStatusLeft: 27px;
 profileStatusTop: 35px;
 profileStatusFont: normalFont;
 profileStatusFg: windowSubTextFg;
+profileStatusFgActive: windowActiveTextFg;
 profileMarginBottom: 30px;
 
 profileActiveBg: #3fb0e4;

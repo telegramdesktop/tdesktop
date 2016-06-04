@@ -552,6 +552,16 @@ void ChannelData::flagsUpdated() {
 	}
 }
 
+void ChannelData::selfAdminUpdated() {
+	if (isMegagroup()) {
+		if (amEditor()) {
+			mgInfo->lastAdmins.insert(App::self());
+		} else {
+			mgInfo->lastAdmins.remove(App::self());
+		}
+	}
+}
+
 ChannelData::~ChannelData() {
 	delete mgInfo;
 }

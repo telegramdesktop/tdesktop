@@ -81,7 +81,9 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_backButton->moveToLeft(0, 0);
 	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
 
-	Notify::registerPeerObserver(ButtonsUpdateFlags, this, &FixedBar::notifyPeerUpdate);
+	auto observeEvents = ButtonsUpdateFlags
+		| UpdateFlag::MigrationChanged;
+	Notify::registerPeerObserver(observeEvents, this, &FixedBar::notifyPeerUpdate);
 
 	refreshRightActions();
 }
@@ -92,6 +94,13 @@ void FixedBar::notifyPeerUpdate(const Notify::PeerUpdate &update) {
 	}
 	if ((update.flags & ButtonsUpdateFlags) != 0) {
 		refreshRightActions();
+	}
+	if (update.flags & UpdateFlag::MigrationChanged) {
+		if (_peerChat && _peerChat->migrateTo()) {
+			auto channel = _peerChat->migrateTo();
+			onBack();
+			Ui::showPeerProfile(channel);
+		}
 	}
 }
 

@@ -45,7 +45,9 @@ MembersWidget::MembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(pare
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
 
-	auto observeEvents = UpdateFlag::AdminsChanged | UpdateFlag::MembersChanged | UpdateFlag::UserOnlineChanged;
+	auto observeEvents = UpdateFlag::AdminsChanged
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::UserOnlineChanged;
 	Notify::registerPeerObserver(observeEvents, this, &MembersWidget::notifyPeerUpdated);
 	FileDownload::registerImageLoadedObserver(this, &MembersWidget::repaintCallback);
 
