@@ -117,6 +117,7 @@ SOURCES += \
     ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/report_box.cpp \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
@@ -198,6 +199,8 @@ SOURCES += \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/twidget.cpp \
+    ./SourceFiles/window/section_widget.cpp \
+    ./SourceFiles/window/slide_animation.cpp \
     ./SourceFiles/window/top_bar_widget.cpp
 
 HEADERS += \
@@ -255,6 +258,7 @@ HEADERS += \
     ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/report_box.h \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
@@ -342,6 +346,9 @@ HEADERS += \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/twidget.h \
+    ./SourceFiles/window/section_memento.h \
+    ./SourceFiles/window/section_widget.h \
+    ./SourceFiles/window/slide_animation.h \
     ./SourceFiles/window/top_bar_widget.h
 
 win32 {
