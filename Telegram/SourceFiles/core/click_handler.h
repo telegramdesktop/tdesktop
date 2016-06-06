@@ -27,6 +27,7 @@ enum ExpandLinksMode {
 	ExpandLinksNone,
 	ExpandLinksShortened,
 	ExpandLinksAll,
+	ExpandLinksUrlOnly, // For custom urls leaves only url instead of text.
 };
 
 class ClickHandlerHost {
@@ -144,9 +145,11 @@ public:
 	}
 	static void hostDestroyed(ClickHandlerHost *host) {
 		if (_activeHost == host) {
+			if (_active) (*_active).clear();
 			_activeHost = nullptr;
 		}
 		if (_pressedHost == host) {
+			if (_pressed) (*_pressed).clear();
 			_pressedHost = nullptr;
 		}
 	}

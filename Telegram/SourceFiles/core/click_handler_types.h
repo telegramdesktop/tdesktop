@@ -193,6 +193,8 @@ private:
 
 };
 
+class PeerData;
+class UserData;
 class BotCommandClickHandler : public TextClickHandler {
 public:
 	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {
@@ -204,14 +206,30 @@ public:
 		return _cmd;
 	}
 
+	static void setPeerForCommand(PeerData *peer) {
+		_peer = peer;
+	}
+	static void setBotForCommand(UserData *bot) {
+		_bot = bot;
+	}
+
 	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;
 
 protected:
 	QString url() const override {
 		return _cmd;
 	}
+	static PeerData *peerForCommand() {
+		return _peer;
+	}
+	static UserData *botForCommand() {
+		return _bot;
+	}
 
 private:
 	QString _cmd;
+
+	static PeerData *_peer;
+	static UserData *_bot;
 
 };

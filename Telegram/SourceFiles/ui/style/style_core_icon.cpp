@@ -85,6 +85,11 @@ int MonoIcon::height() const {
 	return _size.height();
 }
 
+QSize MonoIcon::size() const {
+	ensureLoaded();
+	return _size;
+}
+
 QPoint MonoIcon::offset() const {
 	return _offset;
 }
@@ -100,6 +105,15 @@ void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw) const {
 		p.fillRect(partPosX, partPosY, w, h, _color);
 	} else {
 		p.drawPixmap(partPosX, partPosY, _pixmap);
+	}
+}
+
+void MonoIcon::fill(QPainter &p, const QRect &rect) const {
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(rect, _color);
+	} else {
+		p.drawPixmap(rect, _pixmap, QRect(0, 0, _pixmap.width(), _pixmap.height()));
 	}
 }
 
@@ -162,15 +176,26 @@ MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset, Owni
 }
 
 void Icon::paint(QPainter &p, const QPoint &pos, int outerw) const {
-	for_const (const auto &part, _parts) {
+	for_const (auto &part, _parts) {
 		part.paint(p, pos, outerw);
+	}
+}
+
+void Icon::fill(QPainter &p, const QRect &rect) const {
+	if (_parts.isEmpty()) return;
+
+	auto partSize = _parts.at(0).size();
+	for_const (auto &part, _parts) {
+		t_assert(part.offset() == QPoint(0, 0));
+		t_assert(part.size() == partSize);
+		part.fill(p, rect);
 	}
 }
 
 int Icon::width() const {
 	if (_width < 0) {
 		_width = 0;
-		for_const (const auto &part, _parts) {
+		for_const (auto &part, _parts) {
 			accumulate_max(_width, part.offset().x() + part.width());
 		}
 	}

@@ -50,7 +50,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , country(this, st::introCountry)
 , phone(this, st::inpIntroPhone)
 , code(this, st::inpIntroCountryCode)
-, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle)
+, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), FlatLabel::InitType::Rich, st::introErrLabel, st::introErrLabelTextStyle)
 , _showSignup(false)
 , sentRequest(0) {
 	setVisible(false);

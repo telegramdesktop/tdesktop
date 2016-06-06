@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "window/section_widget.h"
+
 class MainWidget;
 namespace Dialogs {
 class Row;
@@ -260,7 +262,10 @@ public:
 
 	void dialogsToUp();
 
-	void animShow(const QPixmap &bgAnimCache);
+	bool hasTopBarShadow() const {
+		return true;
+	}
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 
 	void destroyData();
@@ -338,7 +343,7 @@ private:
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	PeerData *_searchInPeer, *_searchInMigrated;
 

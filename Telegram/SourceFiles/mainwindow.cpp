@@ -35,9 +35,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/addcontactbox.h"
+#include "observer_peer.h"
 #include "autoupdater.h"
 #include "mediaview.h"
 #include "localstorage.h"
+#include "apiwrap.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
@@ -435,7 +437,7 @@ void MainWindow::init() {
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Window, st::wndBG->c);
+	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);
 
 	title = new TitleWidget(this);
@@ -611,10 +613,6 @@ void MainWindow::setupIntro(bool anim) {
 		MTP::cancel(_serviceHistoryRequest);
 		_serviceHistoryRequest = 0;
 	}
-}
-
-void MainWindow::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
-	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
 }
 
 void MainWindow::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
@@ -1374,7 +1372,7 @@ void MainWindow::onClearFailed(int task, void *manager) {
 }
 
 void MainWindow::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !main) return;
+	if (App::quitting() || !history->currentNotification() || !App::api()) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
@@ -1394,7 +1392,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 						return;
 					}
 				} else {
-					App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input));
+					App::api()->requestNotifySetting(notifyByFrom);
 				}
 			} else {
 				history->popNotification(item);
@@ -1403,9 +1401,9 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 		}
 	} else {
 		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
-			App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input), 10);
+			App::api()->requestNotifySetting(notifyByFrom);
 		}
-		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
+		App::api()->requestNotifySetting(history->peer);
 	}
 	if (!item->notificationReady()) {
 		haveSetting = false;
@@ -1420,6 +1418,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 	} else if (cOtherOnline() >= t) {
 		delay = Global::NotifyDefaultDelay();
 	}
+//	LOG(("Is online: %1, otherOnline: %2, currentTime: %3, otherNotOld: %4, otherLaterThanMe: %5").arg(Logs::b(isOnline)).arg(cOtherOnline()).arg(t).arg(Logs::b(otherNotOld)).arg(Logs::b(otherLaterThanMe)));
 
 	uint64 when = ms + delay;
 	notifyWhenAlerts[history].insert(when, notifyByFrom);
@@ -1882,8 +1881,15 @@ void MainWindow::sendPaths() {
 
 void MainWindow::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (main) main->mediaOverviewUpdated(peer, type);
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->mediaOverviewUpdated(peer, type);
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->mediaOverviewUpdated(peer, type);
+	}
+	if (type != OverviewCount) {
+		Notify::PeerUpdate update(peer);
+		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+		update.mediaTypesMask |= (1 << type);
+		Notify::peerUpdatedDelayed(update);
+	}
 }
 
 void MainWindow::documentUpdated(DocumentData *doc) {

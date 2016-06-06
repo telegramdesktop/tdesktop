@@ -210,9 +210,11 @@ slider {
 
 flatLabel {
 	font: font;
-	minWidth: pixels;
+	margin: margins;
 	width: pixels;
 	align: align;
+	textFg: color;
+	maxHeight: pixels;
 }
 
 switcher {
@@ -305,6 +307,8 @@ BoxButton {
 	height: pixels;
 
 	textTop: pixels;
+
+	icon: icon;
 
 	font: font;
 	duration: int;
@@ -410,4 +414,19 @@ InputField {
 PeerAvatarButton {
 	size: pixels;
 	photoSize: pixels;
+}
+
+OutlineButton {
+	outlineWidth: pixels;
+	outlineFg: color;
+	outlineFgOver: color;
+
+	textBg: color;
+	textBgOver: color;
+
+	textFg: color;
+	textFgOver: color;
+
+	font: font;
+	padding: margins;
 }

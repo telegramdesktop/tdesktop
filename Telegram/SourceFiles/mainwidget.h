@@ -33,6 +33,9 @@ class PeerAvatarButton;
 
 namespace Window {
 class TopBarWidget;
+class SectionMemento;
+class SectionWidget;
+struct SectionSlideParams;
 } // namespace Window
 
 class MainWindow;
@@ -40,7 +43,6 @@ class ApiWrap;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
-class ProfileWidget;
 class OverviewWidget;
 class PlayerWidget;
 class HistoryHider;
@@ -48,7 +50,7 @@ class Dropdown;
 
 enum StackItemType {
 	HistoryStackItem,
-	ProfileStackItem,
+	SectionStackItem,
 	OverviewStackItem,
 };
 
@@ -64,8 +66,9 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer),
-msgId(msgId), replyReturns(replyReturns) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer)
+		, msgId(msgId)
+		, replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
@@ -74,19 +77,29 @@ msgId(msgId), replyReturns(replyReturns) {
 	QList<MsgId> replyReturns;
 };
 
-class StackItemProfile : public StackItem {
+class StackItemSection : public StackItem {
 public:
-	StackItemProfile(PeerData *peer, int32 lastScrollTop) : StackItem(peer), lastScrollTop(lastScrollTop) {
-	}
+	StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento);
+	~StackItemSection();
+
 	StackItemType type() const {
-		return ProfileStackItem;
+		return SectionStackItem;
 	}
-	int32 lastScrollTop;
+	Window::SectionMemento *memento() const {
+		return _memento.get();
+	}
+
+private:
+	std_::unique_ptr<Window::SectionMemento> _memento;
+
 };
 
 class StackItemOverview : public StackItem {
 public:
-	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), mediaType(mediaType), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer)
+		, mediaType(mediaType)
+		, lastWidth(lastWidth)
+		, lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return OverviewStackItem;
@@ -173,8 +186,6 @@ public:
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
-	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange);
 
@@ -210,14 +221,14 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 
-	PeerData *profilePeer();
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
-	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1);
+	void showWideSection(const Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	void orderWidgets();
 	QRect historyRect() const;
+	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 
 	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
 	void onSendFileCancel(const FileLoadResultPtr &file);
@@ -262,6 +273,7 @@ public:
 	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
+	void deleteAndExit(ChatData *chat);
 	void clearHistory(PeerData *peer);
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
@@ -313,7 +325,6 @@ public:
 	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
-	void peerUsernameChanged(PeerData *peer);
 
 	void checkLastUpdate(bool afterSleep);
 	void showAddContact();
@@ -483,10 +494,9 @@ public slots:
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 private:
-
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
-    void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
+	void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
@@ -495,6 +505,15 @@ private:
 
 	void saveCloudDraftDone(PeerData *peer, const MTPBool &result, mtpRequestId requestId);
 	bool saveCloudDraftFail(PeerData *peer, const RPCError &error, mtpRequestId requestId);
+
+	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
+	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back);
+
+	// All this methods use the prepareShowAnimation().
+	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
+	Window::SectionSlideParams prepareOverviewAnimation();
+	Window::SectionSlideParams prepareDialogsAnimation();
 
 	bool _started = false;
 
@@ -565,9 +584,11 @@ private:
 
 	int _dialogsWidth = st::dlgMinWidth;
 
+	PlainShadow _sideShadow;
+
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
-	ChildWidget<ProfileWidget> _profile = { nullptr };
+	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;

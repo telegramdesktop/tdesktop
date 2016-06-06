@@ -30,18 +30,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "observer_peer.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
-, _user(0)
 , _save(this, lang(lng_add_contact), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), lname)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
-, _invertOrder(langFirstNameGoesSecond())
-, _contactId(0)
-, _addRequest(0) {
+, _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone.setDisabled(true);
 	}
@@ -56,10 +54,8 @@ AddContactBox::AddContactBox(UserData *user) : AbstractBox(st::boxWidth)
 , _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), user->firstName)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
-, _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone)
-, _invertOrder(langFirstNameGoesSecond())
-, _contactId(0)
-, _addRequest(0) {
+, _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
+, _invertOrder(langFirstNameGoesSecond()) {
 	_phone.setDisabled(true);
 	initBox();
 }
@@ -190,7 +186,7 @@ void AddContactBox::onSave() {
 	_sentName = firstName;
 	if (_user) {
 		_contactId = rand_value<uint64>();
-		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_user->phone), MTP_string(firstName), MTP_string(lastName)));
+		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_user->phone()), MTP_string(firstName), MTP_string(lastName)));
 		_addRequest = MTP::send(MTPcontacts_ImportContacts(MTP_vector<MTPInputContact>(v), MTP_bool(false)), rpcDone(&AddContactBox::onSaveUserDone), rpcFail(&AddContactBox::onSaveUserFail));
 	} else {
 		_contactId = rand_value<uint64>();
@@ -206,7 +202,7 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 	QString err(error.type());
 	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
-		_user->updateName(firstName, QString(), QString());
+		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
 		emit closed();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
@@ -548,7 +544,7 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	_creationRequestId = 0;
 	if (result.type() == mtpc_chatInviteExported) {
-		_createdChannel->invitationUrl = qs(result.c_chatInviteExported().vlink);
+		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
 	}
 	Ui::showLayer(new SetupChannelBox(_createdChannel));
 }
@@ -712,7 +708,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::btnDefLink.color);
-			p.drawText(_invitationLink, _channel->invitationUrl, option);
+			p.drawText(_invitationLink, _channel->inviteLink(), option);
 			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 				p.setOpacity(a_goodOpacity.current());
 				p.setPen(st::setGoodColor);
@@ -753,7 +749,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->invitationUrl);
+		Application::clipboard()->setText(_channel->inviteLink());
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
 		_a_goodFade.start();
@@ -1140,7 +1136,9 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 	_requestId = 0;
 	QString err(error.type());
 	if (err == qstr("CHAT_TITLE_NOT_MODIFIED") || err == qstr("CHAT_NOT_MODIFIED")) {
-		_peer->updateName(_sentName, QString(), QString());
+		if (auto chatData = _peer->asChat()) {
+			chatData->setName(_sentName);
+		}
 		emit closed();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {
@@ -1162,7 +1160,7 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
-, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about)
+, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature())
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton)
 , _saveTitleRequestId(0)
@@ -1303,7 +1301,7 @@ void EditChannelBox::onPublicLink() {
 }
 
 void EditChannelBox::saveDescription() {
-	if (_sentDescription == _channel->about) {
+	if (_sentDescription == _channel->about()) {
 		saveSign();
 	} else {
 		_saveDescriptionRequestId = MTP::send(MTPchannels_EditAbout(_channel->inputChannel, MTP_string(_sentDescription)), rpcDone(&EditChannelBox::onSaveDescriptionDone), rpcFail(&EditChannelBox::onSaveFail));
@@ -1338,9 +1336,10 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	} else if (req == _saveDescriptionRequestId) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
-			_channel->about = _sentDescription;
-			if (App::api()) {
-				emit App::api()->fullPeerUpdated(_channel);
+			if (_channel->setAbout(_sentDescription)) {
+				if (App::api()) {
+					emit App::api()->fullPeerUpdated(_channel);
+				}
 			}
 			saveSign();
 			return true;
@@ -1367,9 +1366,10 @@ void EditChannelBox::onSaveTitleDone(const MTPUpdates &updates) {
 
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
-	_channel->about = _sentDescription;
-	if (App::api()) {
-		emit App::api()->fullPeerUpdated(_channel);
+	if (_channel->setAbout(_sentDescription)) {
+		if (App::api()) {
+			emit App::api()->fullPeerUpdated(_channel);
+		}
 	}
 	saveSign();
 }

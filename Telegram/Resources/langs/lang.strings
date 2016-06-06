@@ -117,8 +117,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
 
-"lng_channel_members_link" = "{count:_not_used_|# member|# members} »";
-"lng_channel_admins_link" = "{count:Manage administrators|# administrator|# administrators} »";
+"lng_channel_members_link" = "{count:_not_used_|# member|# members}";
+"lng_channel_admins_link" = "{count:_not_used_|# administrator|# administrators}";
 
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
@@ -405,12 +405,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_actions_section" = "Actions";
 "lng_profile_bot_settings" = "Settings";
 "lng_profile_bot_help" = "Help";
+"lng_profile_invite_link_section" = "Invite link";
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
+"lng_profile_manage_admins" = "Manage administrators";
 "lng_profile_participants_section" = "Members";
-"lng_profile_info" = "Contact info";
-"lng_profile_group_info" = "Group info";
-"lng_profile_channel_info" = "Channel info";
+"lng_profile_info_section" = "Info";
+"lng_profile_mobile_number" = "Mobile:";
+"lng_profile_username" = "Username:";
+"lng_profile_link" = "Link:";
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
 "lng_profile_enable_notifications" = "Notifications";
@@ -421,6 +424,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_channel" = "Delete channel";
 "lng_profile_leave_group" = "Leave group";
 "lng_profile_delete_group" = "Delete group";
+"lng_profile_report" = "Report";
 "lng_profile_search_messages" = "Search for messages";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
@@ -432,6 +436,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
+"lng_profile_view_channel" = "View Channel";
+"lng_profile_join_channel" = "Join";
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
 "lng_profile_admin" = "admin";
@@ -441,20 +447,33 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_loading" = "Loading...";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_no_media" = "No media in this conversation.";
-"lng_profile_photos" = "{count:_not_used_|# photo|# photos} »";
+"lng_profile_photos" = "{count:_not_used_|# photo|# photos}";
 "lng_profile_photos_header" = "Photos overview";
-"lng_profile_videos" = "{count:_not_used_|# video file|# video files} »";
+"lng_profile_videos" = "{count:_not_used_|# video file|# video files}";
 "lng_profile_videos_header" = "Video files overview";
-"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files} »";
+"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files}";
 "lng_profile_songs_header" = "Audio files overview";
-"lng_profile_files" = "{count:_not_used_|# file|# files} »";
+"lng_profile_files" = "{count:_not_used_|# file|# files}";
 "lng_profile_files_header" = "Files overview";
-"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
+"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages}";
 "lng_profile_audios_header" = "Voice messages overview";
-"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links} »";
+"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links}";
 "lng_profile_shared_links_header" = "Shared links overview";
 "lng_profile_copy_phone" = "Copy phone number";
 "lng_profile_copy_fullname" = "Copy name";
+"lng_profile_drop_area_title" = "Drop your image here";
+"lng_profile_drop_area_subtitle" = "to set it as a group photo";
+"lng_profile_drop_area_subtitle_channel" = "to set it as a channel photo";
+"lng_profile_top_bar_share_contact" = "Share";
+
+"lng_report_title" = "Report channel";
+"lng_report_reason_spam" = "Spam";
+"lng_report_reason_violence" = "Violence";
+"lng_report_reason_pornography" = "Pornography";
+"lng_report_reason_other" = "Other";
+"lng_report_reason_description" = "Description";
+"lng_report_button" = "Report";
+"lng_report_thanks" = "Thank you! Your report will be reviewed by our team very soon.";
 
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
@@ -550,6 +569,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_sticker" = "a sticker";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
+"lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
+"lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";
 "lng_profile_migrate_feature1" = "— The members limit is {count:_not_used_|# user|# users}";
 "lng_profile_migrate_feature2" = "— New members see the entire chat history";
@@ -583,7 +604,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
-"lng_group_invite_about_new" = "Your previous link will be deactivated\nand we'll generate a new invite link for you.";
+"lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are too many members in it already.";
 
@@ -902,6 +923,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 // Not used
 
 "lng_topbar_info" = "Info";
+"lng_profile_group_info" = "Group info";
+"lng_profile_channel_info" = "Channel info";
 
 // Wnd specific
 

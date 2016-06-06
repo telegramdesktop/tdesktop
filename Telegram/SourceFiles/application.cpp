@@ -27,9 +27,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "lang.h"
 #include "boxes/confirmbox.h"
+#include "ui/filedialog.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
+#include "core/observer.h"
+#include "observer_peer.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -200,6 +203,7 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
+	Notify::startObservers();
 	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
@@ -336,6 +340,8 @@ void Application::closeApplication() {
 	if (_updateThread) _updateThread->quit();
 	_updateThread = 0;
 #endif
+
+	Notify::finishObservers();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -900,6 +906,18 @@ void AppClass::call_handleUnreadCounterUpdate() {
 	if (auto w = App::wnd()) {
 		w->updateUnreadCounter();
 	}
+}
+
+void AppClass::call_handleFileDialogQueue() {
+	while (true) {
+		if (!FileDialog::processQuery()) {
+			return;
+		}
+	}
+}
+
+void AppClass::call_handleDelayedPeerUpdates() {
+	Notify::peerUpdatedSendDelayed();
 }
 
 void AppClass::killDownloadSessions() {

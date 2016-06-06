@@ -641,7 +641,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
 		_menu->addAction(lang(lng_profile_delete_conversation), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
 		if (_menuPeer->asUser()->access != UserNoAccess && _menuPeer != App::self()) {
-			_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
+			_menu->addAction(lang(_menuPeer->asUser()->isBlocked() ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
 			connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 		}
 	} else if (_menuPeer->isChat()) {
@@ -662,7 +662,7 @@ bool DialogsInner::menuPeerMuted() {
 
 void DialogsInner::onContextProfile() {
 	if (!_menuPeer) return;
-	App::main()->showPeerProfile(_menuPeer);
+	Ui::showPeerProfile(_menuPeer);
 }
 
 void DialogsInner::onContextToggleNotifications() {
@@ -718,7 +718,7 @@ void DialogsInner::onContextDeleteAndLeaveSure() {
 
 void DialogsInner::onContextToggleBlock() {
 	if (!_menuPeer || !_menuPeer->isUser()) return;
-	if (_menuPeer->asUser()->blocked == UserIsBlocked) {
+	if (_menuPeer->asUser()->isBlocked()) {
 		MTP::send(MTPcontacts_Unblock(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), false)));
 	} else {
 		MTP::send(MTPcontacts_Block(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), true)));
@@ -726,7 +726,7 @@ void DialogsInner::onContextToggleBlock() {
 }
 
 void DialogsInner::contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result) {
-	data.first->blocked = data.second ? UserIsBlocked : UserIsNotBlocked;
+	data.first->setBlockStatus(data.second ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	emit App::main()->peerUpdated(data.first);
 }
 
@@ -935,7 +935,7 @@ void DialogsInner::updateNotifySettings(PeerData *peer) {
 
 void DialogsInner::peerUpdated(PeerData *peer) {
 	if (_menu && _menuPeer == peer && _menuPeer->isUser() && _menu->actions().size() > 5) {
-		_menu->actions().at(5)->setText(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
+		_menu->actions().at(5)->setText(lang(_menuPeer->asUser()->isBlocked() ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
 	}
 }
 
@@ -1842,27 +1842,32 @@ void DialogsWidget::dialogsToUp() {
 	}
 }
 
-void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
+void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
 	if (App::app()) App::app()->mtpPause();
 
-	bool back = true;
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+	_cacheUnder = params.oldContentCache;
+	show();
+	_cacheOver = App::main()->grabForShowAnimation(params);
 
 	_a_show.stop();
-
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 
 	_scroll.hide();
 	_filter.hide();
 	_cancelSearch.hide();
 	_newGroup.hide();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	int delta = st::slideShift;
+	if (direction == Window::SlideDirection::FromLeft) {
+		a_progress = anim::fvalue(1, 0);
+		std::swap(_cacheUnder, _cacheOver);
+		a_coordUnder = anim::ivalue(-delta, 0);
+		a_coordOver = anim::ivalue(0, width());
+	} else {
+		a_progress = anim::fvalue(0, 1);
+		a_coordUnder = anim::ivalue(0, -delta);
+		a_coordOver = anim::ivalue(width(), 0);
+	}
 	_a_show.start();
-
-	show();
 }
 
 void DialogsWidget::step_show(float64 ms, bool timer) {
@@ -1872,7 +1877,7 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
-		a_shadow.finish();
+		a_progress.finish();
 
 		_cacheUnder = _cacheOver = QPixmap();
 
@@ -1887,7 +1892,7 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 	} else {
 		a_coordUnder.update(dt, st::slideFunction);
 		a_coordOver.update(dt, st::slideFunction);
-		a_shadow.update(dt, st::slideFunction);
+		a_progress.update(dt, st::slideFunction);
 	}
 	if (timer) update();
 }
@@ -2474,15 +2479,16 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(r);
 	}
 	if (_a_show.animating()) {
+		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, _cacheUnder.height()));
+			p.setOpacity(a_progress.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::black);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
+		p.setOpacity(a_progress.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), _cacheOver.height() / retina), App::sprite(), st::slideShadow.rect());
 		return;
 	}
 	QRect above(0, 0, width(), _scroll.y());

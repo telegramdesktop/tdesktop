@@ -74,14 +74,15 @@ bool Processor::write(const structure::Module &module) const {
 	QFileInfo srcFile(module.filepath());
 	QString dstFilePath = dir.absolutePath() + '/' + destFileBaseName(module);
 
+	bool forceReGenerate = false;// !options_.rebuildDependencies;
 	common::ProjectInfo project = {
 		"codegen_style",
 		srcFile.fileName(),
 		"stdafx.h",
-		false,//!options_.rebuildDependencies, // forceReGenerate
+		forceReGenerate
 	};
 
-	SpriteGenerator spriteGenerator(module);
+	SpriteGenerator spriteGenerator(module, forceReGenerate);
 	if (!spriteGenerator.writeSprites()) {
 		return false;
 	}

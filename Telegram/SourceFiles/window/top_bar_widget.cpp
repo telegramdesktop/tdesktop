@@ -51,8 +51,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
 , _deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
-, _search(this, st::topBarSearch)
-, _sideShadow(this, st::shadowColor) {
+, _search(this, st::topBarSearch) {
 
 	connect(_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -82,17 +81,17 @@ void TopBarWidget::onClearSelection() {
 
 void TopBarWidget::onInfoClicked() {
 	PeerData *p = App::main() ? App::main()->historyPeer() : 0;
-	if (p) App::main()->showPeerProfile(p);
+	if (p) Ui::showPeerProfile(p);
 }
 
 void TopBarWidget::onAddContact() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
-	if (u) Ui::showLayer(new AddContactBox(u->firstName, u->lastName, u->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone));
+	if (u) Ui::showLayer(new AddContactBox(u->firstName, u->lastName, u->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone()));
 }
 
 void TopBarWidget::onEdit() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	if (p) {
 		if (p->isChannel()) {
 			Ui::showLayer(new EditChannelBox(p->asChannel()));
@@ -105,7 +104,7 @@ void TopBarWidget::onEdit() {
 }
 
 void TopBarWidget::onDeleteContact() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
 	if (u) {
 		ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, p->name), lang(lng_box_delete));
@@ -115,7 +114,7 @@ void TopBarWidget::onDeleteContact() {
 }
 
 void TopBarWidget::onDeleteContactSure() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
 	if (u) {
 		Ui::showChatsList();
@@ -125,7 +124,7 @@ void TopBarWidget::onDeleteContactSure() {
 }
 
 void TopBarWidget::onDeleteAndExit() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	ChatData *c = p ? p->asChat() : 0;
 	if (c) {
 		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name), lang(lng_box_leave), st::attentionBoxButton);
@@ -135,7 +134,7 @@ void TopBarWidget::onDeleteAndExit() {
 }
 
 void TopBarWidget::onDeleteAndExitSure() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	ChatData *c = p ? p->asChat() : 0;
 	if (c) {
 		Ui::showChatsList();
@@ -182,22 +181,28 @@ void TopBarWidget::step_appearance(float64 ms, bool timer) {
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (e->rect().top() < st::topBarHeight) { // optimize shadow-only drawing
-		p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
-		if (_clearSelection->isHidden()) {
-			p.save();
-			main()->paintTopBar(p, a_over.current(), _info->isHidden() ? 0 : _info->width());
-			p.restore();
-		} else {
-			p.setFont(st::linkFont->f);
-			p.setPen(st::btnDefLink.color->p);
-			p.drawText(_selStrLeft, st::topBarButton.textTop + st::linkFont->ascent, _selStr);
+	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
+	if (_clearSelection->isHidden()) {
+		p.save();
+		int decreaseWidth = 0;
+		if (!_info->isHidden()) {
+			decreaseWidth += _info->width();
+			decreaseWidth -= st::topBarForwardPadding.right();
 		}
+		if (!_search->isHidden()) {
+			decreaseWidth += _search->width();
+		}
+		main()->paintTopBar(p, a_over.current(), decreaseWidth);
+		p.restore();
+	} else {
+		p.setFont(st::linkFont);
+		p.setPen(st::btnDefLink.color);
+		p.drawText(_selStrLeft, st::topBarButton.textTop + st::linkFont->ascent, _selStr);
 	}
 }
 
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && (p || !_selCount)) {
 		emit clicked();
 	}
@@ -263,9 +268,6 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_addContact->isHidden()) _addContact->move(r -= _addContact->width(), 0);
 	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
 	_search->move(width() - (_info->isHidden() ? st::topBarForwardPadding.right() : _info->width()) - _search->width(), 0);
-
-	_sideShadow->resize(st::lineWidth, height());
-	_sideShadow->moveToLeft(0, 0);
 }
 
 void TopBarWidget::startAnim() {
@@ -285,7 +287,6 @@ void TopBarWidget::startAnim() {
 
 void TopBarWidget::stopAnim() {
 	_animating = false;
-	_sideShadow->setVisible(!Adaptive::OneColumn());
 	showAll();
 }
 
@@ -294,7 +295,7 @@ void TopBarWidget::showAll() {
 		resizeEvent(0);
 		return;
 	}
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
+	PeerData *p = nullptr/*App::main() ? App::main()->profilePeer() : 0*/, *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
 	if (p && (p->isChat() || (p->isUser() && (p->asUser()->contact >= 0 || !App::phoneFromSharedContact(peerToUser(p->id)).isEmpty())))) {
 		if (p->isChat()) {
 			if (p->asChat()->canEdit()) {
@@ -363,12 +364,11 @@ void TopBarWidget::showAll() {
 			_info->hide();
 		}
 	}
-	_sideShadow->setVisible(!Adaptive::OneColumn());
 	resizeEvent(nullptr);
 }
 
 void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	_selPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selCount = selCount;
 	_canDelete = canDelete;

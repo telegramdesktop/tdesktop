@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "apiwrap.h"
 
+#include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -94,6 +95,10 @@ void ApiWrap::resolveMessageDatas() {
 		}
 		++j;
 	}
+}
+
+void ApiWrap::updatesReceived(const MTPUpdates &updates) {
+	App::main()->sentUpdatesReceived(updates);
 }
 
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
@@ -174,8 +179,8 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_channel && vc.at(0).c_channel().vversion.v < peer->asChannel()->version);
 	}
 
-	App::feedUsers(d.vusers, false);
-	App::feedChats(d.vchats, false);
+	App::feedUsers(d.vusers);
+	App::feedChats(d.vchats);
 
 	if (peer->isChat()) {
 		if (d.vfull_chat.type() != mtpc_chatFull) {
@@ -206,9 +211,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		} else {
 			chat->photoId = 0;
 		}
-		chat->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	} else if (peer->isChannel()) {
 		if (d.vfull_chat.type() != mtpc_channelFull) {
 			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
@@ -217,6 +222,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		auto &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
+
+		auto canViewAdmins = channel->canViewAdmins();
+		auto canViewMembers = channel->canViewMembers();
+
 		channel->flagsFull = f.vflags.v;
 		if (photo) {
 			channel->photoId = photo->id;
@@ -267,17 +276,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} break;
 			}
 		}
-		channel->about = qs(f.vabout);
-		int32 newCount = f.has_participants_count() ? f.vparticipants_count.v : 0;
-		if (newCount != channel->count) {
-			if (channel->isMegagroup() && !channel->mgInfo->lastParticipants.isEmpty()) {
-				channel->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-				channel->mgInfo->lastParticipantsCount = channel->count;
-			}
-			channel->count = newCount;
-		}
-		channel->adminsCount = f.has_admins_count() ? f.vadmins_count.v : 0;
-		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		channel->setAbout(qs(f.vabout));
+		channel->setMembersCount(f.has_participants_count() ? f.vparticipants_count.v : 0);
+		channel->setAdminsCount(f.has_admins_count() ? f.vadmins_count.v : 0);
+		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (History *h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
 				h->setUnreadCount(f.vunread_count.v);
@@ -294,7 +296,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		channel->fullUpdated();
 
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+		if (canViewAdmins != channel->canViewAdmins()) Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelCanViewAdmins);
+		if (canViewMembers != channel->canViewMembers()) Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelCanViewMembers);
+
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
 
 	if (req) {
@@ -313,18 +318,17 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-	App::emitPeerUpdated();
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const auto &d(result.c_userFull());
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
+	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
 	}
-	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
+	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
-		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+		notifySettingReceived(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 	}
 
 	if (d.has_bot_info()) {
@@ -332,8 +336,8 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	} else {
 		peer->asUser()->setBotInfoVersion(-1);
 	}
-	peer->asUser()->blocked = d.is_blocked() ? UserIsBlocked : UserIsNotBlocked;
-	peer->asUser()->about = d.has_about() ? qs(d.vabout) : QString();
+	peer->asUser()->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+	peer->asUser()->setAbout(d.has_about() ? qs(d.vabout) : QString());
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
@@ -343,7 +347,6 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
-	App::emitPeerUpdated();
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
@@ -538,14 +541,19 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		h->clearLastKeyboard();
 		if (App::main()) App::main()->updateBotKeyboard(h);
 	}
-	if (d.vcount.v > peer->count) {
-		peer->count = d.vcount.v;
-	} else if (v.count() > peer->count) {
-		peer->count = v.count();
+	int newMembersCount = qMax(d.vcount.v, v.count());
+	if (newMembersCount > peer->membersCount()) {
+		peer->setMembersCount(newMembersCount);
 	}
-	if (!bots && v.isEmpty()) {
-		peer->count = peer->mgInfo->lastParticipants.size();
+	if (!bots) {
+		if (v.isEmpty()) {
+			peer->setMembersCount(peer->mgInfo->lastParticipants.size());
+		}
+		Notify::PeerUpdate update(peer);
+		update.flags |= Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged;
+		Notify::peerUpdatedDelayed(update);
 	}
+
 	peer->mgInfo->botStatus = botStatus;
 	if (App::main()) emit fullPeerUpdated(peer);
 }
@@ -626,27 +634,33 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mtpRequestId req) {
 	_kickRequests.remove(kick);
 	if (kick.first->isMegagroup()) {
-		int32 i = kick.first->asChannel()->mgInfo->lastParticipants.indexOf(kick.second);
+		auto channel = kick.first->asChannel();
+		auto megagroupInfo = channel->mgInfo;
+
+		int32 i = megagroupInfo->lastParticipants.indexOf(kick.second);
 		if (i >= 0) {
-			kick.first->asChannel()->mgInfo->lastParticipants.removeAt(i);
+			megagroupInfo->lastParticipants.removeAt(i);
 		}
-		if (kick.first->asChannel()->count > 1) {
-			--kick.first->asChannel()->count;
+
+		if (channel->membersCount() > 1) {
+			channel->setMembersCount(channel->membersCount() - 1);
 		} else {
-			kick.first->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-			kick.first->asChannel()->mgInfo->lastParticipantsCount = 0;
+			megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+			megagroupInfo->lastParticipantsCount = 0;
 		}
-		if (kick.first->asChannel()->mgInfo->lastAdmins.contains(kick.second)) {
-			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
-			if (kick.first->asChannel()->adminsCount > 1) {
-				--kick.first->asChannel()->adminsCount;
+		if (megagroupInfo->lastAdmins.contains(kick.second)) {
+			megagroupInfo->lastAdmins.remove(kick.second);
+			if (channel->adminsCount() > 1) {
+				channel->setAdminsCount(channel->adminsCount() - 1);
 			}
+			Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
 		}
-		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
-		if (kick.first->asChannel()->mgInfo->bots.isEmpty() && kick.first->asChannel()->mgInfo->botStatus > 0) {
-			kick.first->asChannel()->mgInfo->botStatus = -1;
+		megagroupInfo->bots.remove(kick.second);
+		if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
+			megagroupInfo->botStatus = -1;
 		}
 	}
+	Notify::peerUpdatedDelayed(kick.first, Notify::PeerUpdate::Flag::MembersChanged);
 	emit fullPeerUpdated(kick.first);
 }
 
@@ -670,6 +684,156 @@ void ApiWrap::requestStickerSets() {
 		int32 wait = (j == e) ? 0 : 10;
 		i.value().second = MTP::send(MTPmessages_GetStickerSet(MTP_inputStickerSetID(MTP_long(i.key()), MTP_long(i.value().first))), rpcDone(&ApiWrap::gotStickerSet, i.key()), rpcFail(&ApiWrap::gotStickerSetFail, i.key()), 0, wait);
 	}
+}
+
+void ApiWrap::joinChannel(ChannelData *channel) {
+	if (channel->amIn()) {
+		channelAmInUpdated(channel);
+	} else if (!_channelAmInRequests.contains(channel)) {
+		auto requestId = MTP::send(MTPchannels_JoinChannel(channel->inputChannel), rpcDone(&ApiWrap::channelAmInDone, channel), rpcFail(&ApiWrap::channelAmInFail, channel));
+		_channelAmInRequests.insert(channel, requestId);
+	}
+}
+
+void ApiWrap::leaveChannel(ChannelData *channel) {
+	if (!channel->amIn()) {
+		channelAmInUpdated(channel);
+	} else if (!_channelAmInRequests.contains(channel)) {
+		auto requestId = MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), rpcDone(&ApiWrap::channelAmInDone, channel), rpcFail(&ApiWrap::channelAmInFail, channel));
+		_channelAmInRequests.insert(channel, requestId);
+	}
+}
+
+void ApiWrap::channelAmInUpdated(ChannelData *channel) {
+	Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
+}
+
+void ApiWrap::channelAmInDone(ChannelData *channel, const MTPUpdates &updates) {
+	_channelAmInRequests.remove(channel);
+
+	updatesReceived(updates);
+}
+
+bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_channelAmInRequests.remove(channel);
+	return true;
+}
+
+void ApiWrap::blockUser(UserData *user) {
+	if (user->isBlocked()) {
+		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
+	} else if (!_blockRequests.contains(user)) {
+		auto requestId = MTP::send(MTPcontacts_Block(user->inputUser), rpcDone(&ApiWrap::blockDone, user), rpcFail(&ApiWrap::blockFail, user));
+		_blockRequests.insert(user, requestId);
+	}
+}
+
+void ApiWrap::unblockUser(UserData *user) {
+	if (!user->isBlocked()) {
+		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
+	} else if (!_blockRequests.contains(user)) {
+		auto requestId = MTP::send(MTPcontacts_Unblock(user->inputUser), rpcDone(&ApiWrap::unblockDone, user), rpcFail(&ApiWrap::blockFail, user));
+		_blockRequests.insert(user, requestId);
+	}
+}
+
+void ApiWrap::blockDone(UserData *user, const MTPBool &result) {
+	_blockRequests.remove(user);
+	user->setBlockStatus(UserData::BlockStatus::Blocked);
+	emit App::main()->peerUpdated(user);
+}
+
+void ApiWrap::unblockDone(UserData *user, const MTPBool &result) {
+	_blockRequests.remove(user);
+	user->setBlockStatus(UserData::BlockStatus::NotBlocked);
+	emit App::main()->peerUpdated(user);
+}
+
+bool ApiWrap::blockFail(UserData *user, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_blockRequests.remove(user);
+	return true;
+}
+
+void ApiWrap::exportInviteLink(PeerData *peer) {
+	if (_exportInviteRequests.contains(peer)) {
+		return;
+	}
+
+	mtpRequestId request = 0;
+	if (auto chat = peer->asChat()) {
+		request = MTP::send(MTPmessages_ExportChatInvite(chat->inputChat), rpcDone(&ApiWrap::exportInviteDone, peer), rpcFail(&ApiWrap::exportInviteFail, peer));
+	} else if (auto channel = peer->asChannel()) {
+		request = MTP::send(MTPchannels_ExportInvite(channel->inputChannel), rpcDone(&ApiWrap::exportInviteDone, peer), rpcFail(&ApiWrap::exportInviteFail, peer));
+	}
+	if (request) {
+		_exportInviteRequests.insert(peer, request);
+	}
+}
+
+void ApiWrap::exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result) {
+	_exportInviteRequests.remove(peer);
+	if (auto chat = peer->asChat()) {
+		chat->setInviteLink((result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString());
+	} else if (auto channel = peer->asChannel()) {
+		channel->setInviteLink((result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString());
+	}
+}
+
+bool ApiWrap::exportInviteFail(PeerData *peer, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_exportInviteRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::requestNotifySetting(PeerData *peer) {
+	if (_notifySettingRequests.contains(peer)) return;
+
+	MTPInputNotifyPeer notifyPeer = MTP_inputNotifyPeer(peer->input);
+	auto requestId = MTP::send(MTPaccount_GetNotifySettings(notifyPeer), rpcDone(&ApiWrap::notifySettingDone, notifyPeer), rpcFail(&ApiWrap::notifySettingFail, peer));
+	_notifySettingRequests.insert(peer, requestId);
+}
+
+void ApiWrap::notifySettingDone(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &result) {
+	if (auto requestedPeer = notifySettingReceived(notifyPeer, result)) {
+		_notifySettingRequests.remove(requestedPeer);
+	}
+}
+
+PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &settings) {
+	PeerData *requestedPeer = nullptr;
+	switch (notifyPeer.type()) {
+	case mtpc_inputNotifyAll: App::main()->applyNotifySetting(MTP_notifyAll(), settings); break;
+	case mtpc_inputNotifyUsers: App::main()->applyNotifySetting(MTP_notifyUsers(), settings); break;
+	case mtpc_inputNotifyChats: App::main()->applyNotifySetting(MTP_notifyChats(), settings); break;
+	case mtpc_inputNotifyPeer: {
+		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer;
+		switch (peer.type()) {
+		case mtpc_inputPeerEmpty: App::main()->applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
+		case mtpc_inputPeerSelf: requestedPeer = App::self(); break;
+		case mtpc_inputPeerUser: requestedPeer = App::user(peerFromUser(peer.c_inputPeerUser().vuser_id)); break;
+		case mtpc_inputPeerChat: requestedPeer = App::chat(peerFromChat(peer.c_inputPeerChat().vchat_id)); break;
+		case mtpc_inputPeerChannel: requestedPeer = App::channel(peerFromChannel(peer.c_inputPeerChannel().vchannel_id)); break;
+		}
+		if (requestedPeer) {
+			App::main()->applyNotifySetting(MTP_notifyPeer(peerToMTP(requestedPeer->id)), settings);
+		}
+	} break;
+	}
+	App::wnd()->notifySettingGot();
+	return requestedPeer;
+}
+
+bool ApiWrap::notifySettingFail(PeerData *peer, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	notifySettingReceived(MTP_inputNotifyPeer(peer->input), MTP_peerNotifySettingsEmpty());
+	_notifySettingRequests.remove(peer);
+	return true;
 }
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {

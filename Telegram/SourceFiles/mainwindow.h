@@ -156,7 +156,6 @@ public:
 	void checkAutoLockIn(int msec);
 	void setupIntro(bool anim);
 	void setupMain(bool anim, const MTPUser *user = 0);
-	void getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait = 0);
 	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dropdown.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
+#include "window/section_widget.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -205,7 +206,7 @@ private:
 		Selecting     = 0x04,
 	};
 	DragAction _dragAction = NoDrag;
-	TextSelectType _dragSelType = TextSelectLetters;
+	TextSelectType _dragSelType = TextSelectType::Letters;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem = nullptr;
 	HistoryCursorState _dragCursorState = HistoryDefaultCursorState;
@@ -570,7 +571,10 @@ public:
 	void setMsgId(MsgId showAtMsgId);
 	MsgId msgId() const;
 
-	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
+	bool hasTopBarShadow() const {
+		return peer() != nullptr;
+	}
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
@@ -652,14 +656,17 @@ public:
 	bool contentOverlapped(const QRect &globalRect);
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
 	}
 
 	bool isItemVisible(HistoryItem *item);
@@ -1077,9 +1084,9 @@ private:
 	int32 _titlePeerTextWidth = 0;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;
@@ -1094,7 +1101,7 @@ private:
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab = false;
 
 };

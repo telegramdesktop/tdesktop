@@ -268,7 +268,7 @@ bool Checkbox::checked() const {
 	return _checked;
 }
 
-void Checkbox::setChecked(bool checked) {
+void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 	if (_checked != checked) {
 		_checked = checked;
 		if (_checked) {
@@ -277,9 +277,15 @@ void Checkbox::setChecked(bool checked) {
 			a_checked.start(0);
 		}
 		_a_checked.start();
-
-		emit changed();
+		if (notify == NotifyAboutChange::Notify) {
+			emit changed();
+		}
 	}
+}
+
+void Checkbox::finishAnimations() {
+	a_checked.finish();
+	_a_checked.stop();
 }
 
 void Checkbox::step_over(float64 ms, bool timer) {

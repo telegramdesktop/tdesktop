@@ -36,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
 #include "playerwidget.h"
+#include "observer_peer.h"
 
 namespace {
 
@@ -751,6 +752,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
 								peer->asChannel()->mgInfo->lastParticipants.push_front(user);
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 							}
 							if (user->botInfo) {
 								peer->asChannel()->mgInfo->bots.insert(user);
@@ -769,6 +771,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					if (result->from()->isUser()) {
 						if (peer->asChannel()->mgInfo->lastParticipants.indexOf(result->from()->asUser()) < 0) {
 							peer->asChannel()->mgInfo->lastParticipants.push_front(result->from()->asUser());
+							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						}
 						if (result->from()->asUser()->botInfo) {
 							peer->asChannel()->mgInfo->bots.insert(result->from()->asUser());
@@ -793,26 +796,31 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					if (App::main()) App::main()->updateBotKeyboard(this);
 				}
 				if (peer->isMegagroup()) {
-					if (UserData *user = App::userLoaded(uid)) {
-						int32 index = peer->asChannel()->mgInfo->lastParticipants.indexOf(user);
+					if (auto user = App::userLoaded(uid)) {
+						auto channel = peer->asChannel();
+						auto megagroupInfo = channel->mgInfo;
+
+						int32 index = megagroupInfo->lastParticipants.indexOf(user);
 						if (index >= 0) {
-							peer->asChannel()->mgInfo->lastParticipants.removeAt(index);
+							megagroupInfo->lastParticipants.removeAt(index);
+							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						}
-						if (peer->asChannel()->count > 1) {
-							--peer->asChannel()->count;
+						if (peer->asChannel()->membersCount() > 1) {
+							peer->asChannel()->setMembersCount(channel->membersCount() - 1);
 						} else {
-							peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-							peer->asChannel()->mgInfo->lastParticipantsCount = 0;
+							megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+							megagroupInfo->lastParticipantsCount = 0;
 						}
-						if (peer->asChannel()->mgInfo->lastAdmins.contains(user)) {
-							peer->asChannel()->mgInfo->lastAdmins.remove(user);
-							if (peer->asChannel()->adminsCount > 1) {
-								--peer->asChannel()->adminsCount;
+						if (megagroupInfo->lastAdmins.contains(user)) {
+							megagroupInfo->lastAdmins.remove(user);
+							if (channel->adminsCount() > 1) {
+								channel->setAdminsCount(channel->adminsCount() - 1);
 							}
+							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
 						}
-						peer->asChannel()->mgInfo->bots.remove(user);
-						if (peer->asChannel()->mgInfo->bots.isEmpty() && peer->asChannel()->mgInfo->botStatus > 0) {
-							peer->asChannel()->mgInfo->botStatus = -1;
+						megagroupInfo->bots.remove(user);
+						if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
+							megagroupInfo->botStatus = -1;
 						}
 					}
 				}
@@ -848,9 +856,10 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditTitle: {
-				const auto &d(action.c_messageActionChatEditTitle());
-				ChatData *chat = peer->asChat();
-				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
+				auto &d(action.c_messageActionChatEditTitle());
+				if (auto chat = peer->asChat()) {
+					chat->setName(qs(d.vtitle));
+				}
 			} break;
 
 			case mtpc_messageActionChatMigrateTo: {
@@ -1018,6 +1027,9 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 				}
 				if (prev) {
 					lastAuthors->push_front(adding->from()->asUser());
+				}
+				if (peer->isMegagroup()) {
+					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 				}
 			}
 		}
@@ -1194,6 +1206,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 							lastAuthors->push_back(item->from()->asUser());
 							if (peer->isMegagroup()) {
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 							}
 						}
 					}
@@ -1704,6 +1717,7 @@ void History::getReadyFor(MsgId msgId) {
 	}
 	if (!isReadyFor(msgId)) {
 		clear(true);
+
 		if (msgId == ShowAtTheEndMsgId) {
 			newLoaded = true;
 		}
@@ -2847,14 +2861,14 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
-RadialAnimation::RadialAnimation(AnimationCreator creator)
+RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
 : _firstStart(0)
 , _lastStart(0)
 , _lastTime(0)
 , _opacity(0)
 , a_arcEnd(0, 0)
 , a_arcStart(0, FullArcLength)
-, _animation(creator) {
+, _animation(std_::move(callbacks)) {
 
 }
 

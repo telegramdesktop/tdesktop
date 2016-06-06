@@ -184,6 +184,21 @@ public:
 
 	bool inFocusChain() const;
 
+	void hideChildren() {
+		for (auto child : children()) {
+			if (auto widget = qobject_cast<QWidget*>(child)) {
+				widget->hide();
+			}
+		}
+	}
+	void showChildren() {
+		for (auto child : children()) {
+			if (auto widget = qobject_cast<QWidget*>(child)) {
+				widget->show();
+			}
+		}
+	}
+
 };
 
 void myEnsureResized(QWidget *target);
@@ -193,12 +208,45 @@ class PlainShadow : public TWidget {
 public:
 	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
 	}
-	void paintEvent(QPaintEvent *e) {
+
+protected:
+	void paintEvent(QPaintEvent *e) override {
 		Painter(this).fillRect(e->rect(), _color->b);
 	}
 
 private:
 	const style::color &_color;
+
+};
+
+class ToggleableShadow : public TWidget {
+public:
+	ToggleableShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
+	}
+
+	enum class Mode {
+		Shown,
+		ShownFast,
+		Hidden,
+		HiddenFast
+	};
+	void setMode(Mode mode);
+
+	bool isFullyShown() const {
+		return _shown && _a_opacity.isNull();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void repaintCallback() {
+		update();
+	}
+
+	const style::color &_color;
+	FloatAnimation _a_opacity;
+	bool _shown = true;
 
 };
 
@@ -262,6 +310,20 @@ public:
 	// So we can pass this pointer to methods like connect().
 	operator T*() const {
 		return _widget;
+	}
+
+	void destroy() {
+		if (_widget) {
+			delete _widget;
+			_widget = nullptr;
+		}
+	}
+	void destroyDelayed() {
+		if (_widget) {
+			_widget->hide();
+			_widget->deleteLater();
+			_widget = nullptr;
+		}
 	}
 
 private:

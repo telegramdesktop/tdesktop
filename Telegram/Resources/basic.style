@@ -55,10 +55,15 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
+windowBg: #fff; // fallback for background: white
+windowTextFg: #000; // fallback for text color: black
+windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowActiveTextFg: #1485c2; // fallback for active color: blue online
+windowShadowFg: #000; // fallback for shadow color
+
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndBG: white;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
@@ -69,9 +74,10 @@ overBg: #edf2f5;
 
 labelDefFlat: flatLabel {
 	font: font(fsize);
-	minWidth: 100px;
 	width: 0px;
+	maxHeight: 0px;
 	align: align(left);
+	textFg: windowTextFg;
 }
 
 boxBg: white;
@@ -138,6 +144,29 @@ redBoxLinkButton: linkButton(defaultBoxLinkButton) {
 boxLabel: flatLabel(labelDefFlat) {
 	font: font(boxFontSize);
 	align: align(topleft);
+}
+
+defaultLeftOutlineButton: OutlineButton {
+	outlineWidth: 3px;
+	outlineFg: windowBg;
+	outlineFgOver: #3fb0e4;
+
+	textBg: windowBg;
+	textBgOver: #f2f7fa;
+
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+
+	font: normalFont;
+	padding: margins(11px, 6px, 11px, 6px);
+}
+attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
+	outlineFgOver: #e43f3f;
+
+	textBgOver: #faf2f2;
+
+	textFg: #d15948;
+	textFgOver: #d15948;
 }
 
 defaultInputArea: InputArea {
@@ -370,9 +399,10 @@ statusFont: font(fsize);
 versionColor: #777;
 
 shadowColor: rgba(0, 0, 0, 24);
+shadowToggleDuration: 200;
 
 slideDuration: 240;
-slideShift: 0.3;
+slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: sprite(348px, 71px, 48px, 1px);
 slideFunction: transition(easeOutCirc);
@@ -1657,18 +1687,18 @@ confirmCompressedSkip: 10px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
-profilePhotoSize: 120px;
-profileNameLeft: 21px;
-profileNameTop: -1px;
-profileNameFont: font(20px);
-profileStatusLeft: 22px;
-profileStatusTop: 31px;
-profileStatusFont: font(fsize);
+//profilePhotoSize: 120px;
+//profileNameLeft: 21px;
+//profileNameTop: -1px;
+//profileNameFont: font(20px);
+//profileStatusLeft: 22px;
+//profileStatusTop: 31px;
+//profileStatusFont: font(fsize);
 profilePhoneLeft: 22px;
 profilePhoneTop: 62px;
 profilePhoneFont: font(16px);
-profileButtonTop: 18px;
-profileButtonSkip: 10px;
+//profileButtonTop: 18px;
+//profileButtonSkip: 10px;
 profileHeaderFont: font(20px);
 profileHeaderColor: black;
 profileHeaderSkip: 59px;
@@ -2444,7 +2474,7 @@ inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
-inlineDescriptionFg: #8a8a8a;
+inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;
 inlineRowBorderFg: #eaeaea;

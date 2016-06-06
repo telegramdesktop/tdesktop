@@ -1590,7 +1590,7 @@ protected:
 class RadialAnimation {
 public:
 
-	RadialAnimation(AnimationCreator creator);
+	RadialAnimation(AnimationCallbacks &&callbacks);
 
 	float64 opacity() const {
 		return _opacity;
@@ -1811,9 +1811,9 @@ protected:
 	virtual bool dataLoaded() const = 0;
 
 	struct AnimationData {
-		AnimationData(AnimationCreator thumbOverCallbacks, AnimationCreator radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(thumbOverCallbacks)
-			, radial(radialCallbacks) {
+		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
+			, _a_thumbOver(std_::move(thumbOverCallbacks))
+			, radial(std_::move(radialCallbacks)) {
 		}
 		anim::fvalue a_thumbOver;
 		Animation _a_thumbOver;

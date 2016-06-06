@@ -53,10 +53,10 @@ struct TextParseOptions {
 };
 extern const TextParseOptions _defaultOptions, _textPlainOptions;
 
-enum TextSelectType {
-	TextSelectLetters    = 0x01,
-	TextSelectWords      = 0x02,
-	TextSelectParagraphs = 0x03,
+enum class TextSelectType {
+	Letters    = 0x01,
+	Words      = 0x02,
+	Paragraphs = 0x03,
 };
 
 struct TextSelection {
@@ -168,6 +168,9 @@ public:
 	}
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
+	bool isFullSelection(TextSelection selection) const {
+		return (selection.from == 0) && (selection.to >= _text.size());
+	}
 
 	bool isEmpty() const {
 		return _text.isEmpty();
