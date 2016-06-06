@@ -216,6 +216,7 @@ public:
 	}
 	AnimationCallbacks &operator=(AnimationCallbacks &&other) {
 		std::swap(_implementation, other._implementation);
+		return *this;
 	}
 
 	void start() { _implementation->start();  }

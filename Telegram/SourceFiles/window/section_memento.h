@@ -27,6 +27,8 @@ class SectionWidget;
 class SectionMemento {
 public:
 	virtual SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const = 0;
+	virtual ~SectionMemento() {
+	}
 
 };
 

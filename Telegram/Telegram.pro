@@ -69,6 +69,7 @@ SOURCES += \
     ./GeneratedFiles/styles/style_basic.cpp \
     ./GeneratedFiles/styles/style_basic_types.cpp \
     ./GeneratedFiles/styles/style_overview.cpp \
+    ./GeneratedFiles/styles/style_profile.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -87,6 +88,7 @@ SOURCES += \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/layout.cpp \
     ./SourceFiles/mediaview.cpp \
+    ./SourceFiles/observer_peer.cpp \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
     ./SourceFiles/playerwidget.cpp \
@@ -121,6 +123,7 @@ SOURCES += \
     ./SourceFiles/core/basic_types.cpp \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
+    ./SourceFiles/core/observer.cpp \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
@@ -150,9 +153,25 @@ SOURCES += \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/overview/overview_layout.cpp \
+    ./SourceFiles/profile/profile_actions_widget.cpp \
+    ./SourceFiles/profile/profile_block_widget.cpp \
+    ./SourceFiles/profile/profile_cover_drop_area.cpp \
+    ./SourceFiles/profile/profile_cover.cpp \
+    ./SourceFiles/profile/profile_fixed_bar.cpp \
+    ./SourceFiles/profile/profile_info_widget.cpp \
+    ./SourceFiles/profile/profile_inner_widget.cpp \
+    ./SourceFiles/profile/profile_invite_link_widget.cpp \
+    ./SourceFiles/profile/profile_members_widget.cpp \
+    ./SourceFiles/profile/profile_section_memento.cpp \
+    ./SourceFiles/profile/profile_settings_widget.cpp \
+    ./SourceFiles/profile/profile_shared_media_widget.cpp \
+    ./SourceFiles/profile/profile_userpic_button.cpp \
+    ./SourceFiles/profile/profile_widget.cpp \
     ./SourceFiles/serialize/serialize_common.cpp \
     ./SourceFiles/serialize/serialize_document.cpp \
+    ./SourceFiles/ui/buttons/left_outline_button.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
+    ./SourceFiles/ui/buttons/round_button.cpp \
     ./SourceFiles/ui/style/style_core.cpp \
     ./SourceFiles/ui/style/style_core_color.cpp \
     ./SourceFiles/ui/style/style_core_font.cpp \
@@ -187,6 +206,7 @@ HEADERS += \
     ./GeneratedFiles/styles/style_basic.h \
     ./GeneratedFiles/styles/style_basic_types.h \
     ./GeneratedFiles/styles/style_overview.h \
+    ./GeneratedFiles/styles/style_profile.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -206,6 +226,7 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/layout.h \
     ./SourceFiles/mediaview.h \
+    ./SourceFiles/observer_peer.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
     ./SourceFiles/playerwidget.h \
@@ -240,6 +261,8 @@ HEADERS += \
     ./SourceFiles/core/basic_types.h \
     ./SourceFiles/core/click_handler.h \
     ./SourceFiles/core/click_handler_types.h \
+    ./SourceFiles/core/observer.h \
+    ./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
@@ -273,10 +296,26 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/overview/overview_layout.h \
+    ./SourceFiles/profile/profile_actions_widget.h \
+    ./SourceFiles/profile/profile_block_widget.h \
+    ./SourceFiles/profile/profile_cover_drop_area.h \
+    ./SourceFiles/profile/profile_cover.h \
+    ./SourceFiles/profile/profile_fixed_bar.h \
+    ./SourceFiles/profile/profile_info_widget.h \
+    ./SourceFiles/profile/profile_inner_widget.h \
+    ./SourceFiles/profile/profile_invite_link_widget.h \
+    ./SourceFiles/profile/profile_members_widget.h \
+    ./SourceFiles/profile/profile_section_memento.h \
+    ./SourceFiles/profile/profile_settings_widget.h \
+    ./SourceFiles/profile/profile_shared_media_widget.h \
+    ./SourceFiles/profile/profile_userpic_button.h \
+    ./SourceFiles/profile/profile_widget.h \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/serialize/serialize_common.h \
     ./SourceFiles/serialize/serialize_document.h \
+    ./SourceFiles/ui/buttons/left_outline_button.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
+    ./SourceFiles/ui/buttons/round_button.h \
     ./SourceFiles/ui/style/style_core.h \
     ./SourceFiles/ui/style/style_core_color.h \
     ./SourceFiles/ui/style/style_core_font.h \
@@ -403,4 +442,6 @@ OTHER_FILES += \
     ./Resources/langs/lang_es.strings \
     ./Resources/langs/lang_de.strings \
     ./Resources/langs/lang_nl.strings \
-    ./Resources/langs/lang_pt_BR.strings
+    ./Resources/langs/lang_pt_BR.strings \
+    ./SourceFiles/overview/overview.style \
+    ./SourceFiles/profile/profile.style

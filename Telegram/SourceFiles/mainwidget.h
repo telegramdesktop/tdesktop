@@ -223,7 +223,7 @@ public:
 
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
-	void showWideSection(Window::SectionMemento &memento);
+	void showWideSection(const Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	void orderWidgets();
@@ -502,7 +502,7 @@ private:
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
-	void showWideSectionAnimated(Window::SectionMemento *memento, bool back);
+	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back);
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);

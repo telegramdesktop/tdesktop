@@ -106,9 +106,10 @@ QPixmap UserpicButton::prepareUserpicPixmap() const {
 	auto retina = cIntRetinaFactor();
 	auto size = st::profilePhotoSize * retina;
 	QImage image(size, size, QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&image);
-		p.fillRect(0, 0, size, size, st::profileBg);
+		p.fillRect(0, 0, st::profilePhotoSize, st::profilePhotoSize, st::profileBg);
 		_peer->paintUserpic(p, st::profilePhotoSize, 0, 0);
 	}
 	return App::pixmapFromImageInPlace(std_::move(image));

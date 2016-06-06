@@ -217,7 +217,7 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto uriListFormat = qsl("text/uri-list");
 	if (!mimeData->hasFormat(uriListFormat)) return false;
 
-	auto &urls = mimeData->urls();
+	const auto &urls = mimeData->urls();
 	if (urls.size() != 1) return false;
 
 	auto &url = urls.at(0);
@@ -273,7 +273,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	if (mimeData->hasImage()) {
 		img = qvariant_cast<QImage>(mimeData->imageData());
 	} else {
-		auto &urls = mimeData->urls();
+		const auto &urls = mimeData->urls();
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {

@@ -30,10 +30,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Profile {
 
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
-, _fixedBar(this, peer)
-, _fixedBarShadow(this, st::shadowColor)
 , _scroll(this, st::setScroll)
-, _inner(this, peer) {
+, _inner(this, peer)
+, _fixedBar(this, peer)
+, _fixedBarShadow(this, st::shadowColor) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
@@ -69,8 +69,8 @@ void Widget::setInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(Window::SectionMemento *memento) {
-	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento)) {
+bool Widget::showInternal(const Window::SectionMemento *memento) {
+	if (auto profileMemento = dynamic_cast<const SectionMemento*>(memento)) {
 		if (profileMemento->_peer == peer()) {
 			// Perhaps no need to do that?..
 			_scroll->scrollToY(profileMemento->_scrollTop);

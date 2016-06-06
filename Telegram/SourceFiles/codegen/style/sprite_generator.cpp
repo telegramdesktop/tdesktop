@@ -49,8 +49,8 @@ constexpr int kErrorCouldNotWrite     = 845;
 } // namespace
 
 SpriteGenerator::SpriteGenerator(const structure::Module &module, bool forceReGenerate)
-: forceReGenerate_(forceReGenerate)
-, module_(module)
+: module_(module)
+, forceReGenerate_(forceReGenerate)
 , basePath_(QFileInfo(module.filepath()).dir().absolutePath()) {
 }
 

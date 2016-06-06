@@ -2208,7 +2208,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	App::wnd()->getTitle()->updateBackButton();
 }
 
-void MainWidget::showWideSection(Window::SectionMemento &memento) {
+void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 	App::wnd()->hideSettings();
 	if (_wideSection && _wideSection->showInternal(&memento)) {
 		return;
@@ -2283,7 +2283,7 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 	return prepareShowAnimation(false);
 }
 
-void MainWidget::showWideSectionAnimated(Window::SectionMemento *memento, bool back) {
+void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, bool back) {
 	QPixmap animCache;
 
 	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);

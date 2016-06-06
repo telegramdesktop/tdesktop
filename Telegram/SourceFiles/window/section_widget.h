@@ -62,7 +62,7 @@ public:
 	// Attempt to show the required section inside the existing one.
 	// For example if this section already shows exactly the required
 	// memento it can simply return true - it is shown already.
-	virtual bool showInternal(SectionMemento *memento) = 0;
+	virtual bool showInternal(const SectionMemento *memento) = 0;
 
 	// Create a memento of that section to store it in the history stack.
 	virtual std_::unique_ptr<SectionMemento> createMemento() const = 0;

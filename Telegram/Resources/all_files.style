@@ -24,3 +24,4 @@ using "basic_types.style";
 using "basic.style";
 
 using "overview/overview.style";
+using "profile/profile.style";

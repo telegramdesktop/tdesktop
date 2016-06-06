@@ -50,7 +50,7 @@ public:
 
 	void updateAdaptiveLayout() override;
 
-	bool showInternal(Window::SectionMemento *memento) override;
+	bool showInternal(const Window::SectionMemento *memento) override;
 	std_::unique_ptr<Window::SectionMemento> createMemento() const override;
 
 	void setInternalState(const SectionMemento *memento);
