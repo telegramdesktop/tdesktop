@@ -115,7 +115,6 @@ void MembersWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 
 	preloadUserPhotos();
-	updateSelection();
 }
 
 int MembersWidget::resizeGetHeight(int newWidth) {
