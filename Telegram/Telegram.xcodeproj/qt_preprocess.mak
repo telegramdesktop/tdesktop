@@ -354,9 +354,6 @@ GeneratedFiles/Debug/moc_overviewwidget.cpp: SourceFiles/overviewwidget.h
 GeneratedFiles/Debug/moc_playerwidget.cpp: SourceFiles/playerwidget.h
 	$(MOC_FILE) SourceFiles/playerwidget.h -o GeneratedFiles/Debug/moc_playerwidget.cpp
 
-GeneratedFiles/Debug/moc_profilewidget.cpp: SourceFiles/profilewidget.h
-	$(MOC_FILE) SourceFiles/profilewidget.h -o GeneratedFiles/Debug/moc_profilewidget.cpp
-
 GeneratedFiles/Debug/moc_passcodewidget.cpp: SourceFiles/passcodewidget.h
 	$(MOC_FILE) SourceFiles/passcodewidget.h -o GeneratedFiles/Debug/moc_passcodewidget.cpp
 

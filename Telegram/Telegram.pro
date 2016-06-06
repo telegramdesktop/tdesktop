@@ -89,7 +89,6 @@ SOURCES += \
     ./SourceFiles/mediaview.cpp \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
-    ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/playerwidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
@@ -209,7 +208,6 @@ HEADERS += \
     ./SourceFiles/mediaview.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
-    ./SourceFiles/profilewidget.h \
     ./SourceFiles/playerwidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \

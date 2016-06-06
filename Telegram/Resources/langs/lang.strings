@@ -424,6 +424,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_channel" = "Delete channel";
 "lng_profile_leave_group" = "Leave group";
 "lng_profile_delete_group" = "Delete group";
+"lng_profile_report" = "Report";
 "lng_profile_search_messages" = "Search for messages";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
@@ -464,6 +465,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_drop_area_subtitle" = "to set it as a group photo";
 "lng_profile_drop_area_subtitle_channel" = "to set it as a channel photo";
 "lng_profile_top_bar_share_contact" = "Share";
+
+"lng_report_title" = "Report channel";
+"lng_report_reason_spam" = "Spam";
+"lng_report_reason_violence" = "Violence";
+"lng_report_reason_pornography" = "Pornography";
+"lng_report_reason_other" = "Other";
+"lng_report_reason_description" = "Description";
+"lng_report_button" = "Report";
+"lng_report_thanks" = "Thank you! Your report will be reviewed by our team very soon.";
 
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";

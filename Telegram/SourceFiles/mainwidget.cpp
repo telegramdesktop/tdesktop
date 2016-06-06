@@ -29,7 +29,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "dialogswidget.h"
 #include "historywidget.h"
-#include "profilewidget.h"
 #include "overviewwidget.h"
 #include "playerwidget.h"
 #include "lang.h"

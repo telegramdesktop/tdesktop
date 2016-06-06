@@ -162,3 +162,8 @@ profileLimitReachedLabel: flatLabel(labelDefFlat) {
 profileLimitReachedStyle: textStyle(defaultTextStyle) {
 	lineHeight: 19px;
 }
+
+profileReportReasonOther: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 115px;
+}

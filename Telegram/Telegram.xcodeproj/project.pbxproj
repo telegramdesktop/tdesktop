@@ -191,7 +191,6 @@
 		832C50BFD7D09AF042A51D4F /* flatbutton.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = F1A04BDB750C2AE652797B04 /* flatbutton.cpp */; settings = {ATTRIBUTES = (); }; };
 		8771A8C96E9C391044035D99 /* OpenGL.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = D4B32C2222F82AC56BADEB21 /* OpenGL.framework */; };
 		8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9A55B8F7C143D66AD9EAE304 /* qgenericbearer */; };
-		89ADB41E48A3B5E24ABB626C /* profilewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		8B22E794EFF0EAFF964A3043 /* introstart.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C34459FA465B57DF4DB80D12 /* introstart.cpp */; settings = {ATTRIBUTES = (); }; };
 		8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2181F5E34DE0A4B2F811E2E2 /* moc_flatlabel.cpp */; settings = {ATTRIBUTES = (); }; };
 		8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -232,7 +231,6 @@
 		BE6AB9DF1C4880624131C669 /* Qt5Widgets in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 4689C06178B60B84E7F3A3B7 /* Qt5Widgets */; };
 		C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 3E329D4547CC23585307FA32 /* countryinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		C06DDE378A7AC1FA9E6FF69A /* qtiff in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F2453BA07315EB9F34F1CD57 /* qtiff */; };
-		C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 48003469151B9DDE82E851FB /* moc_profilewidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E181C525E21A16F2D4396CA7 /* moc_application.cpp */; settings = {ATTRIBUTES = (); }; };
 		C329997D36D34D568CE16C9A /* moc_animation.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A1479F94376F9732B57C69DB /* moc_animation.cpp */; settings = {ATTRIBUTES = (); }; };
 		CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 21F907AB8D19BD779147A085 /* AVFoundation.framework */; };
@@ -541,7 +539,6 @@
 		206B4F5CBD5354BCE19FF32F /* countries.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = countries.h; path = SourceFiles/countries.h; sourceTree = "<absolute>"; };
 		2181F5E34DE0A4B2F811E2E2 /* moc_flatlabel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flatlabel.cpp; path = GeneratedFiles/Debug/moc_flatlabel.cpp; sourceTree = "<absolute>"; };
 		21F907AB8D19BD779147A085 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = /System/Library/Frameworks/AVFoundation.framework; sourceTree = "<absolute>"; };
-		220B97F8F62C720E6059A64B /* profilewidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = profilewidget.h; path = SourceFiles/profilewidget.h; sourceTree = "<absolute>"; };
 		24F7D3E789E91B10E422C116 /* config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = config.h; path = SourceFiles/config.h; sourceTree = "<absolute>"; };
 		25CA12A22B83B0B038C5B5DE /* langloaderplain.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = langloaderplain.h; path = SourceFiles/langloaderplain.h; sourceTree = "<absolute>"; };
 		26083D8E535AFF927591E1A5 /* moc_contactsbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contactsbox.cpp; path = GeneratedFiles/Debug/moc_contactsbox.cpp; sourceTree = "<absolute>"; };
@@ -568,7 +565,6 @@
 		4604687EBA85611C9E8A9CDF /* button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = button.h; path = SourceFiles/ui/button.h; sourceTree = "<absolute>"; };
 		46292F489228B60010794CE4 /* moc_button.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_button.cpp; path = GeneratedFiles/Debug/moc_button.cpp; sourceTree = "<absolute>"; };
 		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "$(QT_PATH)/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
-		48003469151B9DDE82E851FB /* moc_profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_profilewidget.cpp; path = GeneratedFiles/Debug/moc_profilewidget.cpp; sourceTree = "<absolute>"; };
 		4AF15B5A0A43EB62D6DAF211 /* libexif.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexif.a; path = "../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a"; sourceTree = "<absolute>"; };
 		4D1099F2D3696E8A0E17D37D /* session.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = session.h; path = SourceFiles/mtproto/session.h; sourceTree = "<absolute>"; };
 		4D504A849F15EB58E53A4E5F /* title.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = title.h; path = SourceFiles/title.h; sourceTree = "<absolute>"; };
@@ -684,7 +680,6 @@
 		CE0D5EFE401BF9815FACE579 /* pspecific_mac.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pspecific_mac.h; path = SourceFiles/pspecific_mac.h; sourceTree = "<absolute>"; };
 		CE7FFE194127BD789A2C877A /* moc_confirmbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_confirmbox.cpp; path = GeneratedFiles/Debug/moc_confirmbox.cpp; sourceTree = "<absolute>"; };
 		CF1690B68F3B278E78823DB9 /* history.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = history.h; path = SourceFiles/history.h; sourceTree = "<absolute>"; };
-		CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = profilewidget.cpp; path = SourceFiles/profilewidget.cpp; sourceTree = "<absolute>"; };
 		D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flattextarea.cpp; path = GeneratedFiles/Debug/moc_flattextarea.cpp; sourceTree = "<absolute>"; };
 		D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = photosendbox.cpp; path = SourceFiles/boxes/photosendbox.cpp; sourceTree = "<absolute>"; };
 		D3D1BE0BEA3AEE0551AD39AC /* qdds */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qdds; path = "$(QT_PATH)/plugins/imageformats/libqdds$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
@@ -1171,8 +1166,6 @@
 				07DE92A21AA4924400A18F6F /* passcodewidget.h */,
 				07B604301B46A0EC00CA29FE /* playerwidget.cpp */,
 				07B604311B46A0EC00CA29FE /* playerwidget.h */,
-				CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */,
-				220B97F8F62C720E6059A64B /* profilewidget.h */,
 				83728F60A64483E0AA933D76 /* pspecific.h */,
 				F4EECA1187A744AEF5165243 /* pspecific_mac.cpp */,
 				CE0D5EFE401BF9815FACE579 /* pspecific_mac.h */,
@@ -1243,7 +1236,6 @@
 				2C99425D7670941EAF07B453 /* moc_historywidget.cpp */,
 				1FE45A67215BEA2434F588E8 /* moc_layerwidget.cpp */,
 				07A6933419927B160099CB9F /* moc_mediaview.cpp */,
-				48003469151B9DDE82E851FB /* moc_profilewidget.cpp */,
 				1D7899ACAA9F973CADFA34C1 /* moc_localimageloader.cpp */,
 				3A220FD1AE5AD9FE3DC073A4 /* moc_mainwidget.cpp */,
 				93AFE74928551FC3D7E8390B /* moc_settingswidget.cpp */,
@@ -1637,7 +1629,6 @@
 				078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */,
 				37A3C6C782A0E4BC7B09536B /* langloaderplain.cpp in Compile Sources */,
 				19A66ECD6EE2F8356F27D32D /* layerwidget.cpp in Compile Sources */,
-				89ADB41E48A3B5E24ABB626C /* profilewidget.cpp in Compile Sources */,
 				48D8FC93AA8FF5D184649F49 /* localimageloader.cpp in Compile Sources */,
 				113AA97DEE7847C7D2DCFF71 /* logs.cpp in Compile Sources */,
 				E3194392BD6D0726F75FA72E /* mainwidget.cpp in Compile Sources */,
@@ -1726,7 +1717,6 @@
 				4B0036C794BEA27AF9419768 /* moc_layerwidget.cpp in Compile Sources */,
 				07C8FE101CB80890007A8702 /* toast.cpp in Compile Sources */,
 				077A4AF71CA41C38002188D2 /* connection_abstract.cpp in Compile Sources */,
-				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
 				071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */,
 				074756191A1372C600CA07F7 /* moc_basic_types.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,

@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "ui/buttons/left_outline_button.h"
 #include "boxes/confirmbox.h"
+#include "boxes/report_box.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -135,7 +136,9 @@ void ActionsWidget::refreshButtons() {
 		addButton(lang(lng_profile_clear_history), SLOT(onClearHistory()));
 		addButton(lang(lng_profile_clear_and_exit), SLOT(onDeleteConversation()));
 	} else if (auto channel = peer()->asChannel()) {
-//		addButton(lang(lng_profile_report), SLOT(onReport()));
+		if (!channel->amCreator()) {
+			addButton(lang(lng_profile_report), SLOT(onReport()));
+		}
 		refreshDeleteChannel();
 		refreshLeaveChannel();
 	}
@@ -349,6 +352,12 @@ void ActionsWidget::onLeaveChannel() {
 
 void ActionsWidget::onLeaveChannelSure() {
 	App::api()->leaveChannel(peer()->asChannel());
+}
+
+void ActionsWidget::onReport() {
+	if (auto channel = peer()->asChannel()) {
+		Ui::showLayer(new ReportBox(channel));
+	}
 }
 
 } // namespace Profile

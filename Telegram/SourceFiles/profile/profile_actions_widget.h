@@ -55,6 +55,7 @@ private slots:
 	void onDeleteChannelSure();
 	void onLeaveChannel();
 	void onLeaveChannelSure();
+	void onReport();
 
 private:
 	// Observed notifications.

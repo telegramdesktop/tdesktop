@@ -141,9 +141,6 @@
     <ClCompile Include="SourceFiles\fileuploader.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\profilewidget.cpp">
-      <Filter>SourceFiles</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\sysbuttons.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
@@ -223,15 +220,6 @@
       <Filter>GeneratedFiles\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_settingswidget.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_profilewidget.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_profilewidget.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_profilewidget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_photosendbox.cpp">
@@ -1272,6 +1260,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_profile_shared_media_widget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\report_box.cpp">
+      <Filter>SourceFiles\boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1505,9 +1505,6 @@
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\fileuploader.h">
-      <Filter>SourceFiles</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\profilewidget.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\sysbuttons.h">
@@ -1758,6 +1755,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_shared_media_widget.h">
       <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\report_box.h">
+      <Filter>SourceFiles\boxes</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
