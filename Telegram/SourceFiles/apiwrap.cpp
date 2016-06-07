@@ -26,13 +26,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "historywidget.h"
 #include "localstorage.h"
+#include "boxes/confirmbox.h"
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 , _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
 	App::initBackground();
 
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
+	connect(&_draftsSaveTimer, SIGNAL(timeout()), this, SLOT(saveDraftsToCloud()));
 }
 
 void ApiWrap::init() {
@@ -717,6 +720,9 @@ void ApiWrap::channelAmInDone(ChannelData *channel, const MTPUpdates &updates) {
 bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
+	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
+	}
 	_channelAmInRequests.remove(channel);
 	return true;
 }
@@ -796,6 +802,83 @@ void ApiWrap::requestNotifySetting(PeerData *peer) {
 	MTPInputNotifyPeer notifyPeer = MTP_inputNotifyPeer(peer->input);
 	auto requestId = MTP::send(MTPaccount_GetNotifySettings(notifyPeer), rpcDone(&ApiWrap::notifySettingDone, notifyPeer), rpcFail(&ApiWrap::notifySettingFail, peer));
 	_notifySettingRequests.insert(peer, requestId);
+}
+
+void ApiWrap::saveDraftToCloudDelayed(History *history) {
+	_draftsSaveRequestIds.insert(history, 0);
+	if (!_draftsSaveTimer.isActive()) {
+		_draftsSaveTimer.start(SaveCloudDraftTimeout);
+	}
+}
+
+bool ApiWrap::hasUnsavedDrafts() const {
+	return !_draftsSaveRequestIds.isEmpty();
+}
+
+void ApiWrap::saveDraftsToCloud() {
+	for (auto i = _draftsSaveRequestIds.begin(), e = _draftsSaveRequestIds.end(); i != e; ++i) {
+		if (i.value()) continue; // sent already
+
+		auto history = i.key();
+		auto cloudDraft = history->cloudDraft();
+		auto localDraft = history->localDraft();
+		if (cloudDraft && cloudDraft->saveRequestId) {
+			MTP::cancel(cloudDraft->saveRequestId);
+		}
+		cloudDraft = history->createCloudDraft(localDraft);
+
+		MTPmessages_SaveDraft::Flags flags = 0;
+		auto &textWithTags = cloudDraft->textWithTags;
+		if (cloudDraft->previewCancelled) {
+			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
+		}
+		if (cloudDraft->msgId) {
+			flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
+		}
+		if (!textWithTags.tags.isEmpty()) {
+			flags |= MTPmessages_SaveDraft::Flag::f_entities;
+		}
+		auto entities = linksToMTP(entitiesFromTextTags(textWithTags.tags), true);
+		cloudDraft->saveRequestId = MTP::send(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), history->peer->input, MTP_string(textWithTags.text), entities), rpcDone(&ApiWrap::saveCloudDraftDone, history), rpcFail(&ApiWrap::saveCloudDraftFail, history));
+		i.value() = cloudDraft->saveRequestId;
+	}
+	if (_draftsSaveRequestIds.isEmpty()) {
+		App::allDraftsSaved(); // can quit the application
+	}
+}
+
+void ApiWrap::saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId) {
+	if (auto cloudDraft = history->cloudDraft()) {
+		if (cloudDraft->saveRequestId == requestId) {
+			cloudDraft->saveRequestId = 0;
+			history->updateChatListEntry();
+		}
+	}
+	auto i = _draftsSaveRequestIds.find(history);
+	if (i != _draftsSaveRequestIds.cend() && i.value() == requestId) {
+		_draftsSaveRequestIds.remove(history);
+		if (_draftsSaveRequestIds.isEmpty()) {
+			App::allDraftsSaved(); // can quit the application
+		}
+	}
+}
+
+bool ApiWrap::saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	if (auto cloudDraft = history->cloudDraft()) {
+		if (cloudDraft->saveRequestId == requestId) {
+			history->clearCloudDraft();
+		}
+	}
+	auto i = _draftsSaveRequestIds.find(history);
+	if (i != _draftsSaveRequestIds.cend() && i.value() == requestId) {
+		_draftsSaveRequestIds.remove(history);
+		if (_draftsSaveRequestIds.isEmpty()) {
+			App::allDraftsSaved(); // can quit the application
+		}
+	}
+	return true;
 }
 
 void ApiWrap::notifySettingDone(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &result) {

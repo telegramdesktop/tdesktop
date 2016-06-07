@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/click_handler_types.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "styles/style_dialogs.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -73,7 +74,7 @@ TextParseOptions _instagramDescriptionOptions = {
 
 inline void _initTextOptions() {
 	_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = cLangDir();
-	_textDlgOptions.maxw = st::dlgMaxWidth * 2;
+	_textDlgOptions.maxw = st::dialogsWidthMax * 2;
 	_webpageTitleOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
 	_webpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
 	_webpageDescriptionOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
@@ -129,6 +130,9 @@ void historyInit() {
 
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
+, lastItemTextCache(st::dialogsTextWidthMin)
+, typingText(st::dialogsTextWidthMin)
+, cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(isNotifyMuted(peer->notify)) {
 	if (peer->isUser() && peer->asUser()->botInfo) {
 		outboxReadBefore = INT_MAX;
@@ -259,7 +263,7 @@ bool History::updateTyping(uint64 ms, bool force) {
 			newTypingStr += qsl("...");
 		}
 		if (typingStr != newTypingStr) {
-			typingText.setText(st::dlgHistFont, (typingStr = newTypingStr), _textNameOptions);
+			typingText.setText(st::dialogsTextFont, (typingStr = newTypingStr), _textNameOptions);
 		}
 	}
 	if (!typingStr.isEmpty()) {
@@ -7494,13 +7498,6 @@ HistoryTextState HistoryMessage::getState(int x, int y, HistoryStateRequest requ
 			}
 			trect.setTop(trect.top() + fwdheight);
 		}
-		if (via && !displayFromName() && !displayForwardedFrom()) {
-			if (x >= trect.left() && y >= trect.top() && y < trect.top() + st::msgNameFont->height && x < trect.left() + via->_width) {
-				result.link = via->_lnk;
-				return result;
-			}
-			trect.setTop(trect.top() + st::msgNameFont->height);
-		}
 		if (reply) {
 			int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 			if (y >= trect.top() && y < trect.top() + h) {
@@ -7510,6 +7507,13 @@ HistoryTextState HistoryMessage::getState(int x, int y, HistoryStateRequest requ
 				return result;
 			}
 			trect.setTop(trect.top() + h);
+		}
+		if (via && !displayFromName() && !displayForwardedFrom()) {
+			if (x >= trect.left() && y >= trect.top() && y < trect.top() + st::msgNameFont->height && x < trect.left() + via->_width) {
+				result.link = via->_lnk;
+				return result;
+			}
+			trect.setTop(trect.top() + st::msgNameFont->height);
 		}
 
 		bool inDate = false, mediaDisplayed = _media && _media->isDisplayed();
@@ -7568,16 +7572,16 @@ void HistoryMessage::drawInDialog(Painter &p, const QRect &r, bool act, const Hi
 			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 			msg = lng_message_with_from(lt_from, textRichPrepare((author() == App::self()) ? lang(lng_from_you) : author()->shortName()), lt_message, textRichPrepare(msg));
-			cache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
+			cache.setRichText(st::dialogsTextFont, msg, _textDlgOptions, custom);
 		} else {
-			cache.setText(st::dlgHistFont, msg, _textDlgOptions);
+			cache.setText(st::dialogsTextFont, msg, _textDlgOptions);
 		}
 	}
 	if (r.width()) {
-		textstyleSet(&(act ? st::dlgActiveTextStyle : st::dlgTextStyle));
-		p.setFont(st::dlgHistFont->f);
-		p.setPen((act ? st::dlgActiveColor : (emptyText() ? st::dlgSystemColor : st::dlgTextColor))->p);
-		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dlgHistFont->height);
+		textstyleSet(&(act ? st::dialogsTextStyleActive : st::dialogsTextStyle));
+		p.setFont(st::dialogsTextFont);
+		p.setPen(act ? st::dialogsTextFgActive : (emptyText() ? st::dialogsTextFgService : st::dialogsTextFg));
+		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
 		textstyleRestore();
 	}
 }
@@ -8087,11 +8091,11 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 void HistoryService::drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const {
 	if (cacheFor != this) {
 		cacheFor = this;
-		cache.setText(st::dlgHistFont, inDialogsText(), _textDlgOptions);
+		cache.setText(st::dialogsTextFont, inDialogsText(), _textDlgOptions);
 	}
 	QRect tr(r);
-	p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-	cache.drawElided(p, tr.left(), tr.top(), tr.width(), tr.height() / st::dlgHistFont->height);
+	p.setPen(act ? st::dialogsTextFgActive : st::dialogsTextFgService);
+	cache.drawElided(p, tr.left(), tr.top(), tr.width(), tr.height() / st::dialogsTextFont->height);
 }
 
 QString HistoryService::notificationText() const {

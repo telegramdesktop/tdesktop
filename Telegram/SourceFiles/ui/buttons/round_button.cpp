@@ -24,8 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 RoundButton::RoundButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent)
-, _text(text.toUpper())
-, _fullText(text.toUpper())
+, _text(text)
+, _fullText(text)
 , _textWidth(st.font->width(_text))
 , _st(st)
 , a_textBgOverOpacity(0)
@@ -36,34 +36,62 @@ RoundButton::RoundButton(QWidget *parent, const QString &text, const style::BoxB
 	setCursor(style::cur_pointer);
 }
 
+void RoundButton::setTextTransform(TextTransform transform) {
+	_transform = transform;
+	updateText();
+}
+
 void RoundButton::setText(const QString &text) {
-	_text = text;
 	_fullText = text;
+	updateText();
+}
+
+void RoundButton::setFullWidth(int newFullWidth) {
+	_fullWidthOverride = newFullWidth;
+	resizeToText();
+}
+
+void RoundButton::updateText() {
+	if (_transform == TextTransform::ToUpper) {
+		_text = _fullText.toUpper();
+	} else {
+		_text = _fullText;
+	}
 	_textWidth = _st.font->width(_text);
 	resizeToText();
 }
 
+int RoundButton::textWidth() const {
+	return _textWidth;
+}
+
 void RoundButton::resizeToText() {
-	if (_st.width <= 0) {
-		resize(_textWidth - _st.width, _st.height);
+	if (_fullWidthOverride < 0) {
+		resize(_textWidth - _fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());
+	} else if (_st.width <= 0) {
+		resize(_textWidth - _st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	} else {
 		if (_st.width < _textWidth + (_st.height - _st.font->height)) {
 			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
-		resize(_st.width, _st.height);
+		resize(_st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	}
 }
 
 void RoundButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	App::roundRect(p, rect(), _st.textBg);
+	auto rounded = rtlrect(rect().marginsRemoved(_st.padding), width());
+	if (_fullWidthOverride < 0) {
+		rounded = QRect(-_fullWidthOverride / 4, rounded.top(), _textWidth - _fullWidthOverride / 2, rounded.height());
+	}
+	App::roundRect(p, rounded, _st.textBg);
 
 	float64 o = a_textBgOverOpacity.current();
 	if (o > 0) {
 		p.setOpacity(o);
-		App::roundRect(p, rect(), _st.textBgOver);
+		App::roundRect(p, rounded, _st.textBgOver);
 		p.setOpacity(1);
 	}
 	if (!_text.isEmpty()) {
@@ -73,9 +101,13 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 			p.setPen(_st.textFg);
 		}
 		p.setFont(_st.font);
-		p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
+		int textLeft = _st.padding.left() + ((width() - _textWidth - _st.padding.left() - _st.padding.right()) / 2);
+		if (_fullWidthOverride < 0) {
+			textLeft = -_fullWidthOverride / 2;
+		}
+		p.drawTextLeft(textLeft, _st.padding.top() + _st.textTop, width(), _text);
 	}
-	_st.icon.paint(p, QPoint(0, 0), width());
+	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right()), width());
 }
 
 void RoundButton::step_over(float64 ms, bool timer) {

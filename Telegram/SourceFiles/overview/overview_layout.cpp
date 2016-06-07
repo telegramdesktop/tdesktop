@@ -770,7 +770,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (selected || context->selecting) {
 				QRect check(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::defaultCheckbox.diameter), rthumb.height() - st::defaultCheckbox.diameter), QSize(st::defaultCheckbox.diameter, st::defaultCheckbox.diameter));
 				p.fillRect(check, selected ? st::overviewFileChecked : st::overviewFileCheck);
-				p.drawSpriteCenter(check, st::defaultCheckbox.checkIcon);
+				st::defaultCheckbox.checkIcon.paint(p, QPoint(rthumb.width() - st::defaultCheckbox.diameter, rthumb.y() + rthumb.height() - st::defaultCheckbox.diameter), _width);
 			}
 		}
 	}
@@ -979,13 +979,13 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 		tw = convertScale(_page->document->thumb->width());
 		th = convertScale(_page->document->thumb->height());
 	}
-	if (tw > st::dlgPhotoSize) {
+	if (tw > st::linksPhotoSize) {
 		if (th > tw) {
-			th = th * st::dlgPhotoSize / tw;
-			tw = st::dlgPhotoSize;
-		} else if (th > st::dlgPhotoSize) {
-			tw = tw * st::dlgPhotoSize / th;
-			th = st::dlgPhotoSize;
+			th = th * st::linksPhotoSize / tw;
+			tw = st::linksPhotoSize;
+		} else if (th > st::linksPhotoSize) {
+			tw = tw * st::linksPhotoSize / th;
+			th = st::linksPhotoSize;
 		}
 	}
 	_pixw = qMax(tw, 1);
@@ -1020,15 +1020,15 @@ void Link::initDimensions() {
 		_minh += st::semiboldFont->height;
 	}
 	if (!_text.isEmpty()) {
-		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::dlgPhotoSize - st::dlgPhotoPadding));
+		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::linksPhotoSize - st::linksPhotoPadding));
 	}
 	_minh += _links.size() * st::normalFont->height;
-	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
+	_minh = qMax(_minh, int32(st::linksPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 }
 
 int32 Link::resizeGetHeight(int32 width) {
 	_width = qMin(width, _maxw);
-	int32 w = _width - st::dlgPhotoSize - st::dlgPhotoPadding;
+	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
 		_links.at(i).lnk->setFullDisplayed(w >= _links.at(i).width);
 	}
@@ -1038,54 +1038,54 @@ int32 Link::resizeGetHeight(int32 width) {
 		_height += st::semiboldFont->height;
 	}
 	if (!_text.isEmpty()) {
-		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::dlgPhotoSize - st::dlgPhotoPadding));
+		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::linksPhotoSize - st::linksPhotoPadding));
 	}
 	_height += _links.size() * st::normalFont->height;
-	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
+	_height = qMax(_height, int32(st::linksPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 	return _height;
 }
 
 void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
-	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
+	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
+	if (clip.intersects(rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			} else {
-				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			}
 			p.drawPixmapLeft(0, top, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
-			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize));
+			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize));
 		} else {
 			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
 			switch (index) {
-			case 0: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileRedColor, DocRedCorners); break;
-			case 1: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileYellowColor, DocYellowCorners); break;
-			case 2: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileGreenColor, DocGreenCorners); break;
-			case 3: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileBlueColor, DocBlueCorners); break;
+			case 0: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileRedColor, DocRedCorners); break;
+			case 1: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileYellowColor, DocYellowCorners); break;
+			case 2: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileGreenColor, DocGreenCorners); break;
+			case 3: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileBlueColor, DocBlueCorners); break;
 			}
 
 			if (!_letter.isEmpty()) {
 				p.setFont(st::linksLetterFont->f);
 				p.setPen(st::white->p);
-				p.drawText(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), _letter, style::al_center);
+				p.drawText(rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), _letter, style::al_center);
 			}
 		}
 
 		if (selection == FullSelection) {
-			App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::overviewPhotoSelectOverlay, PhotoSelectOverlayCorners);
-			st::overviewLinksChecked.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksChecked.width(), top + st::dlgPhotoSize - st::overviewLinksChecked.height()), _width);
+			App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::overviewPhotoSelectOverlay, PhotoSelectOverlayCorners);
+			st::overviewLinksChecked.paint(p, QPoint(st::linksPhotoSize - st::overviewLinksChecked.width(), top + st::linksPhotoSize - st::overviewLinksChecked.height()), _width);
 		} else if (context->selecting) {
-			st::overviewLinksCheck.paint(p, QPoint(st::dlgPhotoSize - st::overviewLinksCheck.width(), top + st::dlgPhotoSize - st::overviewLinksCheck.height()), _width);
+			st::overviewLinksCheck.paint(p, QPoint(st::linksPhotoSize - st::overviewLinksCheck.width(), top + st::linksPhotoSize - st::overviewLinksCheck.height()), _width);
 		}
 	}
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
-		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+		top += (st::linksPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
 	} else {
 		top = st::linksTextTop;
 	}
@@ -1123,14 +1123,14 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 }
 
 void Link::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
-	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
+	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
+	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(x, y)) {
 		link = _photol;
 		return;
 	}
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
-		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+		top += (st::linksPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
 	}
 	if (!_title.isEmpty()) {
 		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(x, y)) {

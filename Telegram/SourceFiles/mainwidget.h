@@ -129,10 +129,6 @@ public:
 	}
 };
 
-inline int chatsListWidth(int windowWidth) {
-	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
-}
-
 enum SilentNotifiesStatus {
 	SilentNotifiesDontChange,
 	SilentNotifiesSetSilent,
@@ -503,9 +499,6 @@ private:
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
-	void saveCloudDraftDone(PeerData *peer, const MTPBool &result, mtpRequestId requestId);
-	bool saveCloudDraftFail(PeerData *peer, const RPCError &error, mtpRequestId requestId);
-
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
 	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back);
 
@@ -582,7 +575,7 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	int _dialogsWidth = st::dlgMinWidth;
+	int _dialogsWidth;
 
 	PlainShadow _sideShadow;
 

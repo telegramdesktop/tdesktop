@@ -108,7 +108,7 @@ void SharedMediaWidget::refreshButton(MediaOverviewType type) {
 		if (_mediaButtons[type]) {
 			_mediaButtons[type]->setText(text);
 		} else {
-			_mediaButtons[type] = new Ui::LeftOutlineButton(this, text);
+			_mediaButtons[type] = new Ui::LeftOutlineButton(this, text, st::defaultLeftOutlineButton);
 			_mediaButtons[type]->show();
 			connect(_mediaButtons[type], SIGNAL(clicked()), this, SLOT(onMediaChosen()));
 		}

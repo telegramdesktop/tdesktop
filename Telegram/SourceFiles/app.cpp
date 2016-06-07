@@ -2257,11 +2257,30 @@ namespace {
 		if (quitting()) return;
 		setLaunchState(QuitRequested);
 
+		if (auto window = wnd()) {
+			window->hide();
+		}
+		if (auto mainwidget = main()) {
+			mainwidget->saveDraftToCloud();
+		}
+		if (auto apiwrap = api()) {
+			if (apiwrap->hasUnsavedDrafts()) {
+				apiwrap->saveDraftsToCloud();
+				QTimer::singleShot(SaveDraftBeforeQuitTimeout, Application::instance(), SLOT(quit()));
+				return;
+			}
+		}
 		Application::quit();
 	}
 
 	bool quitting() {
 		return _launchState != Launched;
+	}
+
+	void allDraftsSaved() {
+		if (quitting()) {
+			Application::quit();
+		}
 	}
 
 	LaunchState launchState() {

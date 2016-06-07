@@ -509,7 +509,9 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 	QPixmap pix = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->genUserpic(st::notifyMacPhotoSize) : QPixmap();
 	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
 
-	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
+	bool withReply = !App::passcoded() && (cNotifyView() <= dbinvShowPreview) && item->history()->peer->canWrite();
+
+	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, withReply);
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {

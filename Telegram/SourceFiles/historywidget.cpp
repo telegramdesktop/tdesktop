@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 
 #include "styles/style_history.h"
+#include "styles/style_dialogs.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
 #include "ui/filedialog.h"
@@ -1552,6 +1553,15 @@ HistoryInner::~HistoryInner() {
 	_dragAction = NoDrag;
 }
 
+bool HistoryInner::focusNextPrevChild(bool next) {
+	if (_selected.isEmpty()) {
+		return focusNextPrevChild(next);
+	} else {
+		clearSelectedItems();
+		return true;
+	}
+}
+
 void HistoryInner::adjustCurrent(int32 y) const {
 	int32 htop = historyTop(), hdrawtop = historyDrawTop(), mtop = migratedTop();
 	_curHistory = 0;
@@ -3036,13 +3046,15 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 }
 
 void HistoryWidget::updateStickersByEmoji() {
-	int32 len = 0;
-	auto &text = _field.getTextWithTags().text;
-	if (EmojiPtr emoji = emojiFromText(text, &len)) {
-		if (text.size() > len) {
-			len = 0;
-		} else {
-			_fieldAutocomplete->showStickers(emoji);
+	int len = 0;
+	if (!_editMsgId) {
+		auto &text = _field.getTextWithTags().text;
+		if (auto emoji = emojiFromText(text, &len)) {
+			if (text.size() > len) {
+				len = 0;
+			} else {
+				_fieldAutocomplete->showStickers(emoji);
+			}
 		}
 	}
 	if (!len) {
@@ -3187,7 +3199,7 @@ void HistoryWidget::writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDr
 	}
 
 	if (!_editMsgId) {
-		_saveCloudDraftTimer.start(SaveCloudDraftTimeout);
+		_saveCloudDraftTimer.start(SaveCloudDraftIdleTimeout);
 	}
 }
 
@@ -4906,7 +4918,10 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		Ui::showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
+	} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
 	}
+
 	return false;
 }
 
@@ -5801,16 +5816,16 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	int32 increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	decreaseWidth += increaseLeft;
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
-	p.setFont(st::dlgHistFont->f);
+	p.setFont(st::dialogsTextFont);
 	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
 		p.setPen(st::titleStatusColor->p);
-		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dlgHistFont->height + st::dlgHistFont->ascent, _titlePeerText);
+		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	} else {
 		p.setPen(st::titleTypingColor->p);
-		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dlgHistFont->height, rectForName.width());
+		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
 	}
 
-	p.setPen(st::dlgNameColor->p);
+	p.setPen(st::dialogsNameFg);
 	_peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
 	if (Adaptive::OneColumn()) {
@@ -5882,7 +5897,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;
-		_titlePeerTextWidth = st::dlgHistFont->width(_titlePeerText);
+		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		if (App::main()) {
 			App::main()->topBar()->update();
 		}

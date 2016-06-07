@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "mainwindow.h"
 
+#include "styles/style_dialogs.h"
 #include "zip.h"
 #include "lang.h"
 #include "shortcuts.h"
@@ -182,48 +183,48 @@ void NotifyWindow::updateNotifyDisplay() {
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->isChat() || history->peer->isMegagroup()) {
-				p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), st::dlgChatImg);
-				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+				p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), st::dlgChatImg);
+				rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 			} else if (history->peer->isChannel()) {
-				p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), st::dlgChannelImg);
-				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+				p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), st::dlgChannelImg);
+				rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 			}
 		}
 
 		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
 		QDate nowDate(now.date()), lastDate(lastTime.date());
 		QString dt = lastTime.toString(cTimeFormat());
-		int32 dtWidth = st::dlgHistFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-		p.setFont(st::dlgDateFont->f);
-		p.setPen(st::dlgDateColor->p);
-		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::dlgHistFont->ascent, dt);
+		int32 dtWidth = st::dialogsTextFont->width(dt);
+		rectForName.setWidth(rectForName.width() - dtWidth - st::dialogsDateSkip);
+		p.setFont(st::dialogsDateFont);
+		p.setPen(st::dialogsDateFg);
+		p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::dialogsTextFont->ascent, dt);
 
 		if (!App::passcoded() && cNotifyView() <= dbinvShowPreview) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
-			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dlgFont->height);
+			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
 			if (fwdCount < 2) {
 				bool active = false;
 				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
 			} else {
-				p.setFont(st::dlgHistFont->f);
+				p.setFont(st::dialogsTextFont);
 				if (item->hasFromName() && !item->isPost()) {
-					itemTextCache.setText(st::dlgHistFont, item->author()->name);
-					p.setPen(st::dlgSystemColor->p);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
-					r.setTop(r.top() + st::dlgHistFont->height);
+					itemTextCache.setText(st::dialogsTextFont, item->author()->name);
+					p.setPen(st::dialogsTextFgService);
+					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
+					r.setTop(r.top() + st::dialogsTextFont->height);
 				}
-				p.setPen(st::dlgTextColor->p);
-				p.drawText(r.left(), r.top() + st::dlgHistFont->ascent, lng_forward_messages(lt_count, fwdCount));
+				p.setPen(st::dialogsTextFg);
+				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, lng_forward_messages(lt_count, fwdCount));
 			}
 		} else {
-			static QString notifyText = st::dlgHistFont->elided(lang(lng_notification_preview), itemWidth);
-			p.setPen(st::dlgSystemColor->p);
-			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dlgHistFont->ascent, notifyText);
+			static QString notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
+			p.setPen(st::dialogsTextFgService);
+			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
 		}
 
-		p.setPen(st::dlgNameColor->p);
+		p.setPen(st::dialogsNameFg);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
@@ -1282,9 +1283,8 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	if (MTP::authedId() && !Sandbox::isSavingSession() && Ui::hideWindowNoQuit()) {
-		e->ignore();
-	} else {
+	e->ignore();
+	if (!MTP::authedId() || Sandbox::isSavingSession() || !Ui::hideWindowNoQuit()) {
 		App::quit();
 	}
 }

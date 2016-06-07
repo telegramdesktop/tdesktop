@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
+#include "styles/style_dialogs.h"
 #include "data/drafts.h"
 #include "lang.h"
 #include "application.h"
@@ -55,7 +56,7 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 }
 
 int DialogsInner::dialogsOffset() const {
-	return importantDialogs ? st::dlgImportantHeight : 0;
+	return importantDialogs ? st::dialogsImportantBarHeight : 0;
 }
 
 int DialogsInner::filteredOffset() const {
@@ -63,12 +64,12 @@ int DialogsInner::filteredOffset() const {
 }
 
 int DialogsInner::peopleOffset() const {
-	return filteredOffset() + (_filterResults.size() * st::dlgHeight) + st::searchedBarHeight;
+	return filteredOffset() + (_filterResults.size() * st::dialogsRowHeight) + st::searchedBarHeight;
 }
 
 int DialogsInner::searchedOffset() const {
-	int result = peopleOffset() + (_peopleResults.isEmpty() ? 0 : ((_peopleResults.size() * st::dlgHeight) + st::searchedBarHeight));
-	if (_searchInPeer) result += st::dlgHeight;
+	int result = peopleOffset() + (_peopleResults.isEmpty() ? 0 : ((_peopleResults.size() * st::dialogsRowHeight) + st::searchedBarHeight));
+	if (_searchInPeer) result += st::dialogsRowHeight;
 	return result;
 }
 
@@ -87,10 +88,10 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		QRect dialogsClip = r;
 		if (importantDialogs) {
 			Dialogs::Layout::paintImportantSwitch(p, Global::DialogsMode(), fullWidth(), _importantSwitchSel, paintingOther);
-			dialogsClip.translate(0, -st::dlgImportantHeight);
-			p.translate(0, st::dlgImportantHeight);
+			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
+			p.translate(0, st::dialogsImportantBarHeight);
 		}
-		int32 otherStart = shownDialogs()->size() * st::dlgHeight;
+		int32 otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		PeerData *active = App::main()->activePeer(), *selected = _menuPeer ? _menuPeer : (_sel ? _sel->history()->peer : 0);
 		if (otherStart) {
 			shownDialogs()->all().paint(p, fullWidth(), dialogsClip.top(), dialogsClip.top() + dialogsClip.height(), active, selected, paintingOther);
@@ -109,7 +110,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			int32 to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
 			if (from < _hashtagResults.size()) {
-				int32 w = fullWidth(), htagwidth = w - st::dlgPaddingHor * 2;
+				int32 w = fullWidth(), htagwidth = w - st::dialogsPadding.x() * 2;
 
 				p.setFont(st::mentionFont->f);
 				p.setPen(st::black->p);
@@ -135,11 +136,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 						p.setFont(st::mentionFont->f);
 						if (!first.isEmpty()) {
 							p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-							p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, first);
+							p.drawText(st::dialogsPadding.x(), st::mentionTop + st::mentionFont->ascent, first);
 						}
 						if (!second.isEmpty()) {
 							p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-							p.drawText(st::dlgPaddingHor + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
+							p.drawText(st::dialogsPadding.x() + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
 						}
 					}
 					p.translate(0, st::mentionHeight);
@@ -148,9 +149,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 		if (!_filterResults.isEmpty()) {
 			int32 skip = filteredOffset();
-			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _filterResults.size());
-			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _filterResults.size());
-			p.translate(0, from * st::dlgHeight);
+			int32 from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _filterResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _filterResults.size());
+			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _filterResults.size()) {
 				int32 w = fullWidth();
 				PeerData *act = App::main()->activePeer();
@@ -159,7 +160,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					bool active = ((_filterResults[from]->history()->peer == act) || (_filterResults[from]->history()->peer->migrateTo() && _filterResults[from]->history()->peer->migrateTo() == act)) && !actId;
 					bool selected = (from == _filteredSel) || (_filterResults[from]->history()->peer == _menuPeer);
 					Dialogs::Layout::RowPainter::paint(p, _filterResults[from], w, active, selected, paintingOther);
-					p.translate(0, st::dlgHeight);
+					p.translate(0, st::dialogsRowHeight);
 				}
 			}
 		}
@@ -174,9 +175,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::searchedBarHeight);
 
 			int32 skip = peopleOffset();
-			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _peopleResults.size());
-			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _peopleResults.size());
-			p.translate(0, from * st::dlgHeight);
+			int32 from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _peopleResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _peopleResults.size());
+			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _peopleResults.size()) {
 				int32 w = fullWidth();
 				PeerData *act = App::main()->activePeer();
@@ -185,14 +186,14 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					bool active = ((_peopleResults[from] == act) || (_peopleResults[from]->migrateTo() && _peopleResults[from]->migrateTo() == act)) && !actId;
 					bool selected = (from == _peopleSel);
 					peopleResultPaint(_peopleResults[from], p, w, active, selected, paintingOther);
-					p.translate(0, st::dlgHeight);
+					p.translate(0, st::dialogsRowHeight);
 				}
 			}
 		}
 
 		if (_searchInPeer) {
 			searchInPeerPaint(p, fullWidth(), paintingOther);
-			p.translate(0, st::dlgHeight);
+			p.translate(0, st::dialogsRowHeight);
 			if (_state == FilteredState && _searchResults.isEmpty()) {
 				p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
 				if (!paintingOther) {
@@ -215,9 +216,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::searchedBarHeight);
 
 			int32 skip = searchedOffset();
-			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _searchResults.size());
-			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _searchResults.size());
-			p.translate(0, from * st::dlgHeight);
+			int32 from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _searchResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _searchResults.size());
+			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _searchResults.size()) {
 				int32 w = fullWidth();
 				PeerData *act = App::main()->activePeer();
@@ -229,7 +230,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					bool active = (history->peer == act && item->id == actId) || (history->peer->migrateTo() && history->peer->migrateTo() == act && item->id == -actId);
 					bool selected = (from == _searchedSel);
 					Dialogs::Layout::RowPainter::paint(p, result, w, active, selected, paintingOther);
-					p.translate(0, st::dlgHeight);
+					p.translate(0, st::dialogsRowHeight);
 				}
 			}
 		}
@@ -237,80 +238,80 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 }
 
 void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool active, bool selected, bool onlyBackground) const {
-	QRect fullRect(0, 0, w, st::dlgHeight);
-	p.fillRect(fullRect, active ? st::dlgActiveBG : (selected ? st::dlgHoverBG : st::dlgBG));
+	QRect fullRect(0, 0, w, st::dialogsRowHeight);
+	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (onlyBackground) return;
 
 	PeerData *userpicPeer = (peer->migrateTo() ? peer->migrateTo() : peer);
-	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, fullWidth());
+	userpicPeer->paintUserpicLeft(p, st::dialogsPhotoSize, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth());
 
-	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
-	int32 namewidth = w - nameleft - st::dlgPaddingHor;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
+	int32 nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
+	int32 namewidth = w - nameleft - st::dialogsPadding.x();
+	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
 	if (peer->isChat() || peer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
+		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 	} else if (peer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
+		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 	}
 	if (peer->isVerified()) {
 		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
 		p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (active ? st::verifiedCheckInv : st::verifiedCheck));
 	}
 
-	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
-	p.setFont(st::dlgHistFont->f);
+	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
+	p.setFont(st::dialogsTextFont);
 	QString username = peer->userName();
 	if (!active && username.toLower().startsWith(_peopleQuery)) {
 		QString first = '@' + username.mid(0, _peopleQuery.size()), second = username.mid(_peopleQuery.size());
-		int32 w = st::dlgHistFont->width(first);
+		int32 w = st::dialogsTextFont->width(first);
 		if (w >= tr.width()) {
-			p.setPen(st::dlgSystemColor->p);
-			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(first, tr.width()));
+			p.setPen(st::dialogsTextFgService);
+			p.drawText(tr.left(), tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided(first, tr.width()));
 		} else {
-			p.setPen(st::dlgSystemColor->p);
-			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, first);
-			p.setPen(st::dlgTextColor->p);
-			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(second, tr.width() - w));
+			p.setPen(st::dialogsTextFgService);
+			p.drawText(tr.left(), tr.top() + st::dialogsTextFont->ascent, first);
+			p.setPen(st::dialogsTextFg);
+			p.drawText(tr.left() + w, tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided(second, tr.width() - w));
 		}
 	} else {
-		p.setPen((active ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided('@' + username, tr.width()));
+		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
+		p.drawText(tr.left(), tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided('@' + username, tr.width()));
 	}
 
-	p.setPen((active ? st::dlgActiveColor : st::dlgNameColor)->p);
+	p.setPen(active ? st::dialogsTextFgActive : st::dialogsNameFg);
 	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const {
-	QRect fullRect(0, 0, w, st::dlgHeight);
-	p.fillRect(fullRect, st::dlgBG->b);
+	QRect fullRect(0, 0, w, st::dialogsRowHeight);
+	p.fillRect(fullRect, st::dialogsBg);
 	if (onlyBackground) return;
 
-	_searchInPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, fullWidth());
+	_searchInPeer->paintUserpicLeft(p, st::dialogsPhotoSize, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth());
 
-	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
-	int32 namewidth = w - nameleft - st::dlgPaddingHor * 2 - st::btnCancelSearch.width;
-	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
+	int32 nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
+	int32 namewidth = w - nameleft - st::dialogsPadding.x() * 2 - st::btnCancelSearch.width;
+	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
 	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), st::dlgChatImg);
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), st::dlgChatImg);
+		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 	} else if (_searchInPeer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), st::dlgChannelImg);
-		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), st::dlgChannelImg);
+		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
 	}
 
-	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
-	p.setFont(st::dlgHistFont->f);
-	p.setPen(st::dlgTextColor->p);
-	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(lang((_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? lng_dlg_search_channel : lng_dlg_search_chat), tr.width()));
+	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
+	p.setFont(st::dialogsTextFont);
+	p.setPen(st::dialogsTextFg);
+	p.drawText(tr.left(), tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided(lang((_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? lng_dlg_search_channel : lng_dlg_search_chat), tr.width()));
 
-	p.setPen(st::dlgNameColor->p);
+	p.setPen(st::dialogsNameFg);
 	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
@@ -332,7 +333,7 @@ void DialogsInner::onUpdateSelected(bool force) {
 	if (_state == DefaultState) {
 		auto newImportantSwitchSel = (importantDialogs && mouseY >= 0 && mouseY < dialogsOffset());
 		mouseY -= dialogsOffset();
-		auto newSel = newImportantSwitchSel ? nullptr : shownDialogs()->rowAtY(mouseY, st::dlgHeight);
+		auto newSel = newImportantSwitchSel ? nullptr : shownDialogs()->rowAtY(mouseY, st::dialogsRowHeight);
 		if (newSel != _sel || newImportantSwitchSel != _importantSwitchSel) {
 			updateSelectedRow();
 			_sel = newSel;
@@ -357,7 +358,7 @@ void DialogsInner::onUpdateSelected(bool force) {
 			}
 		}
 		if (!_filterResults.isEmpty()) {
-			int32 skip = filteredOffset(), newFilteredSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			int32 skip = filteredOffset(), newFilteredSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dialogsRowHeight)) : -1;
 			if (newFilteredSel < 0 || newFilteredSel >= _filterResults.size()) {
 				newFilteredSel = -1;
 			}
@@ -369,7 +370,7 @@ void DialogsInner::onUpdateSelected(bool force) {
 			}
 		}
 		if (!_peopleResults.isEmpty()) {
-			int32 skip = peopleOffset(), newPeopleSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			int32 skip = peopleOffset(), newPeopleSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dialogsRowHeight)) : -1;
 			if (newPeopleSel < 0 || newPeopleSel >= _peopleResults.size()) {
 				newPeopleSel = -1;
 			}
@@ -381,7 +382,7 @@ void DialogsInner::onUpdateSelected(bool force) {
 			}
 		}
 		if (_state == SearchedState && !_searchResults.isEmpty()) {
-			int32 skip = searchedOffset(), newSearchedSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			int32 skip = searchedOffset(), newSearchedSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dialogsRowHeight)) : -1;
 			if (newSearchedSel < 0 || newSearchedSel >= _searchResults.size()) {
 				newSearchedSel = -1;
 			}
@@ -406,7 +407,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_cancelSearchInPeer.move(width() - st::dlgPaddingHor - st::btnCancelSearch.width, (st::dlgHeight - st::btnCancelSearch.height) / 2);
+	_cancelSearchInPeer.move(width() - st::dialogsPadding.x() - st::btnCancelSearch.width, (st::dialogsRowHeight - st::btnCancelSearch.height) / 2);
 }
 
 void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
@@ -457,14 +458,14 @@ void DialogsInner::createDialog(History *history) {
 		}
 	}
 
-	int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
-	int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
+	int from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
+	int to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
 	emit dialogMoved(from, to);
 
 	if (creating) {
 		refresh();
 	} else if (_state == DefaultState && changed.movedFrom != changed.movedTo) {
-		update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dlgHeight);
+		update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dialogsRowHeight);
 	}
 }
 
@@ -498,13 +499,13 @@ void DialogsInner::removeDialog(History *history) {
 void DialogsInner::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
 	if (_state == DefaultState) {
 		if (Global::DialogsMode() == list) {
-			update(0, dialogsOffset() + row->pos() * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, dialogsOffset() + row->pos() * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (list == Dialogs::Mode::All) {
 			for (int32 i = 0, l = _filterResults.size(); i < l; ++i) {
 				if (_filterResults.at(i)->history() == row->history()) {
-					update(0, i * st::dlgHeight, fullWidth(), st::dlgHeight);
+					update(0, i * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 					break;
 				}
 			}
@@ -515,13 +516,13 @@ void DialogsInner::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
 void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 	if (_state == DefaultState) {
 		if (auto row = shownDialogs()->getRow(history->peer->id)) {
-			update(0, dialogsOffset() + row->pos() * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, dialogsOffset() + row->pos() * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		int32 cnt = 0, add = filteredOffset();
 		for (FilteredDialogs::const_iterator i = _filterResults.cbegin(), e = _filterResults.cend(); i != e; ++i) {
 			if ((*i)->history() == history) {
-				update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
+				update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 				break;
 			}
 			++cnt;
@@ -530,7 +531,7 @@ void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 			int32 cnt = 0, add = peopleOffset();
 			for (PeopleResults::const_iterator i = _peopleResults.cbegin(), e = _peopleResults.cend(); i != e; ++i) {
 				if ((*i) == history->peer) {
-					update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
+					update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 					break;
 				}
 				++cnt;
@@ -540,7 +541,7 @@ void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 			int32 cnt = 0, add = searchedOffset();
 			for (SearchResults::const_iterator i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
 				if ((*i)->item()->history() == history && (*i)->item()->id == msgId) {
-					update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
+					update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 					break;
 				}
 				++cnt;
@@ -560,30 +561,30 @@ void DialogsInner::updateSelectedRow(PeerData *peer) {
 		if (peer) {
 			if (History *h = App::historyLoaded(peer->id)) {
 				if (h->inChatList(Global::DialogsMode())) {
-					update(0, dialogsOffset() + h->posInChatList(Global::DialogsMode()) * st::dlgHeight, fullWidth(), st::dlgHeight);
+					update(0, dialogsOffset() + h->posInChatList(Global::DialogsMode()) * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 				}
 			}
 		} else if (_sel) {
-			update(0, dialogsOffset() + _sel->pos() * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, dialogsOffset() + _sel->pos() * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		} else if (_importantSwitchSel) {
-			update(0, 0, fullWidth(), st::dlgImportantHeight);
+			update(0, 0, fullWidth(), st::dialogsImportantBarHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (peer) {
 			for (int32 i = 0, l = _filterResults.size(); i != l; ++i) {
 				if (_filterResults.at(i)->history()->peer == peer) {
-					update(0, filteredOffset() + i * st::dlgHeight, fullWidth(), st::dlgHeight);
+					update(0, filteredOffset() + i * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 					break;
 				}
 			}
 		} else if (_hashtagSel >= 0) {
 			update(0, _hashtagSel * st::mentionHeight, fullWidth(), st::mentionHeight);
 		} else if (_filteredSel >= 0) {
-			update(0, filteredOffset() + _filteredSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, filteredOffset() + _filteredSel * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		} else if (_peopleSel >= 0) {
-			update(0, peopleOffset() + _peopleSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, peopleOffset() + _peopleSel * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		} else if (_searchedSel >= 0) {
-			update(0, searchedOffset() + _searchedSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+			update(0, searchedOffset() + _searchedSel * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
 		}
 	}
 
@@ -1156,14 +1157,14 @@ void DialogsInner::notify_historyMuteUpdated(History *history) {
 			return;
 		}
 
-		int from = dialogsOffset() + changed.movedFrom * st::dlgHeight;
-		int to = dialogsOffset() + changed.movedTo * st::dlgHeight;
+		int from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
+		int to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
 		emit dialogMoved(from, to);
 
 		if (creating) {
 			refresh();
 		} else if (_state == DefaultState && changed.movedFrom != changed.movedTo) {
-			update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dlgHeight);
+			update(0, qMin(from, to), fullWidth(), qAbs(from - to) + st::dialogsRowHeight);
 		}
 	}
 }
@@ -1179,15 +1180,15 @@ void DialogsInner::refresh(bool toTop) {
 				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 			}
 		} else {
-			h = dialogsOffset() + shownDialogs()->size() * st::dlgHeight;
+			h = dialogsOffset() + shownDialogs()->size() * st::dialogsRowHeight;
 			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 		}
 	} else {
 		if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 		if (_state == FilteredState) {
-			h = searchedOffset() + (_searchResults.count() * st::dlgHeight) + ((_searchResults.isEmpty() && !_searchInPeer) ? -st::searchedBarHeight : 0);
+			h = searchedOffset() + (_searchResults.count() * st::dialogsRowHeight) + ((_searchResults.isEmpty() && !_searchInPeer) ? -st::searchedBarHeight : 0);
 		} else if (_state == SearchedState) {
-			h = searchedOffset() + (_searchResults.count() * st::dlgHeight);
+			h = searchedOffset() + (_searchResults.count() * st::dialogsRowHeight);
 		}
 	}
 	setHeight(h);
@@ -1295,8 +1296,8 @@ void DialogsInner::selectSkip(int32 direction) {
 			}
 		}
 		if (_importantSwitchSel || _sel) {
-			int fromY = _importantSwitchSel ? 0 : (dialogsOffset() + _sel->pos() * st::dlgHeight);
-			emit mustScrollTo(fromY, fromY + st::dlgHeight);
+			int fromY = _importantSwitchSel ? 0 : (dialogsOffset() + _sel->pos() * st::dialogsRowHeight);
+			emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (_hashtagResults.isEmpty() && _filterResults.isEmpty() && _peopleResults.isEmpty() && _searchResults.isEmpty()) return;
@@ -1333,11 +1334,11 @@ void DialogsInner::selectSkip(int32 direction) {
 		if (_hashtagSel >= 0 && _hashtagSel < _hashtagResults.size()) {
 			emit mustScrollTo(_hashtagSel * st::mentionHeight, (_hashtagSel + 1) * st::mentionHeight);
 		} else if (_filteredSel >= 0 && _filteredSel < _filterResults.size()) {
-			emit mustScrollTo(filteredOffset() + _filteredSel * st::dlgHeight, filteredOffset() + (_filteredSel + 1) * st::dlgHeight);
+			emit mustScrollTo(filteredOffset() + _filteredSel * st::dialogsRowHeight, filteredOffset() + (_filteredSel + 1) * st::dialogsRowHeight);
 		} else if (_peopleSel >= 0 && _peopleSel < _peopleResults.size()) {
-			emit mustScrollTo(peopleOffset() + _peopleSel * st::dlgHeight + (_peopleSel ? 0 : -st::searchedBarHeight), peopleOffset() + (_peopleSel + 1) * st::dlgHeight);
+			emit mustScrollTo(peopleOffset() + _peopleSel * st::dialogsRowHeight + (_peopleSel ? 0 : -st::searchedBarHeight), peopleOffset() + (_peopleSel + 1) * st::dialogsRowHeight);
 		} else {
-			emit mustScrollTo(searchedOffset() + _searchedSel * st::dlgHeight + (_searchedSel ? 0 : -st::searchedBarHeight), searchedOffset() + (_searchedSel + 1) * st::dlgHeight);
+			emit mustScrollTo(searchedOffset() + _searchedSel * st::dialogsRowHeight + (_searchedSel ? 0 : -st::searchedBarHeight), searchedOffset() + (_searchedSel + 1) * st::dialogsRowHeight);
 		}
 	}
 	update();
@@ -1347,13 +1348,13 @@ void DialogsInner::scrollToPeer(const PeerId &peer, MsgId msgId) {
 	int32 fromY = -1;
 	if (_state == DefaultState) {
 		if (auto row = shownDialogs()->getRow(peer)) {
-			fromY = dialogsOffset() + row->pos() * st::dlgHeight;
+			fromY = dialogsOffset() + row->pos() * st::dialogsRowHeight;
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (msgId) {
 			for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
 				if (_searchResults[i]->item()->history()->peer->id == peer && _searchResults[i]->item()->id == msgId) {
-					fromY = searchedOffset() + i * st::dlgHeight;
+					fromY = searchedOffset() + i * st::dialogsRowHeight;
 					break;
 				}
 			}
@@ -1361,19 +1362,19 @@ void DialogsInner::scrollToPeer(const PeerId &peer, MsgId msgId) {
 		if (fromY < 0) {
 			for (int32 i = 0, c = _filterResults.size(); i < c; ++i) {
 				if (_filterResults[i]->history()->peer->id == peer) {
-					fromY = filteredOffset() + (i * st::dlgHeight);
+					fromY = filteredOffset() + (i * st::dialogsRowHeight);
 					break;
 				}
 			}
 		}
 	}
 	if (fromY >= 0) {
-		emit mustScrollTo(fromY, fromY + st::dlgHeight);
+		emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 	}
 }
 
 void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
-	int toSkip = pixels / int(st::dlgHeight);
+	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == DefaultState) {
 		if (!_sel) {
 			if (direction > 0 && !shownDialogs()->isEmpty()) {
@@ -1397,8 +1398,8 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 			}
 		}
 		if (_importantSwitchSel || _sel) {
-			int fromY = (_importantSwitchSel ? 0 : (dialogsOffset() + _sel->pos() * st::dlgHeight));
-			emit mustScrollTo(fromY, fromY + st::dlgHeight);
+			int fromY = (_importantSwitchSel ? 0 : (dialogsOffset() + _sel->pos() * st::dialogsRowHeight));
+			emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 		}
 	} else {
 		return selectSkip(direction * toSkip);
@@ -1412,10 +1413,10 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 	int32 yTo = yFrom + parentWidget()->height() * 5;
 	MTP::clearLoaderPriorities();
 	if (_state == DefaultState) {
-		int32 otherStart = shownDialogs()->size() * st::dlgHeight;
+		int32 otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {
-			for (auto i = shownDialogs()->cfind(yFrom, st::dlgHeight), end = shownDialogs()->cend(); i != end; ++i) {
-				if (((*i)->pos() * st::dlgHeight) >= yTo) {
+			for (auto i = shownDialogs()->cfind(yFrom, st::dialogsRowHeight), end = shownDialogs()->cend(); i != end; ++i) {
+				if (((*i)->pos() * st::dialogsRowHeight) >= yTo) {
 					break;
 				}
 				(*i)->history()->peer->loadUserpic();
@@ -1426,10 +1427,10 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 		}
 		yTo -= otherStart;
 	} else if (_state == FilteredState || _state == SearchedState) {
-		int32 from = (yFrom - filteredOffset()) / st::dlgHeight;
+		int32 from = (yFrom - filteredOffset()) / st::dialogsRowHeight;
 		if (from < 0) from = 0;
 		if (from < _filterResults.size()) {
-			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
+			int32 to = (yTo / int32(st::dialogsRowHeight)) + 1, w = width();
 			if (to > _filterResults.size()) to = _filterResults.size();
 
 			for (; from < to; ++from) {
@@ -1437,20 +1438,20 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 			}
 		}
 
-		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size();
+		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size();
 		if (from < 0) from = 0;
 		if (from < _peopleResults.size()) {
-			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() + 1, w = width();
+			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() + 1, w = width();
 			if (to > _peopleResults.size()) to = _peopleResults.size();
 
 			for (; from < to; ++from) {
 				_peopleResults[from]->loadUserpic();
 			}
 		}
-		from = (yFrom > filteredOffset() + ((_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() - _peopleResults.size();
+		from = (yFrom > filteredOffset() + ((_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() - _peopleResults.size();
 		if (from < 0) from = 0;
 		if (from < _searchResults.size()) {
-			int32 to = (yTo > filteredOffset() + (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() - _peopleResults.size() + 1, w = width();
+			int32 to = (yTo > filteredOffset() + (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() - _peopleResults.size() + 1, w = width();
 			if (to > _searchResults.size()) to = _searchResults.size();
 
 			for (; from < to; ++from) {
@@ -1761,7 +1762,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _newGroup(this, st::btnNewGroup)
 , _addContact(this, st::btnAddContact)
 , _cancelSearch(this, st::btnCancelSearch)
-, _scroll(this, st::dlgScroll)
+, _scroll(this, st::dialogsScroll)
 , _inner(&_scroll, parent)
 , _a_show(animation(this, &DialogsWidget::step_show))
 , _searchInPeer(0)
@@ -1800,15 +1801,15 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 
 	_scroll.show();
 	_filter.show();
-	_filter.move(st::dlgPaddingHor, st::dlgFilterPadding);
+	_filter.move(st::dialogsPadding.x(), st::dialogsFilterPadding);
 	_filter.setFocusPolicy(Qt::StrongFocus);
 	_filter.customUpDown(true);
 	_addContact.hide();
 	_newGroup.show();
 	_cancelSearch.hide();
-	_newGroup.move(width() - _newGroup.width() - st::dlgPaddingHor, 0);
-	_addContact.move(width() - _addContact.width() - st::dlgPaddingHor, 0);
-	_cancelSearch.move(width() - _cancelSearch.width() - st::dlgPaddingHor, 0);
+	_newGroup.move(width() - _newGroup.width() - st::dialogsPadding.x(), 0);
+	_addContact.move(width() - _addContact.width() - st::dialogsPadding.x(), 0);
+	_cancelSearch.move(width() - _cancelSearch.width() - st::dialogsPadding.x(), 0);
 }
 
 void DialogsWidget::activate() {
@@ -2342,10 +2343,10 @@ void DialogsWidget::onListScroll() {
 
 	_inner.loadPeerPhotos(_scroll.scrollTop());
 	if (_inner.state() == DialogsInner::SearchedState || (_inner.state() == DialogsInner::FilteredState && _searchInMigrated && _searchFull && !_searchFullMigrated)) {
-		if (_scroll.scrollTop() > (_inner.searchList().size() + _inner.filteredList().size() + _inner.peopleList().size()) * st::dlgHeight - PreloadHeightsCount * _scroll.height()) {
+		if (_scroll.scrollTop() > (_inner.searchList().size() + _inner.filteredList().size() + _inner.peopleList().size()) * st::dialogsRowHeight - PreloadHeightsCount * _scroll.height()) {
 			onSearchMore();
 		}
-	} else if (_scroll.scrollTop() > _inner.dialogsList()->size() * st::dlgHeight - PreloadHeightsCount * _scroll.height()) {
+	} else if (_scroll.scrollTop() > _inner.dialogsList()->size() * st::dialogsRowHeight - PreloadHeightsCount * _scroll.height()) {
 		loadDialogs();
 	}
 }
@@ -2425,15 +2426,15 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	int32 w = width();
-	_filter.setGeometry(st::dlgPaddingHor, st::dlgFilterPadding, w - 2 * st::dlgPaddingHor, _filter.height());
-	_newGroup.move(w - _newGroup.width() - st::dlgPaddingHor, _filter.y());
-	_addContact.move(w - _addContact.width() - st::dlgPaddingHor, _filter.y());
-	_cancelSearch.move(w - _cancelSearch.width() - st::dlgPaddingHor, _filter.y());
-	_scroll.move(0, _filter.height() + 2 * st::dlgFilterPadding);
+	_filter.setGeometry(st::dialogsPadding.x(), st::dialogsFilterPadding, w - 2 * st::dialogsPadding.x(), _filter.height());
+	_newGroup.move(w - _newGroup.width() - st::dialogsPadding.x(), _filter.y());
+	_addContact.move(w - _addContact.width() - st::dialogsPadding.x(), _filter.y());
+	_cancelSearch.move(w - _cancelSearch.width() - st::dialogsPadding.x(), _filter.y());
+	_scroll.move(0, _filter.height() + 2 * st::dialogsFilterPadding);
 
 	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;
 	int32 newScrollY = _scroll.scrollTop() + addToY;
-	_scroll.resize(w, height() - _filter.y() - _filter.height() - st::dlgFilterPadding - st::dlgPaddingVer);
+	_scroll.resize(w, height() - _filter.y() - _filter.height() - st::dialogsFilterPadding - st::dialogsPadding.y());
 	if (addToY) {
 		_scroll.scrollToY(newScrollY);
 	} else {
@@ -2583,6 +2584,6 @@ void DialogsWidget::onCancelSearchInPeer() {
 void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
 	int32 st = _scroll.scrollTop();
 	if (st > movedTo && st < movedFrom) {
-		_scroll.scrollToY(st + st::dlgHeight);
+		_scroll.scrollToY(st + st::dialogsRowHeight);
 	}
 }

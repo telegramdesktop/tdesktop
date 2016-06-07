@@ -21,7 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "mainwidget.h"
 
+#include "styles/style_dialogs.h"
 #include "ui/buttons/peer_avatar_button.h"
+#include "ui/buttons/round_button.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
@@ -56,6 +58,7 @@ StackItemSection::~StackItemSection() {
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
+, _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowColor)
 , _dialogs(this)
 , _history(this)
@@ -2526,8 +2529,8 @@ void MainWidget::showAll() {
 		cSetPasswordRecovered(false);
 		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
-	_sideShadow.show();
 	if (Adaptive::OneColumn()) {
+		_sideShadow.hide();
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
@@ -2562,6 +2565,7 @@ void MainWidget::showAll() {
 			_dialogs->hide();
 		}
 	} else {
+		_sideShadow.show();
 		if (_hider) {
 			_hider->show();
 			if (_forwardConfirm) {
@@ -2592,6 +2596,14 @@ void MainWidget::showAll() {
 
 	App::wnd()->checkHistoryActivation();
 }
+
+namespace {
+
+inline int chatsListWidth(int windowWidth) {
+	return snap<int>((windowWidth * 5) / 14, st::dialogsWidthMin, st::dialogsWidthMax);
+}
+
+} // namespace
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
@@ -3451,9 +3463,12 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 bool MainWidget::inviteImportFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (error.code() == 400) {
+	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
+	} else if (error.code() == 400) {
 		Ui::showLayer(new InformBox(lang(error.type() == qstr("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
 	}
+
 	return true;
 }
 
@@ -3761,54 +3776,13 @@ void MainWidget::saveDraftToCloud() {
 		auto localDraft = history->localDraft();
 		auto cloudDraft = history->cloudDraft();
 		if (!historyDraftsAreEqual(localDraft, cloudDraft)) {
-			if (cloudDraft && cloudDraft->saveRequestId) {
-				MTP::cancel(cloudDraft->saveRequestId);
-			}
-			cloudDraft = history->createCloudDraft(localDraft);
-
-			MTPmessages_SaveDraft::Flags flags = 0;
-			auto &textWithTags = cloudDraft->textWithTags;
-			if (cloudDraft->previewCancelled) {
-				flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
-			}
-			if (cloudDraft->msgId) {
-				flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
-			}
-			if (!textWithTags.tags.isEmpty()) {
-				flags |= MTPmessages_SaveDraft::Flag::f_entities;
-			}
-			auto entities = linksToMTP(entitiesFromTextTags(textWithTags.tags), true);
-			cloudDraft->saveRequestId = MTP::send(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), peer->input, MTP_string(textWithTags.text), entities), rpcDone(&MainWidget::saveCloudDraftDone, peer), rpcFail(&MainWidget::saveCloudDraftFail, peer));
+			App::api()->saveDraftToCloudDelayed(history);
 		}
 	}
 }
 
 void MainWidget::applyCloudDraft(History *history) {
 	_history->applyCloudDraft(history);
-}
-
-void MainWidget::saveCloudDraftDone(PeerData *peer, const MTPBool &result, mtpRequestId requestId) {
-	if (auto history = App::historyLoaded(peer)) {
-		if (auto cloudDraft = history->cloudDraft()) {
-			if (cloudDraft->saveRequestId == requestId) {
-				cloudDraft->saveRequestId = 0;
-				history->updateChatListEntry();
-			}
-		}
-	}
-}
-
-bool MainWidget::saveCloudDraftFail(PeerData *peer, const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (auto history = App::historyLoaded(peer)) {
-		if (auto cloudDraft = history->cloudDraft()) {
-			if (cloudDraft->saveRequestId == requestId) {
-				history->clearCloudDraft();
-			}
-		}
-	}
-	return true;
 }
 
 void MainWidget::checkIdleFinish() {

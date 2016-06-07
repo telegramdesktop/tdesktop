@@ -26,6 +26,10 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 namespace Profile {
 
 class BackButton;
@@ -96,7 +100,7 @@ private:
 	int _currentAction = 0;
 	struct RightAction {
 		RightActionType type = RightActionType::None;
-		FlatButton *button = nullptr;
+		Ui::RoundButton *button = nullptr;
 	};
 	QList<RightAction> _rightActions;
 

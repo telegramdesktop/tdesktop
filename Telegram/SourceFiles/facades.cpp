@@ -95,6 +95,8 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 			auto getMessageBot = [msg]() -> UserData* {
 				if (auto bot = msg->viaBot()) {
 					return bot;
+				} else if (auto bot = msg->from()->asUser()) {
+					return bot;
 				} else if (auto bot = msg->history()->peer->asUser()) {
 					return bot;
 				}

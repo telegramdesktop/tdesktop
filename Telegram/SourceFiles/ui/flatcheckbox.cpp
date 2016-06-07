@@ -351,7 +351,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 		if (checked > 0) {
-			p.drawSpriteCenter(_checkRect, _st.checkIcon);
+			_st.checkIcon.paint(p, QPoint(0, 0), width());
 		}
 	}
 	if (_checkRect.contains(r)) return;

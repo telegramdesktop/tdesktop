@@ -29,6 +29,15 @@ public:
 	RoundButton(QWidget *parent, const QString &text, const style::BoxButton &st);
 
 	void setText(const QString &text);
+	int textWidth() const;
+
+	void setFullWidth(int newFullWidth);
+
+	enum class TextTransform {
+		NoTransform,
+		ToUpper,
+	};
+	void setTextTransform(TextTransform transform);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -38,16 +47,20 @@ protected:
 private:
 	void step_over(float64 ms, bool timer);
 
+	void updateText();
 	void resizeToText();
 
 	QString _text, _fullText;
 	int _textWidth;
+	int _fullWidthOverride = 0;
 
 	const style::BoxButton &_st;
 
 	anim::fvalue a_textBgOverOpacity;
 	anim::cvalue a_textFg;
 	Animation _a_over;
+
+	TextTransform _transform = TextTransform::NoTransform;
 
 };
 

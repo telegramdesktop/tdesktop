@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class PeerAvatarButton;
+class RoundButton;
 } // namespace Ui
 class FlatButton;
 class IconedButton;
@@ -34,7 +35,6 @@ class TopBarWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
 	TopBarWidget(MainWidget *w);
 
 	void enterEvent(QEvent *e) override;
@@ -54,28 +54,19 @@ public:
 
 	void updateAdaptiveLayout();
 
-	FlatButton *mediaTypeButton();
+	Ui::RoundButton *mediaTypeButton();
 
 public slots:
-
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
 	void onInfoClicked();
-	void onAddContact();
-	void onEdit();
-	void onDeleteContact();
-	void onDeleteContactSure();
-	void onDeleteAndExit();
-	void onDeleteAndExitSure();
 	void onSearch();
 
 signals:
-
 	void clicked();
 
 private:
-
 	MainWidget *main();
 	anim::fvalue a_over;
 	Animation _a_appearance;
@@ -88,13 +79,12 @@ private:
 
 	bool _animating;
 
-	ChildWidget<FlatButton> _clearSelection;
+	ChildWidget<Ui::RoundButton> _clearSelection;
 	ChildWidget<FlatButton> _forward, _delete;
 	int _selectionButtonsWidth, _forwardDeleteWidth;
 
 	ChildWidget<Ui::PeerAvatarButton> _info;
-	ChildWidget<FlatButton> _edit, _leaveGroup, _addContact, _deleteContact;
-	ChildWidget<FlatButton> _mediaType;
+	ChildWidget<Ui::RoundButton> _mediaType;
 
 	ChildWidget<IconedButton> _search;
 

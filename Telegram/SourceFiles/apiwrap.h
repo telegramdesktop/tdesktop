@@ -59,6 +59,9 @@ public:
 	void exportInviteLink(PeerData *peer);
 	void requestNotifySetting(PeerData *peer);
 
+	void saveDraftToCloudDelayed(History *history);
+	bool hasUnsavedDrafts() const;
+
 	~ApiWrap();
 
 signals:
@@ -71,6 +74,7 @@ public slots:
 	void resolveWebPages();
 
 	void delayedRequestParticipantsCount();
+	void saveDraftsToCloud();
 
 private:
 
@@ -150,5 +154,9 @@ private:
 	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
 	bool notifySettingFail(PeerData *peer, const RPCError &error);
 
+	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
+	SingleTimer _draftsSaveTimer;
+	void saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId);
+	bool saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId);
 
 };

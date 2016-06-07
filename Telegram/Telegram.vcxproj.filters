@@ -1296,6 +1296,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_report_box.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\dialogs\dialogs_row.cpp">
+      <Filter>SourceFiles\dialogs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">

@@ -458,14 +458,14 @@ public:
 	mtpRequestId sendRequestId = 0;
 
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
-	mutable Text lastItemTextCache = Text{ int(st::dlgRichMinWidth) };
+	mutable Text lastItemTextCache;
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
 	typedef QMap<UserData*, SendAction> SendActionUsers;
 	SendActionUsers sendActions;
 	QString typingStr;
-	Text typingText = Text{ int(st::dlgRichMinWidth) };
+	Text typingText;
 	uint32 typingDots;
 	QMap<SendActionType, uint64> mySendActions;
 
@@ -504,7 +504,7 @@ public:
 
 	void changeMsgId(MsgId oldId, MsgId newId);
 
-	Text cloudDraftTextCache = Text { int(st::dlgRichMinWidth) };
+	Text cloudDraftTextCache;
 
 protected:
 

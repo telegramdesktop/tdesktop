@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_fixed_bar.h"
 
 #include "styles/style_profile.h"
+#include "ui/buttons/round_button.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
@@ -165,7 +166,7 @@ void FixedBar::addRightAction(RightActionType type, const QString &text, const c
 	}
 	_rightActions[_currentAction].type = type;
 	delete _rightActions[_currentAction].button;
-	_rightActions[_currentAction].button = new FlatButton(this, text, st::profileFixedBarButton);
+	_rightActions[_currentAction].button = new Ui::RoundButton(this, text, st::profileFixedBarButton);
 	connect(_rightActions[_currentAction].button, SIGNAL(clicked()), this, slot);
 	bool showButton = !_animatingMode && (type != RightActionType::ShareContact || !_hideShareContactButton);
 	_rightActions[_currentAction].button->setVisible(showButton);

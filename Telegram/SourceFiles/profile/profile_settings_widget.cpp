@@ -127,7 +127,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 	};
 	_manageAdmins.destroy();
 	if (hasManageAdmins()) {
-		_manageAdmins = new Ui::LeftOutlineButton(this, lang(lng_profile_manage_admins));
+		_manageAdmins = new Ui::LeftOutlineButton(this, lang(lng_profile_manage_admins), st::defaultLeftOutlineButton);
 		_manageAdmins->show();
 		connect(_manageAdmins, SIGNAL(clicked()), this, SLOT(onManageAdmins()));
 	}
@@ -148,7 +148,7 @@ void SettingsWidget::refreshInviteLinkButton() {
 	};
 	auto inviteLinkText = getInviteLinkText();
 	if (!inviteLinkText.isEmpty()) {
-		_inviteLink = new Ui::LeftOutlineButton(this, inviteLinkText);
+		_inviteLink = new Ui::LeftOutlineButton(this, inviteLinkText, st::defaultLeftOutlineButton);
 		_inviteLink->show();
 		connect(_inviteLink, SIGNAL(clicked()), this, SLOT(onInviteLink()));
 	}

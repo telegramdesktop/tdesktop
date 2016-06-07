@@ -129,9 +129,12 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	int nameLeft = infoLeft + st::profileNameLeft - st::profileNameLabel.margin.left();
 	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
-	int nameWidth = newWidth - infoLeft - st::profileNameLeft - st::profileButtonSkip;
+	int nameWidth = newWidth - infoLeft - st::profileNameLeft;
+	if (_peer->isVerified()) {
+		nameWidth -= st::profileVerifiedCheckPosition.x() + st::profileVerifiedCheck.width();
+	}
 	int marginsAdd = st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
-	_name.resizeToWidth(qMin(nameWidth, _name.naturalWidth()) + marginsAdd);
+	_name.resizeToWidth(qMin(nameWidth - marginsAdd, _name.naturalWidth()) + marginsAdd);
 	_name.moveToLeft(nameLeft, nameTop);
 }
 
@@ -182,6 +185,10 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.setFont(st::profileStatusFont);
 	p.setPen(_statusTextIsOnline ? st::profileStatusFgActive : st::profileStatusFg);
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
+
+	if (_peer->isVerified()) {
+		st::profileVerifiedCheck.paint(p, QPoint(_name.x() + _name.width(), _name.y()) + st::profileVerifiedCheckPosition, width());
+	}
 
 	paintDivider(p);
 }
@@ -407,6 +414,7 @@ void CoverWidget::clearButtons() {
 void CoverWidget::addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle) {
 	auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
 	auto button = new Ui::RoundButton(this, text, buttonStyle);
+	button->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(button, SIGNAL(clicked()), this, slot);
 	button->show();
 

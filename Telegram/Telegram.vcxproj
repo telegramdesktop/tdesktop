@@ -1231,6 +1231,7 @@
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_layout.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_list.cpp" />
+    <ClCompile Include="SourceFiles\dialogs\dialogs_row.cpp" />
     <ClCompile Include="SourceFiles\dropdown.cpp" />
     <ClCompile Include="SourceFiles\facades.cpp" />
     <ClCompile Include="SourceFiles\fileuploader.cpp" />

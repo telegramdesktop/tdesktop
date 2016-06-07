@@ -18,60 +18,14 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "dialogs/dialogs_row.h"
 
-#include "ui/text/text.h"
-
-class History;
-class HistoryItem;
+#include "styles/style_dialogs.h"
 
 namespace Dialogs {
-namespace Layout {
-class RowPainter;
-} // namespace Layout
 
-class List;
-class Row {
-public:
-	Row(History *history, Row *prev, Row *next, int pos)
-		: _history(history)
-		, _prev(prev)
-		, _next(next)
-		, _pos(pos) {
-	}
-	void *attached = nullptr; // for any attached data, for example View in contacts list
-
-	History *history() const {
-		return _history;
-	}
-	int pos() const {
-		return _pos;
-	}
-
-private:
-	friend class List;
-
-	History *_history;
-	Row *_prev, *_next;
-	int _pos;
-
-};
-
-class FakeRow {
-public:
-	FakeRow(HistoryItem *item);
-
-	HistoryItem *item() const {
-		return _item;
-	}
-
-private:
-	friend class Layout::RowPainter;
-
-	HistoryItem *_item;
-	mutable const HistoryItem *_cacheFor = nullptr;
-	mutable Text _cache;
-
-};
+FakeRow::FakeRow(HistoryItem *item) : _item(item), _cache(st::dialogsTextWidthMin) {
+}
 
 } // namespace Dialogs

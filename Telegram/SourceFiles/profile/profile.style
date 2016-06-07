@@ -24,29 +24,30 @@ using "basic_types.style";
 profileBg: windowBg;
 
 profileTopBarHeight: topBarHeight;
-profileTopBarBackIconFg: #51b3e0;
+profileTopBarBackIconFg: #0290d7;
 profileTopBarBackIcon: icon {
 	{ "topbar_back_arrow", profileTopBarBackIconFg },
 };
-profileTopBarBackIconPosition: point(15px, 19px);
+profileTopBarBackIconPosition: point(15px, 20px);
 profileTopBarBackFont: font(14px);
 profileTopBarBackFg: #1485c2;
 profileTopBarBackPosition: point(32px, 17px);
-profileFixedBarButton: flatButton(topBarButton) {
+profileFixedBarButton: BoxButton(topBarButton) {
 }
 
 profileMarginTop: 13px;
 profilePhotoSize: 112px;
 profilePhotoLeftMin: 18px;
-profilePhotoLeftMax: 45px;
+profilePhotoLeftMax: 35px;
 profilePhotoDuration: 500;
 profileNameLeft: 26px;
 profileNameTop: 9px;
 profileNameLabel: flatLabel(labelDefFlat) {
 	margin: margins(10px, 5px, 10px, 5px);
-	font: font(16px);
+	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
+	textFg: #333333;
 }
 profileNameTextStyle: textStyle(defaultTextStyle) {
 }
@@ -57,18 +58,18 @@ profileStatusFg: windowSubTextFg;
 profileStatusFgActive: windowActiveTextFg;
 profileMarginBottom: 30px;
 
-profileActiveBg: #3fb0e4;
 profileButtonLeft: 27px;
 profileButtonTop: 88px;
 profileButtonSkip: 10px;
 profilePrimaryButton: BoxButton {
 	textFg: #ffffff;
 	textFgOver: #ffffff;
-	textBg: profileActiveBg;
-	textBgOver: profileActiveBg;
+	textBg: windowActiveBg;
+	textBgOver: windowActiveBg;
 
 	width: -34px;
 	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
 
@@ -76,13 +77,13 @@ profilePrimaryButton: BoxButton {
 	duration: 200;
 }
 profileSecondaryButton: BoxButton(profilePrimaryButton) {
-	textFg: #189dda;
-	textFgOver: #189dda;
+	textFg: #2b99d5;
+	textFgOver: #2b99d5;
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
 profileAddMemberIcon: icon {
-	{ "profile_add_member", profileActiveBg, point(20px, 10px) },
+	{ "profile_add_member", windowActiveBg, point(20px, 10px) },
 };
 profileAddMemberButton: BoxButton(profileSecondaryButton) {
 	width: 62px;
@@ -90,7 +91,7 @@ profileAddMemberButton: BoxButton(profileSecondaryButton) {
 }
 
 profileDropAreaBg: profileBg;
-profileDropAreaFg: profileActiveBg;
+profileDropAreaFg: windowActiveBg;
 profileDropAreaPadding: margins(25px, 3px, 25px, 20px);
 profileDropAreaTitleFont: font(24px);
 profileDropAreaTitleTop: 30px;
@@ -120,7 +121,7 @@ profileBlockMarginRight: 10px;
 profileBlockMarginBottom: 4px;
 profileBlockTitleHeight: 25px;
 profileBlockTitleFont: font(14px semibold);
-profileBlockTitleFg: black;
+profileBlockTitleFg: #333333;
 profileBlockTitlePosition: point(24px, 0px);
 profileBlockLabel: flatLabel(labelDefFlat) {
 	textFg: windowSubTextFg;
@@ -153,7 +154,7 @@ profileMemberStatusFg: windowSubTextFg;
 profileMemberStatusFgOver: windowSubTextFg;
 profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {
-	{ "profile_admin_star", profileActiveBg, point(4px, 2px) },
+	{ "profile_admin_star", #3babe7, point(4px, 2px) },
 };
 profileLimitReachedLabel: flatLabel(labelDefFlat) {
 	width: 180px;
@@ -167,3 +168,9 @@ profileReportReasonOther: InputArea(defaultInputArea) {
 	textMargins: margins(1px, 6px, 1px, 4px);
 	heightMax: 115px;
 }
+
+profileVerifiedCheckPosition: point(-3px, 7px);
+profileVerifiedCheck: icon {
+	{ "profile_verified_star", #4abcf1 },
+	{ "profile_verified_check", #ffffff, point(4px, 4px) }
+};

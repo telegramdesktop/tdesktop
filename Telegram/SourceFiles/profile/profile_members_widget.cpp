@@ -426,6 +426,9 @@ void MembersWidget::fillChatMembers(ChatData *chat) {
 }
 
 void MembersWidget::setMemberFlags(Member *member, ChatData *chat) {
+	auto isCreator = (chat->creator == peerToUser(member->user->id));
+	auto isAdmin = chat->admins.contains(member->user);
+	member->isAdmin = isCreator || isAdmin;
 	if (member->user->id == peerFromUser(MTP::authedId())) {
 		member->canBeKicked = false;
 	} else if (chat->amCreator() || (chat->amAdmin() && !member->isAdmin)) {
@@ -433,7 +436,6 @@ void MembersWidget::setMemberFlags(Member *member, ChatData *chat) {
 	} else {
 		member->canBeKicked = chat->invitedByMe.contains(member->user);
 	}
-	member->isAdmin = chat->admins.contains(member->user);
 }
 
 MembersWidget::Member *MembersWidget::addUser(ChannelData *megagroup, UserData *user) {
@@ -490,6 +492,9 @@ bool MembersWidget::addUsersToEnd(ChannelData *megagroup) {
 }
 
 void MembersWidget::setMemberFlags(Member *member, ChannelData *megagroup) {
+	auto amCreatorOrAdmin = (peerFromUser(member->user->id) == MTP::authedId()) && (megagroup->amCreator() || megagroup->amEditor());
+	auto isAdmin = megagroup->mgInfo->lastAdmins.contains(member->user);
+	member->isAdmin = amCreatorOrAdmin || isAdmin;
 	if (member->user->isSelf()) {
 		member->canBeKicked = false;
 	} else if (megagroup->amCreator() || (megagroup->amEditor() && !member->isAdmin)) {
@@ -497,7 +502,6 @@ void MembersWidget::setMemberFlags(Member *member, ChannelData *megagroup) {
 	} else {
 		member->canBeKicked = false;
 	}
-	member->isAdmin = megagroup->mgInfo->lastAdmins.contains(member->user);
 }
 
 MembersWidget::Member *MembersWidget::getMember(UserData *user) {
@@ -640,7 +644,7 @@ void ChannelMembersWidget::addButton(const QString &text, ChildWidget<Ui::LeftOu
 	} else if (*button) {
 		(*button)->setText(text);
 	} else {
-		(*button) = new Ui::LeftOutlineButton(this, text);
+		(*button) = new Ui::LeftOutlineButton(this, text, st::defaultLeftOutlineButton);
 		(*button)->show();
 		connect(*button, SIGNAL(clicked()), this, slot);
 	}

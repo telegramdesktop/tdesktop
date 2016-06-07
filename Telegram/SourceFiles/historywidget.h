@@ -115,6 +115,9 @@ public:
 
 	~HistoryInner();
 
+protected:
+	bool focusNextPrevChild(bool next) override;
+
 public slots:
 
 	void onUpdateSelected();

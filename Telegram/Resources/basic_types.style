@@ -305,6 +305,7 @@ BoxButton {
 
 	width: pixels;
 	height: pixels;
+	padding: margins;
 
 	textTop: pixels;
 
@@ -328,7 +329,7 @@ Checkbox {
 	textPosition: point;
 	diameter: pixels;
 	thickness: pixels;
-	checkIcon: sprite;
+	checkIcon: icon;
 
 	font: font;
 	duration: int;
