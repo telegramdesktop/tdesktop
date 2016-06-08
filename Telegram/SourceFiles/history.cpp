@@ -2838,6 +2838,15 @@ void HistoryItem::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
+bool HistoryItem::displayDate() const {
+	if (isEmpty()) return false;
+
+	if (auto prev = previous()) {
+		return prev->isEmpty() || (prev->date.date() != date.date());
+	}
+	return true;
+}
+
 HistoryItem::~HistoryItem() {
 	App::historyUnregItem(this);
 	if (id < 0 && App::uploader()) {

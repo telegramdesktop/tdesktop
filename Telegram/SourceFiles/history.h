@@ -1488,12 +1488,7 @@ protected:
 	// this should be used only in previousItemChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
-	bool displayDate() const {
-		if (auto prev = previous()) {
-			return prev->date.date() != date.date();
-		}
-		return true;
-	}
+	bool displayDate() const;
 
 	// this should be used only in previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask

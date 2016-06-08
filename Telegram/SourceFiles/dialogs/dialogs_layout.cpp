@@ -107,7 +107,7 @@ void paintRow(Painter &p, History *history, HistoryItem *item, HistoryDraft *dra
 		} else {
 			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
-	} else {
+	} else if (!item->isEmpty()) {
 		paintRowDate(p, item->date, rectForName, active);
 
 		// draw check

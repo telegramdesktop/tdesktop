@@ -280,6 +280,7 @@ void ActionsWidget::onClearHistory() {
 void ActionsWidget::onClearHistorySure() {
 	Ui::hideLayer();
 	App::main()->clearHistory(peer());
+	Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
 }
 
 void ActionsWidget::onDeleteConversation() {
