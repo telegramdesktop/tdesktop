@@ -82,7 +82,7 @@ repl () {
   CheckCount=`eval $CheckCommand`
   set -e
   if [ "$CheckCount" -gt 0 ]; then
-    ReplaceCommand="sed -i '' 's/$Pattern/$Replacement/g' $File"
+    ReplaceCommand="sed -i'.~' 's/$Pattern/$Replacement/g' $File"
     eval $ReplaceCommand
   else
     echo "Not found $Pattern"

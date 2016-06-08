@@ -41,7 +41,7 @@ Replace () {
     CheckCount=$(eval $CheckCommand)
     if [ "$CheckCount" -gt 0 ]; then
         echo "Requested '$1' to '$2', found - replacing.."
-        ReplaceCommand="sed -i '' 's/$1/$2/g' Makefile"
+        ReplaceCommand="sed -i'.~' 's/$1/$2/g' Makefile"
         eval $ReplaceCommand
     else
         echo "Skipping '$1' to '$2'"
