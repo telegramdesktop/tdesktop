@@ -135,6 +135,11 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		const auto &r(message->c_botInlineMessageText());
 		EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
 		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
+		if (result->_type == Type::Photo) {
+			result->createPhoto();
+		} else if (result->_type == Type::Audio || result->_type == Type::File || result->_type == Type::Video || result->_type == Type::Sticker || result->_type == Type::Gif) {
+			result->createDocument();
+		}
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
