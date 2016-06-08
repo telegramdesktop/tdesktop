@@ -482,6 +482,9 @@ public:
 		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = checkTilde && (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
+		} else if (ch == 0xFE0F && (cPlatform() == dbipMac || cPlatform() == dbipMacOld)) {
+			// Some sequences like 0x0E53 0xFE0F crash OS X harfbuzz text processing :(
+			skip = true;
 		} else if (isDiac) {
 			if (lastSkipped || emoji || ++diacs > chMaxDiacAfterSymbol()) {
 				skip = true;

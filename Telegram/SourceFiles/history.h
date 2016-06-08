@@ -823,7 +823,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	bool updateData(HistoryMessage *holder, bool force = false);
 	void clearData(HistoryMessage *holder); // must be called before destructor
 
-	void checkNameUpdate() const;
+	bool isNameUpdated() const;
 	void updateName() const;
 	void resize(int width) const;
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
@@ -1299,9 +1299,6 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
-	bool wasEdited() const {
-		return _flags & MTPDmessage::Flag::f_edit_date;
-	}
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();
@@ -2598,6 +2595,7 @@ public:
 
 		return (!emptyText() || !_media || !_media->isDisplayed() || Has<HistoryMessageReply>() || Has<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
 	}
+	bool displayEditedBadge(bool hasViaBot) const;
 	bool uploading() const {
 		return _media && _media->uploading();
 	}

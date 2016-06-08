@@ -4728,21 +4728,21 @@ void HistorySticker::initDimensions() {
 	if (_pixh < 1) _pixh = 1;
 	_maxw = qMax(_pixw, int16(st::minPhotoSize));
 	_minh = qMax(_pixh, int16(st::minPhotoSize));
+	if (_parent->getMedia() == this) {
+		_maxw += additionalWidth();
+	}
 
 	_height = _minh;
 }
 
 int HistorySticker::resizeGetHeight(int width) { // return new height
-	int maxWidth = _maxw;
-	if (_parent->getMedia() == this) {
-		maxWidth += additionalWidth();
-	}
-	_width = qMin(width, maxWidth);
+	_width = qMin(width, _maxw);
 	if (_parent->getMedia() == this) {
 		auto via = _parent->Get<HistoryMessageVia>();
 		auto reply = _parent->Get<HistoryMessageReply>();
 		if (via || reply) {
-			int availw = _width - _maxw - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
+			int usew = _maxw - additionalWidth(via, reply);
+			int availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
 			if (via) {
 				via->resize(availw);
 			}
@@ -4767,6 +4767,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, u
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
+		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -4836,6 +4837,7 @@ HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest requ
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
+		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -6207,10 +6209,12 @@ void HistoryMessageReply::clearData(HistoryMessage *holder) {
 	replyToMsgId = 0;
 }
 
-void HistoryMessageReply::checkNameUpdate() const {
+bool HistoryMessageReply::isNameUpdated() const {
 	if (replyToMsg && replyToMsg->author()->nameVersion > replyToVersion) {
 		updateName();
+		return true;
 	}
+	return false;
 }
 
 void HistoryMessageReply::updateName() const {
@@ -6482,6 +6486,22 @@ void HistoryMessage::createComponentsHelper(MTPDmessage::Flags flags, MsgId repl
 	createComponents(config);
 }
 
+bool HistoryMessage::displayEditedBadge(bool hasViaBot) const {
+	if (!(_flags & MTPDmessage::Flag::f_edit_date)) {
+		return false;
+	}
+	if (auto fromUser = from()->asUser()) {
+		if (fromUser->botInfo) {
+			return false;
+		}
+	}
+	if (hasViaBot) {
+		return false;
+	}
+	return true;
+}
+
+
 void HistoryMessage::createComponents(const CreateConfig &config) {
 	uint64 mask = 0;
 	if (config.replyTo) {
@@ -6496,7 +6516,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (isPost() && _from->isUser()) {
 		mask |= HistoryMessageSigned::Bit();
 	}
-	if (wasEdited()) {
+	if (displayEditedBadge(config.viaBotId != 0)) {
 		mask |= HistoryMessageEdited::Bit();
 	}
 	if (config.authorIdOriginal && config.fromIdOriginal) {
@@ -6638,6 +6658,10 @@ int32 HistoryMessage::plainMaxWidth() const {
 }
 
 void HistoryMessage::initDimensions() {
+	auto reply = Get<HistoryMessageReply>();
+	if (reply) {
+		reply->updateName();
+	}
 	if (drawBubble()) {
 		auto fwd = Get<HistoryMessageForwarded>();
 		auto via = Get<HistoryMessageVia>();
@@ -6696,15 +6720,12 @@ void HistoryMessage::initDimensions() {
 		_maxw = _media->maxWidth();
 		_minh = _media->minHeight();
 	}
-	if (auto reply = Get<HistoryMessageReply>()) {
-		reply->updateName();
-		if (!_text.isEmpty()) {
-			int replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
-			if (reply->_replyToVia) {
-				replyw += st::msgServiceFont->spacew + reply->_replyToVia->_maxWidth;
-			}
-			if (replyw > _maxw) _maxw = replyw;
+	if (reply && !_text.isEmpty()) {
+		int replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
+		if (reply->_replyToVia) {
+			replyw += st::msgServiceFont->spacew + reply->_replyToVia->_maxWidth;
 		}
+		if (replyw > _maxw) _maxw = replyw;
 	}
 	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
@@ -6761,10 +6782,14 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	if (message.has_edit_date()) {
 		_flags |= MTPDmessage::Flag::f_edit_date;
-		if (!Has<HistoryMessageEdited>()) {
-			AddComponents(HistoryMessageEdited::Bit());
+		if (displayEditedBadge(Has<HistoryMessageVia>())) {
+			if (!Has<HistoryMessageEdited>()) {
+				AddComponents(HistoryMessageEdited::Bit());
+			}
+			Get<HistoryMessageEdited>()->create(::date(message.vedit_date), date);
+		} else if (Has<HistoryMessageEdited>()) {
+			RemoveComponents(HistoryMessageEdited::Bit());
 		}
-		Get<HistoryMessageEdited>()->create(::date(message.vedit_date), date);
 		initTime();
 	}
 
@@ -7161,11 +7186,6 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		p.translate(-left, -top);
 	}
 
-	auto reply = Get<HistoryMessageReply>();
-	if (reply) {
-		reply->checkNameUpdate();
-	}
-
 	if (bubble) {
 		auto fwd = Get<HistoryMessageForwarded>();
 		auto via = Get<HistoryMessageVia>();
@@ -7225,6 +7245,11 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 	}
 
 	textstyleRestore();
+
+	auto reply = Get<HistoryMessageReply>();
+	if (reply && reply->isNameUpdated()) {
+		const_cast<HistoryMessage*>(this)->setPendingInitDimensions();
+	}
 }
 
 void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const {
