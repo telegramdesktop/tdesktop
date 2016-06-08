@@ -1167,15 +1167,6 @@
     <ClCompile Include="SourceFiles\ui\buttons\history_down_button.cpp">
       <Filter>SourceFiles\ui\buttons</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp">
       <Filter>GeneratedFiles\styles</Filter>
     </ClCompile>
@@ -1520,6 +1511,9 @@
     <ClInclude Include="SourceFiles\ui\buttons\left_outline_button.h">
       <Filter>SourceFiles\ui\buttons</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\history_down_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">
@@ -1758,9 +1752,6 @@
     </CustomBuild>
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\ui\buttons\history_down_button.h">
-      <Filter>SourceFiles\ui\buttons</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_widget.h">
       <Filter>SourceFiles\profile</Filter>
