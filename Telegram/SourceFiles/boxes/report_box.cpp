@@ -50,7 +50,7 @@ void ReportBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_report_title));
+	paintTitle(p, lang(_channel->isMegagroup() ? lng_report_title : lng_report_group_title));
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {

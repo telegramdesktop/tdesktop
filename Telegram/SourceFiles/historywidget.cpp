@@ -1555,7 +1555,7 @@ HistoryInner::~HistoryInner() {
 
 bool HistoryInner::focusNextPrevChild(bool next) {
 	if (_selected.isEmpty()) {
-		return focusNextPrevChild(next);
+		return TWidget::focusNextPrevChild(next);
 	} else {
 		clearSelectedItems();
 		return true;

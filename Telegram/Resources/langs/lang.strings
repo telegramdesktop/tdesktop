@@ -468,6 +468,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_top_bar_share_contact" = "Share";
 
 "lng_report_title" = "Report channel";
+"lng_report_group_title" = "Report group";
 "lng_report_reason_spam" = "Spam";
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_pornography" = "Pornography";

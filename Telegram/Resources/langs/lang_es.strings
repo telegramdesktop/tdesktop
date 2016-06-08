@@ -236,7 +236,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar la vista previa del mensaje";
 "lng_settings_use_windows" = "Usar notificaciones de Windows";
 "lng_settings_sound_notify" = "Reproducir sonido";
-"lng_settings_include_muted" = "Incluir los chats silenciados en el conteo de 'no leídos'";
+"lng_settings_include_muted" = "Incluir los chats silenciados en el conteo de “no leídos”";
 
 "lng_notification_preview" = "Tienes un nuevo mensaje";
 
@@ -553,10 +553,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_about" = "Para superar el límite y tener características adicionales, conviértelo en un supergrupo:";
-"lng_profile_migrate_feature1" = "– Permiten hasta {count:_not_used_|# usuario|# usuarios}";
-"lng_profile_migrate_feature2" = "– Nuevos miembros ven todo el historial";
-"lng_profile_migrate_feature3" = "– Un admin. borra mensajes para todos";
-"lng_profile_migrate_feature4" = "– Notificaciones silenciadas por defecto";
+"lng_profile_migrate_feature1" = "— Permiten hasta {count:_not_used_|# usuario|# usuarios}";
+"lng_profile_migrate_feature2" = "— Nuevos miembros ven todo el historial";
+"lng_profile_migrate_feature3" = "— Un admin. borra mensajes para todos";
+"lng_profile_migrate_feature4" = "— Notificaciones silenciadas por defecto";
 "lng_profile_migrate_button" = "Convertir en supergrupo";
 "lng_profile_migrate_sure" = "¿Quieres convertir este grupo en un supergrupo? No puedes deshacer esta acción.";
 "lng_profile_convert_button" = "Convertir en supergrupo";
@@ -893,11 +893,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "La imagen fue guardada en tu carpeta [c]Descargas[/c]";
 
-"lng_new_authorization" = "{name}:\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Mostrar todas las sesiones y cerrar esa sesión.\n\nSi crees que alguien inició tu sesión sin tu consentimiento, puedes activar la verificación en dos pasos en Ajustes.\n\nGracias.\nEl equipo de Telegram";
+"lng_new_authorization" = "{name}:\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes > Mostrar todas las sesiones y cerrar esa sesión.\n\nSi crees que alguien inició tu sesión sin tu consentimiento, puedes activar la verificación en dos pasos en Ajustes.\n\nGracias.\nEl equipo de Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Edita tus mensajes, en todas partes, hasta 2 días después del envío.\n— Menciona a personas en grupos escribiendo @ y eligiéndolas desde la lista, incluso si no tienen un alias.\n\nMás: {link}";
+"lng_new_version_text" = "— Mejoras visuales";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
@@ -924,13 +924,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_mac_choose_program_menu" = "Otra...";
 
 "lng_mac_choose_app" = "Elegir aplicación";
-"lng_mac_choose_text" = "Elige una aplicación para abrir el archivo \"{file}\".";
+"lng_mac_choose_text" = "Elige una aplicación para abrir el archivo “{file}”.";
 "lng_mac_enable_filter" = "Habilitar:";
 "lng_mac_recommended_apps" = "Aplicaciones recomendadas";
 "lng_mac_all_apps" = "Todas las aplicaciones";
 "lng_mac_always_open_with" = "Siempre abrir con";
-"lng_mac_this_app_can_open" = "Esta aplicación puede abrir \"{file}\".";
-"lng_mac_not_known_app" = "No se sabe si esta aplicación puede abrir \"{file}\".";
+"lng_mac_this_app_can_open" = "Esta aplicación puede abrir “{file}”.";
+"lng_mac_not_known_app" = "No se sabe si esta aplicación puede abrir “{file}”.";
 
 "lng_mac_menu_services" = "Servicios";
 "lng_mac_menu_hide_telegram" = "Ocultar {telegram}";

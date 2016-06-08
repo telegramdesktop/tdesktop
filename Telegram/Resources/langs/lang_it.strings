@@ -265,7 +265,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_replace_emojis" = "Riconosci emoji";
 "lng_settings_view_emojis" = "Visualizza lista";
 "lng_settings_emoji_list" = "Emoji supportate";
-"lng_settings_send_enter" = "Invia con tasto invio";
+"lng_settings_send_enter" = "Invia con tasto Invio";
 "lng_settings_send_ctrlenter" = "Invia con Ctrl+Invio";
 "lng_settings_send_cmdenter" = "Invia con Cmd+Invio";
 
@@ -284,10 +284,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Elimina tutto";
 "lng_download_path_header" = "Scegli il percorso di download";
 "lng_download_path_default_radio" = "Cartella Telegram in «Download»";
-"lng_download_path_temp_radio" = "Cartella temporanea, pulita se disconnetti";
+"lng_download_path_temp_radio" = "Cartella temporanea, svuotata quando esci";
 "lng_download_path_dir_radio" = "Cartella personalizzata, pulita a mano";
 "lng_download_path_choose" = "Scegli il percorso di download";
-"lng_sure_clear_downloads" = "Vuoi eliminare tutti i file scaricati nella cartella temporanea? Sarà fatto automaticamente alla disconnessione o alla disinstallazione del programma";
+"lng_sure_clear_downloads" = "Vuoi eliminare tutti i file scaricati nella cartella temporanea? Sarà fatto automaticamente all'uscita o alla disinstallazione del programma.";
 "lng_download_path_failed" = "Il download del file non può iniziare. La causa potrebbe essere una posizione sbagliata per i download.\n\nPuoi cambiare il percorso di download nelle Impostazioni.";
 "lng_download_path_settings" = "Impostazioni";
 "lng_download_finish_failed" = "Il download del file non può essere concluso.\n\nVuoi riprovare?";
@@ -328,7 +328,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_passcode_is_same" = "Il codice non è stato cambiato";
 "lng_passcode_enter" = "Inserisci il tuo codice";
 "lng_passcode_submit" = "Invia";
-"lng_passcode_logout" = "Disconnetti";
+"lng_passcode_logout" = "Esci";
 "lng_passcode_need_unblock" = "Devi prima sbloccarmi.";
 
 "lng_cloud_password_waiting" = "Link di conferma inviato a {email}...";
@@ -383,8 +383,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_faq_button" = "Domande frequenti";
 "lng_settings_ask_ok" = "Chiedi";
 "lng_settings_faq" = "Domande frequenti";
-"lng_settings_logout" = "Disconnetti";
-"lng_sure_logout" = "Sicuro di volerti disconnettere?";
+"lng_settings_logout" = "Esci";
+"lng_sure_logout" = "Sicuro di voler uscire?";
 
 "lng_settings_need_restart" = "Devi riavviare per applicare alcune delle nuove impostazioni. Riavviare ora?";
 "lng_settings_restart_now" = "RIAVVIA";
@@ -703,7 +703,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_comment_ph" = "Scrivi un commento...";
 "lng_broadcast_ph" = "Pubblica un post...";
 "lng_broadcast_silent_ph" = "Post silenzioso...";
-"lng_record_cancel" = "Rilascia fuori da qui per annullare";
+"lng_record_cancel" = "Rilascia fuori per annullare";
 "lng_will_be_notified" = "I post saranno notificati ai membri";
 "lng_wont_be_notified" = "I post non saranno notificati ai membri";
 "lng_empty_history" = "";
@@ -730,19 +730,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} sta scrivendo";
 "lng_users_typing" = "{user} e {second_user} stanno scrivendo";
 "lng_many_typing" = "{count:_not_used_|# sta|# stanno} scrivendo";
-"lng_send_action_record_video" = "registrando un video";
+"lng_send_action_record_video" = "sta registrando un video";
 "lng_user_action_record_video" = "{user} sta registrando un video";
-"lng_send_action_upload_video" = "inviando un video";
+"lng_send_action_upload_video" = "sta inviando un video";
 "lng_user_action_upload_video" = "{user} sta inviando un video";
-"lng_send_action_record_audio" = "registrando un messaggio vocale";
-"lng_user_action_record_audio" = "{user} sta registrando un messaggio vocale";
-"lng_send_action_upload_audio" = "inviando un messaggio vocale";
-"lng_user_action_upload_audio" = "{user} sta inviando un messaggio vocale";
-"lng_send_action_upload_photo" = "inviando una foto";
+"lng_send_action_record_audio" = "sta registrando un audio";
+"lng_user_action_record_audio" = "{user} sta registrando un audio";
+"lng_send_action_upload_audio" = "sta inviando un audio";
+"lng_user_action_upload_audio" = "{user} sta inviando un audio";
+"lng_send_action_upload_photo" = "sta inviando una foto";
 "lng_user_action_upload_photo" = "{user} sta inviando una foto";
-"lng_send_action_upload_file" = "inviando un file";
+"lng_send_action_upload_file" = "sta inviando un file";
 "lng_user_action_upload_file" = "{user} sta inviando un file";
-"lng_send_action_geo_location" = "scegliendo una posizione";
+"lng_send_action_geo_location" = "sta scegliendo una posizione";
 "lng_user_action_geo_location" = "{user} sta scegliendo una posizione";
 "lng_send_action_choose_contact" = "scegliendo un contatto";
 "lng_user_action_choose_contact" = "{user} sta scegliendo un contatto";
@@ -845,9 +845,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_photo" = "Imposta foto";
 "lng_create_group_description" = "Descrizione (opzionale)";
 
-"lng_drag_images_here" = "Rilascia immagini qui";
-"lng_drag_photos_here" = "Rilascia foto qui";
-"lng_drag_files_here" = "Rilascia file qui";
+"lng_drag_images_here" = "Trascina qui le immagini";
+"lng_drag_photos_here" = "Trascina qui le foto";
+"lng_drag_files_here" = "Trascina qui i file";
 
 "lng_drag_to_send_quick" = "per inviarle in modo veloce";
 "lng_drag_to_send_no_compression" = "per inviarle senza compressione";
@@ -897,7 +897,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Modifica i tuoi messaggi ovunque entro 2 giorni dall'invio.\n— Menziona le persone nei gruppi digitando @ e selezionandole dalla lista — anche se non hanno un username.\n\nPiù informazioni: {link}";
+"lng_new_version_text" = "— Miglioramenti visivi";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
@@ -940,7 +940,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_mac_menu_quit_telegram" = "Esci da {telegram}";
 "lng_mac_menu_about_telegram" = "Informazioni su {telegram}";
 "lng_mac_menu_file" = "File";
-"lng_mac_menu_logout" = "Disconnetti";
+"lng_mac_menu_logout" = "Esci";
 "lng_mac_menu_edit" = "Modifica";
 "lng_mac_menu_undo" = "Annulla";
 "lng_mac_menu_redo" = "Ripeti";
