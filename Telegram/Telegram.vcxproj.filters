@@ -1839,7 +1839,6 @@
     <None Include="Resources\langs\upload.sh">
       <Filter>Resources\langs</Filter>
     </None>
-    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">

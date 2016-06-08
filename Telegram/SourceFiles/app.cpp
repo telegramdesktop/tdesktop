@@ -123,6 +123,8 @@ namespace App {
 
 	QString formatPhone(QString phone) {
 		if (phone.isEmpty()) return QString();
+		if (phone.at(0) == '0') return phone;
+
 		QString number = phone;
 		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch) {
 			if (ch->unicode() < '0' || ch->unicode() > '9') {

@@ -2686,7 +2686,6 @@
     <Image Include="Resources\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
     <None Include="Resources\langs\download.sh" />
     <CustomBuild Include="Resources\langs\lang.strings">
       <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>

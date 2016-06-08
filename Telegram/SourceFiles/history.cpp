@@ -4728,20 +4728,21 @@ void HistorySticker::initDimensions() {
 	if (_pixh < 1) _pixh = 1;
 	_maxw = qMax(_pixw, int16(st::minPhotoSize));
 	_minh = qMax(_pixh, int16(st::minPhotoSize));
-	if (_parent->getMedia() == this) {
-		_maxw += additionalWidth();
-	}
+
 	_height = _minh;
 }
 
 int HistorySticker::resizeGetHeight(int width) { // return new height
-	_width = qMin(width, _maxw);
+	int maxWidth = _maxw;
+	if (_parent->getMedia() == this) {
+		maxWidth += additionalWidth();
+	}
+	_width = qMin(width, maxWidth);
 	if (_parent->getMedia() == this) {
 		auto via = _parent->Get<HistoryMessageVia>();
 		auto reply = _parent->Get<HistoryMessageReply>();
 		if (via || reply) {
-			int usew = _maxw - additionalWidth(via, reply);
-			int availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
+			int availw = _width - _maxw - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
 			if (via) {
 				via->resize(availw);
 			}
@@ -4766,7 +4767,6 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, u
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
-		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -4836,7 +4836,6 @@ HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest requ
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
-		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;

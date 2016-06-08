@@ -860,6 +860,10 @@ public:
 	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t) {
 	}
 
+	~TextPainter() {
+		restoreAfterElided();
+	}
+
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
 		_parStartBlock = i;
 		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
@@ -1292,7 +1296,6 @@ public:
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
 	    int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0;
 		if (!nItems) {
-			if (elidedLine) restoreAfterElided();
 			return true;
 		}
 
@@ -1546,12 +1549,14 @@ public:
 
 			x += itemWidth;
 		}
-
-		if (elidedLine) restoreAfterElided();
 		return true;
 	}
 
 	void elideSaveBlock(int32 blockIndex, ITextBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
+		if (_elideSavedBlock) {
+			restoreAfterElided();
+		}
+
 		_elideSavedIndex = blockIndex;
 		_elideSavedBlock = _t->_blocks[blockIndex];
 		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->color(), _elideSavedBlock->lnkIndex());
@@ -1681,7 +1686,7 @@ public:
 		if (_elideSavedBlock) {
 			delete _t->_blocks[_elideSavedIndex];
 			const_cast<Text*>(_t)->_blocks[_elideSavedIndex] = _elideSavedBlock;
-			_elideSavedBlock = 0;
+			_elideSavedBlock = nullptr;
 		}
 	}
 
