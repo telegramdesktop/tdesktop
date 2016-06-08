@@ -31,7 +31,7 @@ enum MembersFilter {
 	MembersFilterRecent,
 	MembersFilterAdmins,
 };
-typedef QMap<UserData*, bool> MembersAlreadyIn;
+using MembersAlreadyIn = OrderedSet<UserData*>;
 
 QString cantInviteError();
 
@@ -318,7 +318,7 @@ public:
 	}
 	void clearSel();
 
-	QMap<UserData*, bool> already() const;
+	MembersAlreadyIn already() const;
 
 	~MembersInner();
 

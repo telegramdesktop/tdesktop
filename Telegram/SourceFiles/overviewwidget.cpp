@@ -218,7 +218,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		const QVector<MTPMessage> *messages = 0;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			const auto &d(result.c_messages_messages());
+			auto &d(result.c_messages_messages());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -226,7 +226,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			const auto &d(result.c_messages_messagesSlice());
+			auto &d(result.c_messages_messagesSlice());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -234,16 +234,12 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			const auto &d(result.c_messages_channelMessages());
+			auto &d(result.c_messages_channelMessages());
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
 				LOG(("API Error: received messages.channelMessages when no channel was passed! (OverviewInner::searchReceived)"));
 			}
-			if (d.has_collapsed()) { // should not be returned
-				LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (OverviewInner::searchReceived)"));
-			}
-
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -615,6 +611,9 @@ void OverviewInner::onDragExec() {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
+
+		// We don't receive mouseReleaseEvent when drag is finished.
+		ClickHandler::unpressed();
 		drag->exec(Qt::CopyAction);
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
@@ -643,6 +642,9 @@ void OverviewInner::onDragExec() {
 			}
 
 			drag->setMimeData(mimeData);
+
+			// We don't receive mouseReleaseEvent when drag is finished.
+			ClickHandler::unpressed();
 			drag->exec(Qt::CopyAction);
 			if (App::main()) App::main()->updateAfterDrag();
 			return;
@@ -752,18 +754,12 @@ void OverviewInner::preloadMore() {
 			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
 				MTPmessages_Search::Flags flags = 0;
-				if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
-					flags |= MTPmessages_Search::Flag::f_important_only;
-				}
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
 				MTPmessages_Search::Flags flags = 0;
-				if (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) {
-					flags |= MTPmessages_Search::Flag::f_important_only;
-				}
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
@@ -1478,9 +1474,6 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
 		MTPmessages_Search::Flags flags = 0;
-		if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
-			flags |= MTPmessages_Search::Flag::f_important_only;
-		}
 		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);
@@ -1922,15 +1915,12 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
 , _selCount(0)
-, _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor)
 , _inGrab(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
-
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	updateScrollColors();
 
@@ -1983,8 +1973,6 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 
 	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
 	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
-	_sideShadow.resize(st::lineWidth, height());
-	_sideShadow.moveToLeft(0, 0);
 }
 
 void OverviewWidget::paintEvent(QPaintEvent *e) {
@@ -1992,14 +1980,16 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 	if (_a_show.animating()) {
+		int retina = cIntRetinaFactor();
+		int inCacheTop = st::topBarHeight;
 		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
+			p.setOpacity(a_progress.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
+		p.setOpacity(a_progress.current());
 		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 		return;
 	}
@@ -2025,9 +2015,15 @@ void OverviewWidget::scrollReset() {
 
 void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
-		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
-		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
-		p.setOpacity(a_shadow.current());
+		int retina = cIntRetinaFactor();
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
+			p.setOpacity(a_progress.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::black);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
+		p.setOpacity(a_progress.current());
 		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
 		return;
 	}
@@ -2132,44 +2128,54 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 	if (App::app()) App::app()->mtpUnpause();
 }
 
-void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
-	if (App::app()) App::app()->mtpPause();
-
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
-	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
+void OverviewWidget::setLastScrollTop(int lastScrollTop) {
 	resizeEvent(0);
 	_scroll.scrollToY(lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
-	App::main()->topBar()->stopAnim();
-	(back ? _cacheTopBarUnder : _cacheTopBarOver) = myGrab(App::main()->topBar());
+}
+
+void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
+	if (App::app()) App::app()->mtpPause();
+
+	resizeEvent(0);
+
+	_cacheUnder = params.oldContentCache;
+	show();
+	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_cacheOver = App::main()->grabForShowAnimation(params);
+	_topShadow.setVisible(params.withTopBarShadow ? true : false);
 	App::main()->topBar()->startAnim();
 
 	_scrollSetAfterShow = _scroll.scrollTop();
 	_scroll.hide();
-	_topShadow.hide();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	int delta = st::slideShift;
+	if (direction == Window::SlideDirection::FromLeft) {
+		a_progress = anim::fvalue(1, 0);
+		std::swap(_cacheUnder, _cacheOver);
+		a_coordUnder = anim::ivalue(-delta, 0);
+		a_coordOver = anim::ivalue(0, width());
+	} else {
+		a_progress = anim::fvalue(0, 1);
+		a_coordUnder = anim::ivalue(0, -delta);
+		a_coordOver = anim::ivalue(width(), 0);
+	}
 	_a_show.start();
 
-	show();
-
 	App::main()->topBar()->update();
-	_inner.activate();
+
+	activate();
 }
 
 void OverviewWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
-		a_shadow.finish();
-		_cacheUnder = _cacheOver = _cacheTopBarUnder = _cacheTopBarOver = QPixmap();
+		a_progress.finish();
+		_cacheUnder = _cacheOver = QPixmap();
 		App::main()->topBar()->stopAnim();
 
 		doneShow();
@@ -2178,16 +2184,12 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 	} else {
 		a_coordUnder.update(dt, st::slideFunction);
 		a_coordOver.update(dt, st::slideFunction);
-		a_shadow.update(dt, st::slideFunction);
+		a_progress.update(dt, st::slideFunction);
 	}
 	if (timer) {
 		update();
 		App::main()->topBar()->update();
 	}
-}
-
-void OverviewWidget::updateAdaptiveLayout() {
-	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void OverviewWidget::doneShow() {
@@ -2321,6 +2323,8 @@ void OverviewWidget::onDeleteSelected() {
 }
 
 void OverviewWidget::onDeleteSelectedSure() {
+	Ui::hideLayer();
+
 	SelectedItemSet sel;
 	_inner.fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
@@ -2336,7 +2340,6 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -2344,6 +2347,8 @@ void OverviewWidget::onDeleteSelectedSure() {
 }
 
 void OverviewWidget::onDeleteContextSure() {
+	Ui::hideLayer();
+
 	HistoryItem *item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) {
 		return;
@@ -2353,11 +2358,10 @@ void OverviewWidget::onDeleteContextSure() {
 	History *h = item->history();
 	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
 	item->destroy();
+
 	if (!wasOnServer && wasLast && !h->lastMsg) {
 		App::main()->checkPeerHistory(h->peer);
 	}
-
-	Ui::hideLayer();
 
 	if (wasOnServer) {
 		App::main()->deleteMessages(h->peer, toDelete);

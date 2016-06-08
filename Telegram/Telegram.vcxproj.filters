@@ -91,6 +91,12 @@
     <Filter Include="Resources\winrc">
       <UniqueIdentifier>{6b33ddc0-a7e2-4961-81dc-e1b5de2e2c60}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\data">
+      <UniqueIdentifier>{606a297a-0b85-4df9-a6bc-39de5beed362}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\profile">
+      <UniqueIdentifier>{b761f2a4-0e8c-4e52-b179-7a3185c046c4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -136,9 +142,6 @@
       <Filter>SourceFiles</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\fileuploader.cpp">
-      <Filter>SourceFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\profilewidget.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\sysbuttons.cpp">
@@ -220,15 +223,6 @@
       <Filter>GeneratedFiles\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_settingswidget.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_profilewidget.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_profilewidget.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_profilewidget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_photosendbox.cpp">
@@ -1104,6 +1098,57 @@
     <ClCompile Include="SourceFiles\ui\style\style_core_icon.cpp">
       <Filter>SourceFiles\ui\style</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_inner_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_inner_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_profile.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_cover.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_cover.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_fixed_bar.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_fixed_bar.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_field_autocomplete.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
     </ClCompile>
@@ -1115,6 +1160,144 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_field_autocomplete.cpp">
       <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_history.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\history_down_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\data\drafts.cpp">
+      <Filter>SourceFiles\data</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\section_widget.cpp">
+      <Filter>SourceFiles\window</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_section_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\slide_animation.cpp">
+      <Filter>SourceFiles\window</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_section_memento.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\round_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\core\observer.cpp">
+      <Filter>SourceFiles\core</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\observer_peer.cpp">
+      <Filter>SourceFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_cover_drop_area.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_userpic_button.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_block_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_block_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_info_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_actions_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_invite_link_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_members_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_settings_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profile\profile_shared_media_widget.cpp">
+      <Filter>SourceFiles\profile</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\left_outline_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_settings_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_actions_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_actions_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_actions_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_members_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profile_shared_media_widget.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\report_box.cpp">
+      <Filter>SourceFiles\boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_report_box.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dialogs\dialogs_row.cpp">
+      <Filter>SourceFiles\dialogs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1289,6 +1472,54 @@
     <ClInclude Include="Resources\winrc\resource.h">
       <Filter>Resources\winrc</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_history.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_dialogs.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\data\drafts.h">
+      <Filter>SourceFiles\data</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_profile.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\window\slide_animation.h">
+      <Filter>SourceFiles\window</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\window\section_memento.h">
+      <Filter>SourceFiles\window</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_section_memento.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\round_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\vector_of_moveable.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\observer.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\observer_peer.h">
+      <Filter>SourceFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_cover_drop_area.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_userpic_button.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_info_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\profile\profile_invite_link_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\left_outline_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">
@@ -1310,9 +1541,6 @@
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\fileuploader.h">
-      <Filter>SourceFiles</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\profilewidget.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\sysbuttons.h">
@@ -1531,6 +1759,45 @@
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\buttons\history_down_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_inner_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_cover.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_fixed_bar.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\basic.style">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\window\section_widget.h">
+      <Filter>SourceFiles\window</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_block_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_settings_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_actions_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_members_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profile\profile_shared_media_widget.h">
+      <Filter>SourceFiles\profile</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\report_box.h">
+      <Filter>SourceFiles\boxes</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1581,6 +1848,7 @@
     <None Include="Resources\langs\upload.sh">
       <Filter>Resources\langs</Filter>
     </None>
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">
@@ -1591,14 +1859,23 @@
     <CodegenStyleItem Include="Resources\all_files.style">
       <Filter>Resources</Filter>
     </CodegenStyleItem>
-    <CodegenStyleItem Include="Resources\basic.style">
+    <CustomBuild Include="Resources\basic.style">
       <Filter>Resources</Filter>
-    </CodegenStyleItem>
+    </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style">
       <Filter>Resources</Filter>
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\overview\overview.style">
       <Filter>SourceFiles\overview</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\history\history.style">
+      <Filter>SourceFiles\history</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\dialogs\dialogs.style">
+      <Filter>SourceFiles\dialogs</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\profile\profile.style">
+      <Filter>SourceFiles\profile</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

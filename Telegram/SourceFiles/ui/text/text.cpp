@@ -1181,7 +1181,13 @@ public:
 	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
 		_yDelta = (_lineHeight - _fontHeight) / 2;
 		if (_yTo >= 0 && _y + _yDelta >= _yTo) return false;
-		if (_y + _yDelta + _fontHeight <= _yFrom) return true;
+		if (_y + _yDelta + _fontHeight <= _yFrom) {
+			if (_lookupSymbol) {
+				_lookupResult.symbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
+				_lookupResult.afterSymbol = (_lineEnd > _lineStart) ? true : false;
+			}
+			return true;
+		}
 
 		uint16 trimmedLineEnd = _lineEnd;
 		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
@@ -2898,7 +2904,7 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 	uint16 from = selection.from, to = selection.to;
 	if (from < _text.size() && from <= to) {
 		if (to > _text.size()) to = _text.size();
-		if (selectType == TextSelectParagraphs) {
+		if (selectType == TextSelectType::Paragraphs) {
 			if (!chIsParagraphSeparator(_text.at(from))) {
 				while (from > 0 && !chIsParagraphSeparator(_text.at(from - 1))) {
 					--from;
@@ -2913,7 +2919,7 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 					}
 				}
 			}
-		} else if (selectType == TextSelectWords) {
+		} else if (selectType == TextSelectType::Words) {
 			if (!chIsWordSeparator(_text.at(from))) {
 				while (from > 0 && !chIsWordSeparator(_text.at(from - 1))) {
 					--from;
@@ -3068,6 +3074,7 @@ void Text::clear() {
 		delete *i;
 	}
 	clearFields();
+	_text.clear();
 }
 
 void Text::clearFields() {

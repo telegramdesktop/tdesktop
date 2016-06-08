@@ -55,10 +55,16 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
+windowBg: #fff; // fallback for background: white
+windowActiveBg: #40ace3; // fallback for blue filled active areas
+windowTextFg: #000; // fallback for text color: black
+windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowActiveTextFg: #1485c2; // fallback for active color: blue online
+windowShadowFg: #000; // fallback for shadow color
+
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndBG: white;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
@@ -69,9 +75,10 @@ overBg: #edf2f5;
 
 labelDefFlat: flatLabel {
 	font: font(fsize);
-	minWidth: 100px;
 	width: 0px;
+	maxHeight: 0px;
 	align: align(left);
+	textFg: windowTextFg;
 }
 
 boxBg: white;
@@ -108,6 +115,7 @@ defaultBoxButton: BoxButton {
 
 	width: -24px;
 	height: 36px;
+	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
 
@@ -138,6 +146,29 @@ redBoxLinkButton: linkButton(defaultBoxLinkButton) {
 boxLabel: flatLabel(labelDefFlat) {
 	font: font(boxFontSize);
 	align: align(topleft);
+}
+
+defaultLeftOutlineButton: OutlineButton {
+	outlineWidth: 3px;
+	outlineFg: windowBg;
+	outlineFgOver: windowActiveBg;
+
+	textBg: windowBg;
+	textBgOver: #f2f7fa;
+
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+
+	font: normalFont;
+	padding: margins(11px, 6px, 11px, 6px);
+}
+attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
+	outlineFgOver: #e43f3f;
+
+	textBgOver: #faf2f2;
+
+	textFg: #d15948;
+	textFgOver: #d15948;
 }
 
 defaultInputArea: InputArea {
@@ -201,9 +232,9 @@ defaultCheckbox: Checkbox {
 	textFg: black;
 	textBg: white;
 
-	checkFg: #d9d9d9;
-	checkFgOver: #bfbfbf;
-	checkFgActive: #4eb3ee;
+	checkFg: #b3b3b3;
+	checkFgOver: #b3b3b3;
+	checkFgActive: #40ace3;
 
 	width: -46px;
 	height: 22px;
@@ -211,7 +242,9 @@ defaultCheckbox: Checkbox {
 	textPosition: point(34px, 0px);
 	diameter: 22px;
 	thickness: 2px;
-	checkIcon: sprite(106px, 136px, 14px, 10px);
+	checkIcon: icon {
+		{ "default_checkbox_check", #ffffff, point(4px, 7px) }
+	};
 
 	font: boxTextFont;
 	duration: 120;
@@ -220,7 +253,7 @@ defaultRadiobutton: Radiobutton {
 	textFg: black;
 	textBg: white;
 
-	checkFg: #d9d9d9;
+	checkFg: #b3b3b3;
 	checkFgOver: #bfbfbf;
 	checkFgActive: #4eb3ee;
 
@@ -370,9 +403,10 @@ statusFont: font(fsize);
 versionColor: #777;
 
 shadowColor: rgba(0, 0, 0, 24);
+shadowToggleDuration: 200;
 
 slideDuration: 240;
-slideShift: 0.3;
+slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: sprite(348px, 71px, 48px, 1px);
 slideFunction: transition(easeOutCirc);
@@ -878,46 +912,22 @@ btnLogout: flatButton(btnDefFlat, btnDefBig) {
 	overFont: font(18px);
 }
 
-//// dialogs
-dlgFilterPadding: 10px;
-dlgPhotoSize: 46px;
-dlgPaddingHor: 10px;
-dlgPaddingVer: 8px;
-dlgHeight: 62px;
-dlgPhotoPadding: 12px;
-
-dlgImportantHeight: 37px;
-
-noContactsHeight: 100px;
-noContactsFont: font(fsize);
-noContactsColor: #777;
-
-dlgSep: 8px;
-
-dlgMinWidth: 260px;
-dlgRichMinWidth: 150px;
-dlgMaxWidth: 540px;
-dlgFilter: flatInput(inpDefGray) {
+searchFlatInput: flatInput(inpDefGray) {
 	font: font(fsize);
-	height: 34px;
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	textMrg: margins(34px, 2px, 34px, 4px);
 	imgRect: sprite(227px, 21px, 24px, 24px);
-	imgPos: point(6px, 5px);
-	width: 240px;
 
 	borderWidth: 2px;
 	borderColor: #f2f2f2;
 	borderActive: #80cff9;
 	borderError: #ed8080;
 }
-dlgScroll: flatScroll(scrollDef) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
-dlgFont: font(fsize);
+
+noContactsHeight: 100px;
+noContactsFont: font(fsize);
+noContactsColor: #777;
 
 dlgDblCheckImg: sprite(302px, 23px, 17px, 11px);
 dlgCheckImg: sprite(320px, 23px, 17px, 11px);
@@ -926,45 +936,17 @@ dlgActiveCheckImg: sprite(320px, 36px, 17px, 11px);
 dlgSendImg: sprite(122px, 25px, 17px, 11px);
 dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
 
-dlgChatImgPos: point(1px, 4px);
 dlgChatImg: sprite(104px, 26px, 16px, 11px);
 dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
-dlgChannelImgPos: point(3px, 4px);
 dlgChannelImg: sprite(105px, 1px, 12px, 11px);
 dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
-dlgImgSkip: 22px;
 
-dlgCheckLeft: 5px;
-dlgCheckTop: 4px;
-dlgCheckSkip: 3px;
-
-dlgHistFont: font(fsize);
-dlgNameColor: #000;
-dlgNameTop: 2px;
-dlgSystemColor: #4981af;
-dlgTextColor: #888;
-
-dlgDateFont: font(13px);
-dlgDateColor: #a8a8a8;
-dlgDateSkip: 5px;
-
-dlgUnreadColor: #FFF;
-dlgUnreadBG: #6fc766;
-dlgUnreadMutedBG: #bbb;
-dlgUnreadFont: font(12px bold);
-dlgUnreadHeight: 19px;
-dlgUnreadTop: 1px;
-dlgUnreadPaddingHor: 5px;
-dlgUnreadRadius: 2px;
-dlgBG: #FFF;
-dlgHoverBG: #f5f5f5;
-
-dlgActiveBG: #6a91b1;
-dlgActiveUnreadColor: #5b94bf;
-dlgActiveUnreadBG: white;
-dlgActiveColor: white;
-dlgActiveDateColor: #d3e2ee;
-dlgActiveUnreadMutedBG: dlgActiveDateColor;
+dlgFilter: flatInput(searchFlatInput) {
+	width: 240px;
+	height: 34px;
+	textMrg: margins(34px, 2px, 34px, 4px);
+	imgPos: point(6px, 5px);
+}
 
 topBarHeight: 54px;
 topBarBG: white;
@@ -994,24 +976,23 @@ topBarSearch: iconedButton(btnDefIconed) {
 	height: topBarHeight;
 }
 topBarMinPadding: 5px;
-topBarButton: flatButton(btnDefFlat) {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
+topBarButton: BoxButton {
+	textFg: #0084c4;
+	textFgOver: #0084c4;
+	textBg: white;
+	textBgOver: #edf4f7;
 
-	bgColor: white;
-	overBgColor: white;
-	downBgColor: white;
+	width: -22px;
+	height: 28px;
+	padding: margins(0px, 14px, 12px, 12px);
 
-	width: -40px;
-	height: 54px;
-
-	textTop: 19px;
-	overTextTop: 19px;
-	downTextTop: 20px;
+	textTop: 6px;
 
 	font: font(fsize);
-	overFont: font(fsize underline);
+	duration: 200;
+}
+topBarClearButton: BoxButton(topBarButton) {
+	padding: margins(8px, 14px, 8px, 14px);
 }
 topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	textTop: 8px;
@@ -1024,20 +1005,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	height: 34px;
 }
 topBarActionSkip: 13px;
-
-historyToEnd: iconedButton(btnDefIconed) {
-	bgColor: transparent;
-	overBgColor: transparent;
-
-	icon: sprite(252px, 41px, 44px, 44px);
-	iconPos: point(0px, 0px);
-	downIcon: sprite(252px, 41px, 44px, 44px);
-	downIconPos: point(0px, 0px);
-
-	width: 44px;
-	height: 44px;
-}
-historyToEndSkip: 10px;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
@@ -1227,16 +1194,6 @@ medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	linkFgDown: #91d9ff;
 }
 
-dlgTextStyle: textStyle(defaultTextStyle) {
-	linkFg: dlgSystemColor;
-	linkFgDown: dlgSystemColor;
-	linkFlagsOver: font(fsize);
-}
-dlgActiveTextStyle: textStyle(defaultTextStyle) {
-	linkFg: dlgActiveColor;
-	linkFgDown: dlgActiveColor;
-	linkFlagsOver: font(fsize);
-}
 introLabelTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 30px;
 }
@@ -1522,16 +1479,24 @@ taMsgField: flatTextarea(taDefFlat) {
 maxFieldHeight: 220px;
 // historyMinHeight: 56px;
 
-reportSpamHide: flatButton(topBarButton) {
+reportSpamHide: flatButton(btnDefFlat) {
+	color: btnYesColor;
+	overColor: btnYesHover;
+	downColor: btnYesHover;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+	downBgColor: transparent;
+
+	width: -40px;
 	height: 46px;
 
 	textTop: 15px;
 	overTextTop: 15px;
 	downTextTop: 16px;
 
-	bgColor: transparent;
-	overBgColor: transparent;
-	downBgColor: transparent;
+	font: font(fsize);
+	overFont: font(fsize underline);
 }
 reportSpamButton: flatButton(reportSpamHide) {
 	textTop: 6px;
@@ -1671,134 +1636,16 @@ confirmCompressedSkip: 10px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
-profilePhotoSize: 120px;
-profileNameLeft: 21px;
-profileNameTop: -1px;
-profileNameFont: font(20px);
-profileStatusLeft: 22px;
-profileStatusTop: 31px;
-profileStatusFont: font(fsize);
-profilePhoneLeft: 22px;
-profilePhoneTop: 62px;
-profilePhoneFont: font(16px);
-profileButtonTop: 18px;
-profileButtonSkip: 10px;
-profileHeaderFont: font(20px);
-profileHeaderColor: black;
-profileHeaderSkip: 59px;
-profileHeaderLeft: -1px;
-profileHeaderTop: 22px;
 
-profileListPhotoSize: 46px;
-profileListPadding: size(12px, 6px);
-profileListNameTop: 8px;
-profileListStatusBottom: 6px;
-profileHoverBG: #f5f5f5;
-profileActiveBG: #6294b9;
-profileSubFont: font(fsize);
-profileListNameFont: semiboldFont;
-profileListNameColor: #000;
 profileOnlineColor: titleTypingColor;
 profileOfflineColor: titleStatusColor;
-btnShareContact: flatButton(btnDefNext, btnDefBig) {
-	width: 145px;
-	height: 42px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(17px);
-	overFont: font(17px);
-}
-btnMigrateToMega: flatButton(btnShareContact) {
-	width: -40px;
-}
-profileMinBtnPadding: 10px;
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px);
 forwardBg: rgba(0, 0, 0, 76);
-btnProfileCancel: flatButton(btnDefFlat, btnDefBig) {
-	color: #666d78;
-	overColor: #666d78;
-	downColor: #50565e;
 
-	bgColor: rgba(0, 0, 0, 63);
-	overBgColor: rgba(0, 0, 0, 47);
-	downBgColor: rgba(0, 0, 0, 95);
-
-	width: 145px;
-	height: 40px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(18px);
-	overFont: font(18px);
-}
-
-btnDeleteContact: flatButton(btnDefFlat, btnDefBig) {
-	color: #fff;
-	overColor: #fff;
-	downColor: #ffcbc1;
-
-	bgColor: #ee4928bf;
-	overBgColor: #ee4928;
-	downBgColor: #d14024;
-
-	width: 300px;
-	height: 40px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(18px);
-	overFont: font(18px);
-}
-
-profileNameInput: flatInput(setNameInput) {
-	width: 230px;
-}
-
-participantInnerAdd: flatButton(btnDefNext) {
-	width: 145px;
-	height: 40px;
-	font: font(18px);
-	overFont: font(18px);
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-}
-participantInnerCancel: flatButton(participantInnerAdd, btnDefBack) {
-}
-participantCancel: flatButton(participantInnerAdd, btnDefBack) {
-	width: 300px;
-}
-participantFilter: flatInput(inpDefFlat) {
-	width: 364px;
-	height: 52px;
-	font: font(16px);
-	textMrg: margins(39px, 11px, 10px, 10px);
-	imgRect: sprite(227px, 21px, 24px, 24px);
-	imgPos: point(10px, 15px);
-}
-participantDelta: 12px;
-
-contactsFilter: flatInput(dlgFilter) {
-	width: 340px;
-	height: 38px;
-	textMrg: margins(34px, 3px, 5px, 4px);
-	imgPos: point(6px, 7px);
-}
-inpCountry: flatInput(contactsFilter) {
-}
-
-newGroupLimitFg: #a4a4a4;
 newGroupAboutFg: #808080;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
 newGroupSkip: 17px;
@@ -1838,15 +1685,6 @@ connectionPasswordInputField: InputField(defaultInputField) {
 	width: 120px;
 }
 connectionIPv6Skip: 11px;
-
-contactsAdd: flatButton(topBarButton) {
-	width: -40px;
-	height: 52px;
-
-	textTop: 18px;
-	overTextTop: 18px;
-	downTextTop: 19px;
-}
 
 aboutIcon: sprite(0px, 0px, 104px, 104px);
 aboutWidth: 390px;
@@ -2115,8 +1953,6 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
-verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
-verifiedCheckProfilePos: point(7px, 6px);
 verifiedCheck: sprite(285px, 221px, 14px, 14px);
 verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
 verifiedCheckPos: point(4px, 2px);
@@ -2403,7 +2239,7 @@ sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;
 sessionInfoFont: msgFont;
-sessionInfoColor: dlgTextColor;
+sessionInfoColor: #888888;
 sessionTerminateTop: 30px;
 sessionTerminateSkip: 18px;
 sessionTerminate: iconedButton(notifyClose) {
@@ -2458,7 +2294,7 @@ inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
-inlineDescriptionFg: #8a8a8a;
+inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;
 inlineRowBorderFg: #eaeaea;

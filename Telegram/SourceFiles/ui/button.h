@@ -70,6 +70,8 @@ signals:
 	void stateChanged(int oldState, ButtonStateChangeSource source);
 
 protected:
+	virtual void onStateChanged(int oldState, ButtonStateChangeSource source) {
+	}
 
 	Qt::KeyboardModifiers _modifiers;
 	int _state;

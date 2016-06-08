@@ -59,13 +59,17 @@ namespace App {
 
 	QString formatPhone(QString phone);
 
-	int32 onlineForSort(UserData *user, int32 now);
-	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
-	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
-	bool onlineColorUse(UserData *user, int32 now);
+	TimeId onlineForSort(UserData *user, TimeId now);
+	int32 onlineWillChangeIn(UserData *user, TimeId now);
+	int32 onlineWillChangeIn(TimeId online, TimeId now);
+	QString onlineText(UserData *user, TimeId now, bool precise = false);
+	QString onlineText(TimeId online, TimeId now, bool precise = false);
+	bool onlineColorUse(UserData *user, TimeId now);
+	bool onlineColorUse(TimeId online, TimeId now);
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated = true); // returns last user
-	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
+	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
+	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
+
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
@@ -80,12 +84,10 @@ namespace App {
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
-	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated = true);
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated = true);
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	void markPeerUpdated(PeerData *data);
 	void clearPeerUpdated(PeerData *data);
-	void emitPeerUpdated();
 
 	ImagePtr image(const MTPPhotoSize &size);
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
@@ -158,7 +160,7 @@ namespace App {
 
 	Histories &histories();
 	History *history(const PeerId &peer);
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
@@ -226,11 +228,13 @@ namespace App {
 	};
 	void quit();
 	bool quitting();
+	void allDraftsSaved();
 	LaunchState launchState();
 	void setLaunchState(LaunchState state);
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
+	QPixmap pixmapFromImageInPlace(QImage &&image);
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item);
 	void unregPhotoItem(PhotoData *data, HistoryItem *item);
@@ -300,5 +304,3 @@ namespace App {
 	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };
-
-#include "facades.h"

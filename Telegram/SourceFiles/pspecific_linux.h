@@ -160,8 +160,8 @@ QAbstractNativeEventFilter *psNativeEventFilter();
 void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
-inline QString psConvertFileUrl(const QString &url) {
-	return url;
+inline QString psConvertFileUrl(const QUrl &url) {
+	return url.toLocalFile();
 }
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();

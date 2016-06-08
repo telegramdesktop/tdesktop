@@ -23,4 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic_types.style";
 using "basic.style";
 
+using "dialogs/dialogs.style";
+using "history/history.style";
 using "overview/overview.style";
+using "profile/profile.style";

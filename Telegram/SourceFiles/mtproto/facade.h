@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mtproto/core_types.h"
 #include "mtproto/session.h"
-#include "mtproto/file_download.h"
 
 namespace MTP {
 

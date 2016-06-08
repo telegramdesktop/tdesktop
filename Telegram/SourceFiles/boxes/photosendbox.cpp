@@ -656,7 +656,8 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 	if (!sentEntities.c_vector().v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	_saveRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(flags), item->history()->peer->input, MTP_int(item->id), MTP_string(_field->getLastText()), MTPnullMarkup, sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
+	auto text = prepareText(_field->getLastText(), true);
+	_saveRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(flags), item->history()->peer->input, MTP_int(item->id), MTP_string(text), MTPnullMarkup, sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
 }
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {

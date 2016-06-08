@@ -115,7 +115,7 @@ namespace anim {
 void Animation::start() {
 	if (!_manager) return;
 
-	_cb.start();
+	_callbacks.start();
 	_manager->start(this);
 	_animating = true;
 }
@@ -237,8 +237,8 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, b
 	return QPixmap::fromImage(original, Qt::ColorOnly);
 }
 
-ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Callback::Creator cb)
-: _cb(cb)
+ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Callback &&callback)
+: _callback(std_::move(callback))
 , _state(ClipReading)
 , _width(0)
 , _height(0)
@@ -334,7 +334,7 @@ void ClipReader::moveToNextWrite() const {
 void ClipReader::callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification) {
 	// check if reader is not deleted already
 	if (_clipManagers.size() > threadIndex && _clipManagers.at(threadIndex)->carries(reader)) {
-		reader->_cb.call(notification);
+		reader->_callback.call(notification);
 	}
 }
 

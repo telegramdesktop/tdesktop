@@ -59,8 +59,7 @@ private:
 
 class FakeRow {
 public:
-	FakeRow(HistoryItem *item) : _item(item) {
-	}
+	FakeRow(HistoryItem *item);
 
 	HistoryItem *item() const {
 		return _item;
@@ -71,7 +70,7 @@ private:
 
 	HistoryItem *_item;
 	mutable const HistoryItem *_cacheFor = nullptr;
-	mutable Text _cache = Text{ int(st::dlgRichMinWidth) };
+	mutable Text _cache;
 
 };
 

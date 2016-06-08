@@ -24,10 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class PeerAvatarButton;
+class RoundButton;
 } // namespace Ui
 class FlatButton;
 class IconedButton;
-class PlainShadow;
 
 namespace Window {
 
@@ -35,7 +35,6 @@ class TopBarWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
 	TopBarWidget(MainWidget *w);
 
 	void enterEvent(QEvent *e) override;
@@ -47,7 +46,6 @@ public:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void step_appearance(float64 ms, bool timer);
-	void enableShadow(bool enable = true);
 
 	void startAnim();
 	void stopAnim();
@@ -56,35 +54,19 @@ public:
 
 	void updateAdaptiveLayout();
 
-	FlatButton *mediaTypeButton();
+	Ui::RoundButton *mediaTypeButton();
 
-	void grabStart() override {
-		_sideShadow->hide();
-	}
-	void grabFinish() override {
-		_sideShadow->setVisible(!Adaptive::OneColumn());
-	}
-
-	public slots:
-
+public slots:
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
 	void onInfoClicked();
-	void onAddContact();
-	void onEdit();
-	void onDeleteContact();
-	void onDeleteContactSure();
-	void onDeleteAndExit();
-	void onDeleteAndExitSure();
 	void onSearch();
 
 signals:
-
 	void clicked();
 
 private:
-
 	MainWidget *main();
 	anim::fvalue a_over;
 	Animation _a_appearance;
@@ -97,17 +79,14 @@ private:
 
 	bool _animating;
 
-	ChildWidget<FlatButton> _clearSelection;
+	ChildWidget<Ui::RoundButton> _clearSelection;
 	ChildWidget<FlatButton> _forward, _delete;
 	int _selectionButtonsWidth, _forwardDeleteWidth;
 
 	ChildWidget<Ui::PeerAvatarButton> _info;
-	ChildWidget<FlatButton> _edit, _leaveGroup, _addContact, _deleteContact;
-	ChildWidget<FlatButton> _mediaType;
+	ChildWidget<Ui::RoundButton> _mediaType;
 
 	ChildWidget<IconedButton> _search;
-
-	ChildWidget<PlainShadow> _sideShadow;
 
 };
 

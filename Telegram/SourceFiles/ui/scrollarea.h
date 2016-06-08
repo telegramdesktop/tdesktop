@@ -185,6 +185,7 @@ public:
 	int scrollTop() const;
 
 	void setWidget(QWidget *widget);
+	void setOwnedWidget(QWidget *widget);
 	QWidget *takeWidget();
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
@@ -237,6 +238,7 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	bool _disabled;
+	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
 
 	style::flatScroll _st;
 	ScrollBar hor, vert;

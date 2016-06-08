@@ -88,8 +88,8 @@ void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *s
 	message.history = history;
 	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
 	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
-	message.broadcast = false;
 	message.silent = false;
+	message.clearDraft = false;
 	App::main()->sendMessage(message);
 }
 
@@ -509,7 +509,9 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 	QPixmap pix = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->genUserpic(st::notifyMacPhotoSize) : QPixmap();
 	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
 
-	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
+	bool withReply = !App::passcoded() && (cNotifyView() <= dbinvShowPreview) && item->history()->peer->canWrite();
+
+	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, withReply);
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
@@ -898,8 +900,12 @@ void psSendToMenu(bool send, bool silent) {
 void psUpdateOverlayed(QWidget *widget) {
 }
 
-QString psConvertFileUrl(const QString &url) {
-	return objc_convertFileUrl(url);
+QString psConvertFileUrl(const QUrl &url) {
+	auto urlString = url.toLocalFile();
+	if (urlString.startsWith(qsl("/.file/id="))) {
+		return objc_convertFileUrl(urlString);
+	}
+	return urlString;
 }
 
 void psDownloadPathEnableAccess() {

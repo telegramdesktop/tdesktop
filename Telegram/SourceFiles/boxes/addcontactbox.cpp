@@ -30,18 +30,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "observer_peer.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
-, _user(0)
 , _save(this, lang(lng_add_contact), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), lname)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
-, _invertOrder(langFirstNameGoesSecond())
-, _contactId(0)
-, _addRequest(0) {
+, _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone.setDisabled(true);
 	}
@@ -56,10 +54,8 @@ AddContactBox::AddContactBox(UserData *user) : AbstractBox(st::boxWidth)
 , _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), user->firstName)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
-, _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone)
-, _invertOrder(langFirstNameGoesSecond())
-, _contactId(0)
-, _addRequest(0) {
+, _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
+, _invertOrder(langFirstNameGoesSecond()) {
 	_phone.setDisabled(true);
 	initBox();
 }
@@ -190,7 +186,7 @@ void AddContactBox::onSave() {
 	_sentName = firstName;
 	if (_user) {
 		_contactId = rand_value<uint64>();
-		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_user->phone), MTP_string(firstName), MTP_string(lastName)));
+		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_user->phone()), MTP_string(firstName), MTP_string(lastName)));
 		_addRequest = MTP::send(MTPcontacts_ImportContacts(MTP_vector<MTPInputContact>(v), MTP_bool(false)), rpcDone(&AddContactBox::onSaveUserDone), rpcFail(&AddContactBox::onSaveUserFail));
 	} else {
 		_contactId = rand_value<uint64>();
@@ -206,7 +202,7 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 	QString err(error.type());
 	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
-		_user->updateName(firstName, QString(), QString());
+		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
 		emit closed();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
@@ -548,7 +544,7 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	_creationRequestId = 0;
 	if (result.type() == mtpc_chatInviteExported) {
-		_createdChannel->invitationUrl = qs(result.c_chatInviteExported().vlink);
+		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
 	}
 	Ui::showLayer(new SetupChannelBox(_createdChannel));
 }
@@ -608,11 +604,9 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 , _existing(existing)
 , _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true)
 , _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title))
-, _comments(this, lang(lng_create_channel_comments), false)
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x())
 , _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::defaultInputField, QString(), channel->username, true)
 , _linkOver(false)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
@@ -631,7 +625,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
-	_comments.hide();
 
 	connect(&_link, SIGNAL(changed()), this, SLOT(onChange()));
 
@@ -647,7 +640,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 void SetupChannelBox::hideAll() {
 	_public.hide();
 	_private.hide();
-	_comments.hide();
 	_link.hide();
 	_save.hide();
 	_skip.hide();
@@ -656,7 +648,6 @@ void SetupChannelBox::hideAll() {
 void SetupChannelBox::showAll() {
 	_public.show();
 	_private.show();
-	//_comments.show();
 	if (_public.checked()) {
 		_link.show();
 	} else {
@@ -672,9 +663,9 @@ void SetupChannelBox::showDone() {
 
 void SetupChannelBox::updateMaxHeight() {
 	if (!_channel->isMegagroup() || _public.checked()) {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	}
 }
 
@@ -705,9 +696,6 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
 
-	//QRect aboutComments(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), _aboutPublicWidth, _aboutPublicHeight);
-	//_aboutComments.drawLeft(p, aboutComments.x(), aboutComments.y(), aboutComments.width(), width());
-
 	if (!_channel->isMegagroup() || !_link.isHidden()) {
 		p.setPen(st::black);
 		p.setFont(st::newGroupLinkFont);
@@ -720,7 +708,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::btnDefLink.color);
-			p.drawText(_invitationLink, _channel->invitationUrl, option);
+			p.drawText(_invitationLink, _channel->inviteLink(), option);
 			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 				p.setOpacity(a_goodOpacity.current());
 				p.setPen(st::setGoodColor);
@@ -745,10 +733,8 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 	_public.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
 	_private.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip);
-	//_comments.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip);
 
 	_link.resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link.height());
-	//_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::boxTextFont->height, _link.width(), 2 * st::boxTextFont->height);
 
@@ -763,7 +749,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->invitationUrl);
+		Application::clipboard()->setText(_channel->inviteLink());
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
 		_a_goodFade.start();
@@ -804,9 +790,6 @@ void SetupChannelBox::closePressed() {
 
 void SetupChannelBox::onSave() {
 	if (!_public.checked()) {
-		if (!_existing && !_comments.isHidden() && _comments.checked()) {
-			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)));
-		}
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
@@ -824,9 +807,6 @@ void SetupChannelBox::onSave() {
 		return;
 	}
 
-	if (!_existing && !_comments.isHidden() && _comments.checked()) {
-		MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)), RPCResponseHandler(), 0, 5);
-	}
 	_sentUsername = link;
 	_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 }
@@ -1156,7 +1136,9 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 	_requestId = 0;
 	QString err(error.type());
 	if (err == qstr("CHAT_TITLE_NOT_MODIFIED") || err == qstr("CHAT_NOT_MODIFIED")) {
-		_peer->updateName(_sentName, QString(), QString());
+		if (auto chatData = _peer->asChat()) {
+			chatData->setName(_sentName);
+		}
 		emit closed();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {
@@ -1178,7 +1160,7 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
-, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about)
+, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature())
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton)
 , _saveTitleRequestId(0)
@@ -1319,7 +1301,7 @@ void EditChannelBox::onPublicLink() {
 }
 
 void EditChannelBox::saveDescription() {
-	if (_sentDescription == _channel->about) {
+	if (_sentDescription == _channel->about()) {
 		saveSign();
 	} else {
 		_saveDescriptionRequestId = MTP::send(MTPchannels_EditAbout(_channel->inputChannel, MTP_string(_sentDescription)), rpcDone(&EditChannelBox::onSaveDescriptionDone), rpcFail(&EditChannelBox::onSaveFail));
@@ -1354,9 +1336,10 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	} else if (req == _saveDescriptionRequestId) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
-			_channel->about = _sentDescription;
-			if (App::api()) {
-				emit App::api()->fullPeerUpdated(_channel);
+			if (_channel->setAbout(_sentDescription)) {
+				if (App::api()) {
+					emit App::api()->fullPeerUpdated(_channel);
+				}
 			}
 			saveSign();
 			return true;
@@ -1383,9 +1366,10 @@ void EditChannelBox::onSaveTitleDone(const MTPUpdates &updates) {
 
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
-	_channel->about = _sentDescription;
-	if (App::api()) {
-		emit App::api()->fullPeerUpdated(_channel);
+	if (_channel->setAbout(_sentDescription)) {
+		if (App::api()) {
+			emit App::api()->fullPeerUpdated(_channel);
+		}
 	}
 	saveSign();
 }

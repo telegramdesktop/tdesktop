@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
+#include "observer_peer.h"
 #include "apiwrap.h"
 
 QString cantInviteError() {
@@ -201,16 +202,20 @@ void ContactsInner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
 
 	_addAdminRequestId = 0;
 	if (_addAdmin && _channel && _channel->isMegagroup()) {
+		Notify::PeerUpdate update(_channel);
 		if (_channel->mgInfo->lastParticipants.indexOf(_addAdmin) < 0) {
 			_channel->mgInfo->lastParticipants.push_front(_addAdmin);
+			update.flags |= Notify::PeerUpdate::Flag::MembersChanged;
 		}
 		_channel->mgInfo->lastAdmins.insert(_addAdmin);
+		update.flags |= Notify::PeerUpdate::Flag::AdminsChanged;
 		if (_addAdmin->botInfo) {
 			_channel->mgInfo->bots.insert(_addAdmin);
 			if (_channel->mgInfo->botStatus != 0 && _channel->mgInfo->botStatus < 2) {
 				_channel->mgInfo->botStatus = 2;
 			}
 		}
+		Notify::peerUpdatedDelayed(update);
 	}
 	if (_addAdminBox) _addAdminBox->onClose();
 	emit adminAdded();
@@ -224,7 +229,7 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	_addAdminRequestId = 0;
 	if (_addAdminBox) _addAdminBox->onClose();
 	if (error.type() == "USERS_TOO_MUCH") {
-		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
@@ -728,7 +733,7 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		_checkedContacts.insert(peer, true);
 		++_selCount;
 	} else if (_channel && !_channel->isMegagroup()) {
-		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
 	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
@@ -740,7 +745,7 @@ int32 ContactsInner::selectedCount() const {
 	if (_chat) {
 		result += qMax(_chat->count, 1);
 	} else if (_channel) {
-		result += qMax(_channel->count, _already.size());
+		result += qMax(_channel->membersCount(), _already.size());
 	} else if (_creating == CreatingGroupGroup) {
 		result += 1;
 	}
@@ -1739,7 +1744,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight((channel->amCreator() && (channel->count < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilterAdmins)) ? st::contactsNewItemHeight : 0)
+, _newItemHeight((channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilterAdmins)) ? st::contactsNewItemHeight : 0)
 , _newItemSel(false)
 , _channel(channel)
 , _filter(filter)
@@ -1808,7 +1813,7 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
 			p.translate(0, _rowHeight);
 		}
-		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->count || _rows.size() >= Global::ChatSizeMax())) {
+		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->membersCount() || _rows.size() >= Global::ChatSizeMax())) {
 			p.setPen(st::stickersReorderFg);
 			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 		}
@@ -1976,7 +1981,7 @@ void MembersInner::chooseParticipant() {
 	if (_sel < 0 || _sel >= _rows.size()) return;
 	if (PeerData *peer = _rows[_sel]) {
 		Ui::hideLayer();
-		App::main()->showPeerProfile(peer, ShowAtUnreadMsgId);
+		Ui::showPeerProfile(peer);
 	}
 }
 
@@ -1987,7 +1992,7 @@ void MembersInner::refresh() {
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->count && _rows.size() < Global::ChatSizeMax())) {
+		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}
 		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
@@ -2003,11 +2008,11 @@ MembersFilter MembersInner::filter() const {
 	return _filter;
 }
 
-QMap<UserData*, bool> MembersInner::already() const {
+MembersAlreadyIn MembersInner::already() const {
 	MembersAlreadyIn result;
-	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
-		if (_rows.at(i)->isUser()) {
-			result.insert(_rows.at(i)->asUser(), true);
+	for_const (auto peer, _rows) {
+		if (peer->isUser()) {
+			result.insert(peer->asUser());
 		}
 	}
 	return result;
@@ -2115,14 +2120,16 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());
 		_roles.reserve(v.size());
-		if (_filter == MembersFilterRecent && _channel->count < d.vcount.v) {
-			_channel->count = d.vcount.v;
+
+		if (_filter == MembersFilterRecent && _channel->membersCount() < d.vcount.v) {
+			_channel->setMembersCount(d.vcount.v);
 			if (App::main()) emit App::main()->peerUpdated(_channel);
-		} else if (_filter == MembersFilterAdmins && _channel->adminsCount < d.vcount.v) {
-			_channel->adminsCount = d.vcount.v;
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount() < d.vcount.v) {
+			_channel->setAdminsCount(d.vcount.v);
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
 		App::feedUsers(d.vusers);
+
 		for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			int32 userId = 0, addedTime = 0;
 			MemberRole role = MemberRoleNone;
@@ -2173,6 +2180,8 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 					_channel->mgInfo->lastAdmins.insert(_rows.at(i));
 				}
 			}
+
+			Notify::peerUpdatedDelayed(_channel, Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 	}
 	if (_rows.isEmpty()) {
@@ -2229,11 +2238,11 @@ void MembersInner::removeKicked() {
 		_dates.removeAt(index);
 		_roles.removeAt(index);
 		clearSel();
-		if (_filter == MembersFilterRecent && _channel->count > 1) {
-			--_channel->count;
+		if (_filter == MembersFilterRecent && _channel->membersCount() > 1) {
+			_channel->setMembersCount(_channel->membersCount() - 1);
 			if (App::main()) emit App::main()->peerUpdated(_channel);
-		} else if (_filter == MembersFilterAdmins && _channel->adminsCount > 1) {
-			--_channel->adminsCount;
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount() > 1) {
+			_channel->setAdminsCount(_channel->adminsCount() - 1);
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
 		refresh();
@@ -2290,8 +2299,8 @@ void MembersBox::onScroll() {
 }
 
 void MembersBox::onAdd() {
-	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= (_inner.channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
-		Ui::showLayer(new MaxInviteBox(_inner.channel()->invitationUrl), KeepOtherLayers);
+	if (_inner.filter() == MembersFilterRecent && _inner.channel()->membersCount() >= (_inner.channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
+		Ui::showLayer(new MaxInviteBox(_inner.channel()->inviteLink()), KeepOtherLayers);
 		return;
 	}
 	ContactsBox *box = new ContactsBox(_inner.channel(), _inner.filter(), _inner.already());

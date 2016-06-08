@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dropdown.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
+#include "window/section_widget.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -32,6 +33,10 @@ class ItemBase;
 } // namespace Layout
 class Result;
 } // namespace InlineBots
+
+namespace Ui {
+class HistoryDownButton;
+} // namespace Ui
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -41,8 +46,8 @@ public:
 
 	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	bool event(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -87,8 +92,6 @@ public:
 	bool wasSelectedText() const;
 	void setFirstLoading(bool loading);
 
-	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
-
 	// updates history->scrollTopItem/scrollTopOffset
 	void visibleAreaUpdated(int top, int bottom);
 
@@ -111,6 +114,9 @@ public:
 	QPoint tooltipPos() const override;
 
 	~HistoryInner();
+
+protected:
+	bool focusNextPrevChild(bool next) override;
 
 public slots:
 
@@ -203,7 +209,7 @@ private:
 		Selecting     = 0x04,
 	};
 	DragAction _dragAction = NoDrag;
-	TextSelectType _dragSelType = TextSelectLetters;
+	TextSelectType _dragSelType = TextSelectType::Letters;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem = nullptr;
 	HistoryCursorState _dragCursorState = HistoryDefaultCursorState;
@@ -466,14 +472,6 @@ private:
 
 };
 
-class CollapseButton : public FlatButton {
-public:
-
-	CollapseButton(QWidget *parent);
-	void paintEvent(QPaintEvent *e);
-
-};
-
 class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
 public:
 
@@ -504,7 +502,7 @@ public:
 	void historyLoaded();
 
 	void windowShown();
-	bool isActive() const;
+	bool doWeReadServerHistory() const;
 
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -533,8 +531,9 @@ public:
 
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
-	void historyWasRead(bool force = true);
+	void historyWasRead(ReadServerHistoryChecks checks);
 	void historyCleared(History *history);
+	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
 
@@ -574,9 +573,11 @@ public:
 	PeerData *peer() const;
 	void setMsgId(MsgId showAtMsgId);
 	MsgId msgId() const;
-	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
-	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
+	bool hasTopBarShadow() const {
+		return peer() != nullptr;
+	}
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
@@ -638,10 +639,12 @@ public:
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
+	void saveFieldToHistoryLocalDraft();
+
+	void applyCloudDraft(History *history);
 
 	void contactsReceived();
 	void updateToEndVisibility();
-	void updateCollapseCommentsVisibility();
 
 	void updateAfterDrag();
 	void updateFieldSubmitSettings();
@@ -656,14 +659,17 @@ public:
 	bool contentOverlapped(const QRect &globalRect);
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
 	}
 
 	bool isItemVisible(HistoryItem *item);
@@ -739,7 +745,6 @@ public slots:
 
 	void onScroll();
 	void onHistoryToEnd();
-	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 
 	void onUnblock();
@@ -789,6 +794,7 @@ public slots:
 
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);
+	void onCloudDraftSave();
 
 	void updateStickers();
 
@@ -904,8 +910,8 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
+	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	struct BotCallbackInfo {
 		FullMsgId msgId;
@@ -967,7 +973,7 @@ private:
 	Q_DECLARE_FLAGS(TextUpdateEvents, TextUpdateEvent);
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
 
-	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
+	void writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDraft);
 	void writeDrafts(History *history);
 	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory);
 	void clearFieldText(TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory) {
@@ -983,7 +989,6 @@ private:
 	void visibleAreaUpdated();
 
 	bool readyToForward() const;
-	bool hasBroadcastToggle() const;
 	bool hasSilentToggle() const;
 
 	PeerData *_peer = nullptr;
@@ -994,8 +999,6 @@ private:
 	ChannelId _channel = NoChannel;
 	bool _canSendMessages = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
-	MsgId _fixedInScrollMsgId = 0;
-	int32 _fixedInScrollMsgTop = 0;
 
 	mtpRequestId _firstLoadRequest = 0;
 	mtpRequestId _preloadRequest = 0;
@@ -1017,8 +1020,7 @@ private:
 	uint64 _lastScrolled = 0;
 	QTimer _updateHistoryItems;
 
-	IconedButton _toHistoryEnd;
-	CollapseButton _collapseComments;
+	ChildWidget<Ui::HistoryDownButton> _historyToEnd;
 
 	ChildWidget<FieldAutocomplete> _fieldAutocomplete;
 
@@ -1043,7 +1045,6 @@ private:
 	IconedButton _attachDocument, _attachPhoto;
 	EmojiButton _attachEmoji;
 	IconedButton _kbShow, _kbHide, _cmdStart;
-	FlatCheckbox _broadcast;
 	SilentToggle _silent;
 	bool _cmdStartShown = false;
 	MessageField _field;
@@ -1086,9 +1087,9 @@ private:
 	int32 _titlePeerTextWidth = 0;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;
@@ -1101,9 +1102,9 @@ private:
 
 	uint64 _saveDraftStart = 0;
 	bool _saveDraftText = false;
-	QTimer _saveDraftTimer;
+	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab = false;
 
 };

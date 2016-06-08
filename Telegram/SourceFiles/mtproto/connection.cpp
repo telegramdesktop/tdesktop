@@ -855,7 +855,7 @@ void ConnectionPrivate::tryToSend() {
 	MTPInitConnection<mtpRequest> initWrapperImpl, *initWrapper = &initWrapperImpl;
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
-		initWrapperImpl = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), mtpRequest());
+		initWrapperImpl = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(Sandbox::LangSystemISO()), mtpRequest());
 		initSizeInInts = (initWrapper->innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}

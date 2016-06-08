@@ -63,6 +63,8 @@ linksBorder: 1px;
 linksBorderFg: #eaeaea;
 linksDateColor: #808080;
 linksDateMargin: margins(0px, 15px, 0px, 2px);
+linksPhotoSize: 46px;
+linksPhotoPadding: 12px;
 overviewLinksCheck: icon {
 	{ "overview_links_check_bg", overviewCheckBg },
 	{ "overview_links_check", #fff, point(4px, 5px) },

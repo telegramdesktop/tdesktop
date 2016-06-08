@@ -20,10 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "profile/profile_section_memento.h"
+#include "core/vector_of_moveable.h"
+#include "core/click_handler_types.h"
+#include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "core/click_handler_types.h"
 #include "boxes/confirmbox.h"
 #include "layerwidget.h"
 #include "lang.h"
@@ -91,6 +94,8 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		if (auto m = App::main()) {
 			auto getMessageBot = [msg]() -> UserData* {
 				if (auto bot = msg->viaBot()) {
+					return bot;
+				} else if (auto bot = msg->from()->asUser()) {
 					return bot;
 				} else if (auto bot = msg->history()->peer->asUser()) {
 					return bot;
@@ -237,7 +242,15 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (MainWidget *m = App::main()) m->showPeerProfile(App::peer(peer));
+	if (auto m = App::main()) {
+		m->showWideSection(Profile::SectionMemento(App::peer(peer)));
+	}
+}
+
+void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
+	if (auto m = App::main()) {
+		m->showMediaOverview(App::peer(peer), type);
+	}
 }
 
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
@@ -273,6 +286,15 @@ bool hideWindowNoQuit() {
 	return false;
 }
 
+bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
+	if (auto w = App::wnd()) {
+		if (w->contentOverlapped(widget, event)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace Ui
 
 namespace Notify {
@@ -286,7 +308,10 @@ void userIsContactChanged(UserData *user, bool fromThisApp) {
 }
 
 void botCommandsChanged(UserData *user) {
-	if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
+	if (MainWidget *m = App::main()) {
+		m->notify_botCommandsChanged(user);
+	}
+	peerUpdatedDelayed(user, PeerUpdate::Flag::BotCommandsChanged);
 }
 
 void inlineBotRequesting(bool requesting) {
@@ -500,6 +525,8 @@ struct Data {
 	uint64 LaunchId = 0;
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
 	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
+	SingleDelayedCall HandleFileDialogQueue = { App::app(), "call_handleFileDialogQueue" };
+	SingleDelayedCall HandleDelayedPeerUpdates = { App::app(), "call_handleDelayedPeerUpdates" };
 
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
@@ -563,6 +590,8 @@ void finish() {
 DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
 DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
+DefineRefVar(Global, SingleDelayedCall, HandleFileDialogQueue);
+DefineRefVar(Global, SingleDelayedCall, HandleDelayedPeerUpdates);
 
 DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);

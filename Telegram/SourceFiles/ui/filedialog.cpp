@@ -234,3 +234,140 @@ QString filedialogNextFilename(const QString &name, const QString &cur, const QS
 	}
 	return result;
 }
+
+namespace FileDialog {
+namespace {
+
+using internal::QueryUpdateHandler;
+
+struct Query {
+	enum class Type {
+		ReadFile,
+		ReadFiles,
+		WriteFile,
+		ReadFolder,
+	};
+	Query(Type type
+		, const QString &caption = QString()
+		, const QString &filter = QString()
+		, const QString &filePath = QString()) : id(rand_value<QueryId>())
+		, type(type)
+		, caption(caption)
+		, filter(filter)
+		, filePath(filePath) {
+	}
+	QueryId id;
+	Type type;
+	QString caption, filter, filePath;
+};
+
+using QueryList = QList<Query>;
+NeverFreedPointer<QueryList> Queries;
+
+void StartCallback() {
+	Queries.makeIfNull();
+}
+
+void FinishCallback() {
+	Queries.clear();
+}
+
+Notify::SimpleObservedEventRegistrator<QueryUpdateHandler> creator(StartCallback, FinishCallback);
+
+} // namespace
+
+QueryId queryReadFile(const QString &caption, const QString &filter) {
+	t_assert(creator.started());
+
+	Queries->push_back(Query(Query::Type::ReadFile, caption, filter));
+	Global::RefHandleFileDialogQueue().call();
+	return Queries->back().id;
+}
+
+QueryId queryReadFiles(const QString &caption, const QString &filter) {
+	t_assert(creator.started());
+
+	Queries->push_back(Query(Query::Type::ReadFiles, caption, filter));
+	Global::RefHandleFileDialogQueue().call();
+	return Queries->back().id;
+}
+
+QueryId queryWriteFile(const QString &caption, const QString &filter, const QString &filePath) {
+	t_assert(creator.started());
+
+	Queries->push_back(Query(Query::Type::WriteFile, caption, filter, filePath));
+	Global::RefHandleFileDialogQueue().call();
+	return Queries->back().id;
+}
+
+QueryId queryReadFolder(const QString &caption) {
+	t_assert(creator.started());
+
+	Queries->push_back(Query(Query::Type::ReadFolder, caption));
+	Global::RefHandleFileDialogQueue().call();
+	return Queries->back().id;
+}
+
+bool processQuery() {
+	if (!creator.started() || !Global::started() || Queries->isEmpty()) return false;
+
+	auto query = Queries->front();
+	Queries->pop_front();
+
+	QueryUpdate update(query.id);
+
+	switch (query.type) {
+	case Query::Type::ReadFile: {
+		QString file;
+		QByteArray remoteContent;
+		if (filedialogGetOpenFile(file, remoteContent, query.caption, query.filter)) {
+			if (!file.isEmpty()) {
+				update.filePaths.push_back(file);
+			}
+			update.remoteContent = remoteContent;
+		}
+	} break;
+
+	case Query::Type::ReadFiles: {
+		QStringList files;
+		QByteArray remoteContent;
+		if (filedialogGetOpenFiles(files, remoteContent, query.caption, query.filter)) {
+			update.filePaths = files;
+			update.remoteContent = remoteContent;
+		}
+	} break;
+
+	case Query::Type::WriteFile: {
+		QString file;
+		if (filedialogGetSaveFile(file, query.caption, query.filter, query.filePath)) {
+			if (!file.isEmpty()) {
+				update.filePaths.push_back(file);
+			}
+		}
+	} break;
+
+	case Query::Type::ReadFolder: {
+		QString folder;
+		if (filedialogGetDir(folder, query.caption)) {
+			if (!folder.isEmpty()) {
+				update.filePaths.push_back(folder);
+			}
+		}
+	} break;
+	}
+
+	// No one know what happened during filedialogGet*() call in the event loop.
+	if (!creator.started() || !Global::started()) return false;
+
+	creator.notify(update);
+	return true;
+}
+
+namespace internal {
+
+Notify::ConnectionId plainRegisterObserver(QueryUpdateHandler &&handler) {
+	return creator.registerObserver(std_::forward<QueryUpdateHandler>(handler));
+}
+
+} // namespace internal
+} // namespace FileDialog

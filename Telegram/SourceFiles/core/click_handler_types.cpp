@@ -110,15 +110,22 @@ QString HiddenUrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const Q
 	QString result;
 	if (mode == ExpandLinksAll) {
 		result = textPart.toString() + qsl(" (") + url() + ')';
+	} else if (mode == ExpandLinksUrlOnly) {
+		result = url();
 	}
 	return result;
 }
 
 TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
 	TextWithEntities result;
-	result.entities.push_back({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
-	if (mode == ExpandLinksAll) {
-		result.text = textPart.toString() + qsl(" (") + url() + ')';
+	if (mode == ExpandLinksUrlOnly) {
+		result.text = url();
+		result.entities.push_back({ EntityInTextUrl, entityOffset, result.text.size() });
+	} else {
+		result.entities.push_back({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
+		if (mode == ExpandLinksAll) {
+			result.text = textPart.toString() + qsl(" (") + url() + ')';
+		}
 	}
 	return result;
 }
@@ -174,9 +181,19 @@ TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLink
 	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
 
+PeerData *BotCommandClickHandler::_peer = nullptr;
+UserData *BotCommandClickHandler::_bot = nullptr;
 void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (PeerData *peer = Ui::getPeerForMouseAction()) {
+		if (auto peer = peerForCommand()) {
+			if (auto bot = peer->isUser() ? peer->asUser() : botForCommand()) {
+				Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
+				App::sendBotCommand(peer, bot, _cmd);
+				return;
+			}
+		}
+
+		if (auto peer = Ui::getPeerForMouseAction()) { // old way
 			UserData *bot = peer->isUser() ? peer->asUser() : nullptr;
 			if (auto item = App::hoveredLinkItem()) {
 				if (!bot) {

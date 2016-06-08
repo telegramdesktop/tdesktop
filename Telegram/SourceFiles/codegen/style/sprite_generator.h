@@ -34,7 +34,7 @@ class Module;
 
 class SpriteGenerator {
 public:
-	SpriteGenerator(const structure::Module &module);
+	SpriteGenerator(const structure::Module &module, bool forceReGenerate);
 	SpriteGenerator(const SpriteGenerator &other) = delete;
 	SpriteGenerator &operator=(const SpriteGenerator &other) = delete;
 
@@ -46,6 +46,7 @@ private:
 	QImage generateSprite(int scale); // scale = 5 for 125% and 6 for 150%.
 
 	const structure::Module &module_;
+	bool forceReGenerate_;
 	QString basePath_;
 	QImage sprite2x_;
 	QList<structure::Variable> sprites_;

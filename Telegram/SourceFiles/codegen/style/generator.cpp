@@ -289,7 +289,7 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	} break;
 	case Tag::Icon: {
 		auto v(value.Icon());
-		if (v.parts.empty()) return QString();
+		if (v.parts.empty()) return QString("{}");
 
 		QStringList parts;
 		for (const auto &part : v.parts) {
