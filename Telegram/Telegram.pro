@@ -68,6 +68,8 @@ SOURCES += \
     ./GeneratedFiles/numbers.cpp \
     ./GeneratedFiles/styles/style_basic.cpp \
     ./GeneratedFiles/styles/style_basic_types.cpp \
+    ./GeneratedFiles/styles/style_dialogs.cpp \
+    ./GeneratedFiles/styles/style_history.cpp \
     ./GeneratedFiles/styles/style_overview.cpp \
     ./GeneratedFiles/styles/style_profile.cpp \
     ./SourceFiles/main.cpp \
@@ -125,9 +127,11 @@ SOURCES += \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
     ./SourceFiles/core/observer.cpp \
+    ./SourceFiles/data/drafts.cpp \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/dialogs/dialogs_row.cpp \
     ./SourceFiles/history/field_autocomplete.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
@@ -170,6 +174,7 @@ SOURCES += \
     ./SourceFiles/profile/profile_widget.cpp \
     ./SourceFiles/serialize/serialize_common.cpp \
     ./SourceFiles/serialize/serialize_document.cpp \
+    ./SourceFiles/ui/buttons/history_down_button.cpp \
     ./SourceFiles/ui/buttons/left_outline_button.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
     ./SourceFiles/ui/buttons/round_button.cpp \
@@ -208,6 +213,8 @@ HEADERS += \
     ./GeneratedFiles/numbers.h \
     ./GeneratedFiles/styles/style_basic.h \
     ./GeneratedFiles/styles/style_basic_types.h \
+    ./GeneratedFiles/styles/style_dialogs.h \
+    ./GeneratedFiles/styles/style_history.h \
     ./GeneratedFiles/styles/style_overview.h \
     ./GeneratedFiles/styles/style_profile.h \
     ./SourceFiles/stdafx.h \
@@ -268,6 +275,7 @@ HEADERS += \
     ./SourceFiles/core/observer.h \
     ./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
+    ./SourceFiles/data/drafts.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
     ./SourceFiles/dialogs/dialogs_layout.h \
@@ -317,6 +325,7 @@ HEADERS += \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/serialize/serialize_common.h \
     ./SourceFiles/serialize/serialize_document.h \
+    ./SourceFiles/ui/buttons/history_down_button.h \
     ./SourceFiles/ui/buttons/left_outline_button.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
     ./SourceFiles/ui/buttons/round_button.h \
@@ -450,5 +459,7 @@ OTHER_FILES += \
     ./Resources/langs/lang_de.strings \
     ./Resources/langs/lang_nl.strings \
     ./Resources/langs/lang_pt_BR.strings \
+    ./SourceFiles/dialogs/dialogs.style \
+    ./SourceFiles/history/history.style \
     ./SourceFiles/overview/overview.style \
     ./SourceFiles/profile/profile.style

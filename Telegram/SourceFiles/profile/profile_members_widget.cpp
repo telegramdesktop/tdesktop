@@ -492,7 +492,7 @@ bool MembersWidget::addUsersToEnd(ChannelData *megagroup) {
 }
 
 void MembersWidget::setMemberFlags(Member *member, ChannelData *megagroup) {
-	auto amCreatorOrAdmin = (peerFromUser(member->user->id) == MTP::authedId()) && (megagroup->amCreator() || megagroup->amEditor());
+	auto amCreatorOrAdmin = (peerToUser(member->user->id) == MTP::authedId()) && (megagroup->amCreator() || megagroup->amEditor());
 	auto isAdmin = megagroup->mgInfo->lastAdmins.contains(member->user);
 	member->isAdmin = amCreatorOrAdmin || isAdmin;
 	if (member->user->isSelf()) {

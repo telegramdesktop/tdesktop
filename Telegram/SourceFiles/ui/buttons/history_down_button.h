@@ -25,8 +25,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 class HistoryDownButton : public Button {
-	Q_OBJECT
-
 public:
 	HistoryDownButton(QWidget *parent);
 
@@ -38,8 +36,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-private slots:
-	void onStateChange(int oldState, ButtonStateChangeSource source);
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 private:
 	void step_arrowOver(float64 ms, bool timer);

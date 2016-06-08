@@ -1615,26 +1615,6 @@ HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, 
 	return newItem;
 }
 
-template <typename CreateGroup, typename UniteGroup>
-void History::addMessageGroup(CreateGroup create, UniteGroup unite) {
-	HistoryItem *previous = nullptr;
-	if (isBuildingFrontBlock()) {
-		if (_buildingFrontBlock->block) {
-			previous = _buildingFrontBlock->block->items.back();
-		}
-	} else {
-		if (!blocks.isEmpty()) {
-			previous = blocks.back()->items.back();
-		}
-	}
-
-	if (previous && previous->type() == HistoryItemGroup) {
-		unite(static_cast<HistoryGroup*>(previous));
-	} else {
-		addItemToBlock(create(previous));
-	}
-}
-
 void History::startBuildingFrontBlock(int expectedItemsCount) {
 	t_assert(!isBuildingFrontBlock());
 	t_assert(expectedItemsCount > 0);
@@ -1848,7 +1828,7 @@ const ChannelHistory *History::asChannelHistory() const {
 }
 
 bool History::isDisplayedEmpty() const {
-	return isEmpty() || (blocks.size() == 1) && blocks.front()->items.size() == 1 && blocks.front()->items.front()->isEmpty();
+	return isEmpty() || ((blocks.size() == 1) && blocks.front()->items.size() == 1 && blocks.front()->items.front()->isEmpty());
 }
 
 void History::clear(bool leaveItems) {

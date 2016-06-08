@@ -31,8 +31,6 @@ HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
 , _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
 	setCursor(style::cur_pointer);
 	resize(st::historyToDown.width(), st::historyToDownPaddingTop + st::historyToDown.height());
-
-	connect(this, SIGNAL(stateChanged(int,ButtonStateChangeSource)), this, SLOT(onStateChange(int,ButtonStateChangeSource)));
 }
 
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
@@ -51,7 +49,7 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void HistoryDownButton::onStateChange(int oldState, ButtonStateChangeSource source) {
+void HistoryDownButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	a_arrowOpacity.start((_state & (StateOver | StateDown)) ? st::btnAttachEmoji.overOpacity : st::btnAttachEmoji.opacity);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
