@@ -180,7 +180,7 @@ private:
 	int32 _itemsToBeLoaded;
 
 	// photos
-	int32 _photosInRow, _photosToAdd;
+	int32 _photosInRow;
 
 	QTimer _searchTimer;
 	QString _searchQuery;

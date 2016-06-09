@@ -54,7 +54,6 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _cancelSearch(this, st::btnCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _photosInRow(1)
-, _photosToAdd(0)
 , _inSearch(false)
 , _searchFull(false)
 , _searchFullMigrated(false)
@@ -348,10 +347,9 @@ void OverviewInner::repaintItem(MsgId itemId, int32 itemIndex) {
 	fixItemIndex(itemIndex, itemId);
 	if (itemIndex >= 0) {
 		if (_type == OverviewPhotos || _type == OverviewVideos) {
-			int32 shownAtIndex = _items.size() - itemIndex - 1;
 			float64 w = (float64(_width - st::overviewPhotoSkip) / _photosInRow);
 			int32 vsize = (_rowWidth + st::overviewPhotoSkip);
-			int32 row = (_photosToAdd + shownAtIndex) / _photosInRow, col = (_photosToAdd + shownAtIndex) % _photosInRow;
+			int32 row = itemIndex / _photosInRow, col = itemIndex % _photosInRow;
 			update(int32(col * w), _marginTop + int32(row * vsize), qCeil(w), vsize);
 		} else {
 			int32 top = _items.at(itemIndex)->Get<Overview::Layout::Info>()->top;
@@ -698,8 +696,7 @@ QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
 	if (itemIndex < 0) return QPoint(0, 0);
 
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		int32 shownAtIndex = _items.size() - itemIndex - 1;
-		int32 row = (_photosToAdd + shownAtIndex) / _photosInRow, col = (_photosToAdd + shownAtIndex) % _photosInRow;
+		int32 row = itemIndex / _photosInRow, col = itemIndex % _photosInRow;
 		float64 w = (_width - st::overviewPhotoSkip) / float64(_photosInRow);
 		p.setX(p.x() - int32(col * w) - st::overviewPhotoSkip);
 		p.setY(p.y() - _marginTop - row * (_rowWidth + st::overviewPhotoSkip) - st::overviewPhotoSkip);
@@ -832,14 +829,14 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	bool hasSel = !_selected.isEmpty();
 
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		int32 count = _items.size(), rowsCount = (_photosToAdd + count) / _photosInRow + (((_photosToAdd + count) % _photosInRow) ? 1 : 0);
+		int32 count = _items.size(), rowsCount = count / _photosInRow + ((count % _photosInRow) ? 1 : 0);
 		int32 rowFrom = floorclamp(r.y() - _marginTop - st::overviewPhotoSkip, _rowWidth + st::overviewPhotoSkip, 0, rowsCount);
 		int32 rowTo = ceilclamp(r.y() + r.height() - _marginTop - st::overviewPhotoSkip, _rowWidth + st::overviewPhotoSkip, 0, rowsCount);
 		float64 w = float64(_width - st::overviewPhotoSkip) / _photosInRow;
 		for (int32 row = rowFrom; row < rowTo; ++row) {
-			if (row * _photosInRow >= _photosToAdd + count) break;
+			if (row * _photosInRow >= count) break;
 			for (int32 col = 0; col < _photosInRow; ++col) {
-				int32 i = count - (row * _photosInRow + col - _photosToAdd) - 1;
+				int32 i = row * _photosInRow + col;
 				if (i < 0) continue;
 				if (i >= count) break;
 
@@ -898,7 +895,7 @@ void OverviewInner::onUpdateSelected() {
 		if (row < 0) row = 0;
 		bool upon = true;
 
-		int32 count = _items.size(), i = count - (row * _photosInRow + col - _photosToAdd) - 1;
+		int32 count = _items.size(), i = row * _photosInRow + col;
 		if (i < 0) {
 			i = 0;
 			upon = false;
@@ -1017,7 +1014,7 @@ void OverviewInner::onUpdateSelected() {
 					if (selectingDown) {
 						if (_type == OverviewPhotos || _type == OverviewVideos) {
 							if (_dragStartPos.x() >= _rowWidth || ((_mousedItem == dragSelFrom) && (m.x() < _dragStartPos.x() + QApplication::startDragDistance()))) {
-								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
 							}
 						} else {
 							if (_dragStartPos.y() >= itemHeight(dragSelFrom, dragSelFromIndex) || ((_mousedItem == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance()))) {
@@ -1027,7 +1024,7 @@ void OverviewInner::onUpdateSelected() {
 					} else {
 						if (_type == OverviewPhotos || _type == OverviewVideos) {
 							if (_dragStartPos.x() < 0 || ((_mousedItem == dragSelFrom) && (m.x() >= _dragStartPos.x() - QApplication::startDragDistance()))) {
-								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
 							}
 						} else {
 							if (_dragStartPos.y() < 0 || ((_mousedItem == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance()))) {
@@ -1040,7 +1037,7 @@ void OverviewInner::onUpdateSelected() {
 					if (selectingDown) {
 						if (_type == OverviewPhotos || _type == OverviewVideos) {
 							if (m.x() < 0) {
-								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
 							}
 						} else {
 							if (m.y() < 0) {
@@ -1050,7 +1047,7 @@ void OverviewInner::onUpdateSelected() {
 					} else {
 						if (_type == OverviewPhotos || _type == OverviewVideos) {
 							if (m.x() >= _rowWidth) {
-								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
 							}
 						} else {
 							if (m.y() >= itemHeight(dragSelTo, dragSelToIndex)) {
@@ -1703,7 +1700,7 @@ void OverviewInner::mediaOverviewUpdated() {
 	int32 newHeight = _marginTop + _height + _marginBottom, deltaHeight = newHeight - height();
 	if (deltaHeight) {
 		resize(_width, newHeight);
-		if (_type != OverviewLinks && _type != OverviewFiles) {
+		if (_type == OverviewMusicFiles || _type == OverviewVoiceFiles) {
 			_overview->scrollBy(deltaHeight);
 		}
 	} else {
@@ -1780,10 +1777,9 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 			if (history == _migrated) msgid = -msgid;
 			for (int32 i = 0, l = _items.size(); i != l; ++i) {
 				if (complexMsgId(_items.at(i)->getItem()) == msgid) {
-					int32 shownAtIndex = _items.size() - i - 1;
 					float64 w = (float64(width() - st::overviewPhotoSkip) / _photosInRow);
 					int32 vsize = (_rowWidth + st::overviewPhotoSkip);
-					int32 row = (_photosToAdd + shownAtIndex) / _photosInRow, col = (_photosToAdd + shownAtIndex) % _photosInRow;
+					int32 row = i / _photosInRow, col = i % _photosInRow;
 					update(int32(col * w), _marginTop + int32(row * vsize), qCeil(w), vsize);
 					break;
 				}
@@ -1808,14 +1804,7 @@ int32 OverviewInner::countHeight() {
 		int32 count = _items.size();
 		int32 migratedFullCount = _migrated ? _migrated->overviewCount(_type) : 0;
 		int32 fullCount = migratedFullCount + _history->overviewCount(_type);
-		if (fullCount > 0 && migratedFullCount >= 0) {
-			int32 cnt = count - (fullCount % _photosInRow);
-			if (cnt < 0) cnt += _photosInRow;
-			_photosToAdd = (_photosInRow - (cnt % _photosInRow)) % _photosInRow;
-		} else {
-			_photosToAdd = 0;
-		}
-		int32 rows = ((_photosToAdd + count) / _photosInRow) + (((_photosToAdd + count) % _photosInRow) ? 1 : 0);
+		int32 rows = (count / _photosInRow) + ((count % _photosInRow) ? 1 : 0);
 		result = (_rowWidth + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
 	}
 	return result;
@@ -1823,8 +1812,8 @@ int32 OverviewInner::countHeight() {
 
 void OverviewInner::recountMargins() {
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		_marginBottom = 0;
-		_marginTop = qMax(_minHeight - _height - _marginBottom, 0);
+		_marginBottom = qMax(_minHeight - _height - _marginTop, 0);
+		_marginTop = 0;
 	} else if (_type == OverviewMusicFiles) {
 		_marginTop = st::playlistPadding;
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
@@ -1945,7 +1934,7 @@ void OverviewWidget::onScroll() {
 	int32 preloadThreshold = _scroll.height() * 5;
 	bool needToPreload = false;
 	do {
-		needToPreload = (type() == OverviewLinks || type() == OverviewFiles) ? (_scroll.scrollTop() + preloadThreshold > _scroll.scrollTopMax()) : (_scroll.scrollTop() < preloadThreshold);
+		needToPreload = (type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? (_scroll.scrollTop() < preloadThreshold) : (_scroll.scrollTop() + preloadThreshold > _scroll.scrollTopMax());
 		if (!needToPreload || !_inner.preloadLocal()) {
 			break;
 		}
@@ -2010,7 +1999,7 @@ void OverviewWidget::scrollBy(int32 add) {
 }
 
 void OverviewWidget::scrollReset() {
-	_scroll.scrollToY((type() == OverviewLinks || type() == OverviewFiles) ? 0 : _scroll.scrollTopMax());
+	_scroll.scrollToY((type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? _scroll.scrollTopMax() : 0);
 }
 
 void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
