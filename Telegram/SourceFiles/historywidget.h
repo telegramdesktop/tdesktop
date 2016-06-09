@@ -973,7 +973,7 @@ private:
 	Q_DECLARE_FLAGS(TextUpdateEvents, TextUpdateEvent);
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
 
-	void writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDraft);
+	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);
 	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory);
 	void clearFieldText(TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory) {

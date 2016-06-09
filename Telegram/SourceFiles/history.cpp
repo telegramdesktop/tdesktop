@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
 #include "history/history_service_layout.h"
+#include "data/data_drafts.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -168,14 +169,31 @@ void History::setHasPendingResizedItems() {
 	Global::RefHandleHistoryUpdate().call();
 }
 
+void History::setLocalDraft(std_::unique_ptr<Data::Draft> &&draft) {
+	_localDraft = std_::move(draft);
+}
+
+void History::takeLocalDraft(History *from) {
+	if (auto &draft = from->_localDraft) {
+		if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
+			_localDraft = std_::move(draft);
+
+			// Edit and reply to drafts can't migrate.
+			// Cloud drafts do not migrate automatically.
+			_localDraft->msgId = 0;
+		}
+		from->clearLocalDraft();
+	}
+}
+
 void History::createLocalDraftFromCloud() {
 	auto draft = cloudDraft();
-	if (historyDraftIsNull(draft) || !draft->date.isValid()) return;
+	if (Data::draftIsNull(draft) || !draft->date.isValid()) return;
 
 	auto existing = localDraft();
-	if (historyDraftIsNull(existing) || !existing->date.isValid() || draft->date > existing->date) {
+	if (Data::draftIsNull(existing) || !existing->date.isValid() || draft->date >= existing->date) {
 		if (!existing) {
-			setLocalDraft(std_::make_unique<HistoryDraft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
+			setLocalDraft(std_::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
 			existing = localDraft();
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
@@ -187,14 +205,19 @@ void History::createLocalDraftFromCloud() {
 	}
 }
 
-HistoryDraft *History::createCloudDraft(HistoryDraft *fromDraft) {
-	if (historyDraftIsNull(fromDraft)) {
-		setCloudDraft(std_::make_unique<HistoryDraft>(TextWithTags(), 0, MessageCursor(), false));
+void History::setCloudDraft(std_::unique_ptr<Data::Draft> &&draft) {
+	_cloudDraft = std_::move(draft);
+	cloudDraftTextCache.clear();
+}
+
+Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
+	if (Data::draftIsNull(fromDraft)) {
+		setCloudDraft(std_::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
 		cloudDraft()->date = QDateTime();
 	} else {
 		auto existing = cloudDraft();
 		if (!existing) {
-			setCloudDraft(std_::make_unique<HistoryDraft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
+			setCloudDraft(std_::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
 			existing = cloudDraft();
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
@@ -212,6 +235,14 @@ HistoryDraft *History::createCloudDraft(HistoryDraft *fromDraft) {
 	return cloudDraft();
 }
 
+void History::setEditDraft(std_::unique_ptr<Data::Draft> &&draft) {
+	_editDraft = std_::move(draft);
+}
+
+void History::clearLocalDraft() {
+	_localDraft = nullptr;
+}
+
 void History::clearCloudDraft() {
 	if (_cloudDraft) {
 		_cloudDraft = nullptr;
@@ -219,6 +250,15 @@ void History::clearCloudDraft() {
 		updateChatListSortPosition();
 		updateChatListEntry();
 	}
+}
+
+void History::clearEditDraft() {
+	_editDraft = nullptr;
+}
+
+void History::draftSavedToCloud() {
+	updateChatListEntry();
+	if (App::main()) App::main()->writeDrafts(this);
 }
 
 bool History::updateTyping(uint64 ms, bool force) {

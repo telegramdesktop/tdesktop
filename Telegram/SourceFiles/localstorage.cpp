@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
+#include "data/data_drafts.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -2409,13 +2410,13 @@ namespace Local {
 			if (msgData.text.isEmpty() && !msgReplyTo) {
 				h->clearLocalDraft();
 			} else {
-				h->setLocalDraft(std_::make_unique<HistoryDraft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
+				h->setLocalDraft(std_::make_unique<Data::Draft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
 			}
 		}
 		if (!editMsgId) {
 			h->clearEditDraft();
 		} else {
-			h->setEditDraft(std_::make_unique<HistoryDraft>(editData, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(std_::make_unique<Data::Draft>(editData, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 

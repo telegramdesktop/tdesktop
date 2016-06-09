@@ -241,6 +241,7 @@ public:
 
 	void saveDraftToCloud();
 	void applyCloudDraft(History *history);
+	void writeDrafts(History *history);
 
 	int32 dlgsWidth() const;
 

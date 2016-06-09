@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "apiwrap.h"
 
+#include "data/data_drafts.h"
 #include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
@@ -851,7 +852,7 @@ void ApiWrap::saveCloudDraftDone(History *history, const MTPBool &result, mtpReq
 	if (auto cloudDraft = history->cloudDraft()) {
 		if (cloudDraft->saveRequestId == requestId) {
 			cloudDraft->saveRequestId = 0;
-			history->updateChatListEntry();
+			history->draftSavedToCloud();
 		}
 	}
 	auto i = _draftsSaveRequestIds.find(history);

@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 
 #include "data/data_abstract_structure.h"
+#include "data/data_drafts.h"
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
 #include "localstorage.h"
@@ -51,7 +52,7 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 }
 
 template <typename PaintItemCallback>
-void paintRow(Painter &p, History *history, HistoryItem *item, HistoryDraft *draft, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
+void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draft, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
 	QRect fullRect(0, 0, w, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (onlyBackground) return;

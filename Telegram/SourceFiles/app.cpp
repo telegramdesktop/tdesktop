@@ -286,10 +286,10 @@ namespace {
 	QString onlineText(UserData *user, TimeId now, bool precise) {
 		if (isNotificationsUser(user->id)) {
 			return lang(lng_status_service_notifications);
-		} else if (isServiceUser(user->id)) {
-			return lang(lng_status_support);
 		} else if (user->botInfo) {
 			return lang(lng_status_bot);
+		} else if (isServiceUser(user->id)) {
+			return lang(lng_status_support);
 		}
 		return onlineText(user->onlineTill, now, precise);
 	}

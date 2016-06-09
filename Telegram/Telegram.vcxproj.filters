@@ -1520,9 +1520,6 @@
     <ClInclude Include="SourceFiles\history\history_service_layout.h">
       <Filter>SourceFiles\history</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\ui\style\style_abstract_data.h">
-      <Filter>SourceFiles\ui\style</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\data\data_abstract_structure.h">
       <Filter>SourceFiles\data</Filter>
     </ClInclude>
