@@ -4178,16 +4178,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		PeerId id = peerFromMTP(d.vpeer);
-		App::feedOutboxRead(id, d.vmax_id.v);
-		if (_history->peer() && _history->peer()->id == id) {
+		auto peerId = peerFromMTP(d.vpeer);
+		App::feedOutboxRead(peerId, d.vmax_id.v);
+		if (_history->peer() && _history->peer()->id == peerId) {
 			_history->update();
-		}
-		if (History *h = App::historyLoaded(id)) {
-			if (h->lastMsg && h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
-				dlgUpdated(h, h->lastMsg->id);
-			}
-			h->updateChatListEntry();
 		}
 
 		ptsApplySkippedUpdates();
@@ -4538,8 +4532,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadChannelOutbox: {
 		auto &d(update.c_updateReadChannelOutbox());
-		auto channel = App::channelLoaded(d.vchannel_id.v);
-		App::feedOutboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
+		auto peerId = peerFromChannel(d.vchannel_id.v);
+		App::feedOutboxRead(peerId, d.vmax_id.v);
+		if (_history->peer() && _history->peer()->id == peerId) {
+			_history->update();
+		}
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {

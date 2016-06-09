@@ -2906,7 +2906,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	updateScrollColors();
 
-	_historyToEnd->hide();
 	_historyToEnd->installEventFilter(this);
 
 	_fieldAutocomplete->hide();
@@ -5004,6 +5003,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_cacheUnder = params.oldContentCache;
 	show();
 	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_historyToEnd->finishAnimation();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	App::main()->topBar()->startAnim();
 	_topShadow.setVisible(params.withTopBarShadow ? true : false);
@@ -5056,6 +5056,7 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 	if (dt >= 1) {
 		_a_show.stop();
 		_topShadow.setVisible(_peer ? true : false);
+		_historyToEnd->finishAnimation();
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
@@ -5100,6 +5101,7 @@ void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
 	_topShadow.setVisible(_peer ? true : false);
+	_historyToEnd->finishAnimation();
 }
 
 void HistoryWidget::step_record(float64 ms, bool timer) {
@@ -6846,10 +6848,10 @@ void HistoryWidget::updateToEndVisibility() {
 		return false;
 	};
 	bool toEndVisible = isToEndVisible();
-	if (toEndVisible && _historyToEnd->isHidden()) {
-		_historyToEnd->show();
-	} else if (!toEndVisible && !_historyToEnd->isHidden()) {
-		_historyToEnd->hide();
+	if (toEndVisible && _historyToEnd->hidden()) {
+		_historyToEnd->showAnimated();
+	} else if (!toEndVisible && !_historyToEnd->hidden()) {
+		_historyToEnd->hideAnimated();
 	}
 }
 
