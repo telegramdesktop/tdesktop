@@ -87,7 +87,7 @@
 		0716C99A1D08225000797B22 /* dialogs.style in Resources */ = {isa = PBXBuildFile; fileRef = 0716C9981D08225000797B22 /* dialogs.style */; };
 		0716C9A01D08251C00797B22 /* style_dialogs.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0716C99C1D08251C00797B22 /* style_dialogs.cpp */; };
 		0716C9A11D08251C00797B22 /* style_history.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0716C99E1D08251C00797B22 /* style_history.cpp */; };
-		0716C9A51D08256C00797B22 /* drafts.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0716C9A31D08256C00797B22 /* drafts.cpp */; };
+		0716C9A51D08256C00797B22 /* data_drafts.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0716C9A31D08256C00797B22 /* data_drafts.cpp */; };
 		0716C9A71D08258A00797B22 /* history.style in Resources */ = {isa = PBXBuildFile; fileRef = 0716C9A61D08258A00797B22 /* history.style */; };
 		0716C9AA1D0825A800797B22 /* history_down_button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0716C9A81D0825A800797B22 /* history_down_button.cpp */; };
 		071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D11C5E8E6D008C9E90 /* zip.c */; };
@@ -455,8 +455,8 @@
 		0716C99D1D08251C00797B22 /* style_dialogs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_dialogs.h; path = GeneratedFiles/styles/style_dialogs.h; sourceTree = SOURCE_ROOT; };
 		0716C99E1D08251C00797B22 /* style_history.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_history.cpp; path = GeneratedFiles/styles/style_history.cpp; sourceTree = SOURCE_ROOT; };
 		0716C99F1D08251C00797B22 /* style_history.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_history.h; path = GeneratedFiles/styles/style_history.h; sourceTree = SOURCE_ROOT; };
-		0716C9A31D08256C00797B22 /* drafts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = drafts.cpp; path = SourceFiles/data/drafts.cpp; sourceTree = SOURCE_ROOT; };
-		0716C9A41D08256C00797B22 /* drafts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = drafts.h; path = SourceFiles/data/drafts.h; sourceTree = SOURCE_ROOT; };
+		0716C9A31D08256C00797B22 /* data_drafts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = data_drafts.cpp; path = SourceFiles/data/data_drafts.cpp; sourceTree = SOURCE_ROOT; };
+		0716C9A41D08256C00797B22 /* data_drafts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = data_drafts.h; path = SourceFiles/data/data_drafts.h; sourceTree = SOURCE_ROOT; };
 		0716C9A61D08258A00797B22 /* history.style */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = history.style; path = SourceFiles/history/history.style; sourceTree = SOURCE_ROOT; };
 		0716C9A81D0825A800797B22 /* history_down_button.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = history_down_button.cpp; path = SourceFiles/ui/buttons/history_down_button.cpp; sourceTree = SOURCE_ROOT; };
 		0716C9A91D0825A800797B22 /* history_down_button.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = history_down_button.h; path = SourceFiles/ui/buttons/history_down_button.h; sourceTree = SOURCE_ROOT; };
@@ -938,8 +938,8 @@
 		0716C9A21D08255E00797B22 /* data */ = {
 			isa = PBXGroup;
 			children = (
-				0716C9A31D08256C00797B22 /* drafts.cpp */,
-				0716C9A41D08256C00797B22 /* drafts.h */,
+				0716C9A31D08256C00797B22 /* data_drafts.cpp */,
+				0716C9A41D08256C00797B22 /* data_drafts.h */,
 			);
 			name = data;
 			sourceTree = "<group>";
@@ -1932,7 +1932,7 @@
 				4BF3F8D0797BC8A0C1FAD13C /* introphone.cpp in Compile Sources */,
 				4978DE680549639AE9AA9CA6 /* introsignup.cpp in Compile Sources */,
 				076B1C551CBFC6F2002C0BC2 /* click_handler.cpp in Compile Sources */,
-				0716C9A51D08256C00797B22 /* drafts.cpp in Compile Sources */,
+				0716C9A51D08256C00797B22 /* data_drafts.cpp in Compile Sources */,
 				8B22E794EFF0EAFF964A3043 /* introstart.cpp in Compile Sources */,
 				74343521EECC740F777DAFE6 /* pspecific_mac.cpp in Compile Sources */,
 				26A81090DC8B5BCF7278FDFF /* qrc_telegram.cpp in Compile Sources */,

@@ -27,7 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "lang.h"
-#include "dialogs/dialogs_layout.h"
+#include "data/data_abstract_structure.h"
+#include "history/history_service_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -2150,7 +2151,7 @@ namespace {
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
 
-		Dialogs::Layout::clearStyleSheets();
+		Data::clearGlobalStructures();
 
 		clearAllImages();
 	}
@@ -2735,7 +2736,11 @@ namespace {
 
 		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
 		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
-		if (App::main()) App::main()->updateScrollColors();
+
+		if (App::main()) {
+			App::main()->updateScrollColors();
+			HistoryLayout::serviceColorsUpdated();
+		}
 	}
 
 	const style::color &msgServiceBg() {

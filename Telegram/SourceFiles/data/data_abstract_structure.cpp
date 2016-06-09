@@ -19,33 +19,32 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "data/drafts.h"
-
-#include "historywidget.h"
-#include "mainwidget.h"
+#include "data/data_abstract_structure.h"
 
 namespace Data {
 namespace {
 
+using DataStructures = OrderedSet<AbstractStructure**>;
+NeverFreedPointer<DataStructures> structures;
+
 } // namespace
 
-void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
-	auto history = App::history(peerId);
-	auto text = qs(draft.vmessage);
-	auto entities = draft.has_entities() ? entitiesFromMTP(draft.ventities.c_vector().v) : EntitiesInText();
-	TextWithTags textWithTags = { textApplyEntities(text, entities), textTagsFromEntities(entities) };
-	MsgId replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : 0;
-	auto cloudDraft = std_::make_unique<HistoryDraft>(textWithTags, replyTo, MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX), draft.is_no_webpage());
-	cloudDraft->date = ::date(draft.vdate);
+namespace internal {
 
-	history->setCloudDraft(std_::move(cloudDraft));
-	history->createLocalDraftFromCloud();
-	history->updateChatListSortPosition();
-	history->updateChatListEntry();
+void registerAbstractStructure(AbstractStructure **p) {
+	structures.makeIfNull();
+	structures->insert(p);
+}
 
-	if (auto main = App::main()) {
-		main->applyCloudDraft(history);
+} // namespace internal
+
+void clearGlobalStructures() {
+	if (!structures) return;
+	for (auto &p : *structures) {
+		delete (*p);
+		*p = nullptr;
 	}
+	structures.clear();
 }
 
 } // namespace Data

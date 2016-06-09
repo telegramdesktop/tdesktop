@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
-#include "data/drafts.h"
+#include "data/data_drafts.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"

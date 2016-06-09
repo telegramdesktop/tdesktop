@@ -2770,9 +2770,12 @@ struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
 	ClickHandlerPtr lnk;
 };
 
+namespace HistoryLayout {
+class ServiceMessagePainter;
+} // namespace HistoryLayout
+
 class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
 public:
-
 	static HistoryService *create(History *history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
@@ -2836,6 +2839,7 @@ public:
 	~HistoryService();
 
 protected:
+	friend class HistoryLayout::ServiceMessagePainter;
 
 	HistoryService(History *history, const MTPDmessageService &msg);
 	HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0);

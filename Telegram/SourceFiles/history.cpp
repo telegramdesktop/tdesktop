@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
+#include "history/history_service_layout.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -7940,9 +7941,7 @@ void HistoryService::setServiceText(const QString &text) {
 }
 
 void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
-	int left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
-	countPositionAndSize(left, width);
-	if (width < 1) return;
+	int height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
 
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
@@ -7962,47 +7961,8 @@ void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, u
 		height -= unreadbarh;
 	}
 
-	uint64 fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0;
-	if (fullAnimMs > 0 && fullAnimMs <= ms) {
-		int animms = ms - fullAnimMs;
-		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-			App::main()->stopAnimActive();
-		} else {
-			int skiph = st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
-
-			textstyleSet(&st::inTextStyle);
-			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			float64 o = p.opacity();
-			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, _history->width, _height - skiph, textstyleCurrent()->selectOverlay->b);
-			p.setOpacity(o);
-		}
-	}
-
-	if (_media) {
-		height -= st::msgServiceMargin.top() + _media->height();
-		int32 left = st::msgServiceMargin.left() + (width - _media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
-		p.translate(left, top);
-		_media->draw(p, r.translated(-left, -top), toMediaSelection(selection), ms);
-		p.translate(-left, -top);
-	}
-
-	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
-
-	if (width > _maxw) {
-		left += (width - _maxw) / 2;
-		width = _maxw;
-	}
-	App::roundRect(p, left, st::msgServiceMargin.top(), width, height, App::msgServiceBg(), (selection == FullSelection) ? ServiceSelectedCorners : ServiceCorners);
-
-	textstyleSet(&st::serviceTextStyle);
-
-	p.setBrush(Qt::NoBrush);
-	p.setPen(st::msgServiceColor);
-	p.setFont(st::msgServiceFont);
-	_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, selection);
-
-	textstyleRestore();
+	HistoryLayout::PaintContext context(ms, r, selection);
+	HistoryLayout::ServiceMessagePainter::paint(p, this, context, height);
 
 	if (int skiph = dateh + unreadbarh) {
 		p.translate(0, -skiph);

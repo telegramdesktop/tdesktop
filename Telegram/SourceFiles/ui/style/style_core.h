@@ -59,6 +59,20 @@ void stopManager();
 
 QImage colorizeImage(const QImage &src, const color &c, const QRect &r);
 
+namespace internal {
+
+QImage createCircleMask(int size, const QColor &bg, const QColor &fg);
+
+} // namespace internal
+
+inline QImage createCircleMask(int size) {
+	return internal::createCircleMask(size, QColor(0, 0, 0), QColor(255, 255, 255));
+}
+
+inline QImage createInvertedCircleMask(int size) {
+	return internal::createCircleMask(size, QColor(255, 255, 255), QColor(0, 0, 0));
+}
+
 } // namespace style
 
 inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {

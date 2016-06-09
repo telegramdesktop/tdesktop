@@ -20,23 +20,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Dialogs {
+namespace HistoryLayout {
 
-class Row;
-class FakeRow;
-
-namespace Layout {
-
-class RowPainter {
-public:
-	static void paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground);
-	static void paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground);
+struct PaintContext {
+	PaintContext(uint64 ms, const QRect &clip, TextSelection selection)
+		: ms(ms)
+		, clip(clip)
+		, selection(selection) {
+	}
+	uint64 ms;
+	const QRect &clip;
+	TextSelection selection;
 };
 
-void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground);
+class ServiceMessagePainter {
+public:
+	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
 
-void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::align align, bool active, bool muted, int *outUnreadWidth);
-void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted);
+private:
+	static void paintBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
+	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
 
-} // namespace Layout
-} // namespace Dialogs
+};
+
+void serviceColorsUpdated();
+
+} // namespace HistoryLayout

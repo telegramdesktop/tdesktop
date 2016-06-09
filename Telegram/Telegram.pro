@@ -127,7 +127,7 @@ SOURCES += \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
     ./SourceFiles/core/observer.cpp \
-    ./SourceFiles/data/drafts.cpp \
+    ./SourceFiles/data/data_drafts.cpp \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
@@ -275,7 +275,7 @@ HEADERS += \
     ./SourceFiles/core/observer.h \
     ./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
-    ./SourceFiles/data/drafts.h \
+    ./SourceFiles/data/data_drafts.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
     ./SourceFiles/dialogs/dialogs_layout.h \

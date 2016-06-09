@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "dialogs/dialogs_layout.h"
 
+#include "data/data_abstract_structure.h"
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
 #include "localstorage.h"
@@ -138,27 +139,18 @@ void paintRow(Painter &p, History *history, HistoryItem *item, HistoryDraft *dra
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-class UnreadBadgeStyle : public StyleSheet {
+class UnreadBadgeStyleData : public Data::AbstractStructure {
 public:
 	QImage circle;
 	QPixmap left[4], right[4];
 	style::color bg[4] = { st::dialogsUnreadBg, st::dialogsUnreadBgActive, st::dialogsUnreadBgMuted, st::dialogsUnreadBgMutedActive };
 };
-StyleSheetPointer<UnreadBadgeStyle> unreadBadgeStyle;
+Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
 
 void createCircleMask(int size) {
 	if (!unreadBadgeStyle->circle.isNull()) return;
 
-	unreadBadgeStyle->circle = QImage(size, size, QImage::Format::Format_Grayscale8);
-	{
-		QPainter pcircle(&unreadBadgeStyle->circle);
-		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		pcircle.fillRect(0, 0, size, size, QColor(0, 0, 0));
-		pcircle.setPen(Qt::NoPen);
-		pcircle.setBrush(QColor(255, 255, 255));
-		pcircle.drawEllipse(0, 0, size, size);
-	}
-	unreadBadgeStyle->circle.setDevicePixelRatio(cRetinaFactor());
+	unreadBadgeStyle->circle = style::createCircleMask(size);
 }
 
 QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
@@ -177,9 +169,9 @@ void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted) {
 	style::color bg = unreadBadgeStyle->bg[index];
 	if (unreadBadgeStyle->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
-		createCircleMask(imgsize);
-		unreadBadgeStyle->left[index] = QPixmap::fromImage(colorizeCircleHalf(imgsize, imgsizehalf, 0, bg));
-		unreadBadgeStyle->right[index] = QPixmap::fromImage(colorizeCircleHalf(imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
+		createCircleMask(size);
+		unreadBadgeStyle->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(imgsize, imgsizehalf, 0, bg));
+		unreadBadgeStyle->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
 	}
 
 	int bar = rect.width() - 2 * sizehalf;
@@ -278,31 +270,6 @@ void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool o
 			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, style::al_right, false, true, nullptr);
 		}
 	}
-}
-
-namespace {
-
-using StyleSheets = OrderedSet<StyleSheet**>;
-NeverFreedPointer<StyleSheets> styleSheets;
-
-}
-
-namespace internal {
-
-void registerStyleSheet(StyleSheet **p) {
-	styleSheets.makeIfNull();
-	styleSheets->insert(p);
-}
-
-} // namespace internal
-
-void clearStyleSheets() {
-	if (!styleSheets) return;
-	for (auto &p : *styleSheets) {
-		delete (*p);
-		*p = nullptr;
-	}
-	styleSheets.clear();
 }
 
 } // namespace Layout

@@ -1213,7 +1213,8 @@
     <ClCompile Include="SourceFiles\core\basic_types.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler.cpp" />
     <ClCompile Include="SourceFiles\core\click_handler_types.cpp" />
-    <ClCompile Include="SourceFiles\data\drafts.cpp" />
+    <ClCompile Include="SourceFiles\data\data_abstract_structure.cpp" />
+    <ClCompile Include="SourceFiles\data\data_drafts.cpp" />
     <ClCompile Include="SourceFiles\core\observer.cpp" />
     <ClCompile Include="SourceFiles\dialogswidget.cpp" />
     <ClCompile Include="SourceFiles\dialogs\dialogs_indexed_list.cpp" />
@@ -1226,6 +1227,7 @@
     <ClCompile Include="SourceFiles\history.cpp" />
     <ClCompile Include="SourceFiles\historywidget.cpp" />
     <ClCompile Include="SourceFiles\history\field_autocomplete.cpp" />
+    <ClCompile Include="SourceFiles\history\history_service_layout.cpp" />
     <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_internal.cpp" />
     <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_item.cpp" />
     <ClCompile Include="SourceFiles\inline_bots\inline_bot_result.cpp" />
@@ -1439,7 +1441,8 @@
     <ClInclude Include="SourceFiles\core\observer.h" />
     <ClInclude Include="SourceFiles\core\vector_of_moveable.h" />
     <ClInclude Include="SourceFiles\core\version.h" />
-    <ClInclude Include="SourceFiles\data\drafts.h" />
+    <ClInclude Include="SourceFiles\data\data_abstract_structure.h" />
+    <ClInclude Include="SourceFiles\data\data_drafts.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_common.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_indexed_list.h" />
     <ClInclude Include="SourceFiles\dialogs\dialogs_layout.h" />
@@ -1460,6 +1463,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/history/field_autocomplete.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include"</Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\history\history_common.h" />
+    <ClInclude Include="SourceFiles\history\history_service_layout.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_internal.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_item.h" />
     <ClInclude Include="SourceFiles\inline_bots\inline_bot_result.h" />
@@ -1865,6 +1869,7 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I$(QTDIR)\include" "-I$(QTDIR)\include\QtCore\5.6.0\QtCore" "-I$(QTDIR)\include\QtGui\5.6.0\QtGui" "-I.\..\..\Libraries\breakpad\src" "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\ThirdParty\minizip" "-I.\..\..\Libraries\openssl\Release\include" "-fstdafx.h" "-f../../SourceFiles/ui/twidget.h"</Command>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\ui\style\style_abstract_data.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core_color.h" />
     <ClInclude Include="SourceFiles\ui\style\style_core_font.h" />
