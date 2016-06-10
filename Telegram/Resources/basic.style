@@ -59,6 +59,7 @@ windowBg: #fff; // fallback for background: white
 windowActiveBg: #40ace3; // fallback for blue filled active areas
 windowTextFg: #000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowSubTextFgOver: #7c99b2; // fallback for subtext over color: gray over blue bg
 windowActiveTextFg: #1485c2; // fallback for active color: blue online
 windowShadowFg: #000; // fallback for shadow color
 
@@ -1782,7 +1783,7 @@ dragHeight: 72px;
 
 dpiSlider: slider {
 	color: #ccc;
-	thikness: 2px;
+	thickness: 2px;
 
 	width: 260px;
 	bar: sprite(0px, 104px, 9px, 22px);

@@ -148,10 +148,10 @@ profileMemberPaddingLeft: 16px;
 profileMemberPhotoSize: 46px;
 profileMemberPhotoPosition: point(12px, 6px);
 profileMemberNamePosition: point(68px, 11px);
-profileMemberNameFg: windowTextFg;
+profileMemberNameFg: #222222;//windowTextFg;
 profileMemberStatusPosition: point(68px, 31px);
 profileMemberStatusFg: windowSubTextFg;
-profileMemberStatusFgOver: windowSubTextFg;
+profileMemberStatusFgOver: windowSubTextFgOver;
 profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {
 	{ "profile_admin_star", #3babe7, point(4px, 2px) },
