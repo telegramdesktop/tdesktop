@@ -2594,20 +2594,7 @@ int HistoryMessageDate::height() const {
 }
 
 void HistoryMessageDate::paint(Painter &p, int y, int w) const {
-	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Adaptive::Wide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
-
-	left += (w - _width - st::msgServicePadding.left() - st::msgServicePadding.right()) / 2;
-	int height = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
-	App::roundRect(p, left, y + st::msgServiceMargin.top(), _width + st::msgServicePadding.left() + st::msgServicePadding.left(), height, App::msgServiceBg(), ServiceCorners);
-
-	p.setFont(st::msgServiceFont);
-	p.setPen(st::msgServiceColor);
-	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, _text);
+	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
 void HistoryMediaPtr::reset(HistoryMedia *p) {
@@ -2717,17 +2704,7 @@ void HistoryItem::detachFast() {
 }
 
 void HistoryItem::previousItemChanged() {
-	if (displayDate()) {
-		if (!Has<HistoryMessageDate>()) {
-			AddComponents(HistoryMessageDate::Bit());
-			Get<HistoryMessageDate>()->init(date);
-			setPendingInitDimensions();
-		}
-	} else if (Has<HistoryMessageDate>()) {
-		RemoveComponents(HistoryMessageDate::Bit());
-		setPendingInitDimensions();
-	}
-
+	recountDisplayDate();
 	recountAttachToPrevious();
 }
 
@@ -2879,13 +2856,24 @@ void HistoryItem::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
-bool HistoryItem::displayDate() const {
-	if (isEmpty()) return false;
+void HistoryItem::recountDisplayDate() {
+	bool displayingDate = ([this]() {
+		if (isEmpty()) return false;
 
-	if (auto prev = previous()) {
-		return prev->isEmpty() || (prev->date.date() != date.date());
+		if (auto prev = previous()) {
+			return prev->isEmpty() || (prev->date.date() != date.date());
+		}
+		return true;
+	})();
+
+	if (displayingDate && !Has<HistoryMessageDate>()) {
+		AddComponents(HistoryMessageDate::Bit());
+		Get<HistoryMessageDate>()->init(date);
+		setPendingInitDimensions();
+	} else if (!displayingDate && Has<HistoryMessageDate>()) {
+		RemoveComponents(HistoryMessageDate::Bit());
+		setPendingInitDimensions();
 	}
-	return true;
 }
 
 HistoryItem::~HistoryItem() {
@@ -7196,9 +7184,9 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
-		if (r.intersects(QRect(0, 0, _history->width, dateh))) {
-			date->paint(p, 0, _history->width);
-		}
+		//if (r.intersects(QRect(0, 0, _history->width, dateh))) {
+		//	date->paint(p, 0, _history->width);
+		//}
 	}
 	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
@@ -7986,9 +7974,9 @@ void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, u
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
-		if (r.intersects(QRect(0, 0, _history->width, dateh))) {
-			date->paint(p, 0, _history->width);
-		}
+		//if (r.intersects(QRect(0, 0, _history->width, dateh))) {
+		//	date->paint(p, 0, _history->width);
+		//}
 		p.translate(0, dateh);
 		height -= dateh;
 	}

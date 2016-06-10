@@ -1031,7 +1031,7 @@ enum class MTPDmessage_ClientFlag : int32 {
 	f_clientside_unread = (1 << 22),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 23),
+	MIN_FIELD = (1 << 22),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

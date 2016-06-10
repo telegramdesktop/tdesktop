@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/history_down_button.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
+#include "history/history_service_layout.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
@@ -90,6 +91,8 @@ public:
 
 };
 
+constexpr int ScrollDateHideTimeout = 1000;
+
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -107,6 +110,8 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
 
 	_trippleClickTimer.setSingleShot(true);
+
+	connect(&_scrollDateHideTimer, SIGNAL(timeout()), this, SLOT(onScrollDateHide()));
 
 	notifyIsBotChanged();
 
@@ -164,22 +169,18 @@ namespace {
 }
 
 template <typename Method>
-void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method method) {
+void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Method method) {
 	// no displayed messages in this history
-	if (htop < 0 || h->isEmpty() || !h->canHaveFromPhotos() || _visibleAreaBottom <= htop) {
+	if (historytop < 0 || history->isEmpty() || _visibleAreaBottom <= historytop) {
 		return;
 	}
 
-	// find and remember the bottom of an attached messages pack
-	// -1 means we didn't find an attached to previous message yet
-	int lowestAttachedItemBottom = -1;
-
 	// binary search for blockIndex of the first block that is not completely below the visible area
-	int blockIndex = binarySearchBlocksOrItems(h->blocks, _visibleAreaBottom - htop);
+	int blockIndex = binarySearchBlocksOrItems(history->blocks, _visibleAreaBottom - historytop);
 
 	// binary search for itemIndex of the first item that is not completely below the visible area
-	HistoryBlock *block = h->blocks.at(blockIndex);
-	int blocktop = htop + block->y;
+	HistoryBlock *block = history->blocks.at(blockIndex);
+	int blocktop = historytop + block->y;
 	int itemIndex = binarySearchBlocksOrItems(block->items, _visibleAreaBottom - blocktop);
 
 	while (true) {
@@ -191,35 +192,8 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 			// binary search should've skipped all the items that are below the visible area
 			t_assert(itemtop < _visibleAreaBottom);
 
-			// skip all service messages
-			if (HistoryMessage *message = item->toHistoryMessage()) {
-				if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
-					lowestAttachedItemBottom = itembottom - message->marginBottom();
-				}
-
-				// draw userpic for all messages that have it and for those who are not showing it
-				// because of their attachment to the previous message if they are top-most visible
-				if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
-					if (lowestAttachedItemBottom < 0) {
-						lowestAttachedItemBottom = itembottom - message->marginBottom();
-					}
-					// attach userpic to the top of the visible area with the same margin as it is from the left side
-					int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
-
-					// do not let the userpic go below the attached messages pack bottom line
-					userpicTop = qMin(userpicTop, lowestAttachedItemBottom - int(st::msgPhotoSize));
-
-					// call the template callback function that was passed
-					// and return if it finished everything it needed
-					if (!method(message, userpicTop)) {
-						return;
-					}
-				}
-
-				// forget the found bottom of the pack, search for the next one from scratch
-				if (!message->isAttachedToPrevious()) {
-					lowestAttachedItemBottom = -1;
-				}
+			if (!method(item, itemtop, itembottom)) {
+				return;
 			}
 
 			// skip all the items that are above the visible area
@@ -236,11 +210,124 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 		if (--blockIndex < 0) {
 			return;
 		} else {
-			block = h->blocks.at(blockIndex);
-			blocktop = htop + block->y;
+			block = history->blocks.at(blockIndex);
+			blocktop = historytop + block->y;
 			itemIndex = block->items.size() - 1;
 		}
 	}
+}
+
+template <typename Method>
+void HistoryInner::enumerateUserpics(Method method) {
+	if ((!_history || !_history->canHaveFromPhotos()) && (!_migrated || !_migrated->canHaveFromPhotos())) {
+		return;
+	}
+
+	// find and remember the bottom of an attached messages pack
+	// -1 means we didn't find an attached to previous message yet
+	int lowestAttachedItemBottom = -1;
+
+	auto userpicCallback = [this, &lowestAttachedItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+		// skip all service messages
+		auto message = item->toHistoryMessage();
+		if (!message) return true;
+
+		if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
+			lowestAttachedItemBottom = itembottom - message->marginBottom();
+		}
+
+		// call method on a userpic for all messages that have it and for those who are not showing it
+		// because of their attachment to the previous message if they are top-most visible
+		if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
+			if (lowestAttachedItemBottom < 0) {
+				lowestAttachedItemBottom = itembottom - message->marginBottom();
+			}
+			// attach userpic to the top of the visible area with the same margin as it is from the left side
+			int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
+
+			// do not let the userpic go below the attached messages pack bottom line
+			userpicTop = qMin(userpicTop, lowestAttachedItemBottom - st::msgPhotoSize);
+
+			// call the template callback function that was passed
+			// and return if it finished everything it needed
+			if (!method(message, userpicTop)) {
+				return false;
+			}
+		}
+
+		// forget the found bottom of the pack, search for the next one from scratch
+		if (!message->isAttachedToPrevious()) {
+			lowestAttachedItemBottom = -1;
+		}
+
+		return true;
+	};
+	auto movedToMigratedHistoryCallback = [&lowestAttachedItemBottom]() {
+		// reset the found bottom of the pack when moved from _history to _migrated enumeration
+		lowestAttachedItemBottom = -1;
+	};
+
+	enumerateItems(userpicCallback, movedToMigratedHistoryCallback);
+}
+
+template <typename Method>
+void HistoryInner::enumerateDates(Method method) {
+	int drawtop = historyDrawTop();
+
+	// find and remember the bottom of an single-day messages pack
+	// -1 means we didn't find a same-day with previous message yet
+	int lowestInOneDayItemBottom = -1;
+
+	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](HistoryItem *item, int itemtop, int itembottom) {
+		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = itembottom - item->marginBottom();
+		}
+
+		// call method on a date for all messages that have it and for those who are not showing it
+		// because they are in a one day together with the previous message if they are top-most visible
+		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
+			// skip the date of history migrate item if it will be in migrated
+			if (itemtop < drawtop && item->history() == _history) {
+				if (itemtop > _visibleAreaTop) {
+					// previous item (from the _migrated history) is drawing date now
+					return false;
+				} else if (item == _history->blocks.front()->items.front() && item->isGroupMigrate()
+					&& _migrated->blocks.back()->items.back()->isGroupMigrate()) {
+					// this item is completely invisible and should be completely ignored
+					return false;
+				}
+			}
+
+			if (lowestInOneDayItemBottom < 0) {
+				lowestInOneDayItemBottom = itembottom - item->marginBottom();
+			}
+			// attach date to the top of the visible area with the same margin as it has in service message
+			int dateTop = qMax(itemtop, _visibleAreaTop) + st::msgServiceMargin.top();
+
+			// do not let the date go below the single-day messages pack bottom line
+			int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
+
+			// call the template callback function that was passed
+			// and return if it finished everything it needed
+			if (!method(item, itemtop, dateTop)) {
+				return false;
+			}
+		}
+
+		// forget the found bottom of the pack, search for the next one from scratch
+		if (!item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = -1;
+		}
+
+		return true;
+	};
+	auto movedToMigratedHistoryCallback = [&lowestInOneDayItemBottom]() {
+		// reset the found bottom of the pack when moved from _history to _migrated enumeration
+		lowestInOneDayItemBottom = -1;
+	};
+
+	enumerateItems(dateCallback, movedToMigratedHistoryCallback);
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
@@ -386,7 +473,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) -> bool {
+			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) {
 				// stop the enumeration if the userpic is above the painted rect
 				if (userpicTop + st::msgPhotoSize <= r.top()) {
 					return false;
@@ -395,6 +482,37 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop < r.top() + r.height()) {
 					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop, message->history()->width);
+				}
+				return true;
+			});
+
+			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
+			enumerateDates([&p, &r, scrollDateOpacity](HistoryItem *item, int itemtop, int dateTop) {
+				int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+
+				// stop the enumeration if the date is above the painted rect
+				if (dateTop + dateHeight <= r.top()) {
+					return false;
+				}
+
+				bool dateInPlace = item->displayDate();
+				if (dateInPlace) {
+					int correctDateTop = itemtop + st::msgServiceMargin.top();
+					dateInPlace = (dateTop < correctDateTop + dateHeight);
+				}
+
+				// paint the date if it intersects the painted rect
+				if (dateTop < r.top() + r.height()) {
+					auto opacity = dateInPlace ? 1. : scrollDateOpacity;
+					if (opacity > 0.) {
+						p.setOpacity(opacity);
+						int dateY = dateTop - st::msgServiceMargin.top(), width = item->history()->width;
+						if (auto date = item->Get<HistoryMessageDate>()) {
+							date->paint(p, dateY, width);
+						} else {
+							HistoryLayout::ServiceMessagePainter::paintDate(p, item->date, dateY, width);
+						}
+					}
 				}
 				return true;
 			});
@@ -1494,6 +1612,46 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 			}
 		}
 	}
+	_scrollDateCheck.call();
+}
+
+void HistoryInner::onScrollDateCheck() {
+	if (!_history) return;
+	auto newScrollDateItem = _history->scrollTopItem ? _history->scrollTopItem : (_migrated ? _migrated->scrollTopItem : nullptr);
+	auto newScrollDateItemTop = _history->scrollTopItem ? _history->scrollTopOffset : (_migrated ? _migrated->scrollTopOffset : 0);
+	if (!newScrollDateItem) {
+		_scrollDateLastItem = nullptr;
+		_scrollDateLastItemTop = 0;
+		onScrollDateHide();
+	} else if (newScrollDateItem != _scrollDateLastItem || newScrollDateItemTop != _scrollDateLastItemTop) {
+		// Show scroll date only if it is not the initial onScroll() event (with empty _scrollDateLastItem).
+		if (_scrollDateLastItem && !_scrollDateShown) {
+			toggleScrollDateShown();
+		}
+		_scrollDateLastItem = newScrollDateItem;
+		_scrollDateLastItemTop = newScrollDateItemTop;
+		_scrollDateHideTimer.start(ScrollDateHideTimeout);
+	}
+}
+
+void HistoryInner::onScrollDateHide() {
+	_scrollDateHideTimer.stop();
+	if (_scrollDateShown) {
+		toggleScrollDateShown();
+	}
+}
+
+void HistoryInner::toggleScrollDateShown() {
+	_scrollDateShown = !_scrollDateShown;
+	auto from = _scrollDateShown ? 0. : 1.;
+	auto to = _scrollDateShown ? 1. : 0.;
+	START_ANIMATION(_scrollDateOpacity, func(this, &HistoryInner::repaintScrollDateCallback), from, to, st::btnAttachEmoji.duration, anim::linear);
+}
+
+void HistoryInner::repaintScrollDateCallback() {
+	int updateTop = _visibleAreaTop;
+	int updateHeight = st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	update(0, updateTop, width(), updateHeight);
 }
 
 void HistoryInner::updateSize() {

@@ -37,6 +37,9 @@ class ServiceMessagePainter {
 public:
 	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
 
+	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
+	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
+
 private:
 	static void paintBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
 	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);

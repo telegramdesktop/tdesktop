@@ -138,6 +138,11 @@ public slots:
 	void onTouchScrollTimer();
 	void onDragExec();
 
+private slots:
+
+	void onScrollDateCheck();
+	void onScrollDateHide();
+
 private:
 
 	void touchResetSpeed();
@@ -151,6 +156,9 @@ private:
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 
 	void setToClipboard(const TextWithEntities &forClipboard);
+
+	void toggleScrollDateShown();
+	void repaintScrollDateCallback();
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
@@ -249,19 +257,45 @@ private:
 	int _visibleAreaTop = 0;
 	int _visibleAreaBottom = 0;
 
+	bool _scrollDateShown = false;
+	FloatAnimation _scrollDateOpacity;
+	SingleDelayedCall _scrollDateCheck = { this, "onScrollDateCheck" };
+	SingleTimer _scrollDateHideTimer;
+	HistoryItem *_scrollDateLastItem = nullptr;
+	int _scrollDateLastItemTop = 0;
+
+	// this function finds all history items that are displayed and calls template method
+	// for each found message (from the bottom to the top) in the passed history with passed top offset
+	//
+	// method has "bool (*Method)(HistoryItem *item, int itemtop, int itembottom)" signature
+	// if it returns false the enumeration stops immidiately
+	template <typename Method>
+	void enumerateItemsInHistory(History *history, int historytop, Method method);
+
+	template <typename Method, typename SwitchToMigratedCallback>
+	void enumerateItems(Method method, SwitchToMigratedCallback switchToMigrated) {
+		enumerateItemsInHistory(_history, historyTop(), method);
+		if (_migrated) {
+			switchToMigrated();
+			enumerateItemsInHistory(_migrated, migratedTop(), method);
+		}
+	}
+
 	// this function finds all userpics on the left that are displayed and calls template method
-	// for each found userpic (from the bottom to the top) in the passed history with passed top offset
+	// for each found userpic (from the bottom to the top) using enumerateItems() method
 	//
 	// method has "bool (*Method)(HistoryMessage *message, int userpicTop)" signature
 	// if it returns false the enumeration stops immidiately
 	template <typename Method>
-	void enumerateUserpicsInHistory(History *h, int htop, Method method);
+	void enumerateUserpics(Method method);
 
+	// this function finds all date elements that are displayed and calls template method
+	// for each found date element (from the bottom to the top) using enumerateItems() method
+	//
+	// method has "bool (*Method)(HistoryItem *item, int itemtop, int dateTop)" signature
+	// if it returns false the enumeration stops immidiately
 	template <typename Method>
-	void enumerateUserpics(Method method) {
-		enumerateUserpicsInHistory(_history, historyTop(), method);
-		enumerateUserpicsInHistory(_migrated, migratedTop(), method);
-	}
+	void enumerateDates(Method method);
 
 };
 

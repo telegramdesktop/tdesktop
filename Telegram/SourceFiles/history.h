@@ -1386,6 +1386,13 @@ public:
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
 	}
+	bool displayDate() const {
+		return Has<HistoryMessageDate>();
+	}
+
+	bool isInOneDayWithPrevious() const {
+		return !isEmpty() && !displayDate();
+	}
 
 	bool isEmpty() const {
 		return _text.isEmpty() && !_media;
@@ -1432,7 +1439,7 @@ protected:
 	// this should be used only in previousItemChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
-	bool displayDate() const;
+	void recountDisplayDate();
 
 	// this should be used only in previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
