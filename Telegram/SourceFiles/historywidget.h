@@ -858,6 +858,7 @@ private:
 	void updateFieldSize();
 
 	bool historyHasNotFreezedUnreadBar(History *history) const;
+	bool canWriteMessage() const;
 
 	void clearInlineBot();
 	void inlineBotChanged();

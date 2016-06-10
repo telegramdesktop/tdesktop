@@ -3821,7 +3821,7 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 
 void HistoryWidget::applyDraft(bool parseLinks) {
 	auto draft = _history ? _history->draft() : nullptr;
-	if (!draft) {
+	if (!draft || !canWriteMessage()) {
 		clearFieldText();
 		_field.setFocus();
 		_replyEditMsg = nullptr;
@@ -4215,6 +4215,13 @@ bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId re
 	if (req == _reportSpamSettingRequestId) {
 		req = 0;
 	}
+	return true;
+}
+
+bool HistoryWidget::canWriteMessage() const {
+	if (!_history || _a_show.animating()) return false;
+	if (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart()) return false;
+	if (!_canSendMessages) return false;
 	return true;
 }
 
@@ -5564,7 +5571,7 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
-	if (!_history || !_canSendMessages) return false;
+	if (!_history || !canWriteMessage()) return false;
 
 	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	QString toInsert = cmd;
