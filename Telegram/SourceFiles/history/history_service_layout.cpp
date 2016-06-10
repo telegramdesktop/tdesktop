@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "data/data_abstract_structure.h"
 #include "mainwidget.h"
+#include "lang.h"
 
 namespace HistoryLayout {
 namespace {
@@ -126,6 +127,23 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 	p.fillRect(x, y, width, height, App::msgServiceBg());
 }
 
+void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
+	int left = st::msgServiceMargin.left();
+	int maxwidth = w;
+	if (Adaptive::Wide()) {
+		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+	}
+	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+	left += (w - dateTextWidth - st::msgServicePadding.left() - st::msgServicePadding.right()) / 2;
+	int height = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	App::roundRect(p, left, y + st::msgServiceMargin.top(), dateTextWidth + st::msgServicePadding.left() + st::msgServicePadding.left(), height, App::msgServiceBg(), ServiceCorners);
+
+	p.setFont(st::msgServiceFont);
+	p.setPen(st::msgServiceColor);
+	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, dateText);
+}
+
 } // namepsace
 
 void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, const PaintContext &context, int height) {
@@ -175,6 +193,16 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 	message->_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, context.selection, false);
 
 	textstyleRestore();
+}
+
+void ServiceMessagePainter::paintDate(Painter &p, const QDateTime &date, int y, int w) {
+	auto dateText = langDayOfMonthFull(date.date());
+	auto dateTextWidth = st::msgServiceFont->width(dateText);
+	paintPreparedDate(p, dateText, dateTextWidth, y, w);
+}
+
+void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
+	paintPreparedDate(p, dateText, dateTextWidth, y, w);
 }
 
 void ServiceMessagePainter::paintBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect) {
