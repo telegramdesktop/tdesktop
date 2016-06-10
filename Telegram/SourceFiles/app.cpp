@@ -1203,18 +1203,21 @@ namespace {
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		History *h = App::historyLoaded(peer);
-		if (h) {
-			h->inboxRead(upTo);
+		if (auto history = App::historyLoaded(peer)) {
+			history->inboxRead(upTo);
 		}
 	}
 
 	void feedOutboxRead(const PeerId &peer, MsgId upTo) {
-		History *h = App::historyLoaded(peer);
-		if (h) {
-			h->outboxRead(upTo);
-			if (h->peer->isUser()) {
-				h->peer->asUser()->madeAction();
+		if (auto history = App::historyLoaded(peer)) {
+			history->outboxRead(upTo);
+			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
+				if (App::main()) App::main()->dlgUpdated(history, history->lastMsg->id);
+			}
+			history->updateChatListEntry();
+
+			if (history->peer->isUser()) {
+				history->peer->asUser()->madeAction();
 			}
 		}
 	}

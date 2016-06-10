@@ -33,16 +33,32 @@ public:
 		return _unreadCount;
 	}
 
+	bool hidden() const;
+
+	void showAnimated();
+	void hideAnimated();
+
+	void finishAnimation();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 private:
+	void toggleAnimated();
+	void repaintCallback() {
+		update();
+	}
 	void step_arrowOver(float64 ms, bool timer);
+
+	QPixmap _cache;
+	bool _shown = false;
 
 	anim::fvalue a_arrowOpacity;
 	Animation _a_arrowOver;
+
+	FloatAnimation _a_show;
 
 	int _unreadCount = 0;
 
