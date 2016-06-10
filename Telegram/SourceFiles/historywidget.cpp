@@ -3856,8 +3856,12 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 }
 
 void HistoryWidget::applyCloudDraft(History *history) {
-	if (_history == history) {
+	if (_history == history && !_editMsgId) {
 		applyDraft();
+
+		updateControlsVisibility();
+		resizeEvent(nullptr);
+		update();
 	}
 }
 
@@ -4034,7 +4038,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 		applyDraft(false);
 
-		resizeEvent(0);
+		resizeEvent(nullptr);
 		if (!_previewCancelled) {
 			onPreviewParse();
 		}
@@ -4671,8 +4675,21 @@ bool HistoryWidget::doWeReadServerHistory() const {
 			if (scrollBottom > _list->itemTop(showFrom)) return true;
 		}
 	}
-	if (_history->showFrom && !_history->showFrom->detached() && _history->unreadBar) return true;
-	if (_migrated && _migrated->showFrom && !_migrated->showFrom->detached() && _migrated->unreadBar) return true;
+	if (historyHasNotFreezedUnreadBar(_history)) {
+		return true;
+	}
+	if (historyHasNotFreezedUnreadBar(_migrated)) {
+		return true;
+	}
+	return false;
+}
+
+bool HistoryWidget::historyHasNotFreezedUnreadBar(History *history) const {
+	if (history && history->showFrom && !history->showFrom->detached() && history->unreadBar) {
+		if (auto unreadBar = history->unreadBar->Get<HistoryMessageUnreadBar>()) {
+			return !unreadBar->_freezed;
+		}
+	}
 	return false;
 }
 

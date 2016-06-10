@@ -857,6 +857,8 @@ private:
 	void moveFieldControls();
 	void updateFieldSize();
 
+	bool historyHasNotFreezedUnreadBar(History *history) const;
+
 	void clearInlineBot();
 	void inlineBotChanged();
 
