@@ -5958,10 +5958,10 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dialogsTextFont);
 	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
-		p.setPen(st::titleStatusColor->p);
+		p.setPen(_titlePeerTextOnline ? st::titleStatusActiveFg : st::titleStatusFg);
 		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	} else {
-		p.setPen(st::titleTypingColor->p);
+		p.setPen(st::titleTypingFg);
 		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
 	}
 
@@ -5990,8 +5990,10 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 
 	QString text;
 	int32 t = unixtime();
-	if (_peer->isUser()) {
-		text = App::onlineText(_peer->asUser(), t);
+	bool titlePeerTextOnline = false;
+	if (auto user = _peer->asUser()) {
+		text = App::onlineText(user, t);
+		titlePeerTextOnline = App::onlineColorUse(user, t);
 	} else if (_peer->isChat()) {
 		ChatData *chat = _peer->asChat();
 		if (!chat->amIn()) {
@@ -6037,6 +6039,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;
+		_titlePeerTextOnline = titlePeerTextOnline;
 		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		if (App::main()) {
 			App::main()->topBar()->update();

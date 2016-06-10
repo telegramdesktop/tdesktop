@@ -78,10 +78,10 @@ void SettingsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 }
 
 int SettingsWidget::resizeGetHeight(int newWidth) {
-	int newHeight = contentTop();
+	int newHeight = contentTop() + st::profileEnableNotificationsTop;
 
 	_enableNotifications->moveToLeft(st::profileBlockTitlePosition.x(), newHeight);
-	newHeight += _enableNotifications->height() + st::profileBlockOneLineSkip;
+	newHeight += _enableNotifications->height() + st::profileSettingsBlockSkip;
 
 	auto moveLink = [&newHeight, newWidth](Ui::LeftOutlineButton *button) {
 		if (!button) return;

@@ -118,8 +118,8 @@ profileBlockWideWidthMin: 300px;
 profileBlockWideWidthMax: 340px;
 profileBlockMarginTop: 14px;
 profileBlockMarginRight: 10px;
-profileBlockMarginBottom: 4px;
-profileBlockTitleHeight: 25px;
+profileBlockMarginBottom: 7px;
+profileBlockTitleHeight: 24px;
 profileBlockTitleFont: font(14px semibold);
 profileBlockTitleFg: #333333;
 profileBlockTitlePosition: point(24px, 0px);
@@ -136,6 +136,9 @@ profileBlockOneLineTextPart: flatLabel(profileBlockTextPart) {
 }
 profileBlockOneLineSkip: 9px;
 profileBlockOneLineWidthMax: 240px;
+
+profileEnableNotificationsTop: 7px;
+profileSettingsBlockSkip: 8px;
 
 profileInviteLinkText: flatLabel(profileBlockTextPart) {
 	width: 1px; // Required for BreakEverywhere

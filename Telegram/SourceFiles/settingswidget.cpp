@@ -426,7 +426,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 
 		p.setFont(st::setStatusFont->f);
 		bool connecting = App::wnd()->connectingVisible();
-		p.setPen((connecting ? st::profileOfflineColor : st::profileOnlineColor)->p);
+		p.setPen((connecting ? st::profileOfflineFg : st::profileOnlineFg)->p);
 		p.drawText(_uploadPhoto.x() + st::setStatusLeft, top + st::setStatusTop + st::setStatusFont->ascent, lang(connecting ? lng_status_connecting : lng_status_online));
 
 		top += st::setPhotoSize;

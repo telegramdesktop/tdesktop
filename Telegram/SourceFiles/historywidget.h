@@ -1118,7 +1118,8 @@ private:
 	uint64 _confirmWithTextId = 0;
 
 	QString _titlePeerText;
-	int32 _titlePeerTextWidth = 0;
+	bool _titlePeerTextOnline = false;
+	int _titlePeerTextWidth = 0;
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;
