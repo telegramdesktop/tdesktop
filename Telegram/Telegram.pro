@@ -127,12 +127,14 @@ SOURCES += \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
     ./SourceFiles/core/observer.cpp \
-    ./SourceFiles/data/drafts.cpp \
+    ./SourceFiles/data/data_abstract_structure.cpp \
+    ./SourceFiles/data/data_drafts.cpp \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
     ./SourceFiles/dialogs/dialogs_row.cpp \
     ./SourceFiles/history/field_autocomplete.cpp \
+    ./SourceFiles/history/history_service_layout.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
     ./SourceFiles/inline_bots/inline_bot_result.cpp \
@@ -275,14 +277,16 @@ HEADERS += \
     ./SourceFiles/core/observer.h \
     ./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
-    ./SourceFiles/data/drafts.h \
+    ./SourceFiles/data/data_abstract_structure.h \
+    ./SourceFiles/data/data_drafts.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
     ./SourceFiles/dialogs/dialogs_layout.h \
     ./SourceFiles/dialogs/dialogs_list.h \
     ./SourceFiles/dialogs/dialogs_row.h \
-    ./SourceFiles/history/history_common.h \
     ./SourceFiles/history/field_autocomplete.h \
+    ./SourceFiles/history/history_common.h \
+    ./SourceFiles/history/history_service_layout.h \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
     ./SourceFiles/inline_bots/inline_bot_layout_item.h \
     ./SourceFiles/inline_bots/inline_bot_result.h \

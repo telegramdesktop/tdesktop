@@ -202,7 +202,7 @@ countryInput {
 
 slider {
 	color: color;
-	thikness: pixels;
+	thickness: pixels;
 
 	width: pixels;
 	bar: sprite;

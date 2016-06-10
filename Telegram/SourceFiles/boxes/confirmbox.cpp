@@ -382,7 +382,7 @@ PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st
 , _channel(channel)
 , _msgId(msgId)
 , _text(this, lang(lng_pinned_pin_sure), FlatLabel::InitType::Simple, st::boxLabel)
-, _notify(this, lang(lng_pinned_notify), true)
+, _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox)
 , _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
@@ -441,9 +441,9 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 , _from(from)
 , _msgId(msgId)
 , _text(this, lang(lng_selected_delete_sure_this), FlatLabel::InitType::Simple, st::boxLabel)
-, _banUser(this, lang(lng_ban_user), false)
-, _reportSpam(this, lang(lng_report_spam), false)
-, _deleteAll(this, lang(lng_delete_all_from), false)
+, _banUser(this, lang(lng_ban_user), false, st::defaultBoxCheckbox)
+, _reportSpam(this, lang(lng_report_spam), false, st::defaultBoxCheckbox)
+, _deleteAll(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox)
 , _delete(this, lang(lng_box_delete), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	t_assert(_channel != nullptr);

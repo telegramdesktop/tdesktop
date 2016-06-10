@@ -73,6 +73,10 @@ if %BetaVersion% neq 0 (
     exit /b 1
   )
 )
+
+cd "%HomePath%"
+"..\Win32\codegen\Deploy\codegen_style.exe" "-I.\Resources" "-I.\SourceFiles" "-o.\GeneratedFiles\styles" all_files.style --rebuild
+
 cd "%ResourcesPath%"
 if "%1" == "fast" (
   echo Skipping touching of telegram.qrc...

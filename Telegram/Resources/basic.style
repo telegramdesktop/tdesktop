@@ -59,6 +59,7 @@ windowBg: #fff; // fallback for background: white
 windowActiveBg: #40ace3; // fallback for blue filled active areas
 windowTextFg: #000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
+windowSubTextFgOver: #7c99b2; // fallback for subtext over color: gray over blue bg
 windowActiveTextFg: #1485c2; // fallback for active color: blue online
 windowShadowFg: #000; // fallback for shadow color
 
@@ -160,7 +161,7 @@ defaultLeftOutlineButton: OutlineButton {
 	textFgOver: windowActiveTextFg;
 
 	font: normalFont;
-	padding: margins(11px, 6px, 11px, 6px);
+	padding: margins(11px, 5px, 11px, 5px);
 }
 attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 	outlineFgOver: #e43f3f;
@@ -236,18 +237,23 @@ defaultCheckbox: Checkbox {
 	checkFgOver: #b3b3b3;
 	checkFgActive: #40ace3;
 
-	width: -46px;
+	width: -44px;
 	height: 22px;
 
-	textPosition: point(34px, 0px);
+	textPosition: point(32px, 2px);
 	diameter: 22px;
 	thickness: 2px;
 	checkIcon: icon {
 		{ "default_checkbox_check", #ffffff, point(4px, 7px) }
 	};
 
-	font: boxTextFont;
+	font: normalFont;
 	duration: 120;
+}
+defaultBoxCheckbox: Checkbox {
+	width: -46px;
+	textPosition: point(34px, 0px);
+	font: boxTextFont;
 }
 defaultRadiobutton: Radiobutton {
 	textFg: black;
@@ -396,8 +402,9 @@ titleRed: #ee4928;
 titleGray: #777;
 titleGreen: #41a903;
 
-titleStatusColor: #999;
-titleTypingColor: #0080c0;
+titleStatusFg: #999;
+titleStatusActiveFg: #0080c0;
+titleTypingFg: #0080c0;
 
 statusFont: font(fsize);
 versionColor: #777;
@@ -1560,7 +1567,7 @@ contactsNewItemTop: 18px;
 contactsNewItemFg: #4b82af;
 contactsAboutBg: #f7f7f7;
 contactsAboutShadow: #0000001F;
-contactsAdminCheckbox: Checkbox(defaultCheckbox) {
+contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
 	font: semiboldFont;
 	textBg: #f7f7f7;
 	textPosition: point(34px, 1px);
@@ -1637,8 +1644,8 @@ confirmCompressedSkip: 10px;
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
 
-profileOnlineColor: titleTypingColor;
-profileOfflineColor: titleStatusColor;
+profileOnlineFg: titleStatusActiveFg;
+profileOfflineFg: titleStatusFg;
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
@@ -1782,7 +1789,7 @@ dragHeight: 72px;
 
 dpiSlider: slider {
 	color: #ccc;
-	thikness: 2px;
+	thickness: 2px;
 
 	width: 260px;
 	bar: sprite(0px, 104px, 9px, 22px);

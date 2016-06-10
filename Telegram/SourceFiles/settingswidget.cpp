@@ -90,7 +90,7 @@ void Slider::setSelected(int32 sel) {
 void Slider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(0, (height() - _st.thikness) / 2, width(), _st.thikness, _st.color->b);
+	p.fillRect(0, (height() - _st.thickness) / 2, width(), _st.thickness, _st.color->b);
 
 	int32 x = qFloor(_sel * float64(width() - _st.bar.pxWidth()) / (_count - 1)), y = (height() - _st.bar.pxHeight()) / 2;
 	p.drawSprite(QPoint(x, y), _st.bar);
@@ -426,7 +426,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 
 		p.setFont(st::setStatusFont->f);
 		bool connecting = App::wnd()->connectingVisible();
-		p.setPen((connecting ? st::profileOfflineColor : st::profileOnlineColor)->p);
+		p.setPen((connecting ? st::profileOfflineFg : st::profileOnlineFg)->p);
 		p.drawText(_uploadPhoto.x() + st::setStatusLeft, top + st::setStatusTop + st::setStatusFont->ascent, lang(connecting ? lng_status_connecting : lng_status_online));
 
 		top += st::setPhotoSize;

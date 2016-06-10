@@ -897,7 +897,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Bearbeite deine Nachrichten nachträglich (innerhalb von 2 Tagen).\n— Erwähne Leute in Gruppen - ohne das diese einen Benutzernamen haben müssen (einfach @ eingeben und aus der Liste auswählen).\n\nMehr: {link}";
+"lng_new_version_text" = "— Optische Verbesserungen (u.a. runde Profilbilder)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

@@ -897,7 +897,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— 2 dagen om je berichten naderhand te bewerken.\n— Anderen vermelden in groepen via '@', kies daarna de persoon uit de lijst. Ook als ze geen gebruikersnaam hebben!\n\nMeer over deze update: {link}";
+"lng_new_version_text" = "— Visuele verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

@@ -347,7 +347,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 		} else {
 			p.setBrush(st::white);
 		}
-		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2, _st.thickness / 2, _st.thickness / 2, _st.thickness / 2)), st::msgRadius, st::msgRadius);
+		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2, _st.thickness / 2, _st.thickness / 2, _st.thickness / 2)), st::msgRadius - (_st.thickness / 2), st::msgRadius - (_st.thickness / 2));
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 		if (checked > 0) {

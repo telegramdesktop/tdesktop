@@ -29,6 +29,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
 #include "inline_bots/inline_bot_result.h"
+#include "data/data_drafts.h"
+#include "history/history_service_layout.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
@@ -89,6 +91,8 @@ public:
 
 };
 
+constexpr int ScrollDateHideTimeout = 1000;
+
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -99,8 +103,6 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 , _history(history)
 , _widget(historyWidget)
 , _scroll(scroll) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
-
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -108,6 +110,8 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
 
 	_trippleClickTimer.setSingleShot(true);
+
+	connect(&_scrollDateHideTimer, SIGNAL(timeout()), this, SLOT(onScrollDateHide()));
 
 	notifyIsBotChanged();
 
@@ -165,22 +169,18 @@ namespace {
 }
 
 template <typename Method>
-void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method method) {
+void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Method method) {
 	// no displayed messages in this history
-	if (htop < 0 || h->isEmpty() || !h->canHaveFromPhotos() || _visibleAreaBottom <= htop) {
+	if (historytop < 0 || history->isEmpty() || _visibleAreaBottom <= historytop) {
 		return;
 	}
 
-	// find and remember the bottom of an attached messages pack
-	// -1 means we didn't find an attached to previous message yet
-	int lowestAttachedItemBottom = -1;
-
 	// binary search for blockIndex of the first block that is not completely below the visible area
-	int blockIndex = binarySearchBlocksOrItems(h->blocks, _visibleAreaBottom - htop);
+	int blockIndex = binarySearchBlocksOrItems(history->blocks, _visibleAreaBottom - historytop);
 
 	// binary search for itemIndex of the first item that is not completely below the visible area
-	HistoryBlock *block = h->blocks.at(blockIndex);
-	int blocktop = htop + block->y;
+	HistoryBlock *block = history->blocks.at(blockIndex);
+	int blocktop = historytop + block->y;
 	int itemIndex = binarySearchBlocksOrItems(block->items, _visibleAreaBottom - blocktop);
 
 	while (true) {
@@ -192,35 +192,8 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 			// binary search should've skipped all the items that are below the visible area
 			t_assert(itemtop < _visibleAreaBottom);
 
-			// skip all service messages
-			if (HistoryMessage *message = item->toHistoryMessage()) {
-				if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
-					lowestAttachedItemBottom = itembottom - message->marginBottom();
-				}
-
-				// draw userpic for all messages that have it and for those who are not showing it
-				// because of their attachment to the previous message if they are top-most visible
-				if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
-					if (lowestAttachedItemBottom < 0) {
-						lowestAttachedItemBottom = itembottom - message->marginBottom();
-					}
-					// attach userpic to the top of the visible area with the same margin as it is from the left side
-					int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
-
-					// do not let the userpic go below the attached messages pack bottom line
-					userpicTop = qMin(userpicTop, lowestAttachedItemBottom - int(st::msgPhotoSize));
-
-					// call the template callback function that was passed
-					// and return if it finished everything it needed
-					if (!method(message, userpicTop)) {
-						return;
-					}
-				}
-
-				// forget the found bottom of the pack, search for the next one from scratch
-				if (!message->isAttachedToPrevious()) {
-					lowestAttachedItemBottom = -1;
-				}
+			if (!method(item, itemtop, itembottom)) {
+				return;
 			}
 
 			// skip all the items that are above the visible area
@@ -237,11 +210,124 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 		if (--blockIndex < 0) {
 			return;
 		} else {
-			block = h->blocks.at(blockIndex);
-			blocktop = htop + block->y;
+			block = history->blocks.at(blockIndex);
+			blocktop = historytop + block->y;
 			itemIndex = block->items.size() - 1;
 		}
 	}
+}
+
+template <typename Method>
+void HistoryInner::enumerateUserpics(Method method) {
+	if ((!_history || !_history->canHaveFromPhotos()) && (!_migrated || !_migrated->canHaveFromPhotos())) {
+		return;
+	}
+
+	// find and remember the bottom of an attached messages pack
+	// -1 means we didn't find an attached to previous message yet
+	int lowestAttachedItemBottom = -1;
+
+	auto userpicCallback = [this, &lowestAttachedItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+		// skip all service messages
+		auto message = item->toHistoryMessage();
+		if (!message) return true;
+
+		if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
+			lowestAttachedItemBottom = itembottom - message->marginBottom();
+		}
+
+		// call method on a userpic for all messages that have it and for those who are not showing it
+		// because of their attachment to the previous message if they are top-most visible
+		if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
+			if (lowestAttachedItemBottom < 0) {
+				lowestAttachedItemBottom = itembottom - message->marginBottom();
+			}
+			// attach userpic to the top of the visible area with the same margin as it is from the left side
+			int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
+
+			// do not let the userpic go below the attached messages pack bottom line
+			userpicTop = qMin(userpicTop, lowestAttachedItemBottom - st::msgPhotoSize);
+
+			// call the template callback function that was passed
+			// and return if it finished everything it needed
+			if (!method(message, userpicTop)) {
+				return false;
+			}
+		}
+
+		// forget the found bottom of the pack, search for the next one from scratch
+		if (!message->isAttachedToPrevious()) {
+			lowestAttachedItemBottom = -1;
+		}
+
+		return true;
+	};
+	auto movedToMigratedHistoryCallback = [&lowestAttachedItemBottom]() {
+		// reset the found bottom of the pack when moved from _history to _migrated enumeration
+		lowestAttachedItemBottom = -1;
+	};
+
+	enumerateItems(userpicCallback, movedToMigratedHistoryCallback);
+}
+
+template <typename Method>
+void HistoryInner::enumerateDates(Method method) {
+	int drawtop = historyDrawTop();
+
+	// find and remember the bottom of an single-day messages pack
+	// -1 means we didn't find a same-day with previous message yet
+	int lowestInOneDayItemBottom = -1;
+
+	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](HistoryItem *item, int itemtop, int itembottom) {
+		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = itembottom - item->marginBottom();
+		}
+
+		// call method on a date for all messages that have it and for those who are not showing it
+		// because they are in a one day together with the previous message if they are top-most visible
+		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
+			// skip the date of history migrate item if it will be in migrated
+			if (itemtop < drawtop && item->history() == _history) {
+				if (itemtop > _visibleAreaTop) {
+					// previous item (from the _migrated history) is drawing date now
+					return false;
+				} else if (item == _history->blocks.front()->items.front() && item->isGroupMigrate()
+					&& _migrated->blocks.back()->items.back()->isGroupMigrate()) {
+					// this item is completely invisible and should be completely ignored
+					return false;
+				}
+			}
+
+			if (lowestInOneDayItemBottom < 0) {
+				lowestInOneDayItemBottom = itembottom - item->marginBottom();
+			}
+			// attach date to the top of the visible area with the same margin as it has in service message
+			int dateTop = qMax(itemtop, _visibleAreaTop) + st::msgServiceMargin.top();
+
+			// do not let the date go below the single-day messages pack bottom line
+			int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
+
+			// call the template callback function that was passed
+			// and return if it finished everything it needed
+			if (!method(item, itemtop, dateTop)) {
+				return false;
+			}
+		}
+
+		// forget the found bottom of the pack, search for the next one from scratch
+		if (!item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = -1;
+		}
+
+		return true;
+	};
+	auto movedToMigratedHistoryCallback = [&lowestInOneDayItemBottom]() {
+		// reset the found bottom of the pack when moved from _history to _migrated enumeration
+		lowestInOneDayItemBottom = -1;
+	};
+
+	enumerateItems(dateCallback, movedToMigratedHistoryCallback);
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
@@ -387,7 +473,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) -> bool {
+			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) {
 				// stop the enumeration if the userpic is above the painted rect
 				if (userpicTop + st::msgPhotoSize <= r.top()) {
 					return false;
@@ -396,6 +482,37 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop < r.top() + r.height()) {
 					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop, message->history()->width);
+				}
+				return true;
+			});
+
+			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
+			enumerateDates([&p, &r, scrollDateOpacity](HistoryItem *item, int itemtop, int dateTop) {
+				int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+
+				// stop the enumeration if the date is above the painted rect
+				if (dateTop + dateHeight <= r.top()) {
+					return false;
+				}
+
+				bool dateInPlace = item->displayDate();
+				if (dateInPlace) {
+					int correctDateTop = itemtop + st::msgServiceMargin.top();
+					dateInPlace = (dateTop < correctDateTop + dateHeight);
+				}
+
+				// paint the date if it intersects the painted rect
+				if (dateTop < r.top() + r.height()) {
+					auto opacity = dateInPlace ? 1. : scrollDateOpacity;
+					if (opacity > 0.) {
+						p.setOpacity(opacity);
+						int dateY = dateTop - st::msgServiceMargin.top(), width = item->history()->width;
+						if (auto date = item->Get<HistoryMessageDate>()) {
+							date->paint(p, dateY, width);
+						} else {
+							HistoryLayout::ServiceMessagePainter::paintDate(p, item->date, dateY, width);
+						}
+					}
 				}
 				return true;
 			});
@@ -1495,6 +1612,46 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 			}
 		}
 	}
+	_scrollDateCheck.call();
+}
+
+void HistoryInner::onScrollDateCheck() {
+	if (!_history) return;
+	auto newScrollDateItem = _history->scrollTopItem ? _history->scrollTopItem : (_migrated ? _migrated->scrollTopItem : nullptr);
+	auto newScrollDateItemTop = _history->scrollTopItem ? _history->scrollTopOffset : (_migrated ? _migrated->scrollTopOffset : 0);
+	if (!newScrollDateItem) {
+		_scrollDateLastItem = nullptr;
+		_scrollDateLastItemTop = 0;
+		onScrollDateHide();
+	} else if (newScrollDateItem != _scrollDateLastItem || newScrollDateItemTop != _scrollDateLastItemTop) {
+		// Show scroll date only if it is not the initial onScroll() event (with empty _scrollDateLastItem).
+		if (_scrollDateLastItem && !_scrollDateShown) {
+			toggleScrollDateShown();
+		}
+		_scrollDateLastItem = newScrollDateItem;
+		_scrollDateLastItemTop = newScrollDateItemTop;
+		_scrollDateHideTimer.start(ScrollDateHideTimeout);
+	}
+}
+
+void HistoryInner::onScrollDateHide() {
+	_scrollDateHideTimer.stop();
+	if (_scrollDateShown) {
+		toggleScrollDateShown();
+	}
+}
+
+void HistoryInner::toggleScrollDateShown() {
+	_scrollDateShown = !_scrollDateShown;
+	auto from = _scrollDateShown ? 0. : 1.;
+	auto to = _scrollDateShown ? 1. : 0.;
+	START_ANIMATION(_scrollDateOpacity, func(this, &HistoryInner::repaintScrollDateCallback), from, to, st::btnAttachEmoji.duration, anim::linear);
+}
+
+void HistoryInner::repaintScrollDateCallback() {
+	int updateTop = _visibleAreaTop;
+	int updateHeight = st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	update(0, updateTop, width(), updateHeight);
 }
 
 void HistoryInner::updateSize() {
@@ -1555,7 +1712,7 @@ HistoryInner::~HistoryInner() {
 
 bool HistoryInner::focusNextPrevChild(bool next) {
 	if (_selected.isEmpty()) {
-		return focusNextPrevChild(next);
+		return TWidget::focusNextPrevChild(next);
 	} else {
 		clearSelectedItems();
 		return true;
@@ -2838,7 +2995,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	setAcceptDrops(true);
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(updateField()));
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -2907,7 +3064,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	updateScrollColors();
 
-	_historyToEnd->hide();
 	_historyToEnd->installEventFilter(this);
 
 	_fieldAutocomplete->hide();
@@ -3128,10 +3284,10 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	if (!_history) return;
 
 	if (_editMsgId) {
-		_history->setEditDraft(std_::make_unique<HistoryDraft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
+		_history->setEditDraft(std_::make_unique<Data::Draft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
 	} else {
 		if (_replyToId || !_field.isEmpty()) {
-			_history->setLocalDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
+			_history->setLocalDraft(std_::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
 		} else {
 			_history->clearLocalDraft();
 		}
@@ -3145,8 +3301,8 @@ void HistoryWidget::onCloudDraftSave() {
 	}
 }
 
-void HistoryWidget::writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDraft) {
-	HistoryDraft *historyLocalDraft = _history ? _history->localDraft() : nullptr;
+void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft) {
+	Data::Draft *historyLocalDraft = _history ? _history->localDraft() : nullptr;
 	if (!localDraft && _editMsgId) localDraft = &historyLocalDraft;
 
 	bool save = _peer && (_saveDraftStart > 0);
@@ -3201,21 +3357,6 @@ void HistoryWidget::writeDrafts(HistoryDraft **localDraft, HistoryDraft **editDr
 	if (!_editMsgId) {
 		_saveCloudDraftTimer.start(SaveCloudDraftIdleTimeout);
 	}
-}
-
-void HistoryWidget::writeDrafts(History *history) {
-	Local::MessageDraft storedLocalDraft, storedEditDraft;
-	MessageCursor localCursor, editCursor;
-	if (auto localDraft = history->localDraft()) {
-		storedLocalDraft = Local::MessageDraft(localDraft->msgId, localDraft->textWithTags, localDraft->previewCancelled);
-		localCursor = localDraft->cursor;
-	}
-	if (auto editDraft = history->editDraft()) {
-		storedEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->textWithTags, editDraft->previewCancelled);
-		editCursor = editDraft->cursor;
-	}
-	Local::writeDrafts(history->peer->id, storedLocalDraft, storedEditDraft);
-	Local::writeDraftCursors(history->peer->id, localCursor, editCursor);
 }
 
 void HistoryWidget::cancelSendAction(History *history, SendActionType type) {
@@ -3388,7 +3529,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
 		History *h = App::history(toPeerId);
 		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
 		MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
-		h->setLocalDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
+		h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 		if (h == _history) {
 			applyDraft();
 		} else {
@@ -3679,10 +3820,11 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 }
 
 void HistoryWidget::applyDraft(bool parseLinks) {
-	HistoryDraft *draft = _history ? _history->draft() : nullptr;
-	if (!draft) {
+	auto draft = _history ? _history->draft() : nullptr;
+	if (!draft || !canWriteMessage()) {
 		clearFieldText();
 		_field.setFocus();
+		_replyEditMsg = nullptr;
 		_editMsgId = _replyToId = 0;
 		return;
 	}
@@ -3693,6 +3835,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	_previewCancelled = draft->previewCancelled;
+	_replyEditMsg = nullptr;
 	if (auto editDraft = _history->editDraft()) {
 		_editMsgId = editDraft->msgId;
 		_replyToId = 0;
@@ -3700,6 +3843,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 		_editMsgId = 0;
 		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
 	}
+
 	if (parseLinks) {
 		onPreviewParse();
 	}
@@ -3712,8 +3856,12 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 }
 
 void HistoryWidget::applyCloudDraft(History *history) {
-	if (_history == history) {
+	if (_history == history && !_editMsgId) {
 		applyDraft();
+
+		updateControlsVisibility();
+		resizeEvent(nullptr);
+		update();
 	}
 }
 
@@ -3784,10 +3932,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_migrated->clearEditDraft();
 		}
 
-		auto localDraft = _history->localDraft();
-		auto editDraft = _history->editDraft();
-		writeDrafts(&localDraft, &editDraft);
-
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBar();
@@ -3797,10 +3941,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	}
 
 	_addToScroll = 0;
-	_editMsgId = 0;
 	_saveEditMsgRequestId = 0;
-	_replyToId = 0;
-	_replyEditMsg = 0;
+	_replyEditMsg = nullptr;
+	_editMsgId = _replyToId = 0;
 	_previewData = 0;
 	_previewCache.clear();
 	_fieldBarCancel.hide();
@@ -3895,7 +4038,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 		applyDraft(false);
 
-		resizeEvent(0);
+		resizeEvent(nullptr);
 		if (!_previewCancelled) {
 			onPreviewParse();
 		}
@@ -4075,6 +4218,13 @@ bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId re
 	return true;
 }
 
+bool HistoryWidget::canWriteMessage() const {
+	if (!_history || _a_show.animating()) return false;
+	if (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart()) return false;
+	if (!_canSendMessages) return false;
+	return true;
+}
+
 void HistoryWidget::updateControlsVisibility() {
 	if (!_a_show.animating()) {
 		_topShadow.setVisible(_peer ? true : false);
@@ -4173,14 +4323,12 @@ void HistoryWidget::updateControlsVisibility() {
 	} else if (_canSendMessages) {
 		onCheckFieldAutocomplete();
 		if (isBotStart()) {
-			if (isBotStart()) {
-				_unblock.hide();
-				_joinChannel.hide();
-				_muteUnmute.hide();
-				if (_botStart.isHidden()) {
-					_botStart.clearState();
-					_botStart.show();
-				}
+			_unblock.hide();
+			_joinChannel.hide();
+			_muteUnmute.hide();
+			if (_botStart.isHidden()) {
+				_botStart.clearState();
+				_botStart.show();
 			}
 			_kbShown = false;
 			_send.hide();
@@ -4534,8 +4682,21 @@ bool HistoryWidget::doWeReadServerHistory() const {
 			if (scrollBottom > _list->itemTop(showFrom)) return true;
 		}
 	}
-	if (_history->showFrom && !_history->showFrom->detached() && _history->unreadBar) return true;
-	if (_migrated && _migrated->showFrom && !_migrated->showFrom->detached() && _migrated->unreadBar) return true;
+	if (historyHasNotFreezedUnreadBar(_history)) {
+		return true;
+	}
+	if (historyHasNotFreezedUnreadBar(_migrated)) {
+		return true;
+	}
+	return false;
+}
+
+bool HistoryWidget::historyHasNotFreezedUnreadBar(History *history) const {
+	if (history && history->showFrom && !history->showFrom->detached() && history->unreadBar) {
+		if (auto unreadBar = history->unreadBar->Get<HistoryMessageUnreadBar>()) {
+			return !unreadBar->_freezed;
+		}
+	}
 	return false;
 }
 
@@ -4773,7 +4934,7 @@ void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates,
 	if (auto editDraft = history->editDraft()) {
 		if (editDraft->saveRequestId == req) {
 			history->clearEditDraft();
-			writeDrafts(history);
+			if (App::main()) App::main()->writeDrafts(history);
 		}
 	}
 }
@@ -5024,6 +5185,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_cacheUnder = params.oldContentCache;
 	show();
 	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_historyToEnd->finishAnimation();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	App::main()->topBar()->startAnim();
 	_topShadow.setVisible(params.withTopBarShadow ? true : false);
@@ -5076,6 +5238,7 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 	if (dt >= 1) {
 		_a_show.stop();
 		_topShadow.setVisible(_peer ? true : false);
+		_historyToEnd->finishAnimation();
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
@@ -5120,6 +5283,7 @@ void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
 	_topShadow.setVisible(_peer ? true : false);
+	_historyToEnd->finishAnimation();
 }
 
 void HistoryWidget::step_record(float64 ms, bool timer) {
@@ -5407,7 +5571,7 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
-	if (!_history) return false;
+	if (!_history || !canWriteMessage()) return false;
 
 	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	QString toInsert = cmd;
@@ -5818,10 +5982,10 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dialogsTextFont);
 	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
-		p.setPen(st::titleStatusColor->p);
+		p.setPen(_titlePeerTextOnline ? st::titleStatusActiveFg : st::titleStatusFg);
 		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	} else {
-		p.setPen(st::titleTypingColor->p);
+		p.setPen(st::titleTypingFg);
 		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
 	}
 
@@ -5850,8 +6014,10 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 
 	QString text;
 	int32 t = unixtime();
-	if (_peer->isUser()) {
-		text = App::onlineText(_peer->asUser(), t);
+	bool titlePeerTextOnline = false;
+	if (auto user = _peer->asUser()) {
+		text = App::onlineText(user, t);
+		titlePeerTextOnline = App::onlineColorUse(user, t);
 	} else if (_peer->isChat()) {
 		ChatData *chat = _peer->asChat();
 		if (!chat->amIn()) {
@@ -5897,6 +6063,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;
+		_titlePeerTextOnline = titlePeerTextOnline;
 		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		if (App::main()) {
 			App::main()->topBar()->update();
@@ -6866,10 +7033,10 @@ void HistoryWidget::updateToEndVisibility() {
 		return false;
 	};
 	bool toEndVisible = isToEndVisible();
-	if (toEndVisible && _historyToEnd->isHidden()) {
-		_historyToEnd->show();
-	} else if (!toEndVisible && !_historyToEnd->isHidden()) {
-		_historyToEnd->hide();
+	if (toEndVisible && _historyToEnd->hidden()) {
+		_historyToEnd->showAnimated();
+	} else if (!toEndVisible && !_historyToEnd->hidden()) {
+		_historyToEnd->hideAnimated();
 	}
 }
 
@@ -7266,7 +7433,7 @@ void HistoryWidget::onReplyToMessage() {
 		if (auto localDraft = _history->localDraft()) {
 			localDraft->msgId = to->id;
 		} else {
-			_history->setLocalDraft(std_::make_unique<HistoryDraft>(TextWithTags(), to->id, MessageCursor(), false));
+			_history->setLocalDraft(std_::make_unique<Data::Draft>(TextWithTags(), to->id, MessageCursor(), false));
 		}
 	} else {
 		_replyEditMsg = to;
@@ -7299,10 +7466,12 @@ void HistoryWidget::onEditMessage() {
 	} else {
 		delete box;
 
-		if (_replyToId || !_field.isEmpty()) {
-			_history->setLocalDraft(std_::make_unique<HistoryDraft>(_field, _replyToId, _previewCancelled));
-		} else {
-			_history->clearLocalDraft();
+		if (!_editMsgId) {
+			if (_replyToId || !_field.isEmpty()) {
+				_history->setLocalDraft(std_::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+			} else {
+				_history->clearLocalDraft();
+			}
 		}
 
 		auto original = to->originalText();
@@ -7310,7 +7479,7 @@ void HistoryWidget::onEditMessage() {
 		auto editTags = textTagsFromEntities(original.entities);
 		TextWithTags editData = { editText, editTags };
 		MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
-		_history->setEditDraft(std_::make_unique<HistoryDraft>(editData, to->id, cursor, false));
+		_history->setEditDraft(std_::make_unique<Data::Draft>(editData, to->id, cursor, false));
 		applyDraft(false);
 
 		_previewData = nullptr;
@@ -7411,11 +7580,11 @@ bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
 }
 
 void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
-	bool wasReply = false; ;
+	bool wasReply = false;
 	if (_replyToId) {
 		wasReply = true;
 
-		_replyEditMsg = 0;
+		_replyEditMsg = nullptr;
 		_replyToId = 0;
 		mouseMoveEvent(0);
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
@@ -7451,8 +7620,8 @@ void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 void HistoryWidget::cancelEdit() {
 	if (!_editMsgId) return;
 
-	_editMsgId = 0;
 	_replyEditMsg = nullptr;
+	_editMsgId = 0;
 	_history->clearEditDraft();
 	applyDraft();
 

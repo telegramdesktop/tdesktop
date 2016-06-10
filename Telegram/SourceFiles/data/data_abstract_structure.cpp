@@ -18,10 +18,33 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "data/data_abstract_structure.h"
 
 namespace Data {
+namespace {
 
-void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft);
+using DataStructures = OrderedSet<AbstractStructure**>;
+NeverFreedPointer<DataStructures> structures;
+
+} // namespace
+
+namespace internal {
+
+void registerAbstractStructure(AbstractStructure **p) {
+	structures.makeIfNull();
+	structures->insert(p);
+}
+
+} // namespace internal
+
+void clearGlobalStructures() {
+	if (!structures) return;
+	for (auto &p : *structures) {
+		delete (*p);
+		*p = nullptr;
+	}
+	structures.clear();
+}
 
 } // namespace Data

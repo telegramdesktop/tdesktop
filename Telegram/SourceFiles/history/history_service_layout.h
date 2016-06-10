@@ -20,48 +20,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+namespace HistoryLayout {
 
-namespace Ui {
-
-class HistoryDownButton : public Button {
-public:
-	HistoryDownButton(QWidget *parent);
-
-	void setUnreadCount(int unreadCount);
-	int unreadCount() const {
-		return _unreadCount;
+struct PaintContext {
+	PaintContext(uint64 ms, const QRect &clip, TextSelection selection)
+		: ms(ms)
+		, clip(clip)
+		, selection(selection) {
 	}
+	uint64 ms;
+	const QRect &clip;
+	TextSelection selection;
+};
 
-	bool hidden() const;
+class ServiceMessagePainter {
+public:
+	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
 
-	void showAnimated();
-	void hideAnimated();
-
-	void finishAnimation();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
+	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
 
 private:
-	void toggleAnimated();
-	void repaintCallback() {
-		update();
-	}
-	void step_arrowOver(float64 ms, bool timer);
-
-	QPixmap _cache;
-	bool _shown = false;
-
-	anim::fvalue a_arrowOpacity;
-	Animation _a_arrowOver;
-
-	FloatAnimation _a_show;
-
-	int _unreadCount = 0;
+	static void paintBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
+	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
 
 };
 
-} // namespace Ui
+void serviceColorsUpdated();
+
+} // namespace HistoryLayout

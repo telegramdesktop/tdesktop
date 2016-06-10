@@ -202,7 +202,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 
 	const QPixmap &draw(currentImage());
-	uint32 w = draw.width() / cIntRetinaFactor(), h = draw.height() / cIntRetinaFactor();
+	int w = draw.width() / cIntRetinaFactor(), h = draw.height() / cIntRetinaFactor();
 	if (_a_shown.animating()) {
 		float64 shown = a_shown.current();
 		p.setOpacity(shown);

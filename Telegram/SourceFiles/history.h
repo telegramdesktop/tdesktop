@@ -154,45 +154,10 @@ struct SendAction {
 };
 
 using TextWithTags = FlatTextarea::TextWithTags;
-struct HistoryDraft {
-	HistoryDraft() {
-	}
-	HistoryDraft(const TextWithTags &textWithTags, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequestId = 0)
-		: textWithTags(textWithTags)
-		, msgId(msgId)
-		, cursor(cursor)
-		, previewCancelled(previewCancelled)
-		, saveRequestId(saveRequestId) {
-	}
-	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId = 0)
-		: textWithTags(field.getTextWithTags())
-		, msgId(msgId)
-		, cursor(field)
-		, previewCancelled(previewCancelled) {
-	}
-	QDateTime date;
-	TextWithTags textWithTags;
-	MsgId msgId = 0; // replyToId for message draft, editMsgId for edit draft
-	MessageCursor cursor;
-	bool previewCancelled = false;
-	mtpRequestId saveRequestId = 0;
-};
 
-inline bool historyDraftIsNull(HistoryDraft *draft) {
-	return (!draft || (!draft->msgId && draft->textWithTags.text.isEmpty()));
-}
-
-inline bool historyDraftsAreEqual(HistoryDraft *a, HistoryDraft *b) {
-	bool aIsNull = historyDraftIsNull(a);
-	bool bIsNull = historyDraftIsNull(b);
-	if (aIsNull) {
-		return bIsNull;
-	} else if (bIsNull) {
-		return false;
-	}
-
-	return (a->textWithTags == b->textWithTags) && (a->msgId == b->msgId) && (a->previewCancelled == b->previewCancelled);
-}
+namespace Data {
+struct Draft;
+} // namespace Data
 
 class HistoryMedia;
 class HistoryMessage;
@@ -373,47 +338,26 @@ public:
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
 
-	HistoryDraft *localDraft() {
+	Data::Draft *localDraft() {
 		return _localDraft.get();
 	}
-	HistoryDraft *cloudDraft() {
+	Data::Draft *cloudDraft() {
 		return _cloudDraft.get();
 	}
-	HistoryDraft *editDraft() {
+	Data::Draft *editDraft() {
 		return _editDraft.get();
 	}
-	void setLocalDraft(std_::unique_ptr<HistoryDraft> &&draft) {
-		_localDraft = std_::move(draft);
-	}
-	void takeLocalDraft(History *from) {
-		if (auto &draft = from->_localDraft) {
-			if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
-				_localDraft = std_::move(draft);
-
-				// Edit and reply to drafts can't migrate.
-				// Cloud drafts do not migrate automatically.
-				_localDraft->msgId = 0;
-			}
-			from->clearLocalDraft();
-		}
-	}
+	void setLocalDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void takeLocalDraft(History *from);
 	void createLocalDraftFromCloud();
-	void setCloudDraft(std_::unique_ptr<HistoryDraft> &&draft) {
-		_cloudDraft = std_::move(draft);
-		cloudDraftTextCache.clear();
-	}
-	HistoryDraft *createCloudDraft(HistoryDraft *fromDraft);
-	void setEditDraft(std_::unique_ptr<HistoryDraft> &&draft) {
-		_editDraft = std_::move(draft);
-	}
-	void clearLocalDraft() {
-		_localDraft = nullptr;
-	}
+	void setCloudDraft(std_::unique_ptr<Data::Draft> &&draft);
+	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
+	void setEditDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void clearLocalDraft();
 	void clearCloudDraft();
-	void clearEditDraft() {
-		_editDraft = nullptr;
-	}
-	HistoryDraft *draft() {
+	void clearEditDraft();
+	void draftSavedToCloud();
+	Data::Draft *draft() {
 		return _editDraft ? editDraft() : localDraft();
 	}
 
@@ -599,8 +543,8 @@ private:
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
-	std_::unique_ptr<HistoryDraft> _localDraft, _cloudDraft;
-	std_::unique_ptr<HistoryDraft> _editDraft;
+	std_::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
+	std_::unique_ptr<Data::Draft> _editDraft;
 
  };
 
@@ -823,7 +767,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	bool updateData(HistoryMessage *holder, bool force = false);
 	void clearData(HistoryMessage *holder); // must be called before destructor
 
-	void checkNameUpdate() const;
+	bool isNameUpdated() const;
 	void updateName() const;
 	void resize(int width) const;
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
@@ -1299,9 +1243,6 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
-	bool wasEdited() const {
-		return _flags & MTPDmessage::Flag::f_edit_date;
-	}
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();
@@ -1445,6 +1386,13 @@ public:
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
 	}
+	bool displayDate() const {
+		return Has<HistoryMessageDate>();
+	}
+
+	bool isInOneDayWithPrevious() const {
+		return !isEmpty() && !displayDate();
+	}
 
 	bool isEmpty() const {
 		return _text.isEmpty() && !_media;
@@ -1491,12 +1439,7 @@ protected:
 	// this should be used only in previousItemChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
-	bool displayDate() const {
-		if (auto prev = previous()) {
-			return prev->date.date() != date.date();
-		}
-		return true;
-	}
+	void recountDisplayDate();
 
 	// this should be used only in previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
@@ -2598,6 +2541,7 @@ public:
 
 		return (!emptyText() || !_media || !_media->isDisplayed() || Has<HistoryMessageReply>() || Has<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
 	}
+	bool displayEditedBadge(bool hasViaBot) const;
 	bool uploading() const {
 		return _media && _media->uploading();
 	}
@@ -2777,9 +2721,12 @@ struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
 	ClickHandlerPtr lnk;
 };
 
+namespace HistoryLayout {
+class ServiceMessagePainter;
+} // namespace HistoryLayout
+
 class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
 public:
-
 	static HistoryService *create(History *history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
@@ -2843,6 +2790,7 @@ public:
 	~HistoryService();
 
 protected:
+	friend class HistoryLayout::ServiceMessagePainter;
 
 	HistoryService(History *history, const MTPDmessageService &msg);
 	HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0);

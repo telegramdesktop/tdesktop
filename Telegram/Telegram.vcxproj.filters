@@ -1167,20 +1167,8 @@
     <ClCompile Include="SourceFiles\ui\buttons\history_down_button.cpp">
       <Filter>SourceFiles\ui\buttons</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_history_down_button.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp">
       <Filter>GeneratedFiles\styles</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\data\drafts.cpp">
-      <Filter>SourceFiles\data</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\window\section_widget.cpp">
       <Filter>SourceFiles\window</Filter>
@@ -1298,6 +1286,15 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\dialogs\dialogs_row.cpp">
       <Filter>SourceFiles\dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\history\history_service_layout.cpp">
+      <Filter>SourceFiles\history</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\data\data_drafts.cpp">
+      <Filter>SourceFiles\data</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\data\data_abstract_structure.cpp">
+      <Filter>SourceFiles\data</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1478,9 +1475,6 @@
     <ClInclude Include="GeneratedFiles\styles\style_dialogs.h">
       <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\data\drafts.h">
-      <Filter>SourceFiles\data</Filter>
-    </ClInclude>
     <ClInclude Include="GeneratedFiles\styles\style_profile.h">
       <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
@@ -1519,6 +1513,18 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\buttons\left_outline_button.h">
       <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\history_down_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\history\history_service_layout.h">
+      <Filter>SourceFiles\history</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\data\data_abstract_structure.h">
+      <Filter>SourceFiles\data</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\data\data_drafts.h">
+      <Filter>SourceFiles\data</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1759,9 +1765,6 @@
     <CustomBuild Include="Resources\langs\lang.strings">
       <Filter>Resources\langs</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\ui\buttons\history_down_button.h">
-      <Filter>SourceFiles\ui\buttons</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\profile\profile_widget.h">
       <Filter>SourceFiles\profile</Filter>
     </CustomBuild>
@@ -1848,7 +1851,6 @@
     <None Include="Resources\langs\upload.sh">
       <Filter>Resources\langs</Filter>
     </None>
-    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\art\icon256.ico">

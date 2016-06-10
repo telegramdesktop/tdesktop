@@ -27,7 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "lang.h"
-#include "dialogs/dialogs_layout.h"
+#include "data/data_abstract_structure.h"
+#include "history/history_service_layout.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -123,6 +124,8 @@ namespace App {
 
 	QString formatPhone(QString phone) {
 		if (phone.isEmpty()) return QString();
+		if (phone.at(0) == '0') return phone;
+
 		QString number = phone;
 		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch) {
 			if (ch->unicode() < '0' || ch->unicode() > '9') {
@@ -283,10 +286,10 @@ namespace {
 	QString onlineText(UserData *user, TimeId now, bool precise) {
 		if (isNotificationsUser(user->id)) {
 			return lang(lng_status_service_notifications);
-		} else if (isServiceUser(user->id)) {
-			return lang(lng_status_support);
 		} else if (user->botInfo) {
 			return lang(lng_status_bot);
+		} else if (isServiceUser(user->id)) {
+			return lang(lng_status_support);
 		}
 		return onlineText(user->onlineTill, now, precise);
 	}
@@ -1200,18 +1203,21 @@ namespace {
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		History *h = App::historyLoaded(peer);
-		if (h) {
-			h->inboxRead(upTo);
+		if (auto history = App::historyLoaded(peer)) {
+			history->inboxRead(upTo);
 		}
 	}
 
 	void feedOutboxRead(const PeerId &peer, MsgId upTo) {
-		History *h = App::historyLoaded(peer);
-		if (h) {
-			h->outboxRead(upTo);
-			if (h->peer->isUser()) {
-				h->peer->asUser()->madeAction();
+		if (auto history = App::historyLoaded(peer)) {
+			history->outboxRead(upTo);
+			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
+				if (App::main()) App::main()->dlgUpdated(history, history->lastMsg->id);
+			}
+			history->updateChatListEntry();
+
+			if (history->peer->isUser()) {
+				history->peer->asUser()->madeAction();
 			}
 		}
 	}
@@ -2148,7 +2154,7 @@ namespace {
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
 
-		Dialogs::Layout::clearStyleSheets();
+		Data::clearGlobalStructures();
 
 		clearAllImages();
 	}
@@ -2733,7 +2739,11 @@ namespace {
 
 		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
 		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
-		if (App::main()) App::main()->updateScrollColors();
+
+		if (App::main()) {
+			App::main()->updateScrollColors();
+			HistoryLayout::serviceColorsUpdated();
+		}
 	}
 
 	const style::color &msgServiceBg() {

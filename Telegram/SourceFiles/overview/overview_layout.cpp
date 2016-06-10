@@ -707,7 +707,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 						_thumbForLoaded = loaded;
 						ImagePixOptions options = ImagePixSmooth;
 						if (!_thumbForLoaded) options |= ImagePixBlurred;
-						_thumb = _data->thumb->pixNoCache(_thumbw, 0, options, st::overviewFileSize, st::overviewFileSize);
+						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, st::overviewFileSize, st::overviewFileSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {

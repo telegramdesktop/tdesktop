@@ -129,7 +129,7 @@ void RoundButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 
 	a_textBgOverOpacity.start(textBgOverOpacity);
 	a_textFg.start(textFg->c);
-	if (source == ButtonByUser || source == ButtonByPress) {
+	if (source == ButtonByUser || source == ButtonByPress || true) {
 		_a_over.stop();
 		a_textBgOverOpacity.finish();
 		a_textFg.finish();

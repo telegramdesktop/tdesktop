@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
-#include "data/drafts.h"
+#include "data/data_drafts.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"

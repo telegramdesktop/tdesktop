@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
-#include "data/drafts.h"
+#include "data/data_drafts.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -174,7 +174,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { url + '\n' + text, TextWithTags::Tags() };
 	MessageCursor cursor = { url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX };
-	h->setLocalDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -194,7 +194,7 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
-	h->setLocalDraft(std_::make_unique<HistoryDraft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -821,7 +821,6 @@ void MainWidget::clearHistory(PeerData *peer) {
 		h->clear();
 		h->newLoaded = h->oldLoaded = true;
 	}
-	Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTPmessages_DeleteHistory::Flags flags = MTPmessages_DeleteHistory::Flag::f_just_clear;
 	DeleteHistoryRequest request = { peer, true };
 	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
@@ -3773,9 +3772,11 @@ void MainWidget::saveDraftToCloud() {
 
 	auto peer = _history->peer();
 	if (auto history = App::historyLoaded(peer)) {
+		writeDrafts(history);
+
 		auto localDraft = history->localDraft();
 		auto cloudDraft = history->cloudDraft();
-		if (!historyDraftsAreEqual(localDraft, cloudDraft)) {
+		if (!Data::draftsAreEqual(localDraft, cloudDraft)) {
 			App::api()->saveDraftToCloudDelayed(history);
 		}
 	}
@@ -3783,6 +3784,23 @@ void MainWidget::saveDraftToCloud() {
 
 void MainWidget::applyCloudDraft(History *history) {
 	_history->applyCloudDraft(history);
+}
+
+void MainWidget::writeDrafts(History *history) {
+	Local::MessageDraft storedLocalDraft, storedEditDraft;
+	MessageCursor localCursor, editCursor;
+	if (auto localDraft = history->localDraft()) {
+		if (!Data::draftsAreEqual(localDraft, history->cloudDraft())) {
+			storedLocalDraft = Local::MessageDraft(localDraft->msgId, localDraft->textWithTags, localDraft->previewCancelled);
+			localCursor = localDraft->cursor;
+		}
+	}
+	if (auto editDraft = history->editDraft()) {
+		storedEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->textWithTags, editDraft->previewCancelled);
+		editCursor = editDraft->cursor;
+	}
+	Local::writeDrafts(history->peer->id, storedLocalDraft, storedEditDraft);
+	Local::writeDraftCursors(history->peer->id, localCursor, editCursor);
 }
 
 void MainWidget::checkIdleFinish() {
@@ -4160,16 +4178,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		PeerId id = peerFromMTP(d.vpeer);
-		App::feedOutboxRead(id, d.vmax_id.v);
-		if (_history->peer() && _history->peer()->id == id) {
+		auto peerId = peerFromMTP(d.vpeer);
+		App::feedOutboxRead(peerId, d.vmax_id.v);
+		if (_history->peer() && _history->peer()->id == peerId) {
 			_history->update();
-		}
-		if (History *h = App::historyLoaded(id)) {
-			if (h->lastMsg && h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
-				dlgUpdated(h, h->lastMsg->id);
-			}
-			h->updateChatListEntry();
 		}
 
 		ptsApplySkippedUpdates();
@@ -4520,8 +4532,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadChannelOutbox: {
 		auto &d(update.c_updateReadChannelOutbox());
-		auto channel = App::channelLoaded(d.vchannel_id.v);
-		App::feedOutboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
+		auto peerId = peerFromChannel(d.vchannel_id.v);
+		App::feedOutboxRead(peerId, d.vmax_id.v);
+		if (_history->peer() && _history->peer()->id == peerId) {
+			_history->update();
+		}
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {
@@ -4669,6 +4684,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (draftMessage.type() == mtpc_draftMessage) {
 			auto &draft = draftMessage.c_draftMessage();
 			Data::applyPeerCloudDraft(peerId, draft);
+		} else {
+			Data::clearPeerCloudDraft(peerId);
 		}
 	} break;
 
