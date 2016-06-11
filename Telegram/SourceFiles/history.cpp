@@ -398,12 +398,14 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			HistoryItem *item = block->items.at(--itemIndex);
 			HistoryItemType type = item->type();
 			if (type == HistoryItemMsg) {
+				// Due to a server bug sometimes inviteDate is less (before) than the
+				// first message in the megagroup (message about migration), let us
+				// ignore that and think, that the inviteDate is always greater-or-equal.
+				if (item->isGroupMigrate() && peer->isMegagroup() && peer->migrateFrom()) {
+					peer->asChannel()->mgInfo->joinedMessageFound = true;
+					return nullptr;
+				}
 				if (item->date <= inviteDate) {
-					if (peer->isMegagroup() && peer->migrateFrom() && item->isGroupMigrate()) {
-						peer->asChannel()->mgInfo->joinedMessageFound = true;
-						return nullptr;
-					}
-
 					++itemIndex;
 					_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
 					addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
