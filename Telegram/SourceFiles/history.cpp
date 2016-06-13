@@ -2641,6 +2641,49 @@ void HistoryItem::finishCreate() {
 	App::historyRegItem(this);
 }
 
+void HistoryItem::finishEdition(int oldKeyboardTop) {
+	setPendingInitDimensions();
+	if (App::main()) {
+		App::main()->dlgUpdated(history(), id);
+	}
+
+	// invalidate cache for drawInDialog
+	if (history()->textCachedFor == this) {
+		history()->textCachedFor = nullptr;
+	}
+
+	if (oldKeyboardTop >= 0) {
+		if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
+			keyboard->oldTop = oldKeyboardTop;
+		}
+	}
+
+	App::historyUpdateDependent(this);
+}
+
+void HistoryItem::finishEditionToEmpty() {
+	recountDisplayDate();
+	finishEdition(-1);
+
+	_history->removeNotification(this);
+	if (history()->isChannel()) {
+		if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
+			history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		}
+	}
+	if (history()->lastKeyboardId == id) {
+		history()->clearLastKeyboard();
+		if (App::main()) App::main()->updateBotKeyboard(history());
+	}
+	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
+		history()->setUnreadCount(history()->unreadCount() - 1);
+	}
+
+	if (auto next = nextItem()) {
+		next->previousItemChanged();
+	}
+}
+
 void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->inlineKeyboard) {
@@ -2712,8 +2755,12 @@ void HistoryItem::previousItemChanged() {
 void HistoryItem::recountAttachToPrevious() {
 	bool attach = false;
 	if (!isPost() && !Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-		if (HistoryItem *prev = previous()) {
-			attach = !prev->isPost() && !prev->serviceMsg() && prev->from() == from() && qAbs(prev->date.secsTo(date)) < AttachMessageToPreviousSecondsDelta;
+		if (auto previos = previousItem()) {
+			attach = !previos->isPost()
+				&& !previos->serviceMsg()
+				&& !previos->isEmpty()
+				&& previos->from() == from()
+				&& (qAbs(previos->date.secsTo(date)) < AttachMessageToPreviousSecondsDelta);
 		}
 	}
 	if (attach && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
@@ -2861,8 +2908,8 @@ void HistoryItem::recountDisplayDate() {
 	bool displayingDate = ([this]() {
 		if (isEmpty()) return false;
 
-		if (auto prev = previous()) {
-			return prev->isEmpty() || (prev->date.date() != date.date());
+		if (auto previous = previousItem()) {
+			return previous->isEmpty() || (previous->date.date() != date.date());
 		}
 		return true;
 	})();
@@ -6754,10 +6801,13 @@ void HistoryMessage::initDimensions() {
 				if (_namew > _maxw) _maxw = _namew;
 			}
 		}
-	} else {
+	} else if (_media) {
 		_media->initDimensions();
 		_maxw = _media->maxWidth();
 		_minh = _media->minHeight();
+	} else {
+		_maxw = st::msgMinWidth;
+		_minh = 0;
 	}
 	if (reply && !_text.isEmpty()) {
 		int replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
@@ -6841,23 +6891,16 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
 
-	setPendingInitDimensions();
-	if (App::main()) {
-		App::main()->dlgUpdated(history(), id);
-	}
+	finishEdition(keyboardTop);
+}
 
-	// invalidate cache for drawInDialog
-	if (history()->textCachedFor == this) {
-		history()->textCachedFor = nullptr;
-	}
+void HistoryMessage::applyEditionToEmpty() {
+	setEmptyText();
+	setMedia(nullptr);
+	setReplyMarkup(nullptr);
+	setViewsCount(-1);
 
-	if (keyboardTop >= 0) {
-		if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
-			keyboard->oldTop = keyboardTop;
-		}
-	}
-
-	App::historyUpdateDependent(this);
+	finishEditionToEmpty();
 }
 
 void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
@@ -6995,6 +7038,15 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			break;
 		}
 	}
+	_textWidth = -1;
+	_textHeight = 0;
+}
+
+void HistoryMessage::setEmptyText() {
+	textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
+	_text.setMarkedText(st::msgFont, { QString(), EntitiesInText() }, itemTextOptions(this));
+	textstyleRestore();
+
 	_textWidth = -1;
 	_textHeight = 0;
 }
@@ -7276,7 +7328,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		} else {
 			HistoryMessage::drawInfo(p, r.x() + r.width(), r.y() + r.height(), 2 * r.x() + r.width(), selected, InfoDisplayDefault);
 		}
-	} else {
+	} else if (_media) {
 		int32 top = marginTop();
 		p.translate(left, top);
 		_media->draw(p, r.translated(-left, -top), toMediaSelection(selection), ms);
@@ -7437,8 +7489,10 @@ int HistoryMessage::performResizeGetHeight(int width) {
 			}
 			reply->resize(w - st::msgPadding.left() - st::msgPadding.right());
 		}
-	} else {
+	} else if (_media) {
 		_height = _media->resizeGetHeight(width);
+	} else {
+		_height = 0;
 	}
 	if (auto keyboard = inlineReplyKeyboard()) {
 		int32 l = 0, w = 0;
@@ -7462,8 +7516,10 @@ bool HistoryMessage::hasPoint(int x, int y) const {
 		int top = marginTop();
 		QRect r(left, top, width, height - top - marginBottom());
 		return r.contains(x, y);
-	} else {
+	} else if (_media) {
 		return _media->hasPoint(x - left, y - marginTop());
+	} else {
+		return false;
 	}
 }
 
@@ -7579,7 +7635,7 @@ HistoryTextState HistoryMessage::getState(int x, int y, HistoryStateRequest requ
 		if (inDate) {
 			result.cursor = HistoryInDateCursorState;
 		}
-	} else {
+	} else if (_media) {
 		result = _media->getState(x - left, y - marginTop(), request);
 		result.symbol += _text.length();
 	}
@@ -7611,7 +7667,7 @@ void HistoryMessage::drawInDialog(Painter &p, const QRect &r, bool act, const Hi
 	if (cacheFor != this) {
 		cacheFor = this;
 		QString msg(inDialogsText());
-		if ((!_history->peer->isUser() || out()) && !isPost()) {
+		if ((!_history->peer->isUser() || out()) && !isPost() && !isEmpty()) {
 			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 			msg = lng_message_with_from(lt_from, textRichPrepare((author() == App::self()) ? lang(lng_from_you) : author()->shortName()), lt_message, textRichPrepare(msg));
@@ -7644,7 +7700,7 @@ bool HistoryMessage::displayFromPhoto() const {
 }
 
 bool HistoryMessage::hasFromPhoto() const {
-	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost();
+	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost() && !isEmpty();
 }
 
 HistoryMessage::~HistoryMessage() {
@@ -8107,6 +8163,25 @@ QString HistoryService::notificationText() const {
     QString msg = _text.originalText();
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("...");
     return msg;
+}
+
+void HistoryService::applyEditionToEmpty() {
+	TextWithEntities textWithEntities = { QString(), EntitiesInText() };
+	setServiceText(QString());
+	removeMedia();
+
+	finishEditionToEmpty();
+}
+
+void HistoryService::removeMedia() {
+	if (!_media) return;
+
+	bool mediaWasDisplayed = _media->isDisplayed();
+	_media.clear();
+	if (mediaWasDisplayed) {
+		_textWidth = -1;
+		_textHeight = 0;
+	}
 }
 
 int32 HistoryService::addToOverview(AddToOverviewMethod method) {

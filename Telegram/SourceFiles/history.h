@@ -608,10 +608,15 @@ public:
 	int32 y, height;
 	History *history;
 
-	HistoryBlock *previous() const {
+	HistoryBlock *previousBlock() const {
 		t_assert(_indexInHistory >= 0);
 
 		return (_indexInHistory > 0) ? history->blocks.at(_indexInHistory - 1) : nullptr;
+	}
+	HistoryBlock *nextBlock() const {
+		t_assert(_indexInHistory >= 0);
+
+		return (_indexInHistory + 1 < history->blocks.size()) ? history->blocks.at(_indexInHistory + 1) : nullptr;
 	}
 	void setIndexInHistory(int index) {
 		_indexInHistory = index;
@@ -1189,6 +1194,8 @@ public:
 	}
 	virtual void applyEdition(const MTPDmessage &message) {
 	}
+	virtual void applyEditionToEmpty() {
+	}
 	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
@@ -1415,6 +1422,9 @@ protected:
 
 	virtual int resizeGetHeight_(int width) = 0;
 
+	void finishEdition(int oldKeyboardTop);
+	void finishEditionToEmpty();
+
 	PeerData *_from;
 	History *_history;
 	HistoryBlock *_block = nullptr;
@@ -1423,14 +1433,26 @@ protected:
 
 	mutable int32 _authorNameVersion;
 
-	HistoryItem *previous() const {
+	HistoryItem *previousItem() const {
 		if (_block && _indexInBlock >= 0) {
 			if (_indexInBlock > 0) {
 				return _block->items.at(_indexInBlock - 1);
 			}
-			if (HistoryBlock *previousBlock = _block->previous()) {
-				t_assert(!previousBlock->items.isEmpty());
-				return previousBlock->items.back();
+			if (auto previous = _block->previousBlock()) {
+				t_assert(!previous->items.isEmpty());
+				return previous->items.back();
+			}
+		}
+		return nullptr;
+	}
+	HistoryItem *nextItem() const {
+		if (_block && _indexInBlock >= 0) {
+			if (_indexInBlock + 1 < _block->items.size()) {
+				return _block->items.at(_indexInBlock + 1);
+			}
+			if (auto next = _block->nextBlock()) {
+				t_assert(!next->items.isEmpty());
+				return next->items.front();
 			}
 		}
 		return nullptr;
@@ -2530,7 +2552,7 @@ public:
 		return _text.isEmpty();
 	}
 	bool drawBubble() const {
-		return _media ? (!emptyText() || _media->needsBubble()) : true;
+		return _media ? (!emptyText() || _media->needsBubble()) : !isEmpty();
 	}
 	bool hasBubble() const override {
 		return drawBubble();
@@ -2575,6 +2597,7 @@ public:
     QString notificationText() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
+	void applyEditionToEmpty() override;
 	void updateMedia(const MTPMessageMedia *media) override;
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
@@ -2649,6 +2672,8 @@ private:
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
 	friend class HistoryItemInstantiated<HistoryMessage>;
+
+	void setEmptyText();
 
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
@@ -2772,6 +2797,8 @@ public:
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
     QString notificationText() const override;
 
+	void applyEditionToEmpty() override;
+
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
 
@@ -2798,6 +2825,8 @@ protected:
 
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
+
+	void removeMedia();
 
 	void setMessageByAction(const MTPmessageAction &action);
 	bool updatePinned(bool force = false);

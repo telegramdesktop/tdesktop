@@ -1096,6 +1096,12 @@ namespace {
 		}
 	}
 
+	void updateEditedMessageToEmpty(PeerId peerId, MsgId msgId) {
+		if (auto existing = App::histItemById(peerToChannel(peerId), msgId)) {
+			existing->applyEditionToEmpty();
+		}
+	}
+
 	void addSavedGif(DocumentData *doc) {
 		SavedGifs &saved(cRefSavedGifs());
 		int32 index = saved.indexOf(doc);

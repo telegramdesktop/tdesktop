@@ -52,7 +52,7 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 }
 
 template <typename PaintItemCallback>
-void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draft, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
+void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
 	QRect fullRect(0, 0, w, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (onlyBackground) return;
@@ -75,7 +75,7 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 
 	int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 	if (draft) {
-		paintRowDate(p, draft->date, rectForName, active);
+		paintRowDate(p, date, rectForName, active);
 
 		// draw check
 		if (draft->saveRequestId) {
@@ -110,7 +110,7 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else if (!item->isEmpty()) {
-		paintRowDate(p, item->date, rectForName, active);
+		paintRowDate(p, date, rectForName, active);
 
 		// draw check
 		if (item->needCheck()) {
@@ -211,20 +211,33 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 	auto history = row->history();
 	auto item = history->lastMsg;
 	auto cloudDraft = history->cloudDraft();
-	if (item && cloudDraft && cloudDraft->date < item->date) {
+	if (Data::draftIsNull(cloudDraft)) {
+		cloudDraft = nullptr;
+	}
+	auto displayDate = [item, cloudDraft]() {
+		if (item) {
+			if (cloudDraft) {
+				return (item->date > cloudDraft->date) ? item->date : cloudDraft->date;
+			}
+			return item->date;
+		}
+		return cloudDraft ? cloudDraft->date : QDateTime();
+	};
+	int unreadCount = history->unreadCount();
+	if (history->peer->migrateFrom()) {
+		if (auto migrated = App::historyLoaded(history->peer->migrateFrom()->id)) {
+			unreadCount += migrated->unreadCount();
+		}
+	}
+
+	if (item && cloudDraft && unreadCount > 0) {
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
-	paintRow(p, history, item, cloudDraft, w, active, selected, onlyBackground, [&p, w, active, history](int nameleft, int namewidth, HistoryItem *item) {
-		int32 unread = history->unreadCount();
-		if (history->peer->migrateFrom()) {
-			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
-				unread += h->unreadCount();
-			}
-		}
+	paintRow(p, history, item, cloudDraft, displayDate(), w, active, selected, onlyBackground, [&p, w, active, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
 		int availableWidth = namewidth;
 		int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
-		if (unread) {
-			auto counter = QString::number(unread);
+		if (unreadCount) {
+			auto counter = QString::number(unreadCount);
 			auto mutedCounter = history->mute();
 			int unreadRight = w - st::dialogsPadding.x();
 			int unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - st::dialogsUnreadTop;
@@ -244,7 +257,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, history, item, nullptr, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, nullptr, item->date, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, row->_cacheFor, row->_cache);
 	});
