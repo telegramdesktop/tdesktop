@@ -7017,7 +7017,16 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 }
 
 void HistoryWidget::updateToEndVisibility() {
-	auto isToEndVisible = [this]() {
+	auto haveUnreadBelowBottom = [this](History *history) {
+		if (!_list || !history || history->unreadCount() <= 0) {
+			return false;
+		}
+		if (!history->showFrom || history->showFrom->detached()) {
+			return false;
+		}
+		return (_list->itemTop(history->showFrom) >= _scroll.scrollTop() + _scroll.height());
+	};
+	auto isToEndVisible = [this, &haveUnreadBelowBottom]() {
 		if (!_history || _a_show.animating() || _firstLoadRequest) {
 			return false;
 		}
@@ -7027,7 +7036,7 @@ void HistoryWidget::updateToEndVisibility() {
 		if (_scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax()) {
 			return true;
 		}
-		if (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0)) {
+		if (haveUnreadBelowBottom(_history) || haveUnreadBelowBottom(_migrated)) {
 			return true;
 		}
 		return false;
@@ -7159,9 +7168,10 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	App::historyRegRandom(randomId, newId);
 
 	clearFieldText();
-	_saveDraftText = true;
-	_saveDraftStart = getms();
-	onDraftSave();
+	//_saveDraftText = true;
+	//_saveDraftStart = getms();
+	//onDraftSave();
+	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
 
 	RecentInlineBots &bots(cRefRecentInlineBots());
 	int32 index = bots.indexOf(bot);
@@ -7332,9 +7342,10 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
-		_saveDraftText = true;
-		_saveDraftStart = getms();
-		onDraftSave();
+		//_saveDraftText = true;
+		//_saveDraftStart = getms();
+		//onDraftSave();
+		onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
 	}
 
 	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();

@@ -1149,7 +1149,6 @@ void History::newItemAdded(HistoryItem *item) {
 		if (!item->unread()) {
 			outboxRead(item);
 		}
-		item->history()->clearCloudDraft();
 	} else if (item->unread()) {
 		bool skip = false;
 		if (!isChannel() || peer->asChannel()->amIn()) {
