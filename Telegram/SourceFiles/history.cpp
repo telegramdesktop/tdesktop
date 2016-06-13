@@ -7972,25 +7972,28 @@ void HistoryService::setServiceText(const QString &text) {
 void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
 	int height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
 
+	QRect clip(r);
 	int dateh = 0, unreadbarh = 0;
 	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
-		//if (r.intersects(QRect(0, 0, _history->width, dateh))) {
+		//if (clip.intersects(QRect(0, 0, _history->width, dateh))) {
 		//	date->paint(p, 0, _history->width);
 		//}
 		p.translate(0, dateh);
+		clip.translate(0, -dateh);
 		height -= dateh;
 	}
 	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
-		if (r.intersects(QRect(0, 0, _history->width, unreadbarh))) {
+		if (clip.intersects(QRect(0, 0, _history->width, unreadbarh))) {
 			unreadbar->paint(p, 0, _history->width);
 		}
 		p.translate(0, unreadbarh);
+		clip.translate(0, -unreadbarh);
 		height -= unreadbarh;
 	}
 
-	HistoryLayout::PaintContext context(ms, r, selection);
+	HistoryLayout::PaintContext context(ms, clip, selection);
 	HistoryLayout::ServiceMessagePainter::paint(p, this, context, height);
 
 	if (int skiph = dateh + unreadbarh) {
