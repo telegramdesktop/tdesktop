@@ -585,7 +585,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "Em supergrupos:";
 "lng_profile_convert_feature1" = "— Novos membros podem ver todo o histórico";
 "lng_profile_convert_feature2" = "— Mensagens apagadas desaparecerão para todos";
-"lng_profile_convert_feature3" = "— Membros podem editar as próprias mensagens";
+"lng_profile_convert_feature3" = "— Admins podem ficar mensagens importantes";
 "lng_profile_convert_feature4" = "— Criador pode definir um link público para o grupo";
 "lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Essa ação não pode ser desfeita";
 "lng_profile_convert_confirm" = "Converter";

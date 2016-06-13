@@ -585,7 +585,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "Supergruppen:";
 "lng_profile_convert_feature1" = "— Neue Mitglieder sehen gesamten Verlauf";
 "lng_profile_convert_feature2" = "— Nachrichten werden bei allen gelöscht";
-"lng_profile_convert_feature3" = "— Jeder kann eigene Nachrichten bearbeiten";
+"lng_profile_convert_feature3" = "Administratoren können wichtige Nachrichten anpinnen";
 "lng_profile_convert_feature4" = "— Gründer kann Gruppe öffentlich machen";
 "lng_profile_convert_warning" = "{bold_start}Wichtig:{bold_end} Die Änderung in eine Supergruppe kann nicht rückgängig gemacht werden.";
 "lng_profile_convert_confirm" = "Ändern";

@@ -585,7 +585,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "Nei supergruppi:";
 "lng_profile_convert_feature1" = "— I nuovi membri vedono tutta la cronologia";
 "lng_profile_convert_feature2" = "— I messaggi eliminati scompaiono per tutti";
-"lng_profile_convert_feature3" = "— I membri possono modificare i loro messaggi";
+"lng_profile_convert_feature3" = "— Gli amministratori possono fissare i messaggi";
 "lng_profile_convert_feature4" = "— Il creatore può creare un link pubblico per il gruppo";
 "lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Questa azione non può essere annullata";
 "lng_profile_convert_confirm" = "Converti";
@@ -684,7 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_default_set" = "Grandi menti";
 "lng_stickers_you_have" = "Organizza e riordina i set di sticker";
 "lng_stickers_packs" = "Set di sticker";
-"lng_stickers_reorder" = "Clicca e tieni premuto per riordinare i set di sticker";
+"lng_stickers_reorder" = "Clicca e trascina per riordinare i set di sticker";
 "lng_stickers_remove" = "Elimina";
 "lng_stickers_return" = "Annulla";
 "lng_stickers_restore" = "Ripristina";
@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "2 \n{}";
+"lng_new_version_text" = "— Edit your messages everywhere within 2 days after posting (press the up arrow button to edit your last message).\n— Mention people in groups by typing @ and selecting them from the list — even if they don't have a username.\n\nMore: {link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

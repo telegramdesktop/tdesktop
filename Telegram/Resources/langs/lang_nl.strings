@@ -585,7 +585,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "supergroepen:";
 "lng_profile_convert_feature1" = "— Nieuwe leden zien de hele geschiedenis";
 "lng_profile_convert_feature2" = "— Gewiste berichten gelden voor alle leden";
-"lng_profile_convert_feature3" = "— Leden kunnen eigen berichten bewerken";
+"lng_profile_convert_feature3" = "— Beheerders kunnen berichten vastzetten";
 "lng_profile_convert_feature4" = "— Maker kan een publieke groepslink instellen";
 "lng_profile_convert_warning" = "{bold_start}Let op:{bold_end} Je kunt dit niet ongedaan maken.";
 "lng_profile_convert_confirm" = "Opwaarderen";

@@ -585,7 +585,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "In supergroups:";
 "lng_profile_convert_feature1" = "— New members see the full message history";
 "lng_profile_convert_feature2" = "— Messages are deleted for all members";
-"lng_profile_convert_feature3" = "— Members can edit their own messages";
+"lng_profile_convert_feature3" = "— Admins can pin important messages";
 "lng_profile_convert_feature4" = "— Creator can set a public link for the group";
 "lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
 "lng_profile_convert_confirm" = "Convert";
