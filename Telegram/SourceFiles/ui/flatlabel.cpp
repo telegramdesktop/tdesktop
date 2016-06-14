@@ -234,6 +234,13 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 			App::activateClickHandler(activated, button);
 		}
 	}
+
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	if (!_selection.empty()) {
+		QApplication::clipboard()->setText(_text.originalText(_selection, _contextExpandLinksMode), QClipboard::Selection);
+	}
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
+
 	return state;
 }
 

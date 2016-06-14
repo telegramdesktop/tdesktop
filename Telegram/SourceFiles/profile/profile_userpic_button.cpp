@@ -69,10 +69,8 @@ void UserpicButton::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 }
 
 void UserpicButton::notifyImageLoaded() {
-	LOG(("IMAGE LOADED!"));
 	if (_waiting && _peer->userpicLoaded()) {
 		_waiting = false;
-		LOG(("STARTED SHOWING"));
 		startNewPhotoShowing();
 	}
 }
@@ -97,14 +95,12 @@ void UserpicButton::startNewPhotoShowing() {
 	_oldUserpic = myGrab(this);
 	_userpic = prepareUserpicPixmap();
 
-	LOG(("FROM STARTED SHOWING: %1").arg(Logs::b(_notShownYet)));
 	if (_notShownYet) {
 		return;
 	}
 
 	_a_appearance.finish();
 	START_ANIMATION(_a_appearance, func(this, &UserpicButton::refreshCallback), 0, 1, st::profilePhotoDuration, anim::linear);
-	LOG(("UPDATE FROM STARTED SHOWING"));
 	update();
 }
 

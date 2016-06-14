@@ -630,6 +630,36 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 	Ui::showLayer(box);
 }
 
+void MainWidget::deletePhotoLayer(PhotoData *photo) {
+	_deletingPhoto = photo;
+	onDeletePhotoSure(); // langs are not ready yet
+	//auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
+	//connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
+	//Ui::showLayer(box);
+}
+
+void MainWidget::onDeletePhotoSure() {
+	Ui::hideLayer();
+
+	auto me = App::self();
+	auto photo = _deletingPhoto;
+	if (!photo || !me) return;
+
+	if (me->photoId == photo->id) {
+		App::app()->peerClearPhoto(me->id);
+	} else if (photo->peer && !photo->peer->isUser() && photo->peer->photoId == photo->id) {
+		App::app()->peerClearPhoto(photo->peer->id);
+	} else {
+		for (int i = 0, l = me->photos.size(); i != l; ++i) {
+			if (me->photos.at(i) == photo) {
+				me->photos.removeAt(i);
+				MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
+				break;
+			}
+		}
+	}
+}
+
 void MainWidget::shareContactLayer(UserData *contact) {
 	hiderLayer(new HistoryHider(this, contact));
 }
@@ -1680,9 +1710,7 @@ void MainWidget::updateOnlineDisplay() {
 }
 
 void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
-	bool lastKeyboardUsed = _history->lastForceReplyReplied(FullMsgId(peerToChannel(file->to.peer), file->to.replyTo));
 	_history->confirmSendFile(file, ctrlShiftEnter);
-	_history->cancelReply(lastKeyboardUsed);
 }
 
 void MainWidget::onSendFileCancel(const FileLoadResultPtr &file) {
@@ -4507,6 +4535,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// update before applying skipped
 		if (d.vmessage.type() == mtpc_message) { // apply message edit
 			App::updateEditedMessage(d.vmessage.c_message());
+		} else if (d.vmessage.type() == mtpc_messageService) {
+			auto &message = d.vmessage.c_messageService();
+			if (message.vaction.type() == mtpc_messageActionHistoryClear) {
+				App::updateEditedMessageToEmpty(peerFromMessage(d.vmessage), message.vid.v);
+			}
 		}
 		ptsApplySkippedUpdates();
 	} break;

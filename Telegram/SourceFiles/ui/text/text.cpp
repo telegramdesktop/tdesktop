@@ -1188,7 +1188,7 @@ public:
 
 	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
 		_yDelta = (_lineHeight - _fontHeight) / 2;
-		if (_yTo >= 0 && _y + _yDelta >= _yTo) return false;
+		if (_yTo >= 0 && (_y + _yDelta >= _yTo || _y >= _yTo)) return false;
 		if (_y + _yDelta + _fontHeight <= _yFrom) {
 			if (_lookupSymbol) {
 				_lookupResult.symbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
@@ -1205,8 +1205,19 @@ public:
 			}
 		}
 
-		ITextBlock *_endBlock = (_endBlockIter == _end) ? 0 : (*_endBlockIter);
-		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yToElide);
+		ITextBlock *_endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
+		bool elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
+		if (elidedLine) {
+			// If we decided to draw the last line elided only because of the skip block
+			// that did not fit on this line, we just draw the line till the very end.
+			// Skip block is ignored in the elided lines, instead "removeFromEnd" is used.
+			if (_endBlock && _endBlock->type() == TextBlockTSkip) {
+				_endBlock = nullptr;
+			}
+			if (!_endBlock) {
+				elidedLine = false;
+			}
+		}
 
 		int blockIndex = _lineStartBlock;
 		ITextBlock *currentBlock = _t->_blocks[blockIndex];

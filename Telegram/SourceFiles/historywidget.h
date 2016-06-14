@@ -155,10 +155,11 @@ private:
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 
-	void setToClipboard(const TextWithEntities &forClipboard);
+	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
+	bool displayScrollDate() const;
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
@@ -272,11 +273,10 @@ private:
 	template <typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);
 
-	template <typename Method, typename SwitchToMigratedCallback>
-	void enumerateItems(Method method, SwitchToMigratedCallback switchToMigrated) {
+	template <typename Method>
+	void enumerateItems(Method method) {
 		enumerateItemsInHistory(_history, historyTop(), method);
 		if (_migrated) {
-			switchToMigrated();
 			enumerateItemsInHistory(_migrated, migratedTop(), method);
 		}
 	}
@@ -637,7 +637,7 @@ public:
 	MsgId replyToId() const;
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
-	void cancelReply(bool lastKeyboardUsed = false);
+	bool cancelReply(bool lastKeyboardUsed = false);
 	void cancelEdit();
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
@@ -868,6 +868,8 @@ private:
 
 	// Request to show results in the emoji panel.
 	void applyInlineBotQuery(UserData *bot, const QString &query);
+
+	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

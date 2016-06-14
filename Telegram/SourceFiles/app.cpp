@@ -84,7 +84,12 @@ namespace {
 	typedef QMap<uint64, QPair<PeerId, QString> > SentData;
 	SentData sentData;
 
-	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
+	HistoryItem *hoveredItem = nullptr,
+		*pressedItem = nullptr,
+		*hoveredLinkItem = nullptr,
+		*pressedLinkItem = nullptr,
+		*contextItem = nullptr,
+		*mousedItem = nullptr;
 
 	QPixmap *emoji = 0, *emojiLarge = 0;
 	style::font monofont;
@@ -1096,6 +1101,12 @@ namespace {
 		}
 	}
 
+	void updateEditedMessageToEmpty(PeerId peerId, MsgId msgId) {
+		if (auto existing = App::histItemById(peerToChannel(peerId), msgId)) {
+			existing->applyEditionToEmpty();
+		}
+	}
+
 	void addSavedGif(DocumentData *doc) {
 		SavedGifs &saved(cRefSavedGifs());
 		int32 index = saved.indexOf(doc);
@@ -1932,7 +1943,7 @@ namespace {
 			delete toDelete[i];
 		}
 
-		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
+		clearMousedItems();
 	}
 
 	void historyClearItems() {
@@ -2205,6 +2216,15 @@ namespace {
 
 	HistoryItem *mousedItem() {
 		return ::mousedItem;
+	}
+
+	void clearMousedItems() {
+		hoveredItem(nullptr);
+		pressedItem(nullptr);
+		hoveredLinkItem(nullptr);
+		pressedLinkItem(nullptr);
+		contextItem(nullptr);
+		mousedItem(nullptr);
 	}
 
 	const style::font &monofont() {

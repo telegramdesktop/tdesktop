@@ -208,6 +208,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _supportGetRequest(0) {
 	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
 
+	App::clearMousedItems();
+
 	if (self()) {
 		self()->loadUserpic();
 

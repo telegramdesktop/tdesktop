@@ -59,7 +59,7 @@ inline bool draftStringIsEmpty(const QString &text) {
 }
 
 inline bool draftIsNull(Draft *draft) {
-	return !draft || draftStringIsEmpty(draft->textWithTags.text);
+	return !draft || (draftStringIsEmpty(draft->textWithTags.text) && !draft->msgId);
 }
 
 inline bool draftsAreEqual(Draft *a, Draft *b) {

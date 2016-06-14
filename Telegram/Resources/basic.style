@@ -250,9 +250,9 @@ defaultCheckbox: Checkbox {
 	font: normalFont;
 	duration: 120;
 }
-defaultBoxCheckbox: Checkbox {
+defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	width: -46px;
-	textPosition: point(34px, 0px);
+	textPosition: point(34px, 1px);
 	font: boxTextFont;
 }
 defaultRadiobutton: Radiobutton {

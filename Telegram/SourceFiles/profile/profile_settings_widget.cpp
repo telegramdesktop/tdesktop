@@ -147,7 +147,9 @@ void SettingsWidget::refreshInviteLinkButton() {
 		return QString();
 	};
 	auto inviteLinkText = getInviteLinkText();
-	if (!inviteLinkText.isEmpty()) {
+	if (inviteLinkText.isEmpty()) {
+		_inviteLink.destroy();
+	} else {
 		_inviteLink = new Ui::LeftOutlineButton(this, inviteLinkText, st::defaultLeftOutlineButton);
 		_inviteLink->show();
 		connect(_inviteLink, SIGNAL(clicked()), this, SLOT(onInviteLink()));
