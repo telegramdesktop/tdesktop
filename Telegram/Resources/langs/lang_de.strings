@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Bearbeite deine Nachrichten nachträglich (innerhalb von 2 Tagen).\n— Erwähne Leute in Gruppen — ohne das diese einen Benutzernamen haben müssen (einfach @ eingeben und aus der Liste auswählen).\n\nMehr: {link}";
+"lng_new_version_text" = "— Entwürfe: Ungesendete Nachrichten werden als Entwurf auf all deinen Geräten synchronisiert und sind in der Chatliste erkennbar.\n— Gruppen- und Nutzerprofile wurden neu gestaltet.\n— Anzahl ungelesener Nachrichten auf dem 'Nach unten wechseln'-Knopf.\n\nMehr Infos: {link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
