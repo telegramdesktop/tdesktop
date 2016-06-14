@@ -728,7 +728,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "회원님";
-"lng_from_draft" = "임시";
+"lng_from_draft" = "임시저장";
 "lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
 "lng_unblock_button" = "차단해제";
 "lng_channel_join" = "채널 입장";
