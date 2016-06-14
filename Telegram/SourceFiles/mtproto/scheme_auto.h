@@ -15064,7 +15064,6 @@ public:
 	enum class Flag : int32 {
 		f_allow_flashcall = (1 << 0),
 		f_current_number = (1 << 0),
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -15897,7 +15896,6 @@ public:
 		f_last_name = (1 << 1),
 		f_about = (1 << 2),
 
-
 		MAX_FIELD = (1 << 2),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -16340,7 +16338,6 @@ public:
 	enum class Flag : int32 {
 		f_allow_flashcall = (1 << 0),
 		f_current_number = (1 << 0),
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -17208,7 +17205,6 @@ public:
 		f_groups = (1 << 10),
 		f_channels = (1 << 15),
 
-
 		MAX_FIELD = (1 << 15),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -17457,7 +17453,6 @@ public:
 class MTPmessages_search { // RPC method 'messages.search'
 public:
 	enum class Flag : int32 {
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -17570,7 +17565,6 @@ class MTPmessages_deleteHistory { // RPC method 'messages.deleteHistory'
 public:
 	enum class Flag : int32 {
 		f_just_clear = (1 << 0),
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -17754,7 +17748,6 @@ public:
 		f_reply_markup = (1 << 2),
 		f_entities = (1 << 3),
 
-
 		MAX_FIELD = (1 << 7),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -17830,17 +17823,18 @@ public:
 	enum class Flag : int32 {
 		f_silent = (1 << 5),
 		f_background = (1 << 6),
+		f_clear_draft = (1 << 7),
 		f_reply_to_msg_id = (1 << 0),
 		f_reply_markup = (1 << 2),
 
-
-		MAX_FIELD = (1 << 6),
+		MAX_FIELD = (1 << 7),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
 
 	bool is_silent() const { return vflags.v & Flag::f_silent; }
 	bool is_background() const { return vflags.v & Flag::f_background; }
+	bool is_clear_draft() const { return vflags.v & Flag::f_clear_draft; }
 	bool has_reply_to_msg_id() const { return vflags.v & Flag::f_reply_to_msg_id; }
 	bool has_reply_markup() const { return vflags.v & Flag::f_reply_markup; }
 
@@ -17903,7 +17897,6 @@ public:
 	enum class Flag : int32 {
 		f_silent = (1 << 5),
 		f_background = (1 << 6),
-
 
 		MAX_FIELD = (1 << 6),
 	};
@@ -19774,7 +19767,6 @@ class MTPmessages_getInlineBotResults { // RPC method 'messages.getInlineBotResu
 public:
 	enum class Flag : int32 {
 		f_geo_point = (1 << 0),
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -19843,7 +19835,6 @@ public:
 		f_private = (1 << 1),
 		f_next_offset = (1 << 2),
 		f_switch_pm = (1 << 3),
-
 
 		MAX_FIELD = (1 << 3),
 	};
@@ -19914,16 +19905,17 @@ public:
 	enum class Flag : int32 {
 		f_silent = (1 << 5),
 		f_background = (1 << 6),
+		f_clear_draft = (1 << 7),
 		f_reply_to_msg_id = (1 << 0),
 
-
-		MAX_FIELD = (1 << 6),
+		MAX_FIELD = (1 << 7),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
 
 	bool is_silent() const { return vflags.v & Flag::f_silent; }
 	bool is_background() const { return vflags.v & Flag::f_background; }
+	bool is_clear_draft() const { return vflags.v & Flag::f_clear_draft; }
 	bool has_reply_to_msg_id() const { return vflags.v & Flag::f_reply_to_msg_id; }
 
 	MTPflags<MTPmessages_sendInlineBotResult::Flags> vflags;
@@ -20030,7 +20022,6 @@ public:
 		f_reply_markup = (1 << 2),
 		f_entities = (1 << 3),
 
-
 		MAX_FIELD = (1 << 11),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -20102,7 +20093,6 @@ public:
 		f_message = (1 << 11),
 		f_reply_markup = (1 << 2),
 		f_entities = (1 << 3),
-
 
 		MAX_FIELD = (1 << 11),
 	};
@@ -20216,7 +20206,6 @@ public:
 		f_alert = (1 << 1),
 		f_message = (1 << 0),
 
-
 		MAX_FIELD = (1 << 1),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -20315,7 +20304,6 @@ public:
 		f_no_webpage = (1 << 1),
 		f_reply_to_msg_id = (1 << 0),
 		f_entities = (1 << 3),
-
 
 		MAX_FIELD = (1 << 3),
 	};
@@ -21490,7 +21478,6 @@ public:
 		f_broadcast = (1 << 0),
 		f_megagroup = (1 << 1),
 
-
 		MAX_FIELD = (1 << 1),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -22172,7 +22159,6 @@ class MTPchannels_updatePinnedMessage { // RPC method 'channels.updatePinnedMess
 public:
 	enum class Flag : int32 {
 		f_silent = (1 << 0),
-
 		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);

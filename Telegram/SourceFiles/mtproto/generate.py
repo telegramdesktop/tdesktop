@@ -236,7 +236,7 @@ with open('scheme.tl') as f:
           maxbit = max(maxbit, int(conditions[paramName]));
         if (maxbit > 0):
           funcsText += '\n';
-        funcsText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+        funcsText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
         funcsText += '\t};\n';
         funcsText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
         funcsText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';

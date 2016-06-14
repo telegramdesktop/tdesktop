@@ -29,8 +29,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
+using UpdateFlag = Notify::PeerUpdate::Flag;
+
 InviteLinkWidget::InviteLinkWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_invite_link_section)) {
-	auto observeEvents = Notify::PeerUpdate::Flag::InviteLinkChanged;
+	auto observeEvents = UpdateFlag::InviteLinkChanged | UpdateFlag::UsernameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &InviteLinkWidget::notifyPeerUpdated);
 
 	refreshLink();
@@ -42,7 +44,7 @@ void InviteLinkWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & Notify::PeerUpdate::Flag::InviteLinkChanged) {
+	if (update.flags & (UpdateFlag::InviteLinkChanged | UpdateFlag::UsernameChanged)) {
 		refreshLink();
 		refreshVisibility();
 
@@ -79,7 +81,7 @@ QString InviteLinkWidget::getInviteLink() const {
 	if (auto chat = peer()->asChat()) {
 		return chat->inviteLink();
 	} else if (auto channel = peer()->asChannel()) {
-		return channel->inviteLink();
+		return channel->isPublic() ? QString() : channel->inviteLink();
 	}
 	return QString();
 };
@@ -87,7 +89,9 @@ QString InviteLinkWidget::getInviteLink() const {
 void InviteLinkWidget::refreshLink() {
 	_link.destroy();
 	TextWithEntities linkData = { getInviteLink(), EntitiesInText() };
-	if (!linkData.text.isEmpty()) {
+	if (linkData.text.isEmpty()) {
+		_link.destroy();
+	} else {
 		_link = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::profileInviteLinkText);
 		_link->show();
 

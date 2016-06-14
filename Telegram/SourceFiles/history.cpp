@@ -44,7 +44,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace {
 
 TextParseOptions _historySrvOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	TextParseLinks | TextParseMentions | TextParseHashtags/* | TextParseMultiline*/ | TextParseRichText, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent

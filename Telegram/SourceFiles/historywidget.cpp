@@ -171,7 +171,10 @@ namespace {
 template <typename Method>
 void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Method method) {
 	// no displayed messages in this history
-	if (historytop < 0 || history->isEmpty() || _visibleAreaBottom <= historytop) {
+	if (historytop < 0 || history->isEmpty()) {
+		return;
+	}
+	if (_visibleAreaBottom <= historytop || historytop + history->height <= _visibleAreaTop) {
 		return;
 	}
 
@@ -262,12 +265,8 @@ void HistoryInner::enumerateUserpics(Method method) {
 
 		return true;
 	};
-	auto movedToMigratedHistoryCallback = [&lowestAttachedItemBottom]() {
-		// reset the found bottom of the pack when moved from _history to _migrated enumeration
-		lowestAttachedItemBottom = -1;
-	};
 
-	enumerateItems(userpicCallback, movedToMigratedHistoryCallback);
+	enumerateItems(userpicCallback);
 }
 
 template <typename Method>
@@ -322,12 +321,8 @@ void HistoryInner::enumerateDates(Method method) {
 
 		return true;
 	};
-	auto movedToMigratedHistoryCallback = [&lowestInOneDayItemBottom]() {
-		// reset the found bottom of the pack when moved from _history to _migrated enumeration
-		lowestInOneDayItemBottom = -1;
-	};
 
-	enumerateItems(dateCallback, movedToMigratedHistoryCallback);
+	enumerateItems(dateCallback);
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
@@ -486,27 +481,42 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				return true;
 			});
 
-			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &r, scrollDateOpacity](HistoryItem *item, int itemtop, int dateTop) {
-				int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			//QDate lastDate;
+			//if (!_history->isEmpty()) {
+			//	lastDate = _history->blocks.back()->items.back()->date.date();
+			//}
 
+			//// if item top is before this value always show date as a floating date
+			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
+
+			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
+			enumerateDates([&p, &r, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= r.top()) {
 					return false;
 				}
 
-				bool dateInPlace = item->displayDate();
+				bool displayDate = item->displayDate();
+				bool dateInPlace = displayDate;
 				if (dateInPlace) {
 					int correctDateTop = itemtop + st::msgServiceMargin.top();
 					dateInPlace = (dateTop < correctDateTop + dateHeight);
 				}
+				//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
+				//if (noFloatingDate) {
+				//	if (itemtop < showFloatingBefore) {
+				//		noFloatingDate = false;
+				//	}
+				//}
 
 				// paint the date if it intersects the painted rect
 				if (dateTop < r.top() + r.height()) {
-					auto opacity = dateInPlace ? 1. : scrollDateOpacity;
+					auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
 					if (opacity > 0.) {
 						p.setOpacity(opacity);
-						int dateY = dateTop - st::msgServiceMargin.top(), width = item->history()->width;
+						int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
+						int width = item->history()->width;
 						if (auto date = item->Get<HistoryMessageDate>()) {
 							date->paint(p, dateY, width);
 						} else {
@@ -1034,6 +1044,12 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	_dragSelType = TextSelectType::Letters;
 	_widget->noSelectingScroll();
 	_widget->updateTopBarSelection();
+
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	if (!_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
+		setToClipboard(_selected.cbegin().key()->selectedText(_selected.cbegin().value()), QClipboard::Selection);
+	}
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
 void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
@@ -1293,7 +1309,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 void HistoryInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
-		_menu = 0;
+		_menu = nullptr;
 	}
 }
 
@@ -1391,9 +1407,9 @@ void HistoryInner::copyContextText() {
 	setToClipboard(item->selectedText(FullSelection));
 }
 
-void HistoryInner::setToClipboard(const TextWithEntities &forClipboard) {
+void HistoryInner::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
 	if (auto data = mimeDataFromTextWithEntities(forClipboard)) {
-		QApplication::clipboard()->setMimeData(data);
+		QApplication::clipboard()->setMimeData(data, mode);
 	}
 }
 
@@ -1615,10 +1631,20 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	_scrollDateCheck.call();
 }
 
+bool HistoryInner::displayScrollDate() const{
+	return (_visibleAreaTop <= height() - 2 * (_visibleAreaBottom - _visibleAreaTop));
+}
+
 void HistoryInner::onScrollDateCheck() {
 	if (!_history) return;
+
 	auto newScrollDateItem = _history->scrollTopItem ? _history->scrollTopItem : (_migrated ? _migrated->scrollTopItem : nullptr);
 	auto newScrollDateItemTop = _history->scrollTopItem ? _history->scrollTopOffset : (_migrated ? _migrated->scrollTopOffset : 0);
+	//if (newScrollDateItem && !displayScrollDate()) {
+	//	if (!_history->isEmpty() && newScrollDateItem->date.date() == _history->blocks.back()->items.back()->date.date()) {
+	//		newScrollDateItem = nullptr;
+	//	}
+	//}
 	if (!newScrollDateItem) {
 		_scrollDateLastItem = nullptr;
 		_scrollDateLastItemTop = 0;
@@ -3460,7 +3486,7 @@ void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
 	_fileLoader.addTask(new FileLoadTask(result, duration, waveform, FileLoadTo(_peer->id, _silent.checked(), replyToId())));
-	cancelReply(lastForceReplyReplied());
+	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
 void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
@@ -3939,6 +3965,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_history = _migrated = nullptr;
 		updateBotKeyboard();
 	}
+
+	App::clearMousedItems();
 
 	_addToScroll = 0;
 	_saveEditMsgRequestId = 0;
@@ -5144,7 +5172,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	App::historyRegRandom(randomId, newId);
 
 	App::main()->finishForwarding(history, _silent.checked());
-	cancelReply(lastKeyboardUsed);
+	cancelReplyAfterMediaSend(lastKeyboardUsed);
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
@@ -5500,6 +5528,7 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 	if (replyTo) {
 		if (_replyToId == replyTo) {
 			cancelReply();
+			onCloudDraftSave();
 		}
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
 			if (_kbShown) onKbToggle(false);
@@ -6251,7 +6280,7 @@ void HistoryWidget::uploadFiles(const QStringList &files, PrepareMediaType type)
 	}
 	_fileLoader.addTasks(tasks);
 
-	cancelReply(lastForceReplyReplied());
+	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
 void HistoryWidget::uploadFileContent(const QByteArray &fileContent, PrepareMediaType type) {
@@ -6259,7 +6288,7 @@ void HistoryWidget::uploadFileContent(const QByteArray &fileContent, PrepareMedi
 
 	App::wnd()->activateWindow();
 	_fileLoader.addTask(new FileLoadTask(fileContent, type, FileLoadTo(_peer->id, _silent.checked(), replyToId())));
-	cancelReply(lastForceReplyReplied());
+	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
 void HistoryWidget::shareContactWithConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText) {
@@ -6271,6 +6300,7 @@ void HistoryWidget::shareContactWithConfirm(const QString &phone, const QString 
 }
 
 void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
+	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(peerToChannel(file->to.peer), file->to.replyTo));
 	if (_confirmWithTextId && _confirmWithTextId == file->id) {
 		onSend(ctrlShiftEnter, file->to.replyTo);
 		_confirmWithTextId = 0;
@@ -6323,6 +6353,8 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	}
 	App::main()->dialogsToUp();
 	peerMessagesUpdated(file->to.peer);
+
+	cancelReplyAfterMediaSend(lastKeyboardUsed);
 }
 
 void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
@@ -7132,7 +7164,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
 	MTPDmessage::Flags flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
-	MTPmessages_SendInlineBotResult::Flags sendFlags = 0;
+	MTPmessages_SendInlineBotResult::Flags sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft;
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
@@ -7168,10 +7200,9 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	App::historyRegRandom(randomId, newId);
 
 	clearFieldText();
-	//_saveDraftText = true;
-	//_saveDraftStart = getms();
-	//onDraftSave();
-	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
+	_saveDraftText = true;
+	_saveDraftStart = getms();
+	onDraftSave();
 
 	RecentInlineBots &bots(cRefRecentInlineBots());
 	int32 index = bots.indexOf(bot);
@@ -7334,7 +7365,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(mtpInput, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _silent.checked());
-	cancelReply(lastKeyboardUsed);
+	cancelReplyAfterMediaSend(lastKeyboardUsed);
 
 	if (doc->sticker()) App::main()->incrementSticker(doc);
 
@@ -7390,7 +7421,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _silent.checked());
-	cancelReply(lastKeyboardUsed);
+	cancelReplyAfterMediaSend(lastKeyboardUsed);
 
 	App::historyRegRandom(randomId, newId);
 
@@ -7590,7 +7621,7 @@ bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
 	return _keyboard.forceReply() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _keyboard.forMsgId().msg == (replyTo.msg < 0 ? replyToId() : replyTo.msg);
 }
 
-void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
+bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 	bool wasReply = false;
 	if (_replyToId) {
 		wasReply = true;
@@ -7625,6 +7656,13 @@ void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		if (_kbReplyTo) {
 			onKbToggle(false);
 		}
+	}
+	return wasReply;
+}
+
+void HistoryWidget::cancelReplyAfterMediaSend(bool lastKeyboardUsed) {
+	if (cancelReply(lastKeyboardUsed)) {
+		onCloudDraftSave();
 	}
 }
 

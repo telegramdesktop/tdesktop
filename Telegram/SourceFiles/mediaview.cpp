@@ -690,32 +690,10 @@ void MediaView::onForward() {
 void MediaView::onDelete() {
 	close();
 	if (!_msgid) {
-		if (App::self() && _photo && App::self()->photoId == _photo->id) {
-			App::app()->peerClearPhoto(App::self()->id);
-		} else if (_user && _user == App::self()) {
-			for (int32 i = 0, l = _user->photos.size(); i != l; ++i) {
-				if (_user->photos.at(i) == _photo) {
-					_user->photos.removeAt(i);
-					MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(_photo->id), MTP_long(_photo->access)))), rpcDone(&MediaView::deletePhotosDone), rpcFail(&MediaView::deletePhotosFail));
-					if (_user->photos.isEmpty()) {
-						hide();
-					} else if (i + 1 < l) {
-						showPhoto(_user->photos.at(i), _user);
-					} else {
-						showPhoto(_user->photos.at(i - 1), _user);
-					}
-					break;
-				}
-			}
-		} else if (_photo->peer && _photo->peer->photoId == _photo->id) {
-			App::app()->peerClearPhoto(_photo->peer->id);
-		}
-	} else {
-		HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
-		if (item) {
-			App::contextItem(item);
-			App::main()->deleteLayer();
-		}
+		App::main()->deletePhotoLayer(_photo);
+	} else if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+		App::contextItem(item);
+		App::main()->deleteLayer();
 	}
 }
 
@@ -2184,15 +2162,6 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		u->photos.push_back(photo);
 	}
 	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u, OverviewCount);
-}
-
-void MediaView::deletePhotosDone(const MTPVector<MTPlong> &result) {
-}
-
-bool MediaView::deletePhotosFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	return true;
 }
 
 void MediaView::updateHeader() {

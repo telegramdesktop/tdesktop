@@ -263,6 +263,8 @@ public:
 	void offerPeer(PeerId peer);
 	void dialogsActivate();
 
+	void deletePhotoLayer(PhotoData *photo);
+
 	DragState getDragState(const QMimeData *mime);
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
@@ -490,6 +492,10 @@ public slots:
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
+private slots:
+
+	void onDeletePhotoSure();
+
 private:
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
@@ -656,6 +662,8 @@ private:
 
 	typedef QMap<ChannelData*, bool> UpdatedChannels;
 	UpdatedChannels _updatedChannels;
+
+	PhotoData *_deletingPhoto = nullptr;
 
 	typedef QMap<MsgId, bool> ViewsIncrementMap;
 	typedef QMap<PeerData*, ViewsIncrementMap> ViewsIncrement;

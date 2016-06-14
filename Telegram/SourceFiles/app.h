@@ -205,6 +205,7 @@ namespace App {
 	HistoryItem *contextItem();
 	void mousedItem(HistoryItem *item);
 	HistoryItem *mousedItem();
+	void clearMousedItems();
 
 	const style::font &monofont();
 	const QPixmap &sprite();

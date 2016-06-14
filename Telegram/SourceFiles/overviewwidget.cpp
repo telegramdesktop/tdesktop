@@ -730,6 +730,8 @@ void OverviewInner::clear() {
 	}
 	_layoutDates.clear();
 	_items.clear();
+
+	App::clearMousedItems();
 }
 
 int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
