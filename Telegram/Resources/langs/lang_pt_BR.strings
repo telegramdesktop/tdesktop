@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Edite suas mensagens em qualquer lugar, até 2 dias após postagem. (pressione a seta para cima para editar sua última mensagem).\n— Mencione pessoas nos grupos digitando @ e selecionando-os através da lista — mesmo que eles não tenham um nome de usuário.\n\nMais: {link}";
+"lng_new_version_text" = "— Introduzindo os rascunhos: Sincronização entre todos os seus dispositivos para mensagens não enviadas. Os rascunhos agora são visíveis em sua lista de conversas.\n— Perfis de usuários e grupos completamente redesenhados.\n— Contador de mensagens não lidas no botão “Rolar para baixo”.\n\nMais sobre essa atualização em: {link}";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Edit your messages everywhere within 2 days after posting (press the up arrow button to edit your last message).\n— Mention people in groups by typing @ and selecting them from the list — even if they don't have a username.\n\nMore: {link}";
+"lng_new_version_text" = "— Introdotte le bozze: Sincronizzazione istantanea dei messaggi non inviati su tutti i dispositivi. Le bozze saranno visibili nella lista chat.\n— Pagina di info del gruppo e dei profili completamente ridisegnate.\n— Contatore messaggi non letti sul pulsante 'Scorri verso il basso'.\n\nPiù info su questo update: {link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

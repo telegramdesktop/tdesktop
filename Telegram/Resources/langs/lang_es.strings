@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "- Edita tus mensajes, en todas partes, hasta 2 días después del envío (pulsa la tecla de la flecha hacia arriba para editar tu último mensaje).\n- Menciona a personas en grupos escribiendo @ y eligiéndolas desde la lista, incluso si no tienen un alias.\n\nMás: {link}";
+"lng_new_version_text" = "— Presentamos los borradores: sincronización para los mensajes no enviados en todos tus dispositivos. Los borradores ahora son visibles en tu lista de chats.\n— Perfiles de grupos y usuarios completamente rediseñados.\n— Contador de mensajes “no leídos” en el botón de “desplazar hacia abajo”.\n\nMás sobre esta actualización: {link}";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
