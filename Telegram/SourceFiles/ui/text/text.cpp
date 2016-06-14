@@ -482,6 +482,9 @@ public:
 		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = checkTilde && (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
+		} else if (ch == 0xFE0F && (cPlatform() == dbipMac || cPlatform() == dbipMacOld)) {
+			// Some sequences like 0x0E53 0xFE0F crash OS X harfbuzz text processing :(
+			skip = true;
 		} else if (isDiac) {
 			if (lastSkipped || emoji || ++diacs > chMaxDiacAfterSymbol()) {
 				skip = true;
@@ -860,6 +863,10 @@ public:
 	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t) {
 	}
 
+	~TextPainter() {
+		restoreAfterElided();
+	}
+
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
 		_parStartBlock = i;
 		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
@@ -921,7 +928,7 @@ public:
 		}
 	}
 
-	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection = { 0, 0 }) {
+	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection = { 0, 0 }, bool fullWidthSelection = true) {
 		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
@@ -940,6 +947,7 @@ public:
 			_yToElide = _yTo;
 		}
 		_selection = selection;
+		_fullWidthSelection = fullWidthSelection;
 		_wLeft = _w = w;
 		_str = _t->_text.unicode();
 
@@ -1180,8 +1188,14 @@ public:
 
 	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
 		_yDelta = (_lineHeight - _fontHeight) / 2;
-		if (_yTo >= 0 && _y + _yDelta >= _yTo) return false;
-		if (_y + _yDelta + _fontHeight <= _yFrom) return true;
+		if (_yTo >= 0 && (_y + _yDelta >= _yTo || _y >= _yTo)) return false;
+		if (_y + _yDelta + _fontHeight <= _yFrom) {
+			if (_lookupSymbol) {
+				_lookupResult.symbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
+				_lookupResult.afterSymbol = (_lineEnd > _lineStart) ? true : false;
+			}
+			return true;
+		}
 
 		uint16 trimmedLineEnd = _lineEnd;
 		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
@@ -1191,8 +1205,19 @@ public:
 			}
 		}
 
-		ITextBlock *_endBlock = (_endBlockIter == _end) ? 0 : (*_endBlockIter);
-		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yToElide);
+		ITextBlock *_endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
+		bool elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
+		if (elidedLine) {
+			// If we decided to draw the last line elided only because of the skip block
+			// that did not fit on this line, we just draw the line till the very end.
+			// Skip block is ignored in the elided lines, instead "removeFromEnd" is used.
+			if (_endBlock && _endBlock->type() == TextBlockTSkip) {
+				_endBlock = nullptr;
+			}
+			if (!_endBlock) {
+				elidedLine = false;
+			}
+		}
 
 		int blockIndex = _lineStartBlock;
 		ITextBlock *currentBlock = _t->_blocks[blockIndex];
@@ -1253,20 +1278,21 @@ public:
 			}
 		}
 
-		bool selectFromStart = (_selection.to > _lineStart) && (_lineStart > 0) && (_selection.from <= _lineStart);
-		bool selectTillEnd = (_selection.to >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selection.from < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
+		if (_fullWidthSelection) {
+			bool selectFromStart = (_selection.to > _lineStart) && (_lineStart > 0) && (_selection.from <= _lineStart);
+			bool selectTillEnd = (_selection.to >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selection.from < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
 
-		if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
-			if (x > _x) {
-				_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBg->b);
+			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
+				if (x > _x) {
+					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBg->b);
+				}
+			}
+			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
+				if (x < _x + _wLeft) {
+					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBg->b);
+				}
 			}
 		}
-		if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
-			if (x < _x + _wLeft) {
-				_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBg->b);
-			}
-		}
-
 		if (trimmedLineEnd == _lineStart && !elidedLine) return true;
 
 		if (!elidedLine) initParagraphBidi(); // if was not inited
@@ -1286,7 +1312,6 @@ public:
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
 	    int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0;
 		if (!nItems) {
-			if (elidedLine) restoreAfterElided();
 			return true;
 		}
 
@@ -1540,12 +1565,14 @@ public:
 
 			x += itemWidth;
 		}
-
-		if (elidedLine) restoreAfterElided();
 		return true;
 	}
 
 	void elideSaveBlock(int32 blockIndex, ITextBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
+		if (_elideSavedBlock) {
+			restoreAfterElided();
+		}
+
 		_elideSavedIndex = blockIndex;
 		_elideSavedBlock = _t->_blocks[blockIndex];
 		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->color(), _elideSavedBlock->lnkIndex());
@@ -1675,7 +1702,7 @@ public:
 		if (_elideSavedBlock) {
 			delete _t->_blocks[_elideSavedIndex];
 			const_cast<Text*>(_t)->_blocks[_elideSavedIndex] = _elideSavedBlock;
-			_elideSavedBlock = 0;
+			_elideSavedBlock = nullptr;
 		}
 	}
 
@@ -2308,6 +2335,7 @@ private:
 	QPen _originalPen;
 	int32 _yFrom, _yTo, _yToElide;
 	TextSelection _selection = { 0, 0 };
+	bool _fullWidthSelection = true;
 	const QChar *_str = nullptr;
 
 	// current paragraph data
@@ -2649,129 +2677,53 @@ void Text::removeSkipBlock() {
 	}
 }
 
-int32 Text::countWidth(int32 w) const {
-	QFixed width = w;
-	if (width < _minResizeWidth) width = _minResizeWidth;
-	if (width >= _maxWidth) {
+int Text::countWidth(int width) const {
+	if (QFixed(width) >= _maxWidth) {
 		return _maxWidth.ceil().toInt();
 	}
 
-	QFixed minWidthLeft = width, widthLeft = width, last_rBearing = 0, last_rPadding = 0;
-	bool longWordLine = true;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
-		ITextBlock *b = *i;
-		TextBlockType _btype = b->type();
-		int32 blockHeight = countBlockHeight(b, _font);
-
-		if (_btype == TextBlockTNewline) {
-			last_rBearing = b->f_rbearing();
-			last_rPadding = b->f_rpadding();
-			if (widthLeft < minWidthLeft) {
-				minWidthLeft = widthLeft;
-			}
-			widthLeft = width - (b->f_width() - last_rBearing);
-
-			longWordLine = true;
-			continue;
+	QFixed maxLineWidth = 0;
+	enumerateLines(width, [&maxLineWidth](QFixed lineWidth, int lineHeight) {
+		if (lineWidth > maxLineWidth) {
+			maxLineWidth = lineWidth;
 		}
-		auto b__f_lpadding = b->f_lpadding();
-		auto b__f_rbearing = b->f_rbearing(); // cache
-		QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
-		if (newWidthLeft >= 0) {
-			last_rBearing = b__f_rbearing;
-			last_rPadding = b->f_rpadding();
-			widthLeft = newWidthLeft;
-
-			longWordLine = false;
-			continue;
-		}
-
-		if (_btype == TextBlockTText) {
-			TextBlock *t = static_cast<TextBlock*>(b);
-			if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-				last_rPadding += b__f_lpadding;
-
-				longWordLine = false;
-				continue;
-			}
-
-			QFixed f_wLeft = widthLeft;
-			for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
-				bool wordEndsHere = (j->f_width() >= 0);
-				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
-
-				QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-				b__f_lpadding = 0;
-				if (newWidthLeft >= 0) {
-					last_rBearing = j->f_rbearing();
-					last_rPadding = j->f_rpadding();
-					widthLeft = newWidthLeft;
-
-					if (wordEndsHere) {
-						longWordLine = false;
-					}
-					if (wordEndsHere || longWordLine) {
-						f_wLeft = widthLeft;
-						f = j + 1;
-					}
-					continue;
-				}
-
-				if (f != j) {
-					j = f;
-					widthLeft = f_wLeft;
-					j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
-				}
-
-				last_rBearing = j->f_rbearing();
-				last_rPadding = j->f_rpadding();
-				if (widthLeft < minWidthLeft) {
-					minWidthLeft = widthLeft;
-				}
-				widthLeft = width - (j_width - last_rBearing);
-
-				longWordLine = true;
-				f = j + 1;
-				f_wLeft = widthLeft;
-			}
-			continue;
-		}
-
-		last_rBearing = b__f_rbearing;
-		last_rPadding = b->f_rpadding();
-		if (widthLeft < minWidthLeft) {
-			minWidthLeft = widthLeft;
-		}
-		widthLeft = width - (b->f_width() - last_rBearing);
-
-		longWordLine = true;
-		continue;
-	}
-	if (widthLeft < minWidthLeft) {
-		minWidthLeft = widthLeft;
-	}
-
-	return (width - minWidthLeft).ceil().toInt();
+	});
+	return maxLineWidth.ceil().toInt();
 }
 
-int32 Text::countHeight(int32 w) const {
-	QFixed width = w;
-	if (width < _minResizeWidth) width = _minResizeWidth;
-	if (width >= _maxWidth) {
+int Text::countHeight(int width) const {
+	if (QFixed(width) >= _maxWidth) {
 		return _minHeight;
 	}
+	int result = 0;
+	enumerateLines(width, [&result](QFixed lineWidth, int lineHeight) {
+		result += lineHeight;
+	});
+	return result;
+}
 
-	int32 result = 0, lineHeight = 0;
+void Text::countLineWidths(int width, QVector<int> *lineWidths) const {
+	enumerateLines(width, [lineWidths](QFixed lineWidth, int lineHeight) {
+		lineWidths->push_back(lineWidth.ceil().toInt());
+	});
+}
+
+template <typename Callback>
+void Text::enumerateLines(int w, Callback callback) const {
+	QFixed width = w;
+	if (width < _minResizeWidth) width = _minResizeWidth;
+
+	int lineHeight = 0;
 	QFixed widthLeft = width, last_rBearing = 0, last_rPadding = 0;
 	bool longWordLine = true;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
-		ITextBlock *b = *i;
+	for_const (auto b, _blocks) {
 		TextBlockType _btype = b->type();
-		int32 blockHeight = countBlockHeight(b, _font);
+		int blockHeight = countBlockHeight(b, _font);
 
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
-			result += lineHeight;
+			callback(width - widthLeft, lineHeight);
+
 			lineHeight = 0;
 			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
@@ -2806,8 +2758,8 @@ int32 Text::countHeight(int32 w) const {
 			}
 
 			QFixed f_wLeft = widthLeft;
-			int32 f_lineHeight = lineHeight;
-			for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
+			int f_lineHeight = lineHeight;
+			for (auto j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
 				bool wordEndsHere = (j->f_width() >= 0);
 				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
@@ -2838,7 +2790,8 @@ int32 Text::countHeight(int32 w) const {
 					j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
 				}
 
-				result += lineHeight;
+				callback(width - widthLeft, lineHeight);
+
 				lineHeight = qMax(0, blockHeight);
 				last_rBearing = j->f_rbearing();
 				last_rPadding = j->f_rpadding();
@@ -2852,7 +2805,8 @@ int32 Text::countHeight(int32 w) const {
 			continue;
 		}
 
-		result += lineHeight;
+		callback(width - widthLeft, lineHeight);
+
 		lineHeight = qMax(0, blockHeight);
 		last_rBearing = b__f_rbearing;
 		last_rPadding = b->f_rpadding();
@@ -2862,20 +2816,18 @@ int32 Text::countHeight(int32 w) const {
 		continue;
 	}
 	if (widthLeft < width) {
-		result += lineHeight;
+		callback(width - widthLeft, lineHeight);
 	}
-
-	return result;
 }
 
 void Text::replaceFont(style::font f) {
 	_font = f;
 }
 
-void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection) const {
+void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection, bool fullWidthSelection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.draw(left, top, w, align, yFrom, yTo, selection);
+	p.draw(left, top, w, align, yFrom, yTo, selection, fullWidthSelection);
 }
 
 void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
@@ -2898,7 +2850,7 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 	uint16 from = selection.from, to = selection.to;
 	if (from < _text.size() && from <= to) {
 		if (to > _text.size()) to = _text.size();
-		if (selectType == TextSelectParagraphs) {
+		if (selectType == TextSelectType::Paragraphs) {
 			if (!chIsParagraphSeparator(_text.at(from))) {
 				while (from > 0 && !chIsParagraphSeparator(_text.at(from - 1))) {
 					--from;
@@ -2913,7 +2865,7 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 					}
 				}
 			}
-		} else if (selectType == TextSelectWords) {
+		} else if (selectType == TextSelectType::Words) {
 			if (!chIsWordSeparator(_text.at(from))) {
 				while (from > 0 && !chIsWordSeparator(_text.at(from - 1))) {
 					--from;
@@ -3068,6 +3020,7 @@ void Text::clear() {
 		delete *i;
 	}
 	clearFields();
+	_text.clear();
 }
 
 void Text::clearFields() {

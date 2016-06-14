@@ -75,6 +75,14 @@ inline void showPeerProfile(const History *history) {
 	showPeerProfile(history->peer->id);
 }
 
+void showPeerOverview(const PeerId &peer, MediaOverviewType type);
+inline void showPeerOverview(const PeerData *peer, MediaOverviewType type) {
+	showPeerOverview(peer->id, type);
+}
+inline void showPeerOverview(const History *history, MediaOverviewType type) {
+	showPeerOverview(history->peer->id, type);
+}
+
 void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
 	showPeerHistory(peer->id, msgId, back);
@@ -95,6 +103,8 @@ inline void showChatsListAsync() {
 PeerData *getPeerForMouseAction();
 
 bool hideWindowNoQuit();
+
+bool skipPaintEvent(QWidget *widget, QPaintEvent *event);
 
 } // namespace Ui
 
@@ -194,6 +204,8 @@ void finish();
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
+DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
+DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
 
 DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);

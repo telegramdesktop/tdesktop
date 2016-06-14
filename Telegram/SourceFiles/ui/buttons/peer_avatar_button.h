@@ -29,11 +29,14 @@ namespace Ui {
 class PeerAvatarButton : public Button {
 public:
 	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+
 	void setPeer(PeerData *peer) {
 		_peer = peer;
 		update();
 	}
-	void paintEvent(QPaintEvent *e);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	PeerData *_peer;

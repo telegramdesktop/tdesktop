@@ -107,9 +107,9 @@ private:
 	void clipCallback(ClipReaderNotification notification);
 
 	struct AnimationData {
-		AnimationData(AnimationCreator creator)
+		AnimationData(AnimationCallbacks &&callbacks)
 			: over(false)
-			, radial(creator) {
+			, radial(std_::move(callbacks)) {
 		}
 		bool over;
 		FloatAnimation _a_over;
@@ -268,9 +268,9 @@ private:
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCreator thumbOverCallbacks, AnimationCreator radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(thumbOverCallbacks)
-			, radial(radialCallbacks) {
+		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
+			, _a_thumbOver(std_::move(thumbOverCallbacks))
+			, radial(std_::move(radialCallbacks)) {
 		}
 		anim::fvalue a_thumbOver;
 		Animation _a_thumbOver;

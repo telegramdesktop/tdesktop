@@ -51,6 +51,7 @@ void Button::mousePressEvent(QMouseEvent *e) {
 			int oldState = _state;
 			_state |= StateDown;
 			emit stateChanged(oldState, ButtonByPress);
+			onStateChanged(oldState, ButtonByPress);
 
 			e->accept();
 		}
@@ -70,6 +71,7 @@ void Button::mouseReleaseEvent(QMouseEvent *e) {
 		int oldState = _state;
 		_state &= ~StateDown;
 		emit stateChanged(oldState, ButtonByPress);
+		onStateChanged(oldState, ButtonByPress);
 		if (oldState & StateOver) {
 			_modifiers = e->modifiers();
 			emit clicked();
@@ -84,10 +86,12 @@ void Button::setOver(bool over, ButtonStateChangeSource source) {
 		int oldState = _state;
 		_state |= StateOver;
 		emit stateChanged(oldState, source);
+		onStateChanged(oldState, source);
 	} else if (!over && (_state & StateOver)) {
 		int oldState = _state;
 		_state &= ~StateOver;
 		emit stateChanged(oldState, source);
+		onStateChanged(oldState, source);
 	}
 }
 
@@ -96,9 +100,11 @@ void Button::setDisabled(bool disabled) {
 	if (disabled && !(_state & StateDisabled)) {
 		_state |= StateDisabled;
 		emit stateChanged(oldState, ButtonByUser);
+		onStateChanged(oldState, ButtonByUser);
 	} else if (!disabled && (_state & StateDisabled)) {
 		_state &= ~StateDisabled;
 		emit stateChanged(oldState, ButtonByUser);
+		onStateChanged(oldState, ButtonByUser);
 	}
 }
 
@@ -106,6 +112,7 @@ void Button::clearState() {
 	int oldState = _state;
 	_state = StateNone;
 	emit stateChanged(oldState, ButtonByUser);
+	onStateChanged(oldState, ButtonByUser);
 }
 
 int Button::getState() const {

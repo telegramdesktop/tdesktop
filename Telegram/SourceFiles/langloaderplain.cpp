@@ -123,7 +123,11 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 			while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
 				++from;
 			}
-			if (from == tagStart) throw Exception(QString("Expected tag name in key '%1'!").arg(QLatin1String(varName)));
+			if (from == tagStart) {
+				readingValue = false;
+				warning(QString("Expected tag name in key '%1'!").arg(QLatin1String(varName)));
+				continue;
+			}
 			QByteArray tagName = QByteArray(tagStart, int(from - tagStart));
 
 			if (from == end || (*from != '}' && *from != ':')) throw Exception(QString("Expected '}' or ':' after tag name in key '%1'!").arg(QLatin1String(varName)));

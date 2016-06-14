@@ -152,6 +152,9 @@ enum {
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
+	SaveCloudDraftIdleTimeout = 14000, // save draft to the cloud after 14 more seconds
+	SaveCloudDraftTimeout = 1000, // save draft to the cloud with 1 sec extra delay
+	SaveDraftBeforeQuitTimeout = 1500, // give the app 1.5 secs to save drafts to cloud when quitting
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
@@ -313,7 +316,6 @@ inline const char *cApiSystemVersion() {
 inline QString cApiAppVersion() {
 	return QString::number(AppVersion);
 }
-static const char *ApiLang = "en";
 
 extern QString gKeyFile;
 inline const QString &cDataFile() {

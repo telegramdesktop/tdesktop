@@ -82,7 +82,7 @@ repl () {
   CheckCount=`eval $CheckCommand`
   set -e
   if [ "$CheckCount" -gt 0 ]; then
-    ReplaceCommand="sed -i 's/$Pattern/$Replacement/g' $File"
+    ReplaceCommand="sed -i'.~' 's/$Pattern/$Replacement/g' $File"
     eval $ReplaceCommand
   else
     echo "Not found $Pattern"
@@ -92,36 +92,36 @@ repl () {
 
 echo "Patching build/version..."
 VersionFilePath="$FullScriptPath/version"
-repl "\(AppVersion\) \(\s*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionFilePath"
-repl "\(AppVersionStrMajor\) \(\s*\)[0-9][0-9\.]*" "\1\2 $VersionMajor.$VersionMinor" "$VersionFilePath"
-repl "\(AppVersionStrSmall\) \(\s*\)[0-9][0-9\.]*" "\1\2 $VersionStrSmall" "$VersionFilePath"
-repl "\(AppVersionStr\) \(\s*\)[0-9][0-9\.]*" "\1\2 $VersionStr" "$VersionFilePath"
-repl "\(AlphaChannel\) \(\s*\)[0-9][0-9]*" "\1\2 $VersionAlpha" "$VersionFilePath"
-repl "\(BetaVersion\) \(\s*\)[0-9][0-9]*" "\1\2 $VersionFullBeta" "$VersionFilePath"
+repl "\(AppVersion\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionFilePath"
+repl "\(AppVersionStrMajor\) \([ ]*\)[0-9][0-9\.]*" "\1\2 $VersionMajor.$VersionMinor" "$VersionFilePath"
+repl "\(AppVersionStrSmall\) \([ ]*\)[0-9][0-9\.]*" "\1\2 $VersionStrSmall" "$VersionFilePath"
+repl "\(AppVersionStr\) \([ ]*\)[0-9][0-9\.]*" "\1\2 $VersionStr" "$VersionFilePath"
+repl "\(AlphaChannel\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionAlpha" "$VersionFilePath"
+repl "\(BetaVersion\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionFullBeta" "$VersionFilePath"
 
 echo "Patching core/version.h..."
 VersionHeaderPath="$FullScriptPath/../SourceFiles/core/version.h"
-repl "\(BETA_VERSION_MACRO\s\s*\)([0-9][0-9]*ULL)" "\1(${VersionFullBeta}ULL)" "$VersionHeaderPath"
-repl "\(AppVersion\s\s*=\) \(\s*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionHeaderPath"
-repl "\(AppVersionStr\s\s*=\) \(\s*\)[^;][^;]*" "\1\2 \"$VersionStrSmall\"" "$VersionHeaderPath"
-repl "\(AppAlphaVersion\s\s*=\) \(\s*\)[a-z][a-z]*" "\1\2 $VersionAlphaBool" "$VersionHeaderPath"
+repl "\(BETA_VERSION_MACRO [ ]*\)([0-9][0-9]*ULL)" "\1(${VersionFullBeta}ULL)" "$VersionHeaderPath"
+repl "\(AppVersion [ ]*=\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionHeaderPath"
+repl "\(AppVersionStr [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 \"$VersionStrSmall\"" "$VersionHeaderPath"
+repl "\(AppAlphaVersion [ ]*=\) \([ ]*\)[a-z][a-z]*" "\1\2 $VersionAlphaBool" "$VersionHeaderPath"
 
 echo "Patching project.pbxproj..."
 TelegramProjectPath="$FullScriptPath/../Telegram.xcodeproj/project.pbxproj"
-repl "\(TDESKTOP_MAJOR_VERSION\s\s*=\) \(\s*\)[^;][^;]*" "\1\2 $VersionMajor.$VersionMinor" "$TelegramProjectPath"
-repl "\(TDESKTOP_VERSION\s\s*=\) \(\s*\)[^;][^;]*" "\1\2 $VersionStrSmall" "$TelegramProjectPath"
+repl "\(TDESKTOP_MAJOR_VERSION [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 $VersionMajor.$VersionMinor" "$TelegramProjectPath"
+repl "\(TDESKTOP_VERSION [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 $VersionStrSmall" "$TelegramProjectPath"
 
 echo "Patching Telegram.rc..."
 ResourcePath="$FullScriptPath/../Resources/winrc/Telegram.rc"
-repl "\(FILEVERSION\) \(\s*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
-repl "\(PRODUCTVERSION\) \(\s*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
-repl "\(\"FileVersion\",\) \(\s*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
-repl "\(\"ProductVersion\",\) \(\s*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
+repl "\(FILEVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
+repl "\(PRODUCTVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
+repl "\(\"FileVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
+repl "\(\"ProductVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
 
 echo "Patching Updater.rc..."
 ResourcePath="$FullScriptPath/../Resources/winrc/Updater.rc"
-repl "\(FILEVERSION\) \(\s*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
-repl "\(PRODUCTVERSION\) \(\s*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
-repl "\(\"FileVersion\",\) \(\s*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
-repl "\(\"ProductVersion\",\) \(\s*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
+repl "\(FILEVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
+repl "\(PRODUCTVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"
+repl "\(\"FileVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
+repl "\(\"ProductVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
 

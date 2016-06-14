@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "langloaderplain.h"
 
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
-, _intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle)
+, _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
 , _changeLang(this, QString())
 , _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 	_changeLang.hide();

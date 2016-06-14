@@ -677,6 +677,7 @@ void ScrollArea::leaveEvent(QEvent *e) {
 
 void ScrollArea::scrollToY(int toTop, int toBottom) {
 	myEnsureResized(widget());
+	myEnsureResized(this);
 
 	int toMin = 0, toMax = scrollTopMax();
 	if (toTop < toMin) {
@@ -718,6 +719,10 @@ void ScrollArea::setWidget(QWidget *w) {
 		hor.raise();
 		vert.raise();
 	}
+	if (_ownsWidget) {
+		_ownsWidget = false;
+		delete takeWidget();
+	}
 	QScrollArea::setWidget(w);
 	if (w) {
 		w->setAutoFillBackground(false);
@@ -736,6 +741,11 @@ void ScrollArea::setWidget(QWidget *w) {
 			splitted->update();
 		}
 	}
+}
+
+void ScrollArea::setOwnedWidget(QWidget *widget) {
+	setWidget(widget);
+	_ownsWidget = true;
 }
 
 QWidget *ScrollArea::takeWidget() {
@@ -785,5 +795,7 @@ bool ScrollArea::focusNextPrevChild(bool next) {
 }
 
 ScrollArea::~ScrollArea() {
-	takeWidget();
+	if (!_ownsWidget) {
+		takeWidget();
+	}
 }

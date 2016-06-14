@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_list.h"
 
 #include "dialogs/dialogs_layout.h"
+#include "styles/style_dialogs.h"
 #include "mainwidget.h"
 
 namespace Dialogs {
@@ -47,16 +48,16 @@ void List::adjustCurrent(int32 y, int32 h) const {
 }
 
 void List::paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const {
-	adjustCurrent(hFrom, st::dlgHeight);
+	adjustCurrent(hFrom, st::dialogsRowHeight);
 
 	Row *row = _current;
-	p.translate(0, row->_pos * st::dlgHeight);
-	while (row != _end && row->_pos * st::dlgHeight < hTo) {
+	p.translate(0, row->_pos * st::dialogsRowHeight);
+	while (row != _end && row->_pos * st::dialogsRowHeight < hTo) {
 		bool active = (row->history()->peer == act) || (row->history()->peer->migrateTo() && row->history()->peer->migrateTo() == act);
 		bool selected = (row->history()->peer == sel);
 		Layout::RowPainter::paint(p, row, w, active, selected, onlyBackground);
 		row = row->_next;
-		p.translate(0, st::dlgHeight);
+		p.translate(0, st::dialogsRowHeight);
 	}
 }
 

@@ -48,7 +48,7 @@ public:
 	void showPhoto(PhotoData *photo, PeerData *context);
 	void showDocument(DocumentData *doc, HistoryItem *context);
 	void moveToScreen();
-	void moveToNext(int32 delta);
+	bool moveToNext(int32 delta);
 	void preloadData(int32 delta);
 
 	void leaveToChildEvent(QEvent *e) override { // e -- from enterEvent() of child TWidget
@@ -111,6 +111,14 @@ private:
 	void findCurrent();
 	void loadBack();
 
+	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
+	struct LastChatPhoto {
+		HistoryItem *item;
+		PhotoData *photo;
+	};
+	LastChatPhoto computeLastOverviewChatPhoto();
+	void computeAdditionalChatPhoto(PeerData *peer, PhotoData *lastOverviewPhoto);
+
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
 
 	void deletePhotosDone(const MTPVector<MTPlong> &result);
@@ -124,14 +132,17 @@ private:
 
 	QBrush _transparentBrush;
 
-	PhotoData *_photo;
-	DocumentData *_doc;
-	MediaOverviewType _overview;
+	PhotoData *_photo = nullptr;
+	DocumentData *_doc = nullptr;
+	MediaOverviewType _overview = OverviewCount;
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
 	QRect _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;
-	bool _leftNavVisible, _rightNavVisible, _saveVisible, _headerHasLink;
+	bool _leftNavVisible = false;
+	bool _rightNavVisible = false;
+	bool _saveVisible = false;
+	bool _headerHasLink = false;
 	QString _dateText;
 	QString _headerText;
 
@@ -140,15 +151,17 @@ private:
 
 	uint64 _animStarted;
 
-	int32 _width, _x, _y, _w, _h, _xStart, _yStart;
-	int32 _zoom; // < 0 - out, 0 - none, > 0 - in
-	float64 _zoomToScreen; // for documents
+	int _width = 0;
+	int _x = 0, _y = 0, _w = 0, _h = 0;
+	int _xStart = 0, _yStart = 0;
+	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
+	float64 _zoomToScreen = 0.; // for documents
 	QPoint _mStart;
-	bool _pressed;
-	int32 _dragging;
+	bool _pressed = false;
+	int32 _dragging = 0;
 	QPixmap _current;
-	ClipReader *_gif;
-	int32 _full; // -1 - thumb, 0 - medium, 1 - full
+	ClipReader *_gif = nullptr;
+	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
 
 	bool fileShown() const;
 	bool gifShown() const;
@@ -157,26 +170,32 @@ private:
 	style::sprite _docIcon;
 	style::color _docIconColor;
 	QString _docName, _docSize, _docExt;
-	int32 _docNameWidth, _docSizeWidth, _docExtWidth;
+	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
-	int32 _docThumbx, _docThumby, _docThumbw;
+	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
 	RadialAnimation _docRadial;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
-	History *_migrated, *_history; // if conversation photos or files overview
-	PeerData *_peer;
-	UserData *_user; // if user profile photos overview
+	History *_migrated = nullptr;
+	History *_history = nullptr; // if conversation photos or files overview
+	PeerData *_peer = nullptr;
+	UserData *_user = nullptr; // if user profile photos overview
 
-	PeerData *_from;
+	// There can be additional first photo in chat photos overview, that is not
+	// in the _history->overview[OverviewChatPhotos] (if the item was deleted).
+	PhotoData *_additionalChatPhoto = nullptr;
+
+	PeerData *_from = nullptr;
 	Text _fromName;
 
-	int32 _index; // index in photos or files array, -1 if just photo
-	MsgId _msgid; // msgId of current photo or file
-	bool _msgmigrated; // msgId is from _migrated history
-	ChannelId _channel;
-	bool _canForward, _canDelete;
+	int _index = -1; // index in photos or files array, -1 if just photo
+	MsgId _msgid = 0; // msgId of current photo or file
+	bool _msgmigrated = false; // msgId is from _migrated history
+	ChannelId _channel = NoChannel;
+	bool _canForward = false;
+	bool _canDelete = false;
 
-	mtpRequestId _loadRequest;
+	mtpRequestId _loadRequest = 0;
 
 	enum OverState {
 		OverNone,
@@ -190,9 +209,10 @@ private:
 		OverMore,
 		OverIcon,
 	};
-	OverState _over, _down;
+	OverState _over = OverNone;
+	OverState _down = OverNone;
 	QPoint _lastAction, _lastMouseMovePos;
-	bool _ignoringDropdown;
+	bool _ignoringDropdown = false;
 
 	Animation _a_state;
 
@@ -202,25 +222,25 @@ private:
 		ControlsHiding,
 		ControlsHidden,
 	};
-	ControlsState _controlsState;
-	uint64 _controlsAnimStarted;
+	ControlsState _controlsState = ControlsShown;
+	uint64 _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
 
-	PopupMenu *_menu;
+	PopupMenu *_menu = nullptr;
 	Dropdown _dropdown;
 	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
 	QList<IconedButton*> _btns;
 
-	bool _receiveMouse;
+	bool _receiveMouse = true;
 
-	bool _touchPress, _touchMove, _touchRightButton;
+	bool _touchPress = false, _touchMove = false, _touchRightButton = false;
 	QTimer _touchTimer;
 	QPoint _touchStart;
 	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
-	uint64 _saveMsgStarted;
+	uint64 _saveMsgStarted = 0;
 	anim::fvalue _saveMsgOpacity;
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;

@@ -187,7 +187,7 @@ QAbstractNativeEventFilter *psNativeEventFilter();
 void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
-QString psConvertFileUrl(const QString &url);
+QString psConvertFileUrl(const QUrl &url);
 
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);

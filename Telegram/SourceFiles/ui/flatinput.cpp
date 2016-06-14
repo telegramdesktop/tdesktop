@@ -2472,9 +2472,9 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 void PhoneInput::clearText() {
 	QString phone;
 	if (App::self()) {
-		QVector<int> newPattern = phoneNumberParse(App::self()->phone);
+		QVector<int> newPattern = phoneNumberParse(App::self()->phone());
 		if (!newPattern.isEmpty()) {
-			phone = App::self()->phone.mid(0, newPattern.at(0));
+			phone = App::self()->phone().mid(0, newPattern.at(0));
 		}
 	}
 	setText(phone);

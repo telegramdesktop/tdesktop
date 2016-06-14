@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/observer.h"
+
 void filedialogInit();
 bool filedialogGetOpenFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter);
 bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QString &caption, const QString &filter);
@@ -28,3 +30,38 @@ bool filedialogGetDir(QString &dir, const QString &caption);
 
 QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false);
 QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path = QString());
+
+namespace FileDialog {
+
+using QueryId = uint64;
+struct QueryUpdate {
+	QueryUpdate(QueryId id) : queryId(id) {
+	}
+	QueryId queryId;
+	QStringList filePaths;
+	QByteArray remoteContent;
+};
+
+QueryId queryReadFile(const QString &caption, const QString &filter);
+QueryId queryReadFiles(const QString &caption, const QString &filter);
+QueryId queryWriteFile(const QString &caption, const QString &filter, const QString &filePath);
+QueryId queryReadFolder(const QString &caption);
+
+// Returns false if no need to call it anymore right now.
+// NB! This function enters an event loop.
+bool processQuery();
+
+namespace internal {
+
+using QueryUpdateHandler = Function<void, const QueryUpdate&>;
+Notify::ConnectionId plainRegisterObserver(QueryUpdateHandler &&handler);
+
+} // namespace internal
+
+template <typename ObserverType>
+void registerObserver(ObserverType *observer, void (ObserverType::*handler)(const QueryUpdate &)) {
+	auto connection = internal::plainRegisterObserver(func(observer, handler));
+	Notify::observerRegistered(observer, connection);
+}
+
+} // namespace FileDialog

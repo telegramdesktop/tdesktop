@@ -31,8 +31,6 @@ public:
 
 	FlatButton(QWidget *parent, const QString &text, const style::flatButton &st);
 
-	void resizeEvent(QResizeEvent *e);
-
 	void step_appearance(float64 ms, bool timer);
 	void paintEvent(QPaintEvent *e);
 	void setOpacity(float64 o);
@@ -40,7 +38,6 @@ public:
 
 	void setText(const QString &text);
 	void setWidth(int32 w);
-	void setAutoFontSize(int32 padding, const QString &txt);
 
 	int32 textWidth() const;
 
@@ -57,9 +54,6 @@ private:
 	int32 _textWidth;
 
 	style::flatButton _st;
-
-	int32 _autoFontPadding;
-	style::font _autoFont;
 
 	anim::cvalue a_bg, a_text;
 	Animation _a_appearance;
@@ -151,8 +145,11 @@ private:
 
 	void step_loading(uint64 ms, bool timer) {
 		if (timer) {
-			update();
+			updateCallback();
 		}
+	}
+	void updateCallback() {
+		update();
 	}
 
 };

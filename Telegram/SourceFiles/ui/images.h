@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtGui/QPixmap>
+#include "mtproto/file_download.h"
 
 QImage imageBlur(QImage img);
 void imageRound(QImage &img);

@@ -98,6 +98,9 @@ private:
 	structure::Value readIconValue();
 	structure::Value readCopyValue();
 
+	structure::Value readNumericOrNumericCopyValue();
+	structure::Value readStringOrStringCopyValue();
+
 	structure::data::monoicon readMonoIconFields();
 	QString readMonoIconFilename();
 
@@ -131,6 +134,7 @@ private:
 		{ "align"     , { structure::TypeTag::Align } },
 		{ "margins"   , { structure::TypeTag::Margins } },
 		{ "font"      , { structure::TypeTag::Font } },
+		{ "icon"      , { structure::TypeTag::Icon } },
 	};
 
 };

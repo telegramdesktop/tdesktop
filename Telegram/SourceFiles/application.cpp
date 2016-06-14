@@ -27,9 +27,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "lang.h"
 #include "boxes/confirmbox.h"
+#include "ui/filedialog.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
+#include "core/observer.h"
+#include "observer_peer.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -201,6 +204,7 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
+	Notify::startObservers();
 	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
@@ -337,6 +341,8 @@ void Application::closeApplication() {
 	if (_updateThread) _updateThread->quit();
 	_updateThread = 0;
 #endif
+
+	Notify::finishObservers();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -903,6 +909,18 @@ void AppClass::call_handleUnreadCounterUpdate() {
 	}
 }
 
+void AppClass::call_handleFileDialogQueue() {
+	while (true) {
+		if (!FileDialog::processQuery()) {
+			return;
+		}
+	}
+}
+
+void AppClass::call_handleDelayedPeerUpdates() {
+	Notify::peerUpdatedSendDelayed();
+}
+
 void AppClass::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
@@ -1019,7 +1037,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
+	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 
@@ -1032,10 +1050,10 @@ void AppClass::checkMapVersion() {
   if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9049) {
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9050) {
 //				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
 				versionFeatures = langNewVersionText();
-			} else if (Local::oldMapVersion() < 9049) {
+			} else if (Local::oldMapVersion() < 9050) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

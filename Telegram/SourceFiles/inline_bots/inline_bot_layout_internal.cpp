@@ -216,9 +216,8 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (_delete && p == _delete) {
 		bool wasactive = (_state & StateFlag::DeleteOver);
 		if (active != wasactive) {
-			float64 from = active ? 0 : 1, to = active ? 1 : 0;
-			EnsureAnimation(_a_deleteOver, from, func(this, &Gif::update));
-			_a_deleteOver.start(to, st::stickersRowDuration);
+			auto from = active ? 0. : 1., to = active ? 1. : 0.;
+			START_ANIMATION(_a_deleteOver, func(this, &Gif::update), from, to, st::stickersRowDuration, anim::linear);
 			if (active) {
 				_state |= StateFlag::DeleteOver;
 			} else {
@@ -231,9 +230,8 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		if (active != wasactive) {
 			if (!getShownDocument()->loaded()) {
 				ensureAnimation();
-				float64 from = active ? 0 : 1, to = active ? 1 : 0;
-				EnsureAnimation(_animation->_a_over, from, func(this, &Gif::update));
-				_animation->_a_over.start(to, st::stickersRowDuration);
+				auto from = active ? 0. : 1., to = active ? 1. : 0.;
+				START_ANIMATION(_animation->_a_over, func(this, &Gif::update), from, to, st::stickersRowDuration, anim::linear);
 			}
 			if (active) {
 				_state |= StateFlag::Over;
@@ -413,9 +411,8 @@ void Sticker::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		if (active != _active) {
 			_active = active;
 
-			float64 from = _active ? 0 : 1, to = _active ? 1 : 0;
-			EnsureAnimation(_a_over, from, func(this, &Sticker::update));
-			_a_over.start(to, st::stickersRowDuration);
+			auto from = active ? 0. : 1., to = active ? 1. : 0.;
+			START_ANIMATION(_a_over, func(this, &Sticker::update), from, to, st::stickersRowDuration, anim::linear);
 		}
 	}
 	ItemBase::clickHandlerActiveChanged(p, active);

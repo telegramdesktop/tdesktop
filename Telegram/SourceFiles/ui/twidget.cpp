@@ -77,3 +77,45 @@ QPixmap myGrab(TWidget *target, QRect rect) {
 
 	return result;
 }
+
+enum class Mode {
+	Shown,
+	ShownFast,
+	Hidden,
+	HiddenFast
+};
+void ToggleableShadow::setMode(Mode mode) {
+	if (mode == Mode::ShownFast || mode == Mode::HiddenFast) {
+		if (!_a_opacity.isNull()) {
+			_a_opacity.finish();
+			update();
+		}
+	}
+	if (_shown && (mode == Mode::Hidden || mode == Mode::HiddenFast)) {
+		_shown = false;
+		if (mode == Mode::Hidden) {
+			if (_a_opacity.isNull()) {
+				_a_opacity.setup(1., func(this, &ToggleableShadow::repaintCallback));
+			}
+			_a_opacity.start(0., st::shadowToggleDuration);
+		}
+	} else if (!_shown && (mode == Mode::Shown || mode == Mode::ShownFast)) {
+		_shown = true;
+		if (mode == Mode::Shown) {
+			if (_a_opacity.isNull()) {
+				_a_opacity.setup(0., func(this, &ToggleableShadow::repaintCallback));
+			}
+			_a_opacity.start(1., st::shadowToggleDuration);
+		}
+	}
+}
+
+void ToggleableShadow::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (_a_opacity.animating(getms())) {
+		p.setOpacity(_a_opacity.current());
+	} else if (!_shown) {
+		return;
+	}
+	p.fillRect(e->rect(), _color);
+}

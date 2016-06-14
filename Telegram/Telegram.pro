@@ -68,7 +68,10 @@ SOURCES += \
     ./GeneratedFiles/numbers.cpp \
     ./GeneratedFiles/styles/style_basic.cpp \
     ./GeneratedFiles/styles/style_basic_types.cpp \
+    ./GeneratedFiles/styles/style_dialogs.cpp \
+    ./GeneratedFiles/styles/style_history.cpp \
     ./GeneratedFiles/styles/style_overview.cpp \
+    ./GeneratedFiles/styles/style_profile.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -87,9 +90,9 @@ SOURCES += \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/layout.cpp \
     ./SourceFiles/mediaview.cpp \
+    ./SourceFiles/observer_peer.cpp \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
-    ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/playerwidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
@@ -116,16 +119,22 @@ SOURCES += \
     ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/report_box.cpp \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
     ./SourceFiles/core/basic_types.cpp \
     ./SourceFiles/core/click_handler.cpp \
     ./SourceFiles/core/click_handler_types.cpp \
+    ./SourceFiles/core/observer.cpp \
+    ./SourceFiles/data/data_abstract_structure.cpp \
+    ./SourceFiles/data/data_drafts.cpp \
     ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
     ./SourceFiles/dialogs/dialogs_layout.cpp \
     ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/dialogs/dialogs_row.cpp \
     ./SourceFiles/history/field_autocomplete.cpp \
+    ./SourceFiles/history/history_service_layout.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
     ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
     ./SourceFiles/inline_bots/inline_bot_result.cpp \
@@ -151,9 +160,26 @@ SOURCES += \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/overview/overview_layout.cpp \
+    ./SourceFiles/profile/profile_actions_widget.cpp \
+    ./SourceFiles/profile/profile_block_widget.cpp \
+    ./SourceFiles/profile/profile_cover_drop_area.cpp \
+    ./SourceFiles/profile/profile_cover.cpp \
+    ./SourceFiles/profile/profile_fixed_bar.cpp \
+    ./SourceFiles/profile/profile_info_widget.cpp \
+    ./SourceFiles/profile/profile_inner_widget.cpp \
+    ./SourceFiles/profile/profile_invite_link_widget.cpp \
+    ./SourceFiles/profile/profile_members_widget.cpp \
+    ./SourceFiles/profile/profile_section_memento.cpp \
+    ./SourceFiles/profile/profile_settings_widget.cpp \
+    ./SourceFiles/profile/profile_shared_media_widget.cpp \
+    ./SourceFiles/profile/profile_userpic_button.cpp \
+    ./SourceFiles/profile/profile_widget.cpp \
     ./SourceFiles/serialize/serialize_common.cpp \
     ./SourceFiles/serialize/serialize_document.cpp \
+    ./SourceFiles/ui/buttons/history_down_button.cpp \
+    ./SourceFiles/ui/buttons/left_outline_button.cpp \
     ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
+    ./SourceFiles/ui/buttons/round_button.cpp \
     ./SourceFiles/ui/style/style_core.cpp \
     ./SourceFiles/ui/style/style_core_color.cpp \
     ./SourceFiles/ui/style/style_core_font.cpp \
@@ -180,6 +206,8 @@ SOURCES += \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/twidget.cpp \
+    ./SourceFiles/window/section_widget.cpp \
+    ./SourceFiles/window/slide_animation.cpp \
     ./SourceFiles/window/top_bar_widget.cpp
 
 HEADERS += \
@@ -187,7 +215,10 @@ HEADERS += \
     ./GeneratedFiles/numbers.h \
     ./GeneratedFiles/styles/style_basic.h \
     ./GeneratedFiles/styles/style_basic_types.h \
+    ./GeneratedFiles/styles/style_dialogs.h \
+    ./GeneratedFiles/styles/style_history.h \
     ./GeneratedFiles/styles/style_overview.h \
+    ./GeneratedFiles/styles/style_profile.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -207,9 +238,9 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/layout.h \
     ./SourceFiles/mediaview.h \
+    ./SourceFiles/observer_peer.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
-    ./SourceFiles/profilewidget.h \
     ./SourceFiles/playerwidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \
@@ -236,20 +267,26 @@ HEADERS += \
     ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/report_box.h \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
     ./SourceFiles/core/basic_types.h \
     ./SourceFiles/core/click_handler.h \
     ./SourceFiles/core/click_handler_types.h \
+    ./SourceFiles/core/observer.h \
+    ./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
+    ./SourceFiles/data/data_abstract_structure.h \
+    ./SourceFiles/data/data_drafts.h \
     ./SourceFiles/dialogs/dialogs_common.h \
     ./SourceFiles/dialogs/dialogs_indexed_list.h \
     ./SourceFiles/dialogs/dialogs_layout.h \
     ./SourceFiles/dialogs/dialogs_list.h \
     ./SourceFiles/dialogs/dialogs_row.h \
-    ./SourceFiles/history/history_common.h \
     ./SourceFiles/history/field_autocomplete.h \
+    ./SourceFiles/history/history_common.h \
+    ./SourceFiles/history/history_service_layout.h \
     ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
     ./SourceFiles/inline_bots/inline_bot_layout_item.h \
     ./SourceFiles/inline_bots/inline_bot_result.h \
@@ -275,10 +312,27 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/overview/overview_layout.h \
+    ./SourceFiles/profile/profile_actions_widget.h \
+    ./SourceFiles/profile/profile_block_widget.h \
+    ./SourceFiles/profile/profile_cover_drop_area.h \
+    ./SourceFiles/profile/profile_cover.h \
+    ./SourceFiles/profile/profile_fixed_bar.h \
+    ./SourceFiles/profile/profile_info_widget.h \
+    ./SourceFiles/profile/profile_inner_widget.h \
+    ./SourceFiles/profile/profile_invite_link_widget.h \
+    ./SourceFiles/profile/profile_members_widget.h \
+    ./SourceFiles/profile/profile_section_memento.h \
+    ./SourceFiles/profile/profile_settings_widget.h \
+    ./SourceFiles/profile/profile_shared_media_widget.h \
+    ./SourceFiles/profile/profile_userpic_button.h \
+    ./SourceFiles/profile/profile_widget.h \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/serialize/serialize_common.h \
     ./SourceFiles/serialize/serialize_document.h \
+    ./SourceFiles/ui/buttons/history_down_button.h \
+    ./SourceFiles/ui/buttons/left_outline_button.h \
     ./SourceFiles/ui/buttons/peer_avatar_button.h \
+    ./SourceFiles/ui/buttons/round_button.h \
     ./SourceFiles/ui/style/style_core.h \
     ./SourceFiles/ui/style/style_core_color.h \
     ./SourceFiles/ui/style/style_core_font.h \
@@ -305,6 +359,9 @@ HEADERS += \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/twidget.h \
+    ./SourceFiles/window/section_memento.h \
+    ./SourceFiles/window/section_widget.h \
+    ./SourceFiles/window/slide_animation.h \
     ./SourceFiles/window/top_bar_widget.h
 
 win32 {
@@ -358,9 +415,9 @@ CONFIG(debug, debug|release) {
 	QMAKE_LFLAGS_DEBUG += -g -rdynamic -static-libstdc++
 }
 
-INCLUDEPATH += /usr/local/tdesktop/Qt-5.6.0/include/QtGui/5.6.0/QtGui\
-               /usr/local/tdesktop/Qt-5.6.0/include/QtCore/5.6.0/QtCore\
-               /usr/local/tdesktop/Qt-5.6.0/include\
+include(qt_static.pri)
+
+INCLUDEPATH += \
                /usr/local/include\
                /usr/local/include/opus\
                ./SourceFiles\
@@ -384,9 +441,9 @@ INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
 LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
-LIBS += /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
-        /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
-        /usr/local/tdesktop/Qt-5.6.0/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
+        $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
+        $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
 LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
@@ -405,4 +462,8 @@ OTHER_FILES += \
     ./Resources/langs/lang_es.strings \
     ./Resources/langs/lang_de.strings \
     ./Resources/langs/lang_nl.strings \
-    ./Resources/langs/lang_pt_BR.strings
+    ./Resources/langs/lang_pt_BR.strings \
+    ./SourceFiles/dialogs/dialogs.style \
+    ./SourceFiles/history/history.style \
+    ./SourceFiles/overview/overview.style \
+    ./SourceFiles/profile/profile.style

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "abstractbox.h"
+#include "ui/flatlabel.h"
 
 class InformBox;
 class ConfirmBox : public AbstractBox, public ClickHandlerHost {
@@ -216,7 +217,7 @@ private:
 
 	BoxButton _pin, _cancel;
 
-	mtpRequestId _requestId;
+	mtpRequestId _requestId = 0;
 
 };
 

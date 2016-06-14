@@ -29,13 +29,13 @@ enum PrepareMediaType {
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, PrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, PrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, PrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, PrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;
@@ -44,7 +44,6 @@ struct ToPrepareMedia {
 	PeerId peer;
 	PrepareMediaType type;
 	int32 duration;
-	bool broadcast;
 	bool ctrlShiftEnter;
 	MsgId replyTo;
 };
@@ -52,8 +51,8 @@ typedef QList<ToPrepareMedia> ToPrepareMedias;
 
 typedef QMap<int32, QByteArray> UploadFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(PrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) :
-		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), broadcast(broadcast), ctrlShiftEnter(ctrlShiftEnter) {
+	ReadyLocalMedia(PrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter, MsgId replyTo) :
+		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
@@ -78,7 +77,6 @@ struct ReadyLocalMedia {
 	UploadFileParts parts;
 	QByteArray jpeg_md5;
 
-	bool broadcast;
 	bool ctrlShiftEnter;
 	QString caption;
 
@@ -166,14 +164,13 @@ private:
 };
 
 struct FileLoadTo {
-	FileLoadTo(const PeerId &peer, bool broadcast, bool silent, MsgId replyTo)
+	FileLoadTo(const PeerId &peer, bool silent, MsgId replyTo)
 		: peer(peer)
-		, broadcast(broadcast)
 		, silent(silent)
 		, replyTo(replyTo) {
 	}
 	PeerId peer;
-	bool broadcast, silent;
+	bool silent;
 	MsgId replyTo;
 };
 

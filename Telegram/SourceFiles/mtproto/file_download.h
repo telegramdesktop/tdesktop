@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/observer.h"
+
 namespace MTP {
 	void clearLoaderPriorities();
 }
@@ -391,3 +393,21 @@ static WebLoadManager * const FinishedWebLoadManager = SharedMemoryLocation<WebL
 
 void reinitWebLoadManager();
 void stopWebLoadManager();
+
+namespace FileDownload {
+namespace internal {
+
+using ImageLoadedHandler = Function<void>;
+Notify::ConnectionId plainRegisterImageLoadedObserver(ImageLoadedHandler &&handler);
+
+void notifyImageLoaded();
+
+} // namespace internal
+
+template <typename ObserverType>
+void registerImageLoadedObserver(ObserverType *observer, void (ObserverType::*handler)()) {
+	auto connection = internal::plainRegisterImageLoadedObserver(func(observer, handler));
+	Notify::observerRegistered(observer, connection);
+}
+
+} // namespace FileDownload

@@ -117,13 +117,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_status" = "kanaal";
 "lng_group_status" = "groep";
 
-"lng_channel_members_link" = "{count:_not_used_|# lid|# leden} »";
-"lng_channel_admins_link" = "{count:Beheerders wijzigen|# beheerders|# beheerders} »";
+"lng_channel_members_link" = "{count:_not_used_|# lid|# leden}";
+"lng_channel_admins_link" = "{count:_not_used_|# beheerder|# beheerders}";
 
 "lng_server_error" = "Interne serverfout.";
 "lng_flood_error" = "Teveel pogingen. Probeer het later opnieuw.";
 "lng_gif_error" = "Er is iets een fout opgetreden bij het lezen van de GIF :(";
 "lng_edit_error" = "Je mag dit bericht niet bewerken";
+"lng_join_channel_error" = "Je bent lid van teveel kanalen of supergroepen, verlaat er wat om hier lid te worden.";
 "lng_edit_deleted" = "Bericht is gewist";
 "lng_edit_too_long" = "Je bericht is te lang";
 "lng_edit_message" = "Bericht bewerken";
@@ -405,12 +406,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_actions_section" = "Acties";
 "lng_profile_bot_settings" = "Instellingen";
 "lng_profile_bot_help" = "Help";
+"lng_profile_invite_link_section" = "Uitnodigingslink";
 "lng_profile_create_public_link" = "Publieke link maken";
 "lng_profile_edit_public_link" = "Publieke link wijzigen";
+"lng_profile_manage_admins" = "Beheerders wijzigen";
 "lng_profile_participants_section" = "Leden";
-"lng_profile_info" = "Contactinformatie";
-"lng_profile_group_info" = "Groepsinformatie";
-"lng_profile_channel_info" = "Kanaalinformatie";
+"lng_profile_info_section" = "Informatie";
+"lng_profile_mobile_number" = "Mobiel:";
+"lng_profile_username" = "Gebruikersnaam:";
+"lng_profile_link" = "Link:";
 "lng_profile_add_contact" = "Contact toevoegen";
 "lng_profile_edit_contact" = "Wijzig";
 "lng_profile_enable_notifications" = "Meldingen";
@@ -421,6 +425,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_channel" = "Kanaal verwijderen";
 "lng_profile_leave_group" = "Groep verlaten";
 "lng_profile_delete_group" = "Groep verwijderen";
+"lng_profile_report" = "Melden";
 "lng_profile_search_messages" = "Zoek berichten";
 "lng_profile_block_user" = "Blokkeer gebruiker";
 "lng_profile_unblock_user" = "Deblokkeer gebruiker";
@@ -432,6 +437,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_contact" = "Verwijder";
 "lng_profile_set_group_photo" = "Foto instellen";
 "lng_profile_add_participant" = "Lid toevoegen";
+"lng_profile_view_channel" = "Naar kanaal";
+"lng_profile_join_channel" = "Lid worden";
 "lng_profile_delete_and_exit" = "Verlaat";
 "lng_profile_kick" = "Verwijder";
 "lng_profile_admin" = "beheerder";
@@ -441,20 +448,34 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_loading" = "Laden...";
 "lng_profile_shared_media" = "Gedeelde media";
 "lng_profile_no_media" = "Geen media in deze chat.";
-"lng_profile_photos" = "{count:_not_used_|# foto|# foto's} »";
+"lng_profile_photos" = "{count:_not_used_|# foto|# foto's}";
 "lng_profile_photos_header" = "Foto-overzicht";
-"lng_profile_videos" = "{count:_not_used_|# video|# video's} »";
+"lng_profile_videos" = "{count:_not_used_|# video|# video's}";
 "lng_profile_videos_header" = "Video-overzicht";
-"lng_profile_songs" = "{count:_not_used_|# audiobestand|# audiobestanden} »";
+"lng_profile_songs" = "{count:_not_used_|# audiobestand|# audiobestanden}";
 "lng_profile_songs_header" = "Audio-overzicht";
-"lng_profile_files" = "{count:_not_used_|# bestand|# bestanden} »";
+"lng_profile_files" = "{count:_not_used_|# bestand|# bestanden}";
 "lng_profile_files_header" = "Bestandsoverzicht";
-"lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
+"lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten}";
 "lng_profile_audios_header" = "Spraakberichten-overzicht";
-"lng_profile_shared_links" = "{count:_not_used_|# gedeelde link|# gedeelde links} »";
+"lng_profile_shared_links" = "{count:_not_used_|# gedeelde link|# gedeelde links}";
 "lng_profile_shared_links_header" = "Links-overzicht";
 "lng_profile_copy_phone" = "Telefoonnummer kopiëren";
 "lng_profile_copy_fullname" = "Naam kopiëren";
+"lng_profile_drop_area_title" = "Sleep afbeelding hierheen";
+"lng_profile_drop_area_subtitle" = "om als groepsfoto in te stellen";
+"lng_profile_drop_area_subtitle_channel" = "om als kanaalfoto in te stellen";
+"lng_profile_top_bar_share_contact" = "Delen";
+
+"lng_report_title" = "Kanaal melden";
+"lng_report_group_title" = "Groep melden";
+"lng_report_reason_spam" = "Spam";
+"lng_report_reason_violence" = "Geweld";
+"lng_report_reason_pornography" = "Pornografie";
+"lng_report_reason_other" = "Overig";
+"lng_report_reason_description" = "Beschrijving";
+"lng_report_button" = "Melden";
+"lng_report_thanks" = "Bedankt! Je melding zal zo spoedig mogen worden gecontroleerd.";
 
 "lng_channel_add_admins" = "Beheerder toevoegen";
 "lng_channel_add_members" = "Leden toevoegen";
@@ -487,8 +508,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_group_about" = "Iedereen kan de groep vinden, er lid van worden en de geschiedenis zien";
 "lng_create_private_group_title" = "Privé-groep";
 "lng_create_private_group_about" = "Lid worden kan alleen op uitnodiging of via uitnodigingslink";
-"lng_create_channel_comments" = "Reacties inschakelen";
-"lng_create_channel_comments_about" = "Als je reacties inschakelt kunnen leden reageren op je bericht in het kanaal.";
 "lng_create_group_skip" = "Overslaan";
 
 "lng_create_channel_link_invalid" = "Deze naam is ongeldig.";
@@ -552,6 +571,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_sticker" = "een sticker";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
+"lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
+"lng_profile_migrate_learn_more" = "Meer informatie »";
 "lng_profile_migrate_about" = "Wil je extra functies en een hogere limiet? Waardeer op naar een supergroep:";
 "lng_profile_migrate_feature1" = "— Supergroepen hebben tot {count:_not_used_|# lid|# leden}";
 "lng_profile_migrate_feature2" = "— Nieuwe leden zien de hele geschiedenis";
@@ -564,14 +585,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "supergroepen:";
 "lng_profile_convert_feature1" = "— Nieuwe leden zien de hele geschiedenis";
 "lng_profile_convert_feature2" = "— Gewiste berichten gelden voor alle leden";
-"lng_profile_convert_feature3" = "— Leden kunnen eigen berichten bewerken";
+"lng_profile_convert_feature3" = "— Beheerders kunnen berichten vastzetten";
 "lng_profile_convert_feature4" = "— Maker kan een publieke groepslink instellen";
 "lng_profile_convert_warning" = "{bold_start}Let op:{bold_end} Je kunt dit niet ongedaan maken.";
 "lng_profile_convert_confirm" = "Opwaarderen";
 "lng_profile_add_more_after_upgrade" = "Waardeer op naar een supergroep om tot {count:_not_used_|# lid|# leden} toe te voegen";
 
-"lng_channel_comments_count" = "{count:_not_used_|# reactie|# reacties}";
-"lng_channel_hide_comments" = "Reacties verbergen";
 "lng_channel_not_accessible" = "Sorry, dit kanaal is privé.";
 "lng_group_not_accessible" = "Sorry, deze groep is niet beschikbaar.";
 
@@ -587,7 +606,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_create" = "Uitnodigingslink maken";
 "lng_group_invite_about" = "Gebruikers kunnen lid worden\nvan je groep via deze link.";
 "lng_group_invite_create_new" = "Intrekken";
-"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden\neen nieuwe link zal worden gegenereerd.";
+"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden een nieuwe link zal worden gegenereerd.";
 "lng_group_invite_copied" = "Link gekopieerd naar klembord.";
 "lng_group_invite_no_room" = "De ledenlimiet van de groep is bereikt.";
 
@@ -700,7 +719,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht...";
-"lng_comment_ph" = "Reactie...";
 "lng_broadcast_ph" = "Massabericht...";
 "lng_broadcast_silent_ph" = "Stil massabericht...";
 "lng_record_cancel" = "Annuleren: uit het vak loslaten";
@@ -710,6 +728,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Jij";
+"lng_from_draft" = "Concept";
 "lng_bot_description" = "Wat kan deze bot? ";
 "lng_unblock_button" = "Deblokkeer";
 "lng_channel_join" = "Lid worden";
@@ -897,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— 2 dagen om je berichten naderhand te bewerken.\n— Anderen vermelden in groepen via '@', kies daarna de persoon uit de lijst. Ook als ze geen gebruikersnaam hebben!\n\nMeer over deze update: {link}";
+"lng_new_version_text" = "— Concepten: Synchroniseer conceptberichten over al je apparaten. Concepten zijn vanaf nu zichtbaar in het hoofdscherm.\n— Nieuw design voor profielen van groepen en gebruikers.\n— Aantal ongelezen berichten in de 'Scroll naar beneden'-knop.\n\nMeer over deze update: {link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -906,6 +925,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 // Not used
 
 "lng_topbar_info" = "Info";
+"lng_profile_group_info" = "Groepsinformatie";
+"lng_profile_channel_info" = "Kanaalinformatie";
 
 // Wnd specific
 

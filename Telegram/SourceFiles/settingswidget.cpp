@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settingswidget.h"
 
+#include "observer_peer.h"
 #include "lang.h"
 #include "boxes/aboutbox.h"
 #include "mainwidget.h"
@@ -89,7 +90,7 @@ void Slider::setSelected(int32 sel) {
 void Slider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(0, (height() - _st.thikness) / 2, width(), _st.thikness, _st.color->b);
+	p.fillRect(0, (height() - _st.thickness) / 2, width(), _st.thickness, _st.color->b);
 
 	int32 x = qFloor(_sel * float64(width() - _st.bar.pxWidth()) / (_count - 1)), y = (height() - _st.bar.pxHeight()) / 2;
 	p.drawSprite(QPoint(x, y), _st.bar);
@@ -122,7 +123,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _a_photo(animation(this, &SettingsInner::step_photo))
 
 // contact info
-, _phoneText(self() ? App::formatPhone(self()->phone) : QString())
+, _phoneText(self() ? App::formatPhone(self()->phone()) : QString())
 , _chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username))
 
 // notifications
@@ -205,6 +206,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _telegramFAQ(this, lang(lng_settings_faq))
 , _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
+	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
+
+	App::clearMousedItems();
+
 	if (self()) {
 		self()->loadUserpic();
 
@@ -269,13 +274,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->width(_newVersionText);
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
 	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
 	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
 	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-	#endif
+#endif
 
 	// chat options
 	connect(&_replaceEmojis, SIGNAL(changed()), this, SLOT(onReplaceEmojis()));
@@ -349,6 +354,14 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	setMouseTracking(true);
 }
 
+void SettingsInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+	if (update.peer == App::self()) {
+		if (update.flags & Notify::PeerUpdate::Flag::UsernameChanged) {
+			usernameChanged();
+		}
+	}
+}
+
 void SettingsInner::peerUpdated(PeerData *data) {
 	if (self() && data == self()) {
 		if (self()->photoId && self()->photoId != UnknownPeerPhotoId) {
@@ -415,7 +428,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 
 		p.setFont(st::setStatusFont->f);
 		bool connecting = App::wnd()->connectingVisible();
-		p.setPen((connecting ? st::profileOfflineColor : st::profileOnlineColor)->p);
+		p.setPen((connecting ? st::profileOfflineFg : st::profileOnlineFg)->p);
 		p.drawText(_uploadPhoto.x() + st::setStatusLeft, top + st::setStatusTop + st::setStatusFont->ascent, lang(connecting ? lng_status_connecting : lng_status_online));
 
 		top += st::setPhotoSize;
@@ -1869,7 +1882,7 @@ void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -1980,10 +1993,6 @@ void SettingsWidget::updateConnectionType() {
 
 void SettingsWidget::rpcClear() {
 	_inner.rpcClear();
-}
-
-void SettingsWidget::usernameChanged() {
-	_inner.usernameChanged();
 }
 
 void SettingsWidget::setInnerFocus() {

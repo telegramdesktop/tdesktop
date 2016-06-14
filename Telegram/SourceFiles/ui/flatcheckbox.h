@@ -87,27 +87,29 @@ class Checkbox : public Button {
 	Q_OBJECT
 
 public:
-
 	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
 
 	bool checked() const;
-	void setChecked(bool checked);
+	enum class NotifyAboutChange {
+		Notify,
+		DontNotify,
+	};
+	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
 
-	void step_over(float64 ms, bool timer);
-	void step_checked(float64 ms, bool timer);
+	void finishAnimations();
 
 	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void onClicked();
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 signals:
-
 	void changed();
 
 private:
+	void step_over(float64 ms, bool timer);
+	void step_checked(float64 ms, bool timer);
 
 	const style::Checkbox &_st;
 	anim::fvalue a_over, a_checked;

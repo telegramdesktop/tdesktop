@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "window/section_widget.h"
+
 namespace Overview {
 namespace Layout {
 
@@ -178,7 +180,7 @@ private:
 	int32 _itemsToBeLoaded;
 
 	// photos
-	int32 _photosInRow, _photosToAdd;
+	int32 _photosInRow;
 
 	QTimer _searchTimer;
 	QString _searchQuery;
@@ -276,10 +278,13 @@ public:
 	int32 countBestScroll() const;
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
+	bool hasTopBarShadow() const {
+		return true;
+	}
+	void setLastScrollTop(int lastScrollTop);
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 
-	void updateAdaptiveLayout();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
@@ -300,14 +305,17 @@ public:
 	void updateAfterDrag();
 
 	void grabStart() override {
-		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
 	void grabFinish() override {
-		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
 	}
 	void rpcClear() override {
 		_inner.rpcClear();
@@ -343,9 +351,9 @@ private:
 	QString _header;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	int32 _scrollSetAfterShow;
 
@@ -354,7 +362,7 @@ private:
 
 	int32 _selCount;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab;
 
 };

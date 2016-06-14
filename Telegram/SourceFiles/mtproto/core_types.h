@@ -1027,8 +1027,11 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message has a switch inline keyboard button, need to return to inline
 	f_has_switch_inline_button = (1 << 23),
 
+	// message is generated on the client side and should be unread
+	f_clientside_unread = (1 << 22),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 23),
+	MIN_FIELD = (1 << 22),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

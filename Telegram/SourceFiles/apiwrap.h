@@ -28,7 +28,7 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	typedef SharedCallback<void, ChannelData*, MsgId> RequestMessageDataCallback;
+	using RequestMessageDataCallback = SharedCallback<void, ChannelData*, MsgId>;
 	void requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback);
 
 	void requestFullPeer(PeerData *peer);
@@ -50,6 +50,18 @@ public:
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
 
+	void joinChannel(ChannelData *channel);
+	void leaveChannel(ChannelData *channel);
+
+	void blockUser(UserData *user);
+	void unblockUser(UserData *user);
+
+	void exportInviteLink(PeerData *peer);
+	void requestNotifySetting(PeerData *peer);
+
+	void saveDraftToCloudDelayed(History *history);
+	bool hasUnsavedDrafts() const;
+
 	~ApiWrap();
 
 signals:
@@ -62,8 +74,11 @@ public slots:
 	void resolveWebPages();
 
 	void delayedRequestParticipantsCount();
+	void saveDraftsToCloud();
 
 private:
+
+	void updatesReceived(const MTPUpdates &updates);
 
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	struct MessageDataRequest {
@@ -119,5 +134,29 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 	bool gotStickerSetFail(uint64 setId, const RPCError &error);
+
+	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
+	void channelAmInUpdated(ChannelData *channel);
+	void channelAmInDone(ChannelData *channel, const MTPUpdates &updates);
+	bool channelAmInFail(ChannelData *channel, const RPCError &error);
+
+	QMap<UserData*, mtpRequestId> _blockRequests;
+	void blockDone(UserData *user, const MTPBool &result);
+	void unblockDone(UserData *user, const MTPBool &result);
+	bool blockFail(UserData *user, const RPCError &error);
+
+	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
+	void exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result);
+	bool exportInviteFail(PeerData *peer, const RPCError &error);
+
+	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
+	void notifySettingDone(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+	bool notifySettingFail(PeerData *peer, const RPCError &error);
+
+	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
+	SingleTimer _draftsSaveTimer;
+	void saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId);
+	bool saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId);
 
 };

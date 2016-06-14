@@ -33,6 +33,9 @@ class PeerAvatarButton;
 
 namespace Window {
 class TopBarWidget;
+class SectionMemento;
+class SectionWidget;
+struct SectionSlideParams;
 } // namespace Window
 
 class MainWindow;
@@ -40,7 +43,6 @@ class ApiWrap;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
-class ProfileWidget;
 class OverviewWidget;
 class PlayerWidget;
 class HistoryHider;
@@ -48,7 +50,7 @@ class Dropdown;
 
 enum StackItemType {
 	HistoryStackItem,
-	ProfileStackItem,
+	SectionStackItem,
 	OverviewStackItem,
 };
 
@@ -64,8 +66,9 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer),
-msgId(msgId), replyReturns(replyReturns) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer)
+		, msgId(msgId)
+		, replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
@@ -74,19 +77,29 @@ msgId(msgId), replyReturns(replyReturns) {
 	QList<MsgId> replyReturns;
 };
 
-class StackItemProfile : public StackItem {
+class StackItemSection : public StackItem {
 public:
-	StackItemProfile(PeerData *peer, int32 lastScrollTop) : StackItem(peer), lastScrollTop(lastScrollTop) {
-	}
+	StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento);
+	~StackItemSection();
+
 	StackItemType type() const {
-		return ProfileStackItem;
+		return SectionStackItem;
 	}
-	int32 lastScrollTop;
+	Window::SectionMemento *memento() const {
+		return _memento.get();
+	}
+
+private:
+	std_::unique_ptr<Window::SectionMemento> _memento;
+
 };
 
 class StackItemOverview : public StackItem {
 public:
-	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), mediaType(mediaType), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer)
+		, mediaType(mediaType)
+		, lastWidth(lastWidth)
+		, lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return OverviewStackItem;
@@ -115,10 +128,6 @@ public:
 		clear();
 	}
 };
-
-inline int chatsListWidth(int windowWidth) {
-	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
-}
 
 enum SilentNotifiesStatus {
 	SilentNotifiesDontChange,
@@ -173,8 +182,6 @@ public:
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
-	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange);
 
@@ -199,7 +206,7 @@ public:
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
-	void historyWasRead();
+	void markActiveHistoryAsRead();
 	void historyCleared(History *history);
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -210,14 +217,14 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 
-	PeerData *profilePeer();
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
-	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1);
+	void showWideSection(const Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	void orderWidgets();
 	QRect historyRect() const;
+	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 
 	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
 	void onSendFileCancel(const FileLoadResultPtr &file);
@@ -228,9 +235,13 @@ public:
 	void updateOnlineDisplayIn(int32 msecs);
 
 	bool isActive() const;
-	bool historyIsActive() const;
+	bool doWeReadServerHistory() const;
 	bool lastWasOnline() const;
 	uint64 lastSetOnline() const;
+
+	void saveDraftToCloud();
+	void applyCloudDraft(History *history);
+	void writeDrafts(History *history);
 
 	int32 dlgsWidth() const;
 
@@ -252,6 +263,8 @@ public:
 	void offerPeer(PeerId peer);
 	void dialogsActivate();
 
+	void deletePhotoLayer(PhotoData *photo);
+
 	DragState getDragState(const QMimeData *mime);
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
@@ -259,6 +272,7 @@ public:
 	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
+	void deleteAndExit(ChatData *chat);
 	void clearHistory(PeerData *peer);
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
@@ -285,14 +299,15 @@ public:
 		History *history = nullptr;
 		TextWithTags textWithTags;
 		MsgId replyTo = 0;
-		bool broadcast = false;
 		bool silent = false;
 		WebPageId webPageId = 0;
+		bool clearDraft = true;
 	};
 	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
 
-    void readServerHistory(History *history, bool force = true);
+    void readServerHistory(History *history, ReadServerHistoryChecks checks = ReadServerHistoryChecks::OnlyIfUnread);
+	void unreadCountChanged(History *history);
 
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
@@ -309,7 +324,6 @@ public:
 	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
-	void peerUsernameChanged(PeerData *peer);
 
 	void checkLastUpdate(bool afterSleep);
 	void showAddContact();
@@ -341,7 +355,7 @@ public:
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
 	void cancelForwarding();
-	void finishForwarding(History *hist, bool broadcast, bool silent); // send them
+	void finishForwarding(History *hist, bool silent); // send them
 
 	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
@@ -365,8 +379,6 @@ public:
 	void setInnerFocus();
 
 	void scheduleViewIncrement(HistoryItem *item);
-
-	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
@@ -480,16 +492,28 @@ public slots:
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
-private:
+private slots:
 
+	void onDeletePhotoSure();
+
+private:
 	void sendReadRequest(PeerData *peer, MsgId upTo);
-	void channelWasRead(PeerData *peer, const MTPBool &result);
-    void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
+	void channelReadDone(PeerData *peer, const MTPBool &result);
+	void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
+
+	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
+	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back);
+
+	// All this methods use the prepareShowAnimation().
+	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
+	Window::SectionSlideParams prepareOverviewAnimation();
+	Window::SectionSlideParams prepareDialogsAnimation();
 
 	bool _started = false;
 
@@ -524,7 +548,11 @@ private:
 	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 
-	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	struct DeleteHistoryRequest {
+		PeerData *peer;
+		bool justClearHistory;
+	};
+	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
 	struct DeleteAllFromUserParams {
 		ChannelData *channel;
 		UserData *from;
@@ -554,11 +582,13 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	int _dialogsWidth = st::dlgMinWidth;
+	int _dialogsWidth;
+
+	PlainShadow _sideShadow;
 
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
-	ChildWidget<ProfileWidget> _profile = { nullptr };
+	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;
@@ -632,6 +662,8 @@ private:
 
 	typedef QMap<ChannelData*, bool> UpdatedChannels;
 	UpdatedChannels _updatedChannels;
+
+	PhotoData *_deletingPhoto = nullptr;
 
 	typedef QMap<MsgId, bool> ViewsIncrementMap;
 	typedef QMap<PeerData*, ViewsIncrementMap> ViewsIncrement;

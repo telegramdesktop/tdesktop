@@ -202,7 +202,7 @@ countryInput {
 
 slider {
 	color: color;
-	thikness: pixels;
+	thickness: pixels;
 
 	width: pixels;
 	bar: sprite;
@@ -210,9 +210,11 @@ slider {
 
 flatLabel {
 	font: font;
-	minWidth: pixels;
+	margin: margins;
 	width: pixels;
 	align: align;
+	textFg: color;
+	maxHeight: pixels;
 }
 
 switcher {
@@ -303,8 +305,11 @@ BoxButton {
 
 	width: pixels;
 	height: pixels;
+	padding: margins;
 
 	textTop: pixels;
+
+	icon: icon;
 
 	font: font;
 	duration: int;
@@ -324,7 +329,7 @@ Checkbox {
 	textPosition: point;
 	diameter: pixels;
 	thickness: pixels;
-	checkIcon: sprite;
+	checkIcon: icon;
 
 	font: font;
 	duration: int;
@@ -410,4 +415,19 @@ InputField {
 PeerAvatarButton {
 	size: pixels;
 	photoSize: pixels;
+}
+
+OutlineButton {
+	outlineWidth: pixels;
+	outlineFg: color;
+	outlineFgOver: color;
+
+	textBg: color;
+	textBgOver: color;
+
+	textFg: color;
+	textFgOver: color;
+
+	font: font;
+	padding: margins;
 }

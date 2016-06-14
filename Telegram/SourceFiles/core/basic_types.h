@@ -33,6 +33,13 @@ T *getPointerAndReset(T *&ptr) {
 	return result;
 }
 
+template <typename T>
+T createAndSwap(T &value) {
+	T result;
+	std::swap(result, value);
+	return result;
+}
+
 struct NullType {
 };
 
@@ -421,6 +428,24 @@ inline bool operator!=(std::nullptr_t a, const unique_ptr<T> &b) noexcept {
 	return !(a == b);
 }
 
+using _yes = char(&)[1];
+using _no  = char(&)[2];
+
+template <typename Base, typename Derived>
+struct _host {
+	operator Base*() const;
+	operator Derived*();
+};
+
+template <typename Base, typename Derived>
+struct is_base_of {
+	template <typename T>
+	static _yes check(Derived*, T);
+	static _no check(Base*, int);
+
+	static constexpr bool value = sizeof(check(_host<Base, Derived>(), int())) == sizeof(_yes);
+};
+
 } // namespace std_
 
 #include "logs.h"
@@ -474,9 +499,15 @@ inline QDateTime date(int32 time = -1) {
 	return result;
 }
 
-inline QDateTime date(const MTPint &time) {
+inline QDateTime dateFromServerTime(const MTPint &time) {
 	return date(fromServerTime(time));
 }
+
+inline QDateTime date(const MTPint &time) {
+	return dateFromServerTime(time);
+}
+
+QDateTime dateFromServerTime(TimeId time);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN
@@ -921,15 +952,6 @@ private:
 
 };
 
-template <typename I>
-inline void destroyImplementation(I *&ptr) {
-	if (ptr) {
-		ptr->destroy();
-		ptr = 0;
-	}
-	deleteAndMark(ptr);
-}
-
 class Composer;
 typedef void(*ComponentConstruct)(void *location, Composer *composer);
 typedef void(*ComponentDestruct)(void *location);
@@ -1164,213 +1186,96 @@ public:
 	virtual R call(Args... args) const = 0;
 	virtual ~SharedCallback() {
 	}
-	typedef QSharedPointer<SharedCallback<R, Args...>> Ptr;
+	using Ptr = QSharedPointer<SharedCallback<R, Args...>>;
+
 };
 
-template <typename R>
+template <typename R, typename... Args>
 class FunctionImplementation {
 public:
-	virtual R call() = 0;
+	virtual R call(Args... args) = 0;
 	virtual void destroy() { delete this; }
 	virtual ~FunctionImplementation() {}
+
 };
-template <typename R>
-class NullFunctionImplementation : public FunctionImplementation<R> {
+
+template <typename R, typename... Args>
+class NullFunctionImplementation : public FunctionImplementation<R, Args...> {
 public:
-	virtual R call() { return R(); }
+	virtual R call(Args... args) { return R(); }
 	virtual void destroy() {}
-	static NullFunctionImplementation<R> SharedInstance;
+	static NullFunctionImplementation<R, Args...> SharedInstance;
+
 };
-template <typename R>
-NullFunctionImplementation<R> NullFunctionImplementation<R>::SharedInstance;
-template <typename R>
-class FunctionCreator {
-public:
-	FunctionCreator(FunctionImplementation<R> *ptr) : _ptr(ptr) {}
-	FunctionCreator(const FunctionCreator<R> &other) : _ptr(other.create()) {}
-	FunctionImplementation<R> *create() const { return getPointerAndReset(_ptr); }
-	~FunctionCreator() { destroyImplementation(_ptr); }
-private:
-	FunctionCreator<R> &operator=(const FunctionCreator<R> &other);
-	mutable FunctionImplementation<R> *_ptr;
-};
-template <typename R>
+template <typename R, typename... Args>
+NullFunctionImplementation<R, Args...> NullFunctionImplementation<R, Args...>::SharedInstance;
+
+template <typename R, typename... Args>
 class Function {
 public:
-	typedef FunctionCreator<R> Creator;
-	static Creator Null() { return Creator(&NullFunctionImplementation<R>::SharedInstance); }
-	Function(const Creator &creator) : _implementation(creator.create()) {}
-	R call() { return _implementation->call(); }
-	~Function() { destroyImplementation(_implementation); }
+	Function() : _implementation(nullImpl()) {}
+	Function(FunctionImplementation<R, Args...> *implementation) : _implementation(implementation) {}
+	Function(const Function<R, Args...> &other) = delete;
+	Function<R, Args...> &operator=(const Function<R, Args...> &other) = delete;
+	Function(Function<R, Args...> &&other) : _implementation(other._implementation) {
+		other._implementation = nullImpl();
+	}
+	Function<R, Args...> &operator=(Function<R, Args...> &&other) {
+		std::swap(_implementation, other._implementation);
+		return *this;
+	}
+
+	bool isNull() const {
+		return (_implementation == nullImpl());
+	}
+
+	R call(Args... args) { return _implementation->call(args...); }
+	~Function() {
+		if (_implementation) {
+			_implementation->destroy();
+			_implementation = nullptr;
+		}
+		deleteAndMark(_implementation);
+	}
+
 private:
-	Function(const Function<R> &other);
-	Function<R> &operator=(const Function<R> &other);
-	FunctionImplementation<R> *_implementation;
+	static FunctionImplementation<R, Args...> *nullImpl() {
+		return &NullFunctionImplementation<R, Args...>::SharedInstance;
+	}
+
+	FunctionImplementation<R, Args...> *_implementation;
+
 };
 
-template <typename R>
-class WrappedFunction : public FunctionImplementation<R> {
+template <typename R, typename... Args>
+class WrappedFunction : public FunctionImplementation<R, Args...> {
 public:
-	typedef R(*Method)();
+	using Method = R(*)(Args... args);
 	WrappedFunction(Method method) : _method(method) {}
-	virtual R call() { return (*_method)(); }
+	virtual R call(Args... args) { return (*_method)(args...); }
+
 private:
 	Method _method;
+
 };
-template <typename R>
-inline FunctionCreator<R> func(R(*method)()) {
-	return FunctionCreator<R>(new WrappedFunction<R>(method));
+template <typename R, typename... Args>
+inline Function<R, Args...> func(R(*method)(Args... args)) {
+	return Function<R, Args...>(new WrappedFunction<R, Args...>(method));
 }
-template <typename O, typename I, typename R>
-class ObjectFunction : public FunctionImplementation<R> {
+
+template <typename O, typename I, typename R, typename... Args>
+class ObjectFunction : public FunctionImplementation<R, Args...> {
 public:
-	typedef R(I::*Method)();
+	using Method = R(I::*)(Args... args);
 	ObjectFunction(O *obj, Method method) : _obj(obj), _method(method) {}
-	virtual R call() { return (_obj->*_method)(); }
+	virtual R call(Args... args) { return (_obj->*_method)(args...); }
+
 private:
 	O *_obj;
 	Method _method;
-};
-template <typename O, typename I, typename R>
-inline FunctionCreator<R> func(O *obj, R(I::*method)()) {
-	return FunctionCreator<R>(new ObjectFunction<O, I, R>(obj, method));
-}
 
-template <typename R, typename A1>
-class Function1Implementation {
-public:
-	virtual R call(A1 a1) = 0;
-	virtual void destroy() { delete this; }
-	virtual ~Function1Implementation() {}
 };
-template <typename R, typename A1>
-class NullFunction1Implementation : public Function1Implementation<R, A1> {
-public:
-	virtual R call(A1 a1) { return R(); }
-	virtual void destroy() {}
-	static NullFunction1Implementation<R, A1> SharedInstance;
-};
-template <typename R, typename A1>
-NullFunction1Implementation<R, A1> NullFunction1Implementation<R, A1>::SharedInstance;
-template <typename R, typename A1>
-class Function1Creator {
-public:
-	Function1Creator(Function1Implementation<R, A1> *ptr) : _ptr(ptr) {}
-	Function1Creator(const Function1Creator<R, A1> &other) : _ptr(other.create()) {}
-	Function1Implementation<R, A1> *create() const { return getPointerAndReset(_ptr); }
-	~Function1Creator() { destroyImplementation(_ptr); }
-private:
-	Function1Creator<R, A1> &operator=(const Function1Creator<R, A1> &other);
-	mutable Function1Implementation<R, A1> *_ptr;
-};
-template <typename R, typename A1>
-class Function1 {
-public:
-	typedef Function1Creator<R, A1> Creator;
-	static Creator Null() { return Creator(&NullFunction1Implementation<R, A1>::SharedInstance); }
-	Function1(const Creator &creator) : _implementation(creator.create()) {}
-	R call(A1 a1) { return _implementation->call(a1); }
-	~Function1() { _implementation->destroy(); }
-private:
-	Function1(const Function1<R, A1> &other);
-	Function1<R, A1> &operator=(const Function1<R, A1> &other);
-	Function1Implementation<R, A1> *_implementation;
-};
-
-template <typename R, typename A1>
-class WrappedFunction1 : public Function1Implementation<R, A1> {
-public:
-	typedef R(*Method)(A1);
-	WrappedFunction1(Method method) : _method(method) {}
-	virtual R call(A1 a1) { return (*_method)(a1); }
-private:
-	Method _method;
-};
-template <typename R, typename A1>
-inline Function1Creator<R, A1> func(R(*method)(A1)) {
-	return Function1Creator<R, A1>(new WrappedFunction1<R, A1>(method));
-}
-template <typename O, typename I, typename R, typename A1>
-class ObjectFunction1 : public Function1Implementation<R, A1> {
-public:
-	typedef R(I::*Method)(A1);
-	ObjectFunction1(O *obj, Method method) : _obj(obj), _method(method) {}
-	virtual R call(A1 a1) { return (_obj->*_method)(a1); }
-private:
-	O *_obj;
-	Method _method;
-};
-template <typename O, typename I, typename R, typename A1>
-Function1Creator<R, A1> func(O *obj, R(I::*method)(A1)) {
-	return Function1Creator<R, A1>(new ObjectFunction1<O, I, R, A1>(obj, method));
-}
-
-template <typename R, typename A1, typename A2>
-class Function2Implementation {
-public:
-	virtual R call(A1 a1, A2 a2) = 0;
-	virtual void destroy() { delete this; }
-	virtual ~Function2Implementation() {}
-};
-template <typename R, typename A1, typename A2>
-class NullFunction2Implementation : public Function2Implementation<R, A1, A2> {
-public:
-	virtual R call(A1 a1, A2 a2) { return R(); }
-	virtual void destroy() {}
-	static NullFunction2Implementation<R, A1, A2> SharedInstance;
-};
-template <typename R, typename A1, typename A2>
-NullFunction2Implementation<R, A1, A2> NullFunction2Implementation<R, A1, A2>::SharedInstance;
-template <typename R, typename A1, typename A2>
-class Function2Creator {
-public:
-	Function2Creator(Function2Implementation<R, A1, A2> *ptr) : _ptr(ptr) {}
-	Function2Creator(const Function2Creator<R, A1, A2> &other) : _ptr(other.create()) {}
-	Function2Implementation<R, A1, A2> *create() const { return getPointerAndReset(_ptr); }
-	~Function2Creator() { destroyImplementation(_ptr); }
-private:
-	Function2Creator<R, A1, A2> &operator=(const Function2Creator<R, A1, A2> &other);
-	mutable Function2Implementation<R, A1, A2> *_ptr;
-};
-template <typename R, typename A1, typename A2>
-class Function2 {
-public:
-	typedef Function2Creator<R, A1, A2> Creator;
-	static Creator Null() { return Creator(&NullFunction2Implementation<R, A1, A2>::SharedInstance); }
-	Function2(const Creator &creator) : _implementation(creator.create()) {}
-	R call(A1 a1, A2 a2) { return _implementation->call(a1, a2); }
-	~Function2() { destroyImplementation(_implementation); }
-private:
-	Function2(const Function2<R, A1, A2> &other);
-	Function2<R, A1, A2> &operator=(const Function2<R, A1, A2> &other);
-	Function2Implementation<R, A1, A2> *_implementation;
-};
-
-template <typename R, typename A1, typename A2>
-class WrappedFunction2 : public Function2Implementation<R, A1, A2> {
-public:
-	typedef R(*Method)(A1, A2);
-	WrappedFunction2(Method method) : _method(method) {}
-	virtual R call(A1 a1, A2 a2) { return (*_method)(a1, a2); }
-private:
-	Method _method;
-};
-template <typename R, typename A1, typename A2>
-Function2Creator<R, A1, A2> func(R(*method)(A1, A2)) {
-	return Function2Creator<R, A1, A2>(new WrappedFunction2<R, A1, A2>(method));
-}
-
-template <typename O, typename I, typename R, typename A1, typename A2>
-class ObjectFunction2 : public Function2Implementation<R, A1, A2> {
-public:
-	typedef R(I::*Method)(A1, A2);
-	ObjectFunction2(O *obj, Method method) : _obj(obj), _method(method) {}
-	virtual R call(A1 a1, A2 a2) { return (_obj->*_method)(a1, a2); }
-private:
-	O *_obj;
-	Method _method;
-};
-template <typename O, typename I, typename R, typename A1, typename A2>
-Function2Creator<R, A1, A2> func(O *obj, R(I::*method)(A1, A2)) {
-	return Function2Creator<R, A1, A2>(new ObjectFunction2<O, I, R, A1, A2>(obj, method));
+template <typename O, typename I, typename R, typename... Args>
+inline Function<R, Args...> func(O *obj, R(I::*method)(Args...)) {
+	return Function<R, Args...>(new ObjectFunction<O, I, R, Args...>(obj, method));
 }

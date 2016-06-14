@@ -100,4 +100,22 @@ QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {
 	return result;
 }
 
+namespace internal {
+
+QImage createCircleMask(int size, const QColor &bg, const QColor &fg) {
+	int realSize = size * cIntRetinaFactor();
+	auto result = QImage(realSize, realSize, QImage::Format::Format_Grayscale8);
+	{
+		QPainter pcircle(&result);
+		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		pcircle.fillRect(0, 0, realSize, realSize, bg);
+		pcircle.setPen(Qt::NoPen);
+		pcircle.setBrush(fg);
+		pcircle.drawEllipse(0, 0, realSize, realSize);
+	}
+	result.setDevicePixelRatio(cRetinaFactor());
+	return result;
+}
+
+} // namespace internal
 } // namespace style

@@ -52,9 +52,11 @@ public:
 
 	int width() const;
 	int height() const;
+	QSize size() const;
 
 	QPoint offset() const;
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
+	void fill(QPainter &p, const QRect &rect) const;
 
 	MonoIcon clone(const Color &color) const {
 		return MonoIcon(_mask, color ? color : _color, _offset, OwningPixmapTag());
@@ -104,6 +106,7 @@ public:
 	}
 
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
+	void fill(QPainter &p, const QRect &rect) const;
 	int width() const;
 	int height() const;
 

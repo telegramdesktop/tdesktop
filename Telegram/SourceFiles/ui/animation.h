@@ -203,39 +203,43 @@ public:
 	virtual void start() {}
 	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
 	virtual ~AnimationImplementation() {}
+
 };
-class AnimationCreator {
-public:
-	AnimationCreator(AnimationImplementation *ptr) : _ptr(ptr) {}
-	AnimationCreator(const AnimationCreator &other) : _ptr(other.create()) {}
-	AnimationImplementation *create() const { return getPointerAndReset(_ptr); }
-	~AnimationCreator() { deleteAndMark(_ptr); }
-private:
-	AnimationCreator &operator=(const AnimationCreator &other) = delete;
-	mutable AnimationImplementation *_ptr;
-};
+
 class AnimationCallbacks {
 public:
-	AnimationCallbacks(const AnimationCreator &creator) : _implementation(creator.create()) {}
+	AnimationCallbacks(AnimationImplementation *implementation) : _implementation(implementation) {}
+	AnimationCallbacks(const AnimationCallbacks &other) = delete;
+	AnimationCallbacks &operator=(const AnimationCallbacks &other) = delete;
+	AnimationCallbacks(AnimationCallbacks &&other) : _implementation(other._implementation) {
+		other._implementation = nullptr;
+	}
+	AnimationCallbacks &operator=(AnimationCallbacks &&other) {
+		std::swap(_implementation, other._implementation);
+		return *this;
+	}
+
 	void start() { _implementation->start();  }
 	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
 	~AnimationCallbacks() { deleteAndMark(_implementation); }
+
 private:
-	AnimationCallbacks(const AnimationCallbacks &other);
-	AnimationCallbacks &operator=(const AnimationCallbacks &other) = delete;
 	AnimationImplementation *_implementation;
+
 };
 
 class Animation {
 public:
-	Animation(AnimationCreator cb) : _cb(cb), _animating(false) {
+	Animation(AnimationCallbacks &&callbacks)
+		: _callbacks(std_::move(callbacks))
+		, _animating(false) {
 	}
 
 	void start();
 	void stop();
 
 	void step(uint64 ms, bool timer = false) {
-		_cb.step(this, ms, timer);
+		_callbacks.step(this, ms, timer);
 	}
 
 	void step() {
@@ -251,7 +255,7 @@ public:
 	}
 
 private:
-	AnimationCallbacks _cb;
+	AnimationCallbacks _callbacks;
 	bool _animating;
 
 };
@@ -279,8 +283,8 @@ private:
 
 };
 template <typename Type>
-AnimationCreator animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
-	return AnimationCreator(new AnimationCallbacksRelative<Type>(obj, method));
+AnimationCallbacks animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
+	return AnimationCallbacks(new AnimationCallbacksRelative<Type>(obj, method));
 }
 
 template <typename Type>
@@ -301,8 +305,8 @@ private:
 
 };
 template <typename Type>
-AnimationCreator animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
-	return AnimationCreator(new AnimationCallbacksAbsolute<Type>(obj, method));
+AnimationCallbacks animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
+	return AnimationCallbacks(new AnimationCallbacksAbsolute<Type>(obj, method));
 }
 
 template <typename Type, typename Param>
@@ -329,8 +333,8 @@ private:
 
 };
 template <typename Type, typename Param>
-AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
-	return AnimationCreator(new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method));
+AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
+	return AnimationCallbacks(new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method));
 }
 
 template <typename Type, typename Param>
@@ -352,17 +356,16 @@ private:
 
 };
 template <typename Type, typename Param>
-AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
-	return AnimationCreator(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));
+AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
+	return AnimationCallbacks(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));
 }
 
 template <typename AnimType>
 class SimpleAnimation {
 public:
+	using Callback = Function<void>;
 
-	typedef Function<void> Callback;
-
-	SimpleAnimation() : _data(0) {
+	SimpleAnimation() {
 	}
 
 	bool animating(uint64 ms) {
@@ -373,7 +376,7 @@ public:
 		return false;
 	}
 
-	bool isNull() {
+	bool isNull() const {
 		return !_data;
 	}
 
@@ -381,13 +384,17 @@ public:
 		return _data ? _data->a.current() : typename AnimType::Type();
 	}
 
+	typename AnimType::Type current(const typename AnimType::Type &def) {
+		return _data ? _data->a.current() : def;
+	}
+
 	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
 		return animating(ms) ? current() : def;
 	}
 
-	void setup(const typename AnimType::Type &from, Callback::Creator update) {
+	void setup(const typename AnimType::Type &from, Callback &&update) {
 		if (!_data) {
-			_data = new Data(from, update, animation(this, &SimpleAnimation<AnimType>::step));
+			_data = new Data(from, std_::move(update), animation(this, &SimpleAnimation<AnimType>::step));
 		} else {
 			_data->a = AnimType(from, from);
 		}
@@ -402,16 +409,27 @@ public:
 		}
 	}
 
+	void finish() {
+		if (isNull()) {
+			return;
+		}
+
+		_data->a.finish();
+		_data->_a.stop();
+		delete _data;
+		_data = nullptr;
+	}
+
 	~SimpleAnimation() {
 		deleteAndMark(_data);
 	}
 
 private:
-	typedef struct _Data {
-		_Data(const typename AnimType::Type &from, Callback::Creator update, AnimationCreator acb)
+	struct Data {
+		Data(const typename AnimType::Type &from, Callback &&update, AnimationCallbacks &&acb)
 			: a(from, from)
-			, _a(acb)
-			, update(update)
+			, _a(std_::move(acb))
+			, update(std_::move(update))
 			, duration(0)
 			, transition(anim::linear) {
 		}
@@ -420,8 +438,8 @@ private:
 		Callback update;
 		float64 duration;
 		anim::transition transition;
-	} Data;
-	Data *_data;
+	};
+	Data *_data = nullptr;
 
 	void step(float64 ms, bool timer) {
 		float64 dt = (ms >= _data->duration) ? 1 : (ms / _data->duration);
@@ -436,17 +454,26 @@ private:
 		}
 		if (!_data->_a.animating()) {
 			delete _data;
-			_data = 0;
+			_data = nullptr;
 		}
 	}
 
 };
 
-typedef SimpleAnimation<anim::fvalue> FloatAnimation;
-typedef SimpleAnimation<anim::ivalue> IntAnimation;
-typedef SimpleAnimation<anim::cvalue> ColorAnimation;
+using FloatAnimation = SimpleAnimation<anim::fvalue>;
+using IntAnimation = SimpleAnimation<anim::ivalue>;
+using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
-#define EnsureAnimation(animation, from, callback) if ((animation).isNull()) { (animation).setup((from), (callback)); }
+
+// Macro allows us to lazily create updateCallback.
+#define ENSURE_ANIMATION(animation, updateCallback, from) \
+if ((animation).isNull()) { \
+	(animation).setup((from), (updateCallback)); \
+}
+
+#define START_ANIMATION(animation, updateCallback, from, to, duration, transition) \
+ENSURE_ANIMATION(animation, updateCallback, from); \
+(animation).start((to), (duration), (transition))
 
 class ClipReader;
 
@@ -506,9 +533,9 @@ class ClipReaderPrivate;
 class ClipReader {
 public:
 
-	typedef Function1<void, ClipReaderNotification> Callback;
+	using Callback = Function<void, ClipReaderNotification>;
 
-	ClipReader(const FileLocation &location, const QByteArray &data, Callback::Creator cb);
+	ClipReader(const FileLocation &location, const QByteArray &data, Callback &&callback);
 	static void callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -555,7 +582,7 @@ public:
 
 private:
 
-	Callback _cb;
+	Callback _callback;
 
 	ClipState _state;
 
