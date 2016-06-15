@@ -12,7 +12,7 @@ CONFIG(release, debug|release) {
     DESTDIR = ./../ReleaseLang
 }
 
-CONFIG += plugin static c++11
+CONFIG += plugin static c++14
 
 macx {
     QMAKE_INFO_PLIST = ./SourceFiles/_other/Lang.plist

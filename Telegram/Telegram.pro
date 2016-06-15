@@ -1,6 +1,6 @@
 QT += core gui network widgets
 
-CONFIG += plugin static c++11
+CONFIG += plugin static c++14
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
