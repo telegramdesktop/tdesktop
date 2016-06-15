@@ -905,6 +905,7 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
 
 	void clearSelection();
+	void updateMessageId();
 
 private:
 	const HistoryItem *_item;
