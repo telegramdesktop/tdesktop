@@ -160,6 +160,7 @@ private:
 class SplittedWidgetOther;
 class ScrollArea : public QScrollArea {
 	Q_OBJECT
+	T_WIDGET
 
 public:
 
@@ -173,9 +174,6 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void moveEvent(QMoveEvent *e);
 	void keyPressEvent(QKeyEvent *e);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
 
 	int scrollWidth() const;
 	int scrollHeight() const;
@@ -193,8 +191,14 @@ public:
 	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
 	bool focusNextPrevChild(bool next);
+	void setMovingByScrollBar(bool movingByScrollBar);
 
 	~ScrollArea();
+
+protected:
+
+	void enterEventHook(QEvent *e);
+	void leaveEventHook(QEvent *e);
 
 public slots:
 
@@ -220,12 +224,6 @@ signals:
 protected:
 
 	void scrollContentsBy(int dx, int dy);
-	TWidget *tparent() {
-		return qobject_cast<TWidget*>(parentWidget());
-	}
-	const TWidget *tparent() const {
-		return qobject_cast<const TWidget*>(parentWidget());
-	}
 
 private:
 
@@ -239,6 +237,7 @@ private:
 
 	bool _disabled;
 	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
+	bool _movingByScrollBar = false;
 
 	style::flatScroll _st;
 	ScrollBar hor, vert;

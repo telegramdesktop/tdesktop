@@ -58,7 +58,6 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 	_inner->show();
 
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
-	connect(_scroll, SIGNAL(scrolled()), _inner, SLOT(onUpdateSelected()));
 }
 
 void FieldAutocomplete::paintEvent(QPaintEvent *e) {

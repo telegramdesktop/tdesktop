@@ -124,14 +124,6 @@ void Widget::onScroll() {
 	int scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	_fixedBarShadow->setMode((scrollTop > 0) ? ToggleableShadow::Mode::Shown : ToggleableShadow::Mode::Hidden);
-
-	auto windowHandle = window()->windowHandle();
-	auto globalPoint = QCursor::pos();
-	auto localPoint = windowHandle->mapFromGlobal(globalPoint);
-	QMouseEvent ev(QEvent::MouseMove, localPoint, localPoint, globalPoint, Qt::NoButton, QGuiApplication::mouseButtons(), QGuiApplication::keyboardModifiers(), Qt::MouseEventSynthesizedByApplication);
-	ev.setTimestamp(getms());
-
-	QGuiApplication::sendEvent(windowHandle, &ev);
 }
 
 void Widget::showAnimatedHook() {

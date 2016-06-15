@@ -388,11 +388,12 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-public slots:
+//public slots:
+//
+//	void onParentScrolled();
 
-	void onParentScrolled();
-
-private slots:
+//private slots:
+private:
 
 	void updateSelected();
 

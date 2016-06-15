@@ -616,7 +616,7 @@ void StickersInner::step_shifting(uint64 ms, bool timer) {
 			if (updateMin < 0) updateMin = i;
 			updateMax = i;
 			if (start + st::stickersRowDuration > ms && ms >= start) {
-				_rows.at(i)->yadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
+				_rows.at(i)->yadd.update(float64(ms - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
 			} else {
 				_rows.at(i)->yadd.finish();
@@ -628,7 +628,7 @@ void StickersInner::step_shifting(uint64 ms, bool timer) {
 		if (updateMin < 0 || updateMin > _above) updateMin = _above;
 		if (updateMax < _above) updateMin = _above;
 		if (_aboveShadowFadeStart + st::stickersRowDuration > ms && ms > _aboveShadowFadeStart) {
-			_aboveShadowFadeOpacity.update((ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
+			_aboveShadowFadeOpacity.update(float64(ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
 			animating = true;
 		} else {
 			_aboveShadowFadeOpacity.finish();
@@ -782,7 +782,6 @@ StickersBox::StickersBox() : ItemListBox(st::boxScroll)
 
 	connect(&_inner, SIGNAL(checkDraggingScroll(int)), this, SLOT(onCheckDraggingScroll(int)));
 	connect(&_inner, SIGNAL(noDraggingScroll()), this, SLOT(onNoDraggingScroll()));
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	_scrollTimer.setSingleShot(false);
 
