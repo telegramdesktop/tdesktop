@@ -916,7 +916,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— Introducing Drafts: Seamless syncing for unsent messages on all your devices. Drafts are now visible in your chats list.\n— Completely redesigned group and user profiles.\n— Unread messages counter on the 'Scroll to bottom' button.\n\nMore about this update: {link}";
+"lng_new_version_text" = "— 임시저장을 소개합니다: 임시로 작성된 메시지 동기화. 채팅목록에 임시저장된 내역이 표시됩니다.\n— 그룹 및 구성원 프로필 디자인 리뉴얼.\n— '맨 밑으로 스크롤' 버튼에 안 읽은 메시지 카운터 표시.\n\n업데이트 자세한 내역: {link}";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

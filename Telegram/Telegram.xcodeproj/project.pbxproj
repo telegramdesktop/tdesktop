@@ -2267,7 +2267,7 @@
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.50;
+				TDESKTOP_VERSION = 0.9.51;
 				ZLIB_PATH = "/usr/local/zlib_old";
 			};
 			name = Release;
@@ -2409,7 +2409,7 @@
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.50;
+				TDESKTOP_VERSION = 0.9.51;
 				ZLIB_PATH = "/usr/local/zlib_old";
 			};
 			name = Debug;
