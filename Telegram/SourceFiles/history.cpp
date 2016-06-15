@@ -2180,7 +2180,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
 public:
-	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col) : _item(item), _row(row), _col(col) {
+	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col) : _itemId(item->fullId()), _row(row), _col(col) {
 	}
 
 	QString tooltip() const override {
@@ -2216,24 +2216,34 @@ public:
 	// Note: it is possible that we will point to the different button
 	// than the one was used when constructing the handler, but not a big deal.
 	const HistoryMessageReplyMarkup::Button *getButton() const {
-		if (auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
-			if (_row < markup->rows.size()) {
-				const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
-				if (_col < row.size()) {
-					return &row.at(_col);
+		if (auto item = App::histItemById(_itemId)) {
+			if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+				if (_row < markup->rows.size()) {
+					const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
+					if (_col < row.size()) {
+						return &row.at(_col);
+					}
 				}
 			}
 		}
 		return nullptr;
 	}
 
+	// We hold only FullMsgId, not HistoryItem*, because all click handlers
+	// are activated async and the item may be already destroyed.
+	void setMessageId(const FullMsgId &msgId) {
+		_itemId = msgId;
+	}
+
 protected:
 	void onClickImpl() const override {
-		App::activateBotCommand(_item, _row, _col);
+		if (auto item = App::histItemById(_itemId)) {
+			App::activateBotCommand(item, _row, _col);
+		}
 	}
 
 private:
-	const HistoryItem *_item = nullptr;
+	FullMsgId _itemId;
 	int _row, _col;
 	bool _fullDisplayed = true;
 
@@ -2268,6 +2278,16 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 			_rows.push_back(newRow);
 		}
 	}
+}
+
+void ReplyKeyboard::updateMessageId() {
+	auto msgId = _item->fullId();
+	for_const (auto &row, _rows) {
+		for_const (auto &button, row) {
+			button.link->setMessageId(msgId);
+		}
+	}
+
 }
 
 void ReplyKeyboard::resize(int width, int height) {
@@ -2775,6 +2795,15 @@ void HistoryItem::recountAttachToPrevious() {
 void HistoryItem::setId(MsgId newId) {
 	history()->changeMsgId(id, newId);
 	id = newId;
+
+	// We don't need to call Notify::replyMarkupUpdated(this) and update keyboard
+	// in history widget, because it can't exist for an outgoing message.
+	// Only inline keyboards can be in outgoing messages.
+	if (auto markup = inlineReplyMarkup()) {
+		if (markup->inlineKeyboard) {
+			markup->inlineKeyboard->updateMessageId();
+		}
+	}
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
@@ -6816,7 +6845,7 @@ void HistoryMessage::initDimensions() {
 		}
 		if (replyw > _maxw) _maxw = replyw;
 	}
-	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
+	if (auto markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
 			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std_::make_unique<KeyboardStyle>(st::msgBotKbButton)));
 		}

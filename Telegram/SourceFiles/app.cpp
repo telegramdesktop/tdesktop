@@ -685,7 +685,6 @@ namespace {
 					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 					cdata->access = d.vaccess_hash.v;
 					cdata->date = d.vdate.v;
-					cdata->flags = d.vflags.v;
 					if (cdata->version < d.vversion.v) {
 						cdata->version = d.vversion.v;
 					}
@@ -694,12 +693,14 @@ namespace {
 					} else {
 						cdata->setRestrictionReason(QString());
 					}
+					cdata->flags = d.vflags.v;
 				}
+				cdata->flagsUpdated();
+
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
 
 				cdata->isForbidden = false;
-				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
 
 				if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
@@ -731,6 +732,7 @@ namespace {
 
 				auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
 				cdata->flags = (cdata->flags & ~mask) | (mtpCastFlags(d.vflags) & mask);
+				cdata->flagsUpdated();
 
 				cdata->setName(qs(d.vtitle), QString());
 
@@ -739,7 +741,6 @@ namespace {
 				cdata->date = 0;
 				cdata->setMembersCount(0);
 				cdata->isForbidden = true;
-				cdata->flagsUpdated();
 
 				if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
 				if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
