@@ -276,7 +276,7 @@ bool hideWindowNoQuit() {
 			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 				return w->minimizeToTray();
 			} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-				w->hide();
+				w->closeWithoutDestroy();
 				w->updateIsActive(Global::OfflineBlurTimeout());
 				w->updateGlobalMenu();
 				return true;

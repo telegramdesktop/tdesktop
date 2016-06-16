@@ -746,10 +746,7 @@ void EmojiPanInner::setMaxHeight(int32 h) {
 }
 
 void EmojiPanInner::setScrollTop(int top) {
-	if (top == _top) return;
-
 	_top = top;
-	updateSelected();
 }
 
 int EmojiPanInner::countHeight() {
@@ -1259,7 +1256,6 @@ void StickerPanInner::setScrollTop(int top) {
 
 	_lastScrolled = getms();
 	_top = top;
-	updateSelected();
 }
 
 int32 StickerPanInner::countHeight(bool plain) {

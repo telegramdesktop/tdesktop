@@ -1916,7 +1916,6 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 	updateScrollColors();
 
 	_scroll.show();
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
@@ -2044,7 +2043,6 @@ MediaOverviewType OverviewWidget::type() const {
 void OverviewWidget::switchType(MediaOverviewType type) {
 	_selCount = 0;
 
-	disconnect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	disconnect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	_inner.setSelectMode(false);
@@ -2062,7 +2060,6 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	updateTopBarSelection();
 	scrollReset();
 
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	onScroll();

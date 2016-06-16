@@ -159,12 +159,12 @@ protected: \
 void enterEvent(QEvent *e) override { \
 	TWidget *p(tparent()); \
 	if (p) p->leaveToChildEvent(e); \
-	return QWidget::enterEvent(e); \
+	return enterEventHook(e); \
 } \
 void leaveEvent(QEvent *e) override { \
 	TWidget *p(tparent()); \
 	if (p) p->enterFromChildEvent(e); \
-	return QWidget::leaveEvent(e); \
+	return leaveEventHook(e); \
 }
 
 class TWidget : public QWidget {
@@ -197,6 +197,14 @@ public:
 				widget->show();
 			}
 		}
+	}
+
+protected:
+	void enterEventHook(QEvent *e) {
+		return QWidget::enterEvent(e);
+	}
+	void leaveEventHook(QEvent *e) {
+		return QWidget::leaveEvent(e);
 	}
 
 };
@@ -330,3 +338,9 @@ private:
 	T *_widget;
 
 };
+
+void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint);
+
+inline void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button) {
+	return sendSynteticMouseEvent(widget, type, button, QCursor::pos());
+}

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "title.h"
 #include "pspecific.h"
 #include "ui/boxshadow.h"
+#include "platform/platform_main_window.h"
 
 class MediaView;
 class TitleWidget;
@@ -123,11 +124,11 @@ typedef QList<NotifyWindow*> NotifyWindows;
 
 class MediaPreviewWidget;
 
-class MainWindow : public PsMainWindow {
+class MainWindow : public Platform::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow(QWidget *parent = 0);
+	MainWindow();
 	~MainWindow();
 
 	void init();
@@ -248,9 +249,7 @@ public:
 	PeerData *ui_getPeerForMouseAction();
 
 public slots:
-
 	void updateIsActive(int timeout = 0);
-	void stateChanged(Qt::WindowState state);
 
 	void checkHistoryActivation();
 
@@ -288,13 +287,15 @@ public slots:
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 signals:
-
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void newAuthorization();
 
 	void imageLoaded();
+
+private slots:
+	void onStateChanged(Qt::WindowState state);
 
 private:
 

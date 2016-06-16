@@ -255,7 +255,7 @@ void objc_holdOnTop(WId winId) {
 bool objc_darkMode() {
 	NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
 	id style = [dict objectForKey:QNSString(strStyleOfInterface()).s()];
-	BOOL darkModeOn = ( style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"] );
+	BOOL darkModeOn = (style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"]);
 	return darkModeOn ? true : false;
 }
 

@@ -1781,7 +1781,6 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	connect(&_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
 	connect(&_inner, SIGNAL(cancelSearchInPeer()), this, SLOT(onCancelSearchInPeer()));
 	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
 	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));

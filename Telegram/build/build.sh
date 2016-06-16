@@ -215,6 +215,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
   if [ "$FastParam" != "fast" ]; then
     touch "./Resources/telegram.qrc"
+    touch "./Telegram.plist"
   fi
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 

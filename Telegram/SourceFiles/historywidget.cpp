@@ -2568,7 +2568,7 @@ bool BotKeyboard::singleUse() const {
 void BotKeyboard::updateStyle(int32 w) {
 	if (!_impl) return;
 
-	int implWidth = ((w < 0) ? width() : w) - _st->margin - st::botKbScroll.width;
+	int implWidth = ((w < 0) ? width() : w) - st::botKbButton.margin - st::botKbScroll.width;
 	_st = _impl->isEnoughSpace(implWidth, st::botKbButton) ? &st::botKbButton : &st::botKbTinyButton;
 
 	_impl->setStyle(std_::make_unique<Style>(this, *_st));
@@ -2594,12 +2594,12 @@ QString BotKeyboard::tooltipText() const {
 	return QString();
 }
 
-void BotKeyboard::onParentScrolled() {
-	// Holding scrollarea can fire scrolled() event from a resize() call before
-	// the resizeEvent() is called, which prepares _impl for updateSelected() call.
-	// Calling updateSelecteD() without delay causes _impl->getState() before _impl->resize().
-	QMetaObject::invokeMethod(this, "updateSelected", Qt::QueuedConnection);
-}
+//void BotKeyboard::onParentScrolled() {
+//	// Holding scrollarea can fire scrolled() event from a resize() call before
+//	// the resizeEvent() is called, which prepares _impl for updateSelected() call.
+//	// Calling updateSelected() without delay causes _impl->getState() before _impl->resize().
+//	QMetaObject::invokeMethod(this, "updateSelected", Qt::QueuedConnection);
+//}
 
 void BotKeyboard::updateSelected() {
 	PopupTooltip::Show(1000, this);
@@ -3086,7 +3086,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_kbScroll.setWidget(&_keyboard);
 	_kbScroll.hide();
 
-	connect(&_kbScroll, SIGNAL(scrolled()), &_keyboard, SLOT(onParentScrolled()));
+//	connect(&_kbScroll, SIGNAL(scrolled()), &_keyboard, SLOT(onParentScrolled()));
 
 	updateScrollColors();
 
@@ -4072,7 +4072,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
-		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
 
 		if (startBot && _peer->isUser() && _peer->asUser()->botInfo) {
 			if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;

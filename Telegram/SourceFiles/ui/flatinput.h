@@ -77,6 +77,12 @@ signals:
 	void blurred();
 
 protected:
+	void enterEventHook(QEvent *e) {
+		return QLineEdit::enterEvent(e);
+	}
+	void leaveEventHook(QEvent *e) {
+		return QLineEdit::leaveEvent(e);
+	}
 
 	virtual void correctValue(const QString &was, QString &now);
 
@@ -561,6 +567,12 @@ signals:
 	void blurred();
 
 protected:
+	void enterEventHook(QEvent *e) {
+		return QLineEdit::enterEvent(e);
+	}
+	void leaveEventHook(QEvent *e) {
+		return QLineEdit::leaveEvent(e);
+	}
 
 	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
 	virtual void paintPlaceholder(Painter &p);

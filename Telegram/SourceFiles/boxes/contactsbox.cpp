@@ -1354,7 +1354,6 @@ void ContactsBox::init() {
 		_cancel.hide();
 	}
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
@@ -2257,7 +2256,6 @@ MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox
 
 	connect(&_inner, SIGNAL(addRequested()), this, SLOT(onAdd()));
 
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(loaded()), this, SLOT(onLoaded()));

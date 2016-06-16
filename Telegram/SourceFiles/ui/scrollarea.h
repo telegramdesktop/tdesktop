@@ -160,22 +160,11 @@ private:
 class SplittedWidgetOther;
 class ScrollArea : public QScrollArea {
 	Q_OBJECT
+	T_WIDGET
 
 public:
 
 	ScrollArea(QWidget *parent, const style::flatScroll &st = st::scrollDef, bool handleTouch = true);
-
-	bool viewportEvent(QEvent *e);
-	void touchEvent(QTouchEvent *e);
-
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	void resizeEvent(QResizeEvent *e);
-	void moveEvent(QMoveEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
 
 	int scrollWidth() const;
 	int scrollHeight() const;
@@ -192,9 +181,24 @@ public:
 
 	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
-	bool focusNextPrevChild(bool next);
+	bool focusNextPrevChild(bool next) override;
+	void setMovingByScrollBar(bool movingByScrollBar);
+
+	bool viewportEvent(QEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	~ScrollArea();
+
+protected:
+
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void moveEvent(QMoveEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	void enterEventHook(QEvent *e);
+	void leaveEventHook(QEvent *e);
 
 public slots:
 
@@ -219,13 +223,7 @@ signals:
 
 protected:
 
-	void scrollContentsBy(int dx, int dy);
-	TWidget *tparent() {
-		return qobject_cast<TWidget*>(parentWidget());
-	}
-	const TWidget *tparent() const {
-		return qobject_cast<const TWidget*>(parentWidget());
-	}
+	void scrollContentsBy(int dx, int dy) override;
 
 private:
 
@@ -239,6 +237,7 @@ private:
 
 	bool _disabled;
 	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
+	bool _movingByScrollBar = false;
 
 	style::flatScroll _st;
 	ScrollBar hor, vert;

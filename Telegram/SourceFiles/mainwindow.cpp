@@ -364,7 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-MainWindow::MainWindow(QWidget *parent) : PsMainWindow(parent) {
+MainWindow::MainWindow() {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -417,7 +417,9 @@ void MainWindow::onInactiveTimer() {
 	inactivePress(false);
 }
 
-void MainWindow::stateChanged(Qt::WindowState state) {
+void MainWindow::onStateChanged(Qt::WindowState state) {
+	stateChangedHook(state);
+
 	psUserActionDone();
 
 	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
@@ -434,7 +436,7 @@ void MainWindow::init() {
 	setWindowIcon(wndIcon);
 
 	Application::instance()->installEventFilter(this);
-	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
@@ -1069,7 +1071,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	case QEvent::WindowStateChange:
 		if (obj == this) {
 			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-			stateChanged(state);
+			onStateChanged(state);
 		}
 		break;
 
@@ -1081,7 +1083,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 	}
 
-	return PsMainWindow::eventFilter(obj, e);
+	return Platform::MainWindow::eventFilter(obj, e);
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *e) {
@@ -1107,7 +1109,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *e) {
 bool MainWindow::minimizeToTray() {
     if (App::quitting() || !psHasTrayIcon()) return false;
 
-	hide();
+	closeWithoutDestroy();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);

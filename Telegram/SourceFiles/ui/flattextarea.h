@@ -142,6 +142,12 @@ signals:
 	void linksChanged();
 
 protected:
+	void enterEventHook(QEvent *e) {
+		return QTextEdit::enterEvent(e);
+	}
+	void leaveEventHook(QEvent *e) {
+		return QTextEdit::leaveEvent(e);
+	}
 
 	bool viewportEvent(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);

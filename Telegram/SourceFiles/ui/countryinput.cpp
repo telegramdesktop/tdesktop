@@ -432,7 +432,6 @@ CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxW
 , _topShadow(this) {
 	ItemListBox::init(&_inner, st::boxScrollSkip, st::boxTitleHeight + _filter.height());
 
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
