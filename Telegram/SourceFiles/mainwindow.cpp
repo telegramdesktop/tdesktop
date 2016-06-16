@@ -364,7 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-MainWindow::MainWindow(QWidget *parent) : PsMainWindow(parent) {
+MainWindow::MainWindow() {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -1081,7 +1081,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 	}
 
-	return PsMainWindow::eventFilter(obj, e);
+	return Platform::MainWindow::eventFilter(obj, e);
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *e) {

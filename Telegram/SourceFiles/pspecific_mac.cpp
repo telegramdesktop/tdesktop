@@ -854,28 +854,29 @@ void psShowInFolder(const QString &name) {
     objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
-namespace PlatformSpecific {
+namespace Platform {
 
-	void start() {
-		objc_start();
-	}
-
-	void finish() {
-		delete _psEventFilter;
-		_psEventFilter = 0;
-
-		objc_finish();
-	}
-
-    namespace ThirdParty {
-        void start() {
-        }
-
-        void finish() {
-        }
-    }
-
+void start() {
+	objc_start();
 }
+
+void finish() {
+	delete _psEventFilter;
+	_psEventFilter = nullptr;
+
+	objc_finish();
+}
+
+namespace ThirdParty {
+
+void start() {
+}
+
+void finish() {
+}
+
+} // namespace ThirdParty
+} // namespace Platform
 
 void psNewVersion() {
 	objc_registerCustomScheme();

@@ -20,29 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
+namespace Window {
 
-#ifdef Q_OS_MAC
-#include "pspecific_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "pspecific_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
-#include "pspecific_winrt.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
-#include "pspecific_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
+class MainWindow : public QMainWindow {
+public:
+	MainWindow();
 
-namespace Platform {
+	virtual ~MainWindow();
 
-void start();
-void finish();
+protected:
+	virtual void closeWithoutDestroy();
 
-namespace ThirdParty {
+};
 
-void start();
-void finish();
-
-} // namespace ThirdParty
-} // namespace Platform
+} // namespace Window

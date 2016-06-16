@@ -20,29 +20,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
-
-#ifdef Q_OS_MAC
-#include "pspecific_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "pspecific_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
-#include "pspecific_winrt.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
-#include "pspecific_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
+#include <windows.h>
 
 namespace Platform {
 
-void start();
-void finish();
+class EventFilter : public QAbstractNativeEventFilter {
+public:
+	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
+	bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result);
 
-namespace ThirdParty {
+	bool sessionLoggedOff() const {
+		return _sessionLoggedOff;
+	}
+	void setSessionLoggedOff(bool loggedOff) {
+		_sessionLoggedOff = loggedOff;
+	}
 
-void start();
-void finish();
+	static EventFilter *createInstance();
+	static EventFilter *getInstance();
+	static void destroy();
 
-} // namespace ThirdParty
+private:
+	EventFilter() {
+	}
+
+	bool _sessionLoggedOff = false;
+
+};
+
 } // namespace Platform

@@ -20,29 +20,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
-
-#ifdef Q_OS_MAC
-#include "pspecific_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "pspecific_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
-#include "pspecific_winrt.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
-#include "pspecific_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
-
 namespace Platform {
+namespace Toasts {
 
 void start();
 void finish();
 
-namespace ThirdParty {
+bool supported();
+bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg);
 
-void start();
-void finish();
+// Returns the next ms when clearImages() should be called.
+uint64 clearImages(uint64 ms);
 
-} // namespace ThirdParty
+void clearNotifies(PeerId peerId);
+
+} // namespace Toasts
 } // namespace Platform

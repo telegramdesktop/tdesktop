@@ -18,31 +18,19 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "window/main_window.h"
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
+namespace Window {
 
-#ifdef Q_OS_MAC
-#include "pspecific_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "pspecific_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
-#include "pspecific_winrt.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
-#include "pspecific_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
+MainWindow::MainWindow() {
+}
 
-namespace Platform {
+MainWindow::~MainWindow() {
+}
 
-void start();
-void finish();
+void MainWindow::closeWithoutDestroy() {
+	hide();
+}
 
-namespace ThirdParty {
-
-void start();
-void finish();
-
-} // namespace ThirdParty
-} // namespace Platform
+} // namespace Window
