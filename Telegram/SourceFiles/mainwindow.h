@@ -249,9 +249,7 @@ public:
 	PeerData *ui_getPeerForMouseAction();
 
 public slots:
-
 	void updateIsActive(int timeout = 0);
-	void stateChanged(Qt::WindowState state);
 
 	void checkHistoryActivation();
 
@@ -289,13 +287,15 @@ public slots:
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 signals:
-
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void newAuthorization();
 
 	void imageLoaded();
+
+private slots:
+	void onStateChanged(Qt::WindowState state);
 
 private:
 

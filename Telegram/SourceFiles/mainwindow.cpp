@@ -417,7 +417,9 @@ void MainWindow::onInactiveTimer() {
 	inactivePress(false);
 }
 
-void MainWindow::stateChanged(Qt::WindowState state) {
+void MainWindow::onStateChanged(Qt::WindowState state) {
+	stateChangedHook(state);
+
 	psUserActionDone();
 
 	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
@@ -1069,7 +1071,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	case QEvent::WindowStateChange:
 		if (obj == this) {
 			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-			stateChanged(state);
+			onStateChanged(state);
 		}
 		break;
 
@@ -1107,7 +1109,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *e) {
 bool MainWindow::minimizeToTray() {
     if (App::quitting() || !psHasTrayIcon()) return false;
 
-	hide();
+	closeWithoutDestroy();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);

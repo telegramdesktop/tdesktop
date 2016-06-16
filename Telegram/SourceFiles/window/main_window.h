@@ -26,10 +26,13 @@ class MainWindow : public QMainWindow {
 public:
 	MainWindow();
 
+	virtual void closeWithoutDestroy();
+
 	virtual ~MainWindow();
 
 protected:
-	virtual void closeWithoutDestroy();
+	virtual void stateChangedHook(Qt::WindowState state) {
+	}
 
 };
 

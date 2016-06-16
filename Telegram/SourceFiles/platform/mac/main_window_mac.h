@@ -75,7 +75,7 @@ public:
 	void psNotifyShown(NotifyWindow *w);
 	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
 
-	bool eventFilter(QObject *obj, QEvent *evt);
+	bool eventFilter(QObject *obj, QEvent *evt) override;
 
 	void psUpdateCounter();
 
@@ -85,10 +85,11 @@ public:
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
+	void closeWithoutDestroy() override;
+
 	~MainWindow();
 
 public slots:
-
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
@@ -101,9 +102,12 @@ public slots:
 	void psMacDelete();
 	void psMacSelectAll();
 
-protected:
+private slots:
+	void onHideAfterFullScreen();
 
-	void psNotIdle() const;
+protected:
+	void stateChangedHook(Qt::WindowState state) override;
+
 	QImage psTrayIcon(bool selected = false) const;
 	bool psHasTrayIcon() const {
 		return trayIcon;
@@ -112,8 +116,8 @@ protected:
 	void psMacUpdateMenu();
 
 	bool posInited;
-	QSystemTrayIcon *trayIcon;
-	QMenu *trayIconMenu;
+	QSystemTrayIcon *trayIcon = nullptr;
+	QMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
@@ -126,14 +130,27 @@ protected:
 	QTimer psUpdatedPositionTimer;
 
 private:
-	struct PrivateData;
-	std_::unique_ptr<PrivateData> _private;
+	MacPrivate _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
 
+	QTimer _hideAfterFullScreenTimer;
+
 	QMenuBar psMainMenu;
-	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psAddContact, *psNewGroup, *psNewChannel, *psShowTelegram;
+	QAction *psLogout = nullptr;
+	QAction *psUndo = nullptr;
+	QAction *psRedo = nullptr;
+	QAction *psCut = nullptr;
+	QAction *psCopy = nullptr;
+	QAction *psPaste = nullptr;
+	QAction *psDelete = nullptr;
+	QAction *psSelectAll = nullptr;
+	QAction *psContacts = nullptr;
+	QAction *psAddContact = nullptr;
+	QAction *psNewGroup = nullptr;
+	QAction *psNewChannel = nullptr;
+	QAction *psShowTelegram = nullptr;
 
 };
 

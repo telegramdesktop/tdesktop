@@ -166,15 +166,6 @@ public:
 
 	ScrollArea(QWidget *parent, const style::flatScroll &st = st::scrollDef, bool handleTouch = true);
 
-	bool viewportEvent(QEvent *e);
-	void touchEvent(QTouchEvent *e);
-
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	void resizeEvent(QResizeEvent *e);
-	void moveEvent(QMoveEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-
 	int scrollWidth() const;
 	int scrollHeight() const;
 	int scrollLeftMax() const;
@@ -190,12 +181,21 @@ public:
 
 	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
-	bool focusNextPrevChild(bool next);
+	bool focusNextPrevChild(bool next) override;
 	void setMovingByScrollBar(bool movingByScrollBar);
+
+	bool viewportEvent(QEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	~ScrollArea();
 
 protected:
+
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void moveEvent(QMoveEvent *e) override;
+	void touchEvent(QTouchEvent *e);
 
 	void enterEventHook(QEvent *e);
 	void leaveEventHook(QEvent *e);
@@ -223,7 +223,7 @@ signals:
 
 protected:
 
-	void scrollContentsBy(int dx, int dy);
+	void scrollContentsBy(int dx, int dy) override;
 
 private:
 

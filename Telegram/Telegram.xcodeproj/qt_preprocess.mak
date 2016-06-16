@@ -95,6 +95,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
@@ -114,7 +115,6 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_profile_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_shared_media_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_widget.cpp\
-	 GeneratedFiles/Debug/moc_pspecific_mac.cpp\
 	 GeneratedFiles/Debug/moc_report_box.cpp\
 	 GeneratedFiles/Debug/moc_scrollarea.cpp\
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
@@ -232,6 +232,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
@@ -251,7 +252,6 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_profile_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_shared_media_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_widget.cpp\
-	 GeneratedFiles/Debug/moc_pspecific_mac.cpp\
 	 GeneratedFiles/Debug/moc_report_box.cpp\
 	 GeneratedFiles/Debug/moc_scrollarea.cpp\
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
@@ -312,6 +312,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
@@ -331,7 +332,6 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_profile_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_shared_media_widget.cpp\
 	 GeneratedFiles/Debug/moc_profile_widget.cpp\
-	 GeneratedFiles/Debug/moc_pspecific_mac.cpp\
 	 GeneratedFiles/Debug/moc_report_box.cpp\
 	 GeneratedFiles/Debug/moc_scrollarea.cpp\
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
@@ -483,6 +483,9 @@ GeneratedFiles/Debug/moc_localimageloader.cpp: SourceFiles/localimageloader.h
 GeneratedFiles/Debug/moc_localstorage.cpp: SourceFiles/localstorage.h
 	$(MOC_FILE) SourceFiles/localstorage.h -o GeneratedFiles/Debug/moc_localstorage.cpp
 
+GeneratedFiles/Debug/moc_main_window_mac.cpp: SourceFiles/platform/mac/main_window_mac.h
+	$(MOC_FILE) SourceFiles/platform/mac/main_window_mac.h -o GeneratedFiles/Debug/moc_main_window_mac.cpp
+
 GeneratedFiles/Debug/moc_mainwidget.cpp: SourceFiles/mainwidget.h
 	$(MOC_FILE) SourceFiles/mainwidget.h -o GeneratedFiles/Debug/moc_mainwidget.cpp
 
@@ -539,9 +542,6 @@ GeneratedFiles/Debug/moc_profile_shared_media_widget.cpp: SourceFiles/profile/pr
 
 GeneratedFiles/Debug/moc_profile_widget.cpp: SourceFiles/profile/profile_widget.h
 	$(MOC_FILE) SourceFiles/profile/profile_widget.h -o GeneratedFiles/Debug/moc_profile_widget.cpp
-
-GeneratedFiles/Debug/moc_pspecific_mac.cpp: SourceFiles/pspecific_mac.h
-	$(MOC_FILE) SourceFiles/pspecific_mac.h -o GeneratedFiles/Debug/moc_pspecific_mac.cpp
 
 GeneratedFiles/Debug/moc_report_box.cpp: SourceFiles/boxes/report_box.h
 	$(MOC_FILE) SourceFiles/boxes/report_box.h -o GeneratedFiles/Debug/moc_report_box.cpp
