@@ -71,6 +71,8 @@ public:
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
+	static void LibsLoaded();
+
 	~MainWindow();
 
 public slots:
@@ -86,9 +88,9 @@ protected:
 
 	bool psHasTrayIcon() const;
 
-	bool posInited;
-	QSystemTrayIcon *trayIcon;
-	QMenu *trayIconMenu;
+	bool posInited = false;
+	QSystemTrayIcon *trayIcon = nullptr;
+	QMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
@@ -101,10 +103,10 @@ private:
 	void psCreateTrayIcon();
 
 	QTimer _psCheckStatusIconTimer;
-	int _psCheckStatusIconLeft;
+	int _psCheckStatusIconLeft = 100;
 
 	QTimer _psUpdateIndicatorTimer;
-	uint64 _psLastIndicatorUpdate;
+	uint64 _psLastIndicatorUpdate = 0;
 };
 
 } // namespace Platform

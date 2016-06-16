@@ -19,8 +19,6 @@ CONFIG(release, debug|release) {
 
 macx {
     QMAKE_INFO_PLIST = ./SourceFiles/Telegram.plist
-    OBJECTIVE_SOURCES += ./SourceFiles/pspecific_mac_p.mm
-    OBJECTIVE_HEADERS += ./SourceFiles/pspecific_mac_p.h
     QMAKE_LFLAGS += -framework Cocoa
 }
 
@@ -160,6 +158,8 @@ SOURCES += \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/overview/overview_layout.cpp \
+	./SourceFiles/platform/linux/linux_libs.cpp \
+    ./SourceFiles/platform/linux/main_window_linux.cpp \
     ./SourceFiles/profile/profile_actions_widget.cpp \
     ./SourceFiles/profile/profile_block_widget.cpp \
     ./SourceFiles/profile/profile_cover_drop_area.cpp \
@@ -206,6 +206,7 @@ SOURCES += \
     ./SourceFiles/ui/images.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/twidget.cpp \
+    ./SourceFiles/window/main_window.cpp \
     ./SourceFiles/window/section_widget.cpp \
     ./SourceFiles/window/slide_animation.cpp \
     ./SourceFiles/window/top_bar_widget.cpp
@@ -312,6 +313,9 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/overview/overview_layout.h \
+    ./SourceFiles/platform/platform_main_window.h \
+	./SourceFiles/platform/linux/linux_libs.h \
+    ./SourceFiles/platform/linux/main_window_linux.h \
     ./SourceFiles/profile/profile_actions_widget.h \
     ./SourceFiles/profile/profile_block_widget.h \
     ./SourceFiles/profile/profile_cover_drop_area.h \
@@ -359,6 +363,7 @@ HEADERS += \
     ./SourceFiles/ui/images.h \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/twidget.h \
+    ./SourceFiles/window/main_window.h \
     ./SourceFiles/window/section_memento.h \
     ./SourceFiles/window/section_widget.h \
     ./SourceFiles/window/slide_animation.h \
@@ -366,16 +371,27 @@ HEADERS += \
 
 win32 {
 SOURCES += \
-  ./SourceFiles/pspecific_win.cpp
+  ./SourceFiles/pspecific_win.cpp \
+  ./SourceFiles/platform/win/windows_app_user_model_id.cpp \
+  ./SourceFiles/platform/win/windows_dlls.cpp \
+  ./SourceFiles/platform/win/windows_event_filter.cpp \
+  ./SourceFiles/platform/win/windows_toasts.cpp
+
 HEADERS += \
-  ./SourceFiles/pspecific_win.h
+  ./SourceFiles/pspecific_win.h \
+  ./SourceFiles/platform/win/windows_app_user_model_id.h \
+  ./SourceFiles/platform/win/windows_dlls.h \
+  ./SourceFiles/platform/win/windows_event_filter.h \
+  ./SourceFiles/platform/win/windows_toasts.h
 }
 
 winrt {
 SOURCES += \
-  ./SourceFiles/pspecific_winrt.cpp
+  ./SourceFiles/pspecific_winrt.cpp \
+  ./SourceFiles/platform/winrt/main_window_winrt.cpp
 HEADERS += \
-  ./SourceFiles/pspecific_winrt.h
+  ./SourceFiles/pspecific_winrt.h \
+  ./Sourcefiles/platform/winrt/main_window_winrt.h
 }
 
 macx {
@@ -383,6 +399,12 @@ SOURCES += \
   ./SourceFiles/pspecific_mac.cpp
 HEADERS += \
   ./SourceFiles/pspecific_mac.h
+OBJECTIVE_SOURCES += \
+  ./SourceFiles/pspecific_mac_p.mm \
+  ./SourceFiles/platform/mac/main_window_mac.mm
+HEADERS += \
+  ./SourceFiles/pspecific_mac_p.h \
+  ./SourceFiles/platform/mac/main_window_mac.h
 }
 
 SOURCES += \

@@ -436,7 +436,7 @@ void MainWindow::init() {
 	setWindowIcon(wndIcon);
 
 	Application::instance()->installEventFilter(this);
-	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
