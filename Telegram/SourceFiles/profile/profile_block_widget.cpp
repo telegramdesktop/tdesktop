@@ -25,29 +25,30 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : ScrolledWidget(parent)
 , _peer(peer)
 , _title(title) {
 }
 
-void BlockWidget::resizeToWidth(int newWidth) {
-	resize(newWidth, resizeGetHeight(newWidth));
-}
-
 int BlockWidget::contentTop() const {
-	return st::profileBlockMarginTop + st::profileBlockTitleHeight;
+	return st::profileBlockMarginTop + (emptyTitle() ? 0 : st::profileBlockTitleHeight);
 }
 
 void BlockWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	paintTitle(p);
+	paintContents(p);
+}
+
+void BlockWidget::paintTitle(Painter &p) {
+	if (emptyTitle()) return;
 
 	p.setFont(st::profileBlockTitleFont);
 	p.setPen(st::profileBlockTitleFg);
 	int titleLeft = st::profileBlockTitlePosition.x();
 	int titleTop = st::profileBlockMarginTop + st::profileBlockTitlePosition.y();
 	p.drawTextLeft(titleLeft, titleTop, width(), _title);
-
-	paintContents(p);
 }
 
 int defaultOutlineButtonLeft() {

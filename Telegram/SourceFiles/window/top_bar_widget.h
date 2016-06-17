@@ -38,9 +38,9 @@ public:
 	TopBarWidget(MainWidget *w);
 
 	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -54,7 +54,12 @@ public:
 
 	void updateAdaptiveLayout();
 
+	void updateMembersShowArea();
+
 	Ui::RoundButton *mediaTypeButton();
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 public slots:
 	void onForwardSelection();
@@ -87,6 +92,7 @@ private:
 	ChildWidget<Ui::RoundButton> _mediaType;
 
 	ChildWidget<IconedButton> _search;
+	ChildWidget<TWidget> _membersShowArea = { nullptr };
 
 };
 

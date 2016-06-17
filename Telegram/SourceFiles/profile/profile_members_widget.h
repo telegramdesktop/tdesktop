@@ -38,7 +38,11 @@ class MembersWidget : public BlockWidget {
 	Q_OBJECT
 
 public:
-	MembersWidget(QWidget *parent, PeerData *peer);
+	enum class TitleVisibility {
+		Visible,
+		Hidden,
+	};
+	MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible);
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	int onlineCount() const {
@@ -57,11 +61,11 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e) override {
+	void enterFromChildEvent(QEvent *e, QWidget *child) override {
 		enterEvent(e);
 	}
 	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override {
+	void leaveToChildEvent(QEvent *e, QWidget *child) override {
 		leaveEvent(e);
 	}
 

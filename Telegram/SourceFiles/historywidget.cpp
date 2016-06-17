@@ -28,9 +28,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
+#include "ui/inner_dropdown.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "history/history_service_layout.h"
+#include "profile/profile_members_widget.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
@@ -5442,7 +5444,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	if (startAnim) _a_record.start();
 }
 
-void HistoryWidget::leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
+void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from enterEvent() of child TWidget
 	if (hasMouseTracking()) mouseMoveEvent(0);
 }
 
@@ -6009,6 +6011,37 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	}
 }
 
+QRect HistoryWidget::getMembersShowAreaGeometry() const {
+	int increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
+	int membersTextLeft = st::topBarForwardPadding.left() + increaseLeft;
+	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height - st::topBarForwardPadding.bottom();
+	int membersTextWidth = _titlePeerTextWidth;
+	int membersTextHeight = st::topBarHeight - membersTextTop;
+
+	membersTextLeft -= st::topBarForwardPadding.left();
+	membersTextWidth += 2 * st::topBarForwardPadding.left();
+
+	return rtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight, width());
+}
+
+void HistoryWidget::setMembersShowAreaActive(bool active) {
+	if (active && _peer && (_peer->isChat() || _peer->isMegagroup())) {
+		if (!_membersDropdown) {
+			_membersDropdown = new Ui::InnerDropdown(this, st::dropdownDef, st::solidScroll);
+			_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
+			_membersDropdown->setGeometry(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight);
+			connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+		}
+		_membersDropdown->otherEnter();
+	} else if (_membersDropdown) {
+		_membersDropdown->otherLeave();
+	}
+}
+
+void HistoryWidget::onMembersDropdownHidden() {
+	_membersDropdown.destroyDelayed();
+}
+
 void HistoryWidget::topBarClick() {
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
@@ -6074,6 +6107,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 		_titlePeerTextOnline = titlePeerTextOnline;
 		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		if (App::main()) {
+			App::main()->topBar()->updateMembersShowArea();
 			App::main()->topBar()->update();
 		}
 	}
@@ -7263,6 +7297,9 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			connect(&_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
 			_reportSpamPanel.raise();
 			_topShadow.raise();
+			if (_membersDropdown) {
+				_membersDropdown->raise();
+			}
 			updatePinnedBar();
 			result = true;
 

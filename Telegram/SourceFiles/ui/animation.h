@@ -449,12 +449,17 @@ private:
 		} else {
 			_data->a.update(dt, _data->transition);
 		}
-		if (timer) {
-			_data->update.call();
-		}
+
+		Callback callbackCache, *toCall = &_data->update;
 		if (!_data->_a.animating()) {
+			callbackCache = std_::move(_data->update);
+			toCall = &callbackCache;
+
 			delete _data;
 			_data = nullptr;
+		}
+		if (timer) {
+			toCall->call();
 		}
 	}
 

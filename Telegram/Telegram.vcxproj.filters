@@ -1329,6 +1329,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_main_window_linux.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\ui\inner_dropdown.cpp">
+      <Filter>SourceFiles\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1863,6 +1875,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\platform\linux\main_window_linux.h">
       <Filter>SourceFiles\platform\linux</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\inner_dropdown.h">
+      <Filter>SourceFiles\ui</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

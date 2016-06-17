@@ -2696,6 +2696,19 @@ void MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	}
 }
 
+QRect MainWidget::getMembersShowAreaGeometry() const {
+	if (!_overview && !_wideSection) {
+		return _history->getMembersShowAreaGeometry();
+	}
+	return QRect();
+}
+
+void MainWidget::setMembersShowAreaActive(bool active) {
+	if (!active || (!_overview && !_wideSection)) {
+		_history->setMembersShowAreaActive(active);
+	}
+}
+
 void MainWidget::onPhotosSelect() {
 	if (_overview) _overview->switchType(OverviewPhotos);
 	_mediaType->hideStart();

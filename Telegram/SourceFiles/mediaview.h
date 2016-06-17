@@ -51,10 +51,10 @@ public:
 	bool moveToNext(int32 delta);
 	void preloadData(int32 delta);
 
-	void leaveToChildEvent(QEvent *e) override { // e -- from enterEvent() of child TWidget
+	void leaveToChildEvent(QEvent *e, QWidget *child) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
 	}
-	void enterFromChildEvent(QEvent *e) override { // e -- from leaveEvent() of child TWidget
+	void enterFromChildEvent(QEvent *e, QWidget *child) override { // e -- from leaveEvent() of child TWidget
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
