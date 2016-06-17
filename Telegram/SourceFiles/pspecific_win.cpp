@@ -785,10 +785,8 @@ namespace {
 			if (!propVariantToString) return;
 			if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) return;
 			if (!loadFunction(procId, "RoGetActivationFactory", roGetActivationFactory)) return;
-
-			HINSTANCE otherProcId = LoadLibrary(L"api-ms-win-core-winrt-string-l1-1-0.dll");
-			if (!loadFunction(otherProcId, "WindowsCreateStringReference", windowsCreateStringReference)) return;
-			if (!loadFunction(otherProcId, "WindowsDeleteString", windowsDeleteString)) return;
+			if (!loadFunction(procId, "WindowsCreateStringReference", windowsCreateStringReference)) return;
+			if (!loadFunction(procId, "WindowsDeleteString", windowsDeleteString)) return;
 
 			useToast = true;
 		}
