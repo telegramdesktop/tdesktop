@@ -357,7 +357,6 @@ public:
 	BotKeyboard();
 
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -371,7 +370,7 @@ public:
 	bool forceReply() const;
 
 	void step_selected(uint64 ms, bool timer);
-	void resizeToWidth(int width, int maxOuterHeight);
+	void resizeToWidth(int newWidth, int maxOuterHeight);
 
 	bool maximizeSize() const;
 	bool singleUse() const;
@@ -388,18 +387,10 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-//public slots:
-//
-//	void onParentScrolled();
-
-//private slots:
 private:
-
 	void updateSelected();
 
-private:
-
-	void updateStyle(int32 w = -1);
+	void updateStyle(int newWidth);
 	void clearSelection();
 
 	FullMsgId _wasForMsgId;

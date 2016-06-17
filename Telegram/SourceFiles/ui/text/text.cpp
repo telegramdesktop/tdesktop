@@ -943,12 +943,18 @@ public:
 		_y = top;
 		_yFrom = yFrom + top;
 		_yTo = (yTo < 0) ? -1 : (yTo + top);
-		if (_elideLast) {
-			_yToElide = _yTo;
-		}
 		_selection = selection;
 		_fullWidthSelection = fullWidthSelection;
 		_wLeft = _w = w;
+		if (_elideLast) {
+			_yToElide = _yTo;
+			if (_elideRemoveFromEnd > 0 && !_t->_blocks.isEmpty()) {
+				int firstBlockHeight = countBlockHeight(_t->_blocks.front(), _t->_font);
+				if (_y + firstBlockHeight >= _yToElide) {
+					_wLeft -= _elideRemoveFromEnd;
+				}
+			}
+		}
 		_str = _t->_text.unicode();
 
 		if (_p) {

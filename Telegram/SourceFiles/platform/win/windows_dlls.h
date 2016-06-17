@@ -78,8 +78,6 @@ extern f_PropVariantToString PropVariantToString;
 typedef HRESULT (FAR STDAPICALLTYPE *f_RoGetActivationFactory)(_In_ HSTRING activatableClassId, _In_ REFIID iid, _COM_Outptr_ void ** factory);
 extern f_RoGetActivationFactory RoGetActivationFactory;
 
-// api-ms-win-core-winrt-string-l1-1-0.dll
-
 typedef HRESULT (FAR STDAPICALLTYPE *f_WindowsCreateStringReference)(_In_reads_opt_(length + 1) PCWSTR sourceString, UINT32 length, _Out_ HSTRING_HEADER * hstringHeader, _Outptr_result_maybenull_ _Result_nullonfailure_ HSTRING * string);
 extern f_WindowsCreateStringReference WindowsCreateStringReference;
 
