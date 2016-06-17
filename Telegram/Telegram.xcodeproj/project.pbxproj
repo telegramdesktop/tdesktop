@@ -243,7 +243,6 @@
 		8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9A55B8F7C143D66AD9EAE304 /* qgenericbearer */; };
 		8B22E794EFF0EAFF964A3043 /* introstart.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C34459FA465B57DF4DB80D12 /* introstart.cpp */; settings = {ATTRIBUTES = (); }; };
 		8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2181F5E34DE0A4B2F811E2E2 /* moc_flatlabel.cpp */; settings = {ATTRIBUTES = (); }; };
-		8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */; settings = {ATTRIBUTES = (); }; };
 		8D267F2E4776F0ECA2F49DC8 /* IOKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = A1A67BEAA744704B29168D39 /* IOKit.framework */; };
 		8D33FE22B9BBADC7FA46C15B /* qtharfbuzzng in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = D6193B79CECC9DD0142D1200 /* qtharfbuzzng */; };
 		8E26A0653012B8E8C3E865EC /* application.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C20F9DD8C7B031B8E20D5653 /* application.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -752,7 +751,6 @@
 		710C982FC773400941B3AFBC /* dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dropdown.cpp; path = SourceFiles/dropdown.cpp; sourceTree = "<absolute>"; };
 		723F90793B2C195E2CCB2233 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };
-		74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_pspecific_mac.cpp; path = GeneratedFiles/Debug/moc_pspecific_mac.cpp; sourceTree = "<absolute>"; };
 		748F1BCCBEEB3675768960FB /* auth_key.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = auth_key.h; path = SourceFiles/mtproto/auth_key.h; sourceTree = "<absolute>"; };
 		763ED3C6815ED6C89E352652 /* flatlabel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatlabel.cpp; path = SourceFiles/ui/flatlabel.cpp; sourceTree = "<absolute>"; };
 		7CA6945B22800A0F30B75DA5 /* addcontactbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = addcontactbox.cpp; path = SourceFiles/boxes/addcontactbox.cpp; sourceTree = "<absolute>"; };
@@ -1555,7 +1553,6 @@
 				0716C9691D058C8600797B22 /* moc_profile_settings_widget.cpp */,
 				0716C96A1D058C8600797B22 /* moc_profile_shared_media_widget.cpp */,
 				0716C96B1D058C8600797B22 /* moc_profile_widget.cpp */,
-				74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */,
 				0716C96D1D058C8600797B22 /* moc_report_box.cpp */,
 				8918F4B71ED5FC138AFD3F70 /* moc_scrollarea.cpp */,
 				0716C9821D05931400797B22 /* moc_section_widget.cpp */,
@@ -2147,7 +2144,6 @@
 				0250AB6761AC71A2E3155EEA /* moc_introphone.cpp in Compile Sources */,
 				07D8509419F5C97E00623D75 /* core_types.cpp in Compile Sources */,
 				2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */,
-				8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */,
 				07DE92AE1AA4928B00A18F6F /* moc_passcodewidget.cpp in Compile Sources */,
 				FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */,
 				07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */,
@@ -2344,7 +2340,7 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					"$(ZLIB_PATH)/lib/libz.a",
+					"$(PATH_FOR_ZLIB)/lib/libz.a",
 					"-lm",
 					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
@@ -2362,6 +2358,7 @@
 					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
+				PATH_FOR_ZLIB = /usr/local;
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
@@ -2369,7 +2366,6 @@
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
 				TDESKTOP_VERSION = 0.9.52;
-				ZLIB_PATH = /usr/local;
 			};
 			name = Release;
 		};
@@ -2485,7 +2481,7 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					"$(ZLIB_PATH)/lib/libz.a",
+					"$(PATH_FOR_ZLIB)/lib/libz.a",
 					"-lm",
 					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
@@ -2503,6 +2499,7 @@
 					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
+				PATH_FOR_ZLIB = /usr/local;
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
@@ -2510,7 +2507,6 @@
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
 				TDESKTOP_VERSION = 0.9.52;
-				ZLIB_PATH = /usr/local;
 			};
 			name = Debug;
 		};
