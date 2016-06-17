@@ -2445,21 +2445,6 @@ int BotKeyboard::Style::minButtonWidth(HistoryMessageReplyMarkup::Button::Type t
 	return result;
 }
 
-void BotKeyboard::resizeEvent(QResizeEvent *e) {
-	if (!_impl) return;
-
-	updateStyle();
-
-	_height = _impl->naturalHeight() + st::botKbScroll.deltat + st::botKbScroll.deltab;
-	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-	if (height() != _height) {
-		resize(width(), _height);
-		return;
-	}
-
-	_impl->resize(width() - _st->margin - st::botKbScroll.width, _height - (st::botKbScroll.deltat + st::botKbScroll.deltab));
-}
-
 void BotKeyboard::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateSelected();
@@ -2529,14 +2514,8 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		}
 	}
 
-	updateStyle();
-	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
-	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-	if (height() != _height) {
-		resize(width(), _height);
-	} else {
-		resizeEvent(nullptr);
-	}
+	resizeToWidth(width(), _maxOuterHeight);
+
 	return true;
 }
 
@@ -2548,13 +2527,23 @@ bool BotKeyboard::forceReply() const {
 	return _forceReply;
 }
 
-void BotKeyboard::resizeToWidth(int width, int maxOuterHeight) {
-	updateStyle(width);
-	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
+void BotKeyboard::resizeToWidth(int newWidth, int maxOuterHeight) {
 	_maxOuterHeight = maxOuterHeight;
 
-	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-	resize(width, _height);
+	updateStyle(newWidth);
+	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
+	if (_maximizeSize) {
+		accumulate_max(_height, _maxOuterHeight);
+	}
+	if (_impl) {
+		int implWidth = newWidth - _st->margin - st::botKbScroll.width;
+		int implHeight = _height - (st::botKbScroll.deltat + st::botKbScroll.deltab);
+		_impl->resize(implWidth, implHeight);
+	}
+	QSize newSize(newWidth, _height);
+	if (newSize != size()) {
+		resize(newSize);
+	}
 }
 
 bool BotKeyboard::maximizeSize() const {
@@ -2565,10 +2554,10 @@ bool BotKeyboard::singleUse() const {
 	return _singleUse;
 }
 
-void BotKeyboard::updateStyle(int32 w) {
+void BotKeyboard::updateStyle(int newWidth) {
 	if (!_impl) return;
 
-	int implWidth = ((w < 0) ? width() : w) - st::botKbButton.margin - st::botKbScroll.width;
+	int implWidth = newWidth - st::botKbButton.margin - st::botKbScroll.width;
 	_st = _impl->isEnoughSpace(implWidth, st::botKbButton) ? &st::botKbButton : &st::botKbTinyButton;
 
 	_impl->setStyle(std_::make_unique<Style>(this, *_st));
@@ -2593,13 +2582,6 @@ QString BotKeyboard::tooltipText() const {
 	}
 	return QString();
 }
-
-//void BotKeyboard::onParentScrolled() {
-//	// Holding scrollarea can fire scrolled() event from a resize() call before
-//	// the resizeEvent() is called, which prepares _impl for updateSelected() call.
-//	// Calling updateSelected() without delay causes _impl->getState() before _impl->resize().
-//	QMetaObject::invokeMethod(this, "updateSelected", Qt::QueuedConnection);
-//}
 
 void BotKeyboard::updateSelected() {
 	PopupTooltip::Show(1000, this);
@@ -3085,8 +3067,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_kbScroll.viewport()->setFocusPolicy(Qt::NoFocus);
 	_kbScroll.setWidget(&_keyboard);
 	_kbScroll.hide();
-
-//	connect(&_kbScroll, SIGNAL(scrolled()), &_keyboard, SLOT(onParentScrolled()));
 
 	updateScrollColors();
 
