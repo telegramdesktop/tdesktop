@@ -27,25 +27,54 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
-codegen_style.target = style_target
-codegen_style.depends = FORCE
-codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
-
-codegen_numbers.target = numbers_target
-codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
-codegen_numbers.commands = ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
-
 CONFIG(debug, debug|release) {
-codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
+    codegen_style.target = style_target
+    codegen_style.depends = FORCE
+    codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
+
+    codegen_numbers.target = numbers_target
+    codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
+    codegen_numbers.commands = ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
+
+    codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
+
+    codegen_lang.target = lang_target
+    codegen_lang.depends = ./../../Telegram/Resources/langs/lang.strings
+    codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
 }
+
 CONFIG(release, debug|release) {
+    codegen_style.target = style_target
+    codegen_style.depends = FORCE
+    codegen_style.commands = ./../codegen/Release/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
+
+    codegen_numbers.target = numbers_target
+    codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
+    codegen_numbers.commands = ./../codegen/Release/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
+
+    codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Release/codegen_numbers "-o./../Linux/ReleaseIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/ReleaseIntermediate
+
+    codegen_lang.target = lang_target
+    codegen_lang.depends = ./../../Telegram/Resources/langs/lang.strings
+    codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../ReleaseLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
 }
 
-codegen_lang.target = lang_target
-codegen_lang.depends = ./../../Telegram/Resources/langs/lang.strings
-codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
+file_style_basic.target = GeneratedFiles/styles/style_basic.cpp
+file_style_basic.depends = style_target
+file_style_basic_types.target = GeneratedFiles/styles/style_basic_types.cpp
+file_style_basic_types.depends = style_target
+file_style_overview.target = GeneratedFiles/styles/style_overview.cpp
+file_style_overview.depends = style_target
+file_style_dialogs.target = GeneratedFiles/styles/style_dialogs.cpp
+file_style_dialogs.depends = style_target
+file_style_history.target = GeneratedFiles/styles/style_history.cpp
+file_style_history.depends = style_target
+file_style_profile.target = GeneratedFiles/styles/style_profile.cpp
+file_style_profile.depends = style_target
 
-QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang
+QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang \
+    file_style_basic file_style_basic_types file_style_overview \
+    file_style_dialogs file_style_history file_style_profile
 
 PRE_TARGETDEPS += style_target numbers_target lang_target
 
