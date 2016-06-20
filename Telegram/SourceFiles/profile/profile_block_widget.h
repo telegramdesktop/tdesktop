@@ -24,24 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-class BlockWidget : public TWidget, public Notify::Observer {
+class BlockWidget : public ScrolledWidget, public Notify::Observer {
 	Q_OBJECT
 
 public:
 	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
-
-	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth);
-
-	// Updates the area that is visible inside the scroll container.
-	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	}
-
-	virtual ~BlockWidget() {
-	}
-
-signals:
-	void heightUpdated();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -52,7 +39,7 @@ protected:
 	int contentTop() const;
 
 	// Resizes content and counts natural widget height for the desired width.
-	virtual int resizeGetHeight(int newWidth) = 0;
+	int resizeGetHeight(int newWidth) override = 0;
 
 	void contentSizeUpdated() {
 		resizeToWidth(width());
@@ -63,7 +50,13 @@ protected:
 		return _peer;
 	}
 
+	bool emptyTitle() const {
+		return _title.isEmpty();
+	}
+
 private:
+	void paintTitle(Painter &p);
+
 	PeerData *_peer;
 	QString _title;
 

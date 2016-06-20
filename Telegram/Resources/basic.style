@@ -1578,10 +1578,10 @@ contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
 
-btnNewGroup: iconedButton(btnDefIconed) {
-	icon: sprite(189px, 118px, 18px, 17px);
+btnAddContact: iconedButton(btnDefIconed) {
+	icon: sprite(188px, 93px, 18px, 18px);
 	iconPos: point(8px, 8px);
-	downIcon: sprite(189px, 118px, 18px, 17px);
+	downIcon: sprite(188px, 93px, 18px, 18px);
 	downIconPos: point(8px, 9px);
 
 	bgColor: transparent;
@@ -1589,11 +1589,7 @@ btnNewGroup: iconedButton(btnDefIconed) {
 	width: 36px;
 	height: 36px;
 }
-btnAddContact: iconedButton(btnNewGroup) {
-	icon: sprite(188px, 93px, 18px, 18px);
-	downIcon: sprite(188px, 93px, 18px, 18px);
-}
-btnCancelSearch: iconedButton(btnNewGroup) {
+btnCancelSearch: iconedButton(btnAddContact) {
 	icon: sprite(188px, 43px, 18px, 18px);
 	downIcon: sprite(188px, 43px, 18px, 18px);
 }
@@ -1732,6 +1728,17 @@ dropdownDef: dropdown {
 
 	duration: 150;
 	width: 0px;
+}
+
+defaultInnerDropdownShadow: icon {
+	{ "dropdown_shadow", windowShadowFg },
+};
+defaultInnerDropdown: InnerDropdown {
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: defaultInnerDropdownShadow;
+	shadowShift: 1px;
+
+	duration: 150;
 }
 
 dropdownAttachDocument: iconedButton(btnAttachDocument) {

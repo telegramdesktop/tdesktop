@@ -43,7 +43,6 @@ HINSTANCE LibShell32;
 HINSTANCE LibWtsApi32;
 HINSTANCE LibPropSys;
 HINSTANCE LibComBase;
-HINSTANCE LibWinRtString;
 
 void start() {
 	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
@@ -66,10 +65,8 @@ void start() {
 
 	LibComBase = LoadLibrary(L"COMBASE.DLL");
 	load(LibComBase, "RoGetActivationFactory", RoGetActivationFactory);
-
-	LibWinRtString = LoadLibrary(L"api-ms-win-core-winrt-string-l1-1-0.dll");
-	load(LibWinRtString, "WindowsCreateStringReference", WindowsCreateStringReference);
-	load(LibWinRtString, "WindowsDeleteString", WindowsDeleteString);
+	load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
+	load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
 }
 
 } // namespace Dlls

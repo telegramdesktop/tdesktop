@@ -290,10 +290,10 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/usr/local/Qt-5.5.1/include",
+					"$(QT_PATH)/include",
 					../../../SourceFiles,
 				);
-				LIBRARY_SEARCH_PATHS = "/usr/local/Qt-5.5.1/lib";
+				LIBRARY_SEARCH_PATHS = "$(QT_PATH)/lib";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OBJROOT = "./../../../../Mac/obj/codegen_style/$(CONFIGURATION)";
@@ -310,6 +310,7 @@
 					"-lqtharfbuzzng_debug",
 					"-lz",
 				);
+				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../../../../Mac/codegen/;
 			};
@@ -348,10 +349,10 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/usr/local/Qt-5.5.1/include",
+					"$(QT_PATH)/include",
 					../../../SourceFiles,
 				);
-				LIBRARY_SEARCH_PATHS = "/usr/local/Qt-5.5.1/lib";
+				LIBRARY_SEARCH_PATHS = "$(QT_PATH)/lib";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OBJROOT = "./../../../../Mac/obj/codegen_style/$(CONFIGURATION)";
@@ -367,6 +368,7 @@
 					"-lqtpcre",
 					"-lz",
 				);
+				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../../../../Mac/codegen/;
 			};

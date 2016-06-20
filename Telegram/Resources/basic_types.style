@@ -246,6 +246,18 @@ dropdown {
 	width: pixels;
 }
 
+InnerDropdown {
+	padding: margins;
+	shadow: icon;
+	shadowShift: pixels;
+
+	duration: int;
+	width: pixels;
+
+	scrollMargin: margins;
+	scrollPadding: margins;
+}
+
 PopupMenu {
 	skip: pixels;
 

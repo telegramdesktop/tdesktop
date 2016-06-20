@@ -98,7 +98,7 @@ namespace {
 		_PsInitializer() {
 			Dlls::start();
 
-			useOpenWith = (Dlls::SHAssocEnumHandlers != nullptr) && (SHCreateItemFromParsingName != nullptr);
+			useOpenWith = (Dlls::SHAssocEnumHandlers != nullptr) && (Dlls::SHCreateItemFromParsingName != nullptr);
 			useOpenAs = (Dlls::SHOpenWithDialog != nullptr) || (Dlls::OpenAs_RunDLL != nullptr);
 			useShellapi = (Dlls::SHQueryUserNotificationState != nullptr);
 		}

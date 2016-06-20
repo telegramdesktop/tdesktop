@@ -504,3 +504,19 @@ void RichDeleteMessageBox::hideAll() {
 	_delete.hide();
 	_cancel.hide();
 }
+
+KickMemberBox::KickMemberBox(PeerData *chat, UserData *member)
+: ConfirmBox(lng_profile_sure_kick(lt_user, member->firstName), lang(lng_box_remove))
+, _chat(chat)
+, _member(member) {
+	connect(this, SIGNAL(confirmed()), this, SLOT(onConfirm()));
+}
+
+void KickMemberBox::onConfirm() {
+	Ui::hideLayer();
+	if (auto chat = _chat->asChat()) {
+		App::main()->kickParticipant(chat, _member);
+	} else if (auto channel = _chat->asChannel()) {
+		App::api()->kickParticipant(channel, _member);
+	}
+}

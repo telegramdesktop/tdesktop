@@ -204,6 +204,7 @@ SOURCES += \
     ./SourceFiles/ui/flatlabel.cpp \
     ./SourceFiles/ui/flattextarea.cpp \
     ./SourceFiles/ui/images.cpp \
+    ./SourceFiles/ui/inner_dropdown.cpp \
     ./SourceFiles/ui/scrollarea.cpp \
     ./SourceFiles/ui/twidget.cpp \
     ./SourceFiles/window/main_window.cpp \
@@ -361,6 +362,7 @@ HEADERS += \
     ./SourceFiles/ui/flatlabel.h \
     ./SourceFiles/ui/flattextarea.h \
     ./SourceFiles/ui/images.h \
+    ./SourceFiles/ui/inner_dropdown.h \
     ./SourceFiles/ui/scrollarea.h \
     ./SourceFiles/ui/twidget.h \
     ./SourceFiles/window/main_window.h \

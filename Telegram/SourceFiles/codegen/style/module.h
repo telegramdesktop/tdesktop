@@ -75,7 +75,7 @@ public:
 	// Returns false if there is a variable with such name already.
 	bool addVariable(const Variable &value);
 	// Returns nullptr if there is no such variable in result_ or any of included modules.
-	const Variable *findVariable(const FullName &name) const;
+	const Variable *findVariable(const FullName &name, bool *outFromThisModule = nullptr) const;
 	bool hasVariables() const {
 		return !variables_.isEmpty();
 	}

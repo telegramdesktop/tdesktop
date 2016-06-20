@@ -86,9 +86,11 @@ void TopBarWidget::enterEvent(QEvent *e) {
 	_a_appearance.start();
 }
 
-void TopBarWidget::enterFromChildEvent(QEvent *e) {
-	a_over.start(1);
-	_a_appearance.start();
+void TopBarWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
+	if (child != _membersShowArea) {
+		a_over.start(1);
+		_a_appearance.start();
+	}
 }
 
 void TopBarWidget::leaveEvent(QEvent *e) {
@@ -96,9 +98,11 @@ void TopBarWidget::leaveEvent(QEvent *e) {
 	_a_appearance.start();
 }
 
-void TopBarWidget::leaveToChildEvent(QEvent *e) {
-	a_over.start(0);
-	_a_appearance.start();
+void TopBarWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
+	if (child != _membersShowArea) {
+		a_over.start(0);
+		_a_appearance.start();
+	}
 }
 
 void TopBarWidget::step_appearance(float64 ms, bool timer) {
@@ -110,6 +114,25 @@ void TopBarWidget::step_appearance(float64 ms, bool timer) {
 		a_over.update(dt, anim::linear);
 	}
 	if (timer) update();
+}
+
+bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
+	if (obj == _membersShowArea) {
+		switch (e->type()) {
+		case QEvent::MouseButtonPress:
+			mousePressEvent(static_cast<QMouseEvent*>(e));
+			return true;
+
+		case QEvent::Enter:
+			main()->setMembersShowAreaActive(true);
+			break;
+
+		case QEvent::Leave:
+			main()->setMembersShowAreaActive(false);
+			break;
+		}
+	}
+	return TWidget::eventFilter(obj, e);
 }
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
@@ -136,8 +159,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 }
 
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
-	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
-	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && (p || !_selCount)) {
+	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && !_selCount) {
 		emit clicked();
 	}
 }
@@ -209,12 +231,16 @@ void TopBarWidget::startAnim() {
 	_forward->hide();
 	_mediaType->hide();
 	_search->hide();
+	if (_membersShowArea) {
+		_membersShowArea->hide();
+	}
 
 	_animating = true;
 }
 
 void TopBarWidget::stopAnim() {
 	_animating = false;
+	updateMembersShowArea();
 	showAll();
 }
 
@@ -255,21 +281,53 @@ void TopBarWidget::showAll() {
 		_search->hide();
 		_info->hide();
 	}
+	if (_membersShowArea) {
+		_membersShowArea->show();
+	}
 	resizeEvent(nullptr);
 }
 
+void TopBarWidget::updateMembersShowArea() {
+	auto membersShowAreaNeeded = [this]() {
+		if (_selCount || App::main()->overviewPeer() || !_selPeer) {
+			return false;
+		}
+		if (_selPeer->isChat()) {
+			return true;
+		}
+		if (_selPeer->isMegagroup()) {
+			return (_selPeer->asMegagroup()->membersCount() < Global::ChatSizeMax());
+		}
+		return false;
+	};
+	if (!membersShowAreaNeeded()) {
+		if (_membersShowArea) {
+			main()->setMembersShowAreaActive(false);
+			_membersShowArea.destroy();
+		}
+		return;
+	} else if (!_membersShowArea) {
+		_membersShowArea = new TWidget(this);
+		_membersShowArea->show();
+		_membersShowArea->installEventFilter(this);
+	}
+	_membersShowArea->setGeometry(App::main()->getMembersShowAreaGeometry());
+}
+
 void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
-	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	_selPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selCount = selCount;
 	_canDelete = canDelete;
 	_selStr = (_selCount > 0) ? lng_selected_count(lt_count, _selCount) : QString();
 	_selStrWidth = st::btnDefLink.font->width(_selStr);
-	setCursor((!p && _selCount) ? style::cur_default : style::cur_pointer);
+	setCursor(_selCount ? style::cur_default : style::cur_pointer);
+
+	updateMembersShowArea();
 	showAll();
 }
 
 void TopBarWidget::updateAdaptiveLayout() {
+	updateMembersShowArea();
 	showAll();
 }
 
