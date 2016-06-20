@@ -43,6 +43,7 @@ constexpr int kErrorUnknownField       = 803;
 constexpr int kErrorIdentifierNotFound = 804;
 constexpr int kErrorAlreadyDefined     = 805;
 constexpr int kErrorBadString          = 806;
+constexpr int kErrorIconDuplicate      = 807;
 
 QString findInputFile(const Options &options) {
 	for (const auto &dir : options.includePaths) {
@@ -351,7 +352,8 @@ structure::Value ParsedFile::defaultConstructedStruct(const structure::FullName 
 }
 
 void ParsedFile::applyStructParent(structure::Value &result, const structure::FullName &parentName) {
-	if (auto parent = module_->findVariable(parentName)) {
+	bool fromTheSameModule = false;
+	if (auto parent = module_->findVariable(parentName, &fromTheSameModule)) {
 		if (parent->value.type() != result.type()) {
 			logErrorTypeMismatch() << "parent '" << logFullName(parentName) << "' has type '" << logType(parent->value.type()) << "' while child value has type " << logType(result.type());
 			return;
@@ -374,6 +376,22 @@ void ParsedFile::applyStructParent(structure::Value &result, const structure::Fu
 				const auto &srcValue(srcField.variable.value);
 				auto &dstValue(dstField.variable.value);
 				logAssert(srcValue.type() == dstValue.type()) << "struct field type check failed";
+
+				// Optimization: don't let the style files to contain unnamed inherited
+				// icons from the other (included) style files, because they will
+				// duplicate the binary data across different style c++ source files.
+				//
+				// Example:
+				// a.style has "A: Struct { icon: icon { ..file.. } };" and
+				// b.style has "B: Struct(A) { .. };" with non-overriden icon field.
+				// Then both style_a.cpp and style_b.cpp will contain binary data of "file".
+				if (!fromTheSameModule
+					&& srcValue.type().tag == structure::TypeTag::Icon
+					&& !srcValue.Icon().parts.empty()
+					&& srcValue.copyOf().isEmpty()) {
+					logError(kErrorIconDuplicate) << "an unnamed icon field '" << logFullName(srcField.variable.name) << "' is inherited from parent '" << logFullName(parentName) << "'";
+					return;
+				}
 				dstValue = srcValue;
 				dstField.status = Status::Implicit;
 			}

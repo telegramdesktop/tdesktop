@@ -42,3 +42,32 @@ private:
 	QVector<style::color> _colors;
 
 };
+
+namespace Ui {
+
+class RectShadow {
+public:
+	enum class Side {
+		Left   = 0x01,
+		Top    = 0x02,
+		Right  = 0x04,
+		Bottom = 0x08,
+	};
+	Q_DECLARE_FLAGS(Sides, Side);
+	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(Sides);
+
+	RectShadow(const style::icon &topLeft);
+
+	void paint(Painter &p, const QRect &box, int shifty, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom);
+	style::margins getDimensions(int shifty) const;
+
+private:
+
+	int _size, _pixsize;
+	int _thickness = 0;
+	QPixmap _corners, _left, _top, _right, _bottom;
+
+};
+Q_DECLARE_OPERATORS_FOR_FLAGS(RectShadow::Sides);
+
+} // namespace Ui

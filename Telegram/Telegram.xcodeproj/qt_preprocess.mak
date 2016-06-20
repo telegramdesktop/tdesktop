@@ -86,6 +86,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_flattextarea.cpp\
 	 GeneratedFiles/Debug/moc_history.cpp\
 	 GeneratedFiles/Debug/moc_historywidget.cpp\
+	 GeneratedFiles/Debug/moc_inner_dropdown.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
 	 GeneratedFiles/Debug/moc_intropwdcheck.cpp\
@@ -223,6 +224,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_flattextarea.cpp\
 	 GeneratedFiles/Debug/moc_history.cpp\
 	 GeneratedFiles/Debug/moc_historywidget.cpp\
+	 GeneratedFiles/Debug/moc_inner_dropdown.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
 	 GeneratedFiles/Debug/moc_intropwdcheck.cpp\
@@ -303,6 +305,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_flattextarea.cpp\
 	 GeneratedFiles/Debug/moc_history.cpp\
 	 GeneratedFiles/Debug/moc_historywidget.cpp\
+	 GeneratedFiles/Debug/moc_inner_dropdown.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp\
 	 GeneratedFiles/Debug/moc_introphone.cpp\
 	 GeneratedFiles/Debug/moc_intropwdcheck.cpp\
@@ -455,6 +458,9 @@ GeneratedFiles/Debug/moc_history.cpp: SourceFiles/history.h
 
 GeneratedFiles/Debug/moc_historywidget.cpp: SourceFiles/historywidget.h
 	$(MOC_FILE) SourceFiles/historywidget.h -o GeneratedFiles/Debug/moc_historywidget.cpp
+
+GeneratedFiles/Debug/moc_inner_dropdown.cpp: SourceFiles/ui/inner_dropdown.h
+	$(MOC_FILE) SourceFiles/ui/inner_dropdown.h -o GeneratedFiles/Debug/moc_inner_dropdown.cpp
 
 GeneratedFiles/Debug/moc_introcode.cpp: SourceFiles/intro/introcode.h
 	$(MOC_FILE) SourceFiles/intro/introcode.h -o GeneratedFiles/Debug/moc_introcode.cpp

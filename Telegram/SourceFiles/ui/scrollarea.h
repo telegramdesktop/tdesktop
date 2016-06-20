@@ -268,3 +268,30 @@ public:
 	}
 	void paintEvent(QPaintEvent *e);
 };
+
+class ScrolledWidget : public TWidget {
+	Q_OBJECT
+
+public:
+	ScrolledWidget(QWidget *parent = nullptr) : TWidget(parent) {
+	}
+
+	// Count new height for width=newWidth and resize to it.
+	void resizeToWidth(int newWidth) {
+		resize(newWidth, resizeGetHeight(newWidth));
+	}
+
+	// Updates the area that is visible inside the scroll container.
+	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	}
+
+protected:
+	// Resizes content and counts natural widget height for the desired width.
+	virtual int resizeGetHeight(int newWidth) {
+		return height();
+	}
+
+signals:
+	void heightUpdated();
+
+};

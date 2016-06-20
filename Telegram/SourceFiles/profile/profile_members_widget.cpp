@@ -37,7 +37,8 @@ namespace Profile {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
-MembersWidget::MembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section)) {
+MembersWidget::MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility)
+: BlockWidget(parent, peer, (titleVisibility == TitleVisibility::Visible) ? lang(lng_profile_participants_section) : QString()) {
 	setMouseTracking(true);
 
 	_removeWidth = st::normalFont->width(lang(lng_profile_kick));
@@ -309,7 +310,7 @@ void MembersWidget::refreshLimitReached() {
 	auto chat = peer()->asChat();
 	if (!chat) return;
 
-	bool limitReachedShown = (_list.size() >= Global::ChatSizeMax()) && chat->amCreator();
+	bool limitReachedShown = (_list.size() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
 	if (limitReachedShown && !_limitReachedInfo) {
 		_limitReachedInfo = new FlatLabel(this, st::profileLimitReachedLabel, st::profileLimitReachedStyle);
 		QString title = textRichPrepare(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));

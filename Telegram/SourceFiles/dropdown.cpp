@@ -1019,11 +1019,11 @@ void EmojiPanInner::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
-void EmojiPanInner::leaveToChildEvent(QEvent *e) {
+void EmojiPanInner::leaveToChildEvent(QEvent *e, QWidget *child) {
 	clearSelection();
 }
 
-void EmojiPanInner::enterFromChildEvent(QEvent *e) {
+void EmojiPanInner::enterFromChildEvent(QEvent *e, QWidget *child) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
 }
@@ -1544,11 +1544,11 @@ void StickerPanInner::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
-void StickerPanInner::leaveToChildEvent(QEvent *e) {
+void StickerPanInner::leaveToChildEvent(QEvent *e, QWidget *child) {
 	clearSelection();
 }
 
-void StickerPanInner::enterFromChildEvent(QEvent *e) {
+void StickerPanInner::enterFromChildEvent(QEvent *e, QWidget *child) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
 }
@@ -3139,7 +3139,7 @@ void EmojiPan::onRefreshPanels() {
 	}
 }
 
-void EmojiPan::leaveToChildEvent(QEvent *e) {
+void EmojiPan::leaveToChildEvent(QEvent *e, QWidget *child) {
 	if (!_stickersShown) return;
 	_iconsMousePos = QCursor::pos();
 	updateSelected();

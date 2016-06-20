@@ -36,6 +36,7 @@ class Result;
 
 namespace Ui {
 class HistoryDownButton;
+class InnerDropdown;
 } // namespace Ui
 
 class HistoryWidget;
@@ -540,12 +541,14 @@ public:
     void dropEvent(QDropEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateTopBarSelection();
 
 	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	QRect getMembersShowAreaGeometry() const;
+	void setMembersShowAreaActive(bool active);
 	void topBarClick();
 
 	void loadMessages();
@@ -839,6 +842,7 @@ private slots:
 	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
+	void onMembersDropdownHidden();
 
 	void updateField();
 
@@ -862,6 +866,8 @@ private:
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
+
+	int countMembersDropdownHeightMax() const;
 
 	MsgId _replyToId = 0;
 	Text _replyToName;
@@ -1098,6 +1104,8 @@ private:
 	HistoryItem *_kbReplyTo = nullptr;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;
+
+	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;
