@@ -85,3 +85,17 @@ dialogsTextStyleActive: textStyle(dialogsTextStyle) {
 	linkFg: dialogsTextFgActive;
 	linkFgDown: dialogsTextFgActive;
 }
+
+dialogsNewChatIcon: icon {
+	{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }
+};
+dialogsNewChatButton: BoxButton {
+	width: 36px;
+	height: 36px;
+	icon: dialogsNewChatIcon;
+
+	textFg: transparent;
+	textFgOver: transparent;
+	textBg: transparent;
+	textBgOver: transparent;
+}

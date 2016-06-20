@@ -251,3 +251,18 @@ private:
 	BoxButton _delete, _cancel;
 
 };
+
+class KickMemberBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	KickMemberBox(PeerData *chat, UserData *member);
+
+private slots:
+	void onConfirm();
+
+private:
+	PeerData *_chat;
+	UserData *_member;
+
+};

@@ -73,7 +73,6 @@ signals:
 	void onlineCountUpdated(int onlineCount);
 
 private slots:
-	void onKickConfirm();
 	void onUpdateOnlineDisplay();
 
 private:
@@ -139,7 +138,6 @@ private:
 	int _pressed = -1;
 	bool _selectedKick = false;
 	bool _pressedKick = false;
-	UserData *_kicking = nullptr;
 	QPoint _mousePosition;
 
 	int _onlineCount = 0;

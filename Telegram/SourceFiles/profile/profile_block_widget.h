@@ -30,9 +30,6 @@ class BlockWidget : public ScrolledWidget, public Notify::Observer {
 public:
 	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
 
-signals:
-	void heightUpdated();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	virtual void paintContents(Painter &p) {

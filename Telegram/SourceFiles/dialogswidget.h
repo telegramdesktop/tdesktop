@@ -29,6 +29,10 @@ class FakeRow;
 class IndexedList;
 } // namespace Dialogs
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
 	DialogsSearchFromOffset,
@@ -336,7 +340,8 @@ private:
 	mtpRequestId _dialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
-	IconedButton _newGroup, _addContact, _cancelSearch;
+	ChildWidget<Ui::RoundButton> _newGroup;
+	IconedButton _addContact, _cancelSearch;
 	ScrollArea _scroll;
 	DialogsInner _inner;
 

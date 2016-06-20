@@ -1049,9 +1049,9 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9050) {
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Select and copy text in photo / video captions and web page previews\n\xe2\x80\x94 Media player shortcuts are enabled only when player is opened");
-				versionFeatures = langNewVersionText();
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9053) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Put your cursor over the members count in a group chat to see the members list\n\xe2\x80\x94 Bug fixes and other minor improvements");
+//				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9050) {
 				versionFeatures = langNewVersionText();
 			} else {

@@ -64,6 +64,7 @@ private slots:
 	void onShareContact();
 	void onSetPhoto();
 	void onAddMember();
+	void onAddBotToGroup();
 	void onJoin();
 	void onViewChannel();
 

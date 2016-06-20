@@ -40,6 +40,7 @@ namespace {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
+	| UpdateFlag::BotCanAddToGroups
 	| UpdateFlag::ChatCanEdit
 	| UpdateFlag::ChannelCanEditPhoto
 	| UpdateFlag::ChannelCanAddMembers
@@ -368,7 +369,9 @@ void CoverWidget::refreshButtons() {
 
 void CoverWidget::setUserButtons() {
 	addButton(lang(lng_profile_send_message), SLOT(onSendMessage()));
-	if (_peerUser->canShareThisContact()) {
+	if (_peerUser->botInfo && !_peerUser->botInfo->cantJoinGroups) {
+		addButton(lang(lng_profile_invite_to_group), SLOT(onAddBotToGroup()), &st::profileAddMemberButton);
+	} else if (_peerUser->canShareThisContact()) {
 		addButton(lang(lng_profile_share_contact), SLOT(onShareContact()));
 	}
 }
@@ -491,6 +494,12 @@ void CoverWidget::onAddMember() {
 			already.insert(user);
 		}
 		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
+	}
+}
+
+void CoverWidget::onAddBotToGroup() {
+	if (_peerUser && _peerUser->botInfo) {
+		Ui::showLayer(new ContactsBox(_peerUser));
 	}
 }
 

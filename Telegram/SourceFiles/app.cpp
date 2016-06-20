@@ -493,7 +493,10 @@ namespace {
 					if (d.has_bot_info_version()) {
 						data->setBotInfoVersion(d.vbot_info_version.v);
 						data->botInfo->readsAllHistory = d.is_bot_chat_history();
-						data->botInfo->cantJoinGroups = d.is_bot_nochats();
+						if (data->botInfo->cantJoinGroups != d.is_bot_nochats()) {
+							data->botInfo->cantJoinGroups = d.is_bot_nochats();
+							update.flags |= UpdateFlag::BotCanAddToGroups;
+						}
 						data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
 					} else {
 						data->setBotInfoVersion(-1);

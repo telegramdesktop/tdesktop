@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
+#include "ui/buttons/round_button.h"
 #include "data/data_drafts.h"
 #include "lang.h"
 #include "application.h"
@@ -1759,7 +1760,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dialogsRequest(0)
 , _contactsRequest(0)
 , _filter(this, st::dlgFilter, lang(lng_dlg_filter))
-, _newGroup(this, st::btnNewGroup)
+, _newGroup(this, QString(), st::dialogsNewChatButton)
 , _addContact(this, st::btnAddContact)
 , _cancelSearch(this, st::btnCancelSearch)
 , _scroll(this, st::dialogsScroll)
@@ -1787,7 +1788,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 	connect(parent, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
-	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
+	connect(_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
 
 	_chooseByDragTimer.setSingleShot(true);
@@ -1804,9 +1805,9 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	_filter.setFocusPolicy(Qt::StrongFocus);
 	_filter.customUpDown(true);
 	_addContact.hide();
-	_newGroup.show();
+	_newGroup->show();
 	_cancelSearch.hide();
-	_newGroup.move(width() - _newGroup.width() - st::dialogsPadding.x(), 0);
+	_newGroup->move(width() - _newGroup->width() - st::dialogsPadding.x(), 0);
 	_addContact.move(width() - _addContact.width() - st::dialogsPadding.x(), 0);
 	_cancelSearch.move(width() - _cancelSearch.width() - st::dialogsPadding.x(), 0);
 }
@@ -1854,7 +1855,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_scroll.hide();
 	_filter.hide();
 	_cancelSearch.hide();
-	_newGroup.hide();
+	_newGroup->hide();
 
 	int delta = st::slideShift;
 	if (direction == Window::SlideDirection::FromLeft) {
@@ -2360,10 +2361,10 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_cancelSearch.hide();
-		_newGroup.show();
+		_newGroup->show();
 	} else if (_cancelSearch.isHidden()) {
 		_cancelSearch.show();
-		_newGroup.hide();
+		_newGroup->hide();
 	}
 	if (filterText.size() < MinUsernameLength) {
 		_peopleCache.clear();
@@ -2426,7 +2427,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	int32 w = width();
 	_filter.setGeometry(st::dialogsPadding.x(), st::dialogsFilterPadding, w - 2 * st::dialogsPadding.x(), _filter.height());
-	_newGroup.move(w - _newGroup.width() - st::dialogsPadding.x(), _filter.y());
+	_newGroup->move(w - _newGroup->width() - st::dialogsPadding.x(), _filter.y());
 	_addContact.move(w - _addContact.width() - st::dialogsPadding.x(), _filter.y());
 	_cancelSearch.move(w - _cancelSearch.width() - st::dialogsPadding.x(), _filter.y());
 	_scroll.move(0, _filter.height() + 2 * st::dialogsFilterPadding);

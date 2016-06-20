@@ -194,10 +194,7 @@ void MembersWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (pressed >= 0 && pressed < _list.size() && pressed == _selected && pressedKick == _selectedKick) {
 		auto member = _list.at(pressed);
 		if (pressedKick) {
-			_kicking = member->user;
-			ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kicking->firstName), lang(lng_box_remove));
-			connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
-			Ui::showLayer(box);
+			Ui::showLayer(new KickMemberBox(peer(), member->user));
 		} else {
 			Ui::showPeerProfile(member->user);
 		}
@@ -570,15 +567,6 @@ void MembersWidget::paintMember(Painter &p, int x, int y, Member *member, bool s
 	}
 	p.setFont(st::normalFont);
 	p.drawTextLeft(x + st::profileMemberStatusPosition.x(), y + st::profileMemberStatusPosition.y(), width(), member->onlineText);
-}
-
-void MembersWidget::onKickConfirm() {
-	Ui::hideLayer();
-	if (auto chat = peer()->asChat()) {
-		App::main()->kickParticipant(chat, _kicking);
-	} else if (auto channel = peer()->asChannel()) {
-		App::api()->kickParticipant(channel, _kicking);
-	}
 }
 
 void MembersWidget::onUpdateOnlineDisplay() {
