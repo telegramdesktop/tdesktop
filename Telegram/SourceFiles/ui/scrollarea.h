@@ -270,6 +270,8 @@ public:
 };
 
 class ScrolledWidget : public TWidget {
+	Q_OBJECT
+
 public:
 	ScrolledWidget(QWidget *parent = nullptr) : TWidget(parent) {
 	}
@@ -288,5 +290,8 @@ protected:
 	virtual int resizeGetHeight(int newWidth) {
 		return height();
 	}
+
+signals:
+	void heightUpdated();
 
 };

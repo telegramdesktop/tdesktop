@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/boxshadow.h"
+
 class ScrollArea;
 
 namespace Ui {
@@ -28,7 +30,7 @@ class InnerDropdown : public TWidget {
 	Q_OBJECT
 
 public:
-	InnerDropdown(QWidget *parent, const style::dropdown &st = st::dropdownDef, const style::flatScroll &scrollSt = st::scrollDef);
+	InnerDropdown(QWidget *parent, const style::InnerDropdown &st = st::defaultInnerDropdown, const style::flatScroll &scrollSt = st::scrollDef);
 
 	void setOwnedWidget(ScrolledWidget *widget);
 
@@ -37,6 +39,8 @@ public:
 
 		return rect().marginsRemoved(_st.padding).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
+
+	void setMaxHeight(int newMaxHeight);
 
 	void otherEnter();
 	void otherLeave();
@@ -56,6 +60,7 @@ private slots:
 	void onHideStart();
 	void onWindowActiveChanged();
 	void onScroll();
+	void onWidgetHeightUpdated();
 
 private:
 	void repaintCallback();
@@ -65,7 +70,9 @@ private:
 
 	void startAnimation();
 
-	const style::dropdown &_st;
+	void updateHeight();
+
+	const style::InnerDropdown &_st;
 
 	bool _hiding = false;
 
@@ -74,9 +81,32 @@ private:
 
 	QTimer _hideTimer;
 
-	BoxShadow _shadow;
+	RectShadow _shadow;
 	ChildWidget<ScrollArea> _scroll;
+
+	int _maxHeight = 0;
 
 };
 
+namespace internal {
+
+class Container : public ScrolledWidget {
+	Q_OBJECT
+
+public:
+	Container(QWidget *parent, ScrolledWidget *child, const style::InnerDropdown &st);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+
+private slots:
+	void onHeightUpdate();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	const style::InnerDropdown &_st;
+
+};
+
+} // namespace internal
 } // namespace Ui

@@ -867,6 +867,8 @@ private:
 
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
 
+	int countMembersDropdownHeightMax() const;
+
 	MsgId _replyToId = 0;
 	Text _replyToName;
 	int _replyToNameVersion = 0;

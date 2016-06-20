@@ -6027,9 +6027,12 @@ QRect HistoryWidget::getMembersShowAreaGeometry() const {
 void HistoryWidget::setMembersShowAreaActive(bool active) {
 	if (active && _peer && (_peer->isChat() || _peer->isMegagroup())) {
 		if (!_membersDropdown) {
-			_membersDropdown = new Ui::InnerDropdown(this, st::dropdownDef, st::solidScroll);
+			_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
 			_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
-			_membersDropdown->setGeometry(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight);
+			_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
+
+			_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+			_membersDropdown->moveToLeft(0, 0);
 			connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
 		}
 		_membersDropdown->otherEnter();
@@ -6721,6 +6724,9 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
 
 	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
+	if (_membersDropdown) {
+		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+	}
 
 	switch (_attachDrag) {
 	case DragStateFiles:
@@ -7680,6 +7686,13 @@ void HistoryWidget::cancelReplyAfterMediaSend(bool lastKeyboardUsed) {
 	if (cancelReply(lastKeyboardUsed)) {
 		onCloudDraftSave();
 	}
+}
+
+int HistoryWidget::countMembersDropdownHeightMax() const {
+	int result = height() - st::membersInnerDropdown.padding.top() - st::membersInnerDropdown.padding.bottom();
+	result -= _attachEmoji.height();
+	accumulate_min(result, st::membersInnerHeightMax);
+	return result;
 }
 
 void HistoryWidget::cancelEdit() {

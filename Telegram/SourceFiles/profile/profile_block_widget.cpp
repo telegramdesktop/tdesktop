@@ -31,7 +31,7 @@ BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) 
 }
 
 int BlockWidget::contentTop() const {
-	return st::profileBlockMarginTop + (emptyTitle() ? 0 : st::profileBlockTitleHeight);
+	return emptyTitle() ? 0 : (st::profileBlockMarginTop + st::profileBlockTitleHeight);
 }
 
 void BlockWidget::paintEvent(QPaintEvent *e) {

@@ -1734,6 +1734,17 @@ dropdownDef: dropdown {
 	width: 0px;
 }
 
+defaultInnerDropdownShadow: icon {
+	{ "dropdown_shadow", windowShadowFg },
+};
+defaultInnerDropdown: InnerDropdown {
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: defaultInnerDropdownShadow;
+	shadowShift: 1px;
+
+	duration: 150;
+}
+
 dropdownAttachDocument: iconedButton(btnAttachDocument) {
 	iconPos: point(14px, 13px);
 	downIconPos: point(14px, 14px);
