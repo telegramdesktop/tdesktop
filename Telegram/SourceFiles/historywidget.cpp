@@ -907,10 +907,10 @@ void HistoryInner::onDragExec() {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
+		drag->exec(Qt::CopyAction);
 
 		// We don't receive mouseReleaseEvent when drag is finished.
 		ClickHandler::unpressed();
-		drag->exec(Qt::CopyAction);
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
@@ -944,10 +944,10 @@ void HistoryInner::onDragExec() {
 			}
 
 			drag->setMimeData(mimeData);
+			drag->exec(Qt::CopyAction);
 
 			// We don't receive mouseReleaseEvent when drag is finished.
 			ClickHandler::unpressed();
-			drag->exec(Qt::CopyAction);
 			if (App::main()) App::main()->updateAfterDrag();
 			return;
 		}
@@ -6027,12 +6027,9 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 QRect HistoryWidget::getMembersShowAreaGeometry() const {
 	int increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	int membersTextLeft = st::topBarForwardPadding.left() + increaseLeft;
-	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height - st::topBarForwardPadding.bottom();
+	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
 	int membersTextHeight = st::topBarHeight - membersTextTop;
-
-	membersTextLeft -= st::topBarForwardPadding.left();
-	membersTextWidth += 2 * st::topBarForwardPadding.left();
 
 	return rtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight, width());
 }

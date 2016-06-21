@@ -478,10 +478,10 @@ void FlatLabel::onExecuteDrag() {
 		mimeData->setText(selectedText);
 		auto drag = new QDrag(App::wnd());
 		drag->setMimeData(mimeData);
+		drag->exec(Qt::CopyAction);
 
 		// We don't receive mouseReleaseEvent when drag is finished.
 		ClickHandler::unpressed();
-		drag->exec(Qt::CopyAction);
 	}
 }
 
