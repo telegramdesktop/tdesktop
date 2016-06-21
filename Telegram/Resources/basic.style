@@ -2169,7 +2169,7 @@ photoLoaderDuration2: 150; // ms fade out
 photoLoaderAlphaMin: 0.1; // not less than that
 
 radialSize: size(50px, 50px);
-radialLine: 2px;
+radialLine: 3px;
 radialDuration: 350;
 radialPeriod: 3000;
 radialBgOpacity: 0.4;

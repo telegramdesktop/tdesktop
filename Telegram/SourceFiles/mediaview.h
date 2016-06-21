@@ -111,6 +111,13 @@ private:
 	void findCurrent();
 	void loadBack();
 
+	// Radial animation interface.
+	float64 radialProgress() const;
+	bool radialLoading() const;
+	QRect radialRect() const;
+	void radialStart();
+	uint64 radialTimeShift() const;
+
 	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
 	struct LastChatPhoto {
 		HistoryItem *item;
@@ -173,8 +180,10 @@ private:
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
 	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
-	RadialAnimation _docRadial;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
+
+	QRect _photoRadialRect;
+	RadialAnimation _radial;
 
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview

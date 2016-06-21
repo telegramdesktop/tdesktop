@@ -74,10 +74,10 @@ namespace {
 
 MediaView::MediaView() : TWidget(App::wnd())
 , _animStarted(getms())
-, _docRadial(animation(this, &MediaView::step_radial))
 , _docDownload(this, lang(lng_media_download), st::mvDocLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mvDocLink)
 , _docCancel(this, lang(lng_cancel), st::mvDocLink)
+, _radial(animation(this, &MediaView::step_radial))
 , _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
 , _dropdown(this, st::mvDropdown)
@@ -280,9 +280,6 @@ void MediaView::updateControls() {
 			_docSaveAs.hide();
 			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 			_docCancel.show();
-			if (!_docRadial.animating()) {
-				_docRadial.start(_doc->progress());
-			}
 		} else {
 			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
 				_docDownload.hide();
@@ -303,6 +300,7 @@ void MediaView::updateControls() {
 		_docSaveAs.hide();
 		_docCancel.hide();
 	}
+	radialStart();
 
 	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
@@ -425,16 +423,56 @@ void MediaView::step_state(uint64 ms, bool timer) {
 	}
 }
 
+float64 MediaView::radialProgress() const {
+	if (_doc) {
+		return _doc->progress();
+	} else if (_photo) {
+		return _photo->full->progress();
+	}
+	return 1.;
+}
+
+bool MediaView::radialLoading() const {
+	if (_doc) {
+		return _doc->loading();
+	} else if (_photo) {
+		return _photo->full->loading();
+	}
+	return false;
+}
+
+QRect MediaView::radialRect() const {
+	if (_doc) {
+		return _docIconRect;
+	} else if (_photo) {
+		return _photoRadialRect;
+	}
+	return QRect();
+}
+
+void MediaView::radialStart() {
+	if (radialLoading() && !_radial.animating()) {
+		_radial.start(radialProgress());
+		if (auto shift = radialTimeShift()) {
+			_radial.update(radialProgress(), !radialLoading(), getms() + shift);
+		}
+	}
+}
+
+uint64 MediaView::radialTimeShift() const {
+	return _photo ? st::radialDuration : 0;
+}
+
 void MediaView::step_radial(uint64 ms, bool timer) {
-	if (!_doc) {
-		_docRadial.stop();
+	if (!_doc && !_photo) {
+		_radial.stop();
 		return;
 	}
-	_docRadial.update(_doc->progress(), !_doc->loading(), ms);
-	if (timer && _docRadial.animating()) {
-		update(_docIconRect);
+	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
+	if (timer && _radial.animating()) {
+		update(radialRect());
 	}
-	if (_doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_docRadial.animating() || _doc->isAnimation())) {
+	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation())) {
 		if (!_doc->data().isEmpty() && _doc->isAnimation()) {
 			displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 		} else {
@@ -581,8 +619,8 @@ void MediaView::onDocClick() {
 		onSaveCancel();
 	} else {
 		DocumentOpenClickHandler::doOpen(_doc, ActionOnLoadNone);
-		if (_doc->loading() && !_docRadial.animating()) {
-			_docRadial.start(_doc->progress());
+		if (_doc->loading() && !_radial.animating()) {
+			_radial.start(_doc->progress());
 		}
 	}
 }
@@ -892,8 +930,11 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 
 void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	stopGif();
-	_doc = 0;
+	_doc = nullptr;
 	_photo = photo;
+	_radial.stop();
+
+	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
 	_zoom = 0;
 
@@ -930,8 +971,8 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	} else {
 		_from = _user;
 	}
-	updateControls();
 	_photo->download();
+	updateControls();
 	if (isHidden()) {
 		psUpdateOverlayed(this);
 		show();
@@ -947,6 +988,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_doc = doc;
 	_photo = nullptr;
+	_radial.stop();
 
 	_current = QPixmap();
 
@@ -1030,7 +1072,6 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			_docNameWidth = st::mvDocNameFont->width(_docName);
 		}
 
-		_docRadial.stop();
 		// _docSize is updated in updateControls()
 
 		_docRect = QRect((width() - st::mvDocSize.width()) / 2, (height() - st::mvDocSize.height()) / 2, st::mvDocSize.width(), st::mvDocSize.height());
@@ -1152,33 +1193,30 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				p.drawPixmap(_x, _y, toDraw);
 			}
 
-			uint64 ms = 0;
-			if (_full < 1) {
-				ms = getms();
-				uint64 dt = ms - _animStarted;
-				int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
-
-				int32 x = (width() - st::mediaviewLoader.width()) / 2;
-				int32 y = (height() - st::mediaviewLoader.height()) / 2;
-				p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
-
-				x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
-				y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
-				QColor c(st::white->c);
-				QBrush b(c);
-				for (int32 i = 0; i < cnt; ++i) {
-					t -= delta;
-					while (t < 0) t += period;
-
-					float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-					c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-					b.setColor(c);
-					p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
-				}
-				_saveMsgUpdater.start(AnimationTimerDelta);
+			bool radial = false;
+			float64 radialOpacity = 0;
+			if (_radial.animating()) {
+				_radial.step(ms);
+				radial = _radial.animating();
+				radialOpacity = _radial.opacity();
 			}
+			if (radial) {
+				QRect inner(QPoint(_photoRadialRect.x(), _photoRadialRect.y()), st::radialSize);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::black);
+				p.setOpacity(radialOpacity * st::radialBgOpacity);
+
+				p.setRenderHint(QPainter::HighQualityAntialiasing);
+				p.drawEllipse(inner);
+				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+				p.setOpacity(1);
+				QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+				_radial.draw(p, arc, st::radialLine, st::white);
+			}
+
 			if (_saveMsgStarted) {
-				if (!ms) ms = getms();
+				auto ms = getms();
 				float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::medviewSaveMsgShowing - st::medviewSaveMsgShown;
 				if (dt < st::medviewSaveMsgShowing + st::medviewSaveMsgShown + st::medviewSaveMsgHiding) {
 					if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
@@ -1212,10 +1250,10 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			if (_docIconRect.intersects(r)) {
 				bool radial = false;
 				float64 radialOpacity = 0;
-				if (_docRadial.animating()) {
-					_docRadial.step(ms);
-					radial = _docRadial.animating();
-					radialOpacity = _docRadial.opacity();
+				if (_radial.animating()) {
+					_radial.step(ms);
+					radial = _radial.animating();
+					radialOpacity = _radial.opacity();
 				}
 				icon = true;
 				if (!_doc || _doc->thumb->isNull()) {
@@ -1254,7 +1292,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.setOpacity(1);
 
 					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-					_docRadial.draw(p, arc, st::radialLine, st::white);
+					_radial.draw(p, arc, st::radialLine, st::white);
 				} else if (_doc && !_doc->loaded()) {
 					p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity));
 					p.drawSpriteCenter(_docIconRect, st::radialDownload);
@@ -2004,6 +2042,7 @@ void MediaView::hide() {
 	a_cOpacity = anim::fvalue(1, 1);
 	QWidget::hide();
 	stopGif();
+	_radial.stop();
 
 	Notify::clipStopperHidden(ClipStopperMediaview);
 }
