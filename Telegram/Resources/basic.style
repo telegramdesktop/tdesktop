@@ -55,13 +55,15 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
-windowBg: #fff; // fallback for background: white
+windowBg: #ffffff; // fallback for background: white
 windowActiveBg: #40ace3; // fallback for blue filled active areas
-windowTextFg: #000; // fallback for text color: black
+windowTextFg: #000000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
 windowSubTextFgOver: #7c99b2; // fallback for subtext over color: gray over blue bg
 windowActiveTextFg: #1485c2; // fallback for active color: blue online
-windowShadowFg: #000; // fallback for shadow color
+windowShadowFg: #000000; // fallback for shadow color
+
+semiboldButtonBlueText: #2b99d5;
 
 wndMinHeight: 480px;
 wndDefWidth: 800px;
@@ -1260,14 +1262,14 @@ msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
 msgFileThumbNameTop: 12px;
 msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
-msgFileThumbLinkInFg: #3da5e0;
-msgFileThumbLinkInFgSelected: #3da5e0;
+msgFileThumbLinkInFg: semiboldButtonBlueText;
+msgFileThumbLinkInFgSelected: semiboldButtonBlueText;
 msgFileThumbLinkOutFg: #5eba5b;
 msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: #59b6eb;
+msgFileInBg: windowActiveBg;
 msgFileInBgOver: #4eade3;
 msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
@@ -1313,7 +1315,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: #59b6eb;
+msgWaveformInActive: windowActiveBg;
 msgWaveformInActiveSelected: #51a3d3;
 msgWaveformInInactive: #d4dee6;
 msgWaveformInInactiveSelected: #9cc1e1;

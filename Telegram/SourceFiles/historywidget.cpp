@@ -3053,6 +3053,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_animActiveTimer.setSingleShot(false);
 	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
 
+	_membersDropdownShowTimer.setSingleShot(true);
+	connect(&_membersDropdownShowTimer, SIGNAL(timeout()), this, SLOT(onMembersDropdownShow()));
+
 	_saveDraftTimer.setSingleShot(true);
 	connect(&_saveDraftTimer, SIGNAL(timeout()), this, SLOT(onDraftSave()));
 	_saveCloudDraftTimer.setSingleShot(true);
@@ -3958,6 +3961,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_previewCache.clear();
 	_fieldBarCancel.hide();
 
+	_membersDropdownShowTimer.stop();
 	if (_list) _list->deleteLater();
 	_list = nullptr;
 	_scroll.takeWidget();
@@ -6025,20 +6029,31 @@ QRect HistoryWidget::getMembersShowAreaGeometry() const {
 }
 
 void HistoryWidget::setMembersShowAreaActive(bool active) {
+	if (!active) {
+		_membersDropdownShowTimer.stop();
+	}
 	if (active && _peer && (_peer->isChat() || _peer->isMegagroup())) {
-		if (!_membersDropdown) {
-			_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
-			_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
-			_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
-
-			_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
-			_membersDropdown->moveToLeft(0, 0);
-			connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+		if (_membersDropdown) {
+			_membersDropdown->otherEnter();
+		} else if (!_membersDropdownShowTimer.isActive()) {
+			_membersDropdownShowTimer.start(300);
 		}
-		_membersDropdown->otherEnter();
 	} else if (_membersDropdown) {
 		_membersDropdown->otherLeave();
 	}
+}
+
+void HistoryWidget::onMembersDropdownShow() {
+	if (!_membersDropdown) {
+		_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
+		_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
+		_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
+
+		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+		_membersDropdown->moveToLeft(0, 0);
+		connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+	}
+	_membersDropdown->otherEnter();
 }
 
 void HistoryWidget::onMembersDropdownHidden() {

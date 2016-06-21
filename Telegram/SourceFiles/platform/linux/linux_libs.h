@@ -128,6 +128,12 @@ extern f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf;
 typedef void (*f_gtk_status_icon_set_from_pixbuf)(GtkStatusIcon *status_icon, GdkPixbuf *pixbuf);
 extern f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf;
 
+typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_file)(const gchar *filename);
+extern f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file;
+
+typedef void (*f_gtk_status_icon_set_from_file)(GtkStatusIcon *status_icon, const gchar *filename);
+extern f_gtk_status_icon_set_from_file gtk_status_icon_set_from_file;
+
 typedef void (*f_gtk_status_icon_set_title)(GtkStatusIcon *status_icon, const gchar *title);
 extern f_gtk_status_icon_set_title gtk_status_icon_set_title;
 

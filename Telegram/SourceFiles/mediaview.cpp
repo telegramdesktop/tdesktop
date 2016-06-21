@@ -160,6 +160,14 @@ void MediaView::moveToScreen() {
 
 void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (!_photo && !_doc) return;
+	if (_photo && _overview == OverviewChatPhotos && _history && !_history->peer->isUser()) {
+		auto lastChatPhoto = computeLastOverviewChatPhoto();
+		if (_index < 0 && _photo == lastChatPhoto.photo && _photo == _additionalChatPhoto) {
+			return showPhoto(_photo, lastChatPhoto.item);
+		}
+		computeAdditionalChatPhoto(_history->peer, lastChatPhoto.photo);
+	}
+
 	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == _overview && _msgid) {
 		_index = -1;
 		if (_msgmigrated) {
@@ -332,8 +340,8 @@ void MediaView::updateControls() {
 			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount(_overview)) ||
 			(!_msgmigrated && _history && _migrated && (!_migrated->overview[_overview].isEmpty() || _migrated->overviewCount(_overview) > 0)))) ||
 			(_index < 0 && _photo == _additionalChatPhoto &&
-				((_history && !_history->overview[_overview].isEmpty()) ||
-				(_migrated && _history->overviewLoaded(_overview) && !_migrated->overview[_overview].isEmpty()))
+				((_history && _history->overviewCount(_overview) > 0) ||
+				(_migrated && _history->overviewLoaded(_overview) && _migrated->overviewCount(_overview) > 0))
 			);
 		_rightNavVisible = (_index >= 0) && (
 			(!_msgmigrated && _history && _index + 1 < _history->overview[_overview].size()) ||
@@ -828,6 +836,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 		computeAdditionalChatPhoto(_history->peer, lastChatPhoto.photo);
 		if (_additionalChatPhoto == _photo) {
 			_overview = OverviewChatPhotos;
+			findCurrent();
 		} else {
 			_additionalChatPhoto = nullptr;
 			_history = _migrated = nullptr;
@@ -1508,6 +1517,10 @@ bool MediaView::moveToNext(int32 delta) {
 				stopGif();
 				displayPhoto(lastChatPhoto.photo, lastChatPhoto.item); preloadData(delta);
 				return true;
+			} else if (_history && (_history->overviewCount(OverviewChatPhotos) != 0 || (
+				_migrated && _migrated->overviewCount(OverviewChatPhotos) != 0))) {
+				loadBack();
+				return true;
 			}
 		}
 		return false;
@@ -2069,7 +2082,12 @@ void MediaView::findCurrent() {
 }
 
 void MediaView::loadBack() {
-	if (_loadRequest || _index < 0 || (_overview == OverviewCount && !_user)) return;
+	if (_loadRequest || (_overview == OverviewCount && !_user)) {
+		return;
+	}
+	if (_index < 0 && (!_additionalChatPhoto || _photo != _additionalChatPhoto || !_history)) {
+		return;
+	}
 
 	if (_history && _overview != OverviewCount && (!_history->overviewLoaded(_overview) || (_migrated && !_migrated->overviewLoaded(_overview)))) {
 		if (App::main()) {
@@ -2168,6 +2186,8 @@ void MediaView::updateHeader() {
 	int32 index = _index, count = 0, addcount = (_migrated && _overview != OverviewCount) ? _migrated->overviewCount(_overview) : 0;
 	if (_history) {
 		if (_overview != OverviewCount) {
+			bool lastOverviewPhotoLoaded = (!_history->overview[_overview].isEmpty() || (
+				_migrated && _history->overviewCount(_overview) == 0 && !_migrated->overview[_overview].isEmpty()));
 			count = _history->overviewCount(_overview);
 			if (addcount >= 0 && count >= 0) {
 				count += addcount;
@@ -2178,10 +2198,10 @@ void MediaView::updateHeader() {
 				} else {
 					index += count - _history->overview[_overview].size();
 				}
-				if (_additionalChatPhoto) {
+				if (_additionalChatPhoto && lastOverviewPhotoLoaded) {
 					++count;
 				}
-			} else if (index < 0 && _additionalChatPhoto && _photo == _additionalChatPhoto) {
+			} else if (index < 0 && _additionalChatPhoto && _photo == _additionalChatPhoto && lastOverviewPhotoLoaded) {
 				// Additional chat photo (not in the list => place it at the end of the list).
 				index = count;
 				++count;

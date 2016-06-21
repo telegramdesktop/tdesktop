@@ -843,6 +843,7 @@ private slots:
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
 	void onMembersDropdownHidden();
+	void onMembersDropdownShow();
 
 	void updateField();
 
@@ -1106,6 +1107,7 @@ private:
 	BotKeyboard _keyboard;
 
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	QTimer _membersDropdownShowTimer;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;

@@ -1280,7 +1280,8 @@ void MainWidget::preloadOverviews(PeerData *peer) {
 	History *h = App::history(peer->id);
 	bool sending = false;
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		if (preloadOverview(peer, MediaOverviewType(i))) {
+		auto type = MediaOverviewType(i);
+		if (type != OverviewChatPhotos && preloadOverview(peer, type)) {
 			sending = true;
 		}
 	}

@@ -105,6 +105,8 @@ f_gdk_init_check gdk_init_check = nullptr;
 f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
 f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf = nullptr;
 f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf = nullptr;
+f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file = nullptr;
+f_gtk_status_icon_set_from_file gtk_status_icon_set_from_file = nullptr;
 f_gtk_status_icon_set_title gtk_status_icon_set_title = nullptr;
 f_gtk_status_icon_set_tooltip_text gtk_status_icon_set_tooltip_text = nullptr;
 f_gtk_status_icon_set_visible gtk_status_icon_set_visible = nullptr;
@@ -157,6 +159,8 @@ void start() {
 		load(lib_gtk, "gdk_pixbuf_new_from_data", gdk_pixbuf_new_from_data);
 		load(lib_gtk, "gtk_status_icon_new_from_pixbuf", gtk_status_icon_new_from_pixbuf);
 		load(lib_gtk, "gtk_status_icon_set_from_pixbuf", gtk_status_icon_set_from_pixbuf);
+		load(lib_gtk, "gtk_status_icon_new_from_file", gtk_status_icon_new_from_file);
+		load(lib_gtk, "gtk_status_icon_set_from_file", gtk_status_icon_set_from_file);
 		load(lib_gtk, "gtk_status_icon_set_title", gtk_status_icon_set_title);
 		load(lib_gtk, "gtk_status_icon_set_tooltip_text", gtk_status_icon_set_tooltip_text);
 		load(lib_gtk, "gtk_status_icon_set_visible", gtk_status_icon_set_visible);

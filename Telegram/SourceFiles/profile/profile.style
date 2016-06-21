@@ -77,8 +77,8 @@ profilePrimaryButton: BoxButton {
 	duration: 200;
 }
 profileSecondaryButton: BoxButton(profilePrimaryButton) {
-	textFg: #2b99d5;
-	textFgOver: #2b99d5;
+	textFg: semiboldButtonBlueText;
+	textFgOver: semiboldButtonBlueText;
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
@@ -157,7 +157,7 @@ profileMemberStatusFg: windowSubTextFg;
 profileMemberStatusFgOver: windowSubTextFgOver;
 profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {
-	{ "profile_admin_star", #3babe7, point(4px, 2px) },
+	{ "profile_admin_star", #3babe7, point(4px, 3px) },
 };
 profileLimitReachedLabel: flatLabel(labelDefFlat) {
 	width: 180px;
