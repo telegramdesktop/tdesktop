@@ -651,6 +651,7 @@ public:
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
+	void onListEnterPressed();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);

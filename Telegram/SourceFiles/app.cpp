@@ -2288,7 +2288,9 @@ namespace {
 		setLaunchState(QuitRequested);
 
 		if (auto window = wnd()) {
-			window->hide();
+			if (!Sandbox::isSavingSession()) {
+				window->hide();
+			}
 		}
 		if (auto mainwidget = main()) {
 			mainwidget->saveDraftToCloud();

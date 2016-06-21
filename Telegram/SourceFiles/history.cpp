@@ -230,7 +230,6 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 
 	cloudDraftTextCache.clear();
 	updateChatListSortPosition();
-	updateChatListEntry();
 
 	return cloudDraft();
 }
@@ -248,7 +247,6 @@ void History::clearCloudDraft() {
 		_cloudDraft = nullptr;
 		cloudDraftTextCache.clear();
 		updateChatListSortPosition();
-		updateChatListEntry();
 	}
 }
 
@@ -1759,6 +1757,7 @@ namespace {
 }
 
 inline uint64 dialogPosFromDate(const QDateTime &date) {
+	if (date.isNull()) return 0;
 	return (uint64(date.toTime_t()) << 32) | (++_dialogsPosToTopShift);
 }
 
@@ -1769,8 +1768,8 @@ void History::setLastMessage(HistoryItem *msg) {
 		setChatsListDate(msg->date);
 	} else {
 		lastMsg = 0;
+		updateChatListEntry();
 	}
-	updateChatListEntry();
 }
 
 bool History::needUpdateInChatList() const {
@@ -1796,7 +1795,7 @@ void History::setChatsListDate(const QDateTime &date) {
 void History::updateChatListSortPosition() {
 	auto chatListDate = [this]() {
 		if (auto draft = cloudDraft()) {
-			if (draft->date > lastMsgDate) {
+			if (!Data::draftIsNull(draft) && draft->date > lastMsgDate) {
 				return draft->date;
 			}
 		}
@@ -1804,8 +1803,15 @@ void History::updateChatListSortPosition() {
 	};
 
 	_sortKeyInChatList = dialogPosFromDate(chatListDate());
-	if (App::main() && needUpdateInChatList()) {
-		App::main()->createDialog(this);
+	if (auto m = App::main()) {
+		if (needUpdateInChatList()) {
+			if (_sortKeyInChatList) {
+				m->createDialog(this);
+				updateChatListEntry();
+			} else {
+				m->deleteConversation(peer, false);
+			}
+		}
 	}
 }
 

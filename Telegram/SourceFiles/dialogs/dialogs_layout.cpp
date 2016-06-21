@@ -140,59 +140,78 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-class UnreadBadgeStyleData : public Data::AbstractStructure {
-public:
+struct UnreadBadgeSizeData {
 	QImage circle;
 	QPixmap left[4], right[4];
+};
+class UnreadBadgeStyleData : public Data::AbstractStructure {
+public:
+	UnreadBadgeSizeData sizes[UnreadBadgeSizesCount];
 	style::color bg[4] = { st::dialogsUnreadBg, st::dialogsUnreadBgActive, st::dialogsUnreadBgMuted, st::dialogsUnreadBgMutedActive };
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
 
-void createCircleMask(int size) {
-	if (!unreadBadgeStyle->circle.isNull()) return;
+void createCircleMask(UnreadBadgeSizeData *data, int size) {
+	if (!data->circle.isNull()) return;
 
-	unreadBadgeStyle->circle = style::createCircleMask(size);
+	data->circle = style::createCircleMask(size);
 }
 
-QImage colorizeCircleHalf(int size, int half, int xoffset, style::color color) {
-	auto result = style::colorizeImage(unreadBadgeStyle->circle, color, QRect(xoffset, 0, half, size));
+QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, style::color color) {
+	auto result = style::colorizeImage(data->circle, color, QRect(xoffset, 0, half, size));
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
 }
 
 } // namepsace
 
-void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted) {
-	int index = (active ? 0x01 : 0x00) | (muted ? 0x02 : 0x00);
-	int size = rect.height(), sizehalf = size / 2;
+void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st) {
+	t_assert(rect.height() == st.size);
+
+	int index = (st.active ? 0x01 : 0x00) | (st.muted ? 0x02 : 0x00);
+	int size = st.size, sizehalf = size / 2;
 
 	unreadBadgeStyle.createIfNull();
+	auto badgeData = unreadBadgeStyle->sizes;
+	if (st.sizeId > 0) {
+		t_assert(st.sizeId < UnreadBadgeSizesCount);
+		badgeData = &unreadBadgeStyle->sizes[st.sizeId];
+	}
 	style::color bg = unreadBadgeStyle->bg[index];
-	if (unreadBadgeStyle->left[index].isNull()) {
+	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
-		createCircleMask(size);
-		unreadBadgeStyle->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(imgsize, imgsizehalf, 0, bg));
-		unreadBadgeStyle->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
+		createCircleMask(badgeData, size);
+		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
+		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
 	}
 
 	int bar = rect.width() - 2 * sizehalf;
-	p.drawPixmap(rect.x(), rect.y(), unreadBadgeStyle->left[index]);
+	p.drawPixmap(rect.x(), rect.y(), badgeData->left[index]);
 	if (bar) {
 		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), bg);
 	}
-	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), unreadBadgeStyle->right[index]);
+	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
 }
 
-void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::align align, bool active, bool muted, int *outUnreadWidth) {
-	int unreadWidth = st::dialogsUnreadFont->width(text);
+UnreadBadgeStyle::UnreadBadgeStyle()
+: align(style::al_right)
+, active(false)
+, muted(false)
+, size(st::dialogsUnreadHeight)
+, sizeId(UnreadBadgeInDialogs)
+, font(st::dialogsUnreadFont) {
+}
+
+void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth) {
+	int unreadWidth = st.font->width(text);
 	int unreadRectWidth = unreadWidth + 2 * st::dialogsUnreadPadding;
-	int unreadRectHeight = st::dialogsUnreadHeight;
+	int unreadRectHeight = st.size;
 	accumulate_max(unreadRectWidth, unreadRectHeight);
 
 	int unreadRectLeft = x;
-	if ((align & Qt::AlignHorizontal_Mask) & style::al_center) {
+	if ((st.align & Qt::AlignHorizontal_Mask) & style::al_center) {
 		unreadRectLeft = (x - unreadRectWidth) / 2;
-	} else if ((align & Qt::AlignHorizontal_Mask) & style::al_right) {
+	} else if ((st.align & Qt::AlignHorizontal_Mask) & style::al_right) {
 		unreadRectLeft = x - unreadRectWidth;
 	}
 	int unreadRectTop = y;
@@ -200,11 +219,11 @@ void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::alig
 		*outUnreadWidth = unreadRectWidth;
 	}
 
-	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), active, muted);
+	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), st);
 
-	p.setFont(st::dialogsUnreadFont);
-	p.setPen(active ? st::dialogsUnreadFgActive : st::dialogsUnreadFg);
-	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dialogsUnreadTop + st::dialogsUnreadFont->ascent, text);
+	p.setFont(st.font);
+	p.setPen(st.active ? st::dialogsUnreadFgActive : st::dialogsUnreadFg);
+	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + st::dialogsUnreadTop + st.font->ascent, text);
 }
 
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
@@ -242,7 +261,11 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			int unreadRight = w - st::dialogsPadding.x();
 			int unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - st::dialogsUnreadTop;
 			int unreadWidth = 0;
-			paintUnreadCount(p, counter, unreadRight, unreadTop, style::al_right, active, mutedCounter, &unreadWidth);
+
+			UnreadBadgeStyle st;
+			st.active = active;
+			st.muted = history->mute();
+			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 			availableWidth -= unreadWidth + st::dialogsUnreadPadding;
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
@@ -281,7 +304,9 @@ void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool o
 	if (mutedHidden) {
 		if (int32 unread = App::histories().unreadMutedCount()) {
 			int unreadRight = w - st::dialogsPadding.x();
-			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, style::al_right, false, true, nullptr);
+			UnreadBadgeStyle st;
+			st.muted = true;
+			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, st, nullptr);
 		}
 	}
 }

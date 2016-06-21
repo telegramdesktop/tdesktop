@@ -1341,6 +1341,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_inner_dropdown.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\platform\linux\linux_libs.cpp">
+      <Filter>SourceFiles\platform\linux</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1588,6 +1591,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\platform\winrt\main_window_winrt.h">
       <Filter>SourceFiles\platform\winrt</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\linux\linux_libs.h">
+      <Filter>SourceFiles\platform\linux</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

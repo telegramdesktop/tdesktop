@@ -1477,6 +1477,10 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		if (!_selected.isEmpty() && selectedForDelete == selectedForForward) {
 			_widget->onDeleteSelected();
 		}
+	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
+		if (_selected.isEmpty()) {
+			_widget->onListEnterPressed();
+		}
 	} else {
 		e->ignore();
 	}
@@ -5863,10 +5867,13 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
+	auto fieldEnabled = canWriteMessage();
 	if (_kbShown || _kbReplyTo) {
 		_kbHide.hide();
 		if (_kbShown) {
-			_kbShow.show();
+			if (fieldEnabled) {
+				_kbShow.show();
+			}
 			if (manual && _history) {
 				_history->lastKeyboardHiddenId = _keyboard.forMsgId().msg;
 			}
@@ -5890,14 +5897,16 @@ void HistoryWidget::onKbToggle(bool manual) {
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
 		_kbHide.hide();
 		_kbShow.hide();
-		_cmdStart.show();
+		if (fieldEnabled) {
+			_cmdStart.show();
+		}
 		_kbScroll.hide();
 		_kbShown = false;
 
 		_field.setMaxHeight(st::maxFieldHeight);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
-		if (_kbReplyTo && !_editMsgId && !_replyToId) {
+		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
 			_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
 			_fieldBarCancel.show();
@@ -5906,7 +5915,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		if (manual && _history) {
 			_history->lastKeyboardHiddenId = 0;
 		}
-	} else {
+	} else if (fieldEnabled) {
 		_kbHide.show();
 		_kbShow.hide();
 		_kbScroll.show();
@@ -5927,7 +5936,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		}
 	}
 	resizeEvent(0);
-	if (_kbHide.isHidden()) {
+	if (_kbHide.isHidden() && canWriteMessage()) {
 		_attachEmoji.show();
 	} else {
 		_attachEmoji.hide();
@@ -8069,6 +8078,12 @@ void HistoryWidget::onListEscapePressed() {
 		onClearSelected();
 	} else {
 		onCancel();
+	}
+}
+
+void HistoryWidget::onListEnterPressed() {
+	if (!_botStart.isHidden()) {
+		onBotStart();
 	}
 }
 

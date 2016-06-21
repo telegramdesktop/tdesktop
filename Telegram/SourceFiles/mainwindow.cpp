@@ -1285,9 +1285,14 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	e->ignore();
-	if (!MTP::authedId() || Sandbox::isSavingSession() || !Ui::hideWindowNoQuit()) {
+	if (Sandbox::isSavingSession()) {
+		e->accept();
 		App::quit();
+	} else {
+		e->ignore();
+		if (!MTP::authedId() || !Ui::hideWindowNoQuit()) {
+			App::quit();
+		}
 	}
 }
 
