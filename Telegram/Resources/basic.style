@@ -110,9 +110,11 @@ boxBlueCloseDuration: 150;
 boxBlueShadow: sprite(132px, 108px, 1px, 4px);
 
 boxButtonFont: font(boxFontSize semibold);
-defaultBoxButton: BoxButton {
+defaultBoxButton: RoundButton {
 	textFg: #2f9fea;
 	textFgOver: #2f9fea;
+	secondaryTextFg: #2f9fea;
+	secondaryTextFgOver: #2f9fea;
 	textBg: white;
 	textBgOver: #edf7ff;
 
@@ -125,10 +127,10 @@ defaultBoxButton: BoxButton {
 	font: boxButtonFont;
 	duration: 200;
 }
-cancelBoxButton: BoxButton(defaultBoxButton) {
+cancelBoxButton: RoundButton(defaultBoxButton) {
 	textFg: #aeaeae;
 }
-attentionBoxButton: BoxButton(defaultBoxButton) {
+attentionBoxButton: RoundButton(defaultBoxButton) {
 	textFg: #ea4b2f;
 	textFgOver: #ea4b2f;
 	textBgOver: #fff0ed;
@@ -985,10 +987,12 @@ topBarSearch: iconedButton(btnDefIconed) {
 	height: topBarHeight;
 }
 topBarMinPadding: 5px;
-topBarButton: BoxButton {
+topBarButton: RoundButton {
 	textFg: #0084c4;
 	textFgOver: #0084c4;
-	textBg: white;
+	secondaryTextFg: #0084c4;
+	secondaryTextFgOver: #0084c4;
+	textBg: windowBg;
 	textBgOver: #edf4f7;
 
 	width: -22px;
@@ -1000,20 +1004,34 @@ topBarButton: BoxButton {
 	font: font(fsize);
 	duration: 200;
 }
-topBarClearButton: BoxButton(topBarButton) {
-	padding: margins(8px, 14px, 8px, 14px);
-}
-topBarActionButton: flatButton(btnDefNext, btnDefBig) {
-	textTop: 8px;
-	overTextTop: 8px;
-	downTextTop: 9px;
+defaultActiveButton: RoundButton {
+	textFg: #ffffff;
+	textFgOver: #ffffff;
+	secondaryTextFg: #cceeff;
+	secondaryTextFgOver: #cceeff;
+	textBg: windowActiveBg;
+	textBgOver: windowActiveBg;
 
-	font: font(fsize);
-	overFont: font(fsize);
-	width: 101px;
+	secondarySkip: 7px;
+
+	width: -34px;
 	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+
+	font: semiboldFont;
+	duration: 200;
 }
-topBarActionSkip: 13px;
+topBarClearButton: RoundButton(defaultActiveButton) {
+	textFg: semiboldButtonBlueText;
+	textFgOver: semiboldButtonBlueText;
+	textBg: #ffffff;
+	textBgOver: #f2f7fa;
+
+	width: -18px;
+}
+topBarActionSkip: 10px;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
@@ -1997,7 +2015,7 @@ botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
 }
-switchPmButton: BoxButton(defaultBoxButton) {
+switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
 	height: 34px;
 	textTop: 7px;

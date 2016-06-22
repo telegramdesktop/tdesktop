@@ -35,7 +35,7 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle) : AbstractBox(st::boxWidth)
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, const QString &cancelText, const style::RoundButton &cancelStyle) : AbstractBox(st::boxWidth)
 , _informative(false)
 , _text(100)
 , _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
@@ -43,7 +43,7 @@ ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth)
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, bool informative) : AbstractBox(st::boxWidth)
 , _informative(true)
 , _text(100)
 , _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)

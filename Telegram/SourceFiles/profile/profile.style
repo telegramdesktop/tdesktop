@@ -32,7 +32,7 @@ profileTopBarBackIconPosition: point(15px, 20px);
 profileTopBarBackFont: font(14px);
 profileTopBarBackFg: #1485c2;
 profileTopBarBackPosition: point(32px, 17px);
-profileFixedBarButton: BoxButton(topBarButton) {
+profileFixedBarButton: RoundButton(topBarButton) {
 }
 
 profileMarginTop: 13px;
@@ -61,22 +61,9 @@ profileMarginBottom: 30px;
 profileButtonLeft: 27px;
 profileButtonTop: 88px;
 profileButtonSkip: 10px;
-profilePrimaryButton: BoxButton {
-	textFg: #ffffff;
-	textFgOver: #ffffff;
-	textBg: windowActiveBg;
-	textBgOver: windowActiveBg;
-
-	width: -34px;
-	height: 34px;
-	padding: margins(0px, 0px, 0px, 0px);
-
-	textTop: 8px;
-
-	font: semiboldFont;
-	duration: 200;
+profilePrimaryButton: RoundButton(defaultActiveButton) {
 }
-profileSecondaryButton: BoxButton(profilePrimaryButton) {
+profileSecondaryButton: RoundButton(profilePrimaryButton) {
 	textFg: semiboldButtonBlueText;
 	textFgOver: semiboldButtonBlueText;
 	textBg: #ffffff;
@@ -85,7 +72,7 @@ profileSecondaryButton: BoxButton(profilePrimaryButton) {
 profileAddMemberIcon: icon {
 	{ "profile_add_member", windowActiveBg, point(20px, 10px) },
 };
-profileAddMemberButton: BoxButton(profileSecondaryButton) {
+profileAddMemberButton: RoundButton(profileSecondaryButton) {
 	width: 62px;
 	icon: profileAddMemberIcon;
 }

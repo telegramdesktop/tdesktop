@@ -89,13 +89,15 @@ dialogsTextStyleActive: textStyle(dialogsTextStyle) {
 dialogsNewChatIcon: icon {
 	{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }
 };
-dialogsNewChatButton: BoxButton {
+dialogsNewChatButton: RoundButton {
 	width: 36px;
 	height: 36px;
 	icon: dialogsNewChatIcon;
 
 	textFg: transparent;
 	textFgOver: transparent;
+	secondaryTextFg: transparent;
+	secondaryTextFgOver: transparent;
 	textBg: transparent;
 	textBgOver: transparent;
 }

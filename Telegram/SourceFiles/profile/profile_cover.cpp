@@ -414,7 +414,7 @@ void CoverWidget::clearButtons() {
 	}
 }
 
-void CoverWidget::addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle) {
+void CoverWidget::addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle) {
 	auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
 	auto button = new Ui::RoundButton(this, text, buttonStyle);
 	button->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);

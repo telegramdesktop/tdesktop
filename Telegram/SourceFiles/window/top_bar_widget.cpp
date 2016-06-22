@@ -33,22 +33,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Window {
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
-, a_over(0)
 , _a_appearance(animation(this, &TopBarWidget::step_appearance))
-, _selPeer(0)
-, _selCount(0)
-, _canDelete(false)
-, _selStrLeft((-st::topBarClearButton.width + st::topBarClearButton.padding.left() + st::topBarClearButton.padding.right()) / 2)
-, _selStrWidth(0)
-, _animating(false)
 , _clearSelection(this, lang(lng_selected_clear), st::topBarClearButton)
-, _forward(this, lang(lng_selected_forward), st::topBarActionButton)
-, _delete(this, lang(lng_selected_delete), st::topBarActionButton)
-, _selectionButtonsWidth(_clearSelection->width() + _forward->width() + _delete->width())
-, _forwardDeleteWidth(qMax(_forward->textWidth(), _delete->textWidth()))
+, _forward(this, lang(lng_selected_forward), st::defaultActiveButton)
+, _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::infoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
 , _search(this, st::topBarSearch) {
+	_clearSelection->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_forward->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_delete->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 
 	connect(_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -151,10 +145,6 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		}
 		main()->paintTopBar(p, a_over.current(), decreaseWidth);
 		p.restore();
-	} else {
-		p.setFont(st::linkFont);
-		p.setPen(st::btnDefLink.color);
-		p.drawText(_selStrLeft, st::topBarClearButton.padding.top() + st::topBarClearButton.textTop + st::linkFont->ascent, _selStr);
 	}
 }
 
@@ -165,60 +155,24 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	int32 r = width();
-	if (!_forward->isHidden() || !_delete->isHidden()) {
-		int fullW = r - (_selectionButtonsWidth + (_selStrWidth - st::topBarClearButton.width + st::topBarClearButton.padding.left() + st::topBarClearButton.padding.right()) + st::topBarActionSkip);
-		int selectedClearWidth = st::topBarClearButton.width - st::topBarClearButton.padding.left() - st::topBarClearButton.padding.right();
-		int forwardDeleteWidth = st::topBarActionButton.width - _forwardDeleteWidth;
-		int skip = st::topBarActionSkip;
-		while (fullW < 0) {
-			int fit = 0;
-			if (selectedClearWidth < -2 * (st::topBarMinPadding + 1)) {
-				fullW += 4;
-				selectedClearWidth += 2;
-			} else if (selectedClearWidth < -2 * st::topBarMinPadding) {
-				fullW += (-2 * st::topBarMinPadding - selectedClearWidth) * 2;
-				selectedClearWidth = -2 * st::topBarMinPadding;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0) break;
+	int r = width();
 
-			if (forwardDeleteWidth > 2 * (st::topBarMinPadding + 1)) {
-				fullW += 4;
-				forwardDeleteWidth -= 2;
-			} else if (forwardDeleteWidth > 2 * st::topBarMinPadding) {
-				fullW += (forwardDeleteWidth - 2 * st::topBarMinPadding) * 2;
-				forwardDeleteWidth = 2 * st::topBarMinPadding;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0) break;
+	int buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
+	int buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
+	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
-			if (skip > st::topBarMinPadding) {
-				--skip;
-				++fullW;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0 || fit >= 3) break;
-		}
-		_clearSelection->setFullWidth(selectedClearWidth);
-		_forward->setWidth(_forwardDeleteWidth + forwardDeleteWidth);
-		_delete->setWidth(_forwardDeleteWidth + forwardDeleteWidth);
-		_selStrLeft = -selectedClearWidth / 2;
+	int widthLeft = qMin(r - buttonsWidth, -2 * st::defaultActiveButton.width);
+	_forward->setFullWidth(-(widthLeft / 2));
+	_delete->setFullWidth(-(widthLeft / 2));
 
-		int32 availX = _selStrLeft + _selStrWidth, availW = r - (_clearSelection->width() + selectedClearWidth / 2) - availX;
-		if (_forward->isHidden()) {
-			_delete->move(availX + (availW - _delete->width()) / 2, (st::topBarHeight - _forward->height()) / 2);
-		} else if (_delete->isHidden()) {
-			_forward->move(availX + (availW - _forward->width()) / 2, (st::topBarHeight - _forward->height()) / 2);
-		} else {
-			_forward->move(availX + (availW - _forward->width() - _delete->width() - skip) / 2, (st::topBarHeight - _forward->height()) / 2);
-			_delete->move(availX + (availW + _forward->width() - _delete->width() + skip) / 2, (st::topBarHeight - _forward->height()) / 2);
-		}
-		_clearSelection->move(r -= _clearSelection->width(), 0);
-	}
+	int buttonsTop = (height() - _forward->height()) / 2;
+
+	_forward->moveToLeft(buttonsLeft, buttonsTop);
+	buttonsLeft += _forward->width() + st::topBarActionSkip;
+
+	_delete->moveToLeft(buttonsLeft, buttonsTop);
+	_clearSelection->moveToRight(st::topBarActionSkip, buttonsTop);
+
 	if (!_info->isHidden()) _info->move(r -= _info->width(), 0);
 	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
 	_search->move(width() - (_info->isHidden() ? st::topBarForwardPadding.right() : _info->width()) - _search->width(), 0);
@@ -246,7 +200,7 @@ void TopBarWidget::stopAnim() {
 
 void TopBarWidget::showAll() {
 	if (_animating) {
-		resizeEvent(0);
+		resizeEvent(nullptr);
 		return;
 	}
 	PeerData *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
@@ -317,9 +271,11 @@ void TopBarWidget::updateMembersShowArea() {
 void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
 	_selPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selCount = selCount;
-	_canDelete = canDelete;
-	_selStr = (_selCount > 0) ? lng_selected_count(lt_count, _selCount) : QString();
-	_selStrWidth = st::btnDefLink.font->width(_selStr);
+	if (_selCount > 0) {
+		_canDelete = canDelete;
+		_forward->setSecondaryText(QString::number(_selCount));
+		_delete->setSecondaryText(QString::number(_selCount));
+	}
 	setCursor(_selCount ? style::cur_default : style::cur_pointer);
 
 	updateMembersShowArea();

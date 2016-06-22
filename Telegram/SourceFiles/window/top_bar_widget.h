@@ -26,7 +26,6 @@ namespace Ui {
 class PeerAvatarButton;
 class RoundButton;
 } // namespace Ui
-class FlatButton;
 class IconedButton;
 
 namespace Window {
@@ -73,20 +72,17 @@ signals:
 
 private:
 	MainWidget *main();
-	anim::fvalue a_over;
+	anim::fvalue a_over = { 0. };
 	Animation _a_appearance;
 
 	PeerData *_selPeer = nullptr;
-	uint32 _selCount;
-	bool _canDelete;
-	QString _selStr;
-	int32 _selStrLeft, _selStrWidth;
+	int _selCount = 0;
+	bool _canDelete = false;
 
-	bool _animating;
+	bool _animating = false;
 
 	ChildWidget<Ui::RoundButton> _clearSelection;
-	ChildWidget<FlatButton> _forward, _delete;
-	int _selectionButtonsWidth, _forwardDeleteWidth;
+	ChildWidget<Ui::RoundButton> _forward, _delete;
 
 	ChildWidget<Ui::PeerAvatarButton> _info;
 	ChildWidget<Ui::RoundButton> _mediaType;

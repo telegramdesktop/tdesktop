@@ -158,7 +158,7 @@ class BoxButton : public Button {
 	Q_OBJECT
 
 public:
-	BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st);
+	BoxButton(QWidget *parent, const QString &text, const style::RoundButton &st);
 
 	void setText(const QString &text);
 	void paintEvent(QPaintEvent *e) override;
@@ -174,7 +174,7 @@ private:
 	QString _text, _fullText;
 	int32 _textWidth;
 
-	const style::BoxButton &_st;
+	const style::RoundButton &_st;
 
 	anim::fvalue a_textBgOverOpacity;
 	anim::cvalue a_textFg;
