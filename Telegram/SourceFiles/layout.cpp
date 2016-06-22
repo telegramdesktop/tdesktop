@@ -40,7 +40,7 @@ TextParseOptions _textNameOptions = {
 	Qt::LayoutDirectionAuto, // lang-dependent
 };
 TextParseOptions _textDlgOptions = {
-	0, // flags
+	TextParseRichText, // flags
 	0, // maxw is style-dependent
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent

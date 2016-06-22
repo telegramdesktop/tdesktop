@@ -437,7 +437,7 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
 		if (key.first || key.second) {
-			peer->saveUserpic(v.path);
+			peer->saveUserpic(v.path, st::notifyMacPhotoSize);
 		} else {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}

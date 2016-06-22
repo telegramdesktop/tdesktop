@@ -364,6 +364,8 @@ public:
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
+	bool moderateKeyActivate(int index);
+
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
 	bool updateMarkup(HistoryItem *last, bool force = false);
@@ -651,6 +653,7 @@ public:
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
+	void onListEnterPressed();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
@@ -843,6 +846,9 @@ private slots:
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
 	void onMembersDropdownHidden();
+	void onMembersDropdownShow();
+
+	void onModerateKeyActivate(int index, bool *outHandled);
 
 	void updateField();
 
@@ -1106,6 +1112,7 @@ private:
 	BotKeyboard _keyboard;
 
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	QTimer _membersDropdownShowTimer;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;

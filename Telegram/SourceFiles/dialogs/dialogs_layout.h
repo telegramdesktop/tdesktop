@@ -35,8 +35,23 @@ public:
 
 void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground);
 
-void paintUnreadCount(Painter &p, const QString &text, int x, int y, style::align align, bool active, bool muted, int *outUnreadWidth);
-void paintUnreadBadge(Painter &p, const QRect &rect, bool active, bool muted);
+enum UnreadBadgeSize {
+	UnreadBadgeInDialogs = 0,
+	UnreadBadgeInHistoryToDown,
+
+	UnreadBadgeSizesCount
+};
+struct UnreadBadgeStyle {
+	UnreadBadgeStyle();
+
+	style::align align;
+	bool active;
+	bool muted;
+	int size;
+	UnreadBadgeSize sizeId;
+	style::font font;
+};
+void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth = nullptr);
 
 } // namespace Layout
 } // namespace Dialogs

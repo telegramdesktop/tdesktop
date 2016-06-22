@@ -26,10 +26,12 @@ namespace Ui {
 
 class RoundButton : public Button {
 public:
-	RoundButton(QWidget *parent, const QString &text, const style::BoxButton &st);
+	RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st);
 
 	void setText(const QString &text);
-	int textWidth() const;
+	void setSecondaryText(const QString &secondaryText);
+
+	int contentWidth() const;
 
 	void setFullWidth(int newFullWidth);
 
@@ -52,12 +54,16 @@ private:
 
 	QString _text, _fullText;
 	int _textWidth;
+
+	QString _secondaryText, _fullSecondaryText;
+	int _secondaryTextWidth = 0;
+
 	int _fullWidthOverride = 0;
 
-	const style::BoxButton &_st;
+	const style::RoundButton &_st;
 
 	anim::fvalue a_textBgOverOpacity;
-	anim::cvalue a_textFg;
+	anim::cvalue a_textFg, a_secondaryTextFg;
 	Animation _a_over;
 
 	TextTransform _transform = TextTransform::NoTransform;

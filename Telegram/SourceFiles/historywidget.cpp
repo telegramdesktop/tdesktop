@@ -907,10 +907,10 @@ void HistoryInner::onDragExec() {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
+		drag->exec(Qt::CopyAction);
 
 		// We don't receive mouseReleaseEvent when drag is finished.
 		ClickHandler::unpressed();
-		drag->exec(Qt::CopyAction);
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
@@ -944,10 +944,10 @@ void HistoryInner::onDragExec() {
 			}
 
 			drag->setMimeData(mimeData);
+			drag->exec(Qt::CopyAction);
 
 			// We don't receive mouseReleaseEvent when drag is finished.
 			ClickHandler::unpressed();
-			drag->exec(Qt::CopyAction);
 			if (App::main()) App::main()->updateAfterDrag();
 			return;
 		}
@@ -1476,6 +1476,10 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		getSelectionState(selectedForForward, selectedForDelete);
 		if (!_selected.isEmpty() && selectedForDelete == selectedForForward) {
 			_widget->onDeleteSelected();
+		}
+	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
+		if (_selected.isEmpty()) {
+			_widget->onListEnterPressed();
 		}
 	} else {
 		e->ignore();
@@ -2477,6 +2481,18 @@ void BotKeyboard::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
+bool BotKeyboard::moderateKeyActivate(int index) {
+	if (auto item = App::histItemById(_wasForMsgId)) {
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
+				App::activateBotCommand(item, 0, index);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (!_impl) return;
 	_impl->clickHandlerActiveChanged(p, active);
@@ -3053,6 +3069,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_animActiveTimer.setSingleShot(false);
 	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
 
+	_membersDropdownShowTimer.setSingleShot(true);
+	connect(&_membersDropdownShowTimer, SIGNAL(timeout()), this, SLOT(onMembersDropdownShow()));
+
 	_saveDraftTimer.setSingleShot(true);
 	connect(&_saveDraftTimer, SIGNAL(timeout()), this, SLOT(onDraftSave()));
 	_saveCloudDraftTimer.setSingleShot(true);
@@ -3079,6 +3098,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerSend(DocumentData*)));
+	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	_field.installEventFilter(_fieldAutocomplete);
 	_field.setTagMimeProcessor(std_::make_unique<FieldTagMimeProcessor>());
 	updateFieldSubmitSettings();
@@ -3958,6 +3978,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_previewCache.clear();
 	_fieldBarCancel.hide();
 
+	_membersDropdownShowTimer.stop();
 	if (_list) _list->deleteLater();
 	_list = nullptr;
 	_scroll.takeWidget();
@@ -5638,7 +5659,10 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 }
 
 DragState HistoryWidget::getDragState(const QMimeData *d) {
-	if (!d || d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragStateNone;
+	if (!d
+		|| d->hasFormat(qsl("application/x-td-forward-selected"))
+		|| d->hasFormat(qsl("application/x-td-forward-pressed"))
+		|| d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragStateNone;
 
 	if (d->hasImage()) return DragStateImage;
 
@@ -5859,10 +5883,13 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
+	auto fieldEnabled = canWriteMessage();
 	if (_kbShown || _kbReplyTo) {
 		_kbHide.hide();
 		if (_kbShown) {
-			_kbShow.show();
+			if (fieldEnabled) {
+				_kbShow.show();
+			}
 			if (manual && _history) {
 				_history->lastKeyboardHiddenId = _keyboard.forMsgId().msg;
 			}
@@ -5886,23 +5913,25 @@ void HistoryWidget::onKbToggle(bool manual) {
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
 		_kbHide.hide();
 		_kbShow.hide();
-		_cmdStart.show();
+		if (fieldEnabled) {
+			_cmdStart.show();
+		}
 		_kbScroll.hide();
 		_kbShown = false;
 
 		_field.setMaxHeight(st::maxFieldHeight);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
-		if (_kbReplyTo && !_editMsgId && !_replyToId) {
+		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel.show();
 			updateMouseTracking();
 		}
 		if (manual && _history) {
 			_history->lastKeyboardHiddenId = 0;
 		}
-	} else {
+	} else if (fieldEnabled) {
 		_kbHide.show();
 		_kbShow.hide();
 		_kbScroll.show();
@@ -5914,7 +5943,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel.show();
 			updateMouseTracking();
 		}
@@ -5923,7 +5952,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		}
 	}
 	resizeEvent(0);
-	if (_kbHide.isHidden()) {
+	if (_kbHide.isHidden() && canWriteMessage()) {
 		_attachEmoji.show();
 	} else {
 		_attachEmoji.hide();
@@ -6014,31 +6043,43 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 QRect HistoryWidget::getMembersShowAreaGeometry() const {
 	int increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	int membersTextLeft = st::topBarForwardPadding.left() + increaseLeft;
-	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height - st::topBarForwardPadding.bottom();
+	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
 	int membersTextHeight = st::topBarHeight - membersTextTop;
-
-	membersTextLeft -= st::topBarForwardPadding.left();
-	membersTextWidth += 2 * st::topBarForwardPadding.left();
 
 	return rtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight, width());
 }
 
 void HistoryWidget::setMembersShowAreaActive(bool active) {
+	if (!active) {
+		_membersDropdownShowTimer.stop();
+	}
 	if (active && _peer && (_peer->isChat() || _peer->isMegagroup())) {
-		if (!_membersDropdown) {
-			_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
-			_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
-			_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
-
-			_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
-			_membersDropdown->moveToLeft(0, 0);
-			connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+		if (_membersDropdown) {
+			_membersDropdown->otherEnter();
+		} else if (!_membersDropdownShowTimer.isActive()) {
+			_membersDropdownShowTimer.start(300);
 		}
-		_membersDropdown->otherEnter();
 	} else if (_membersDropdown) {
 		_membersDropdown->otherLeave();
 	}
+}
+
+void HistoryWidget::onMembersDropdownShow() {
+	if (!_membersDropdown) {
+		_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
+		_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
+		_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
+
+		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+		_membersDropdown->moveToLeft(0, 0);
+		connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+	}
+	_membersDropdown->otherEnter();
+}
+
+void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
+	*outHandled = _keyboard.isHidden() ? false : _keyboard.moderateKeyActivate(index);
 }
 
 void HistoryWidget::onMembersDropdownHidden() {
@@ -7027,7 +7068,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
-				_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+				_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 				_fieldBarCancel.show();
 				updateMouseTracking();
 			}
@@ -7264,7 +7305,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}
 	if (_pinnedBar->msg) {
-		_pinnedBar->text.setText(st::msgFont, _pinnedBar->msg->inDialogsText(), _textDlgOptions);
+		_pinnedBar->text.setText(st::msgFont, textClean(_pinnedBar->msg->notificationText()), _textDlgOptions);
 		update();
 	} else if (force) {
 		if (_peer && _peer->isMegagroup()) {
@@ -7502,7 +7543,7 @@ void HistoryWidget::onReplyToMessage() {
 	} else {
 		_replyEditMsg = to;
 		_replyToId = to->id;
-		_replyEditMsgText.setText(st::msgFont, _replyEditMsg->inDialogsText(), _textDlgOptions);
+		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -7848,7 +7889,7 @@ void HistoryWidget::updatePreview() {
 		updateMouseTracking();
 		if (_previewData->pendingTill) {
 			_previewTitle.setText(st::msgServiceNameFont, lang(lng_preview_loading), _textNameOptions);
-			_previewDescription.setText(st::msgFont, _previewLinks.split(' ').at(0), _textDlgOptions);
+			_previewDescription.setText(st::msgFont, textClean(_previewLinks.split(' ').at(0)), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;
@@ -7880,7 +7921,7 @@ void HistoryWidget::updatePreview() {
 				}
 			}
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
-			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
+			_previewDescription.setText(st::msgFont, textClean(desc), _textDlgOptions);
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
 		_fieldBarCancel.hide();
@@ -8057,6 +8098,12 @@ void HistoryWidget::onListEscapePressed() {
 	}
 }
 
+void HistoryWidget::onListEnterPressed() {
+	if (!_botStart.isHidden()) {
+		onBotStart();
+	}
+}
+
 void HistoryWidget::onClearSelected() {
 	if (_list) _list->clearSelectedItems();
 }
@@ -8136,7 +8183,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
-		_replyEditMsgText.setText(st::msgFont, _replyEditMsg->inDialogsText(), _textDlgOptions);
+		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 

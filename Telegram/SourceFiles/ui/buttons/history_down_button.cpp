@@ -68,12 +68,17 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	st::historyToDownArrow.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
 	if (_unreadCount > 0) {
 		p.setOpacity(opacity);
-		bool active = false, muted = false;
 		auto unreadString = QString::number(_unreadCount);
 		if (unreadString.size() > 4) {
 			unreadString = qsl("..") + unreadString.mid(unreadString.size() - 4);
 		}
-		Dialogs::Layout::paintUnreadCount(p, unreadString, width(), 0, style::al_center, active, muted, nullptr);
+
+		Dialogs::Layout::UnreadBadgeStyle st;
+		st.align = style::al_center;
+		st.font = st::historyToDownBadgeFont;
+		st.size = st::historyToDownBadgeSize;
+		st.sizeId = Dialogs::Layout::UnreadBadgeInHistoryToDown;
+		Dialogs::Layout::paintUnreadCount(p, unreadString, width(), 0, st, nullptr);
 	}
 }
 

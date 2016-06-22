@@ -248,9 +248,16 @@ void MainWindow::psSetupTrayIcon() {
 		if (!trayIcon) {
 			trayIcon = new QSystemTrayIcon(this);
 
-			QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
-
+			QIcon icon;
+			QFileInfo f(_trayIconImageFile());
+			if (f.exists()) {
+				QByteArray path = QFile::encodeName(f.absoluteFilePath());
+				icon = QIcon(path.constData());
+			} else {
+				icon = QIcon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+			}
 			trayIcon->setIcon(icon);
+
 			trayIcon->setToolTip(str_const_toString(AppName));
 			connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
 			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
@@ -329,18 +336,30 @@ void MainWindow::psUpdateCounter() {
 				_psUpdateIndicatorTimer.start(100);
 			}
 		} else if (useStatusIcon && trayIconChecked) {
-			loadPixbuf(_trayIconImageGen());
-			Libs::gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
+			QFileInfo iconFile(_trayIconImageFile());
+			if (iconFile.exists()) {
+				QByteArray path = QFile::encodeName(f.absoluteFilePath());
+				Libs::gtk_status_icon_set_from_file(_trayIcon, path.constData());
+			} else {
+				loadPixbuf(_trayIconImageGen());
+				Libs::gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
+			}
 		}
 	} else if (trayIcon) {
-		int32 counter = App::histories().unreadBadge();
-		bool muted = App::histories().unreadOnlyMuted();
+		QIcon icon;
+		QFileInfo f(_trayIconImageFile());
+		if (f.exists()) {
+			QByteArray path = QFile::encodeName(f.absoluteFilePath());
+			icon = QIcon(path.constData());
+		} else {
+			int32 counter = App::histories().unreadBadge();
+			bool muted = App::histories().unreadOnlyMuted();
 
-		style::color bg = muted ? st::counterMuteBG : st::counterBG;
-		QIcon iconSmall;
-		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
-		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
-		trayIcon->setIcon(iconSmall);
+			style::color bg = muted ? st::counterMuteBG : st::counterBG;
+			icon.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
+			icon.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
+		}
+		trayIcon->setIcon(icon);
 	}
 }
 
@@ -382,6 +401,8 @@ void MainWindow::LibsLoaded() {
 			&& (Libs::gdk_pixbuf_new_from_data != nullptr)
 			&& (Libs::gtk_status_icon_new_from_pixbuf != nullptr)
 			&& (Libs::gtk_status_icon_set_from_pixbuf != nullptr)
+			&& (Libs::gtk_status_icon_new_from_file != nullptr)
+			&& (Libs::gtk_status_icon_set_from_file != nullptr)
 			&& (Libs::gtk_status_icon_set_title != nullptr)
 			&& (Libs::gtk_status_icon_set_tooltip_text != nullptr)
 			&& (Libs::gtk_status_icon_set_visible != nullptr)
@@ -532,8 +553,14 @@ void MainWindow::psCreateTrayIcon() {
 		if (Libs::gdk_init_check(0, 0)) {
 			if (!_trayMenu) _trayMenu = Libs::gtk_menu_new();
 			if (_trayMenu) {
-				loadPixbuf(_trayIconImageGen());
-				_trayIcon = Libs::gtk_status_icon_new_from_pixbuf(_trayPixbuf);
+				QFileInfo iconFile(_trayIconImageFile());
+				if (iconFile.exists()) {
+					QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
+					_trayIcon = Libs::gtk_status_icon_new_from_file(path.constData());
+				} else {
+					loadPixbuf(_trayIconImageGen());
+					_trayIcon = Libs::gtk_status_icon_new_from_pixbuf(_trayPixbuf);
+				}
 				if (_trayIcon) {
 					Libs::g_signal_connect_helper(_trayIcon, "popup-menu", GCallback(_trayIconPopup), _trayMenu);
 					Libs::g_signal_connect_helper(_trayIcon, "activate", GCallback(_trayIconActivate), _trayMenu);

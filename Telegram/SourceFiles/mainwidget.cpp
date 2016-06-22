@@ -256,7 +256,7 @@ void MainWidget::updateForwardingTexts() {
 		}
 	}
 	_toForwardFrom.setText(st::msgServiceNameFont, from, _textNameOptions);
-	_toForwardText.setText(st::msgFont, text, _textDlgOptions);
+	_toForwardText.setText(st::msgFont, textClean(text), _textDlgOptions);
 	_toForwardNameVersion = version;
 }
 
@@ -632,10 +632,9 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	_deletingPhoto = photo;
-	onDeletePhotoSure(); // langs are not ready yet
-	//auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
-	//connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
-	//Ui::showLayer(box);
+	auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
+	Ui::showLayer(box);
 }
 
 void MainWidget::onDeletePhotoSure() {
@@ -1280,7 +1279,8 @@ void MainWidget::preloadOverviews(PeerData *peer) {
 	History *h = App::history(peer->id);
 	bool sending = false;
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		if (preloadOverview(peer, MediaOverviewType(i))) {
+		auto type = MediaOverviewType(i);
+		if (type != OverviewChatPhotos && preloadOverview(peer, type)) {
 			sending = true;
 		}
 	}
@@ -1842,7 +1842,14 @@ void MainWidget::setChatBackground(const App::WallPaper &wp) {
 }
 
 bool MainWidget::chatBackgroundLoading() {
-	return !!_background;
+	return (_background != nullptr);
+}
+
+float64 MainWidget::chatBackgroundProgress() const {
+	if (_background) {
+		return _background->full->progress();
+	}
+	return 1.;
 }
 
 void MainWidget::checkChatBackground() {
@@ -3208,7 +3215,7 @@ void MainWidget::getDifference() {
 	_getDifferenceTimeByPts = 0;
 
 	LOG(("Getting difference! no updates timer: %1, remains: %2").arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
-	if (_ptsWaiter.requesting()) return;
+	if (requestingDifference()) return;
 
 	_bySeqUpdates.clear();
 	_bySeqTimer.stop();
@@ -3872,7 +3879,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 
 			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);
-			if (!_ptsWaiter.requesting()) {
+			if (!requestingDifference()) {
 				feedUpdates(updates);
 			}
 		} catch (mtpErrorUnexpected &) { // just some other type
@@ -4188,8 +4195,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
 					Ui::repaintHistoryItem(item);
+
 					if (item->out() && item->history()->peer->isUser()) {
-						item->history()->peer->asUser()->madeAction();
+						auto when = requestingDifference() ? 0 : unixtime();
+						item->history()->peer->asUser()->madeAction(when);
 					}
 				}
 			}
@@ -4220,7 +4229,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 		// update before applying skipped
 		auto peerId = peerFromMTP(d.vpeer);
-		App::feedOutboxRead(peerId, d.vmax_id.v);
+		auto when = requestingDifference() ? 0 : unixtime();
+		App::feedOutboxRead(peerId, d.vmax_id.v, when);
 		if (_history->peer() && _history->peer()->id == peerId) {
 			_history->update();
 		}
@@ -4262,7 +4272,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		History *history = App::historyLoaded(peerFromUser(d.vuser_id));
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			App::histories().regSendAction(history, user, d.vaction);
+			auto when = requestingDifference() ? 0 : unixtime();
+			App::histories().regSendAction(history, user, d.vaction, when);
 		}
 	} break;
 
@@ -4276,7 +4287,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			App::histories().regSendAction(history, user, d.vaction);
+			auto when = requestingDifference() ? 0 : unixtime();
+			App::histories().regSendAction(history, user, d.vaction, when);
 		}
 	} break;
 
@@ -4474,7 +4486,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d(update.c_updateNewChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
-		if (!_ptsWaiter.requesting() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
+		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
 			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 
 			// Request last active supergroup participants if the 'from' user was not loaded yet.
@@ -4579,7 +4591,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateReadChannelOutbox: {
 		auto &d(update.c_updateReadChannelOutbox());
 		auto peerId = peerFromChannel(d.vchannel_id.v);
-		App::feedOutboxRead(peerId, d.vmax_id.v);
+		auto when = requestingDifference() ? 0 : unixtime();
+		App::feedOutboxRead(peerId, d.vmax_id.v, when);
 		if (_history->peer() && _history->peer()->id == peerId) {
 			_history->update();
 		}

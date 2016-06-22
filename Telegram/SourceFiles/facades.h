@@ -211,6 +211,7 @@ DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);
 DeclareVar(bool, DialogsModeEnabled);
 DeclareVar(Dialogs::Mode, DialogsMode);
+DeclareVar(bool, ModerateModeEnabled);
 
 DeclareVar(int32, DebugLoggingFlags);
 
