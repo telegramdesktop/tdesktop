@@ -2157,17 +2157,6 @@ btnContext: iconedButton(btnDefIconed) {
 	downTextPos: point(16px, 8px);
 }
 
-photoLoader: size(52px, 22px);
-photoLoaderBg: #00000054;
-photoLoaderCnt: 3;
-photoLoaderPoint: size(6px, 6px);
-photoLoaderSkip: 6px;
-photoLoaderPeriod: 600; // ms full period
-photoLoaderDelta: 150; // ms between points
-photoLoaderDuration1: 150; // ms fade in
-photoLoaderDuration2: 150; // ms fade out
-photoLoaderAlphaMin: 0.1; // not less than that
-
 radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;
@@ -2177,10 +2166,6 @@ radialDownload: sprite(346px, 0px, 50px, 50px);
 radialDownloadOpacity: 0.8;
 radialCancel: sprite(378px, 50px, 18px, 18px);
 radialCancelOpacity: 1.0;
-
-mediaviewLoader: size(78px, 33px);
-mediaviewLoaderPoint: size(9px, 9px);
-mediaviewLoaderSkip: 9px;
 
 downloadPathSkip: 10px;
 

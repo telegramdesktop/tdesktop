@@ -1212,11 +1212,17 @@ public:
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return { qsl("[-]"), EntitiesInText() };
 	}
-	virtual QString inDialogsText() const {
-		return qsl("-");
+
+	virtual QString notificationHeader() const {
+		return QString();
 	}
+	virtual QString notificationText() const;
+
+	// Returns text with link-start and link-end commands for service-color highlighting.
+	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
+	virtual QString inDialogsText() const;
 	virtual QString inReplyText() const {
-		return inDialogsText();
+		return notificationText();
 	}
 	virtual TextWithEntities originalText() const {
 		return { QString(), EntitiesInText() };
@@ -1227,11 +1233,11 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
-	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
-    virtual QString notificationHeader() const {
-        return QString();
-    }
-    virtual QString notificationText() const = 0;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+
+	bool emptyText() const {
+		return _text.isEmpty();
+	}
 
 	bool canDelete() const {
 		ChannelData *channel = _history->peer->asChannel();
@@ -1593,7 +1599,14 @@ public:
 	HistoryMedia &operator=(const HistoryMedia &other) = delete;
 
 	virtual HistoryMediaType type() const = 0;
-	virtual QString inDialogsText() const = 0;
+
+	virtual QString notificationText() const {
+		return QString();
+	}
+
+	// Returns text with link-start and link-end commands for service-color highlighting.
+	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
+	virtual QString inDialogsText() const;
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(int x, int y) const {
@@ -1817,6 +1830,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
+	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
@@ -1897,6 +1911,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
+	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
@@ -2020,6 +2035,7 @@ public:
 		return Has<HistoryDocumentCaptioned>();
 	}
 
+	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
@@ -2076,10 +2092,16 @@ protected:
 
 private:
 	void createComponents(bool caption);
-	DocumentData *_data;
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
+
+	// Callback is a void(const QString &, const QString &, const Text &) functor.
+	// It will be called as callback(attachType, attachFileName, attachCaption).
+	template <typename Callback>
+	void buildStringRepresentation(Callback callback) const;
+
+	DocumentData *_data;
 
 };
 
@@ -2107,6 +2129,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
+	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
@@ -2205,7 +2228,7 @@ public:
 		return true;
 	}
 
-	QString inDialogsText() const override;
+	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() override {
@@ -2230,6 +2253,7 @@ private:
 	int additionalWidth() const {
 		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>());
 	}
+	QString toString() const;
 
 	int16 _pixw, _pixh;
 	ClickHandlerPtr _packLink;
@@ -2274,7 +2298,7 @@ public:
 		return true;
 	}
 
-	QString inDialogsText() const override;
+	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void attachToParent() override;
@@ -2342,7 +2366,6 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -2476,6 +2499,7 @@ public:
 		return p == _link;
 	}
 
+	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
@@ -2549,9 +2573,6 @@ public:
 	int32 plainMaxWidth() const;
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	bool emptyText() const {
-		return _text.isEmpty();
-	}
 	bool drawBubble() const {
 		return _media ? (!emptyText() || _media->needsBubble()) : !isEmpty();
 	}
@@ -2593,9 +2614,7 @@ public:
 		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 
-	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
     QString notificationHeader() const override;
-    QString notificationText() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEditionToEmpty() override;
@@ -2604,7 +2623,6 @@ public:
 	void eraseFromOverview() override;
 
 	TextWithEntities selectedText(TextSelection selection) const override;
-	QString inDialogsText() const override;
 	void setText(const TextWithEntities &textWithEntities) override;
 	TextWithEntities originalText() const override;
 	bool textHasLinks() const override;
@@ -2794,9 +2812,6 @@ public:
 		if (_media) _media->clickHandlerPressedChanged(p, pressed);
 		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
-
-	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
-    QString notificationText() const override;
 
 	void applyEditionToEmpty() override;
 

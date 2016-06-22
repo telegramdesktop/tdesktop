@@ -88,6 +88,8 @@ MediaView::MediaView() : TWidget(App::wnd())
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
 	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
 
+	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
+
 	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush.rect()));
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
@@ -98,6 +100,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 
 	hide();
 	createWinId();
+	setWindowState(Qt::WindowFullScreen);
 
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
@@ -163,7 +166,10 @@ void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (_photo && _overview == OverviewChatPhotos && _history && !_history->peer->isUser()) {
 		auto lastChatPhoto = computeLastOverviewChatPhoto();
 		if (_index < 0 && _photo == lastChatPhoto.photo && _photo == _additionalChatPhoto) {
-			return showPhoto(_photo, lastChatPhoto.item);
+			auto firstOpened = _firstOpenedPeerPhoto;
+			showPhoto(_photo, lastChatPhoto.item);
+			_firstOpenedPeerPhoto = firstOpened;
+			return;
 		}
 		computeAdditionalChatPhoto(_history->peer, lastChatPhoto.photo);
 	}
@@ -484,7 +490,6 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 				location.accessDisable();
 			}
 		}
-
 	}
 }
 
@@ -540,6 +545,29 @@ void MediaView::onDropdownHiding() {
 	_ignoringDropdown = false;
 	if (!_controlsHideTimer.isActive()) {
 		onHideControls(true);
+	}
+}
+
+void MediaView::onScreenResized(int screen) {
+	if (isHidden()) return;
+
+	bool ignore = false;
+	auto screens = QApplication::screens();
+	if (screen >= 0 && screen < screens.size()) {
+		if (auto screenHandle = windowHandle()->screen()) {
+			if (screens.at(screen) != screenHandle) {
+				ignore = true;
+			}
+		}
+	}
+	if (!ignore) {
+		moveToScreen();
+		auto item = (_msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : nullptr);
+		if (_photo) {
+			displayPhoto(_photo, item);
+		} else if (_doc) {
+			displayDocument(_doc, item);
+		}
 	}
 }
 
@@ -735,7 +763,18 @@ void MediaView::onForward() {
 
 void MediaView::onDelete() {
 	close();
-	if (!_msgid) {
+	auto deletingPeerPhoto = [this]() {
+		if (!_msgid) return true;
+		if (_photo && _history) {
+			auto lastPhoto = computeLastOverviewChatPhoto();
+			if (lastPhoto.photo == _photo && _history->peer->photoId == _photo->id) {
+				return _firstOpenedPeerPhoto;
+			}
+		}
+		return false;
+	};
+
+	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
 	} else if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 		App::contextItem(item);
@@ -784,6 +823,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 		_migrated = nullptr;
 	}
 	_additionalChatPhoto = nullptr;
+	_firstOpenedPeerPhoto = false;
 	_peer = 0;
 	_user = 0;
 	_saveMsgStarted = 0;
@@ -825,6 +865,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	_history = _migrated = nullptr;
 	_additionalChatPhoto = nullptr;
+	_firstOpenedPeerPhoto = true;
 	_peer = context;
 	_user = context->asUser();
 	_saveMsgStarted = 0;
@@ -868,7 +909,9 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 
 		auto lastChatPhoto = computeLastOverviewChatPhoto();
 		if (_photo == lastChatPhoto.photo) {
-			return showPhoto(_photo, lastChatPhoto.item);
+			showPhoto(_photo, lastChatPhoto.item);
+			_firstOpenedPeerPhoto = true;
+			return;
 		}
 
 		computeAdditionalChatPhoto(_history->peer, lastChatPhoto.photo);

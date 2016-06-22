@@ -5908,7 +5908,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel.show();
 			updateMouseTracking();
 		}
@@ -5927,7 +5927,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel.show();
 			updateMouseTracking();
 		}
@@ -7048,7 +7048,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
-				_replyEditMsgText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+				_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 				_fieldBarCancel.show();
 				updateMouseTracking();
 			}
@@ -7285,7 +7285,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}
 	if (_pinnedBar->msg) {
-		_pinnedBar->text.setText(st::msgFont, _pinnedBar->msg->inDialogsText(), _textDlgOptions);
+		_pinnedBar->text.setText(st::msgFont, textClean(_pinnedBar->msg->notificationText()), _textDlgOptions);
 		update();
 	} else if (force) {
 		if (_peer && _peer->isMegagroup()) {
@@ -7523,7 +7523,7 @@ void HistoryWidget::onReplyToMessage() {
 	} else {
 		_replyEditMsg = to;
 		_replyToId = to->id;
-		_replyEditMsgText.setText(st::msgFont, _replyEditMsg->inDialogsText(), _textDlgOptions);
+		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -7869,7 +7869,7 @@ void HistoryWidget::updatePreview() {
 		updateMouseTracking();
 		if (_previewData->pendingTill) {
 			_previewTitle.setText(st::msgServiceNameFont, lang(lng_preview_loading), _textNameOptions);
-			_previewDescription.setText(st::msgFont, _previewLinks.splitRef(' ').at(0).toString(), _textDlgOptions);
+			_previewDescription.setText(st::msgFont, textClean(_previewLinks.splitRef(' ').at(0).toString()), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;
@@ -7901,7 +7901,7 @@ void HistoryWidget::updatePreview() {
 				}
 			}
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
-			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
+			_previewDescription.setText(st::msgFont, textClean(desc), _textDlgOptions);
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
 		_fieldBarCancel.hide();
@@ -8163,7 +8163,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
-		_replyEditMsgText.setText(st::msgFont, _replyEditMsg->inDialogsText(), _textDlgOptions);
+		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 

@@ -188,6 +188,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
 , _adaptiveForWide(this, lang(lng_settings_adaptive_wide), Global::AdaptiveForWide())
 , _needBackgroundUpdate(false)
+, _radial(animation(this, &SettingsInner::step_radial))
 
 // advanced
 , _passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on))
@@ -318,6 +319,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
 	connect(&_adaptiveForWide, SIGNAL(changed()), this, SLOT(onAdaptiveForWide()));
 
+	if (radialLoading()) {
+		radialStart();
+	}
+
 	// advanced
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
 	connect(&_passcodeTurnOff, SIGNAL(clicked()), this, SLOT(onPasscodeOff()));
@@ -385,18 +390,6 @@ void SettingsInner::peerUpdated(PeerData *data) {
 }
 
 void SettingsInner::paintEvent(QPaintEvent *e) {
-	bool animateBackground = false;
-	if (App::main() && App::main()->chatBackgroundLoading()) {
-		App::main()->checkChatBackground();
-		if (App::main()->chatBackgroundLoading()) {
-			animateBackground = true;
-		} else {
-			updateChatBackground();
-		}
-	} else if (_needBackgroundUpdate) {
-		updateChatBackground();
-	}
-
 	Painter p(this);
 
 	p.setClipRect(e->rect());
@@ -620,32 +613,35 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
 		top += st::setHeaderSkip;
 
-		if (animateBackground) {
-			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
-
-			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
-
-			uint64 dt = getms();
-			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
-
-			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
-			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
-			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
-
-			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
-			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
-			QColor c(st::white->c);
-			QBrush b(c);
-			for (int32 i = 0; i < cnt; ++i) {
-				t -= delta;
-				while (t < 0) t += period;
-
-				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-				b.setColor(c);
-				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+		bool radial = false;
+		float64 radialOpacity = 0;
+		if (_radial.animating()) {
+			_radial.step(getms());
+			radial = _radial.animating();
+			radialOpacity = _radial.opacity();
+		}
+		if (radial) {
+			auto backThumb = App::main() ? App::main()->newBackgroundThumb() : ImagePtr();
+			if (backThumb->isNull()) {
+				p.drawPixmap(_left, top, _background);
+			} else {
+				const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
+				p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
 			}
-			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
+
+			auto outer = radialRect();
+			QRect inner(QPoint(outer.x() + (outer.width() - st::radialSize.width()) / 2, outer.y() + (outer.height() - st::radialSize.height()) / 2), st::radialSize);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::black);
+			p.setOpacity(radialOpacity * st::radialBgOpacity);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing);
+			p.drawEllipse(inner);
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+			p.setOpacity(1);
+			QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+			_radial.draw(p, arc, st::radialLine, st::white);
 		} else {
 			p.drawPixmap(_left, top, _background);
 		}
@@ -953,7 +949,7 @@ void SettingsInner::passcodeChanged() {
 }
 
 void SettingsInner::updateBackgroundRect() {
-	update(_left, _tileBackground.y() - st::setLittleSkip - st::setBackgroundSize, st::setBackgroundSize, st::setBackgroundSize);
+	update(radialRect());
 }
 
 void SettingsInner::onFullPeerUpdated(PeerData *peer) {
@@ -1657,6 +1653,53 @@ void SettingsInner::onBackFromFile() {
 	updateChatBackground();
 }
 
+float64 SettingsInner::radialProgress() const {
+	if (auto m = App::main()) {
+		return m->chatBackgroundProgress();
+	}
+	return 1.;
+}
+
+bool SettingsInner::radialLoading() const {
+	if (auto m = App::main()) {
+		if (m->chatBackgroundLoading()) {
+			m->checkChatBackground();
+			if (m->chatBackgroundLoading()) {
+				return true;
+			} else {
+				const_cast<SettingsInner*>(this)->updateChatBackground();
+			}
+		}
+	}
+	return false;
+}
+
+QRect SettingsInner::radialRect() const {
+	auto left = _left;
+	auto top = _tileBackground.y() - st::setLittleSkip - st::setBackgroundSize;
+	return QRect(left, top, st::setBackgroundSize, st::setBackgroundSize);
+}
+
+void SettingsInner::radialStart() {
+	if (radialLoading() && !_radial.animating()) {
+		_radial.start(radialProgress());
+		if (auto shift = radialTimeShift()) {
+			_radial.update(radialProgress(), !radialLoading(), getms() + shift);
+		}
+	}
+}
+
+uint64 SettingsInner::radialTimeShift() const {
+	return st::radialDuration;
+}
+
+void SettingsInner::step_radial(uint64 ms, bool timer) {
+	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
+	if (timer && _radial.animating()) {
+		updateBackgroundRect();
+	}
+}
+
 void SettingsInner::updateChatBackground() {
 	int32 size = st::setBackgroundSize * cIntRetinaFactor();
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
@@ -1673,6 +1716,7 @@ void SettingsInner::updateChatBackground() {
 	_background = QPixmap::fromImage(back);
 	_background.setDevicePixelRatio(cRetinaFactor());
 	_needBackgroundUpdate = false;
+
 	updateBackgroundRect();
 }
 
@@ -1680,6 +1724,9 @@ void SettingsInner::needBackgroundUpdate(bool tile) {
 	_needBackgroundUpdate = true;
 	_tileBackground.setChecked(tile);
 	updateChatBackground();
+	if (radialLoading()) {
+		radialStart();
+	}
 }
 
 void SettingsInner::onTileBackground() {

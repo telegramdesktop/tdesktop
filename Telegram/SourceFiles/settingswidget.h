@@ -285,6 +285,15 @@ private:
 	FlatCheckbox _tileBackground, _adaptiveForWide;
 	bool _needBackgroundUpdate;
 
+	// Radial animation interface.
+	RadialAnimation _radial;
+	float64 radialProgress() const;
+	bool radialLoading() const;
+	QRect radialRect() const;
+	void radialStart();
+	uint64 radialTimeShift() const;
+	void step_radial(uint64 ms, bool timer);
+
 	// advanced
 	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;
 	QString _autoLockText;

@@ -345,6 +345,7 @@ public:
 
 	void setChatBackground(const App::WallPaper &wp);
 	bool chatBackgroundLoading();
+	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
 	ImagePtr newBackgroundThumb();
 

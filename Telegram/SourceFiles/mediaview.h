@@ -85,6 +85,8 @@ public slots:
 	void onHideControls(bool force = false);
 	void onDropdownHiding();
 
+	void onScreenResized(int screen);
+
 	void onToMessage();
 	void onSaveAs();
 	void onDownload();
@@ -193,6 +195,12 @@ private:
 	// There can be additional first photo in chat photos overview, that is not
 	// in the _history->overview[OverviewChatPhotos] (if the item was deleted).
 	PhotoData *_additionalChatPhoto = nullptr;
+
+	// We save the information about the reason of the current mediaview show:
+	// did we open a peer profile photo or a photo from some message.
+	// We use it when trying to delete a photo: if we've opened a peer photo,
+	// then we'll delete group photo instead of the corresponding message.
+	bool _firstOpenedPeerPhoto = false;
 
 	PeerData *_from = nullptr;
 	Text _fromName;

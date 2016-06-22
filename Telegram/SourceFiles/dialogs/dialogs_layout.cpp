@@ -88,10 +88,9 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			if (history->cloudDraftTextCache.isEmpty()) {
-				TextCustomTagsMap custom;
-				custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-				QString msg = lng_message_with_from(lt_from, textRichPrepare(lang(lng_from_draft)), lt_message, textRichPrepare(draft->textWithTags.text));
-				history->cloudDraftTextCache.setRichText(st::dialogsTextFont, msg, _textDlgOptions, custom);
+				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
+				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
+				history->cloudDraftTextCache.setText(st::dialogsTextFont, draftText, _textDlgOptions);
 			}
 			textstyleSet(&(active ? st::dialogsTextStyleActive : st::dialogsTextStyleDraft));
 			p.setFont(st::dialogsTextFont);

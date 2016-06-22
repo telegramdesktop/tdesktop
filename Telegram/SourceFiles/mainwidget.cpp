@@ -256,7 +256,7 @@ void MainWidget::updateForwardingTexts() {
 		}
 	}
 	_toForwardFrom.setText(st::msgServiceNameFont, from, _textNameOptions);
-	_toForwardText.setText(st::msgFont, text, _textDlgOptions);
+	_toForwardText.setText(st::msgFont, textClean(text), _textDlgOptions);
 	_toForwardNameVersion = version;
 }
 
@@ -632,10 +632,9 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	_deletingPhoto = photo;
-	onDeletePhotoSure(); // langs are not ready yet
-	//auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
-	//connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
-	//Ui::showLayer(box);
+	auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
+	Ui::showLayer(box);
 }
 
 void MainWidget::onDeletePhotoSure() {
@@ -1843,7 +1842,14 @@ void MainWidget::setChatBackground(const App::WallPaper &wp) {
 }
 
 bool MainWidget::chatBackgroundLoading() {
-	return !!_background;
+	return (_background != nullptr);
+}
+
+float64 MainWidget::chatBackgroundProgress() const {
+	if (_background) {
+		return _background->full->progress();
+	}
+	return 1.;
 }
 
 void MainWidget::checkChatBackground() {
