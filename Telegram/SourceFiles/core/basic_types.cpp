@@ -130,9 +130,9 @@ TimeId fromServerTime(const MTPint &serverTime) {
 	return serverTime.v - unixtimeDelta;
 }
 
-MTPint toServerTime(const TimeId &clientTime) {
+void toServerTime(const TimeId &clientTime, MTPint &outServerTime) {
 	QReadLocker locker(&unixtimeLock);
-	return MTP_int(clientTime + unixtimeDelta);
+	outServerTime = MTP_int(clientTime + unixtimeDelta);
 }
 
 QDateTime dateFromServerTime(TimeId time) {

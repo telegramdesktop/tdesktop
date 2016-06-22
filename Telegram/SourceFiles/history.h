@@ -44,7 +44,7 @@ public:
 	Histories() : _a_typings(animation(this, &Histories::step_typings)), _unreadFull(0), _unreadMuted(0) {
 	}
 
-	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
+	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
 	void step_typings(uint64 ms, bool timer);
 
 	History *find(const PeerId &peerId);

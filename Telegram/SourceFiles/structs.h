@@ -315,7 +315,7 @@ public:
 		return _userpic->loaded();
 	}
 	StorageKey userpicUniqueKey() const;
-	void saveUserpic(const QString &path) const;
+	void saveUserpic(const QString &path, int size) const;
 	QPixmap genUserpic(int size) const;
 
 	PhotoId photoId = UnknownPeerPhotoId;
@@ -406,7 +406,7 @@ public:
 
 	void setNameOrPhone(const QString &newNameOrPhone);
 
-	void madeAction(); // pseudo-online
+	void madeAction(TimeId when); // pseudo-online
 
 	uint64 access = 0;
 

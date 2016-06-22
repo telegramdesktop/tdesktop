@@ -364,6 +364,8 @@ public:
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
+	bool moderateKeyActivate(int index);
+
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
 	bool updateMarkup(HistoryItem *last, bool force = false);
@@ -845,6 +847,8 @@ private slots:
 	void onInlineBotCancel();
 	void onMembersDropdownHidden();
 	void onMembersDropdownShow();
+
+	void onModerateKeyActivate(int index, bool *outHandled);
 
 	void updateField();
 

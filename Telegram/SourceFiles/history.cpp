@@ -604,7 +604,7 @@ void Histories::clear() {
 	typing.clear();
 }
 
-void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action) {
+void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when) {
 	if (action.type() == mtpc_sendMessageCancelAction) {
 		history->unregTyping(user);
 		return;
@@ -624,7 +624,7 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 	default: return;
 	}
 
-	user->madeAction();
+	user->madeAction(when);
 
 	TypingHistories::const_iterator i = typing.find(history);
 	if (i == typing.cend()) {
@@ -1140,7 +1140,9 @@ void History::newItemAdded(HistoryItem *item) {
 		if (item->from() == item->author()) {
 			unregTyping(item->from()->asUser());
 		}
-		item->from()->asUser()->madeAction();
+		MTPint itemServerTime;
+		toServerTime(item->date.toTime_t(), itemServerTime);
+		item->from()->asUser()->madeAction(itemServerTime.v);
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroyUnreadBar();

@@ -532,6 +532,7 @@ struct Data {
 	bool AdaptiveForWide = true;
 	bool DialogsModeEnabled = false;
 	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
+	bool ModerateModeEnabled = false;
 
 	int32 DebugLoggingFlags = 0;
 
@@ -597,6 +598,7 @@ DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);
 DefineVar(Global, bool, DialogsModeEnabled);
 DefineVar(Global, Dialogs::Mode, DialogsMode);
+DefineVar(Global, bool, ModerateModeEnabled);
 
 DefineVar(Global, int32, DebugLoggingFlags);
 

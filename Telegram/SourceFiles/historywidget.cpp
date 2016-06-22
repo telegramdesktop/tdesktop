@@ -2481,6 +2481,18 @@ void BotKeyboard::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
+bool BotKeyboard::moderateKeyActivate(int index) {
+	if (auto item = App::histItemById(_wasForMsgId)) {
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
+				App::activateBotCommand(item, 0, index);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (!_impl) return;
 	_impl->clickHandlerActiveChanged(p, active);
@@ -3086,6 +3098,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerSend(DocumentData*)));
+	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	_field.installEventFilter(_fieldAutocomplete);
 	_field.setTagMimeProcessor(std_::make_unique<FieldTagMimeProcessor>());
 	updateFieldSubmitSettings();
@@ -5646,7 +5659,10 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 }
 
 DragState HistoryWidget::getDragState(const QMimeData *d) {
-	if (!d || d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragStateNone;
+	if (!d
+		|| d->hasFormat(qsl("application/x-td-forward-selected"))
+		|| d->hasFormat(qsl("application/x-td-forward-pressed"))
+		|| d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragStateNone;
 
 	if (d->hasImage()) return DragStateImage;
 
@@ -6060,6 +6076,10 @@ void HistoryWidget::onMembersDropdownShow() {
 		connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
 	}
 	_membersDropdown->otherEnter();
+}
+
+void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
+	*outHandled = _keyboard.isHidden() ? false : _keyboard.moderateKeyActivate(index);
 }
 
 void HistoryWidget::onMembersDropdownHidden() {

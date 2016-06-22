@@ -1223,7 +1223,7 @@ namespace {
 		}
 	}
 
-	void feedOutboxRead(const PeerId &peer, MsgId upTo) {
+	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
@@ -1232,7 +1232,7 @@ namespace {
 			history->updateChatListEntry();
 
 			if (history->peer->isUser()) {
-				history->peer->asUser()->madeAction();
+				history->peer->asUser()->madeAction(when);
 			}
 		}
 	}

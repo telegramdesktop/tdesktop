@@ -1049,8 +1049,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9053) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Put your cursor over the members count in a group chat to see the members list\n\xe2\x80\x94 Bug fixes and other minor improvements");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9054) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Photo viewer handles screen resolution change\n\xe2\x80\x94 Forward photo by drag-n-drop fixed\n\xe2\x80\x94 Some design improvements and bug fixes");
 //				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9050) {
 				versionFeatures = langNewVersionText();

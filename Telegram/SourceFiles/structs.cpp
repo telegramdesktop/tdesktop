@@ -185,12 +185,12 @@ StorageKey PeerData::userpicUniqueKey() const {
 	return storageKey(photoLoc);
 }
 
-void PeerData::saveUserpic(const QString &path) const {
-	currentUserpic()->pixCircled().save(path, "PNG");
+void PeerData::saveUserpic(const QString &path, int size) const {
+	currentUserpic()->pixRounded(size, size).save(path, "PNG");
 }
 
 QPixmap PeerData::genUserpic(int size) const {
-	return currentUserpic()->pixCircled(size, size);
+	return currentUserpic()->pixRounded(size, size);
 }
 
 const Text &BotCommand::descriptionText() const {
@@ -373,16 +373,15 @@ void UserData::setNameOrPhone(const QString &newNameOrPhone) {
 	}
 }
 
-void UserData::madeAction() {
-	if (botInfo || isServiceUser(id)) return;
+void UserData::madeAction(TimeId when) {
+	if (botInfo || isServiceUser(id) || when <= 0) return;
 
-	int32 t = unixtime();
-	if (onlineTill <= 0 && -onlineTill < t) {
-		onlineTill = -t - SetOnlineAfterActivity;
+	if (onlineTill <= 0 && -onlineTill < when) {
+		onlineTill = -when - SetOnlineAfterActivity;
 		App::markPeerUpdated(this);
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
-	} else if (onlineTill > 0 && onlineTill < t + 1) {
-		onlineTill = t + SetOnlineAfterActivity;
+	} else if (onlineTill > 0 && onlineTill < when + 1) {
+		onlineTill = when + SetOnlineAfterActivity;
 		App::markPeerUpdated(this);
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	}

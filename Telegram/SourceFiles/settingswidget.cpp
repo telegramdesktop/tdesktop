@@ -824,6 +824,7 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			break;
 		} else if (str == qstr("loadlang")) {
 			chooseCustomLang();
+			break;
 		} else if (str == qstr("debugfiles") && cDebug()) {
 			if (DebugLogging::FileLoader()) {
 				Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
@@ -831,19 +832,34 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 				Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
 			}
 			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
+			break;
 		} else if (str == qstr("crashplease")) {
 			t_assert(!"Crashed in Settings!");
+			break;
 		} else if (str == qstr("workmode")) {
-			QString text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
+			auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 			auto box = std_::make_unique<ConfirmBox>(text);
 			connect(box.get(), SIGNAL(confirmed()), App::app(), SLOT(onSwitchWorkMode()));
 			Ui::showLayer(box.release());
 			from = size;
 			break;
+		} else if (str == qstr("moderate")) {
+			auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
+			auto box = std_::make_unique<ConfirmBox>(text);
+			connect(box.get(), SIGNAL(confirmed()), this, SLOT(onSwitchModerateMode()));
+			Ui::showLayer(box.release());
+			break;
+		} else if (str == qstr("clearstickers")) {
+			auto box = std_::make_unique<ConfirmBox>(qsl("Clear frequently used stickers list?"));
+			connect(box.get(), SIGNAL(confirmed()), this, SLOT(onClearStickers()));
+			Ui::showLayer(box.release());
+			break;
 		} else if (
 			qsl("debugmode").startsWith(str) ||
 			qsl("testmode").startsWith(str) ||
 			qsl("loadlang").startsWith(str) ||
+			qsl("clearstickers").startsWith(str) ||
+			qsl("moderate").startsWith(str) ||
 			qsl("debugfiles").startsWith(str) ||
 			qsl("workmode").startsWith(str) ||
 			qsl("crashplease").startsWith(str)) {
@@ -1249,6 +1265,30 @@ void SettingsInner::onUpdatePhoto() {
 void SettingsInner::onShowSessions() {
 	SessionsBox *box = new SessionsBox();
 	Ui::showLayer(box);
+}
+
+void SettingsInner::onClearStickers() {
+	auto &recent(cGetRecentStickers());
+	if (!recent.isEmpty()) {
+		recent.clear();
+		Local::writeUserSettings();
+	}
+	auto &sets(Global::RefStickerSets());
+	auto it = sets.find(Stickers::CustomSetId);
+	if (it != sets.cend()) {
+		sets.erase(it);
+		Local::writeStickers();
+	}
+	if (auto m = App::main()) {
+		emit m->stickersUpdated();
+	}
+	Ui::hideLayer();
+}
+
+void SettingsInner::onSwitchModerateMode() {
+	Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
+	Local::writeUserSettings();
+	Ui::hideLayer();
 }
 
 void SettingsInner::onAskQuestion() {
