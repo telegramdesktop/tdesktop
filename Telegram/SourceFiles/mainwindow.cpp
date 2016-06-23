@@ -455,7 +455,7 @@ void MainWindow::firstShow() {
 #else
 	trayIconMenu = new QMenu(this);
 #endif
-	QString notificationItem = lang(cDesktopNotify()
+	auto notificationItem = lang(cDesktopNotify()
 		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
 
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -469,9 +469,10 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
 	psUpdateWorkmode();
-
 	psFirstShow();
 	updateTrayMenu();
+
+	_mediaView = new MediaView();
 }
 
 QWidget *MainWindow::filedialogParent() {
@@ -667,8 +668,6 @@ void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	fixOrder();
 
 	updateTitleStatus();
-
-	_mediaView = new MediaView();
 }
 
 void MainWindow::updateUnreadCounter() {

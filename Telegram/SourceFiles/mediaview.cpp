@@ -80,8 +80,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 , _radial(animation(this, &MediaView::step_radial))
 , _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
-, _dropdown(this, st::mvDropdown)
-, _saveMsgOpacity(0) {
+, _dropdown(this, st::mvDropdown) {
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
@@ -100,7 +99,9 @@ MediaView::MediaView() : TWidget(App::wnd())
 
 	hide();
 	createWinId();
-	setWindowState(Qt::WindowFullScreen);
+	if (cPlatform() == dbipWindows) {
+		setWindowState(Qt::WindowFullScreen);
+	}
 
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
