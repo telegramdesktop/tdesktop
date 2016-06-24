@@ -258,7 +258,7 @@ private:
 
 	QString _saveMsgFilename;
 	uint64 _saveMsgStarted = 0;
-	anim::fvalue _saveMsgOpacity;
+	anim::fvalue _saveMsgOpacity = { 0 };
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;

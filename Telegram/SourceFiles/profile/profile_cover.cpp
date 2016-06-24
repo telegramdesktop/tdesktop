@@ -26,6 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_userpic_button.h"
 #include "ui/buttons/round_button.h"
 #include "ui/filedialog.h"
+#include "ui/flatlabel.h"
+#include "ui/flatbutton.h"
 #include "observer_peer.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
@@ -34,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "application.h"
 
 namespace Profile {
 namespace {
@@ -59,14 +62,17 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAcceptDrops(true);
 
-	_name.setSelectable(true);
-	_name.setContextCopyText(lang(lng_profile_copy_fullname));
+	_name->setSelectable(true);
+	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::NameChanged
 		| UpdateFlag::UserOnlineChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
 	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
+
+	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 
 	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 	validatePhoto();
@@ -92,6 +98,13 @@ void CoverWidget::onPhotoShow() {
 	}
 }
 
+void CoverWidget::onCancelPhotoUpload() {
+	if (auto app = App::app()) {
+		app->cancelPhotoUpdate(_peer->id);
+		refreshStatusText();
+	}
+}
+
 int CoverWidget::countPhotoLeft(int newWidth) const {
 	int result = st::profilePhotoLeftMin;
 	result += (newWidth - st::wndMinWidth) / 2;
@@ -110,6 +123,9 @@ void CoverWidget::resizeToWidth(int newWidth) {
 
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	_statusPosition = QPoint(infoLeft + st::profileStatusLeft, _userpicButton->y() + st::profileStatusTop);
+	if (_cancelPhotoUpload) {
+		_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::profileStatusFont->width(_statusText) + st::profileStatusFont->spacew, _statusPosition.y());
+	}
 
 	moveAndToggleButtons(newWidth);
 
@@ -135,8 +151,8 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 		nameWidth -= st::profileVerifiedCheckPosition.x() + st::profileVerifiedCheck.width();
 	}
 	int marginsAdd = st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
-	_name.resizeToWidth(qMin(nameWidth - marginsAdd, _name.naturalWidth()) + marginsAdd);
-	_name.moveToLeft(nameLeft, nameTop);
+	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
+	_name->moveToLeft(nameLeft, nameTop);
 }
 
 // A more generic solution would be allowing an optional icon button
@@ -188,7 +204,7 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
 
 	if (_peer->isVerified()) {
-		st::profileVerifiedCheck.paint(p, QPoint(_name.x() + _name.width(), _name.y()) + st::profileVerifiedCheckPosition, width());
+		st::profileVerifiedCheck.paint(p, QPoint(_name->x() + _name->width(), _name->y()) + st::profileVerifiedCheckPosition, width());
 	}
 
 	paintDivider(p);
@@ -322,11 +338,26 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 }
 
 void CoverWidget::refreshNameText() {
-	_name.setText(App::peerName(_peer));
+	_name->setText(App::peerName(_peer));
 	refreshNameGeometry(width());
 }
 
 void CoverWidget::refreshStatusText() {
+	if (auto app = App::app()) {
+		if (app->isPhotoUpdating(_peer->id)) {
+			_statusText = lang(lng_settings_uploading_photo);
+			if (!_cancelPhotoUpload) {
+				_cancelPhotoUpload = new LinkButton(this, lang(lng_cancel), st::btnDefLink);
+				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
+				_cancelPhotoUpload->show();
+				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::profileStatusFont->width(_statusText) + st::profileStatusFont->spacew, _statusPosition.y());
+			}
+			update();
+			return;
+		}
+	}
+
+	_cancelPhotoUpload.destroy();
 	int currentTime = unixtime();
 	if (_peerUser) {
 		_statusText = App::onlineText(_peerUser, currentTime, true);
@@ -477,8 +508,14 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 	}
 
 	auto box = new PhotoCropBox(img, _peer);
-	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
+	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
 	Ui::showLayer(box);
+}
+
+void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {
+	if (!peerId || peerId == _peer->id) {
+		refreshStatusText();
+	}
 }
 
 void CoverWidget::onAddMember() {

@@ -507,9 +507,9 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 					return _inner->chooseSelected(ChooseMethod::ByEnter);
 				}
 			}
-			if (moderate && ev->key() >= Qt::Key_1 && ev->key() <= Qt::Key_9) {
+			if (moderate && (ev->key() >= Qt::Key_1 && ev->key() <= Qt::Key_9 || ev->key() == Qt::Key_Q)) {
 				bool handled = false;
-				emit moderateKeyActivate(ev->key() - Qt::Key_1, &handled);
+				emit moderateKeyActivate(ev->key(), &handled);
 				return handled;
 			}
 		}

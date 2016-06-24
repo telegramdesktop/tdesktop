@@ -400,6 +400,23 @@ index a4b5280..e2dffcb 100644
  } else {
      LIBS += $$QMAKE_LIBS_XKBCOMMON
      QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_XKBCOMMON
+diff --git a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
+index d1bea9a..f1f808d 100644
+--- a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
++++ b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
+@@ -232,6 +232,12 @@ bool QComposeInputContext::checkComposeTable()
+ 
+ void QComposeInputContext::commitText(uint character) const
+ {
++    // Crash fix when not focused widget still receives input events.
++    if (!m_focusObject) {
++        qWarning("QComposeInputContext::commitText: m_focusObject == nullptr, cannot commit text");
++        return;
++    }
++
+     QInputMethodEvent event;
+     event.setCommitString(QChar(character));
+     QCoreApplication::sendEvent(m_focusObject, &event);
 diff --git a/src/plugins/platforminputcontexts/fcitx/fcitx.json b/src/plugins/platforminputcontexts/fcitx/fcitx.json
 new file mode 100644
 index 0000000..6d2b389
@@ -11748,6 +11765,21 @@ index 9211fd1..283aabd 100644
  void QWindowsXpFileDialogHelper::selectNameFilter(const QString &f)
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
+diff --git a/src/plugins/platforms/windows/qwindowskeymapper.cpp b/src/plugins/platforms/windows/qwindowskeymapper.cpp
+index c5dff60..ce6c715 100644
+--- a/src/plugins/platforms/windows/qwindowskeymapper.cpp
++++ b/src/plugins/platforms/windows/qwindowskeymapper.cpp
+@@ -1249,6 +1249,10 @@ QList<int> QWindowsKeyMapper::possibleKeys(const QKeyEvent *e) const
+ {
+     QList<int> result;
+ 
++    // This must not happen, but there are crash reports on the next line.
++    if (e->nativeVirtualKey() > 0xFF)
++        return result;
++
+     const KeyboardLayoutItem &kbItem = keyLayout[e->nativeVirtualKey()];
+     if (!kbItem.exists)
+         return result;
 diff --git a/src/plugins/platforms/windows/qwindowsservices.cpp b/src/plugins/platforms/windows/qwindowsservices.cpp
 index cc697ba..c72234f 100644
 --- a/src/plugins/platforms/windows/qwindowsservices.cpp

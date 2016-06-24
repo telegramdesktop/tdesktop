@@ -434,6 +434,7 @@ void psRegisterCustomScheme() {
     QString home(_psHomeDir());
     if (home.isEmpty() || cBetaVersion()) return; // don't update desktop file for beta version
 
+    #ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
     DEBUG_LOG(("App Info: placing .desktop file"));
     if (QDir(home + qsl(".local/")).exists()) {
         QString apps = home + qsl(".local/share/applications/");
@@ -480,6 +481,7 @@ void psRegisterCustomScheme() {
             LOG(("App Error: Could not open '%1' for write").arg(file));
         }
     }
+    #endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 
     DEBUG_LOG(("App Info: registerting for Gnome"));
     if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + escapeShell(escapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {

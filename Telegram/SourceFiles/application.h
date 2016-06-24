@@ -159,7 +159,6 @@ public:
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
 	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
-	void clearPhotoUpdates();
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);
 

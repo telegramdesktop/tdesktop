@@ -455,7 +455,7 @@ void MainWindow::firstShow() {
 #else
 	trayIconMenu = new QMenu(this);
 #endif
-	QString notificationItem = lang(cDesktopNotify()
+	auto notificationItem = lang(cDesktopNotify()
 		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
 
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -469,9 +469,10 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
 	psUpdateWorkmode();
-
 	psFirstShow();
 	updateTrayMenu();
+
+	_mediaView = new MediaView();
 }
 
 QWidget *MainWindow::filedialogParent() {
@@ -667,8 +668,6 @@ void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	fixOrder();
 
 	updateTitleStatus();
-
-	_mediaView = new MediaView();
 }
 
 void MainWindow::updateUnreadCounter() {
@@ -926,13 +925,26 @@ void MainWindow::layerHidden() {
 	setInnerFocus();
 }
 
+void MainWindow::onReActivate() {
+	if (auto w = App::wnd()) {
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->windowHandle()->requestActivate();
+		w->activate();
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->setInnerFocus();
+    }
+}
+
 void MainWindow::hideMediaview() {
     if (_mediaView && !_mediaView->isHidden()) {
         _mediaView->hide();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-        if (App::wnd()) {
-            App::wnd()->activateWindow();
-        }
+		onReActivate();
+		QTimer::singleShot(200, this, SLOT(onReActivate()));
 #endif
     }
 }
