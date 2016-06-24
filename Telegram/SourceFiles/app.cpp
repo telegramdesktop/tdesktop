@@ -2462,11 +2462,11 @@ namespace {
 		return ::sharedContactItems;
 	}
 
-	void regGifItem(ClipReader *reader, HistoryItem *item) {
+	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item) {
 		::gifItems.insert(reader, item);
 	}
 
-	void unregGifItem(ClipReader *reader) {
+	void unregGifItem(Media::Clip::Reader *reader) {
 		::gifItems.remove(reader);
 	}
 

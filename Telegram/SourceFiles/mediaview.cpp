@@ -26,51 +26,54 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/filedialog.h"
+#include "media/media_clip_reader.h"
 
 namespace {
-	class SaveMsgClickHandler : public ClickHandler {
-	public:
 
-		SaveMsgClickHandler(MediaView *view) : _view(view) {
-		}
+class SaveMsgClickHandler : public ClickHandler {
+public:
 
-		void onClick(Qt::MouseButton button) const {
-			if (button == Qt::LeftButton) {
-				_view->showSaveMsgFile();
-			}
-		}
-
-	private:
-
-		MediaView *_view;
-	};
-
-	TextParseOptions _captionTextOptions = {
-		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-		0, // maxw
-		0, // maxh
-		Qt::LayoutDirectionAuto, // dir
-	};
-	TextParseOptions _captionBotOptions = {
-		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseBotCommands, // flags
-		0, // maxw
-		0, // maxh
-		Qt::LayoutDirectionAuto, // dir
-	};
-
-	bool typeHasMediaOverview(MediaOverviewType type) {
-		switch (type) {
-		case OverviewPhotos:
-		case OverviewVideos:
-		case OverviewMusicFiles:
-		case OverviewFiles:
-		case OverviewVoiceFiles:
-		case OverviewLinks: return true;
-		default: break;
-		}
-		return false;
+	SaveMsgClickHandler(MediaView *view) : _view(view) {
 	}
+
+	void onClick(Qt::MouseButton button) const {
+		if (button == Qt::LeftButton) {
+			_view->showSaveMsgFile();
+		}
+	}
+
+private:
+
+	MediaView *_view;
+};
+
+TextParseOptions _captionTextOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+TextParseOptions _captionBotOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseBotCommands, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+bool typeHasMediaOverview(MediaOverviewType type) {
+	switch (type) {
+	case OverviewPhotos:
+	case OverviewVideos:
+	case OverviewMusicFiles:
+	case OverviewFiles:
+	case OverviewVoiceFiles:
+	case OverviewLinks: return true;
+	default: break;
+	}
+	return false;
 }
+
+} // namespace
 
 MediaView::MediaView() : TWidget(App::wnd())
 , _animStarted(getms())
@@ -219,7 +222,7 @@ bool MediaView::gifShown() const {
 			_gif->start(_gif->width(), _gif->height(), _gif->width(), _gif->height(), false);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
-		return _gif->state() != ClipError;
+		return _gif->state() != Media::Clip::State::Error;
 	}
 	return false;
 }
@@ -479,13 +482,13 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 	if (timer && _radial.animating()) {
 		update(radialRect());
 	}
-	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation())) {
-		if (!_doc->data().isEmpty() && _doc->isAnimation()) {
+	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
+		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
 			displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 		} else {
 			const FileLocation &location(_doc->location(true));
 			if (location.accessEnable()) {
-				if (_doc->isAnimation() || QImageReader(location.name()).canRead()) {
+				if (_doc->isAnimation() || _doc->isVideo() || QImageReader(location.name()).canRead()) {
 					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 				}
 				location.accessDisable();
@@ -654,13 +657,15 @@ void MediaView::onDocClick() {
 	}
 }
 
-void MediaView::clipCallback(ClipReaderNotification notification) {
+void MediaView::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+
 	if (!_gif) return;
 
 	switch (notification) {
-	case ClipReaderReinit: {
+	case NotificationReinit: {
 		if (HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
-			if (_gif->state() == ClipError) {
+			if (_gif->state() == State::Error) {
 				_current = QPixmap();
 			}
 			displayDocument(_doc, item);
@@ -669,7 +674,7 @@ void MediaView::clipCallback(ClipReaderNotification notification) {
 		}
 	} break;
 
-	case ClipReaderRepaint: {
+	case NotificationRepaint: {
 		if (!_gif->currentDisplayed()) {
 			update(_x, _y, _w, _h);
 		}
@@ -1027,7 +1032,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 }
 
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
-	if (!doc || !doc->isAnimation() || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history))))) {
+	if (!doc || (!doc->isAnimation() && !doc->isVideo()) || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history))))) {
 		stopGif();
 	}
 	_doc = doc;
@@ -1049,20 +1054,20 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			_doc->automaticLoad(item);
 
 			const FileLocation &location(_doc->location(true));
-			if (!_doc->data().isEmpty() && _doc->isAnimation()) {
+			if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
 				if (!_gif) {
 					if (_doc->dimensions.width() && _doc->dimensions.height()) {
 						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 					}
-					_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
+					_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback));
 				}
 			} else if (location.accessEnable()) {
-				if (_doc->isAnimation()) {
+				if (_doc->isAnimation() || _doc->isVideo()) {
 					if (!_gif) {
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
 							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 						}
-						_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
+						_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback));
 					}
 				} else {
 					if (QImageReader(location.name()).canRead()) {

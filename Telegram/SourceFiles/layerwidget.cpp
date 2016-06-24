@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
+#include "media/media_clip_reader.h"
 #include "layerwidget.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -346,9 +347,9 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		} else {
 			_document->automaticLoad(nullptr);
 			if (_document->loaded()) {
-				if (!_gif && _gif != BadClipReader) {
-					MediaPreviewWidget *that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = new ClipReader(_document->location(), _document->data(), func(that, &MediaPreviewWidget::clipCallback));
+				if (!_gif && _gif != Media::Clip::BadReader) {
+					auto that = const_cast<MediaPreviewWidget*>(this);
+					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), func(that, &MediaPreviewWidget::clipCallback));
 					if (gif()) _gif->setAutoplay();
 				}
 			}
@@ -385,12 +386,13 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	return _cache;
 }
 
-void MediaPreviewWidget::clipCallback(ClipReaderNotification notification) {
+void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
 	switch (notification) {
-	case ClipReaderReinit: {
-		if (gif() && _gif->state() == ClipError) {
+	case NotificationReinit: {
+		if (gif() && _gif->state() == State::Error) {
 			delete _gif;
-			_gif = BadClipReader;
+			_gif = BadReader;
 		}
 
 		if (gif() && _gif->ready() && !_gif->started()) {
@@ -401,7 +403,7 @@ void MediaPreviewWidget::clipCallback(ClipReaderNotification notification) {
 		update();
 	} break;
 
-	case ClipReaderRepaint: {
+	case NotificationRepaint: {
 		if (gif() && !_gif->currentDisplayed()) {
 			update();
 		}

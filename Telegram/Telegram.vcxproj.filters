@@ -112,6 +112,9 @@
     <Filter Include="SourceFiles\platform\winrt">
       <UniqueIdentifier>{385d4cd5-f702-41b7-9e39-707d16b118d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\media">
+      <UniqueIdentifier>{a281888a-8b70-4e95-9b03-ebcb02837df4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1344,6 +1347,27 @@
     <ClCompile Include="SourceFiles\platform\linux\linux_libs.cpp">
       <Filter>SourceFiles\platform\linux</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_reader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_implementation.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_ffmpeg.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_qtgif.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1594,6 +1618,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\platform\linux\linux_libs.h">
       <Filter>SourceFiles\platform\linux</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_implementation.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_ffmpeg.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_qtgif.h">
+      <Filter>SourceFiles\media</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1884,6 +1917,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\inner_dropdown.h">
       <Filter>SourceFiles\ui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_clip_reader.h">
+      <Filter>SourceFiles\media</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

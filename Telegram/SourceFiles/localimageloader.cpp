@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "audio.h"
 
 #include "boxes/photosendbox.h"
+#include "media/media_clip_reader.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
@@ -330,7 +331,7 @@ void FileLoadTask::process() {
 		}
 		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || animated) {
 			QImage cover;
-			MTPDocumentAttribute animatedAttribute = clipReadAnimatedAttributes(_filepath, _content, cover);
+			MTPDocumentAttribute animatedAttribute = Media::Clip::readAttributes(_filepath, _content, cover);
 			if (animatedAttribute.type() == mtpc_documentAttributeVideo) {
 				int32 cw = cover.width(), ch = cover.height();
 				if (cw < 20 * ch && ch < 20 * cw) {

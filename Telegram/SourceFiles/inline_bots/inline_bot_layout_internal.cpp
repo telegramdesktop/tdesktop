@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "inline_bots/inline_bot_result.h"
+#include "media/media_clip_reader.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
@@ -131,9 +132,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	document->automaticLoad(nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
-	if (loaded && !gif() && _gif != BadClipReader) {
+	if (loaded && !gif() && _gif != Media::Clip::BadReader) {
 		Gif *that = const_cast<Gif*>(this);
-		that->_gif = new ClipReader(document->location(), document->data(), func(that, &Gif::clipCallback));
+		that->_gif = new Media::Clip::Reader(document->location(), document->data(), func(that, &Gif::clipCallback));
 		if (gif()) _gif->setAutoplay();
 	}
 
@@ -162,7 +163,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		}
 	}
 
-	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
+	if (radial || (!_gif && !loaded && !loading) || (_gif == Media::Clip::BadReader)) {
 		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			float64 over = _animation->_a_over.current();
@@ -326,13 +327,14 @@ void Gif::step_radial(uint64 ms, bool timer) {
 	}
 }
 
-void Gif::clipCallback(ClipReaderNotification notification) {
+void Gif::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
 	switch (notification) {
-	case ClipReaderReinit: {
+	case NotificationReinit: {
 		if (gif()) {
-			if (_gif->state() == ClipError) {
+			if (_gif->state() == State::Error) {
 				delete _gif;
-				_gif = BadClipReader;
+				_gif = BadReader;
 				getShownDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
 				int32 height = st::inlineMediaHeight;
@@ -348,7 +350,7 @@ void Gif::clipCallback(ClipReaderNotification notification) {
 		update();
 	} break;
 
-	case ClipReaderRepaint: {
+	case NotificationRepaint: {
 		if (gif() && !_gif->currentDisplayed()) {
 			update();
 		}

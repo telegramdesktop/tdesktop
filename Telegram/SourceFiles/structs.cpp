@@ -947,9 +947,10 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	}
 	bool playVoice = data->voice() && audioPlayer();
 	bool playMusic = data->song() && audioPlayer();
+	bool playVideo = data->isVideo() && audioPlayer();
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
+	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
 		if (playVoice) {
 			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
@@ -975,6 +976,16 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
+		} else if (playVideo) {
+			if (!data->data().isEmpty()) {
+				App::wnd()->showDocument(data, item);
+			} else if (location.accessEnable()) {
+				App::wnd()->showDocument(data, item);
+				location.accessDisable();
+			} else {
+				psOpenFile(location.name());
+			}
+			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->voice() || data->isVideo()) {
 			psOpenFile(location.name());
 			if (App::main()) App::main()->mediaMarkRead(data);

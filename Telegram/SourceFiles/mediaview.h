@@ -71,7 +71,7 @@ public:
 	void activateControls();
 	void onDocClick();
 
-	void clipCallback(ClipReaderNotification notification);
+	void clipCallback(Media::Clip::Notification notification);
 	PeerData *ui_getPeerForMouseAction();
 
 	~MediaView();
@@ -169,7 +169,7 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QPixmap _current;
-	ClipReader *_gif = nullptr;
+	Media::Clip::Reader *_gif = nullptr;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
 
 	bool fileShown() const;

@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "history/history_service_layout.h"
 #include "data/data_drafts.h"
+#include "media/media_clip_reader.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -2906,15 +2907,17 @@ void HistoryItem::setUnreadBarFreezed() {
 	}
 }
 
-void HistoryItem::clipCallback(ClipReaderNotification notification) {
+void HistoryItem::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+
 	HistoryMedia *media = getMedia();
 	if (!media) return;
 
-	ClipReader *reader = media ? media->getClipReader() : 0;
+	Reader *reader = media ? media->getClipReader() : 0;
 	if (!reader) return;
 
 	switch (notification) {
-	case ClipReaderReinit: {
+	case NotificationReinit: {
 		bool stopped = false;
 		if (reader->paused()) {
 			if (MainWidget *m = App::main()) {
@@ -2933,7 +2936,7 @@ void HistoryItem::clipCallback(ClipReaderNotification notification) {
 		}
 	} break;
 
-	case ClipReaderRepaint: {
+	case NotificationRepaint: {
 		if (!reader->currentDisplayed()) {
 			Ui::repaintHistoryItem(this);
 		}
@@ -4526,13 +4529,13 @@ void HistoryGif::initDimensions() {
 
 	bool bubble = _parent->hasBubble();
 	int32 tw = 0, th = 0;
-	if (gif() && _gif->state() == ClipError) {
+	if (gif() && _gif->state() == Media::Clip::State::Error) {
 		if (!_gif->autoplay()) {
 			Ui::showLayer(new InformBox(lang(lng_gif_error)));
 		}
 		App::unregGifItem(_gif);
 		delete _gif;
-		_gif = BadClipReader;
+		_gif = Media::Clip::BadReader;
 	}
 
 	if (gif() && _gif->ready()) {
@@ -4637,7 +4640,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 	bool loaded = _data->loaded(), displayLoading = (_parent->id < 0) || _data->displayLoading();
 	bool selected = (selection == FullSelection);
 
-	if (loaded && !gif() && _gif != BadClipReader && cAutoPlayGif()) {
+	if (loaded && !gif() && _gif != Media::Clip::BadReader && cAutoPlayGif()) {
 		Ui::autoplayMediaInlineAsync(_parent->fullId());
 	}
 
@@ -4684,7 +4687,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
-	if (radial || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif())) || (_gif == BadClipReader)) {
+	if (radial || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif())) || (_gif == Media::Clip::BadReader)) {
         float64 radialOpacity = (radial && loaded && _parent->id > 0) ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -4848,7 +4851,7 @@ bool HistoryGif::playInline(bool autoplay) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
-		_gif = new ClipReader(_data->location(), _data->data(), func(_parent, &HistoryItem::clipCallback));
+		_gif = new Media::Clip::Reader(_data->location(), _data->data(), func(_parent, &HistoryItem::clipCallback));
 		App::regGifItem(_gif, _parent);
 		if (gif()) _gif->setAutoplay();
 	}
