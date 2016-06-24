@@ -2481,12 +2481,22 @@ void BotKeyboard::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
-bool BotKeyboard::moderateKeyActivate(int index) {
+bool BotKeyboard::moderateKeyActivate(int key) {
 	if (auto item = App::histItemById(_wasForMsgId)) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
-				App::activateBotCommand(item, 0, index);
-				return true;
+			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
+				int index = (key - Qt::Key_1);
+				if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
+					App::activateBotCommand(item, 0, index);
+					return true;
+				}
+			} else if (key == Qt::Key_Q) {
+				if (auto user = item->history()->peer->asUser()) {
+					if (user->botInfo && item->from() == user) {
+						App::sendBotCommand(user, user, qsl("/translate"));
+						return true;
+					}
+				}
 			}
 		}
 	}

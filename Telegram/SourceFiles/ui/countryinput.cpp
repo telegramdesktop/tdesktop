@@ -114,10 +114,16 @@ CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWi
 void CountryInput::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	p.fillRect(_inner, _st.bgColor->b);
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	p.setBrush(_st.bgColor);
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(_inner, st::msgRadius, st::msgRadius);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
 	p.drawPixmap(_arrowRect.x(), _arrowRect.top(), _arrow);
 
-	p.setFont(_st.font->f);
+	p.setFont(_st.font);
+	p.setPen(st::windowTextFg);
 
 	p.drawText(rect().marginsRemoved(_st.textMrg), _text, QTextOption(_st.align));
 }

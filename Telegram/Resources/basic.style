@@ -617,7 +617,7 @@ inpDefGray: flatInput(inpDefFlat) {
 	bgColor: #f2f2f2;
 	borderWidth: 2px;
 	borderColor: #f2f2f2;
-	borderActive: #80cff9;
+	borderActive: #54c3f3;
 	borderError: #ed8080;
 	phColor: #808080;
 }
@@ -662,6 +662,9 @@ scrollDef: flatScroll {
 	duration: 150;
 	hiding: 1000;
 }
+
+msgRadius: 3px;
+
 scrollCountries: flatScroll(scrollDef) {
 	topsh: 0px;
 	bottomsh: -2px;
@@ -729,6 +732,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 
 	width: 300px;
+	radius: msgRadius;
 }
 
 boxShadow: sprite(363px, 50px, 15px, 15px);
@@ -929,11 +933,6 @@ searchFlatInput: flatInput(inpDefGray) {
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 	imgRect: sprite(227px, 21px, 24px, 24px);
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
 }
 
 noContactsHeight: 100px;
@@ -1035,8 +1034,6 @@ topBarActionSkip: 10px;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
-
-msgRadius: 3px;
 
 msgMaxWidth: 430px;
 msgFont: font(fsize);

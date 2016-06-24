@@ -174,14 +174,15 @@ QRect FlatInput::getTextRect() const {
 
 void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(rect(), a_bgColor.current());
-	if (_st.borderWidth) {
-		QBrush b(a_borderColor.current());
-		p.fillRect(0, 0, width() - _st.borderWidth, _st.borderWidth, b);
-		p.fillRect(width() - _st.borderWidth, 0, _st.borderWidth, height() - _st.borderWidth, b);
-		p.fillRect(_st.borderWidth, height() - _st.borderWidth, width() - _st.borderWidth, _st.borderWidth, b);
-		p.fillRect(0, _st.borderWidth, _st.borderWidth, height() - _st.borderWidth, b);
-	}
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	auto pen = QPen(a_borderColor.current());
+	pen.setWidth(_st.borderWidth);
+	p.setPen(pen);
+	p.setBrush(QBrush(a_bgColor.current()));
+	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::msgRadius - (_st.borderWidth / 2.), st::msgRadius - (_st.borderWidth / 2.));
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
 	if (_st.imgRect.pxWidth()) {
 		p.drawSprite(_st.imgPos, _st.imgRect);
 	}

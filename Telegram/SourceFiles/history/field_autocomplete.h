@@ -85,7 +85,7 @@ signals:
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
 	void stickerChosen(DocumentData *sticker, FieldAutocomplete::ChooseMethod method) const;
 
-	void moderateKeyActivate(int index, bool *outHandled) const;
+	void moderateKeyActivate(int key, bool *outHandled) const;
 
 public slots:
 

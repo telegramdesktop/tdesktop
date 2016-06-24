@@ -780,10 +780,6 @@ void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
 	photoUpdates.insert(msgId, peer);
 }
 
-void AppClass::clearPhotoUpdates() {
-	photoUpdates.clear();
-}
-
 bool AppClass::isPhotoUpdating(const PeerId &peer) {
 	for (QMap<FullMsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e; ++i) {
 		if (i.value() == peer) {
@@ -1049,8 +1045,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9054) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Photo viewer handles screen resolution change\n\xe2\x80\x94 Forward photo by drag-n-drop fixed\n\xe2\x80\x94 Some design improvements and bug fixes");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9055) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Main window position and size are saved between the launches in Windows\n\xe2\x80\x94 Dock and top bar hiding fixed in OS X\n\xe2\x80\x94 Various design improvements and other bug fixes");
 //				versionFeatures = langNewVersionText();
 			} else if (Local::oldMapVersion() < 9050) {
 				versionFeatures = langNewVersionText();
