@@ -925,13 +925,26 @@ void MainWindow::layerHidden() {
 	setInnerFocus();
 }
 
+void MainWindow::onReActivate() {
+	if (auto w = App::wnd()) {
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->windowHandle()->requestActivate();
+		w->activate();
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->setInnerFocus();
+    }
+}
+
 void MainWindow::hideMediaview() {
     if (_mediaView && !_mediaView->isHidden()) {
         _mediaView->hide();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-        if (App::wnd()) {
-            App::wnd()->activateWindow();
-        }
+		onReActivate();
+		QTimer::singleShot(200, this, SLOT(onReActivate()));
 #endif
     }
 }

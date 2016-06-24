@@ -79,6 +79,10 @@ prepare() {
 		options+="\nDEFINES += TDESKTOP_DISABLE_NETWORK_PROXY"
 	fi
 
+	if [[ $BUILD_VERSION == *"disable_desktop_file_generation"* ]]; then
+		options+="\nDEFINES += TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION"
+	fi
+
 	options+='\nINCLUDEPATH += "/usr/lib/glib-2.0/include"'
 	options+='\nINCLUDEPATH += "/usr/lib/gtk-2.0/include"'
 	options+='\nINCLUDEPATH += "/usr/include/opus"'

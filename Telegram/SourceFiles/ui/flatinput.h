@@ -235,6 +235,12 @@ public:
 	bool hasFocus() const {
 		return _inner.hasFocus();
 	}
+	void setFocus() {
+		_inner.setFocus();
+	}
+	void clearFocus() {
+		_inner.clearFocus();
+	}
 
 public slots:
 
