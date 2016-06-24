@@ -521,8 +521,9 @@ PopupMenu::~PopupMenu() {
 	clearActions(true);
 	delete _menu;
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-	if (App::wnd()) {
-		App::wnd()->activateWindow();
+	if (auto w = App::wnd()) {
+		w->onReActivate();
+		QTimer::singleShot(200, w, SLOT(onReActivate()));
 	}
 #endif
 }

@@ -282,6 +282,8 @@ public slots:
 	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu
 
+	void onReActivate();
+
 	void notifyUpdateAllPhotos();
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
