@@ -765,11 +765,11 @@ void InputArea::startBorderAnimation() {
 }
 
 void InputArea::focusInEvent(QFocusEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputArea::mousePressEvent(QMouseEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputArea::contextMenuEvent(QContextMenuEvent *e) {
@@ -1457,11 +1457,11 @@ void InputField::startBorderAnimation() {
 }
 
 void InputField::focusInEvent(QFocusEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputField::mousePressEvent(QMouseEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputField::contextMenuEvent(QContextMenuEvent *e) {

@@ -60,7 +60,7 @@ BoxShadow::BoxShadow(const style::sprite &topLeft) : _size(topLeft.pxWidth()), _
 	_corners.setDevicePixelRatio(cRetinaFactor());
 	_colors.reserve(_pixsize);
 	uchar prev = 0;
-	for (int32 i = 0; i < _pixsize; ++i) {
+	for (int i = 0; i < _pixsize; ++i) {
 		uchar a = (cornersImage.pixel(QPoint(i, _pixsize - 1)) >> 24);
 		if (a < prev) break;
 
@@ -112,3 +112,79 @@ style::margins BoxShadow::getDimensions(int32 shifty) const {
 	int32 d = _colors.size() / cIntRetinaFactor();
 	return style::margins(d - shifty, d - 2 * shifty, d - shifty, d);
 }
+
+namespace Ui {
+
+RectShadow::RectShadow(const style::icon &topLeft) : _size(topLeft.width()), _pixsize(_size * cIntRetinaFactor()) {
+	if (!_size) return;
+
+	QImage cornersImage(_pixsize * 2, _pixsize * 2, QImage::Format_ARGB32_Premultiplied);
+	cornersImage.setDevicePixelRatio(cRetinaFactor());
+	{
+		Painter p(&cornersImage);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		topLeft.paint(p, QPoint(0, 0), _size);
+	}
+	if (rtl()) cornersImage = cornersImage.mirrored(true, false);
+	{
+		QPainter p(&cornersImage);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		QImage m = cornersImage.mirrored();
+		m.setDevicePixelRatio(cRetinaFactor());
+		p.drawImage(0, _size, m, 0, _pixsize, _pixsize, _pixsize);
+	}
+	{
+		QPainter p(&cornersImage);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		QImage m = cornersImage.mirrored(true, false);
+		m.setDevicePixelRatio(cRetinaFactor());
+		p.drawImage(_size, 0, m, _pixsize, 0, _pixsize, _pixsize * 2);
+	}
+	_corners = QPixmap::fromImage(cornersImage, Qt::ColorOnly);
+	_corners.setDevicePixelRatio(cRetinaFactor());
+
+	uchar prev = 0;
+	for (int i = 0; i < _pixsize; ++i) {
+		uchar a = (cornersImage.pixel(QPoint(i, _pixsize - 1)) >> 24);
+		if (a < prev) break;
+
+		++_thickness;
+		prev = a;
+	}
+
+	_left = QPixmap::fromImage(cornersImage.copy(0, _pixsize - 1, _thickness, 1), Qt::ColorOnly);
+	_left.setDevicePixelRatio(cRetinaFactor());
+	_top = QPixmap::fromImage(cornersImage.copy(_pixsize - 1, 0, 1, _thickness), Qt::ColorOnly);
+	_top.setDevicePixelRatio(cRetinaFactor());
+	_right = QPixmap::fromImage(cornersImage.copy(_pixsize * 2 - _thickness, _pixsize, _thickness, 1), Qt::ColorOnly);
+	_right.setDevicePixelRatio(cRetinaFactor());
+	_bottom = QPixmap::fromImage(cornersImage.copy(_pixsize, _pixsize * 2 - _thickness, 1, _thickness), Qt::ColorOnly);
+	_bottom.setDevicePixelRatio(cRetinaFactor());
+}
+
+void RectShadow::paint(Painter &p, const QRect &box, int shifty, Sides sides) {
+	if (!_size) return;
+
+	int32 rshifty = shifty * cIntRetinaFactor();
+	int32 count = _thickness, countsize = count / cIntRetinaFactor(), minus = _size - countsize + shifty;
+	bool left = (sides & Side::Left), top = (sides & Side::Top), right = (sides & Side::Right), bottom = (sides & Side::Bottom);
+	if (left && top) p.drawPixmap(box.left() - _size + minus, box.top() - _size + minus + shifty, _corners, 0, 0, _pixsize, _pixsize);
+	if (right && top) p.drawPixmap(box.left() + box.width() - minus, box.top() - _size + minus + shifty, _corners, _pixsize, 0, _pixsize, _pixsize);
+	if (right && bottom) p.drawPixmap(box.left() + box.width() - minus, box.top() + box.height() - minus + shifty, _corners, _pixsize, _pixsize, _pixsize, _pixsize);
+	if (left && bottom) p.drawPixmap(box.left() - _size + minus, box.top() + box.height() - minus + shifty, _corners, 0, _pixsize, _pixsize, _pixsize);
+
+	bool wasSmooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+	if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+	if (left) p.drawPixmap(box.left() - countsize + shifty, box.top() + (top ? minus : 0) + shifty, countsize - shifty, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _left, 0, 0, count - rshifty, 1);
+	if (top) p.drawPixmap(box.left() + (left ? minus : 0), box.top() - countsize + 2 * shifty, box.width() - (right ? minus : 0) - (left ? minus : 0), countsize - 2 * shifty, _top, 0, 0, 1, count - 2 * rshifty);
+	if (right) p.drawPixmap(box.left() + box.width(), box.top() + (top ? minus : 0) + shifty, countsize - shifty, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _right, rshifty, 0, count - rshifty, 1);
+	if (bottom) p.drawPixmap(box.left() + (left ? minus : 0), box.top() + box.height(), box.width() - (right ? minus : 0) - (left ? minus : 0), countsize, _bottom, 0, 0, 1, count);
+	if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform);
+}
+
+style::margins RectShadow::getDimensions(int32 shifty) const {
+	int d = _thickness / cIntRetinaFactor();
+	return style::margins(d - shifty, d - 2 * shifty, d - shifty, d);
+}
+
+} // namespace Ui

@@ -319,7 +319,7 @@ void EmojiButton::setLoading(bool loading) {
 	}
 }
 
-BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent)
+BoxButton::BoxButton(QWidget *parent, const QString &text, const style::RoundButton &st) : Button(parent)
 , _text(text.toUpper())
 , _fullText(text.toUpper())
 , _textWidth(st.font->width(_text))

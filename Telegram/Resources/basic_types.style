@@ -246,6 +246,18 @@ dropdown {
 	width: pixels;
 }
 
+InnerDropdown {
+	padding: margins;
+	shadow: icon;
+	shadowShift: pixels;
+
+	duration: int;
+	width: pixels;
+
+	scrollMargin: margins;
+	scrollPadding: margins;
+}
+
 PopupMenu {
 	skip: pixels;
 
@@ -297,11 +309,15 @@ botKeyboardButton {
 	downTextTop: pixels;
 }
 
-BoxButton {
+RoundButton {
 	textFg: color;
 	textFgOver: color;
 	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
 	textBgOver: color;
+
+	secondaryTextFg: color;
+	secondaryTextFgOver: color;
+	secondarySkip: pixels;
 
 	width: pixels;
 	height: pixels;

@@ -162,7 +162,10 @@ public:
 	void updateAdaptiveLayout();
 	bool needBackButton();
 
+	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
 	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	QRect getMembersShowAreaGeometry() const;
+	void setMembersShowAreaActive(bool active);
 	Window::TopBarWidget *topBar();
 
 	PlayerWidget *player();
@@ -342,6 +345,7 @@ public:
 
 	void setChatBackground(const App::WallPaper &wp);
 	bool chatBackgroundLoading();
+	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
 	ImagePtr newBackgroundThumb();
 
@@ -614,6 +618,9 @@ private:
 	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
 	void ptsApplySkippedUpdates();
 	PtsWaiter _ptsWaiter;
+	bool requestingDifference() const {
+		return _ptsWaiter.requesting();
+	}
 
 	typedef QMap<ChannelData*, uint64> ChannelGetDifferenceTime;
 	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;

@@ -42,7 +42,6 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	history->setCloudDraft(std_::move(cloudDraft));
 	history->createLocalDraftFromCloud();
 	history->updateChatListSortPosition();
-	history->updateChatListEntry();
 
 	if (auto main = App::main()) {
 		main->applyCloudDraft(history);
@@ -56,7 +55,6 @@ void clearPeerCloudDraft(PeerId peerId) {
 	history->clearLocalDraft();
 
 	history->updateChatListSortPosition();
-	history->updateChatListEntry();
 
 	if (auto main = App::main()) {
 		main->applyCloudDraft(history);

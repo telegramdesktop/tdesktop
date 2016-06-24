@@ -38,7 +38,11 @@ class MembersWidget : public BlockWidget {
 	Q_OBJECT
 
 public:
-	MembersWidget(QWidget *parent, PeerData *peer);
+	enum class TitleVisibility {
+		Visible,
+		Hidden,
+	};
+	MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible);
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	int onlineCount() const {
@@ -57,11 +61,11 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e) override {
+	void enterFromChildEvent(QEvent *e, QWidget *child) override {
 		enterEvent(e);
 	}
 	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override {
+	void leaveToChildEvent(QEvent *e, QWidget *child) override {
 		leaveEvent(e);
 	}
 
@@ -69,7 +73,6 @@ signals:
 	void onlineCountUpdated(int onlineCount);
 
 private slots:
-	void onKickConfirm();
 	void onUpdateOnlineDisplay();
 
 private:
@@ -135,7 +138,6 @@ private:
 	int _pressed = -1;
 	bool _selectedKick = false;
 	bool _pressedKick = false;
-	UserData *_kicking = nullptr;
 	QPoint _mousePosition;
 
 	int _onlineCount = 0;

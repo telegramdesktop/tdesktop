@@ -64,6 +64,7 @@ private slots:
 	void onShareContact();
 	void onSetPhoto();
 	void onAddMember();
+	void onAddBotToGroup();
 	void onJoin();
 	void onViewChannel();
 
@@ -94,7 +95,7 @@ private:
 	void setChannelButtons();
 
 	void clearButtons();
-	void addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle = nullptr);
+	void addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle = nullptr);
 
 	void paintDivider(Painter &p);
 

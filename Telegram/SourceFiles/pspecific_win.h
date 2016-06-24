@@ -1,4 +1,3 @@
-
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
@@ -28,92 +27,6 @@ inline QString psServerPrefix() {
 }
 inline void psCheckLocalSocket(const QString &) {
 }
-
-class NotifyWindow;
-
-class PsMainWindow : public QMainWindow {
-	Q_OBJECT
-
-public:
-	PsMainWindow(QWidget *parent = 0);
-
-	int32 psResizeRowWidth() const {
-		return 0;//st::wndResizeAreaWidth;
-	}
-
-	void psInitFrameless();
-	void psInitSize();
-	HWND psHwnd() const;
-	HMENU psMenu() const;
-
-	void psFirstShow();
-	void psInitSysMenu();
-	void psUpdateSysMenu(Qt::WindowState state);
-	void psUpdateMargins();
-	void psUpdatedPosition();
-
-	bool psHandleTitle();
-
-	void psFlash();
-	void psNotifySettingGot();
-
-	void psUpdateWorkmode();
-
-	void psRefreshTaskbarIcon();
-
-	bool psPosInited() const {
-		return posInited;
-	}
-
-	void psActivateNotify(NotifyWindow *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
-	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
-
-	void psUpdateCounter();
-
-	bool psHasNativeNotifications();
-	void psCleanNotifyPhotosIn(int32 dt);
-
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
-
-	~PsMainWindow();
-
-public slots:
-
-	void psUpdateDelegate();
-	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
-    void psShowTrayMenu();
-
-	void psCleanNotifyPhotos();
-
-protected:
-
-    bool psHasTrayIcon() const {
-        return trayIcon;
-    }
-
-	bool posInited;
-	QSystemTrayIcon *trayIcon;
-	PopupMenu *trayIconMenu;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
-
-    void psTrayMenuUpdated();
-    void psSetupTrayIcon();
-
-	QTimer psUpdatedPositionTimer;
-
-private:
-	HWND ps_hWnd;
-	HWND ps_tbHider_hWnd;
-	HMENU ps_menu;
-	HICON ps_iconBig, ps_iconSmall, ps_iconOverlay;
-
-	SingleTimer ps_cleanNotifyPhotosTimer;
-
-	void psDestroyIcons();
-};
 
 void psWriteDump();
 void psWriteStackTrace();

@@ -181,6 +181,11 @@
 		07DE92AA1AA4928200A18F6F /* moc_autolockbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A91AA4928200A18F6F /* moc_autolockbox.cpp */; };
 		07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92AB1AA4928B00A18F6F /* moc_passcodebox.cpp */; };
 		07DE92AE1AA4928B00A18F6F /* moc_passcodewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92AC1AA4928B00A18F6F /* moc_passcodewidget.cpp */; };
+		07E1B1911D12DB3F00722BC7 /* main_window_mac.mm in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E1B1901D12DB3F00722BC7 /* main_window_mac.mm */; };
+		07E1B1931D12DED700722BC7 /* moc_main_window_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E1B1921D12DED700722BC7 /* moc_main_window_mac.cpp */; };
+		07E1B1961D12DFD200722BC7 /* main_window.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E1B1941D12DFD200722BC7 /* main_window.cpp */; };
+		07E1B1AA1D18479500722BC7 /* inner_dropdown.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E1B1A81D18479500722BC7 /* inner_dropdown.cpp */; };
+		07E1B1AD1D1847C400722BC7 /* moc_inner_dropdown.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E1B1AC1D1847C400722BC7 /* moc_inner_dropdown.cpp */; };
 		07E373941CBBC11000934F77 /* peer_avatar_button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07E373921CBBC11000934F77 /* peer_avatar_button.cpp */; };
 		0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* facade.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F7872E39EA570249D420912 /* moc_introwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A37C7E516201B0264A4CDA38 /* moc_introwidget.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -240,7 +245,6 @@
 		8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9A55B8F7C143D66AD9EAE304 /* qgenericbearer */; };
 		8B22E794EFF0EAFF964A3043 /* introstart.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C34459FA465B57DF4DB80D12 /* introstart.cpp */; settings = {ATTRIBUTES = (); }; };
 		8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2181F5E34DE0A4B2F811E2E2 /* moc_flatlabel.cpp */; settings = {ATTRIBUTES = (); }; };
-		8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */; settings = {ATTRIBUTES = (); }; };
 		8D267F2E4776F0ECA2F49DC8 /* IOKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = A1A67BEAA744704B29168D39 /* IOKit.framework */; };
 		8D33FE22B9BBADC7FA46C15B /* qtharfbuzzng in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = D6193B79CECC9DD0142D1200 /* qtharfbuzzng */; };
 		8E26A0653012B8E8C3E865EC /* application.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C20F9DD8C7B031B8E20D5653 /* application.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -631,6 +635,29 @@
 		07DE92A91AA4928200A18F6F /* moc_autolockbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_autolockbox.cpp; path = GeneratedFiles/Debug/moc_autolockbox.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92AB1AA4928B00A18F6F /* moc_passcodebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_passcodebox.cpp; path = GeneratedFiles/Debug/moc_passcodebox.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92AC1AA4928B00A18F6F /* moc_passcodewidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_passcodewidget.cpp; path = GeneratedFiles/Debug/moc_passcodewidget.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1781D12DAF100722BC7 /* platform_main_window.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = platform_main_window.h; path = SourceFiles/platform/platform_main_window.h; sourceTree = SOURCE_ROOT; };
+		07E1B1791D12DB0700722BC7 /* main_window_win.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main_window_win.cpp; path = SourceFiles/platform/win/main_window_win.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B17A1D12DB0700722BC7 /* main_window_win.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main_window_win.h; path = SourceFiles/platform/win/main_window_win.h; sourceTree = SOURCE_ROOT; };
+		07E1B17B1D12DB0700722BC7 /* windows_app_user_model_id.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = windows_app_user_model_id.cpp; path = SourceFiles/platform/win/windows_app_user_model_id.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B17C1D12DB0700722BC7 /* windows_app_user_model_id.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = windows_app_user_model_id.h; path = SourceFiles/platform/win/windows_app_user_model_id.h; sourceTree = SOURCE_ROOT; };
+		07E1B17D1D12DB0700722BC7 /* windows_dlls.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = windows_dlls.cpp; path = SourceFiles/platform/win/windows_dlls.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B17E1D12DB0700722BC7 /* windows_dlls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = windows_dlls.h; path = SourceFiles/platform/win/windows_dlls.h; sourceTree = SOURCE_ROOT; };
+		07E1B17F1D12DB0700722BC7 /* windows_event_filter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = windows_event_filter.cpp; path = SourceFiles/platform/win/windows_event_filter.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1801D12DB0700722BC7 /* windows_event_filter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = windows_event_filter.h; path = SourceFiles/platform/win/windows_event_filter.h; sourceTree = SOURCE_ROOT; };
+		07E1B1811D12DB0700722BC7 /* windows_toasts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = windows_toasts.cpp; path = SourceFiles/platform/win/windows_toasts.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1821D12DB0700722BC7 /* windows_toasts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = windows_toasts.h; path = SourceFiles/platform/win/windows_toasts.h; sourceTree = SOURCE_ROOT; };
+		07E1B1891D12DB2900722BC7 /* main_window_winrt.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main_window_winrt.cpp; path = SourceFiles/platform/winrt/main_window_winrt.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B18A1D12DB2900722BC7 /* main_window_winrt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main_window_winrt.h; path = SourceFiles/platform/winrt/main_window_winrt.h; sourceTree = SOURCE_ROOT; };
+		07E1B18C1D12DB3500722BC7 /* main_window_linux.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main_window_linux.cpp; path = SourceFiles/platform/linux/main_window_linux.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B18D1D12DB3500722BC7 /* main_window_linux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main_window_linux.h; path = SourceFiles/platform/linux/main_window_linux.h; sourceTree = SOURCE_ROOT; };
+		07E1B18F1D12DB3F00722BC7 /* main_window_mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main_window_mac.h; path = SourceFiles/platform/mac/main_window_mac.h; sourceTree = SOURCE_ROOT; };
+		07E1B1901D12DB3F00722BC7 /* main_window_mac.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = main_window_mac.mm; path = SourceFiles/platform/mac/main_window_mac.mm; sourceTree = SOURCE_ROOT; };
+		07E1B1921D12DED700722BC7 /* moc_main_window_mac.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_main_window_mac.cpp; path = GeneratedFiles/Debug/moc_main_window_mac.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1941D12DFD200722BC7 /* main_window.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main_window.cpp; path = SourceFiles/window/main_window.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1951D12DFD200722BC7 /* main_window.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main_window.h; path = SourceFiles/window/main_window.h; sourceTree = SOURCE_ROOT; };
+		07E1B1A81D18479500722BC7 /* inner_dropdown.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = inner_dropdown.cpp; path = SourceFiles/ui/inner_dropdown.cpp; sourceTree = SOURCE_ROOT; };
+		07E1B1A91D18479500722BC7 /* inner_dropdown.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = inner_dropdown.h; path = SourceFiles/ui/inner_dropdown.h; sourceTree = SOURCE_ROOT; };
+		07E1B1AC1D1847C400722BC7 /* moc_inner_dropdown.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_inner_dropdown.cpp; path = GeneratedFiles/Debug/moc_inner_dropdown.cpp; sourceTree = SOURCE_ROOT; };
 		07E373921CBBC11000934F77 /* peer_avatar_button.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = peer_avatar_button.cpp; path = SourceFiles/ui/buttons/peer_avatar_button.cpp; sourceTree = SOURCE_ROOT; };
 		07E373931CBBC11000934F77 /* peer_avatar_button.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = peer_avatar_button.h; path = SourceFiles/ui/buttons/peer_avatar_button.h; sourceTree = SOURCE_ROOT; };
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/ui/boxshadow.cpp; sourceTree = "<absolute>"; };
@@ -729,7 +756,6 @@
 		710C982FC773400941B3AFBC /* dropdown.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dropdown.cpp; path = SourceFiles/dropdown.cpp; sourceTree = "<absolute>"; };
 		723F90793B2C195E2CCB2233 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };
-		74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_pspecific_mac.cpp; path = GeneratedFiles/Debug/moc_pspecific_mac.cpp; sourceTree = "<absolute>"; };
 		748F1BCCBEEB3675768960FB /* auth_key.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = auth_key.h; path = SourceFiles/mtproto/auth_key.h; sourceTree = "<absolute>"; };
 		763ED3C6815ED6C89E352652 /* flatlabel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatlabel.cpp; path = SourceFiles/ui/flatlabel.cpp; sourceTree = "<absolute>"; };
 		7CA6945B22800A0F30B75DA5 /* addcontactbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = addcontactbox.cpp; path = SourceFiles/boxes/addcontactbox.cpp; sourceTree = "<absolute>"; };
@@ -1076,6 +1102,8 @@
 		076B1C581CBFC8DF002C0BC2 /* window */ = {
 			isa = PBXGroup;
 			children = (
+				07E1B1941D12DFD200722BC7 /* main_window.cpp */,
+				07E1B1951D12DFD200722BC7 /* main_window.h */,
 				0716C97B1D058F2400797B22 /* section_memento.h */,
 				0716C97C1D058F2400797B22 /* section_widget.cpp */,
 				0716C97D1D058F2400797B22 /* section_widget.h */,
@@ -1174,6 +1202,62 @@
 				07C8FE0D1CB80890007A8702 /* toast.h */,
 			);
 			name = toast;
+			sourceTree = "<group>";
+		};
+		07E1B1731D12DAC000722BC7 /* platform */ = {
+			isa = PBXGroup;
+			children = (
+				07E1B1751D12DACB00722BC7 /* linux */,
+				07E1B1761D12DAD100722BC7 /* mac */,
+				07E1B1771D12DAD700722BC7 /* win */,
+				07E1B1881D12DB1500722BC7 /* winrt */,
+				07E1B1781D12DAF100722BC7 /* platform_main_window.h */,
+			);
+			name = platform;
+			sourceTree = "<group>";
+		};
+		07E1B1751D12DACB00722BC7 /* linux */ = {
+			isa = PBXGroup;
+			children = (
+				07E1B18C1D12DB3500722BC7 /* main_window_linux.cpp */,
+				07E1B18D1D12DB3500722BC7 /* main_window_linux.h */,
+			);
+			name = linux;
+			sourceTree = "<group>";
+		};
+		07E1B1761D12DAD100722BC7 /* mac */ = {
+			isa = PBXGroup;
+			children = (
+				07E1B18F1D12DB3F00722BC7 /* main_window_mac.h */,
+				07E1B1901D12DB3F00722BC7 /* main_window_mac.mm */,
+			);
+			name = mac;
+			sourceTree = "<group>";
+		};
+		07E1B1771D12DAD700722BC7 /* win */ = {
+			isa = PBXGroup;
+			children = (
+				07E1B1791D12DB0700722BC7 /* main_window_win.cpp */,
+				07E1B17A1D12DB0700722BC7 /* main_window_win.h */,
+				07E1B17B1D12DB0700722BC7 /* windows_app_user_model_id.cpp */,
+				07E1B17C1D12DB0700722BC7 /* windows_app_user_model_id.h */,
+				07E1B17D1D12DB0700722BC7 /* windows_dlls.cpp */,
+				07E1B17E1D12DB0700722BC7 /* windows_dlls.h */,
+				07E1B17F1D12DB0700722BC7 /* windows_event_filter.cpp */,
+				07E1B1801D12DB0700722BC7 /* windows_event_filter.h */,
+				07E1B1811D12DB0700722BC7 /* windows_toasts.cpp */,
+				07E1B1821D12DB0700722BC7 /* windows_toasts.h */,
+			);
+			name = win;
+			sourceTree = "<group>";
+		};
+		07E1B1881D12DB1500722BC7 /* winrt */ = {
+			isa = PBXGroup;
+			children = (
+				07E1B1891D12DB2900722BC7 /* main_window_winrt.cpp */,
+				07E1B18A1D12DB2900722BC7 /* main_window_winrt.h */,
+			);
+			name = winrt;
 			sourceTree = "<group>";
 		};
 		07E373901CBBBFDE00934F77 /* buttons */ = {
@@ -1277,6 +1361,8 @@
 				59E514973BA9BF6599252DDC /* flattextarea.h */,
 				6A510365F9F6367ECB0DB065 /* images.cpp */,
 				0F8FFD87AEBAC448568570DC /* images.h */,
+				07E1B1A81D18479500722BC7 /* inner_dropdown.cpp */,
+				07E1B1A91D18479500722BC7 /* inner_dropdown.h */,
 				6E1859D714E4471E053D90C9 /* scrollarea.cpp */,
 				83A36F229E897566E011B79E /* scrollarea.h */,
 				BB1602EA641643DE565005B1 /* twidget.cpp */,
@@ -1316,6 +1402,7 @@
 				5E35A03E5F2C51353EBCBF00 /* intro */,
 				1A6AA22F4A758C4B5F5138FB /* mtproto */,
 				076B1C5C1CBFC97D002C0BC2 /* overview */,
+				07E1B1731D12DAC000722BC7 /* platform */,
 				0716C92C1D05898D00797B22 /* profile */,
 				0702E99F1CB8D290007A7495 /* serialize */,
 				579DA7AEF5751DF4988869A0 /* ui */,
@@ -1444,6 +1531,7 @@
 				D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */,
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
 				2C99425D7670941EAF07B453 /* moc_historywidget.cpp */,
+				07E1B1AC1D1847C400722BC7 /* moc_inner_dropdown.cpp */,
 				8B98A212C068D6CC7CE73CAA /* moc_introcode.cpp */,
 				1B4A65B84270FF2FED008EB6 /* moc_introphone.cpp */,
 				0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */,
@@ -1453,6 +1541,7 @@
 				1FE45A67215BEA2434F588E8 /* moc_layerwidget.cpp */,
 				1D7899ACAA9F973CADFA34C1 /* moc_localimageloader.cpp */,
 				07BE85111A20961F008ACB9F /* moc_localstorage.cpp */,
+				07E1B1921D12DED700722BC7 /* moc_main_window_mac.cpp */,
 				3A220FD1AE5AD9FE3DC073A4 /* moc_mainwidget.cpp */,
 				6B46A0EE3C3B9D3B5A24946E /* moc_mainwindow.cpp */,
 				07A6933419927B160099CB9F /* moc_mediaview.cpp */,
@@ -1472,7 +1561,6 @@
 				0716C9691D058C8600797B22 /* moc_profile_settings_widget.cpp */,
 				0716C96A1D058C8600797B22 /* moc_profile_shared_media_widget.cpp */,
 				0716C96B1D058C8600797B22 /* moc_profile_widget.cpp */,
-				74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */,
 				0716C96D1D058C8600797B22 /* moc_report_box.cpp */,
 				8918F4B71ED5FC138AFD3F70 /* moc_scrollarea.cpp */,
 				0716C9821D05931400797B22 /* moc_section_widget.cpp */,
@@ -1835,6 +1923,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				07E1B1911D12DB3F00722BC7 /* main_window_mac.mm in Compile Sources */,
 				1299DDAE203A7EDFED9F5D6B /* main.cpp in Compile Sources */,
 				D87463318C8E5211C8C8670A /* stdafx.cpp in Compile Sources */,
 				7BEFA1D273AD62772AA33D73 /* app.cpp in Compile Sources */,
@@ -1872,6 +1961,7 @@
 				0716C97A1D058C8600797B22 /* moc_report_box.cpp in Compile Sources */,
 				077A4AF81CA41C38002188D2 /* connection_auto.cpp in Compile Sources */,
 				4078D5D614EB3ECF7F1848C7 /* basic_types.cpp in Compile Sources */,
+				07E1B1931D12DED700722BC7 /* moc_main_window_mac.cpp in Compile Sources */,
 				68FFEB7CA30BF0149161B809 /* mainwindow.cpp in Compile Sources */,
 				0716C9831D05931400797B22 /* moc_section_widget.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */,
@@ -2000,6 +2090,7 @@
 				077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_file_download.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
+				07E1B1AA1D18479500722BC7 /* inner_dropdown.cpp in Compile Sources */,
 				07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */,
 				9A523F51135FD4E2464673A6 /* moc_session.cpp in Compile Sources */,
 				076B1C631CBFCC53002C0BC2 /* moc_top_bar_widget.cpp in Compile Sources */,
@@ -2045,6 +2136,7 @@
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				077A4AF91CA41C38002188D2 /* connection_http.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
+				07E1B1961D12DFD200722BC7 /* main_window.cpp in Compile Sources */,
 				07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */,
 				07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */,
 				0716C9601D058C6600797B22 /* style_profile.cpp in Compile Sources */,
@@ -2059,9 +2151,9 @@
 				07D8509519F5C97E00623D75 /* scheme_auto.cpp in Compile Sources */,
 				0747FF7F1CC6435100096FC3 /* style_basic.cpp in Compile Sources */,
 				0250AB6761AC71A2E3155EEA /* moc_introphone.cpp in Compile Sources */,
+				07E1B1AD1D1847C400722BC7 /* moc_inner_dropdown.cpp in Compile Sources */,
 				07D8509419F5C97E00623D75 /* core_types.cpp in Compile Sources */,
 				2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */,
-				8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */,
 				07DE92AE1AA4928B00A18F6F /* moc_passcodewidget.cpp in Compile Sources */,
 				FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */,
 				07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */,
@@ -2258,7 +2350,7 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					"$(ZLIB_PATH)/lib/libz.a",
+					"$(PATH_FOR_ZLIB)/lib/libz.a",
 					"-lm",
 					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
@@ -2276,14 +2368,14 @@
 					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
+				PATH_FOR_ZLIB = /usr/local;
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.51;
-				ZLIB_PATH = /usr/local;
+				TDESKTOP_VERSION = 0.9.54;
 			};
 			name = Release;
 		};
@@ -2399,7 +2491,7 @@
 					"-headerpad_max_install_names",
 					"-lcups",
 					"-lbsm",
-					"$(ZLIB_PATH)/lib/libz.a",
+					"$(PATH_FOR_ZLIB)/lib/libz.a",
 					"-lm",
 					"$(OPENAL_PATH)/lib/libopenal.a",
 					/usr/local/lib/libopus.a,
@@ -2417,14 +2509,14 @@
 					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
+				PATH_FOR_ZLIB = /usr/local;
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.51;
-				ZLIB_PATH = /usr/local;
+				TDESKTOP_VERSION = 0.9.54;
 			};
 			name = Debug;
 		};

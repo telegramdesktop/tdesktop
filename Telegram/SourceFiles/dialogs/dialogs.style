@@ -23,8 +23,8 @@ using "basic_types.style";
 
 dialogsUnreadFg: #ffffff;
 dialogsUnreadFgActive: #5b94bf;
-dialogsUnreadBg: #009ce6;//#6fc766;
-dialogsUnreadBgMuted: #bbb;
+dialogsUnreadBg: windowActiveBg;
+dialogsUnreadBgMuted: #bbbbbb;
 dialogsUnreadBgActive: #ffffff;
 dialogsUnreadBgMutedActive: #d3e2ee;
 dialogsUnreadFont: font(12px bold);
@@ -84,4 +84,20 @@ dialogsTextStyleDraft: textStyle(dialogsTextStyle) {
 dialogsTextStyleActive: textStyle(dialogsTextStyle) {
 	linkFg: dialogsTextFgActive;
 	linkFgDown: dialogsTextFgActive;
+}
+
+dialogsNewChatIcon: icon {
+	{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }
+};
+dialogsNewChatButton: RoundButton {
+	width: 36px;
+	height: 36px;
+	icon: dialogsNewChatIcon;
+
+	textFg: transparent;
+	textFgOver: transparent;
+	secondaryTextFg: transparent;
+	secondaryTextFgOver: transparent;
+	textBg: transparent;
+	textBgOver: transparent;
 }

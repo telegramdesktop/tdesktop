@@ -52,7 +52,7 @@ const Struct *Module::findStruct(const FullName &name) const {
 		return result;
 	}
 	for (const auto &module : included_) {
-		if (auto result = findStructInModule(name, *module)) {
+		if (auto result = module->findStruct(name)) {
 			return result;
 		}
 	}
@@ -68,12 +68,14 @@ bool Module::addVariable(const Variable &value) {
 	return true;
 }
 
-const Variable *Module::findVariable(const FullName &name) const {
+const Variable *Module::findVariable(const FullName &name, bool *outFromThisModule) const {
 	if (auto result = findVariableInModule(name, *this)) {
+		if (outFromThisModule) *outFromThisModule = true;
 		return result;
 	}
 	for (const auto &module : included_) {
-		if (auto result = findVariableInModule(name, *module)) {
+		if (auto result = module->findVariable(name)) {
+			if (outFromThisModule) *outFromThisModule = false;
 			return result;
 		}
 	}

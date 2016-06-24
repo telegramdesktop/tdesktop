@@ -26,7 +26,6 @@ namespace Ui {
 class PeerAvatarButton;
 class RoundButton;
 } // namespace Ui
-class FlatButton;
 class IconedButton;
 
 namespace Window {
@@ -38,9 +37,9 @@ public:
 	TopBarWidget(MainWidget *w);
 
 	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -54,7 +53,12 @@ public:
 
 	void updateAdaptiveLayout();
 
+	void updateMembersShowArea();
+
 	Ui::RoundButton *mediaTypeButton();
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 public slots:
 	void onForwardSelection();
@@ -68,25 +72,23 @@ signals:
 
 private:
 	MainWidget *main();
-	anim::fvalue a_over;
+	anim::fvalue a_over = { 0. };
 	Animation _a_appearance;
 
 	PeerData *_selPeer = nullptr;
-	uint32 _selCount;
-	bool _canDelete;
-	QString _selStr;
-	int32 _selStrLeft, _selStrWidth;
+	int _selCount = 0;
+	bool _canDelete = false;
 
-	bool _animating;
+	bool _animating = false;
 
 	ChildWidget<Ui::RoundButton> _clearSelection;
-	ChildWidget<FlatButton> _forward, _delete;
-	int _selectionButtonsWidth, _forwardDeleteWidth;
+	ChildWidget<Ui::RoundButton> _forward, _delete;
 
 	ChildWidget<Ui::PeerAvatarButton> _info;
 	ChildWidget<Ui::RoundButton> _mediaType;
 
 	ChildWidget<IconedButton> _search;
+	ChildWidget<TWidget> _membersShowArea = { nullptr };
 
 };
 

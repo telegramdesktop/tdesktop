@@ -254,14 +254,14 @@ public:
 	EmojiPanInner();
 
 	void setMaxHeight(int32 h);
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
 
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void enterFromChildEvent(QEvent *e);
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 	void step_selected(uint64 ms, bool timer);
 	void hideFinish();
@@ -346,14 +346,14 @@ public:
 	StickerPanInner();
 
 	void setMaxHeight(int32 h);
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
 
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void enterFromChildEvent(QEvent *e);
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 	void step_selected(uint64 ms, bool timer);
 
@@ -663,7 +663,7 @@ private:
 	bool _horizontal;
 	void updateContentHeight();
 
-	void leaveToChildEvent(QEvent *e);
+	void leaveToChildEvent(QEvent *e, QWidget *child);
 	void hideAnimated();
 	void prepareShowHideCache();
 

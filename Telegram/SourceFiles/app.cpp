@@ -493,7 +493,10 @@ namespace {
 					if (d.has_bot_info_version()) {
 						data->setBotInfoVersion(d.vbot_info_version.v);
 						data->botInfo->readsAllHistory = d.is_bot_chat_history();
-						data->botInfo->cantJoinGroups = d.is_bot_nochats();
+						if (data->botInfo->cantJoinGroups != d.is_bot_nochats()) {
+							data->botInfo->cantJoinGroups = d.is_bot_nochats();
+							update.flags |= UpdateFlag::BotCanAddToGroups;
+						}
 						data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
 					} else {
 						data->setBotInfoVersion(-1);
@@ -1220,7 +1223,7 @@ namespace {
 		}
 	}
 
-	void feedOutboxRead(const PeerId &peer, MsgId upTo) {
+	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
@@ -1229,7 +1232,7 @@ namespace {
 			history->updateChatListEntry();
 
 			if (history->peer->isUser()) {
-				history->peer->asUser()->madeAction();
+				history->peer->asUser()->madeAction(when);
 			}
 		}
 	}
@@ -2285,7 +2288,9 @@ namespace {
 		setLaunchState(QuitRequested);
 
 		if (auto window = wnd()) {
-			window->hide();
+			if (!Sandbox::isSavingSession()) {
+				window->hide();
+			}
 		}
 		if (auto mainwidget = main()) {
 			mainwidget->saveDraftToCloud();
