@@ -1,19 +1,19 @@
 QT += core gui network widgets
 
-CONFIG += plugin static c++11
+CONFIG += plugin static c++14
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
     OBJECTS_DIR = ./../DebugIntermediate
-    MOC_DIR = ./GenFiles/Debug
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Debug
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += _WITH_DEBUG CUSTOM_API_ID
+    DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
-    MOC_DIR = ./GenFiles/Release
-    RCC_DIR = ./GenFiles
+    MOC_DIR = ./GeneratedFiles/Release
+    RCC_DIR = ./GeneratedFiles
     DESTDIR = ./../Release
 }
 
@@ -29,43 +29,27 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
-style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
-style_auto_cpp.depends = FORCE
-style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_auto_cpp.depends = ./../../Telegram/Resources/style.txt
+codegen_style.target = style_target
+codegen_style.depends = FORCE
+codegen_style.commands = ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
 
-style_auto_h.target = ./GeneratedFiles/style_auto.h
-style_auto_h.depends = FORCE
-style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_auto_h.depends = ./../../Telegram/Resources/style.txt
+codegen_numbers.target = numbers_target
+codegen_numbers.depends = ./../../Telegram/Resources/numbers.txt
+codegen_numbers.commands = ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
 
-style_classes_h.target = ./GeneratedFiles/style_classes.h
-style_classes_h.depends = FORCE
-style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
+CONFIG(debug, debug|release) {
+codegen_numbers.commands = cd ../../Telegram && ./../Linux/codegen/Debug/codegen_numbers "-o./../Linux/DebugIntermediate/GeneratedFiles" "./Resources/numbers.txt" && cd ../Linux/DebugIntermediate
+}
+CONFIG(release, debug|release) {
+}
 
-numbers_cpp.target = ./GeneratedFiles/numbers.cpp
-numbers_cpp.depends = FORCE
-numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt 
+codegen_lang.target = lang_target
+codegen_lang.depends = ./../../Telegram/Resources/langs/lang.strings
+codegen_lang.commands = mkdir -p ./GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
 
-lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
-lang_auto_cpp.depends = FORCE
-lang_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_cpp.depends = ./../../Telegram/Resources/lang.strings
+QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang
 
-lang_auto_h.target = ./GeneratedFiles/lang_auto.h
-lang_auto_h.depends = FORCE
-lang_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
-lang_auto_h.depends = ./../../Telegram/Resources/lang.strings
-
-hook.depends = style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h
-CONFIG(debug,debug|release):hook.target = Makefile.Debug
-CONFIG(release,debug|release):hook.target = Makefile.Release
-
-QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h hook
-
-PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/numbers.cpp ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
+PRE_TARGETDEPS += style_target numbers_target lang_target
 
 unix {
     linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
@@ -80,6 +64,14 @@ unix {
 }
 
 SOURCES += \
+    ./GeneratedFiles/lang_auto.cpp \
+    ./GeneratedFiles/numbers.cpp \
+    ./GeneratedFiles/styles/style_basic.cpp \
+    ./GeneratedFiles/styles/style_basic_types.cpp \
+    ./GeneratedFiles/styles/style_dialogs.cpp \
+    ./GeneratedFiles/styles/style_history.cpp \
+    ./GeneratedFiles/styles/style_overview.cpp \
+    ./GeneratedFiles/styles/style_profile.cpp \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/apiwrap.cpp \
@@ -98,9 +90,9 @@ SOURCES += \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/layout.cpp \
     ./SourceFiles/mediaview.cpp \
+    ./SourceFiles/observer_peer.cpp \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
-    ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/playerwidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
@@ -108,40 +100,11 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
+    ./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
-    ./SourceFiles/types.cpp \
-    ./SourceFiles/window.cpp \
-    ./SourceFiles/mtproto/mtp.cpp \
-    ./SourceFiles/mtproto/mtpAuthKey.cpp \
-    ./SourceFiles/mtproto/mtpConnection.cpp \
-    ./SourceFiles/mtproto/mtpCoreTypes.cpp \
-    ./SourceFiles/mtproto/mtpDC.cpp \
-    ./SourceFiles/mtproto/mtpFileLoader.cpp \
-    ./SourceFiles/mtproto/mtpRPC.cpp \
-    ./SourceFiles/mtproto/mtpScheme.cpp \
-    ./SourceFiles/mtproto/mtpSession.cpp \
-    ./SourceFiles/gui/animation.cpp \
-    ./SourceFiles/gui/boxshadow.cpp \
-    ./SourceFiles/gui/button.cpp \
-    ./SourceFiles/gui/popupmenu.cpp \
-    ./SourceFiles/gui/countryinput.cpp \
-    ./SourceFiles/gui/emoji_config.cpp \
-    ./SourceFiles/gui/filedialog.cpp \
-    ./SourceFiles/gui/flatbutton.cpp \
-    ./SourceFiles/gui/flatcheckbox.cpp \
-    ./SourceFiles/gui/flatinput.cpp \
-    ./SourceFiles/gui/flatlabel.cpp \
-    ./SourceFiles/gui/flattextarea.cpp \
-    ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/scrollarea.cpp \
-    ./SourceFiles/gui/style_core.cpp \
-    ./SourceFiles/gui/text.cpp \
-    ./SourceFiles/gui/twidget.cpp \
-    ./GeneratedFiles/lang_auto.cpp \
-    ./GeneratedFiles/style_auto.cpp \
-    ./GeneratedFiles/numbers.cpp \
+    ./SourceFiles/mainwindow.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
     ./SourceFiles/boxes/abstractbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
@@ -156,17 +119,106 @@ SOURCES += \
     ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/report_box.cpp \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
-    ./SourceFiles/intro/intro.cpp \
+    ./SourceFiles/core/basic_types.cpp \
+    ./SourceFiles/core/click_handler.cpp \
+    ./SourceFiles/core/click_handler_types.cpp \
+    ./SourceFiles/core/observer.cpp \
+    ./SourceFiles/data/data_abstract_structure.cpp \
+    ./SourceFiles/data/data_drafts.cpp \
+    ./SourceFiles/dialogs/dialogs_indexed_list.cpp \
+    ./SourceFiles/dialogs/dialogs_layout.cpp \
+    ./SourceFiles/dialogs/dialogs_list.cpp \
+    ./SourceFiles/dialogs/dialogs_row.cpp \
+    ./SourceFiles/history/field_autocomplete.cpp \
+    ./SourceFiles/history/history_service_layout.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
+    ./SourceFiles/inline_bots/inline_bot_result.cpp \
+    ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
+    ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
     ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
-    ./SourceFiles/intro/introsteps.cpp
+    ./SourceFiles/intro/introstart.cpp \
+    ./SourceFiles/mtproto/facade.cpp \
+    ./SourceFiles/mtproto/auth_key.cpp \
+    ./SourceFiles/mtproto/connection.cpp \
+    ./SourceFiles/mtproto/connection_abstract.cpp \
+    ./SourceFiles/mtproto/connection_auto.cpp \
+    ./SourceFiles/mtproto/connection_http.cpp \
+    ./SourceFiles/mtproto/connection_tcp.cpp \
+    ./SourceFiles/mtproto/core_types.cpp \
+    ./SourceFiles/mtproto/dcenter.cpp \
+    ./SourceFiles/mtproto/file_download.cpp \
+    ./SourceFiles/mtproto/rsa_public_key.cpp \
+    ./SourceFiles/mtproto/rpc_sender.cpp \
+    ./SourceFiles/mtproto/scheme_auto.cpp \
+    ./SourceFiles/mtproto/session.cpp \
+    ./SourceFiles/overview/overview_layout.cpp \
+    ./SourceFiles/profile/profile_actions_widget.cpp \
+    ./SourceFiles/profile/profile_block_widget.cpp \
+    ./SourceFiles/profile/profile_cover_drop_area.cpp \
+    ./SourceFiles/profile/profile_cover.cpp \
+    ./SourceFiles/profile/profile_fixed_bar.cpp \
+    ./SourceFiles/profile/profile_info_widget.cpp \
+    ./SourceFiles/profile/profile_inner_widget.cpp \
+    ./SourceFiles/profile/profile_invite_link_widget.cpp \
+    ./SourceFiles/profile/profile_members_widget.cpp \
+    ./SourceFiles/profile/profile_section_memento.cpp \
+    ./SourceFiles/profile/profile_settings_widget.cpp \
+    ./SourceFiles/profile/profile_shared_media_widget.cpp \
+    ./SourceFiles/profile/profile_userpic_button.cpp \
+    ./SourceFiles/profile/profile_widget.cpp \
+    ./SourceFiles/serialize/serialize_common.cpp \
+    ./SourceFiles/serialize/serialize_document.cpp \
+    ./SourceFiles/ui/buttons/history_down_button.cpp \
+    ./SourceFiles/ui/buttons/left_outline_button.cpp \
+    ./SourceFiles/ui/buttons/peer_avatar_button.cpp \
+    ./SourceFiles/ui/buttons/round_button.cpp \
+    ./SourceFiles/ui/style/style_core.cpp \
+    ./SourceFiles/ui/style/style_core_color.cpp \
+    ./SourceFiles/ui/style/style_core_font.cpp \
+    ./SourceFiles/ui/style/style_core_icon.cpp \
+    ./SourceFiles/ui/style/style_core_types.cpp \
+    ./SourceFiles/ui/text/text.cpp \
+    ./SourceFiles/ui/text/text_block.cpp \
+    ./SourceFiles/ui/text/text_entity.cpp \
+    ./SourceFiles/ui/toast/toast.cpp \
+    ./SourceFiles/ui/toast/toast_manager.cpp \
+    ./SourceFiles/ui/toast/toast_widget.cpp \
+    ./SourceFiles/ui/animation.cpp \
+    ./SourceFiles/ui/boxshadow.cpp \
+    ./SourceFiles/ui/button.cpp \
+    ./SourceFiles/ui/popupmenu.cpp \
+    ./SourceFiles/ui/countryinput.cpp \
+    ./SourceFiles/ui/emoji_config.cpp \
+    ./SourceFiles/ui/filedialog.cpp \
+    ./SourceFiles/ui/flatbutton.cpp \
+    ./SourceFiles/ui/flatcheckbox.cpp \
+    ./SourceFiles/ui/flatinput.cpp \
+    ./SourceFiles/ui/flatlabel.cpp \
+    ./SourceFiles/ui/flattextarea.cpp \
+    ./SourceFiles/ui/images.cpp \
+    ./SourceFiles/ui/scrollarea.cpp \
+    ./SourceFiles/ui/twidget.cpp \
+    ./SourceFiles/window/section_widget.cpp \
+    ./SourceFiles/window/slide_animation.cpp \
+    ./SourceFiles/window/top_bar_widget.cpp
 
 HEADERS += \
+    ./GeneratedFiles/lang_auto.h \
+    ./GeneratedFiles/numbers.h \
+    ./GeneratedFiles/styles/style_basic.h \
+    ./GeneratedFiles/styles/style_basic_types.h \
+    ./GeneratedFiles/styles/style_dialogs.h \
+    ./GeneratedFiles/styles/style_history.h \
+    ./GeneratedFiles/styles/style_overview.h \
+    ./GeneratedFiles/styles/style_profile.h \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
@@ -186,10 +238,9 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/layout.h \
     ./SourceFiles/mediaview.h \
-    ./SourceFiles/numbers.h \
+    ./SourceFiles/observer_peer.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
-    ./SourceFiles/profilewidget.h \
     ./SourceFiles/playerwidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \
@@ -197,44 +248,11 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+    ./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
-    ./SourceFiles/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
-    ./SourceFiles/types.h \
-    ./SourceFiles/window.h \
-    ./SourceFiles/mtproto/mtpSessionImpl.h \
-    ./SourceFiles/mtproto/mtp.h \
-    ./SourceFiles/mtproto/mtpAuthKey.h \
-    ./SourceFiles/mtproto/mtpConnection.h \
-    ./SourceFiles/mtproto/mtpCoreTypes.h \
-    ./SourceFiles/mtproto/mtpDC.h \
-    ./SourceFiles/mtproto/mtpFileLoader.h \
-    ./SourceFiles/mtproto/mtpPublicRSA.h \
-    ./SourceFiles/mtproto/mtpRPC.h \
-    ./SourceFiles/mtproto/mtpScheme.h \
-    ./SourceFiles/mtproto/mtpSession.h \
-    ./SourceFiles/pspecific.h \
-    ./SourceFiles/gui/animation.h \
-    ./SourceFiles/gui/boxshadow.h \
-    ./SourceFiles/gui/button.h \
-    ./SourceFiles/gui/popupmenu.h \
-    ./SourceFiles/gui/countryinput.h \
-    ./SourceFiles/gui/emoji_config.h \
-    ./SourceFiles/gui/filedialog.h \
-    ./SourceFiles/gui/flatbutton.h \
-    ./SourceFiles/gui/flatcheckbox.h \
-    ./SourceFiles/gui/flatinput.h \
-    ./SourceFiles/gui/flatlabel.h \
-    ./SourceFiles/gui/flattextarea.h \
-    ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/scrollarea.h \
-    ./SourceFiles/gui/style_core.h \
-    ./SourceFiles/gui/text.h \
-    ./SourceFiles/gui/twidget.h \
-    ./GeneratedFiles/lang_auto.h \
-    ./GeneratedFiles/style_auto.h \
-    ./GeneratedFiles/style_classes.h \
+    ./SourceFiles/mainwindow.h \
     ./SourceFiles/boxes/aboutbox.h \
     ./SourceFiles/boxes/abstractbox.h \
     ./SourceFiles/boxes/addcontactbox.h \
@@ -249,21 +267,115 @@ HEADERS += \
     ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/report_box.h \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
-    ./SourceFiles/intro/intro.h \
+    ./SourceFiles/core/basic_types.h \
+    ./SourceFiles/core/click_handler.h \
+    ./SourceFiles/core/click_handler_types.h \
+    ./SourceFiles/core/observer.h \
+    ./SourceFiles/core/vector_of_moveable.h \
+	./SourceFiles/core/version.h \
+    ./SourceFiles/data/data_abstract_structure.h \
+    ./SourceFiles/data/data_drafts.h \
+    ./SourceFiles/dialogs/dialogs_common.h \
+    ./SourceFiles/dialogs/dialogs_indexed_list.h \
+    ./SourceFiles/dialogs/dialogs_layout.h \
+    ./SourceFiles/dialogs/dialogs_list.h \
+    ./SourceFiles/dialogs/dialogs_row.h \
+    ./SourceFiles/history/field_autocomplete.h \
+    ./SourceFiles/history/history_common.h \
+    ./SourceFiles/history/history_service_layout.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.h \
+    ./SourceFiles/inline_bots/inline_bot_result.h \
+    ./SourceFiles/inline_bots/inline_bot_send_data.h \
+    ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
     ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
-    ./SourceFiles/intro/introsteps.h
+    ./SourceFiles/intro/introstart.h \
+    ./SourceFiles/mtproto/facade.h \
+    ./SourceFiles/mtproto/auth_key.h \
+    ./SourceFiles/mtproto/connection.h \
+    ./SourceFiles/mtproto/connection_abstract.h \
+    ./SourceFiles/mtproto/connection_auto.h \
+    ./SourceFiles/mtproto/connection_http.h \
+    ./SourceFiles/mtproto/connection_tcp.h \
+    ./SourceFiles/mtproto/core_types.h \
+    ./SourceFiles/mtproto/dcenter.h \
+    ./SourceFiles/mtproto/file_download.h \
+    ./SourceFiles/mtproto/rsa_public_key.h \
+    ./SourceFiles/mtproto/rpc_sender.h \
+    ./SourceFiles/mtproto/scheme_auto.h \
+    ./SourceFiles/mtproto/session.h \
+    ./SourceFiles/overview/overview_layout.h \
+    ./SourceFiles/profile/profile_actions_widget.h \
+    ./SourceFiles/profile/profile_block_widget.h \
+    ./SourceFiles/profile/profile_cover_drop_area.h \
+    ./SourceFiles/profile/profile_cover.h \
+    ./SourceFiles/profile/profile_fixed_bar.h \
+    ./SourceFiles/profile/profile_info_widget.h \
+    ./SourceFiles/profile/profile_inner_widget.h \
+    ./SourceFiles/profile/profile_invite_link_widget.h \
+    ./SourceFiles/profile/profile_members_widget.h \
+    ./SourceFiles/profile/profile_section_memento.h \
+    ./SourceFiles/profile/profile_settings_widget.h \
+    ./SourceFiles/profile/profile_shared_media_widget.h \
+    ./SourceFiles/profile/profile_userpic_button.h \
+    ./SourceFiles/profile/profile_widget.h \
+    ./SourceFiles/pspecific.h \
+    ./SourceFiles/serialize/serialize_common.h \
+    ./SourceFiles/serialize/serialize_document.h \
+    ./SourceFiles/ui/buttons/history_down_button.h \
+    ./SourceFiles/ui/buttons/left_outline_button.h \
+    ./SourceFiles/ui/buttons/peer_avatar_button.h \
+    ./SourceFiles/ui/buttons/round_button.h \
+    ./SourceFiles/ui/style/style_core.h \
+    ./SourceFiles/ui/style/style_core_color.h \
+    ./SourceFiles/ui/style/style_core_font.h \
+    ./SourceFiles/ui/style/style_core_icon.h \
+    ./SourceFiles/ui/style/style_core_types.h \
+    ./SourceFiles/ui/text/text.h \
+    ./SourceFiles/ui/text/text_block.h \
+    ./SourceFiles/ui/text/text_entity.h \
+    ./SourceFiles/ui/toast/toast.h \
+    ./SourceFiles/ui/toast/toast_manager.h \
+    ./SourceFiles/ui/toast/toast_widget.h \
+    ./SourceFiles/ui/animation.h \
+    ./SourceFiles/ui/boxshadow.h \
+    ./SourceFiles/ui/button.h \
+    ./SourceFiles/ui/popupmenu.h \
+    ./SourceFiles/ui/countryinput.h \
+    ./SourceFiles/ui/emoji_config.h \
+    ./SourceFiles/ui/filedialog.h \
+    ./SourceFiles/ui/flatbutton.h \
+    ./SourceFiles/ui/flatcheckbox.h \
+    ./SourceFiles/ui/flatinput.h \
+    ./SourceFiles/ui/flatlabel.h \
+    ./SourceFiles/ui/flattextarea.h \
+    ./SourceFiles/ui/images.h \
+    ./SourceFiles/ui/scrollarea.h \
+    ./SourceFiles/ui/twidget.h \
+    ./SourceFiles/window/section_memento.h \
+    ./SourceFiles/window/section_widget.h \
+    ./SourceFiles/window/slide_animation.h \
+    ./SourceFiles/window/top_bar_widget.h
 
 win32 {
 SOURCES += \
-  ./SourceFiles/pspecific_wnd.cpp
+  ./SourceFiles/pspecific_win.cpp
 HEADERS += \
-  ./SourceFiles/pspecific_wnd.h
+  ./SourceFiles/pspecific_win.h
+}
+
+winrt {
+SOURCES += \
+  ./SourceFiles/pspecific_winrt.cpp
+HEADERS += \
+  ./SourceFiles/pspecific_winrt.h
 }
 
 macx {
@@ -273,25 +385,45 @@ HEADERS += \
   ./SourceFiles/pspecific_mac.h
 }
 
+SOURCES += \
+  ./ThirdParty/minizip/zip.c \
+  ./ThirdParty/minizip/ioapi.c
+
 CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+QMAKE_CFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic -static-libstdc++
+}
+# Linux 32bit fails Release link with Link-Time Optimization: virtual memory exhausted
+unix {
+    !contains(QMAKE_TARGET.arch, x86_64) {
+        CONFIG(release, debug|release) {
+            QMAKE_CXXFLAGS_RELEASE -= -flto
+            QMAKE_LFLAGS_RELEASE -= -flto
+        }
+    }
+}
+CONFIG(debug, debug|release) {
+	QMAKE_LFLAGS_DEBUG += -g -rdynamic -static-libstdc++
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
-               ./../../Libraries/QtStatic/qtbase/include\
+include(qt_static.pri)
+
+INCLUDEPATH += \
+               /usr/local/include\
                /usr/local/include/opus\
                ./SourceFiles\
-               ./GeneratedFiles
+               ./GeneratedFiles\
+               ./ThirdParty/minizip\
+               ./../../Libraries/breakpad/src
 
 INCLUDEPATH += "/usr/include/libappindicator-0.1"
 INCLUDEPATH += "/usr/include/gtk-2.0"
@@ -308,23 +440,30 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
-LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
-        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
-        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+LIBS += $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
+        $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
+        $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
+LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
-    ./SourceFiles/telegram.qrc \
-    ./SourceFiles/telegram_linux.qrc \
-    ./SourceFiles/telegram_emojis.qrc
+    ./Resources/telegram.qrc \
+    ./Resources/telegram_linux.qrc \
+    ./Resources/telegram_emojis.qrc
 
 OTHER_FILES += \
-    Resources/style_classes.txt \
-    Resources/style.txt \
-    Resources/lang.strings \
-    SourceFiles/langs/lang_it.strings \
-    SourceFiles/langs/lang_es.strings \
-    SourceFiles/langs/lang_de.strings \
-    SourceFiles/langs/lang_nl.strings \
-    SourceFiles/langs/lang_pt_BR.strings
+    ./Resources/basic_types.style \
+    ./Resources/basic.style \
+    ./Resources/all_files.style \
+    ./Resources/langs/lang.strings \
+    ./Resources/langs/lang_it.strings \
+    ./Resources/langs/lang_es.strings \
+    ./Resources/langs/lang_de.strings \
+    ./Resources/langs/lang_nl.strings \
+    ./Resources/langs/lang_pt_BR.strings \
+    ./SourceFiles/dialogs/dialogs.style \
+    ./SourceFiles/history/history.style \
+    ./SourceFiles/overview/overview.style \
+    ./SourceFiles/profile/profile.style

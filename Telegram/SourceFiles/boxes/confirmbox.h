@@ -16,14 +16,15 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include "abstractbox.h"
+#include "ui/flatlabel.h"
 
 class InformBox;
-class ConfirmBox : public AbstractBox {
+class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -37,6 +38,10 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 	void updateLink();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
 
 public slots:
 
@@ -69,7 +74,6 @@ private:
 	void updateHover();
 
 	QPoint _lastMousePos;
-	TextLinkPtr _myLink;
 
 	BoxButton _confirm, _cancel;
 };
@@ -78,6 +82,23 @@ class InformBox : public ConfirmBox {
 public:
 	InformBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
 	}
+};
+
+class SharePhoneConfirmBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	SharePhoneConfirmBox(PeerData *recipient);
+
+signals:
+	void confirmed(PeerData *recipient);
+
+private slots:
+	void onConfirm();
+
+private:
+	PeerData *_recipient;
+
 };
 
 class ConfirmLinkBox : public ConfirmBox {
@@ -108,7 +129,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
-	
+
 protected:
 
 	void hideAll();
@@ -132,4 +153,101 @@ private:
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
 	Animation _a_good;
+};
+
+class ConvertToSupergroupBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	ConvertToSupergroupBox(ChatData *chat);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onConvert();
+
+protected:
+
+	void hideAll();
+	void showAll();
+
+private:
+
+	void convertDone(const MTPUpdates &updates);
+	bool convertFail(const RPCError &error);
+
+	ChatData *_chat;
+	Text _text, _note;
+	int32 _textWidth, _textHeight;
+
+	BoxButton _convert, _cancel;
+};
+
+class PinMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	PinMessageBox(ChannelData *channel, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onPin();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	void pinDone(const MTPUpdates &updates);
+	bool pinFail(const RPCError &error);
+
+	ChannelData *_channel;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _notify;
+
+	BoxButton _pin, _cancel;
+
+	mtpRequestId _requestId = 0;
+
+};
+
+class RichDeleteMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onDelete();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	ChannelData *_channel;
+	UserData *_from;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _banUser, _reportSpam, _deleteAll;
+
+	BoxButton _delete, _cancel;
+
 };

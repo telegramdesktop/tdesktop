@@ -16,16 +16,16 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-#include "gui/flatinput.h"
-#include "intro.h"
+#include "ui/flatbutton.h"
+#include "ui/flatinput.h"
+#include "intro/introwidget.h"
 
-class CodeInput : public FlatInput {
+class CodeInput final : public FlatInput {
 	Q_OBJECT
 
 public:
@@ -42,27 +42,25 @@ protected:
 
 };
 
-class IntroCode : public IntroStage, public RPCSender {
+class IntroCode final : public IntroStep {
 	Q_OBJECT
 
 public:
 
 	IntroCode(IntroWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_error(float64 ms, bool timer);
 
-	void activate();
-	void prepareShow();
-	void deactivate();
-	void onNext();
-	void onBack();
-
-	bool hasBack() const {
+	bool hasBack() const override {
 		return true;
 	}
+	void activate() override;
+	void finished() override;
+	void cancelled() override;
+	void onSubmit() override;
 
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
@@ -71,7 +69,7 @@ public:
 
 public slots:
 
-	void onSubmitCode(bool force = false);
+	void onSubmitCode();
 	void onNoTelegramCode();
 	void onInputChange();
 	void onSendCall();
@@ -80,7 +78,7 @@ public slots:
 private:
 
 	void showError(const QString &err);
-	void callDone(const MTPBool &v);
+	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 
 	void stopCheck();
@@ -96,14 +94,14 @@ private:
 	mtpRequestId _noTelegramCodeRequestId;
 	QRect textRect;
 
-	void noTelegramCodeDone(const MTPBool &result);
+	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	bool noTelegramCodeFail(const RPCError &result);
 
 	CodeInput code;
 	QString sentCode;
 	mtpRequestId sentRequest;
 	QTimer callTimer;
-	int32 waitTillCall;
+	IntroWidget::CallStatus callStatus;
 
 	QTimer checkRequest;
 };

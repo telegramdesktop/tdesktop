@@ -12,7 +12,7 @@ CONFIG(release, debug|release) {
     DESTDIR = ./../ReleaseLang
 }
 
-CONFIG += plugin static
+CONFIG += plugin static c++14
 
 macx {
     QMAKE_INFO_PLIST = ./SourceFiles/_other/Lang.plist
@@ -27,7 +27,4 @@ HEADERS += \
     ./SourceFiles/_other/mlmain.h \
     ./SourceFiles/_other/genlang.h \
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
-               ./../../Libraries/QtStatic/qtbase/include\
-
+include(qt_static.pri)

@@ -16,12 +16,12 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "memain.h"
 
 int main(int argc, char *argv[]) {
-	QString emoji_in("./SourceFiles/art/emojisprite_"), emoji_out("./SourceFiles/gui/emoji_config.cpp"), emoji_png("./SourceFiles/art/emoji");
+	QString emoji_in("./Resources/art/emojisprite_"), emoji_out("./SourceFiles/gui/emoji_config.cpp"), emoji_png("./Resources/art/emoji");
 	for (int i = 0; i < argc; ++i) {
 		if (string("-emoji_in") == argv[i]) {
 			if (++i < argc) emoji_in = argv[i];

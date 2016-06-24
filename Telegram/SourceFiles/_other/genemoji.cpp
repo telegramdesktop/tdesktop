@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "genemoji.h"
 
@@ -25,21 +25,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-#endif
-
-#ifdef Q_OS_MAC
-Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
-Q_IMPORT_PLUGIN(QDDSPlugin)
-Q_IMPORT_PLUGIN(QICNSPlugin)
-Q_IMPORT_PLUGIN(QICOPlugin)
-Q_IMPORT_PLUGIN(QJp2Plugin)
-Q_IMPORT_PLUGIN(QMngPlugin)
-Q_IMPORT_PLUGIN(QTgaPlugin)
-Q_IMPORT_PLUGIN(QTiffPlugin)
-Q_IMPORT_PLUGIN(QWbmpPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
-#else
-#error Only Mac OS X is supported
 #endif
 
 typedef quint32 uint32;
@@ -1942,9 +1927,9 @@ In addition, as a special exception, the copyright holders give permission\n\
 to link the code of portions of this program with the OpenSSL library.\n\
 \n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tcpp << "#include \"stdafx.h\"\n#include \"gui/emoji_config.h\"\n\n";
+			tcpp << "#include \"stdafx.h\"\n#include \"ui/emoji_config.h\"\n\n";
 
 			tcpp << "namespace {\n"; // namespace with data
 			tcpp << "\tEmojiData *emojis = 0;\n";

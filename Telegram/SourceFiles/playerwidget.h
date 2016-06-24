@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -42,6 +42,7 @@ public:
 	void prevPressed();
 	void nextPressed();
 	void stopPressed();
+	void closePressed();
 
 	void step_progress(float64 ms, bool timer);
 	void step_state(uint64 ms, bool timer);
@@ -51,15 +52,25 @@ public:
 	void clearSelection();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void updateWideMode();
 
 	bool seekingSong(const SongMsgId &song) const;
+
+	void openPlayer();
+	bool isOpened() const;
+	void closePlayer();
+
+	void showPlayer();
+	void hidePlayer();
 
 signals:
 
 	void playerSongChanged(const FullMsgId &msgId);
 
 private:
+
+	// Use startPlayer()/stopPlayer() or showPlayer()/hidePlayer() instead.
+	void show();
+	void hide();
 
 	enum OverState {
 		OverNone = 0,
@@ -87,12 +98,17 @@ private:
 	QPoint _lastMousePos;
 	void updateSelected();
 
-	bool _prevAvailable, _nextAvailable, _fullAvailable;
-	OverState _over, _down;
-	int32 _downCoord;
+	bool _playerOpened = false;
+
+	bool _prevAvailable = false;
+	bool _nextAvailable = false;
+	bool _fullAvailable = false;
+	OverState _over = OverNone;
+	OverState _down = OverNone;
+	int32 _downCoord = 0;
 	int64 _downDuration;
-	int32 _downFrequency;
-	float64 _downProgress;
+	int32 _downFrequency = AudioVoiceMsgFrequency;
+	float64 _downProgress = 0.;
 
 	float64 _stateHovers[OverStateCount];
 	typedef QMap<int32, uint64> StateAnimations;
@@ -100,22 +116,23 @@ private:
 	Animation _a_state;
 
 	SongMsgId _song;
-	bool _msgmigrated;
-	int32 _index;
-	History *_migrated, *_history;
+	bool _msgmigrated = false;
+	int32 _index = -1;
+	History *_migrated = nullptr;
+	History *_history = nullptr;
 	QRect _playRect, _prevRect, _nextRect, _playbackRect;
 	QRect _closeRect, _volumeRect, _fullRect, _repeatRect, _infoRect;
-	int32 _timeWidth;
-	bool _repeat;
+	int32 _timeWidth = 0;
+	bool _repeat = false;
 	QString _time;
 	Text _name;
-	bool _showPause;
-	int64 _position, _duration;
-	int32 _loaded;
+	bool _showPause = false;
+	int64 _position = 0;
+	int64 _duration = 0;
+	int32 _loaded = 0;
 
-	anim::fvalue a_progress, a_loadProgress;
+	anim::fvalue a_progress = { 0., 0. };
+	anim::fvalue a_loadProgress = { 0., 0. };
 	Animation _a_progress;
-
-	PlainShadow _sideShadow;
 
 };

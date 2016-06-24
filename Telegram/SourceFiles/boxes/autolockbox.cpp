@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -26,7 +26,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "autolockbox.h"
 #include "confirmbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 AutoLockBox::AutoLockBox() :
 _close(this, lang(lng_box_ok), st::defaultBoxButton) {

@@ -1,19 +1,19 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -31,7 +31,7 @@ inline void psCheckLocalSocket(const QString &serverName) {
 
 class MacPrivate : public PsMacWindowPrivate {
 public:
-    
+
     void activeSpaceChanged();
 	void darkModeChanged();
     void notifyClicked(unsigned long long peer, int msgid);
@@ -140,17 +140,8 @@ private:
 
 };
 
-
-class PsApplication : public QApplication {
-	Q_OBJECT
-
-public:
-
-	PsApplication(int &argc, char **argv);
-	void psInstallEventFilter();
-	~PsApplication();
-
-};
+void psWriteDump();
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 
@@ -183,20 +174,20 @@ int psCleanup();
 int psFixPrevious();
 
 void psExecUpdater();
-void psExecTelegram();
+void psExecTelegram(const QString &crashreport = QString());
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
-void psStart();
-void psFinish();
+
+QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
-QString psConvertFileUrl(const QString &url);
+QString psConvertFileUrl(const QUrl &url);
 
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);
@@ -232,3 +223,5 @@ QString strStyleOfInterface();
 QString strNeedToReload();
 QString strNeedToRefresh1();
 QString strNeedToRefresh2();
+
+bool psLaunchMaps(const LocationCoords &coords);

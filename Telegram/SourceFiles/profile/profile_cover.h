@@ -1,0 +1,137 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+#pragma once
+
+#include "core/observer.h"
+#include "ui/filedialog.h"
+#include "ui/flatlabel.h"
+
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
+namespace Profile {
+
+class BackButton;
+class UserpicButton;
+class CoverDropArea;
+
+class CoverWidget final : public TWidget, public Notify::Observer {
+	Q_OBJECT
+
+public:
+	CoverWidget(QWidget *parent, PeerData *peer);
+
+	// Count new height for width=newWidth and resize to it.
+	void resizeToWidth(int newWidth);
+
+	void showFinished();
+
+	// Profile fixed top bar should use this flag to decide
+	// if it shows "Share contact" button or not.
+	// It should show it only if it is hidden in the cover.
+	bool shareContactButtonShown() const;
+
+public slots:
+	void onOnlineCountUpdated(int onlineCount);
+
+private slots:
+	void onPhotoShow();
+
+	void onSendMessage();
+	void onShareContact();
+	void onSetPhoto();
+	void onAddMember();
+	void onJoin();
+	void onViewChannel();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
+
+private:
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+
+	// Counts userpic button left offset for a new widget width.
+	int countPhotoLeft(int newWidth) const;
+	PhotoData *validatePhoto() const;
+
+	void refreshNameGeometry(int newWidth);
+	void moveAndToggleButtons(int newWiddth);
+	void refreshNameText();
+	void refreshStatusText();
+
+	void refreshButtons();
+	void setUserButtons();
+	void setChatButtons();
+	void setMegagroupButtons();
+	void setChannelButtons();
+
+	void clearButtons();
+	void addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle = nullptr);
+
+	void paintDivider(Painter &p);
+
+	bool canEditPhoto() const;
+	void showSetPhotoBox(const QImage &img);
+	void resizeDropArea();
+	void dropAreaHidden(CoverDropArea *dropArea);
+	bool mimeDataHasImage(const QMimeData *mimeData) const;
+
+	PeerData *_peer;
+	UserData *_peerUser;
+	ChatData *_peerChat;
+	ChannelData *_peerChannel;
+	ChannelData *_peerMegagroup;
+
+	ChildWidget<UserpicButton> _userpicButton;
+	ChildWidget<CoverDropArea> _dropArea = { nullptr };
+
+	FlatLabel _name;
+
+	QPoint _statusPosition;
+	QString _statusText;
+	bool _statusTextIsOnline = false;
+
+	struct Button {
+		Ui::RoundButton *widget;
+		Ui::RoundButton *replacement;
+	};
+	QList<Button> _buttons;
+
+	int _photoLeft = 0; // Caching countPhotoLeft() result.
+	int _dividerTop = 0;
+
+	int _onlineCount = 0;
+
+	FileDialog::QueryId _setPhotoFileQueryId = 0;
+
+};
+
+} // namespace Profile

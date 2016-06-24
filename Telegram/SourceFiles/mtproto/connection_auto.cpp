@@ -1,0 +1,344 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+#include "stdafx.h"
+
+#include "mtproto/connection_auto.h"
+
+#include "mtproto/connection_http.h"
+
+namespace MTP {
+namespace internal {
+
+AutoConnection::AutoConnection(QThread *thread) : AbstractTCPConnection(thread)
+, status(WaitingBoth)
+, tcpNonce(rand_value<MTPint128>())
+, httpNonce(rand_value<MTPint128>())
+, _flagsTcp(0)
+, _flagsHttp(0)
+, _tcpTimeout(MTPMinReceiveDelay) {
+	manager.moveToThread(thread);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
+#endif
+
+	httpStartTimer.moveToThread(thread);
+	httpStartTimer.setSingleShot(true);
+	connect(&httpStartTimer, SIGNAL(timeout()), this, SLOT(onHttpStart()));
+
+	tcpTimeoutTimer.moveToThread(thread);
+	tcpTimeoutTimer.setSingleShot(true);
+	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
+
+	sock.moveToThread(thread);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	sock.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+#endif
+	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
+	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
+	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
+}
+
+void AutoConnection::onHttpStart() {
+	if (status == HttpReady) {
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by timer").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+		status = UsingHttp;
+		sock.disconnectFromHost();
+		emit connected();
+	}
+}
+
+void AutoConnection::onSocketConnected() {
+	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
+		mtpBuffer buffer(preparePQFake(tcpNonce));
+
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flagsTcp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+
+		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
+		tcpTimeoutTimer.start(_tcpTimeout);
+
+		tcpSend(buffer);
+	} else if (status == WaitingHttp || status == UsingHttp) {
+		sock.disconnectFromHost();
+	}
+}
+
+void AutoConnection::onTcpTimeoutTimer() {
+	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
+		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
+		_tcpTimeout = -_tcpTimeout;
+
+		QAbstractSocket::SocketState state = sock.state();
+		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
+			sock.disconnectFromHost();
+		} else if (state != QAbstractSocket::ClosingState) {
+			sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
+		}
+	}
+}
+
+void AutoConnection::onSocketDisconnected() {
+	if (_tcpTimeout < 0) {
+		_tcpTimeout = -_tcpTimeout;
+		if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
+			sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
+			return;
+		}
+	}
+	if (status == WaitingBoth) {
+		status = WaitingHttp;
+	} else if (status == WaitingTcp || status == UsingTcp) {
+		emit disconnected();
+	} else if (status == HttpReady) {
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by socket disconnect").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+		status = UsingHttp;
+		emit connected();
+	}
+}
+
+void AutoConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
+	if (buffer.size() < 3) {
+		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
+		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
+		emit error();
+		return;
+	}
+
+	if (status == UsingTcp) {
+		tcpSend(buffer);
+	} else {
+		httpSend(buffer);
+	}
+}
+
+void AutoConnection::httpSend(mtpBuffer &buffer) {
+	int32 requestSize = (buffer.size() - 3) * sizeof(mtpPrime);
+
+	QNetworkRequest request(address);
+	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
+
+	TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
+	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
+}
+
+void AutoConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+	status = FinishedWork;
+
+	Requests copy = requests;
+	requests.clear();
+	for (Requests::const_iterator i = copy.cbegin(), e = copy.cend(); i != e; ++i) {
+		(*i)->abort();
+		(*i)->deleteLater();
+	}
+
+	disconnect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
+
+	address = QUrl();
+
+	disconnect(&sock, SIGNAL(readyRead()), 0, 0);
+	sock.close();
+
+	httpStartTimer.stop();
+}
+
+void AutoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
+	_addrTcp = addr;
+	_portTcp = port;
+	_flagsTcp = flags;
+
+	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
+	sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
+}
+
+void AutoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
+	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
+	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
+
+	_addrHttp = addr;
+	_portHttp = port;
+	_flagsHttp = flags;
+
+	mtpBuffer buffer(preparePQFake(httpNonce));
+
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+
+	httpSend(buffer);
+}
+
+bool AutoConnection::isConnected() const {
+	return (status == UsingTcp) || (status == UsingHttp);
+}
+
+void AutoConnection::requestFinished(QNetworkReply *reply) {
+	if (status == FinishedWork) return;
+
+	reply->deleteLater();
+	if (reply->error() == QNetworkReply::NoError) {
+		requests.remove(reply);
+
+		mtpBuffer data = HTTPConnection::handleResponse(reply);
+		if (data.size() == 1) {
+			if (status == WaitingBoth) {
+				status = WaitingTcp;
+			} else {
+				emit error();
+			}
+		} else if (!data.isEmpty()) {
+			if (status == UsingHttp) {
+				receivedQueue.push_back(data);
+				emit receivedData();
+			} else if (status == WaitingBoth || status == WaitingHttp) {
+				try {
+					auto res_pq = readPQFakeReply(data);
+					const auto &res_pq_data(res_pq.c_resPQ());
+					if (res_pq_data.vnonce == httpNonce) {
+						if (status == WaitingBoth) {
+							status = HttpReady;
+							httpStartTimer.start(MTPTcpConnectionWaitTimeout);
+						} else {
+							DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by pq-response, awaited").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+							status = UsingHttp;
+							sock.disconnectFromHost();
+							emit connected();
+						}
+					}
+				} catch (Exception &e) {
+					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
+					if (status == WaitingBoth) {
+						status = WaitingTcp;
+					} else {
+						emit error();
+					}
+				}
+			} else if (status == UsingTcp) {
+				DEBUG_LOG(("Connection Info: already using tcp, ignoring http response"));
+			}
+		}
+	} else {
+		if (!requests.remove(reply)) {
+			return;
+		}
+
+		bool mayBeBadKey = HTTPConnection::handleError(reply) && _sentEncrypted;
+		if (status == WaitingBoth) {
+			status = WaitingTcp;
+		} else if (status == WaitingHttp || status == UsingHttp) {
+			emit error(mayBeBadKey);
+		} else {
+			LOG(("Strange Http Error: status %1").arg(status));
+		}
+	}
+}
+
+void AutoConnection::socketPacket(const char *packet, uint32 length) {
+	if (status == FinishedWork) return;
+
+	mtpBuffer data = AbstractTCPConnection::handleResponse(packet, length);
+	if (data.size() == 1) {
+		if (status == WaitingBoth) {
+			status = WaitingHttp;
+			sock.disconnectFromHost();
+		} else if (status == HttpReady) {
+			DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, ready").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+			status = UsingHttp;
+			sock.disconnectFromHost();
+			emit connected();
+		} else if (status == WaitingTcp || status == UsingTcp) {
+			bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
+			emit error(mayBeBadKey);
+		} else {
+			LOG(("Strange Tcp Error; status %1").arg(status));
+		}
+	} else if (status == UsingTcp) {
+		receivedQueue.push_back(data);
+		emit receivedData();
+	} else if (status == WaitingBoth || status == WaitingTcp || status == HttpReady) {
+		tcpTimeoutTimer.stop();
+		try {
+			auto res_pq = readPQFakeReply(data);
+			const auto &res_pq_data(res_pq.c_resPQ());
+			if (res_pq_data.vnonce == tcpNonce) {
+				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flagsTcp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+				status = UsingTcp;
+				emit connected();
+			}
+		} catch (Exception &e) {
+			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
+			if (status == WaitingBoth) {
+				status = WaitingHttp;
+				sock.disconnectFromHost();
+			} else if (status == HttpReady) {
+				DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, awaited").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+				status = UsingHttp;
+				sock.disconnectFromHost();
+				emit connected();
+			} else {
+				emit error();
+			}
+		}
+	}
+}
+
+bool AutoConnection::usingHttpWait() {
+	return (status == UsingHttp);
+}
+
+bool AutoConnection::needHttpWait() {
+	return (status == UsingHttp) ? requests.isEmpty() : false;
+}
+
+int32 AutoConnection::debugState() const {
+	return (status == UsingHttp) ? -1 : (UsingTcp ? sock.state() : -777);
+}
+
+QString AutoConnection::transport() const {
+	if (status == UsingTcp) {
+		return qsl("TCP");
+	} else if (status == UsingHttp) {
+		return qsl("HTTP");
+	} else {
+		return QString();
+	}
+}
+
+void AutoConnection::socketError(QAbstractSocket::SocketError e) {
+	if (status == FinishedWork) return;
+
+	AbstractTCPConnection::handleError(e, sock);
+	if (status == WaitingBoth) {
+		status = WaitingHttp;
+	} else if (status == HttpReady) {
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by tcp error, ready").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+		status = UsingHttp;
+		emit connected();
+	} else if (status == WaitingTcp || status == UsingTcp) {
+		emit error();
+	} else {
+		LOG(("Strange Tcp Error: status %1").arg(status));
+	}
+}
+
+} // namespace internal
+} // namespace MTP

@@ -16,12 +16,24 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+typedef int32 UserId;
+typedef int32 ChatId;
 typedef int32 ChannelId;
 static const ChannelId NoChannel = 0;
+
+typedef int32 MsgId;
+struct FullMsgId {
+	FullMsgId() : channel(NoChannel), msg(0) {
+	}
+	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
+	}
+	ChannelId channel;
+	MsgId msg;
+};
 
 typedef uint64 PeerId;
 static const uint64 PeerIdMask         = 0xFFFFFFFFULL;
@@ -38,10 +50,10 @@ inline bool peerIsChat(const PeerId &id) {
 inline bool peerIsChannel(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdChannelShift;
 }
-inline PeerId peerFromUser(int32 user_id) {
+inline PeerId peerFromUser(UserId user_id) {
 	return PeerIdUserShift | uint64(uint32(user_id));
 }
-inline PeerId peerFromChat(int32 chat_id) {
+inline PeerId peerFromChat(ChatId chat_id) {
 	return PeerIdChatShift | uint64(uint32(chat_id));
 }
 inline PeerId peerFromChannel(ChannelId channel_id) {
@@ -59,10 +71,10 @@ inline PeerId peerFromChannel(const MTPint &channel_id) {
 inline int32 peerToBareInt(const PeerId &id) {
 	return int32(uint32(id & PeerIdMask));
 }
-inline int32 peerToUser(const PeerId &id) {
+inline UserId peerToUser(const PeerId &id) {
 	return peerIsUser(id) ? peerToBareInt(id) : 0;
 }
-inline int32 peerToChat(const PeerId &id) {
+inline ChatId peerToChat(const PeerId &id) {
 	return peerIsChat(id) ? peerToBareInt(id) : 0;
 }
 inline ChannelId peerToChannel(const PeerId &id) {
@@ -103,14 +115,14 @@ inline PeerId peerFromMessage(const MTPmessage &msg) {
 	}
 	return (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
 }
-inline int32 flagsFromMessage(const MTPmessage &msg) {
+inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
 	case mtpc_message: return msg.c_message().vflags.v;
-	case mtpc_messageService: return msg.c_messageService().vflags.v;
+	case mtpc_messageService: return mtpCastFlags(msg.c_messageService().vflags.v);
 	}
 	return 0;
 }
-inline int32 idFromMessage(const MTPmessage &msg) {
+inline MsgId idFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
 	case mtpc_messageEmpty: return msg.c_messageEmpty().vid.v;
 	case mtpc_message: return msg.c_message().vid.v;
@@ -118,7 +130,7 @@ inline int32 idFromMessage(const MTPmessage &msg) {
 	}
 	return 0;
 }
-inline int32 dateFromMessage(const MTPmessage &msg) {
+inline TimeId dateFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
 	case mtpc_message: return msg.c_message().vdate.v;
 	case mtpc_messageService: return msg.c_messageService().vdate.v;
@@ -131,15 +143,8 @@ typedef uint64 VideoId;
 typedef uint64 AudioId;
 typedef uint64 DocumentId;
 typedef uint64 WebPageId;
-typedef int32 MsgId;
-struct FullMsgId {
-	FullMsgId() : channel(NoChannel), msg(0) {
-	}
-	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
-	}
-	ChannelId channel;
-	MsgId msg;
-};
+static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
+
 inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
 	return (a.channel == b.channel) && (a.msg == b.msg);
 }
@@ -149,23 +154,30 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	return a.channel < b.channel;
 }
 
-static const MsgId StartClientMsgId = -0x7FFFFFFF;
-static const MsgId EndClientMsgId = -0x40000000;
-inline bool isClientMsgId(MsgId id) {
+constexpr const MsgId StartClientMsgId = -0x7FFFFFFF;
+constexpr const MsgId EndClientMsgId = -0x40000000;
+inline constexpr bool isClientMsgId(MsgId id) {
 	return id >= StartClientMsgId && id < EndClientMsgId;
 }
-static const MsgId ShowAtTheEndMsgId = -0x40000000;
-static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
-static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
-static const MsgId ShowAtUnreadMsgId = 0;
+constexpr const MsgId ShowAtTheEndMsgId = -0x40000000;
+constexpr const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+constexpr const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
+constexpr const MsgId ShowAndStartBotMsgId = -0x3FFFFFD;
+constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
+constexpr const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
-	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {
+	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), mute(0), sound("default") {
 	}
-	int32 mute;
+	MTPDpeerNotifySettings::Flags flags;
+	TimeId mute;
 	string sound;
-	bool previews;
-	int32 events;
+	bool previews() const {
+		return flags & MTPDpeerNotifySettings::Flag::f_show_previews;
+	}
+	bool silent() const {
+		return flags & MTPDpeerNotifySettings::Flag::f_silent;
+	}
 };
 typedef NotifySettings *NotifySettingsPtr;
 
@@ -174,9 +186,9 @@ static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
 extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
 
-inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
+inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = 0) {
 	if (settings != UnknownNotifySettings && settings != EmptyNotifySettings) {
-		int32 t = unixtime();
+		TimeId t = unixtime();
 		if (settings->mute > t) {
 			if (changeIn) *changeIn = settings->mute - t + 1;
 			return true;
@@ -186,12 +198,12 @@ inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
 	return false;
 }
 
-static const int32 UserColorsCount = 8;
+static const int UserColorsCount = 8;
 
-style::color peerColor(int32 index);
-ImagePtr userDefPhoto(int32 index);
-ImagePtr chatDefPhoto(int32 index);
-ImagePtr channelDefPhoto(int32 index);
+style::color peerColor(int index);
+ImagePtr userDefPhoto(int index);
+ImagePtr chatDefPhoto(int index);
+ImagePtr channelDefPhoto(int index);
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 
@@ -200,16 +212,40 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
+class PeerClickHandler : public LeftButtonClickHandler {
+public:
+	PeerClickHandler(PeerData *peer) : _peer(peer) {
+	}
+	PeerData *peer() const {
+		return _peer;
+	}
+
+private:
+	PeerData *_peer;
+
+};
+
+class PeerOpenClickHandler : public PeerClickHandler {
+public:
+	using PeerClickHandler::PeerClickHandler;
+protected:
+	void onClickImpl() const override;
+};
+
 class UserData;
 class ChatData;
 class ChannelData;
-class PeerData {
-public:
 
+class PeerData {
+protected:
+	PeerData(const PeerId &id);
+	PeerData(const PeerData &other) = delete;
+	PeerData &operator=(const PeerData &other) = delete;
+
+public:
 	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
-			delete notify;
-			notify = UnknownNotifySettings;
+			deleteAndMark(notify);
 		}
 	}
 
@@ -234,13 +270,11 @@ public:
 	const ChatData *asChat() const;
 	ChannelData *asChannel();
 	const ChannelData *asChannel() const;
+	ChannelData *asMegagroup();
+	const ChannelData *asMegagroup() const;
 
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
-
-	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
-
-	void fillNames();
 
 	const Text &dialogName() const;
 	const QString &shortName() const;
@@ -251,8 +285,6 @@ public:
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
 
-	TextLinkPtr lnk;
-
 	QString name;
 	Text nameText;
 	typedef QSet<QString> Names;
@@ -260,43 +292,66 @@ public:
 	typedef QSet<QChar> NameFirstChars;
 	NameFirstChars chars;
 
-	bool loaded;
+	enum LoadedStatus {
+		NotLoaded = 0x00,
+		MinimalLoaded = 0x01,
+		FullLoaded = 0x02,
+	};
+	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
-	int32 colorIndex;
+	int colorIndex;
 	style::color color;
-	ImagePtr photo;
-	PhotoId photoId;
+
+	void setUserpic(ImagePtr userpic);
+	void paintUserpic(Painter &p, int size, int x, int y) const;
+	void paintUserpicLeft(Painter &p, int size, int x, int y, int w) const {
+		paintUserpic(p, size, rtl() ? (w - x - size) : x, y);
+	}
+	void loadUserpic(bool loadFirst = false, bool prior = true) {
+		_userpic->load(loadFirst, prior);
+	}
+	bool userpicLoaded() const {
+		return _userpic->loaded();
+	}
+	StorageKey userpicUniqueKey() const;
+	void saveUserpic(const QString &path) const;
+	QPixmap genUserpic(int size) const;
+
+	PhotoId photoId = UnknownPeerPhotoId;
 	StorageImageLocation photoLoc;
 
-	int32 nameVersion;
+	int nameVersion = 1;
 
-	NotifySettingsPtr notify;
+	NotifySettingsPtr notify = UnknownNotifySettings;
+
+	// if this string is not empty we must not allow to open the
+	// conversation and we must show this string instead
+	virtual QString restrictionReason() const {
+		return QString();
+	}
+
+	const ClickHandlerPtr &openLink() {
+		if (!_openLink) {
+			_openLink.reset(new PeerOpenClickHandler(this));
+		}
+		return _openLink;
+	}
+
+protected:
+	void updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
+
+	ImagePtr _userpic;
+	ImagePtr currentUserpic() const;
 
 private:
+	void fillNames();
 
-	PeerData(const PeerId &id);
-	friend class UserData;
-	friend class ChatData;
-	friend class ChannelData;
+	ClickHandlerPtr _openLink;
+
 };
 
 static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;
-
-class PeerLink : public ITextLink {
-	TEXT_LINK_CLASS(PeerLink)
-
-public:
-	PeerLink(PeerData *peer) : _peer(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-};
 
 class BotCommand {
 public:
@@ -322,49 +377,63 @@ private:
 };
 
 struct BotInfo {
-	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
-	}
-	bool inited;
-	bool readsAllHistory, cantJoinGroups;
-	int32 version;
-	QString shareText, description, inlinePlaceholder;
+	bool inited = false;
+	bool readsAllHistory = false;
+	bool cantJoinGroups = false;
+	int version = 0;
+	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
-	Text text; // description
+	Text text = Text{ int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken;
-};
-
-enum UserBlockedStatus {
-	UserBlockUnknown = 0,
-	UserIsBlocked,
-	UserIsNotBlocked,
+	PeerId inlineReturnPeerId = 0;
 };
 
 class PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), flags(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
-		setName(QString(), QString(), QString(), QString());
+	UserData(const PeerId &id) : PeerData(id) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
-	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
+
+	void setName(const QString &newFirstName, const QString &newLastName
+		, const QString &newPhoneName, const QString &newUsername);
+
 	void setPhone(const QString &newPhone);
-	void setBotInfoVersion(int32 version);
+	void setBotInfoVersion(int version);
 	void setBotInfo(const MTPBotInfo &info);
 
 	void setNameOrPhone(const QString &newNameOrPhone);
 
 	void madeAction(); // pseudo-online
 
-	uint64 access;
+	uint64 access = 0;
 
-	int32 flags;
+	MTPDuser::Flags flags = { 0 };
 	bool isVerified() const {
-		return flags & MTPDuser::flag_verified;
+		return flags & MTPDuser::Flag::f_verified;
+	}
+	bool isBotInlineGeo() const {
+		return flags & MTPDuser::Flag::f_bot_inline_geo;
 	}
 	bool canWrite() const {
 		return access != UserNoAccess;
+	}
+	bool isContact() const {
+		return (contact > 0);
+	}
+
+	bool canShareThisContact() const;
+	bool canAddContact() const {
+		return canShareThisContact() && !isContact();
+	}
+
+	// In feedUsers() we check only that.
+	// When actually trying to share contact we perform
+	// a full check by canShareThisContact() call.
+	bool canShareThisContactFast() const {
+		return !_phone.isEmpty();
 	}
 
 	MTPInputUser inputUser;
@@ -372,50 +441,77 @@ public:
 	QString firstName;
 	QString lastName;
 	QString username;
-	QString phone;
+	const QString &phone() const {
+		return _phone;
+	}
 	QString nameOrPhone;
 	Text phoneText;
-	int32 onlineTill;
-	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
-	UserBlockedStatus blocked;
+	TimeId onlineTill = 0;
+	int32 contact = -1; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
+
+	enum class BlockStatus {
+		Unknown,
+		Blocked,
+		NotBlocked,
+	};
+	BlockStatus blockStatus() const {
+		return _blockStatus;
+	}
+	bool isBlocked() const {
+		return (blockStatus() == BlockStatus::Blocked);
+	}
+	void setBlockStatus(BlockStatus blockStatus);
 
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
-	int32 photosCount; // -1 not loaded, 0 all loaded
+	int photosCount = -1; // -1 not loaded, 0 all loaded
 
-	BotInfo *botInfo;
+	bool setAbout(const QString &newAbout);
+	const QString &about() const {
+		return _about;
+	}
+
+	BotInfo *botInfo = nullptr;
+
+	QString restrictionReason() const override {
+		return _restrictionReason;
+	}
+	void setRestrictionReason(const QString &reason) {
+		_restrictionReason = reason;
+	}
+
+private:
+	QString _restrictionReason;
+	QString _about;
+	QString _phone;
+	BlockStatus _blockStatus = BlockStatus::Unknown;
+
 };
-static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
 class ChatData : public PeerData {
 public:
-
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateToPtr(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
-	void invalidateParticipants() {
-		participants = ChatData::Participants();
-		admins = ChatData::Admins();
-		flags &= ~MTPDchat::flag_admin;
-		invitedByMe = ChatData::InvitedByMe();
-		botStatus = 0;
-	}
+
+	void setName(const QString &newName);
+
+	void invalidateParticipants();
 	bool noParticipantInfo() const {
 		return (count > 0 || amIn()) && participants.isEmpty();
 	}
 
 	MTPint inputChat;
 
-	ChannelData *migrateToPtr;
+	ChannelData *migrateToPtr = nullptr;
 
-	int32 count;
-	int32 date;
-	int32 version;
-	int32 creator;
-	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
+	int count = 0;
+	TimeId date = 0;
+	int version = 0;
+	UserId creator = 0;
 
-	int32 flags;
-	bool isForbidden;
+	MTPDchat::Flags flags = 0;
+	bool isForbidden = false;
 	bool amIn() const {
 		return !isForbidden && !haveLeft() && !wasKicked();
 	}
@@ -426,39 +522,47 @@ public:
 		return !isDeactivated() && amIn();
 	}
 	bool haveLeft() const {
-		return flags & MTPDchat::flag_left;
+		return flags & MTPDchat::Flag::f_left;
 	}
 	bool wasKicked() const {
-		return flags & MTPDchat::flag_kicked;
+		return flags & MTPDchat::Flag::f_kicked;
 	}
 	bool adminsEnabled() const {
-		return flags & MTPDchat::flag_admins_enabled;
+		return flags & MTPDchat::Flag::f_admins_enabled;
 	}
 	bool amCreator() const {
-		return flags & MTPDchat::flag_creator;
+		return flags & MTPDchat::Flag::f_creator;
 	}
 	bool amAdmin() const {
-		return flags & MTPDchat::flag_admin;
+		return (flags & MTPDchat::Flag::f_admin) && adminsEnabled();
 	}
 	bool isDeactivated() const {
-		return flags & MTPDchat::flag_deactivated;
+		return flags & MTPDchat::Flag::f_deactivated;
 	}
 	bool isMigrated() const {
-		return flags & MTPDchat::flag_migrated_to;
+		return flags & MTPDchat::Flag::f_migrated_to;
 	}
-	typedef QMap<UserData*, int32> Participants;
+	typedef QMap<UserData*, int> Participants;
 	Participants participants;
-	typedef QMap<UserData*, bool> InvitedByMe;
+	typedef OrderedSet<UserData*> InvitedByMe;
 	InvitedByMe invitedByMe;
-	typedef QMap<UserData*, bool> Admins;
+	typedef OrderedSet<UserData*> Admins;
 	Admins admins;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
-	QString invitationUrl;
+
+	void setInviteLink(const QString &newInviteLink);
+	QString inviteLink() const {
+		return _inviteLink;
+	}
+
+private:
+	QString _inviteLink;
+
 };
 
 enum PtsSkippedQueue {
@@ -468,14 +572,14 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 
-	PtsWaiter() :
-		_good(0),
-		_last(0),
-		_count(0),
-		_applySkippedLevel(0),
-		_requesting(false),
-		_waitingForSkipped(false),
-		_waitingForShortPoll(false) {
+	PtsWaiter()
+		: _good(0)
+		, _last(0)
+		, _count(0)
+		, _applySkippedLevel(0)
+		, _requesting(false)
+		, _waitingForSkipped(false)
+		, _waitingForShortPoll(false) {
 	}
 	void init(int32 pts) {
 		_good = _last = _count = pts;
@@ -523,22 +627,25 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0)
-	, joinedMessageFound(false)
-	, lastParticipantsStatus(LastParticipantsUpToDate)
-	, lastParticipantsCount(0)
-	, migrateFromPtr(0) {
+	MegagroupInfo()
+		: botStatus(0)
+		, pinnedMsgId(0)
+		, joinedMessageFound(false)
+		, lastParticipantsStatus(LastParticipantsUpToDate)
+		, lastParticipantsCount(0)
+		, migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
-	typedef QMap<UserData*, bool> LastAdmins;
+	typedef OrderedSet<UserData*> LastAdmins;
 	LastAdmins lastAdmins;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	typedef QMap<UserData*, bool> Bots;
+	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
+	MsgId pinnedMsgId;
 	bool joinedMessageFound;
 
 	enum LastParticipantsStatus {
@@ -554,61 +661,77 @@ struct MegagroupInfo {
 
 class ChannelData : public PeerData {
 public:
-
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), inviter(0), _lastFullUpdate(0) {
-		setName(QString(), QString());
+	ChannelData(const PeerId &id) : PeerData(id), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+
 	void setName(const QString &name, const QString &username);
 
 	void updateFull(bool force = false);
 	void fullUpdated();
 
-	uint64 access;
+	uint64 access = 0;
 
 	MTPinputChannel inputChannel;
 
-	QString username, about;
+	QString username;
 
-	int32 count, adminsCount;
-	int32 date;
-	int32 version;
-	int32 flags, flagsFull;
-	MegagroupInfo *mgInfo;
+	// Returns true if about text was changed.
+	bool setAbout(const QString &newAbout);
+	const QString &about() const {
+		return _about;
+	}
+
+	int membersCount() const {
+		return _membersCount;
+	}
+	void setMembersCount(int newMembersCount);
+
+	int adminsCount() const {
+		return _adminsCount;
+	}
+	void setAdminsCount(int newAdminsCount);
+
+	int32 date = 0;
+	int version = 0;
+	MTPDchannel::Flags flags = { 0 };
+	MTPDchannelFull::Flags flagsFull = { 0 };
+	MegagroupInfo *mgInfo = nullptr;
 	bool lastParticipantsCountOutdated() const {
 		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
 			return false;
 		}
-		if (mgInfo->lastParticipantsCount == count) {
+		if (mgInfo->lastParticipantsCount == membersCount()) {
 			mgInfo->lastParticipantsStatus &= ~MegagroupInfo::LastParticipantsCountOutdated;
 			return false;
 		}
 		return true;
 	}
 	void flagsUpdated();
+	void selfAdminUpdated();
 	bool isMegagroup() const {
-		return flags & MTPDchannel::flag_megagroup;
+		return flags & MTPDchannel::Flag::f_megagroup;
 	}
 	bool isBroadcast() const {
-		return flags & MTPDchannel::flag_broadcast;
+		return flags & MTPDchannel::Flag::f_broadcast;
 	}
 	bool isPublic() const {
-		return flags & MTPDchannel::flag_username;
+		return flags & MTPDchannel::Flag::f_username;
 	}
 	bool amCreator() const {
-		return flags & MTPDchannel::flag_creator;
+		return flags & MTPDchannel::Flag::f_creator;
 	}
 	bool amEditor() const {
-		return flags & MTPDchannel::flag_editor;
+		return flags & MTPDchannel::Flag::f_editor;
 	}
 	bool amModerator() const {
-		return flags & MTPDchannel::flag_moderator;
+		return flags & MTPDchannel::Flag::f_moderator;
 	}
 	bool haveLeft() const {
-		return flags & MTPDchannel::flag_left;
+		return flags & MTPDchannel::Flag::f_left;
 	}
 	bool wasKicked() const {
-		return flags & MTPDchannel::flag_kicked;
+		return flags & MTPDchannel::Flag::f_kicked;
 	}
 	bool amIn() const {
 		return !isForbidden && !haveLeft() && !wasKicked();
@@ -619,18 +742,40 @@ public:
 	bool canWrite() const {
 		return amIn() && (canPublish() || !isBroadcast());
 	}
-	bool canViewParticipants() const {
-		return flagsFull & MTPDchannelFull::flag_can_view_participants;
+	bool canViewMembers() const {
+		return flagsFull & MTPDchannelFull::Flag::f_can_view_participants;
 	}
-	bool isForbidden;
+	bool canViewAdmins() const {
+		return (isMegagroup() || amCreator() || amEditor() || amModerator());
+	}
+	bool addsSignature() const {
+		return flags & MTPDchannel::Flag::f_signatures;
+	}
+	bool isForbidden = true;
 	bool isVerified() const {
-		return flags & MTPDchannel::flag_verified;
+		return flags & MTPDchannel::Flag::f_verified;
+	}
+	bool canAddMembers() const {
+		return amCreator() || amEditor() || (flags & MTPDchannel::Flag::f_democracy);
+	}
+	bool canEditPhoto() const {
+		return amCreator() || (amEditor() && isMegagroup());
+	}
+	bool canEditUsername() const {
+		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
+	}
+	bool canDelete() const {
+		return amCreator() && (membersCount() <= 1000);
 	}
 
 //	ImagePtr photoFull;
-	QString invitationUrl;
 
-	int32 inviter; // > 0 - user who invited me to channel, < 0 - not in channel
+	void setInviteLink(const QString &newInviteLink);
+	QString inviteLink() const {
+		return _inviteLink;
+	}
+
+	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
 	QDateTime inviteDate;
 
 	void ptsInit(int32 pts) {
@@ -666,37 +811,94 @@ public:
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
 
+	QString restrictionReason() const override {
+		return _restrictionReason;
+	}
+	void setRestrictionReason(const QString &reason) {
+		_restrictionReason = reason;
+	}
+
 	~ChannelData();
 
 private:
-
 	PtsWaiter _ptsWaiter;
-	uint64 _lastFullUpdate;
+	uint64 _lastFullUpdate = 0;
+
+	int _membersCount = 1;
+	int _adminsCount = 1;
+
+	QString _restrictionReason;
+	QString _about;
+
+	QString _inviteLink;
+
 };
 
+inline bool isUser(const PeerData *peer) {
+	return peer ? peer->isUser() : false;
+}
 inline UserData *PeerData::asUser() {
-	return isUser() ? static_cast<UserData*>(this) : 0;
+	return isUser() ? static_cast<UserData*>(this) : nullptr;
+}
+inline UserData *asUser(PeerData *peer) {
+	return peer ? peer->asUser() : nullptr;
 }
 inline const UserData *PeerData::asUser() const {
-	return isUser() ? static_cast<const UserData*>(this) : 0;
+	return isUser() ? static_cast<const UserData*>(this) : nullptr;
+}
+inline const UserData *asUser(const PeerData *peer) {
+	return peer ? peer->asUser() : nullptr;
+}
+inline bool isChat(const PeerData *peer) {
+	return peer ? peer->isChat() : false;
 }
 inline ChatData *PeerData::asChat() {
-	return isChat() ? static_cast<ChatData*>(this) : 0;
+	return isChat() ? static_cast<ChatData*>(this) : nullptr;
+}
+inline ChatData *asChat(PeerData *peer) {
+	return peer ? peer->asChat() : nullptr;
 }
 inline const ChatData *PeerData::asChat() const {
-	return isChat() ? static_cast<const ChatData*>(this) : 0;
+	return isChat() ? static_cast<const ChatData*>(this) : nullptr;
+}
+inline const ChatData *asChat(const PeerData *peer) {
+	return peer ? peer->asChat() : nullptr;
+}
+inline bool isChannel(const PeerData *peer) {
+	return peer ? peer->isChannel() : false;
 }
 inline ChannelData *PeerData::asChannel() {
-	return isChannel() ? static_cast<ChannelData*>(this) : 0;
+	return isChannel() ? static_cast<ChannelData*>(this) : nullptr;
+}
+inline ChannelData *asChannel(PeerData *peer) {
+	return peer ? peer->asChannel() : nullptr;
 }
 inline const ChannelData *PeerData::asChannel() const {
-	return isChannel() ? static_cast<const ChannelData*>(this) : 0;
+	return isChannel() ? static_cast<const ChannelData*>(this) : nullptr;
+}
+inline const ChannelData *asChannel(const PeerData *peer) {
+	return peer ? peer->asChannel() : nullptr;
+}
+inline ChannelData *PeerData::asMegagroup() {
+	return isMegagroup() ? static_cast<ChannelData*>(this) : nullptr;
+}
+inline ChannelData *asMegagroup(PeerData *peer) {
+	return peer ? peer->asMegagroup() : nullptr;
+}
+inline const ChannelData *PeerData::asMegagroup() const {
+	return isMegagroup() ? static_cast<const ChannelData*>(this) : nullptr;
+}
+inline const ChannelData *asMegagroup(const PeerData *peer) {
+	return peer ? peer->asMegagroup() : nullptr;
+}
+inline bool isMegagroup(const PeerData *peer) {
+	return peer ? peer->isMegagroup() : false;
 }
 inline ChatData *PeerData::migrateFrom() const {
-	return (isMegagroup() && asChannel()->amIn()) ? asChannel()->mgInfo->migrateFromPtr : 0;
+	return (isMegagroup() && asChannel()->amIn()) ? asChannel()->mgInfo->migrateFromPtr : nullptr;
 }
 inline ChannelData *PeerData::migrateTo() const {
-	return (isChat() && asChat()->migrateToPtr && asChat()->migrateToPtr->amIn()) ? asChat()->migrateToPtr : 0;
+	return (isChat() && asChat()->migrateToPtr && asChat()->migrateToPtr->amIn()) ? asChat()->migrateToPtr : nullptr;
 }
 inline const Text &PeerData::dialogName() const {
 	return migrateTo() ? migrateTo()->dialogName() : ((isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText);
@@ -768,13 +970,10 @@ private:
 
 };
 
-class PhotoLink : public ITextLink {
-	TEXT_LINK_CLASS(PhotoLink)
-
+class PhotoClickHandler : public LeftButtonClickHandler {
 public:
-	PhotoLink(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
+	PhotoClickHandler(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
 	}
-	void onClick(Qt::MouseButton button) const;
 	PhotoData *photo() const {
 		return _photo;
 	}
@@ -788,24 +987,25 @@ private:
 
 };
 
-class PhotoSaveLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoSaveLink)
-
+class PhotoOpenClickHandler : public PhotoClickHandler {
 public:
-	PhotoSaveLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class PhotoCancelLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoCancelLink)
-
+class PhotoSaveClickHandler : public PhotoClickHandler {
 public:
-	PhotoCancelLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
+};
 
+class PhotoCancelClickHandler : public PhotoClickHandler {
+public:
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum FileStatus {
@@ -815,240 +1015,17 @@ enum FileStatus {
 	FileReady = 1,
 };
 
-class VideoData {
-public:
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item) {
-	}
-	void automaticLoadSettingsChanged() {
-	}
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const {
-		return false;
-	}
-
-	void performActionOnLoad();
-
-	void forget();
-
-	VideoId id;
-	uint64 access;
-	int32 date;
-	int32 duration;
-	int32 w, h;
-	ImagePtr thumb, replyPreview;
-	int32 dc, size;
-	// geo, caption
-
-	FileStatus status;
-	int32 uploadOffset;
-
-private:
-	FileLocation _location;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-class VideoLink : public ITextLink {
-	TEXT_LINK_CLASS(VideoLink)
-
-public:
-	VideoLink(VideoData *video) : _video(video) {
-	}
-	VideoData *video() const {
-		return _video;
-	}
-
-private:
-	VideoData *_video;
-
-};
-
-class VideoSaveLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoSaveLink)
-
-public:
-	VideoSaveLink(VideoData *video) : VideoLink(video) {
-	}
-	static void doSave(VideoData *video, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-};
-
-class VideoOpenLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoOpenLink)
-
-public:
-	VideoOpenLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class VideoCancelLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoCancelLink)
-
-public:
-	VideoCancelLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioData {
-public:
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item); // auto load voice message
-	void automaticLoadSettingsChanged();
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const;
-
-	void performActionOnLoad();
-
-	void forget();
-	void setData(const QByteArray &data) {
-		_data = data;
-	}
-
-	AudioId id;
-	uint64 access;
-	int32 date;
-	QString mime;
-	int32 duration;
-	int32 dc;
-	int32 size;
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	int32 md5[8];
-
-private:
-	FileLocation _location;
-	QByteArray _data;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-struct AudioMsgId {
-	AudioMsgId() : audio(0) {
-	}
-	AudioMsgId(AudioData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
-	}
-	AudioMsgId(AudioData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
-	}
-	operator bool() const {
-		return audio;
-	}
-	AudioData *audio;
-	FullMsgId msgId;
-
-};
-
-inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
-}
-inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.msgId == b.msgId;
-}
-inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
-	return !(a == b);
-}
-
-class AudioLink : public ITextLink {
-	TEXT_LINK_CLASS(AudioLink)
-
-public:
-	AudioLink(AudioData *audio) : _audio(audio) {
-	}
-	AudioData *audio() const {
-		return _audio;
-	}
-
-private:
-	AudioData *_audio;
-
-};
-
-class AudioSaveLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioSaveLink)
-
-public:
-	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
-	}
-	static void doSave(AudioData *audio, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioOpenLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioOpenLink)
-
-public:
-	AudioOpenLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioCancelLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioCancelLink)
-
-public:
-	AudioCancelLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
 enum DocumentType {
 	FileDocument     = 0,
 	VideoDocument    = 1,
 	SongDocument     = 2,
 	StickerDocument  = 3,
 	AnimatedDocument = 4,
+	VoiceDocument    = 5,
 };
 
 struct DocumentAdditionalData {
+	virtual ~DocumentAdditionalData();
 };
 
 struct StickerData : public DocumentAdditionalData {
@@ -1072,17 +1049,40 @@ struct SongData : public DocumentAdditionalData {
 
 };
 
+typedef QVector<char> VoiceWaveform; // [0] == -1 -- counting, [0] == -2 -- could not count
+struct VoiceData : public DocumentAdditionalData {
+	VoiceData() : duration(0), wavemax(0) {
+	}
+	~VoiceData();
+	int32 duration;
+	VoiceWaveform waveform;
+	char wavemax;
+};
+
 bool fileIsImage(const QString &name, const QString &mime);
+
+namespace Serialize {
+class Document;
+} // namespace Serialize;
 
 class DocumentData {
 public:
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	static DocumentData *create(DocumentId id);
+	static DocumentData *create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes);
+	static DocumentData *create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
+
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void automaticLoad(const HistoryItem *item); // auto load sticker or video
 	void automaticLoadSettingsChanged();
 
-	bool loaded(bool check = false) const;
+	enum FilePathResolveType {
+		FilePathResolveCached,
+		FilePathResolveChecked,
+		FilePathResolveSaveFromData,
+		FilePathResolveSaveFromDataSilent,
+	};
+	bool loaded(FilePathResolveType type = FilePathResolveCached) const;
 	bool loading() const;
 	bool displayLoading() const;
 	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
@@ -1091,10 +1091,11 @@ public:
 	int32 loadOffset() const;
 	bool uploading() const;
 
-	QString already(bool check = false) const;
 	QByteArray data() const;
 	const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
+
+	QString filepath(FilePathResolveType type = FilePathResolveCached, bool forceSavingAs = false) const;
 
 	bool saveToCache() const;
 
@@ -1104,13 +1105,13 @@ public:
 	ImagePtr makeReplyPreview();
 
 	StickerData *sticker() {
-		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional.get()) : nullptr;
 	}
 	void checkSticker() {
 		StickerData *s = sticker();
 		if (!s) return;
 
-		automaticLoad(0);
+		automaticLoad(nullptr);
 		if (s->img->isNull() && loaded()) {
 			if (_data.isEmpty()) {
 				const FileLocation &loc(location(true));
@@ -1124,7 +1125,16 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
+		return (type == SongDocument) ? static_cast<SongData*>(_additional.get()) : nullptr;
+	}
+	const SongData *song() const {
+		return (type == SongDocument) ? static_cast<const SongData*>(_additional.get()) : nullptr;
+	}
+	VoiceData *voice() {
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.get()) : nullptr;
+	}
+	const VoiceData *voice() const {
+		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.get()) : nullptr;
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1132,75 +1142,146 @@ public:
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
+	bool isMusic() const {
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional.get())->title.isEmpty() : false;
+	}
+	bool isVideo() const {
+		return (type == VideoDocument);
+	}
 	int32 duration() const {
-		return (isAnimation() || type == VideoDocument) ? _duration : -1;
+		return (isAnimation() || isVideo()) ? _duration : -1;
 	}
 	bool isImage() const {
-		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
+		return !isAnimation() && !isVideo() && (_duration > 0);
 	}
 	void recountIsImage();
+	void setData(const QByteArray &data) {
+		_data = data;
+	}
+
+	void setRemoteLocation(int32 dc, uint64 access);
+	void setContentUrl(const QString &url);
+	bool hasRemoteLocation() const {
+		return (_dc != 0 && _access != 0);
+	}
+	bool isValid() const {
+		return hasRemoteLocation() || !_url.isEmpty();
+	}
+	MTPInputDocument mtpInput() const {
+		if (_access) {
+			return MTP_inputDocument(MTP_long(id), MTP_long(_access));
+		}
+		return MTP_inputDocumentEmpty();
+	}
+
+	// When we have some client-side generated document
+	// (for example for displaying an external inline bot result)
+	// and it has downloaded data, we can collect that data from it
+	// to (this) received from the server "same" document.
+	void collectLocalData(DocumentData *local);
 
 	~DocumentData();
 
 	DocumentId id;
-	DocumentType type;
+	DocumentType type = FileDocument;
 	QSize dimensions;
-	uint64 access;
-	int32 date;
+	int32 date = 0;
 	QString name, mime;
 	ImagePtr thumb, replyPreview;
-	int32 dc;
-	int32 size;
+	int32 size = 0;
 
-	FileStatus status;
-	int32 uploadOffset;
+	FileStatus status = FileReady;
+	int32 uploadOffset = 0;
 
 	int32 md5[8];
 
+	MediaKey mediaKey() const {
+		return ::mediaKey(locationType(), _dc, id);
+	}
+
 private:
+	DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
+
+	friend class Serialize::Document;
+
+	LocationType locationType() const {
+		return voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
+	}
+
+	// Two types of location: from MTProto by dc+access or from web by url
+	int32 _dc = 0;
+	uint64 _access = 0;
+	QString _url;
 
 	FileLocation _location;
 	QByteArray _data;
-	DocumentAdditionalData *_additional;
-	int32 _duration;
+	std_::unique_ptr<DocumentAdditionalData> _additional;
+	int32 _duration = -1;
 
-	ActionOnLoad _actionOnLoad;
+	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
+	mutable FileLoader *_loader = nullptr;
 
 	void notifyLayoutChanged() const;
 
 };
 
+VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
+QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
+
 struct SongMsgId {
-	SongMsgId() : song(0) {
+	SongMsgId() : song(nullptr) {
 	}
-	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), msgId(msgId) {
+	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), contextId(msgId) {
 	}
-	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), msgId(channelId, msgId) {
+	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), contextId(channelId, msgId) {
 	}
-	operator bool() const {
+	explicit operator bool() const {
 		return song;
 	}
 	DocumentData *song;
-	FullMsgId msgId;
+	FullMsgId contextId;
 
 };
 inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
-	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);
+	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.contextId < b.contextId);
 }
 inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
-	return a.song == b.song && a.msgId == b.msgId;
+	return a.song == b.song && a.contextId == b.contextId;
 }
 inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
 	return !(a == b);
 }
 
-class DocumentLink : public ITextLink {
-	TEXT_LINK_CLASS(DocumentLink)
+struct AudioMsgId {
+	AudioMsgId() : audio(nullptr) {
+	}
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), contextId(msgId) {
+	}
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), contextId(channelId, msgId) {
+	}
 
+	explicit operator bool() const {
+		return audio;
+	}
+	DocumentData *audio;
+	FullMsgId contextId;
+
+};
+
+inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.contextId < b.contextId);
+}
+inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
+	return a.audio == b.audio && a.contextId == b.contextId;
+}
+inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
+	return !(a == b);
+}
+
+class DocumentClickHandler : public LeftButtonClickHandler {
 public:
-	DocumentLink(DocumentData *document) : _document(document) {
+	DocumentClickHandler(DocumentData *document) : _document(document) {
 	}
 	DocumentData *document() const {
 		return _document;
@@ -1211,47 +1292,34 @@ private:
 
 };
 
-class DocumentSaveLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentSaveLink)
-
+class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
-	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doSave(DocumentData *document, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class DocumentOpenLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentOpenLink)
-
+class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
-	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doOpen(DocumentData *document, ActionOnLoad action = ActionOnLoadOpen);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class GifOpenLink : public DocumentOpenLink {
-	TEXT_LINK_CLASS(GifOpenLink)
-
+class GifOpenClickHandler : public DocumentOpenClickHandler {
 public:
-	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
-	}
-	static void doOpen(DocumentData *document);
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentOpenClickHandler::DocumentOpenClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class DocumentCancelLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentCancelLink)
-
+class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
-	DocumentCancelLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentClickHandler::DocumentClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum WebPageType {
@@ -1268,7 +1336,7 @@ inline WebPageType toWebPageType(const QString &type) {
 }
 
 struct WebPageData {
-	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
+	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), DocumentData *doc = nullptr, PhotoData *photo = nullptr, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
 
 	void forget() {
 		if (photo) photo->forget();
@@ -1280,58 +1348,10 @@ struct WebPageData {
 	int32 duration;
 	QString author;
 	PhotoData *photo;
-	DocumentData *doc;
+	DocumentData *document;
 	int32 pendingTill;
 
 };
-
-class InlineResult {
-public:
-	InlineResult(uint64 queryId)
-		: queryId(queryId)
-		, doc(0)
-		, photo(0)
-		, width(0)
-		, height(0)
-		, duration(0)
-		, noWebPage(false)
-		, _loader(0) {
-	}
-	uint64 queryId;
-	QString id, type;
-	DocumentData *doc;
-	PhotoData *photo;
-	QString title, description, url, thumb_url;
-	QString content_type, content_url;
-	int32 width, height, duration;
-
-	QString message; // botContextMessageText
-	bool noWebPage;
-	EntitiesInText entities;
-	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
-
-	ImagePtr thumb;
-
-	void automaticLoadGif();
-	void automaticLoadSettingsChangedGif();
-	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
-	void cancelFile();
-
-	QByteArray data() const;
-	bool loading() const;
-	bool loaded() const;
-	bool displayLoading() const;
-	void forget();
-	float64 progress() const;
-
-	~InlineResult();
-
-private:
-	QByteArray _data;
-	mutable webFileLoader *_loader;
-
-};
-typedef QList<InlineResult*> InlineResults;
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();
@@ -1360,4 +1380,69 @@ struct MessageCursor {
 		if (s) s->setValue(scroll);
 	}
 	int position, anchor, scroll;
+};
+
+inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
+	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
+}
+
+struct LocationCoords {
+	LocationCoords() : lat(0), lon(0) {
+	}
+	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	}
+	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+	}
+	float64 lat, lon;
+};
+inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat == b.lat) && (a.lon == b.lon);
+}
+inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
+}
+inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
+}
+
+struct LocationData {
+	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
+	}
+
+	LocationCoords coords;
+	ImagePtr thumb;
+	bool loading;
+
+	void load();
+};
+
+class LocationClickHandler : public ClickHandler {
+public:
+	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
+		setup();
+	}
+
+	void onClick(Qt::MouseButton button) const override;
+
+	QString tooltip() const override {
+		return QString();
+	}
+
+	QString dragText() const override {
+		return _text;
+	}
+
+	void copyToClipboard() const override {
+		if (!_text.isEmpty()) {
+			QApplication::clipboard()->setText(_text);
+		}
+	}
+	QString copyToClipboardContextItemText() const override;
+
+private:
+
+	void setup();
+	LocationCoords _coords;
+	QString _text;
+
 };

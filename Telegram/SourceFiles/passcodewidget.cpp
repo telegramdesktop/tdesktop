@@ -16,18 +16,16 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-#include "style.h"
-
-#include "localstorage.h"
-
 #include "passcodewidget.h"
-#include "window.h"
+
+#include "lang.h"
+#include "localstorage.h"
+#include "mainwindow.h"
 #include "application.h"
-#include "gui/text.h"
+#include "ui/text/text.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))
@@ -121,7 +119,7 @@ void PasscodeWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 
-	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
 	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
 	_a_show.start();
@@ -172,7 +170,7 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 	setMouseTracking(true);
 
-	QPainter p(this);
+	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
@@ -181,12 +179,12 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
 			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::white->b);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 	} else {
 		p.fillRect(rect(), st::setBG->b);
 

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -62,7 +62,7 @@ public:
 
 	void setBlueTitle(bool blue);
 	void raiseShadow();
-	
+
 public slots:
 
 	void onClose();
@@ -115,7 +115,7 @@ public:
 
 	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 	void resizeEvent(QResizeEvent *e);
-	
+
 protected:
 
 	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);

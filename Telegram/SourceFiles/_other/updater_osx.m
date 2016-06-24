@@ -16,13 +16,14 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #import <Cocoa/Cocoa.h>
 
 NSString *appName = @"Telegram.app";
 NSString *appDir = nil;
 NSString *workDir = nil;
+NSString *crashReportArg = nil;
 
 #ifdef _DEBUG
 BOOL _debug = YES;
@@ -100,6 +101,10 @@ int main(int argc, const char * argv[]) {
 				NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
 				[formatter setNumberStyle:NSNumberFormatterDecimalStyle];
 				procId = [[formatter numberFromString:[NSString stringWithUTF8String:argv[i]]] intValue];
+			}
+		} else if ([@"-crashreport" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
+			if (++i < argc) {
+				crashReportArg = [NSString stringWithUTF8String:argv[i]];
 			}
 		} else if ([@"-noupdate" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			update = NO;
@@ -214,15 +219,17 @@ int main(int argc, const char * argv[]) {
 	}
 
 	NSString *appPath = [[NSArray arrayWithObjects:appDir, appRealName, nil] componentsJoinedByString:@""];
-	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-noupdate", nil];
-	if (toSettings) [args addObject:@"-tosettings"];
-	if (_debug) [args addObject:@"-debug"];
-	if (startInTray) [args addObject:@"-startintray"];
-	if (testMode) [args addObject:@"-testmode"];
-	if (autoStart) [args addObject:@"-autostart"];
-	if (key) {
-		[args addObject:@"-key"];
-		[args addObject:key];
+	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects: crashReportArg ? crashReportArg : @"-noupdate", nil];
+	if (!crashReportArg) {
+		if (toSettings) [args addObject:@"-tosettings"];
+		if (_debug) [args addObject:@"-debug"];
+		if (startInTray) [args addObject:@"-startintray"];
+		if (testMode) [args addObject:@"-testmode"];
+		if (autoStart) [args addObject:@"-autostart"];
+		if (key) {
+			[args addObject:@"-key"];
+			[args addObject:key];
+		}
 	}
 	writeLog([[NSArray arrayWithObjects:@"Running application '", appPath, @"' with args '", [args componentsJoinedByString:@"' '"], @"'..", nil] componentsJoinedByString:@""]);
 	NSError *error = nil;

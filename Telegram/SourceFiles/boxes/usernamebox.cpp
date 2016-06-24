@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -24,7 +24,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "usernamebox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 UsernameBox::UsernameBox() : AbstractBox(st::boxWidth),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
@@ -160,7 +160,7 @@ void UsernameBox::onChanged() {
 		}
 		_checkTimer.stop();
 	} else {
-		int32 i, len = name.size();
+		int32 len = name.size();
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
@@ -191,7 +191,7 @@ void UsernameBox::onChanged() {
 }
 
 void UsernameBox::onLinkClick() {
-	App::app()->clipboard()->setText(qsl("https://telegram.me/") + getName());
+	Application::clipboard()->setText(qsl("https://telegram.me/") + getName());
 	_copiedTextLink = lang(lng_username_copied);
 	update();
 }
@@ -202,22 +202,22 @@ void UsernameBox::onUpdateDone(const MTPUser &user) {
 }
 
 bool UsernameBox::onUpdateFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == App::self()->username) {
+	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
 		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
 		emit closed();
 		return true;
-	} else if (err == "USERNAME_INVALID") {
+	} else if (err == qstr("USERNAME_INVALID")) {
 		_username.setFocus();
 		_username.showError();
 		_copiedTextLink = QString();
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
+	} else if (err == qstr("USERNAME_OCCUPIED") || err == qstr("USERNAMES_UNAVAILABLE")) {
 		_username.setFocus();
 		_username.showError();
 		_copiedTextLink = QString();
@@ -242,15 +242,15 @@ void UsernameBox::onCheckDone(const MTPBool &result) {
 }
 
 bool UsernameBox::onCheckFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_INVALID") {
+	if (err == qstr("USERNAME_INVALID")) {
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == "USERNAME_OCCUPIED" && _checkUsername != App::self()->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != App::self()->username) {
 		_errorText = lang(lng_username_occupied);
 		update();
 		return true;

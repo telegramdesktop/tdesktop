@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "updater.h"
 
@@ -255,7 +255,7 @@ bool update() {
 				} else {
 					break;
 				}
-			} while (copyTries < 30);
+			} while (copyTries < 100);
 			if (!copyResult) {
 				writeLog(L"Error: failed to copy, asking to retry..");
 				WCHAR errMsg[2048];
@@ -327,8 +327,6 @@ void updateRegistry() {
 		}
 	}
 }
-
-#include <ShlObj.h>
 
 int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
 	openLog();
@@ -458,7 +456,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed Telegram.exe, closing log and quiting..");
+	writeLog(L"Executed Telegram.exe, closing log and quitting..");
 	closeLog();
 
 	return 0;
@@ -484,9 +482,14 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 	static const int maxFileLen = MAX_PATH * 10;
 
 	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
+	wsprintf(szPath, L"%stdata\\", path);
     if (!CreateDirectory(szPath, NULL)) {
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return 0;
+		}
+	}
+	wsprintf(szPath, L"%sdumps\\", path);
+	if (!CreateDirectory(szPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			return 0;
 		}

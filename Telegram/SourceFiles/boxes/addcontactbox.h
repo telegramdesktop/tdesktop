@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -57,7 +57,7 @@ private:
 
 	void initBox();
 
-	UserData *_user;
+	UserData *_user = nullptr;
 	QString _boxTitle;
 
 	BoxButton _save, _cancel, _retry;
@@ -66,9 +66,9 @@ private:
 
 	bool _invertOrder;
 
-	uint64 _contactId;
+	uint64 _contactId = 0;
 
-	mtpRequestId _addRequest;
+	mtpRequestId _addRequest = 0;
 	QString _sentName;
 };
 
@@ -211,13 +211,14 @@ private:
 	bool onCheckFail(const RPCError &error);
 	bool onFirstCheckFail(const RPCError &error);
 
+	void updateMaxHeight();
+
 	ChannelData *_channel;
 	bool _existing;
 
 	Radiobutton _public, _private;
-	Checkbox _comments;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate, _aboutComments;
+	Text _aboutPublic, _aboutPrivate;
 	UsernameInput _link;
 	QRect _invitationLink;
 	bool _linkOver;
@@ -315,18 +316,21 @@ private:
 
 	void onSaveTitleDone(const MTPUpdates &updates);
 	void onSaveDescriptionDone(const MTPBool &result);
+	void onSaveSignDone(const MTPUpdates &updates);
 	bool onSaveFail(const RPCError &e, mtpRequestId req);
 
 	void saveDescription();
+	void saveSign();
 
 	ChannelData *_channel;
 
 	BoxButton _save, _cancel;
 	InputField _title;
 	InputArea _description;
+	Checkbox _sign;
 
 	LinkButton _publicLink;
 
-	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId;
+	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId, _saveSignRequestId;
 	QString _sentTitle, _sentDescription;
 };

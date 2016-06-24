@@ -16,61 +16,60 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#define __HUGE
-#define PSAPI_VERSION 1 // fix WinXP
-//#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
-#include <openssl/bn.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
+#define NOMINMAX // no min() and max() macro declarations
+#define __HUGE
+
+// Fix Google Breakpad build for Mac App Store version
+#ifdef Q_OS_MAC
+#define __STDC_FORMAT_MACROS
+#endif // Q_OS_MAC
+
+#ifdef __cplusplus
+
+#include <cmath>
+
+// False positive warning in clang for QMap member function value:
+// const T QMap<Key, T>::value(const Key &akey, const T &adefaultValue)
+// fires with "Returning address of local temporary object" which is not true.
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-stack-address"
+#endif // __clang__
+
+#include <QtCore/QtCore>
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif // __clang__
+
 
 #include <QtWidgets/QtWidgets>
-#include <QtNetwork/QTcpSocket>
-#include <QtNetwork/QHostAddress>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkProxy>
+#include <QtNetwork/QtNetwork>
 
-#ifdef Q_OS_WIN // use Lzma SDK for win
-#include <LzmaLib.h>
-#else
-#include <lzma.h>
-#endif
-
-extern "C" {
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
-
-}
-
-#include "types.h"
+#include "core/basic_types.h"
 #include "config.h"
 
-#include "mtproto/mtp.h"
+#include "mtproto/facade.h"
 
-#include "gui/style_core.h"
-#include "gui/twidget.h"
-#include "gui/animation.h"
-#include "gui/flatinput.h"
-#include "gui/flattextarea.h"
-#include "gui/flatbutton.h"
-#include "gui/boxshadow.h"
-#include "gui/popupmenu.h"
-#include "gui/scrollarea.h"
-#include "gui/images.h"
-#include "gui/text.h"
-#include "gui/flatlabel.h"
+#include "ui/style/style_core.h"
+#include "styles/style_basic_types.h"
+#include "styles/style_basic.h"
+
+#include "ui/twidget.h"
+#include "ui/animation.h"
+#include "ui/flatinput.h"
+#include "ui/flattextarea.h"
+#include "ui/flatbutton.h"
+#include "ui/boxshadow.h"
+#include "ui/popupmenu.h"
+#include "ui/scrollarea.h"
+#include "ui/images.h"
+#include "ui/text/text.h"
 
 #include "app.h"
+#include "facades.h"
+
+#endif // __cplusplus

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -24,10 +24,8 @@ extern bool gDebug;
 inline bool cDebug() {
 #if defined _DEBUG
 	return true;
-#elif defined _WITH_DEBUG
-	return gDebug;
 #else
-	return false;
+	return gDebug;
 #endif
 }
 inline void cSetDebug(bool debug) {
@@ -55,19 +53,9 @@ inline bool rtl() {
 	return cRtl();
 }
 
-struct mtpDcOption {
-	mtpDcOption(int id, int flags, const string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
-	}
+DeclareReadSetting(QString, Arguments);
 
-	int id;
-	int flags;
-	string ip;
-	int port;
-};
-typedef QMap<int, mtpDcOption> mtpDcOptions;
-DeclareSetting(mtpDcOptions, DcOptions);
-
-DeclareSetting(bool, DevVersion);
+DeclareSetting(bool, AlphaVersion);
 DeclareSetting(uint64, BetaVersion);
 DeclareSetting(uint64, RealBetaVersion);
 DeclareSetting(QByteArray, BetaPrivateKey);
@@ -77,12 +65,18 @@ inline QString cInlineGifBotUsername() {
 	return cTestMode() ? qstr("contextbot") : qstr("gif");
 }
 DeclareSetting(QString, LoggedPhoneNumber);
-DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
-DeclareReadSetting(bool, FromAutoStart);
+enum LaunchMode {
+	LaunchModeNormal = 0,
+	LaunchModeAutoStart,
+	LaunchModeFixPrevious,
+	LaunchModeCleanup,
+	LaunchModeShowCrash,
+};
+DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);
@@ -105,7 +99,6 @@ DeclareSetting(bool, TileBackground);
 
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, IncludeMuted);
-DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
@@ -133,8 +126,6 @@ DeclareSetting(bool, WriteProtected);
 DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
-DeclareSetting(int32, MaxGroupCount);
-DeclareSetting(int32, MaxMegaGroupCount);
 DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, AskDownloadPath);
@@ -211,29 +202,10 @@ RecentStickerPack &cGetRecentStickers();
 
 typedef QMap<EmojiPtr, StickerPack> StickersByEmojiMap;
 
-static const uint64 DefaultStickerSetId = 0; // for backward compatibility
-static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFULL, RecentStickerSetId = 0xFFFFFFFFFFFFFFFEULL;
-static const uint64 NoneStickerSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
-struct StickerSet {
-	StickerSet(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, int32 flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
-	}
-	uint64 id, access;
-	QString title, shortName;
-	int32 count, hash, flags;
-	StickerPack stickers;
-	StickersByEmojiMap emoji;
-};
-typedef QMap<uint64, StickerSet> StickerSets;
-DeclareRefSetting(StickerSets, StickerSets);
-typedef QList<uint64> StickerSetsOrder;
-DeclareRefSetting(StickerSetsOrder, StickerSetsOrder);
-DeclareSetting(uint64, LastStickersUpdate);
-
 typedef QVector<DocumentData*> SavedGifs;
 DeclareRefSetting(SavedGifs, SavedGifs);
 DeclareSetting(uint64, LastSavedGifsUpdate);
 DeclareSetting(bool, ShowingSavedGifs);
-DeclareSetting(int32, SavedGifsLimit);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
@@ -310,21 +282,12 @@ DeclareSetting(int32, IntRetinaFactor);
 DeclareSetting(bool, CustomNotifies);
 
 DeclareReadSetting(DBIPlatform, Platform);
+DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);
 DeclareSetting(bool, DialogsReceived);
-
-DeclareSetting(bool, WideMode);
-
-DeclareSetting(int, OnlineUpdatePeriod);
-DeclareSetting(int, OfflineBlurTimeout);
-DeclareSetting(int, OfflineIdleTimeout);
-DeclareSetting(int, OnlineFocusTimeout);
-DeclareSetting(int, OnlineCloudTimeout);
-DeclareSetting(int, NotifyCloudDelay);
-DeclareSetting(int, NotifyDefaultDelay);
 
 DeclareSetting(int, OtherOnline);
 

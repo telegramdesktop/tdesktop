@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -25,13 +25,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(e->rect());
-	p.drawPixmap(QRect(r.left(), 0, r.width(), height()), App::sprite(), st::boxBlueShadow);
+	p.drawPixmap(QRect(r.left(), 0, r.width(), height()), App::sprite(), st::boxBlueShadow.rect());
 }
 
 BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)
@@ -132,7 +132,7 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &ad
 	p.setFont(st::boxTitleFont);
 	if (_blueTitle) {
 		p.fillRect(0, 0, width(), st::boxTitleHeight, st::boxBlueTitleBg->b);
-		p.setPen(st::white);
+		p.setPen(st::black);
 
 		int32 titleWidth = st::boxTitleFont->width(title);
 		p.drawTextLeft(st::boxBlueTitlePosition.x(), st::boxBlueTitlePosition.y(), width(), title, titleWidth);
@@ -178,6 +178,14 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 		_maxHeight = maxHeight;
 		resize(newWidth, countHeight());
 		if (parentWidget()) {
+			QRect r = geometry();
+			int32 parenth = parentWidget()->height();
+			if (r.top() + r.height() + st::boxVerticalMargin > parenth) {
+				int32 newTop = qMax(parenth - int(st::boxVerticalMargin) - r.height(), (parenth - r.height()) / 2);
+				if (newTop != r.top()) {
+					move(r.left(), newTop);
+				}
+			}
 			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
 		}
 	}

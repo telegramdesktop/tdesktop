@@ -16,15 +16,13 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
-#include "lang.h"
-
 #include "sysbuttons.h"
-#include "passcodewidget.h"
-#include "window.h"
+
+#include "lang.h"
+#include "shortcuts.h"
 #include "application.h"
 #include "autoupdater.h"
 
@@ -64,7 +62,7 @@ void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
 }
 
 void SysBtn::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	int x = width() - ((_st.size.width() + _st.img.pxWidth()) / 2), y = (height() - _st.img.pxHeight()) / 2;
 	QColor c = a_color.current();
@@ -78,8 +76,8 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 		}
 	}
 	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
-	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
-	
+	p.drawSprite(QPoint(x, y), _st.img);
+
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);
@@ -111,7 +109,7 @@ void SysBtn::step_color(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-MinimizeBtn::MinimizeBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysMin), wnd(window) {
+MinimizeBtn::MinimizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMin), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -119,7 +117,7 @@ void MinimizeBtn::onClick() {
 	wnd->setWindowState(Qt::WindowMinimized);
 }
 
-MaximizeBtn::MaximizeBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysMax), wnd(window) {
+MaximizeBtn::MaximizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMax), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -127,7 +125,7 @@ void MaximizeBtn::onClick() {
 	wnd->setWindowState(Qt::WindowMaximized);
 }
 
-RestoreBtn::RestoreBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysRes), wnd(window) {
+RestoreBtn::RestoreBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysRes), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -135,7 +133,7 @@ void RestoreBtn::onClick() {
 	wnd->setWindowState(Qt::WindowNoState);
 }
 
-CloseBtn::CloseBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysCls), wnd(window) {
+CloseBtn::CloseBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysCls), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
@@ -143,31 +141,28 @@ void CloseBtn::onClick() {
 	wnd->close();
 }
 
-UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : SysBtn(parent, st::sysUpd, text), wnd(window) {
+UpdateBtn::UpdateBtn(QWidget *parent, MainWindow *window, const QString &text) : SysBtn(parent, st::sysUpd, text), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
 void UpdateBtn::onClick() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	#endif
-	if (App::app()->updatingState() == Application::UpdatingReady) {
+	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
-	} else {
+	} else
+#endif
+	{
 		cSetRestarting(true);
 		cSetRestartingToSettings(false);
 	}
 	App::quit();
 }
 
-LockBtn::LockBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysLock), wnd(window) {
+LockBtn::LockBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysLock), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }
 
 void LockBtn::onClick() {
-	if (App::passcoded()) {
-		App::wnd()->passcodeWidget()->onSubmit();
-	} else {
-		App::wnd()->setupPasscode(true);
-	}
+	Shortcuts::launch(qsl("lock_telegram"));
 }

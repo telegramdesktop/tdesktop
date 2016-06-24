@@ -16,11 +16,11 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const char *LanguageCodes[] = {
+constexpr const str_const LanguageCodes[] = {
 	"en",
 	"it",
 	"es",
@@ -29,7 +29,7 @@ static const char *LanguageCodes[] = {
 	"pt_BR",
 	"ko",
 };
-static const int languageTest = -1, languageDefault = 0, languageCount = sizeof(LanguageCodes) / sizeof(LanguageCodes[0]);
+constexpr const int languageTest = -1, languageDefault = 0, languageCount = arraysize(LanguageCodes);
 
 class LangString : public QString {
 public:
@@ -142,6 +142,9 @@ inline LangString langDateTimeFull(const QDateTime &date) {
 	return lng_mediaview_date_time(lt_date, langDayOfMonthFull(date.date()), lt_time, date.time().toString(cTimeFormat()));
 }
 
+QString langNewVersionText();
+QString langNewVersionTextForLang(int langId);
+
 class LangLoader {
 public:
 	const QString &errors() const;
@@ -180,7 +183,7 @@ private:
 class Translator : public QTranslator {
 public:
 
-	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const;
+	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const override;
 
 };
 

@@ -16,21 +16,17 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-#include "style.h"
+#include "intro/introsignup.h"
 
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
-
+#include "lang.h"
 #include "application.h"
 
-#include "intro/introsignup.h"
-#include "intro/intro.h"
-
-IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent)
+IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , a_photoOver(0)
 , _a_error(animation(this, &IntroSignup::step_error))
@@ -38,6 +34,7 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent)
 , next(this, lang(lng_intro_finish), st::btnIntroNext)
 , first(this, st::inpIntroName, lang(lng_signup_firstname))
 , last(this, st::inpIntroName, lang(lng_signup_lastname))
+, sentRequest(0)
 , _invertOrder(langFirstNameGoesSecond()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
@@ -127,15 +124,15 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 
 	if (_photoSmall.isNull()) {
 		if (a_photoOver.current() < 1) {
-			QRect pix(st::setPhotoImg);
-			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
-			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
+			QRect pix(st::setPhotoImg.rect());
+			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
+			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 		}
 		if (a_photoOver.current() > 0) {
-			QRect pix(st::setOverPhotoImg);
-			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
-			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
+			QRect pix(st::setOverPhotoImg.rect());
+			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
+			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
 			p.setOpacity(a_photoOver.current());
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 			p.setOpacity(1);
@@ -180,7 +177,7 @@ void IntroSignup::step_error(float64 ms, bool timer) {
 		_a_error.stop();
 		a_errorAlpha.finish();
 		if (!a_errorAlpha.current()) {
-			error = "";
+			error.clear();
 		}
 	} else {
 		a_errorAlpha.update(dt, st::introErrFunc);
@@ -201,7 +198,7 @@ void IntroSignup::step_photo(float64 ms, bool timer) {
 }
 
 void IntroSignup::activate() {
-	show();
+	IntroStep::activate();
 	if (_invertOrder) {
 		last.setFocus();
 	} else {
@@ -209,8 +206,11 @@ void IntroSignup::activate() {
 	}
 }
 
-void IntroSignup::deactivate() {
-	hide();
+void IntroSignup::cancelled() {
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
 }
 
 void IntroSignup::stopCheck() {
@@ -250,7 +250,7 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	first.setDisabled(false);
 	last.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -259,12 +259,28 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 }
 
 bool IntroSignup::nameSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		first.setDisabled(false);
+		last.setDisabled(false);
+		showError(lang(lng_flood_error));
+		if (_invertOrder) {
+			first.setFocus();
+		} else {
+			last.setFocus();
+		}
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	stopCheck();
 	first.setDisabled(false);
 	last.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID" || err == "PHONE_CODE_EXPIRED" || err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID" || err == "PHONE_NUMBER_OCCUPIED") {
-		intro()->onIntroBack();
+	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
+		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
+		err == qstr("PHONE_NUMBER_OCCUPIED")) {
+		intro()->onBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
 		showError(lang(lng_bad_name));
@@ -273,14 +289,6 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 	} else if (err == "LASTNAME_INVALID") {
 		showError(lang(lng_bad_name));
 		last.setFocus();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		if (_invertOrder) {
-			first.setFocus();
-		} else {
-			last.setFocus();
-		}
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -297,7 +305,7 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 }
 
 void IntroSignup::onInputChange() {
-	showError("");
+	showError(QString());
 }
 
 void IntroSignup::onSubmitName(bool force) {
@@ -324,16 +332,13 @@ void IntroSignup::onSubmitName(bool force) {
 	last.setDisabled(true);
 	setFocus();
 
-	showError("");
+	showError(QString());
 
 	firstName = first.text().trimmed();
 	lastName = last.text().trimmed();
 	sentRequest = MTP::send(MTPauth_SignUp(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(intro()->getCode()), MTP_string(firstName), MTP_string(lastName)), rpcDone(&IntroSignup::nameSubmitDone), rpcFail(&IntroSignup::nameSubmitFail));
 }
 
-void IntroSignup::onNext() {
+void IntroSignup::onSubmit() {
 	onSubmitName();
-}
-
-void IntroSignup::onBack() {
 }

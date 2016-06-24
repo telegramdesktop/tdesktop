@@ -16,14 +16,14 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
 
 #include "aboutbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 
 #include "autoupdater.h"
 #include "boxes/confirmbox.h"
@@ -31,10 +31,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
-, _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
-, _text1(this, lang(lng_about_text_1), st::aboutLabel, st::aboutTextStyle)
-, _text2(this, lang(lng_about_text_2), st::aboutLabel, st::aboutTextStyle)
-, _text3(this, QString(), st::aboutLabel, st::aboutTextStyle)
+, _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
+, _text1(this, lang(lng_about_text_1), FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
+, _text2(this, lang(lng_about_text_2), FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
+, _text3(this,st::aboutLabel, st::aboutTextStyle)
 , _done(this, lang(lng_close), st::defaultBoxButton) {
 	_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 
@@ -44,6 +44,8 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
+
+	setAcceptDrops(true);
 }
 
 void AboutBox::hideAll() {
@@ -82,7 +84,7 @@ void AboutBox::onVersion() {
 		}
 		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
 
-		App::app()->clipboard()->setText(url);
+		Application::clipboard()->setText(url);
 
 		Ui::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
 	} else {
@@ -105,10 +107,38 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, qsl("Telegram Desktop"));
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+QString _getCrashReportFile(const QMimeData *m) {
+	if (!m || m->urls().size() != 1 || !m->urls().at(0).isLocalFile()) return QString();
+
+	auto file = psConvertFileUrl(m->urls().at(0));
+
+	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
+}
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+
+void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+	}
+#endif
+}
+
+void AboutBox::dropEvent(QDropEvent *e) {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->acceptProposedAction();
+		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
+	}
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+}
+
 QString telegramFaqLink() {
 	QString result = qsl("https://telegram.org/faq");
 	if (cLang() > languageDefault && cLang() < languageCount) {
-		const char *code = LanguageCodes[cLang()];
+		const char *code = LanguageCodes[cLang()].c_str();
 		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
 			result += qsl("/") + code;
 		} else if (qstr("pt_BR") == code) {

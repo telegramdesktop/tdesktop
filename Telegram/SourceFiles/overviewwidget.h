@@ -16,12 +16,24 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "window/section_widget.h"
+
+namespace Overview {
+namespace Layout {
+
+class AbstractItem;
+class ItemBase;
+class Date;
+
+} // namespace Layout
+} // namespace Overview
+
 class OverviewWidget;
-class OverviewInner : public QWidget, public RPCSender {
+class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -36,16 +48,16 @@ public:
 	bool preloadLocal();
 	void preloadMore();
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
@@ -71,24 +83,25 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void repaintItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	
+
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 	~OverviewInner();
 
 public slots:
 
 	void onUpdateSelected();
-	void showLinkTip();
 
-	void openContextUrl();
 	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextFile();
-	void openContextFile();
 
 	void goToMessage();
 	void deleteMessage();
@@ -145,21 +158,21 @@ private:
 	bool _reversed;
 	History *_migrated, *_history;
 	ChannelId _channel;
-	
+
 	bool _selMode;
-	uint32 itemSelectedValue(int32 index) const;
+	TextSelection itemSelectedValue(int32 index) const;
 
 	int32 _rowsLeft, _rowWidth;
 
-	typedef QVector<LayoutItem*> Items;
+	typedef QVector<Overview::Layout::AbstractItem*> Items;
 	Items _items;
-	typedef QMap<HistoryItem*, LayoutMediaItem*> LayoutItems;
+	typedef QMap<HistoryItem*, Overview::Layout::ItemBase*> LayoutItems;
 	LayoutItems _layoutItems;
-	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
+	typedef QMap<int32, Overview::Layout::Date*> LayoutDates;
 	LayoutDates _layoutDates;
-	LayoutMediaItem *layoutPrepare(HistoryItem *item);
-	LayoutItem *layoutPrepare(const QDate &date, bool month);
-	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
+	Overview::Layout::ItemBase *layoutPrepare(HistoryItem *item);
+	Overview::Layout::AbstractItem *layoutPrepare(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
 	FlatInput _search;
 	IconedButton _cancelSearch;
@@ -167,7 +180,7 @@ private:
 	int32 _itemsToBeLoaded;
 
 	// photos
-	int32 _photosInRow, _photosToAdd;
+	int32 _photosInRow;
 
 	QTimer _searchTimer;
 	QString _searchQuery;
@@ -198,7 +211,7 @@ private:
 	// selection support, like in HistoryWidget
 	Qt::CursorShape _cursor;
 	HistoryCursorState _cursorState;
-	typedef QMap<MsgId, uint32> SelectedItems;
+	using SelectedItems = QMap<MsgId, TextSelection>;
 	SelectedItems _selected;
 	enum DragAction {
 		NoDrag = 0x00,
@@ -216,7 +229,7 @@ private:
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
-	TextLinkPtr _contextMenuLnk;
+	ClickHandlerPtr _contextMenuLnk;
 
 	MsgId _dragSelFrom, _dragSelTo;
 	int32 _dragSelFromIndex, _dragSelToIndex;
@@ -244,14 +257,14 @@ public:
 
 	void clear();
 
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void scrollBy(int32 add);
 	void scrollReset();
 
-	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -265,38 +278,48 @@ public:
 	int32 countBestScroll() const;
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
+	bool hasTopBarShadow() const {
+		return true;
+	}
+	void setLastScrollTop(int lastScrollTop);
+	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void step_show(float64 ms, bool timer);
 
-	void updateWideMode();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
-	
+
 	QPoint clampMousePosition(QPoint point);
 
 	void checkSelectingScroll(QPoint point);
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-	
+
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
 	void updateScrollColors();
 
 	void updateAfterDrag();
 
-	void grabStart() {
-		_sideShadow.hide();
+	void grabStart() override {
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+	void grapWithoutTopBarShadow() {
+		grabStart();
+		_topShadow.hide();
+	}
+	void grabFinish() override {
 		_inGrab = false;
 		resizeEvent(0);
+		_topShadow.show();
+	}
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
 	}
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -328,9 +351,9 @@ private:
 	QString _header;
 
 	Animation _a_show;
-	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	QPixmap _cacheUnder, _cacheOver;
 	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
+	anim::fvalue a_progress;
 
 	int32 _scrollSetAfterShow;
 
@@ -339,7 +362,7 @@ private:
 
 	int32 _selCount;
 
-	PlainShadow _sideShadow, _topShadow;
+	PlainShadow _topShadow;
 	bool _inGrab;
 
 };

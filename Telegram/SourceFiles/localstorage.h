@@ -16,11 +16,11 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "core/basic_types.h"
 
 namespace _local_inner {
 
@@ -54,7 +54,7 @@ namespace _local_inner {
 namespace Local {
 
 	void start();
-	void stop();
+	void finish();
 
 	void readSettings();
 	void writeSettings();
@@ -105,18 +105,22 @@ namespace Local {
 
 	int32 oldSettingsVersion();
 
+	using TextWithTags = FlatTextarea::TextWithTags;
 	struct MessageDraft {
-		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
+		MessageDraft(MsgId msgId = 0, TextWithTags textWithTags = TextWithTags(), bool previewCancelled = false)
+			: msgId(msgId)
+			, textWithTags(textWithTags)
+			, previewCancelled(previewCancelled) {
 		}
-		MsgId replyTo;
-		QString text;
+		MsgId msgId;
+		TextWithTags textWithTags;
 		bool previewCancelled;
 	};
-	void writeDraft(const PeerId &peer, const MessageDraft &draft);
-	MessageDraft readDraft(const PeerId &peer);
-	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
-	MessageCursor readDraftPositions(const PeerId &peer);
-	bool hasDraftPositions(const PeerId &peer);
+	void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const MessageDraft &editDraft);
+	void readDraftsWithCursors(History *h);
+	void writeDraftCursors(const PeerId &peer, const MessageCursor &localCursor, const MessageCursor &editCursor);
+	bool hasDraftCursors(const PeerId &peer);
+	bool hasDraft(const PeerId &peer);
 
 	void writeFileLocation(MediaKey location, const FileLocation &local);
 	FileLocation readFileLocation(MediaKey location, bool check = true);
@@ -130,12 +134,13 @@ namespace Local {
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
 	bool willStickerImageLoad(const StorageKey &location);
-	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation);
+	bool copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
+	bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 
@@ -143,6 +148,8 @@ namespace Local {
 	TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
 	int32 hasWebFiles();
 	qint64 storageWebFilesSize();
+
+	void countVoiceWaveform(DocumentData *document);
 
 	void cancelTask(TaskId id);
 

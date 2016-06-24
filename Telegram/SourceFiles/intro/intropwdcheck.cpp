@@ -16,21 +16,18 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-#include "style.h"
-
-#include "gui/filedialog.h"
-#include "boxes/confirmbox.h"
-
-#include "application.h"
-
 #include "intro/intropwdcheck.h"
-#include "intro/intro.h"
 
-IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStage(parent)
+#include "ui/filedialog.h"
+#include "boxes/confirmbox.h"
+#include "lang.h"
+#include "application.h"
+#include "intro/introsignup.h"
+
+IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroPwdCheck::step_error))
 , _next(this, lang(lng_intro_submit), st::btnIntroNext)
@@ -130,7 +127,7 @@ void IntroPwdCheck::step_error(float64 ms, bool timer) {
 		_a_error.stop();
 		a_errorAlpha.finish();
 		if (!a_errorAlpha.current()) {
-			error = "";
+			error.clear();
 		}
 	} else {
 		a_errorAlpha.update(dt, st::introErrFunc);
@@ -139,7 +136,7 @@ void IntroPwdCheck::step_error(float64 ms, bool timer) {
 }
 
 void IntroPwdCheck::activate() {
-	show();
+	IntroStep::activate();
 	if (_pwdField.isHidden()) {
 		_codeField.setFocus();
 	} else {
@@ -147,8 +144,11 @@ void IntroPwdCheck::activate() {
 	}
 }
 
-void IntroPwdCheck::deactivate() {
-	hide();
+void IntroPwdCheck::cancelled() {
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
 }
 
 void IntroPwdCheck::stopCheck() {
@@ -182,7 +182,7 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 	}
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -191,22 +191,29 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 }
 
 bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		sentRequest = 0;
+		stopCheck();
+		_codeField.setDisabled(false);
+		showError(lang(lng_flood_error));
+		_pwdField.setDisabled(false);
+		_pwdField.notaBene();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PASSWORD_HASH_INVALID") {
+	if (err == qstr("PASSWORD_HASH_INVALID")) {
 		showError(lang(lng_signin_bad_password));
 		_pwdField.selectAll();
 		_pwdField.notaBene();
 		return true;
-	} else if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		_pwdField.notaBene();
-		return true;
+	} else if (err == qstr("PASSWORD_EMPTY")) {
+		intro()->onBack();
 	}
 	if (cDebug()) { // internal server error
 		showError(err + ": " + error.description());
@@ -218,28 +225,31 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 }
 
 bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		showError(lang(lng_flood_error));
+		_codeField.notaBene();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
+	if (err == qstr("PASSWORD_EMPTY")) {
+		intro()->onBack();
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_NA") {
+	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		recoverStartFail(error);
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_EXPIRED") {
+	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
 		onToPassword();
 		return true;
-	} else if (err == "CODE_INVALID") {
+	} else if (err == qstr("CODE_INVALID")) {
 		showError(lang(lng_signin_wrong_code));
 		_codeField.selectAll();
-		_codeField.notaBene();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
 		_codeField.notaBene();
 		return true;
 	}
@@ -265,7 +275,7 @@ bool IntroPwdCheck::recoverStartFail(const RPCError &error) {
 	_codeField.hide();
 	_pwdField.setFocus();
 	update();
-	showError("");
+	showError(QString());
 	return true;
 }
 
@@ -275,7 +285,7 @@ void IntroPwdCheck::onToRecover() {
 			MTP::cancel(sentRequest);
 			sentRequest = 0;
 		}
-		showError("");
+		showError(QString());
 		_toRecover.hide();
 		_toPassword.show();
 		_pwdField.hide();
@@ -327,7 +337,8 @@ void IntroPwdCheck::onResetSure() {
 }
 
 bool IntroPwdCheck::deleteFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	showError(lang(lng_server_error));
 	return true;
@@ -335,11 +346,11 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 
 void IntroPwdCheck::deleteDone(const MTPBool &v) {
 	Ui::hideLayer();
-	intro()->onIntroNext();
+	intro()->replaceStep(new IntroSignup(intro()));
 }
 
 void IntroPwdCheck::onInputChange() {
-	showError("");
+	showError(QString());
 }
 
 void IntroPwdCheck::onSubmitPwd(bool force) {
@@ -359,17 +370,14 @@ void IntroPwdCheck::onSubmitPwd(bool force) {
 		_pwdField.setDisabled(true);
 		setFocus();
 
-		showError("");
+		showError(QString());
 
 		QByteArray pwdData = _salt + _pwdField.text().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
 		hashSha256(pwdData.constData(), pwdData.size(), pwdHash.data());
-		sentRequest = MTP::send(MTPauth_CheckPassword(MTP_string(pwdHash)), rpcDone(&IntroPwdCheck::pwdSubmitDone, false), rpcFail(&IntroPwdCheck::pwdSubmitFail));
+		sentRequest = MTP::send(MTPauth_CheckPassword(MTP_bytes(pwdHash)), rpcDone(&IntroPwdCheck::pwdSubmitDone, false), rpcFail(&IntroPwdCheck::pwdSubmitFail));
 	}
 }
 
-void IntroPwdCheck::onNext() {
+void IntroPwdCheck::onSubmit() {
 	onSubmitPwd();
-}
-
-void IntroPwdCheck::onBack() {
 }

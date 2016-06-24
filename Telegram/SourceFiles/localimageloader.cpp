@@ -16,16 +16,16 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "localimageloader.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 #include "audio.h"
 
 #include "boxes/photosendbox.h"
 #include "mainwidget.h"
-#include "window.h"
+#include "mainwindow.h"
 #include "lang.h"
 #include "boxes/confirmbox.h"
 
@@ -117,6 +117,7 @@ void TaskQueue::stop() {
 	if (_thread) {
 		_thread->requestInterruption();
 		_thread->quit();
+		DEBUG_LOG(("Waiting for taskThread to finish"));
 		_thread->wait();
 		delete _worker;
 		delete _thread;
@@ -170,7 +171,7 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
 , _duration(0)
@@ -179,7 +180,7 @@ FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(rand_value<uint64>())
 , _to(to)
 , _content(content)
 , _duration(0)
@@ -188,7 +189,7 @@ FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, con
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(rand_value<uint64>())
 , _to(to)
 , _image(image)
 , _duration(0)
@@ -198,10 +199,11 @@ FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const Fil
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &audio, int32 duration, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to) : _id(rand_value<uint64>())
 , _to(to)
-, _content(audio)
+, _content(voice)
 , _duration(duration)
+, _waveform(waveform)
 , _type(PrepareAudio)
 , _confirm(FileLoadNoForceConfirm)
 , _result(0) {
@@ -220,7 +222,7 @@ void FileLoadTask::process() {
 	QString thumbname = "thumb.jpg";
 	QByteArray thumbdata;
 
-	bool animated = false;
+	bool animated = false, song = false, gif = false, voice = (_type == PrepareAudio);
 	QImage fullimage = _image;
 
 	if (!_filepath.isEmpty()) {
@@ -232,30 +234,32 @@ void FileLoadTask::process() {
 		filesize = info.size();
 		filemime = mimeTypeForFile(info).name();
 		filename = info.fileName();
-		if (filesize <= MaxUploadPhotoSize && _type != PrepareAudio) {
+		if (filesize <= MaxUploadPhotoSize && !voice) {
 			bool opaque = (filemime != stickerMime);
 			fullimage = App::readImage(_filepath, 0, opaque, &animated);
 		}
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
-		MimeType mimeType = mimeTypeForData(_content);
-		filemime = mimeType.name();
-		if (filesize <= MaxUploadPhotoSize && _type != PrepareAudio) {
-			bool opaque = (filemime != stickerMime);
-			fullimage = App::readImage(_content, 0, opaque, &animated);
-		}
-		if (filemime == "image/jpeg") {
-			filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
-		} else if (_type == PrepareAudio) {
+		if (voice) {
 			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
 			filemime = "audio/ogg";
 		} else {
-			QString ext;
-			QStringList patterns = mimeType.globPatterns();
-			if (!patterns.isEmpty()) {
-				ext = patterns.front().replace('*', QString());
+			MimeType mimeType = mimeTypeForData(_content);
+			filemime = mimeType.name();
+			if (filesize <= MaxUploadPhotoSize && !voice) {
+				bool opaque = (filemime != stickerMime);
+				fullimage = App::readImage(_content, 0, opaque, &animated);
 			}
-			filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
+			if (filemime == "image/jpeg") {
+				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+			} else {
+				QString ext;
+				QStringList patterns = mimeType.globPatterns();
+				if (!patterns.isEmpty()) {
+					ext = patterns.front().replace('*', QString());
+				}
+				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
+			}
 		}
 	} else if (!_image.isNull()) {
 		_image = QImage();
@@ -292,10 +296,8 @@ void FileLoadTask::process() {
 	MTPPhotoSize thumbSize(MTP_photoSizeEmpty(MTP_string("")));
 	MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
 	MTPDocument document(MTP_documentEmpty(MTP_long(0)));
-	MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
 
-	bool song = false, gif = false;
-	if (_type != PrepareAudio) {
+	if (!voice) {
 		if (filemime == qstr("audio/mp3") || filemime == qstr("audio/m4a") || filemime == qstr("audio/aac") || filemime == qstr("audio/ogg") || filemime == qstr("audio/flac") ||
 			filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
 			filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
@@ -321,7 +323,7 @@ void FileLoadTask::process() {
 						thumb = full;
 						thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-						thumbId = MTP::nonce<uint64>();
+						thumbId = rand_value<uint64>();
 					}
 				}
 			}
@@ -348,7 +350,7 @@ void FileLoadTask::process() {
 					thumb = full;
 					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-					thumbId = MTP::nonce<uint64>();
+					thumbId = rand_value<uint64>();
 
 					if (filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
 						filemime = qstr("video/mp4");
@@ -358,7 +360,7 @@ void FileLoadTask::process() {
 		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !gif) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !gif && !voice) {
 		int32 w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
@@ -404,12 +406,14 @@ void FileLoadTask::process() {
 			thumb = full;
 			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-			thumbId = MTP::nonce<uint64>();
+			thumbId = rand_value<uint64>();
 		}
 	}
 
-	if (_type == PrepareAudio) {
-		audio = MTP_audio(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_int(_duration), MTP_string(filemime), MTP_int(filesize), MTP_int(MTP::maindc()));
+	if (voice) {
+		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
+		attributes.resize(1);
+		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 	} else {
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		if (photo.type() == mtpc_photoEmpty) {
@@ -431,7 +435,6 @@ void FileLoadTask::process() {
 	_result->thumb = thumb;
 
 	_result->photo = photo;
-	_result->audio = audio;
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
 }
