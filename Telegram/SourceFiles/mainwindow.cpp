@@ -599,6 +599,10 @@ void MainWindow::setupIntro(bool anim) {
 	cSetDialogsReceived(false);
 	if (intro && !intro->isHidden() && !main) return;
 
+	if (_mediaView) {
+		_mediaView->clearData();
+	}
+
 	QPixmap bg = anim ? grabInner() : QPixmap();
 
 	clearWidgets();

@@ -2306,21 +2306,34 @@ void ReplyKeyboard::resize(int width, int height) {
 	for (ButtonRow &row : _rows) {
 		int s = row.size();
 
-		int widthForText = _width - ((s - 1) * _st->buttonSkip());
+		int widthForButtons = _width - ((s - 1) * _st->buttonSkip());
+		int widthForText = widthForButtons;
 		int widthOfText = 0;
+		int maxMinButtonWidth = 0;
 		for_const (const Button &button, row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
-			widthForText -= _st->minButtonWidth(button.type);
+			int minButtonWidth = _st->minButtonWidth(button.type);
+			widthForText -= minButtonWidth;
+			accumulate_max(maxMinButtonWidth, minButtonWidth);
 		}
 		bool exact = (widthForText == widthOfText);
+		bool enough = (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
 
 		float64 x = 0;
 		for (Button &button : row) {
 			int buttonw = qMax(button.text.maxWidth(), 1);
-			float64 textw = exact ? buttonw : (widthForText / float64(s));
-			float64 minw = _st->minButtonWidth(button.type);
-			float64 w = minw + textw;
-			accumulate_max(w, 2 * float64(_st->buttonPadding()));
+			float64 textw = buttonw, minw = _st->minButtonWidth(button.type);
+			float64 w = textw;
+			if (exact) {
+				w += minw;
+			} else if (enough) {
+				w = (widthForButtons / float64(s));
+				textw = w - minw;
+			} else {
+				textw = (widthForText / float64(s));
+				w = minw + textw;
+				accumulate_max(w, 2 * float64(_st->buttonPadding()));
+			}
 
 			int rectx = static_cast<int>(std::floor(x));
 			int rectw = static_cast<int>(std::floor(x + w)) - rectx;
@@ -2358,10 +2371,14 @@ void ReplyKeyboard::setStyle(StylePtr &&st) {
 
 int ReplyKeyboard::naturalWidth() const {
 	auto result = 0;
-	for_const (const auto &row, _rows) {
+	for_const (auto &row, _rows) {
+		auto maxMinButtonWidth = 0;
+		for_const (auto &button, row) {
+			accumulate_max(maxMinButtonWidth, _st->minButtonWidth(button.type));
+		}
 		auto rowMaxButtonWidth = 0;
-		for_const (const auto &button, row) {
-			accumulate_max(rowMaxButtonWidth, qMax(button.text.maxWidth(), 1) + _st->minButtonWidth(button.type));
+		for_const (auto &button, row) {
+			accumulate_max(rowMaxButtonWidth, qMax(button.text.maxWidth(), 1) + maxMinButtonWidth);
 		}
 
 		auto rowSize = row.size();
@@ -4894,9 +4911,9 @@ public:
 
 protected:
 	void onClickImpl() const override {
-		if (HistoryMedia *media = _item->getMedia()) {
-			if (DocumentData *document = media->getDocument()) {
-				if (StickerData *sticker = document->sticker()) {
+		if (auto media = _item->getMedia()) {
+			if (auto document = media->getDocument()) {
+				if (auto sticker = document->sticker()) {
 					if (sticker->set.type() != mtpc_inputStickerSetEmpty && App::main()) {
 						App::main()->stickersBox(sticker->set);
 					}
@@ -4918,13 +4935,15 @@ HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : Hi
 , _data(document)
 , _emoji(_data->sticker()->alt) {
 	_data->thumb->load();
-	if (EmojiPtr e = emojiFromText(_emoji)) {
+	if (auto e = emojiFromText(_emoji)) {
 		_emoji = emojiString(e);
 	}
 }
 
 void HistorySticker::initDimensions() {
-	if (!_packLink && _data->sticker() && _data->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+	auto sticker = _data->sticker();
+
+	if (!_packLink && sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
 		_packLink = ClickHandlerPtr(new StickerClickHandler(_parent));
 	}
 	_pixw = _data->dimensions.width();
@@ -4968,6 +4987,9 @@ int HistorySticker::resizeGetHeight(int width) { // return new height
 }
 
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+	auto sticker = _data->sticker();
+	if (!sticker) return;
+
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->checkSticker();
@@ -4989,16 +5011,16 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, u
 	if (rtl()) usex = _width - usex - usew;
 
 	if (selected) {
-		if (_data->sticker()->img->isNull()) {
+		if (sticker->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), _data->thumb->pixBlurredColored(st::msgStickerOverlay, _pixw, _pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), _data->sticker()->img->pixColored(st::msgStickerOverlay, _pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), sticker->img->pixColored(st::msgStickerOverlay, _pixw, _pixh));
 		}
 	} else {
-		if (_data->sticker()->img->isNull()) {
+		if (sticker->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), _data->thumb->pixBlurred(_pixw, _pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), _data->sticker()->img->pix(_pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (_minh - _pixh) / 2), sticker->img->pix(_pixw, _pixh));
 		}
 	}
 
