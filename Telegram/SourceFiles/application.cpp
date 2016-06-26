@@ -1048,7 +1048,7 @@ void AppClass::checkMapVersion() {
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9055) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Main window position and size are saved between the launches in Windows\n\xe2\x80\x94 Dock and top bar hiding fixed in OS X\n\xe2\x80\x94 Various design improvements and other bug fixes");
 //				versionFeatures = langNewVersionText();
-			} else if (Local::oldMapVersion() < 9050) {
+			} else if (Local::oldMapVersion() < 9056) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

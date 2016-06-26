@@ -697,7 +697,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Mensaje de voz";
 "lng_in_dlg_file" = "Archivo";
 "lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+"lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 
 "lng_ban_user" = "Suspender usuario";
 "lng_delete_all_from" = "Eliminar todo lo de este usuario";
@@ -726,7 +726,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_wont_be_notified" = "Tu publicación no será notificada";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Selecciona un chat para comenzar";
-"lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_from_draft" = "Borrador";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
@@ -734,6 +733,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_join" = "Unirse al canal";
 "lng_channel_mute" = "Silenciar";
 "lng_channel_unmute" = "No silenciar";
+
+"lng_dialogs_text_with_from" = "{from_part} {message}";
+"lng_dialogs_text_from_wrapped" = "{from}:";
+"lng_dialogs_text_media" = "{media_part} {caption}";
+"lng_dialogs_text_media_wrapped" = "{media},";
 
 "lng_open_this_link" = "¿Abrir este enlace?";
 "lng_open_link" = "Abrir";
@@ -880,6 +884,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_selected_upload_stop" = "Detener";
 "lng_selected_delete_sure_this" = "¿Quieres eliminar este mensaje?";
 "lng_selected_delete_sure" = "¿Quieres eliminar {count:_not_used_|# mensaje|# mensajes}?";
+"lng_delete_photo_sure" = "¿Quieres eliminar esta foto?";
 "lng_box_delete" = "Eliminar";
 "lng_box_leave" = "Salir";
 
@@ -916,7 +921,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Presentamos los borradores: sincronización para los mensajes no enviados en todos tus dispositivos. Los borradores ahora son visibles en tu lista de chats.\n— Perfiles de grupos y usuarios completamente rediseñados.\n— Contador de mensajes “no leídos” en el botón de “desplazar hacia abajo”.\n\nMás sobre esta actualización: {link}";
+"lng_new_version_text" = "— Corrección en el visor de fotos, para manejar correctamente el cambio de la resolución de la pantalla\n— Corrección en el reenvío de fotos a través de arrastrar y soltar \n— Varias mejoras de diseño y corrección de otros errores";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

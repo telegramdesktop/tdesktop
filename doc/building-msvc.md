@@ -8,7 +8,7 @@ Choose a folder for the future build, for example **D:\TBuild\**. There you will
 
 By git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and run
 
-     git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone https://github.com/telegramdesktop/tdesktop.git
 
 or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to **tdesktop** to have **D:\TBuild\tdesktop\Telegram.sln** solution
 
@@ -45,8 +45,11 @@ Extract to **D:\TBuild\Libraries**
 
 * Open in VS2015 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade – **OK**
 * For **Debug** and **Release** configurations
-  * LzmaLib Properties > General > Configuration Type = **Static library (.lib)** – **OK**
+  * LzmaLib Properties > General > Configuration Type = **Static library (.lib)** – **Apply**
   * LzmaLib Properties > Librarian > General > Target Machine = **MachineX86 (/MACHINE:X86)** – **OK**
+  * If you can't find **Librarian**, you forgot to click **Apply** after changing the Configuration Type.
+* For **Debug** configuration
+  * LzmaLib Properties > C/C++ > General > Debug Information Format = **Program Database (/Zi)** - **OK**
 * Build Debug configuration
 * Build Release configuration
 
@@ -95,7 +98,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
 * Install [CMake](http://www.cmake.org/)
 * Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\TBuild\Libraries\openal-soft\build\** and run
 
-    cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+        cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
 
 * Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln** and build Debug and Release configurations
 
@@ -201,11 +204,17 @@ There go to Libraries directory
 
 and run
 
-    git clone https://chromium.googlesource.com/breakpad/breakpad
-    git clone https://chromium.googlesource.com/external/gyp
     set PATH=C:\Python27;%PATH%
-    cd breakpad/src/client/windows
-    ..\..\..\..\gyp\gyp --no-circular-check
+    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    cd depot_tools
+    gclient sync
+    cd ..
+    md breakpad
+    cd breakpad
+    ..\depot_tools\fetch breakpad
+    ..\depot_tools\gclient sync
+
+There's now a src folder within a src folder: D:\TBuild\Libraries\breakpad\src\src.  Telegram only expects one src folder.  Either via the command line or File Explorer, rename the top-level src folder and move the inner src folder one level up.  This way, what was once breakpad\src\src\client is now breakpad\src\client, etc.
 
 #####Building library
 
@@ -221,6 +230,6 @@ and run
 * QT5 > Qt Options > Add
   * Version name: **Qt 5.6.0 Win32**
   * Path: **D:\TBuild\Libraries\qt5_6_0\qtbase**
-* Default Qt/Win version: **Qt 5.6.0 Win32** – **OK**
+* Default Qt/Win version: **Qt 5.6.0 Win32** – **OK** - You may need to restart Visual Studio for this to take effect.
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)
