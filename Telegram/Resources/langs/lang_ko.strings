@@ -697,7 +697,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "음성 메시지";
 "lng_in_dlg_file" = "파일";
 "lng_in_dlg_sticker" = "스티커";
-"lng_in_dlg_sticker_emoji" = "{emoji} (스티커)";
+"lng_in_dlg_sticker_emoji" = "{emoji} 스티커";
 
 "lng_ban_user" = "차단하기";
 "lng_delete_all_from" = "모두에게 메시지 삭제";
@@ -726,7 +726,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_wont_be_notified" = "메시지 작성시 구성원들에게 알림이 가지 않습니다.";
 "lng_empty_history" = "";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
-"lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "회원님";
 "lng_from_draft" = "임시저장";
 "lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
@@ -734,6 +733,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_join" = "채널 입장";
 "lng_channel_mute" = "음소거";
 "lng_channel_unmute" = "음소거 취소";
+
+"lng_dialogs_text_with_from" = "{from_part} {message}";
+"lng_dialogs_text_from_wrapped" = "{from}:";
+"lng_dialogs_text_media" = "{media_part} {caption}";
+"lng_dialogs_text_media_wrapped" = "{media},";
 
 "lng_open_this_link" = "이 링크로 이동하시겠나요?";
 "lng_open_link" = "열기";
@@ -880,6 +884,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_selected_upload_stop" = "정지";
 "lng_selected_delete_sure_this" = "메시지를 삭제하시겠습니까?";
 "lng_selected_delete_sure" = "{count:_not_used_|# 메시지|# 메시지}를 삭제하시겠습니까?";
+"lng_delete_photo_sure" = "사진을 삭제하시겠습니까?";
 "lng_box_delete" = "삭제";
 "lng_box_leave" = "나가기";
 
@@ -916,7 +921,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 임시저장을 소개합니다: 임시로 작성된 메시지 동기화. 채팅목록에 임시저장된 내역이 표시됩니다.\n— 그룹 및 구성원 프로필 디자인 리뉴얼.\n— '맨 밑으로 스크롤' 버튼에 안 읽은 메시지 카운터 표시.\n\n업데이트 자세한 내역: {link}";
+"lng_new_version_text" = "— 해상도 변경에 따라 사진 뷰어가 정상적으로 표시되도록 수정\n— 드래그앤드롭으로 사진 전송 수정\n— 디자인 및 버그 수정";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

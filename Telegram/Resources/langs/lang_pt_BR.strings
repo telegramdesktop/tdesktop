@@ -697,7 +697,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Mensagem de voz";
 "lng_in_dlg_file" = "Arquivo";
 "lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+"lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 
 "lng_ban_user" = "Banir Usuário";
 "lng_delete_all_from" = "Apagar tudo deste usuário";
@@ -726,7 +726,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_wont_be_notified" = "Os membros não serão notificados quando você postar";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Selecione um chat para começar a conversar";
-"lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Você";
 "lng_from_draft" = "Rascunho";
 "lng_bot_description" = "O que esse bot pode fazer?";
@@ -734,6 +733,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_join" = "Entrar no Canal";
 "lng_channel_mute" = "Silenciar";
 "lng_channel_unmute" = "Restaurar Som";
+
+"lng_dialogs_text_with_from" = "{from_part} {message}";
+"lng_dialogs_text_from_wrapped" = "{from}:";
+"lng_dialogs_text_media" = "{media_part} {caption}";
+"lng_dialogs_text_media_wrapped" = "{media},";
 
 "lng_open_this_link" = "Abrir este link?";
 "lng_open_link" = "Abrir";
@@ -880,6 +884,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_selected_upload_stop" = "Parar";
 "lng_selected_delete_sure_this" = "Você deseja apagar essa mensagem?";
 "lng_selected_delete_sure" = "Você deseja apagar {count:_not_used_|# mensagem|# mensagens}?";
+"lng_delete_photo_sure" = "Você deseja apagar essa foto?";
 "lng_box_delete" = "Apagar";
 "lng_box_leave" = "Sair";
 
@@ -916,7 +921,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Introduzindo os rascunhos: Sincronização entre todos os seus dispositivos para mensagens não enviadas. Os rascunhos agora são visíveis em sua lista de conversas.\n— Perfis de usuários e grupos completamente redesenhados.\n— Contador de mensagens não lidas no botão “Rolar para baixo”.\n\nMais sobre essa atualização em: {link}";
+"lng_new_version_text" = "— O visualizador de fotos agora maneja corretamente a mudança de resolução da tela\n— O bug ao encaminhar fotos arrastando e soltando foi resolvido. \n— Várias melhorias de design e outras resoluções de bugs";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
