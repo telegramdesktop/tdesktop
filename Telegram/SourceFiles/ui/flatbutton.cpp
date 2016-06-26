@@ -101,7 +101,15 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	QRect r(0, height() - _st.height, width(), _st.height);
 
 	p.setOpacity(_opacity);
-	p.fillRect(r, a_bg.current());
+	if (_st.radius > 0) {
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(QBrush(a_bg.current()));
+		p.drawRoundedRect(r, _st.radius, _st.radius);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	} else {
+		p.fillRect(r, a_bg.current());
+	}
 
 	p.setFont((_state & StateOver) ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
@@ -319,7 +327,7 @@ void EmojiButton::setLoading(bool loading) {
 	}
 }
 
-BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent)
+BoxButton::BoxButton(QWidget *parent, const QString &text, const style::RoundButton &st) : Button(parent)
 , _text(text.toUpper())
 , _fullText(text.toUpper())
 , _textWidth(st.font->width(_text))

@@ -55,13 +55,15 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
-windowBg: #fff; // fallback for background: white
+windowBg: #ffffff; // fallback for background: white
 windowActiveBg: #40ace3; // fallback for blue filled active areas
-windowTextFg: #000; // fallback for text color: black
+windowTextFg: #000000; // fallback for text color: black
 windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
 windowSubTextFgOver: #7c99b2; // fallback for subtext over color: gray over blue bg
 windowActiveTextFg: #1485c2; // fallback for active color: blue online
-windowShadowFg: #000; // fallback for shadow color
+windowShadowFg: #000000; // fallback for shadow color
+
+semiboldButtonBlueText: #2b99d5;
 
 wndMinHeight: 480px;
 wndDefWidth: 800px;
@@ -108,9 +110,11 @@ boxBlueCloseDuration: 150;
 boxBlueShadow: sprite(132px, 108px, 1px, 4px);
 
 boxButtonFont: font(boxFontSize semibold);
-defaultBoxButton: BoxButton {
+defaultBoxButton: RoundButton {
 	textFg: #2f9fea;
 	textFgOver: #2f9fea;
+	secondaryTextFg: #2f9fea;
+	secondaryTextFgOver: #2f9fea;
 	textBg: white;
 	textBgOver: #edf7ff;
 
@@ -123,10 +127,10 @@ defaultBoxButton: BoxButton {
 	font: boxButtonFont;
 	duration: 200;
 }
-cancelBoxButton: BoxButton(defaultBoxButton) {
+cancelBoxButton: RoundButton(defaultBoxButton) {
 	textFg: #aeaeae;
 }
-attentionBoxButton: BoxButton(defaultBoxButton) {
+attentionBoxButton: RoundButton(defaultBoxButton) {
 	textFg: #ea4b2f;
 	textFgOver: #ea4b2f;
 	textBgOver: #fff0ed;
@@ -613,7 +617,7 @@ inpDefGray: flatInput(inpDefFlat) {
 	bgColor: #f2f2f2;
 	borderWidth: 2px;
 	borderColor: #f2f2f2;
-	borderActive: #80cff9;
+	borderActive: #54c3f3;
 	borderError: #ed8080;
 	phColor: #808080;
 }
@@ -658,6 +662,9 @@ scrollDef: flatScroll {
 	duration: 150;
 	hiding: 1000;
 }
+
+msgRadius: 3px;
+
 scrollCountries: flatScroll(scrollDef) {
 	topsh: 0px;
 	bottomsh: -2px;
@@ -725,6 +732,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 
 	width: 300px;
+	radius: msgRadius;
 }
 
 boxShadow: sprite(363px, 50px, 15px, 15px);
@@ -925,11 +933,6 @@ searchFlatInput: flatInput(inpDefGray) {
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 	imgRect: sprite(227px, 21px, 24px, 24px);
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
 }
 
 noContactsHeight: 100px;
@@ -983,10 +986,12 @@ topBarSearch: iconedButton(btnDefIconed) {
 	height: topBarHeight;
 }
 topBarMinPadding: 5px;
-topBarButton: BoxButton {
+topBarButton: RoundButton {
 	textFg: #0084c4;
 	textFgOver: #0084c4;
-	textBg: white;
+	secondaryTextFg: #0084c4;
+	secondaryTextFgOver: #0084c4;
+	textBg: windowBg;
 	textBgOver: #edf4f7;
 
 	width: -22px;
@@ -998,25 +1003,37 @@ topBarButton: BoxButton {
 	font: font(fsize);
 	duration: 200;
 }
-topBarClearButton: BoxButton(topBarButton) {
-	padding: margins(8px, 14px, 8px, 14px);
-}
-topBarActionButton: flatButton(btnDefNext, btnDefBig) {
-	textTop: 8px;
-	overTextTop: 8px;
-	downTextTop: 9px;
+defaultActiveButton: RoundButton {
+	textFg: #ffffff;
+	textFgOver: #ffffff;
+	secondaryTextFg: #cceeff;
+	secondaryTextFgOver: #cceeff;
+	textBg: windowActiveBg;
+	textBgOver: windowActiveBg;
 
-	font: font(fsize);
-	overFont: font(fsize);
-	width: 101px;
+	secondarySkip: 7px;
+
+	width: -34px;
 	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+
+	font: semiboldFont;
+	duration: 200;
 }
-topBarActionSkip: 13px;
+topBarClearButton: RoundButton(defaultActiveButton) {
+	textFg: semiboldButtonBlueText;
+	textFgOver: semiboldButtonBlueText;
+	textBg: #ffffff;
+	textBgOver: #f2f7fa;
+
+	width: -18px;
+}
+topBarActionSkip: 10px;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
-
-msgRadius: 3px;
 
 msgMaxWidth: 430px;
 msgFont: font(fsize);
@@ -1260,14 +1277,14 @@ msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
 msgFileThumbNameTop: 12px;
 msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
-msgFileThumbLinkInFg: #3da5e0;
-msgFileThumbLinkInFgSelected: #3da5e0;
+msgFileThumbLinkInFg: semiboldButtonBlueText;
+msgFileThumbLinkInFgSelected: semiboldButtonBlueText;
 msgFileThumbLinkOutFg: #5eba5b;
 msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: #59b6eb;
+msgFileInBg: windowActiveBg;
 msgFileInBgOver: #4eade3;
 msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
@@ -1313,7 +1330,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: #59b6eb;
+msgWaveformInActive: windowActiveBg;
 msgWaveformInActiveSelected: #51a3d3;
 msgWaveformInInactive: #d4dee6;
 msgWaveformInInactiveSelected: #9cc1e1;
@@ -1578,10 +1595,10 @@ contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
 
-btnNewGroup: iconedButton(btnDefIconed) {
-	icon: sprite(189px, 118px, 18px, 17px);
+btnAddContact: iconedButton(btnDefIconed) {
+	icon: sprite(188px, 93px, 18px, 18px);
 	iconPos: point(8px, 8px);
-	downIcon: sprite(189px, 118px, 18px, 17px);
+	downIcon: sprite(188px, 93px, 18px, 18px);
 	downIconPos: point(8px, 9px);
 
 	bgColor: transparent;
@@ -1589,11 +1606,7 @@ btnNewGroup: iconedButton(btnDefIconed) {
 	width: 36px;
 	height: 36px;
 }
-btnAddContact: iconedButton(btnNewGroup) {
-	icon: sprite(188px, 93px, 18px, 18px);
-	downIcon: sprite(188px, 93px, 18px, 18px);
-}
-btnCancelSearch: iconedButton(btnNewGroup) {
+btnCancelSearch: iconedButton(btnAddContact) {
 	icon: sprite(188px, 43px, 18px, 18px);
 	downIcon: sprite(188px, 43px, 18px, 18px);
 }
@@ -1732,6 +1745,17 @@ dropdownDef: dropdown {
 
 	duration: 150;
 	width: 0px;
+}
+
+defaultInnerDropdownShadow: icon {
+	{ "dropdown_shadow", windowShadowFg },
+};
+defaultInnerDropdown: InnerDropdown {
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: defaultInnerDropdownShadow;
+	shadowShift: 1px;
+
+	duration: 150;
 }
 
 dropdownAttachDocument: iconedButton(btnAttachDocument) {
@@ -1988,7 +2012,7 @@ botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
 }
-switchPmButton: BoxButton(defaultBoxButton) {
+switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
 	height: 34px;
 	textTop: 7px;
@@ -2148,19 +2172,8 @@ btnContext: iconedButton(btnDefIconed) {
 	downTextPos: point(16px, 8px);
 }
 
-photoLoader: size(52px, 22px);
-photoLoaderBg: #00000054;
-photoLoaderCnt: 3;
-photoLoaderPoint: size(6px, 6px);
-photoLoaderSkip: 6px;
-photoLoaderPeriod: 600; // ms full period
-photoLoaderDelta: 150; // ms between points
-photoLoaderDuration1: 150; // ms fade in
-photoLoaderDuration2: 150; // ms fade out
-photoLoaderAlphaMin: 0.1; // not less than that
-
 radialSize: size(50px, 50px);
-radialLine: 2px;
+radialLine: 3px;
 radialDuration: 350;
 radialPeriod: 3000;
 radialBgOpacity: 0.4;
@@ -2168,10 +2181,6 @@ radialDownload: sprite(346px, 0px, 50px, 50px);
 radialDownloadOpacity: 0.8;
 radialCancel: sprite(378px, 50px, 18px, 18px);
 radialCancelOpacity: 1.0;
-
-mediaviewLoader: size(78px, 33px);
-mediaviewLoaderPoint: size(9px, 9px);
-mediaviewLoaderSkip: 9px;
 
 downloadPathSkip: 10px;
 

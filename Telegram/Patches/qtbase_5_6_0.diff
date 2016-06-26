@@ -16,6 +16,23 @@ index eec9e1f..ec3015e 100644
  QMAKE_CFLAGS_YACC       =
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
+diff --git a/src/corelib/io/qfilesystemengine_win.cpp b/src/corelib/io/qfilesystemengine_win.cpp
+index f1a6019..81ff6ef 100644
+--- a/src/corelib/io/qfilesystemengine_win.cpp
++++ b/src/corelib/io/qfilesystemengine_win.cpp
+@@ -1416,8 +1416,10 @@ bool QFileSystemEngine::copyFile(const QFileSystemEntry &source, const QFileSyst
+     COPYFILE2_EXTENDED_PARAMETERS copyParams = {
+         sizeof(copyParams), COPY_FILE_FAIL_IF_EXISTS, NULL, NULL, NULL
+     };
+-    bool ret = ::CopyFile2((const wchar_t*)source.nativeFilePath().utf16(),
+-                           (const wchar_t*)target.nativeFilePath().utf16(), &copyParams) != 0;
++    // CopyFile2 returns HRESULT, not BOOL, so it should be tested for S_OK, not 0.
++    HRESULT hres = ::CopyFile2((const wchar_t*)source.nativeFilePath().utf16(),
++                               (const wchar_t*)target.nativeFilePath().utf16(), &copyParams);
++    bool ret = SUCCEEDED(hres);
+ #endif // Q_OS_WINRT
+     if(!ret)
+         error = QSystemError(::GetLastError(), QSystemError::NativeError);
 diff --git a/src/corelib/tools/qunicodetables.cpp b/src/corelib/tools/qunicodetables.cpp
 index 14e4fd1..c31c62b 100644
 --- a/src/corelib/tools/qunicodetables.cpp
@@ -82,14 +99,14 @@ index 918c989..55ef783 100644
 +#endif
 +            }
          }
-
+ 
          // Make sure we're inside the viewport.
 diff --git a/src/gui/text/qtextengine_p.h b/src/gui/text/qtextengine_p.h
 index 39c228f..b72fdc0 100644
 --- a/src/gui/text/qtextengine_p.h
 +++ b/src/gui/text/qtextengine_p.h
 @@ -283,7 +283,8 @@ private:
-
+ 
  struct QScriptItem;
  /// Internal QTextItem
 -class QTextItemInt : public QTextItem
@@ -119,14 +136,14 @@ index 9e2a23a..4466a4e 100644
 -        while (oldPos < len && attributes[oldPos].whiteSpace)
 -            oldPos++;
      }
-
+ 
      return oldPos;
 @@ -1644,6 +1645,7 @@ namespace {
          int maxGlyphs;
          int currentPosition;
          glyph_t previousGlyph;
 +        QFontEngine *previousGlyphFontEngine;
-
+ 
          QFixed minw;
          QFixed softHyphenWidth;
 @@ -1677,13 +1679,14 @@ namespace {
@@ -136,14 +153,14 @@ index 9e2a23a..4466a4e 100644
 +                previousGlyphFontEngine = fontEngine;
              }
          }
-
+ 
 -        inline void calculateRightBearing(glyph_t glyph)
 +        inline void calculateRightBearing(QFontEngine *engine, glyph_t glyph)
          {
              qreal rb;
 -            fontEngine->getGlyphBearings(glyph, 0, &rb);
 +            engine->getGlyphBearings(glyph, 0, &rb);
-
+ 
              // We only care about negative right bearings, so we limit the range
              // of the bearing here so that we can assume it's negative in the rest
 @@ -1696,13 +1699,13 @@ namespace {
@@ -153,14 +170,14 @@ index 9e2a23a..4466a4e 100644
 -            calculateRightBearing(currentGlyph());
 +            calculateRightBearing(fontEngine, currentGlyph());
          }
-
+ 
          inline void calculateRightBearingForPreviousGlyph()
          {
              if (previousGlyph > 0)
 -                calculateRightBearing(previousGlyph);
 +                calculateRightBearing(previousGlyphFontEngine, previousGlyph);
          }
-
+ 
          static const QFixed RightBearingNotCalculated;
 diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
 index f74d4d4..57d449a 100644
@@ -174,8 +191,8 @@ index f74d4d4..57d449a 100644
 +    // allow access to private constructor
 +    friend class TextBlock;
  };
-
-
+ 
+ 
 diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
 index ca0a8b9..26ee865 100644
 --- a/src/network/socket/qnativesocketengine_win.cpp
@@ -199,9 +216,9 @@ index 728b166..12364db 100644
 --- a/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
 +++ b/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
 @@ -172,6 +172,79 @@ void QBasicFontDatabase::releaseHandle(void *handle)
-
+ 
  extern FT_Library qt_getFreetype();
-
+ 
 +// Enable Open Sans Semibold font family reading.
 +// Copied from freetype with some modifications.
 +
@@ -295,9 +312,9 @@ index a5fe888..5878a4f 100644
 --- a/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
 +++ b/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
 @@ -381,6 +381,17 @@ static void populateFromPattern(FcPattern *pattern)
-
+ 
      familyName = QString::fromUtf8((const char *)value);
-
+ 
 +    // Enable Open Sans Semibold font family reading.
 +    if (familyName == QLatin1String("Open Sans")) {
 +        FcChar8 *styl = 0;
@@ -356,7 +373,7 @@ index 0af7790..c16f154 100644
 --- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 +++ b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 @@ -259,6 +259,13 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
-
+ 
      fd->foundryName = QStringLiteral("CoreText");
      fd->familyName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontFamilyNameAttribute);
 +
@@ -383,6 +400,23 @@ index a4b5280..e2dffcb 100644
  } else {
      LIBS += $$QMAKE_LIBS_XKBCOMMON
      QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_XKBCOMMON
+diff --git a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
+index d1bea9a..f1f808d 100644
+--- a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
++++ b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
+@@ -232,6 +232,12 @@ bool QComposeInputContext::checkComposeTable()
+ 
+ void QComposeInputContext::commitText(uint character) const
+ {
++    // Crash fix when not focused widget still receives input events.
++    if (!m_focusObject) {
++        qWarning("QComposeInputContext::commitText: m_focusObject == nullptr, cannot commit text");
++        return;
++    }
++
+     QInputMethodEvent event;
+     event.setCommitString(QChar(character));
+     QCoreApplication::sendEvent(m_focusObject, &event);
 diff --git a/src/plugins/platforminputcontexts/fcitx/fcitx.json b/src/plugins/platforminputcontexts/fcitx/fcitx.json
 new file mode 100644
 index 0000000..6d2b389
@@ -11193,13 +11227,13 @@ index faea54b..7d85080 100644
 +++ b/src/plugins/platforminputcontexts/platforminputcontexts.pro
 @@ -1,7 +1,8 @@
  TEMPLATE = subdirs
-
+ 
  qtHaveModule(dbus) {
 -!mac:!win32:SUBDIRS += ibus
 +# Adding fcitx input context plugin to our static build.
 +!mac:!win32:SUBDIRS += ibus fcitx
  }
-
+ 
  contains(QT_CONFIG, xcb-plugin): SUBDIRS += compose
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 index caa8884..b083e65 100644
@@ -11213,7 +11247,7 @@ index caa8884..b083e65 100644
 +        // Don't terminate if reflectionDelegate does not respond to that selector, just use the default.
 +        //return NSTerminateNow;
      }
-
+ 
      if ([self canQuit]) {
 diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.h b/src/plugins/platforms/cocoa/qcocoabackingstore.h
 index 5a199de..5622728 100644
@@ -11227,7 +11261,7 @@ index 5a199de..5622728 100644
 +    // Optimize redraw - don't clear image if it will be fully redrawn.
 +    bool m_qImageNeedsClear;
  };
-
+ 
  QT_END_NAMESPACE
 diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.mm b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
 index ca92103..225d85f 100644
@@ -11235,14 +11269,14 @@ index ca92103..225d85f 100644
 +++ b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
 @@ -38,7 +38,8 @@
  QT_BEGIN_NAMESPACE
-
+ 
  QCocoaBackingStore::QCocoaBackingStore(QWindow *window)
 -    : QPlatformBackingStore(window)
 +    // Optimize redraw - don't clear image if it will be fully redrawn.
 +    : QPlatformBackingStore(window), m_qImageNeedsClear(false)
  {
  }
-
+ 
 @@ -59,9 +60,11 @@ QPaintDevice *QCocoaBackingStore::paintDevice()
      if (m_qImage.size() != effectiveBufferSize) {
          QImage::Format format = (window()->format().hasAlpha() || cocoaWindow->m_drawContentBorderGradient)
@@ -11257,7 +11291,7 @@ index ca92103..225d85f 100644
      }
      return &m_qImage;
 @@ -100,7 +103,8 @@ bool QCocoaBackingStore::scroll(const QRegion &area, int dx, int dy)
-
+ 
  void QCocoaBackingStore::beginPaint(const QRegion &region)
  {
 -    if (m_qImage.hasAlphaChannel()) {
@@ -11282,7 +11316,7 @@ index c2d206f..0f9b512 100644
 +
      return true;
  }
-
+ 
 @@ -466,7 +472,8 @@ QList<int> QCocoaKeyMapper::possibleKeys(const QKeyEvent *event) const
          Qt::KeyboardModifiers neededMods = ModsTbl[i];
          int key = kbItem->qtKey[i];
@@ -11316,7 +11350,7 @@ index 8152c57..a7c1ca0 100644
 +    const int padding = 0;
      const int menuHeight = [[NSStatusBar systemStatusBar] thickness];
      const int maxImageHeight = menuHeight - padding;
-
+ 
 @@ -207,8 +211,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
      // devicePixelRatio for the "best" screen on the system.
      qreal devicePixelRatio = qApp->devicePixelRatio();
@@ -11331,21 +11365,21 @@ index 8152c57..a7c1ca0 100644
          // with a height smaller or equal to maxPixmapHeight. The pixmap
          // may rectangular; assume it has a reasonable size. If there is
 @@ -224,9 +231,9 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
-
+ 
      // Handle SVG icons, which do not return anything for availableSizes().
      if (!selectedSize.isValid())
 -        selectedSize = icon.actualSize(QSize(maxPixmapHeight, maxPixmapHeight));
 +        selectedSize = icon.actualSize(QSize(maxPixmapHeight, maxPixmapHeight), mode);
-
+ 
 -    QPixmap pixmap = icon.pixmap(selectedSize);
 +    QPixmap pixmap = icon.pixmap(selectedSize, mode);
-
+ 
      // Draw a low-resolution icon if there is not enough pixels for a retina
      // icon. This prevents showing a small icon on retina displays.
 @@ -374,6 +381,11 @@ QT_END_NAMESPACE
      Q_UNUSED(notification);
      down = NO;
-
+ 
 +    // Create a rich os x tray icon (pixel-perfect, theme switching).
 +    parent->iconSelected = false;
 +    parent->systray->updateIcon(parent->icon);
@@ -11353,11 +11387,11 @@ index 8152c57..a7c1ca0 100644
 +
      [self setNeedsDisplay:YES];
  }
-
+ 
 @@ -383,6 +395,10 @@ QT_END_NAMESPACE
      int clickCount = [mouseEvent clickCount];
      [self setNeedsDisplay:YES];
-
+ 
 +    // Create a rich os x tray icon (pixel-perfect, theme switching).
 +    parent->iconSelected = (clickCount != 2) && parent->menu;
 +    parent->systray->updateIcon(parent->icon);
@@ -11376,7 +11410,7 @@ index 8152c57..a7c1ca0 100644
 +
      [self menuTrackingDone:nil];
  }
-
+ 
 @@ -410,6 +431,11 @@ QT_END_NAMESPACE
  -(void)rightMouseUp:(NSEvent *)mouseEvent
  {
@@ -11388,10 +11422,10 @@ index 8152c57..a7c1ca0 100644
 +
      [self menuTrackingDone:nil];
  }
-
+ 
 @@ -425,7 +451,8 @@ QT_END_NAMESPACE
  }
-
+ 
  -(void)drawRect:(NSRect)rect {
 -    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:down];
 +    // Create a rich os x tray icon (pixel-perfect, theme switching).
@@ -11428,7 +11462,7 @@ index 00cb43c..4530862 100644
 @@ -141,7 +141,8 @@ static bool isMouseEvent(NSEvent *ev)
      if (!self.window.delegate)
          return; // Already detached, pending NSAppKitDefined event
-
+ 
 -    if (pw && pw->frameStrutEventsEnabled() && isMouseEvent(theEvent)) {
 +    // Fix restore after minimize or close by window buttons.
 +    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && pw->m_isExposed && isMouseEvent(theEvent)) {
@@ -11438,7 +11472,7 @@ index 00cb43c..4530862 100644
 @@ -931,6 +932,15 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
      [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
  }
-
+ 
 +// Create a good os x window icon (pixel-perfect).
 +qreal _win_devicePixelRatio() {
 +    qreal result = 1.0;
@@ -11478,7 +11512,7 @@ index 0d80333..729d4d0 100644
          }
 @@ -1451,14 +1452,14 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
      quint32 nativeVirtualKey = [nsevent keyCode];
-
+ 
      QChar ch = QChar::ReplacementCharacter;
 -    int keyCode = Qt::Key_unknown;
 -    if ([characters length] != 0) {
@@ -11496,13 +11530,13 @@ index 0d80333..729d4d0 100644
 +        ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
 +
 +    int keyCode = [self convertKeyCode:ch];
-
+ 
      // we will send a key event unless the input method sets m_sendKeyEvent to false
      m_sendKeyEvent = true;
 @@ -1524,6 +1525,23 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
      [self handleKeyEvent:nsevent eventType:int(QEvent::KeyRelease)];
  }
-
+ 
 +// Enable Ctrl+Tab and Ctrl+Shift+Tab / Ctrl+Backtab handle in-app.
 +- (BOOL)performKeyEquivalent:(NSEvent *)nsevent
 +{
@@ -11530,7 +11564,7 @@ index 9211fd1..283aabd 100644
 @@ -716,12 +716,20 @@ public:
      void setSelectedFiles(const QList<QUrl> &);
      QString selectedFile() const;
-
+ 
 +    // Adding select-by-url for Windows file dialog.
 +    void setSelectedRemoteContent(const QByteArray &);
 +    QByteArray selectedRemoteContent() const;
@@ -11551,7 +11585,7 @@ index 9211fd1..283aabd 100644
 @@ -775,6 +783,21 @@ inline void QWindowsFileDialogSharedData::setSelectedFiles(const QList<QUrl> &ur
      m_data->selectedFiles = urls;
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +inline QByteArray QWindowsFileDialogSharedData::selectedRemoteContent() const
 +{
@@ -11573,7 +11607,7 @@ index 9211fd1..283aabd 100644
 @@ -899,6 +922,9 @@ public:
      // example by appended default suffixes, etc.
      virtual QList<QUrl> dialogResult() const = 0;
-
+ 
 +    // Adding select-by-url for Windows file dialog.
 +    virtual QByteArray dialogRemoteContent() const { return QByteArray(); }
 +
@@ -11595,7 +11629,7 @@ index 9211fd1..283aabd 100644
 +        m_fileDialog->SetFileName((wchar_t*)file.utf16());;
 +    }
  }
-
+ 
  // Return the index of the selected filter, accounting for QFileDialog
 @@ -1405,7 +1438,11 @@ bool QWindowsNativeFileDialogBase::onFileOk()
  {
@@ -11608,12 +11642,12 @@ index 9211fd1..283aabd 100644
 +
 +	return true;
  }
-
+ 
  void QWindowsNativeFileDialogBase::close()
 @@ -1534,6 +1571,9 @@ public:
      QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
      QList<QUrl> dialogResult() const Q_DECL_OVERRIDE;
-
+ 
 +    // Adding select-by-url for Windows file dialog.
 +    QByteArray dialogRemoteContent() const Q_DECL_OVERRIDE;
 +
@@ -11623,7 +11657,7 @@ index 9211fd1..283aabd 100644
 @@ -1548,6 +1588,62 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
      return result;
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +QByteArray QWindowsNativeOpenFileDialog::dialogRemoteContent() const
 +{
@@ -11697,7 +11731,7 @@ index 9211fd1..283aabd 100644
 @@ -1704,6 +1804,12 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +QByteArray QWindowsFileDialogHelper::selectedRemoteContent() const
 +{
@@ -11721,7 +11755,7 @@ index 9211fd1..283aabd 100644
 @@ -2036,6 +2146,12 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +QByteArray QWindowsXpFileDialogHelper::selectedRemoteContent() const
 +{
@@ -11731,6 +11765,21 @@ index 9211fd1..283aabd 100644
  void QWindowsXpFileDialogHelper::selectNameFilter(const QString &f)
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
+diff --git a/src/plugins/platforms/windows/qwindowskeymapper.cpp b/src/plugins/platforms/windows/qwindowskeymapper.cpp
+index c5dff60..ce6c715 100644
+--- a/src/plugins/platforms/windows/qwindowskeymapper.cpp
++++ b/src/plugins/platforms/windows/qwindowskeymapper.cpp
+@@ -1249,6 +1249,10 @@ QList<int> QWindowsKeyMapper::possibleKeys(const QKeyEvent *e) const
+ {
+     QList<int> result;
+ 
++    // This must not happen, but there are crash reports on the next line.
++    if (e->nativeVirtualKey() > 0xFF)
++        return result;
++
+     const KeyboardLayoutItem &kbItem = keyLayout[e->nativeVirtualKey()];
+     if (!kbItem.exists)
+         return result;
 diff --git a/src/plugins/platforms/windows/qwindowsservices.cpp b/src/plugins/platforms/windows/qwindowsservices.cpp
 index cc697ba..c72234f 100644
 --- a/src/plugins/platforms/windows/qwindowsservices.cpp
@@ -11747,7 +11796,7 @@ index cc697ba..c72234f 100644
      // but that cannot handle a Windows command line [yet].
      command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
 diff --git a/src/plugins/platforms/windows/qwindowswindow.cpp b/src/plugins/platforms/windows/qwindowswindow.cpp
-index 7f45b48..4ace49c 100644
+index 7f45b48..9d5c339 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.cpp
 +++ b/src/plugins/platforms/windows/qwindowswindow.cpp
 @@ -1025,7 +1025,8 @@ void QWindowsWindow::destroyWindow()
@@ -11782,6 +11831,24 @@ index 7f45b48..4ace49c 100644
      if (newTransientParent != oldTransientParent)
          SetWindowLongPtr(m_data.hwnd, GWL_HWNDPARENT, (LONG_PTR)newTransientParent);
  #endif // !Q_OS_WINCE
+@@ -1453,10 +1469,14 @@ void QWindowsWindow::handleResized(int wParam)
+         handleGeometryChange();
+         break;
+     case SIZE_RESTORED:
+-        if (isFullScreen_sys())
+-            handleWindowStateChange(Qt::WindowFullScreen);
+-        else if (m_windowState != Qt::WindowNoState && !testFlag(MaximizeToFullScreen))
++        if (isFullScreen_sys()) {
++            if (m_windowState != Qt::WindowFullScreen)
++                // When resolution is changed for a frameless fullscreen widget
++                // this call prevents correct geometry get in handleGeometryChange().
++                handleWindowStateChange(Qt::WindowFullScreen);
++        } else if (m_windowState != Qt::WindowNoState && !testFlag(MaximizeToFullScreen)) {
+             handleWindowStateChange(Qt::WindowNoState);
++        }
+         handleGeometryChange();
+         break;
+     }
 diff --git a/src/plugins/platforms/windows/qwindowswindow.h b/src/plugins/platforms/windows/qwindowswindow.h
 index 6fffa1e..288df03 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.h
@@ -11804,7 +11871,7 @@ index 3f3a6e7..f1cf176 100644
 @@ -1200,6 +1200,15 @@ QList<QUrl> QFileDialogPrivate::userSelectedFiles() const
      return files;
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +QByteArray QFileDialogPrivate::userSelectedRemoteContent() const
 +{
@@ -11820,7 +11887,7 @@ index 3f3a6e7..f1cf176 100644
 @@ -1267,6 +1276,14 @@ QStringList QFileDialog::selectedFiles() const
      return files;
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +QByteArray QFileDialog::selectedRemoteContent() const
 +{
@@ -11839,13 +11906,13 @@ index ffe49a2..4213206 100644
 @@ -108,6 +108,9 @@ public:
      void selectFile(const QString &filename);
      QStringList selectedFiles() const;
-
+ 
 +    // Adding select-by-url for Windows file dialog.
 +    QByteArray selectedRemoteContent() const;
 +
      void selectUrl(const QUrl &url);
      QList<QUrl> selectedUrls() const;
-
+ 
 diff --git a/src/widgets/dialogs/qfiledialog_p.h b/src/widgets/dialogs/qfiledialog_p.h
 index f610e46..ca71d55 100644
 --- a/src/widgets/dialogs/qfiledialog_p.h
@@ -11875,7 +11942,7 @@ index f610e46..ca71d55 100644
 @@ -393,6 +401,14 @@ inline QList<QUrl> QFileDialogPrivate::selectedFiles_sys() const
      return QList<QUrl>();
  }
-
+ 
 +// Adding select-by-url for Windows file dialog.
 +inline QByteArray QFileDialogPrivate::selectedRemoteContent_sys() const
 +{
@@ -11914,7 +11981,35 @@ index ebb2921..8119bad 100644
 +		qpa_sys->updateMenu(nullptr);
      }
  }
-
+ 
+diff --git a/src/widgets/widgets/qabstractscrollarea.cpp b/src/widgets/widgets/qabstractscrollarea.cpp
+index 65d06ea..920f529 100644
+--- a/src/widgets/widgets/qabstractscrollarea.cpp
++++ b/src/widgets/widgets/qabstractscrollarea.cpp
+@@ -640,15 +640,19 @@ scrolling range.
+ QSize QAbstractScrollArea::maximumViewportSize() const
+ {
+     Q_D(const QAbstractScrollArea);
+-    int hsbExt = d->hbar->sizeHint().height();
+-    int vsbExt = d->vbar->sizeHint().width();
+ 
+     int f = 2 * d->frameWidth;
+     QSize max = size() - QSize(f + d->left + d->right, f + d->top + d->bottom);
+-    if (d->vbarpolicy == Qt::ScrollBarAlwaysOn)
++    if (d->vbarpolicy == Qt::ScrollBarAlwaysOn) {
++        // Count the sizeHint of the bar only if it is displayed.
++        int vsbExt = d->vbar->sizeHint().width();
+         max.rwidth() -= vsbExt;
+-    if (d->hbarpolicy == Qt::ScrollBarAlwaysOn)
++    }
++    if (d->hbarpolicy == Qt::ScrollBarAlwaysOn) {
++        // Count the sizeHint of the bar only if it is displayed.
++        int hsbExt = d->hbar->sizeHint().height();
+         max.rheight() -= hsbExt;
++    }
+     return max;
+ }
+ 
 diff --git a/src/widgets/widgets/qwidgetlinecontrol.cpp b/src/widgets/widgets/qwidgetlinecontrol.cpp
 index 436937b..fc7a843 100644
 --- a/src/widgets/widgets/qwidgetlinecontrol.cpp
@@ -11933,7 +12028,7 @@ index 436937b..fc7a843 100644
  #endif
 @@ -1881,11 +1886,21 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
      }
-
+ 
      // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
 -    if (unknown && !isReadOnly()
 -        && event->modifiers() != Qt::ControlModifier

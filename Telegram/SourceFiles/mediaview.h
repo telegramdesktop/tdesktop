@@ -51,10 +51,10 @@ public:
 	bool moveToNext(int32 delta);
 	void preloadData(int32 delta);
 
-	void leaveToChildEvent(QEvent *e) override { // e -- from enterEvent() of child TWidget
+	void leaveToChildEvent(QEvent *e, QWidget *child) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
 	}
-	void enterFromChildEvent(QEvent *e) override { // e -- from leaveEvent() of child TWidget
+	void enterFromChildEvent(QEvent *e, QWidget *child) override { // e -- from leaveEvent() of child TWidget
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
@@ -85,6 +85,8 @@ public slots:
 	void onHideControls(bool force = false);
 	void onDropdownHiding();
 
+	void onScreenResized(int screen);
+
 	void onToMessage();
 	void onSaveAs();
 	void onDownload();
@@ -110,6 +112,13 @@ private:
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();
 	void loadBack();
+
+	// Radial animation interface.
+	float64 radialProgress() const;
+	bool radialLoading() const;
+	QRect radialRect() const;
+	void radialStart();
+	uint64 radialTimeShift() const;
 
 	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
 	struct LastChatPhoto {
@@ -173,8 +182,10 @@ private:
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
 	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
-	RadialAnimation _docRadial;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
+
+	QRect _photoRadialRect;
+	RadialAnimation _radial;
 
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview
@@ -184,6 +195,12 @@ private:
 	// There can be additional first photo in chat photos overview, that is not
 	// in the _history->overview[OverviewChatPhotos] (if the item was deleted).
 	PhotoData *_additionalChatPhoto = nullptr;
+
+	// We save the information about the reason of the current mediaview show:
+	// did we open a peer profile photo or a photo from some message.
+	// We use it when trying to delete a photo: if we've opened a peer photo,
+	// then we'll delete group photo instead of the corresponding message.
+	bool _firstOpenedPeerPhoto = false;
 
 	PeerData *_from = nullptr;
 	Text _fromName;
@@ -241,7 +258,7 @@ private:
 
 	QString _saveMsgFilename;
 	uint64 _saveMsgStarted = 0;
-	anim::fvalue _saveMsgOpacity;
+	anim::fvalue _saveMsgOpacity = { 0 };
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;

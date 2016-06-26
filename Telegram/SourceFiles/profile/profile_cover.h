@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/observer.h"
 #include "ui/filedialog.h"
-#include "ui/flatlabel.h"
+
+class FlatLabel;
+class LinkButton;
 
 namespace Ui {
 class RoundButton;
@@ -59,11 +61,14 @@ public slots:
 
 private slots:
 	void onPhotoShow();
+	void onPhotoUploadStatusChanged(PeerId peerId = 0);
+	void onCancelPhotoUpload();
 
 	void onSendMessage();
 	void onShareContact();
 	void onSetPhoto();
 	void onAddMember();
+	void onAddBotToGroup();
 	void onJoin();
 	void onViewChannel();
 
@@ -94,7 +99,7 @@ private:
 	void setChannelButtons();
 
 	void clearButtons();
-	void addButton(const QString &text, const char *slot, const style::BoxButton *replacementStyle = nullptr);
+	void addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle = nullptr);
 
 	void paintDivider(Painter &p);
 
@@ -113,7 +118,8 @@ private:
 	ChildWidget<UserpicButton> _userpicButton;
 	ChildWidget<CoverDropArea> _dropArea = { nullptr };
 
-	FlatLabel _name;
+	ChildWidget<FlatLabel> _name;
+	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;

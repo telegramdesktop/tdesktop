@@ -490,6 +490,7 @@ void unixtimeInit();
 void unixtimeSet(TimeId servertime, bool force = false);
 TimeId unixtime();
 TimeId fromServerTime(const MTPint &serverTime);
+void toServerTime(const TimeId &clientTime, MTPint &outServerTime);
 uint64 msgid();
 int32 reqid();
 

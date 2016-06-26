@@ -646,6 +646,10 @@ bool Generator::collectUniqueValues() {
 	int iconMaskIndex = 0;
 	std::function<bool(const Variable&)> collector = [this, &collector, &fontFamilyIndex, &iconMaskIndex](const Variable &variable) {
 		auto value = variable.value;
+		if (!value.copyOf().isEmpty()) {
+			return true;
+		}
+
 		switch (value.type().tag) {
 		case Tag::Invalid:
 		case Tag::Int:

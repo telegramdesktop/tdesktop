@@ -97,6 +97,21 @@
     <Filter Include="SourceFiles\profile">
       <UniqueIdentifier>{b761f2a4-0e8c-4e52-b179-7a3185c046c4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\platform">
+      <UniqueIdentifier>{a2724cb3-028c-43a8-ad3d-5176b63c7998}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\platform\win">
+      <UniqueIdentifier>{64f57f23-7eb4-4949-8fc8-4a5db87a31c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\platform\mac">
+      <UniqueIdentifier>{c3de8600-519e-489c-8b25-14137dda87c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\platform\linux">
+      <UniqueIdentifier>{920a21f5-22df-47da-bffd-de23e6b4ede1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\platform\winrt">
+      <UniqueIdentifier>{385d4cd5-f702-41b7-9e39-707d16b118d5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -498,26 +513,8 @@
     <ClCompile Include="SourceFiles\pspecific_linux.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_linux.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_linux.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_linux.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\pspecific_mac.cpp">
       <Filter>SourceFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_mac.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_mac.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_mac.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_passcodewidget.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
@@ -681,15 +678,6 @@
     <ClCompile Include="SourceFiles\intro\introwidget.cpp">
       <Filter>SourceFiles\intro</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_win.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_win.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_win.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\pspecific_win.cpp">
       <Filter>SourceFiles</Filter>
     </ClCompile>
@@ -698,9 +686,6 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_winrt.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_winrt.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_pspecific_winrt.cpp">
       <Filter>GeneratedFiles\Release</Filter>
@@ -1296,6 +1281,69 @@
     <ClCompile Include="SourceFiles\data\data_abstract_structure.cpp">
       <Filter>SourceFiles\data</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_main_window_win.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_main_window_win.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_main_window_win.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\win\main_window_win.cpp">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window\main_window.cpp">
+      <Filter>SourceFiles\window</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\win\windows_toasts.cpp">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\win\windows_app_user_model_id.cpp">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\win\windows_dlls.cpp">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\win\windows_event_filter.cpp">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\winrt\main_window_winrt.cpp">
+      <Filter>SourceFiles\platform\winrt</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_main_window_mac.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_main_window_mac.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\linux\main_window_linux.cpp">
+      <Filter>SourceFiles\platform\linux</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_main_window_linux.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_main_window_linux.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_main_window_linux.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\inner_dropdown.cpp">
+      <Filter>SourceFiles\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_inner_dropdown.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\platform\linux\linux_libs.cpp">
+      <Filter>SourceFiles\platform\linux</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1525,6 +1573,27 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\data\data_drafts.h">
       <Filter>SourceFiles\data</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\platform_main_window.h">
+      <Filter>SourceFiles\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\win\windows_toasts.h">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\win\windows_app_user_model_id.h">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\win\windows_dlls.h">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\win\windows_event_filter.h">
+      <Filter>SourceFiles\platform\win</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\winrt\main_window_winrt.h">
+      <Filter>SourceFiles\platform\winrt</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\platform\linux\linux_libs.h">
+      <Filter>SourceFiles\platform\linux</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1801,6 +1870,21 @@
     <CustomBuild Include="SourceFiles\boxes\report_box.h">
       <Filter>SourceFiles\boxes</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\platform\win\main_window_win.h">
+      <Filter>SourceFiles\platform\win</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\window\main_window.h">
+      <Filter>SourceFiles\window</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\platform\mac\main_window_mac.h">
+      <Filter>SourceFiles\platform\mac</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\platform\linux\main_window_linux.h">
+      <Filter>SourceFiles\platform\linux</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\inner_dropdown.h">
+      <Filter>SourceFiles\ui</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1850,6 +1934,9 @@
     </None>
     <None Include="Resources\langs\upload.sh">
       <Filter>Resources\langs</Filter>
+    </None>
+    <None Include="SourceFiles\platform\mac\main_window_mac.mm">
+      <Filter>SourceFiles\platform\mac</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

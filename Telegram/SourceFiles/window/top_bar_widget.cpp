@@ -33,22 +33,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Window {
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
-, a_over(0)
 , _a_appearance(animation(this, &TopBarWidget::step_appearance))
-, _selPeer(0)
-, _selCount(0)
-, _canDelete(false)
-, _selStrLeft((-st::topBarClearButton.width + st::topBarClearButton.padding.left() + st::topBarClearButton.padding.right()) / 2)
-, _selStrWidth(0)
-, _animating(false)
 , _clearSelection(this, lang(lng_selected_clear), st::topBarClearButton)
-, _forward(this, lang(lng_selected_forward), st::topBarActionButton)
-, _delete(this, lang(lng_selected_delete), st::topBarActionButton)
-, _selectionButtonsWidth(_clearSelection->width() + _forward->width() + _delete->width())
-, _forwardDeleteWidth(qMax(_forward->textWidth(), _delete->textWidth()))
+, _forward(this, lang(lng_selected_forward), st::defaultActiveButton)
+, _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::infoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
 , _search(this, st::topBarSearch) {
+	_clearSelection->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_forward->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_delete->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 
 	connect(_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -86,9 +80,11 @@ void TopBarWidget::enterEvent(QEvent *e) {
 	_a_appearance.start();
 }
 
-void TopBarWidget::enterFromChildEvent(QEvent *e) {
-	a_over.start(1);
-	_a_appearance.start();
+void TopBarWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
+	if (child != _membersShowArea) {
+		a_over.start(1);
+		_a_appearance.start();
+	}
 }
 
 void TopBarWidget::leaveEvent(QEvent *e) {
@@ -96,9 +92,11 @@ void TopBarWidget::leaveEvent(QEvent *e) {
 	_a_appearance.start();
 }
 
-void TopBarWidget::leaveToChildEvent(QEvent *e) {
-	a_over.start(0);
-	_a_appearance.start();
+void TopBarWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
+	if (child != _membersShowArea) {
+		a_over.start(0);
+		_a_appearance.start();
+	}
 }
 
 void TopBarWidget::step_appearance(float64 ms, bool timer) {
@@ -110,6 +108,25 @@ void TopBarWidget::step_appearance(float64 ms, bool timer) {
 		a_over.update(dt, anim::linear);
 	}
 	if (timer) update();
+}
+
+bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
+	if (obj == _membersShowArea) {
+		switch (e->type()) {
+		case QEvent::MouseButtonPress:
+			mousePressEvent(static_cast<QMouseEvent*>(e));
+			return true;
+
+		case QEvent::Enter:
+			main()->setMembersShowAreaActive(true);
+			break;
+
+		case QEvent::Leave:
+			main()->setMembersShowAreaActive(false);
+			break;
+		}
+	}
+	return TWidget::eventFilter(obj, e);
 }
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
@@ -128,75 +145,34 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		}
 		main()->paintTopBar(p, a_over.current(), decreaseWidth);
 		p.restore();
-	} else {
-		p.setFont(st::linkFont);
-		p.setPen(st::btnDefLink.color);
-		p.drawText(_selStrLeft, st::topBarClearButton.padding.top() + st::topBarClearButton.textTop + st::linkFont->ascent, _selStr);
 	}
 }
 
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
-	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
-	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && (p || !_selCount)) {
+	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && !_selCount) {
 		emit clicked();
 	}
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	int32 r = width();
-	if (!_forward->isHidden() || !_delete->isHidden()) {
-		int fullW = r - (_selectionButtonsWidth + (_selStrWidth - st::topBarClearButton.width + st::topBarClearButton.padding.left() + st::topBarClearButton.padding.right()) + st::topBarActionSkip);
-		int selectedClearWidth = st::topBarClearButton.width - st::topBarClearButton.padding.left() - st::topBarClearButton.padding.right();
-		int forwardDeleteWidth = st::topBarActionButton.width - _forwardDeleteWidth;
-		int skip = st::topBarActionSkip;
-		while (fullW < 0) {
-			int fit = 0;
-			if (selectedClearWidth < -2 * (st::topBarMinPadding + 1)) {
-				fullW += 4;
-				selectedClearWidth += 2;
-			} else if (selectedClearWidth < -2 * st::topBarMinPadding) {
-				fullW += (-2 * st::topBarMinPadding - selectedClearWidth) * 2;
-				selectedClearWidth = -2 * st::topBarMinPadding;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0) break;
+	int r = width();
 
-			if (forwardDeleteWidth > 2 * (st::topBarMinPadding + 1)) {
-				fullW += 4;
-				forwardDeleteWidth -= 2;
-			} else if (forwardDeleteWidth > 2 * st::topBarMinPadding) {
-				fullW += (forwardDeleteWidth - 2 * st::topBarMinPadding) * 2;
-				forwardDeleteWidth = 2 * st::topBarMinPadding;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0) break;
+	int buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
+	int buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
+	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
-			if (skip > st::topBarMinPadding) {
-				--skip;
-				++fullW;
-			} else {
-				++fit;
-			}
-			if (fullW >= 0 || fit >= 3) break;
-		}
-		_clearSelection->setFullWidth(selectedClearWidth);
-		_forward->setWidth(_forwardDeleteWidth + forwardDeleteWidth);
-		_delete->setWidth(_forwardDeleteWidth + forwardDeleteWidth);
-		_selStrLeft = -selectedClearWidth / 2;
+	int widthLeft = qMin(r - buttonsWidth, -2 * st::defaultActiveButton.width);
+	_forward->setFullWidth(-(widthLeft / 2));
+	_delete->setFullWidth(-(widthLeft / 2));
 
-		int32 availX = _selStrLeft + _selStrWidth, availW = r - (_clearSelection->width() + selectedClearWidth / 2) - availX;
-		if (_forward->isHidden()) {
-			_delete->move(availX + (availW - _delete->width()) / 2, (st::topBarHeight - _forward->height()) / 2);
-		} else if (_delete->isHidden()) {
-			_forward->move(availX + (availW - _forward->width()) / 2, (st::topBarHeight - _forward->height()) / 2);
-		} else {
-			_forward->move(availX + (availW - _forward->width() - _delete->width() - skip) / 2, (st::topBarHeight - _forward->height()) / 2);
-			_delete->move(availX + (availW + _forward->width() - _delete->width() + skip) / 2, (st::topBarHeight - _forward->height()) / 2);
-		}
-		_clearSelection->move(r -= _clearSelection->width(), 0);
-	}
+	int buttonsTop = (height() - _forward->height()) / 2;
+
+	_forward->moveToLeft(buttonsLeft, buttonsTop);
+	buttonsLeft += _forward->width() + st::topBarActionSkip;
+
+	_delete->moveToLeft(buttonsLeft, buttonsTop);
+	_clearSelection->moveToRight(st::topBarActionSkip, buttonsTop);
+
 	if (!_info->isHidden()) _info->move(r -= _info->width(), 0);
 	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
 	_search->move(width() - (_info->isHidden() ? st::topBarForwardPadding.right() : _info->width()) - _search->width(), 0);
@@ -209,18 +185,22 @@ void TopBarWidget::startAnim() {
 	_forward->hide();
 	_mediaType->hide();
 	_search->hide();
+	if (_membersShowArea) {
+		_membersShowArea->hide();
+	}
 
 	_animating = true;
 }
 
 void TopBarWidget::stopAnim() {
 	_animating = false;
+	updateMembersShowArea();
 	showAll();
 }
 
 void TopBarWidget::showAll() {
 	if (_animating) {
-		resizeEvent(0);
+		resizeEvent(nullptr);
 		return;
 	}
 	PeerData *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
@@ -255,21 +235,55 @@ void TopBarWidget::showAll() {
 		_search->hide();
 		_info->hide();
 	}
+	if (_membersShowArea) {
+		_membersShowArea->show();
+	}
 	resizeEvent(nullptr);
 }
 
+void TopBarWidget::updateMembersShowArea() {
+	auto membersShowAreaNeeded = [this]() {
+		if (_selCount || App::main()->overviewPeer() || !_selPeer) {
+			return false;
+		}
+		if (_selPeer->isChat()) {
+			return true;
+		}
+		if (_selPeer->isMegagroup()) {
+			return (_selPeer->asMegagroup()->membersCount() < Global::ChatSizeMax());
+		}
+		return false;
+	};
+	if (!membersShowAreaNeeded()) {
+		if (_membersShowArea) {
+			main()->setMembersShowAreaActive(false);
+			_membersShowArea.destroy();
+		}
+		return;
+	} else if (!_membersShowArea) {
+		_membersShowArea = new TWidget(this);
+		_membersShowArea->show();
+		_membersShowArea->installEventFilter(this);
+	}
+	_membersShowArea->setGeometry(App::main()->getMembersShowAreaGeometry());
+}
+
 void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
-	PeerData *p = nullptr;// App::main() ? App::main()->profilePeer() : 0;
 	_selPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selCount = selCount;
-	_canDelete = canDelete;
-	_selStr = (_selCount > 0) ? lng_selected_count(lt_count, _selCount) : QString();
-	_selStrWidth = st::btnDefLink.font->width(_selStr);
-	setCursor((!p && _selCount) ? style::cur_default : style::cur_pointer);
+	if (_selCount > 0) {
+		_canDelete = canDelete;
+		_forward->setSecondaryText(QString::number(_selCount));
+		_delete->setSecondaryText(QString::number(_selCount));
+	}
+	setCursor(_selCount ? style::cur_default : style::cur_pointer);
+
+	updateMembersShowArea();
 	showAll();
 }
 
 void TopBarWidget::updateAdaptiveLayout() {
+	updateMembersShowArea();
 	showAll();
 }
 

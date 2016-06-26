@@ -67,7 +67,7 @@ public:
 
 public slots:
 
-	void stateChanged(Qt::WindowState state = Qt::WindowNoState);
+	void onWindowStateChanged(Qt::WindowState state = Qt::WindowNoState);
 	void showUpdateBtn();
 	void onContacts();
 	void onAbout();

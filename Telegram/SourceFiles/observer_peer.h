@@ -34,6 +34,7 @@ struct PeerUpdate {
 	PeerData *peer;
 
 	enum class Flag {
+		// Common flags
 		NameChanged           = 0x00000001U,
 		UsernameChanged       = 0x00000002U,
 		PhotoChanged          = 0x00000004U,
@@ -47,15 +48,19 @@ struct PeerUpdate {
 		MembersChanged        = 0x00000040U,
 		AdminsChanged         = 0x00000080U,
 
+		// For users
 		UserCanShareContact   = 0x00010000U,
 		UserIsContact         = 0x00020000U,
 		UserPhoneChanged      = 0x00040000U,
 		UserIsBlocked         = 0x00080000U,
 		BotCommandsChanged    = 0x00100000U,
 		UserOnlineChanged     = 0x00200000U,
+		BotCanAddToGroups     = 0x00400000U,
 
+		// For chats
 		ChatCanEdit           = 0x00010000U,
 
+		// For channels
 		ChannelAmIn           = 0x00010000U,
 		ChannelAmEditor       = 0x00020000U,
 		ChannelCanEditPhoto   = 0x00040000U,

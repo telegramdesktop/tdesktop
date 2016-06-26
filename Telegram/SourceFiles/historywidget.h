@@ -36,6 +36,7 @@ class Result;
 
 namespace Ui {
 class HistoryDownButton;
+class InnerDropdown;
 } // namespace Ui
 
 class HistoryWidget;
@@ -357,12 +358,13 @@ public:
 	BotKeyboard();
 
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
+
+	bool moderateKeyActivate(int index);
 
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
@@ -371,7 +373,7 @@ public:
 	bool forceReply() const;
 
 	void step_selected(uint64 ms, bool timer);
-	void resizeToWidth(int width, int maxOuterHeight);
+	void resizeToWidth(int newWidth, int maxOuterHeight);
 
 	bool maximizeSize() const;
 	bool singleUse() const;
@@ -388,18 +390,10 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-//public slots:
-//
-//	void onParentScrolled();
-
-//private slots:
 private:
-
 	void updateSelected();
 
-private:
-
-	void updateStyle(int32 w = -1);
+	void updateStyle(int newWidth);
 	void clearSelection();
 
 	FullMsgId _wasForMsgId;
@@ -549,12 +543,14 @@ public:
     void dropEvent(QDropEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveToChildEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateTopBarSelection();
 
 	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	QRect getMembersShowAreaGeometry() const;
+	void setMembersShowAreaActive(bool active);
 	void topBarClick();
 
 	void loadMessages();
@@ -657,6 +653,7 @@ public:
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
+	void onListEnterPressed();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
@@ -848,6 +845,10 @@ private slots:
 	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
+	void onMembersDropdownHidden();
+	void onMembersDropdownShow();
+
+	void onModerateKeyActivate(int index, bool *outHandled);
 
 	void updateField();
 
@@ -871,6 +872,8 @@ private:
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
+
+	int countMembersDropdownHeightMax() const;
 
 	MsgId _replyToId = 0;
 	Text _replyToName;
@@ -1107,6 +1110,9 @@ private:
 	HistoryItem *_kbReplyTo = nullptr;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;
+
+	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	QTimer _membersDropdownShowTimer;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;

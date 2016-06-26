@@ -364,7 +364,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-MainWindow::MainWindow(QWidget *parent) : PsMainWindow(parent) {
+MainWindow::MainWindow() {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -417,7 +417,9 @@ void MainWindow::onInactiveTimer() {
 	inactivePress(false);
 }
 
-void MainWindow::stateChanged(Qt::WindowState state) {
+void MainWindow::onStateChanged(Qt::WindowState state) {
+	stateChangedHook(state);
+
 	psUserActionDone();
 
 	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
@@ -434,7 +436,7 @@ void MainWindow::init() {
 	setWindowIcon(wndIcon);
 
 	Application::instance()->installEventFilter(this);
-	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
@@ -453,7 +455,7 @@ void MainWindow::firstShow() {
 #else
 	trayIconMenu = new QMenu(this);
 #endif
-	QString notificationItem = lang(cDesktopNotify()
+	auto notificationItem = lang(cDesktopNotify()
 		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
 
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -467,9 +469,10 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
 	psUpdateWorkmode();
-
 	psFirstShow();
 	updateTrayMenu();
+
+	_mediaView = new MediaView();
 }
 
 QWidget *MainWindow::filedialogParent() {
@@ -665,8 +668,6 @@ void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	fixOrder();
 
 	updateTitleStatus();
-
-	_mediaView = new MediaView();
 }
 
 void MainWindow::updateUnreadCounter() {
@@ -924,13 +925,26 @@ void MainWindow::layerHidden() {
 	setInnerFocus();
 }
 
+void MainWindow::onReActivate() {
+	if (auto w = App::wnd()) {
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->windowHandle()->requestActivate();
+		w->activate();
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->setInnerFocus();
+    }
+}
+
 void MainWindow::hideMediaview() {
     if (_mediaView && !_mediaView->isHidden()) {
         _mediaView->hide();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-        if (App::wnd()) {
-            App::wnd()->activateWindow();
-        }
+		onReActivate();
+		QTimer::singleShot(200, this, SLOT(onReActivate()));
 #endif
     }
 }
@@ -1069,7 +1083,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	case QEvent::WindowStateChange:
 		if (obj == this) {
 			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-			stateChanged(state);
+			onStateChanged(state);
 		}
 		break;
 
@@ -1081,7 +1095,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 	}
 
-	return PsMainWindow::eventFilter(obj, e);
+	return Platform::MainWindow::eventFilter(obj, e);
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *e) {
@@ -1107,7 +1121,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *e) {
 bool MainWindow::minimizeToTray() {
     if (App::quitting() || !psHasTrayIcon()) return false;
 
-	hide();
+	closeWithoutDestroy();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
@@ -1283,9 +1297,14 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	e->ignore();
-	if (!MTP::authedId() || Sandbox::isSavingSession() || !Ui::hideWindowNoQuit()) {
+	if (Sandbox::isSavingSession()) {
+		e->accept();
 		App::quit();
+	} else {
+		e->ignore();
+		if (!MTP::authedId() || !Ui::hideWindowNoQuit()) {
+			App::quit();
+		}
 	}
 }
 

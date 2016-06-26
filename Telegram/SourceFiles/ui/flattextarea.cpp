@@ -465,9 +465,9 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 					(i < 2 || !(fragmentText.at(i - 2).isLetterOrNumber() || fragmentText.at(i - 2) == '_'))) {
 					cursor.setPosition(fragmentPosition + i - 1);
 					int till = fragmentPosition + i;
-					for (; (till < fragmentEnd); ++till) {
+					for (; (till < fragmentEnd && till < pos); ++till) {
 						auto ch = fragmentText.at(till - fragmentPosition);
-						if (!ch.isLetterOrNumber() && ch != '_') {
+						if (!ch.isLetterOrNumber() && ch != '_' && ch != '@') {
 							break;
 						}
 					}

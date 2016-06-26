@@ -80,14 +80,14 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 	) {
 		showUpdateBtn();
 	}
-	stateChanged();
+	onWindowStateChanged();
 
 	connect(&_back, SIGNAL(clicked()), window, SLOT(hideSettings()));
 	connect(&_cancel, SIGNAL(clicked()), this, SIGNAL(hiderClicked()));
 	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
-	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
@@ -308,7 +308,7 @@ void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
-void TitleWidget::stateChanged(Qt::WindowState state) {
+void TitleWidget::onWindowStateChanged(Qt::WindowState state) {
 	if (state == Qt::WindowMinimized) return;
 	maximizedChanged(state == Qt::WindowMaximized);
 }

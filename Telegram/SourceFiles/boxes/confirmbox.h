@@ -29,7 +29,7 @@ class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 
 public:
 
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::BoxButton &cancelStyle = st::cancelBoxButton);
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::RoundButton &cancelStyle = st::cancelBoxButton);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -61,7 +61,7 @@ protected:
 
 private:
 
-	ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative);
+	ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, bool informative);
 	friend class InformBox;
 
 	void init(const QString &text);
@@ -80,7 +80,7 @@ private:
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
+	InformBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
 	}
 };
 
@@ -249,5 +249,20 @@ private:
 	Checkbox _banUser, _reportSpam, _deleteAll;
 
 	BoxButton _delete, _cancel;
+
+};
+
+class KickMemberBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	KickMemberBox(PeerData *chat, UserData *member);
+
+private slots:
+	void onConfirm();
+
+private:
+	PeerData *_chat;
+	UserData *_member;
 
 };
