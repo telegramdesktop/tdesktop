@@ -285,7 +285,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Elimina tutto";
 "lng_download_path_header" = "Scegli il percorso di download";
 "lng_download_path_default_radio" = "Cartella Telegram in «Download»";
-"lng_download_path_temp_radio" = "Cartella temporanea, svuotata quando esci";
+"lng_download_path_temp_radio" = "Cartella temporanea, pulita quando esci";
 "lng_download_path_dir_radio" = "Cartella personalizzata, pulita a mano";
 "lng_download_path_choose" = "Scegli il percorso di download";
 "lng_sure_clear_downloads" = "Vuoi eliminare tutti i file scaricati nella cartella temporanea? Sarà fatto automaticamente all'uscita o alla disinstallazione del programma.";
@@ -418,7 +418,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_add_contact" = "Aggiungi contatto";
 "lng_profile_edit_contact" = "Modifica";
 "lng_profile_enable_notifications" = "Notifiche";
-"lng_profile_clear_history" = "Cancella la cronologia";
+"lng_profile_clear_history" = "Cancella cronologia";
 "lng_profile_delete_conversation" = "Elimina chat";
 "lng_profile_clear_and_exit" = "Elimina ed esci";
 "lng_profile_leave_channel" = "Lascia il canale";
@@ -697,7 +697,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Messaggio vocale";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+"lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 
 "lng_ban_user" = "Rimuovi utente";
 "lng_delete_all_from" = "Elimina tutto da questo utente";
@@ -726,7 +726,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_wont_be_notified" = "I post non saranno notificati ai membri";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Seleziona una chat per iniziare a chattare";
-"lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tu";
 "lng_from_draft" = "Bozza";
 "lng_bot_description" = "Cosa può fare questo bot?";
@@ -734,6 +733,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_join" = "Unisciti al canale";
 "lng_channel_mute" = "Silenzia";
 "lng_channel_unmute" = "Suona";
+
+"lng_dialogs_text_with_from" = "{from_part} {message}";
+"lng_dialogs_text_from_wrapped" = "{from}:";
+"lng_dialogs_text_media" = "{media_part} {caption}";
+"lng_dialogs_text_media_wrapped" = "{media},";
 
 "lng_open_this_link" = "Aprire questo link?";
 "lng_open_link" = "Apri";
@@ -880,6 +884,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_selected_upload_stop" = "Arresta ";
 "lng_selected_delete_sure_this" = "Vuoi eliminare questo messaggio?";
 "lng_selected_delete_sure" = "Vuoi eliminare {count:_not_used_|# messaggio|# messaggi}?";
+"lng_delete_photo_sure" = "Vuoi eliminare questa foto?";
 "lng_box_delete" = "Elimina";
 "lng_box_leave" = "Lascia";
 
@@ -916,7 +921,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Introdotte le bozze: Sincronizzazione istantanea dei messaggi non inviati su tutti i dispositivi. Le bozze saranno visibili nella lista chat.\n— Pagina di info del gruppo e dei profili completamente ridisegnate.\n— Contatore messaggi non letti sul pulsante 'Scorri verso il basso'.\n\nPiù info su questo update: {link}";
+"lng_new_version_text" = "— Il visualizzatore delle foto ora gestisce i cambi di risoluzione dello schermo correttamente\n— Risolto l'inoltro di foto via drag-n-drop\n— Miglioramenti di design e risoluzione di problemi";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
