@@ -1005,6 +1005,10 @@ private:
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
 
+	mtpRequestId _featuredStickersUpdateRequest = 0;
+	void featuredStickersGot(const MTPmessages_FeaturedStickers &stickers);
+	bool featuredStickersFailed(const RPCError &error);
+
 	mtpRequestId _savedGifsUpdateRequest = 0;
 	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
 	bool savedGifsFailed(const RPCError &error);

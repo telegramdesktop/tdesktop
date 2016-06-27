@@ -929,7 +929,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	if (d.vset.type() != mtpc_stickerSet) return;
 	const auto &s(d.vset.c_stickerSet());
 
-	Stickers::Sets &sets(Global::RefStickerSets());
+	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
 	if (it == sets.cend()) return;
 
@@ -937,7 +937,9 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
 	it->title = stickerSetTitle(s);
-	it->flags = s.vflags.v;
+	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded);
+	it->flags = s.vflags.v | clientFlags;
+	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
 	const auto &d_docs(d.vdocuments.c_vector().v);
 	auto custom = sets.find(Stickers::CustomSetId);

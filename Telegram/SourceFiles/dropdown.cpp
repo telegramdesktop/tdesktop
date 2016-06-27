@@ -1508,7 +1508,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 				break;
 			}
 		}
-		Stickers::Sets &sets(Global::RefStickerSets());
+		auto &sets = Global::RefStickerSets();
 		auto it = sets.find(Stickers::CustomSetId);
 		if (it != sets.cend()) {
 			for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
@@ -1628,8 +1628,8 @@ void StickerPanInner::hideFinish(bool completely) {
 void StickerPanInner::refreshStickers() {
 	clearSelection(true);
 
-	const Stickers::Sets &sets(Global::StickerSets());
-	_sets.clear(); _sets.reserve(sets.size() + 1);
+	_sets.clear();
+	_sets.reserve(Global::StickerSetsOrder().size() + 1);
 
 	refreshRecentStickers(false);
 	for (auto i = Global::StickerSetsOrder().cbegin(), e = Global::StickerSetsOrder().cend(); i != e; ++i) {
@@ -2085,7 +2085,7 @@ bool StickerPanInner::ui_isInlineItemBeingChosen() {
 }
 
 void StickerPanInner::appendSet(uint64 setId) {
-	const Stickers::Sets &sets(Global::StickerSets());
+	auto &sets = Global::StickerSets();
 	auto it = sets.constFind(setId);
 	if (it == sets.cend() || (it->flags & MTPDstickerSet::Flag::f_disabled) || it->stickers.isEmpty()) return;
 
@@ -3584,7 +3584,7 @@ void EmojiPan::onSwitch() {
 	} else {
 		if (cShowingSavedGifs() && cSavedGifs().isEmpty()) {
 			s_inner.showStickerSet(Stickers::DefaultSetId);
-		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && Global::StickerSets().isEmpty()) {
+		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && Global::StickerSetsOrder().isEmpty()) {
 			s_inner.showStickerSet(Stickers::NoneSetId);
 		} else {
 			s_inner.updateShowingSavedGifs();
@@ -3652,7 +3652,10 @@ void EmojiPan::onRemoveSetSure() {
 				++i;
 			}
 		}
-		Global::RefStickerSets().erase(it);
+		it->flags &= ~MTPDstickerSet::Flag::f_installed;
+		if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured)) {
+			Global::RefStickerSets().erase(it);
+		}
 		int removeIndex = Global::StickerSetsOrder().indexOf(_removingSetId);
 		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
 		refreshStickers();

@@ -2868,7 +2868,9 @@ bool HistoryItem::unread() const {
 
 		if (id > 0) {
 			if (id < history()->outboxReadBefore) return false;
-			if (auto channel = history()->peer->asChannel()) {
+			if (auto user = history()->peer->asUser()) {
+				if (user->botInfo) return false;
+			} else if (auto channel = history()->peer->asChannel()) {
 				if (!channel->isMegagroup()) return false;
 			}
 		}

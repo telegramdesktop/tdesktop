@@ -153,8 +153,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	StickerPack srows;
 	if (_emoji) {
 		QMap<uint64, uint64> setsToRequest;
-		Stickers::Sets &sets(Global::RefStickerSets());
-		const Stickers::Order &order(Global::StickerSetsOrder());
+		auto &sets = Global::RefStickerSets();
+		auto &order = Global::StickerSetsOrder();
 		for (int i = 0, l = order.size(); i < l; ++i) {
 			auto it = sets.find(order.at(i));
 			if (it != sets.cend()) {

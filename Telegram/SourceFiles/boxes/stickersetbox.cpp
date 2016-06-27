@@ -30,16 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
-, _loaded(false)
-, _setId(0)
-, _setAccess(0)
-, _setCount(0)
-, _setHash(0)
-, _setFlags(0)
-, _bottom(0)
-, _input(set)
-, _installRequest(0)
-, _previewShown(-1) {
+, _input(set) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
@@ -117,17 +108,20 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 }
 
 void StickerSetInner::installDone(const MTPBool &result) {
-	Stickers::Sets &sets(Global::RefStickerSets());
+	auto &sets = Global::RefStickerSets();
 
 	_setFlags &= ~MTPDstickerSet::Flag::f_disabled;
+	_setFlags |= MTPDstickerSet::Flag::f_installed;
 	auto it = sets.find(_setId);
 	if (it == sets.cend()) {
 		it = sets.insert(_setId, Stickers::Set(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags));
+	} else {
+		it.value().flags = _setFlags;
 	}
 	it.value().stickers = _pack;
 	it.value().emoji = _emoji;
 
-	Stickers::Order &order(Global::RefStickerSetsOrder());
+	auto &order = Global::RefStickerSetsOrder();
 	int32 insertAtIndex = 0, currentIndex = order.indexOf(_setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -257,7 +251,7 @@ bool StickerSetInner::loaded() const {
 int32 StickerSetInner::notInstalled() const {
 	if (!_loaded) return 0;
 	auto it = Global::StickerSets().constFind(_setId);
-	if (it == Global::StickerSets().cend() || (it->flags & MTPDstickerSet::Flag::f_disabled)) return _pack.size();
+	if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_disabled)) return _pack.size();
 	return 0;
 }
 
@@ -682,10 +676,10 @@ void StickersInner::rebuild() {
 	int32 namew = st::boxWideWidth - namex - st::contactsPadding.right() - st::contactsCheckPosition.x() - qMax(qMax(_returnWidth, _removeWidth), _restoreWidth);
 
 	clear();
-	const Stickers::Order &order(Global::StickerSetsOrder());
+	auto &order = Global::StickerSetsOrder();
 	_animStartTimes.reserve(order.size());
 
-	const Stickers::Sets &sets(Global::StickerSets());
+	auto &sets = Global::StickerSets();
 	for (int i = 0, l = order.size(); i < l; ++i) {
 		auto it = sets.constFind(order.at(i));
 		if (it != sets.cend()) {
@@ -913,7 +907,7 @@ void StickersBox::onSave() {
 
 	bool writeRecent = false;
 	RecentStickerPack &recent(cGetRecentStickers());
-	Stickers::Sets &sets(Global::RefStickerSets());
+	auto &sets = Global::RefStickerSets();
 
 	QVector<uint64> reorder = _inner.getOrder(), disabled = _inner.getDisabledSets();
 	for (int32 i = 0, l = disabled.size(); i < l; ++i) {
@@ -936,7 +930,9 @@ void StickersBox::onSave() {
 					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
 					int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
 					if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
-					sets.erase(it);
+					if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured)) {
+						sets.erase(it);
+					}
 				}
 			}
 		}
@@ -955,7 +951,10 @@ void StickersBox::onSave() {
 		}
 	}
 	for (auto it = sets.begin(); it != sets.cend();) {
-		if (it->id == Stickers::CustomSetId || it->id == Stickers::RecentSetId || order.contains(it->id)) {
+		if (it->id == Stickers::CustomSetId
+			|| it->id == Stickers::RecentSetId
+			|| (it->flags & MTPDstickerSet_ClientFlag::f_featured)
+			|| order.contains(it->id)) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -991,8 +990,8 @@ void StickersBox::showAll() {
 
 int32 stickerPacksCount(bool includeDisabledOfficial) {
 	int32 result = 0;
-	const Stickers::Order &order(Global::StickerSetsOrder());
-	const Stickers::Sets &sets(Global::StickerSets());
+	auto &order = Global::StickerSetsOrder();
+	auto &sets = Global::StickerSets();
 	for (int i = 0, l = order.size(); i < l; ++i) {
 		auto it = sets.constFind(order.at(i));
 		if (it != sets.cend()) {

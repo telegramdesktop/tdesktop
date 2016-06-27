@@ -181,7 +181,14 @@ static const uint64 DefaultSetId = 0; // for backward compatibility
 static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL, RecentSetId = 0xFFFFFFFFFFFFFFFEULL;
 static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
 struct Set {
-	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
+	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
+		: id(id)
+		, access(access)
+		, title(title)
+		, shortName(shortName)
+		, count(count)
+		, hash(hash)
+		, flags(flags) {
 	}
 	uint64 id, access;
 	QString title, shortName;
@@ -192,6 +199,7 @@ struct Set {
 };
 using Sets = QMap<uint64, Set>;
 using Order = QList<uint64>;
+using UnreadMap = OrderedSet<uint64>;
 
 } // namespace Stickers
 
@@ -241,6 +249,9 @@ DeclareRefVar(PendingItemsMap, PendingRepaintItems);
 DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
 DeclareVar(uint64, LastStickersUpdate);
+DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
+DeclareVar(Stickers::UnreadMap, FeaturedUnreadSets);
+DeclareVar(uint64, LastFeaturedStickersUpdate);
 
 DeclareVar(MTP::DcOptions, DcOptions);
 

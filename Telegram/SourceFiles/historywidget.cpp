@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "data/data_drafts.h"
 #include "history/history_service_layout.h"
 #include "profile/profile_members_widget.h"
+#include "core/click_handler_types.h"
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
@@ -3519,12 +3520,18 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 }
 
 void HistoryWidget::updateStickers() {
-	if (!Global::LastStickersUpdate() || getms(true) >= Global::LastStickersUpdate() + StickersUpdateTimeout) {
+	auto now = getms(true);
+	if (!Global::LastStickersUpdate() || now >= Global::LastStickersUpdate() + StickersUpdateTimeout) {
 		if (!_stickersUpdateRequest) {
 			_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true))), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 		}
 	}
-	if (!cLastSavedGifsUpdate() || getms(true) >= cLastSavedGifsUpdate() + StickersUpdateTimeout) {
+	if (!Global::LastFeaturedStickersUpdate() || now >= Global::LastFeaturedStickersUpdate() + StickersUpdateTimeout) {
+		if (!_featuredStickersUpdateRequest) {
+			_featuredStickersUpdateRequest = MTP::send(MTPmessages_GetFeaturedStickers(MTP_int(Local::countFeaturedStickersHash())), rpcDone(&HistoryWidget::featuredStickersGot), rpcFail(&HistoryWidget::featuredStickersFailed));
+		}
+	}
+	if (!cLastSavedGifsUpdate() || now >= cLastSavedGifsUpdate() + StickersUpdateTimeout) {
 		if (!_savedGifsUpdateRequest) {
 			_savedGifsUpdateRequest = MTP::send(MTPmessages_GetSavedGifs(MTP_int(Local::countSavedGifsHash())), rpcDone(&HistoryWidget::savedGifsGot), rpcFail(&HistoryWidget::savedGifsFailed));
 		}
@@ -3641,17 +3648,17 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 	const auto &d_sets(d.vsets.c_vector().v);
 
-	Stickers::Order &setsOrder(Global::RefStickerSetsOrder());
+	auto &setsOrder = Global::RefStickerSetsOrder();
 	setsOrder.clear();
 
-	Stickers::Sets &sets(Global::RefStickerSets());
+	auto &sets = Global::RefStickerSets();
 	QMap<uint64, uint64> setsToRequest;
-	for (auto i = sets.begin(), e = sets.end(); i != e; ++i) {
-		i->access = 0; // mark for removing
+	for (auto &set : sets) {
+		set.flags &= ~MTPDstickerSet::Flag::f_installed; // mark for removing
 	}
-	for (int i = 0, l = d_sets.size(); i != l; ++i) {
-		if (d_sets.at(i).type() == mtpc_stickerSet) {
-			const auto &set(d_sets.at(i).c_stickerSet());
+	for_const (auto &setData, d_sets) {
+		if (setData.type() == mtpc_stickerSet) {
+			const auto &set(setData.c_stickerSet());
 			auto it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {
@@ -3660,7 +3667,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				it->access = set.vaccess_hash.v;
 				it->title = title;
 				it->shortName = qs(set.vshort_name);
-				it->flags = set.vflags.v;
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded);
+				it->flags = set.vflags.v | clientFlags;
 				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
 					it->count = set.vcount.v;
 					it->hash = set.vhash.v;
@@ -3678,9 +3686,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	bool writeRecent = false;
 	RecentStickerPack &recent(cGetRecentStickers());
 	for (Stickers::Sets::iterator it = sets.begin(), e = sets.end(); it != e;) {
-		if (it->id == Stickers::CustomSetId || it->access != 0) {
-			++it;
-		} else {
+		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
+		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
+		if (!installed) { // remove not mine sets from recent stickers
 			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
 				if (it->stickers.indexOf(i->first) >= 0) {
 					i = recent.erase(i);
@@ -3689,6 +3697,10 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					++i;
 				}
 			}
+		}
+		if (installed || featured) {
+			++it;
+		} else {
 			it = sets.erase(it);
 		}
 	}
@@ -3717,6 +3729,90 @@ bool HistoryWidget::stickersFailed(const RPCError &error) {
 
 	Global::SetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
+	return true;
+}
+
+void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stickers) {
+	Global::SetLastFeaturedStickersUpdate(getms(true));
+	_featuredStickersUpdateRequest = 0;
+
+	if (stickers.type() != mtpc_messages_featuredStickers) return;
+	auto &d(stickers.c_messages_featuredStickers());
+
+	auto &d_sets(d.vsets.c_vector().v);
+
+	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
+	setsOrder.clear();
+
+	auto &sets = Global::RefStickerSets();
+	QMap<uint64, uint64> setsToRequest;
+	for (auto &set : sets) {
+		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
+	}
+	for (int i = 0, l = d_sets.size(); i != l; ++i) {
+		if (d_sets.at(i).type() == mtpc_stickerSet) {
+			const auto &set(d_sets.at(i).c_stickerSet());
+			auto it = sets.find(set.vid.v);
+			QString title = stickerSetTitle(set);
+			if (it == sets.cend()) {
+				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded));
+			} else {
+				it->access = set.vaccess_hash.v;
+				it->title = title;
+				it->shortName = qs(set.vshort_name);
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded);
+				it->flags = set.vflags.v | clientFlags | MTPDstickerSet_ClientFlag::f_featured;
+				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
+					it->count = set.vcount.v;
+					it->hash = set.vhash.v;
+					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+				}
+			}
+			setsOrder.push_back(set.vid.v);
+			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+				setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
+			}
+		}
+	}
+	for (Stickers::Sets::iterator it = sets.begin(), e = sets.end(); it != e;) {
+		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
+		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
+		if (installed || featured) {
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+
+	auto &unreadFeatured = Global::RefFeaturedUnreadSets();
+	unreadFeatured.clear();
+	for_const (auto &unreadSetId, d.vunread.c_vector().v) {
+		unreadFeatured.insert(unreadSetId.v);
+	}
+
+	if (Local::countFeaturedStickersHash() != d.vhash.v) {
+		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countFeaturedStickersHash()));
+	}
+
+	if (!setsToRequest.isEmpty() && App::api()) {
+		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			App::api()->scheduleStickerSetRequest(i.key(), i.value());
+		}
+		App::api()->requestStickerSets();
+	}
+
+	Local::writeStickers();
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+bool HistoryWidget::featuredStickersFailed(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	LOG(("App Fail: Failed to get featured stickers!"));
+
+	Global::SetLastFeaturedStickersUpdate(getms(true));
+	_featuredStickersUpdateRequest = 0;
 	return true;
 }
 
@@ -5592,6 +5688,8 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 				toast.text = qs(answerData.vmessage);
 				Ui::Toast::Show(App::wnd(), toast);
 			}
+		} else if (answerData.has_url()) {
+			UrlClickHandler::doOpen(qs(answerData.vurl));
 		}
 	}
 }

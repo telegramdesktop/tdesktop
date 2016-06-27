@@ -3700,7 +3700,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!found) {
 		Stickers::Sets::iterator it = sets.find(Stickers::CustomSetId);
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
+			it = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed));
 		}
 		it->stickers.push_back(sticker);
 		++it->count;
@@ -4646,7 +4646,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				Stickers::Sets &sets(Global::RefStickerSets());
 				auto it = sets.find(s.vid.v);
 				if (it == sets.cend()) {
-					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
+					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+				} else {
+					it->flags |= MTPDstickerSet::Flag::f_installed;
 				}
 
 				const auto &v(set.vdocuments.c_vector().v);
@@ -4703,9 +4705,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
-		const auto &d(update.c_updateStickerSetsOrder());
-		const auto &order(d.vorder.c_vector().v);
-		const auto &sets(Global::StickerSets());
+		auto &d = update.c_updateStickerSetsOrder();
+		auto &order = d.vorder.c_vector().v;
+		auto &sets = Global::StickerSets();
 		Stickers::Order result;
 		for (int32 i = 0, l = order.size(); i < l; ++i) {
 			if (sets.constFind(order.at(i).v) == sets.cend()) {
@@ -4726,6 +4728,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSets: {
 		Global::SetLastStickersUpdate(0);
 		App::main()->updateStickers();
+	} break;
+
+	case mtpc_updateReadFeaturedStickers: {
+		Global::RefFeaturedUnreadSets().clear();
+		Local::writeStickers();
+		emit stickersUpdated();
 	} break;
 
 	////// Cloud saved GIFs

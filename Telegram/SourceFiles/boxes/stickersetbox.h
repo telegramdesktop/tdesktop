@@ -67,19 +67,21 @@ private:
 
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
-	bool _loaded;
-	uint64 _setId, _setAccess;
+	bool _loaded = false;
+	uint64 _setId = 0;
+	uint64 _setAccess = 0;
 	QString _title, _setTitle, _setShortName;
-	int32 _setCount, _setHash;
-	MTPDstickerSet::Flags _setFlags;
+	int32 _setCount = 0;
+	int32 _setHash = 0;
+	MTPDstickerSet::Flags _setFlags = 0;
 
-	int32 _bottom;
+	int32 _bottom = 0;
 	MTPInputStickerSet _input;
 
-	mtpRequestId _installRequest;
+	mtpRequestId _installRequest = 0;
 
 	QTimer _previewTimer;
-	int32 _previewShown;
+	int32 _previewShown = -1;
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {
