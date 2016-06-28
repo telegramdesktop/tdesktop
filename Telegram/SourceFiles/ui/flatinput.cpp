@@ -345,6 +345,13 @@ void FlatInput::keyPressEvent(QKeyEvent *e) {
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		emit submitted(ctrl && shift);
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto selected = selectedText();
+		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
+			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	}
 }
 
@@ -1229,6 +1236,14 @@ void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 	} else if (f()->_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
 		e->ignore();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto cursor = textCursor();
+		int start = cursor.selectionStart(), end = cursor.selectionEnd();
+		if (end > start) {
+			QApplication::clipboard()->setText(f()->getText(start, end), QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {
@@ -1944,6 +1959,14 @@ void InputField::InputFieldInner::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 	} else if (f()->_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
 		e->ignore();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto cursor = textCursor();
+		int start = cursor.selectionStart(), end = cursor.selectionEnd();
+		if (end > start) {
+			QApplication::clipboard()->setText(f()->getText(start, end), QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {
@@ -2338,6 +2361,13 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		emit submitted(ctrl && shift);
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto selected = selectedText();
+		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
+			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	}
 }
 

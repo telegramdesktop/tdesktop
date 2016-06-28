@@ -1471,6 +1471,10 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		_widget->onListEscapePressed();
 	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
 		copySelectedText();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+#endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		int32 selectedForForward, selectedForDelete;
 		getSelectionState(selectedForForward, selectedForDelete);
