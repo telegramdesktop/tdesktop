@@ -561,7 +561,7 @@ struct Data {
 	Stickers::Order StickerSetsOrder;
 	uint64 LastStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
-	Stickers::UnreadMap FeaturedUnreadSets;
+	int FeaturedStickerSetsUnreadCount = 0;
 	uint64 LastFeaturedStickersUpdate = 0;
 
 	MTP::DcOptions DcOptions;
@@ -630,7 +630,7 @@ DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);
 DefineVar(Global, uint64, LastStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
-DefineVar(Global, Stickers::UnreadMap, FeaturedUnreadSets);
+DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineVar(Global, uint64, LastFeaturedStickersUpdate);
 
 DefineVar(Global, MTP::DcOptions, DcOptions);

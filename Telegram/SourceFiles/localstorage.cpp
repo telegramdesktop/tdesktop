@@ -3079,7 +3079,6 @@ namespace Local {
 			}
 			size += sizeof(qint32) + (Global::StickerSetsOrder().size() * sizeof(quint64));
 			size += sizeof(qint32) + (Global::FeaturedStickerSetsOrder().size() * sizeof(quint64));
-			size += sizeof(qint32) + (Global::FeaturedUnreadSets().size() * sizeof(quint64));
 
 			if (!_stickersKey) {
 				_stickersKey = genKey();
@@ -3093,11 +3092,6 @@ namespace Local {
 			}
 			data.stream << Global::StickerSetsOrder();
 			data.stream << Global::FeaturedStickerSetsOrder();
-
-			data.stream << qint32(Global::FeaturedUnreadSets().size());
-			for_const (auto setId, Global::FeaturedUnreadSets()) {
-				data.stream << quint64(setId);
-			}
 
 			FileWriteDescriptor file(_stickersKey);
 			file.writeEncrypted(data);
@@ -3200,9 +3194,6 @@ namespace Local {
 		auto &featuredOrder = Global::RefFeaturedStickerSetsOrder();
 		featuredOrder.clear();
 
-		auto &unreadFeatured = Global::RefFeaturedUnreadSets();
-		unreadFeatured.clear();
-
 		quint32 cnt;
 		QByteArray hash;
 		stickers.stream >> cnt >> hash; // ignore hash, it is counted
@@ -3244,6 +3235,8 @@ namespace Local {
 			}
 
 			auto &set = sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags))).value();
+			// We will set this flags from order lists below.
+			set.flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_featured);
 			if (scnt < 0) { // disabled not loaded set
 				set.count = -scnt;
 				continue;
@@ -3293,23 +3286,32 @@ namespace Local {
 			stickers.stream >> order;
 			stickers.stream >> featuredOrder;
 
-			qint32 unreadCount = 0;
-			stickers.stream >> unreadCount;
-			for (int i = 0; i < unreadCount; ++i) {
-				quint64 setId = 0;
-				stickers.stream >> setId;
-				if (setId) {
-					unreadFeatured.insert(setId);
+			// Set flags and count unread featured sets.
+			for_const (auto setId, order) {
+				auto it = sets.find(setId);
+				if (it != sets.cend()) {
+					it->flags |= MTPDstickerSet::Flag::f_installed;
 				}
 			}
+			int unreadCount = 0;
+			for_const (auto setId, featuredOrder) {
+				auto it = sets.find(setId);
+				if (it != sets.cend()) {
+					it->flags |= MTPDstickerSet_ClientFlag::f_featured;
+					if (it->flags & MTPDstickerSet_ClientFlag::f_unread) {
+						++unreadCount;
+					}
+				}
+			}
+			Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
 		}
 	}
 
 	int32 countStickersHash(bool checkOfficial) {
 		uint32 acc = 0;
 		bool foundOfficial = false, foundBad = false;;
-		const Stickers::Sets &sets(Global::StickerSets());
-		const Stickers::Order &order(Global::StickerSetsOrder());
+		auto &sets = Global::StickerSets();
+		auto &order = Global::StickerSetsOrder();
 		for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
 			auto j = sets.constFind(*i);
 			if (j != sets.cend()) {
@@ -3328,11 +3330,14 @@ namespace Local {
 
 	int32 countFeaturedStickersHash() {
 		uint32 acc = 0;
-		auto &featured(Global::FeaturedStickerSetsOrder());
+		auto &sets = Global::StickerSets();
+		auto &featured = Global::FeaturedStickerSetsOrder();
 		for_const (auto setId, featured) {
 			acc = (acc * 20261) + uint32(setId >> 32);
 			acc = (acc * 20261) + uint32(setId & 0xFFFFFFFF);
-			if (Global::FeaturedUnreadSets().contains(setId)) {
+
+			auto it = sets.constFind(setId);
+			if (it != sets.cend() && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
 				acc = (acc * 20261) + 1U;
 			}
 		}

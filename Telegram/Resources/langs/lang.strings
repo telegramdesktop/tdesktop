@@ -685,9 +685,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_packs" = "Sticker Packs";
 "lng_stickers_reorder" = "Click and drag to reorder sticker packs";
+"lng_stickers_featured" = "Featured Stickers";
 "lng_stickers_remove" = "Delete";
 "lng_stickers_return" = "Undo";
 "lng_stickers_restore" = "Restore";
+"lng_stickers_add" = "Add";
 "lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Photo";

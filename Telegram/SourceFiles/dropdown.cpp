@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/stickersetbox.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "dialogs/dialogs_layout.h"
 #include "historywidget.h"
 #include "localstorage.h"
 #include "lang.h"
@@ -2829,6 +2830,20 @@ void EmojiPan::onSaveConfigDelayed(int32 delay) {
 	_saveConfigTimer.start(delay);
 }
 
+void EmojiPan::paintStickerSettingsIcon(Painter &p) const {
+	int settingsLeft = _iconsLeft + 7 * st::rbEmoji.width;
+	p.drawSpriteLeft(settingsLeft + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::stickersSettings);
+	if (auto unread = Global::FeaturedStickerSetsUnreadCount()) {
+		Dialogs::Layout::UnreadBadgeStyle unreadSt;
+		unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInStickersPanel;
+		unreadSt.size = st::stickersSettingsUnreadSize;
+		int unreadRight = settingsLeft + st::rbEmoji.width - st::stickersSettingsUnreadPosition.x();
+		if (rtl()) unreadRight = width() - unreadRight;
+		int unreadTop = _iconsTop + st::stickersSettingsUnreadPosition.y();
+		Dialogs::Layout::paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, unreadSt);
+	}
+}
+
 void EmojiPan::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -2846,7 +2861,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::white->b);
 			if (_stickersShown && s_inner.showSectionIcons()) {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories);
-				p.drawSpriteLeft(_iconsLeft + 7 * st::rbEmoji.width + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::stickersSettings);
+				paintStickerSettingsIcon(p);
 
 				if (!_icons.isEmpty()) {
 					int32 x = _iconsLeft, i = 0, selxrel = _iconsLeft + _iconSelX.current(), selx = selxrel - _iconsX.current();
@@ -3093,6 +3108,7 @@ void EmojiPan::refreshStickers() {
 	if (!_stickersShown) {
 		s_inner.preloadImages();
 	}
+	update();
 }
 
 void EmojiPan::refreshSavedGifs() {

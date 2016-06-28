@@ -29,6 +29,8 @@ historyToDownArrow: icon {
 	{ "history_down_arrow", #b9b9b9, point(14px, 19px) },
 };
 historyToDownPaddingTop: 10px;
+historyToDownBadgeFont: semiboldFont;
+historyToDownBadgeSize: 22px;
 
 membersInnerScroll: flatScroll(solidScroll) {
 	deltat: 3px;
@@ -42,5 +44,3 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
-historyToDownBadgeFont: semiboldFont;
-historyToDownBadgeSize: 22px;

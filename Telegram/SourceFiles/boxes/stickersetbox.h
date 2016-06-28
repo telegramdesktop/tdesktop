@@ -95,7 +95,6 @@ public:
 	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onStickersUpdated();
 	void onAddStickers();
 	void onShareStickers();
@@ -103,115 +102,38 @@ public slots:
 
 	void onScroll();
 
-signals:
+private slots:
+	void onInstalled(uint64 id);
 
+signals:
 	void installed(uint64 id);
 
 protected:
-
 	void hideAll();
 	void showAll();
 
 private:
-
 	StickerSetInner _inner;
 	ScrollableBoxShadow _shadow;
 	BoxButton _add, _share, _cancel, _done;
 	QString _title;
+
 };
 
-class StickersInner : public TWidget {
-	Q_OBJECT
-
-public:
-
-	StickersInner();
-
-	void paintEvent(QPaintEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-
-	void rebuild();
-	bool savingStart() {
-		if (_saving) return false;
-		_saving = true;
-		return true;
-	}
-
-	QVector<uint64> getOrder() const;
-	QVector<uint64> getDisabledSets() const;
-
-	void setVisibleScrollbar(int32 width);
-
-	~StickersInner();
-
-signals:
-
-	void checkDraggingScroll(int localY);
-	void noDraggingScroll();
-
-public slots:
-
-	void onUpdateSelected();
-
-private:
-
-	void step_shifting(uint64 ms, bool timer);
-	void paintRow(Painter &p, int32 index);
-	void clear();
-	void setRemoveSel(int32 removeSel);
-	float64 aboveShadowOpacity() const;
-
-	int32 _rowHeight;
-	struct StickerSetRow {
-		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool official, bool disabled, int32 pixw, int32 pixh) : id(id)
-			, sticker(sticker)
-			, count(count)
-			, title(title)
-			, official(official)
-			, disabled(disabled)
-			, pixw(pixw)
-			, pixh(pixh)
-			, yadd(0, 0) {
-		}
-		uint64 id;
-		DocumentData *sticker;
-		int32 count;
-		QString title;
-		bool official, disabled;
-		int32 pixw, pixh;
-		anim::ivalue yadd;
-	};
-	typedef QList<StickerSetRow*> StickerSetRows;
-	StickerSetRows _rows;
-	QList<uint64> _animStartTimes;
-	uint64 _aboveShadowFadeStart;
-	anim::fvalue _aboveShadowFadeOpacity;
-	Animation _a_shifting;
-
-	int32 _itemsTop;
-
-	bool _saving;
-
-	int32 _removeSel, _removeDown, _removeWidth, _returnWidth, _restoreWidth;
-
-	QPoint _mouse;
-	int32 _selected;
-	QPoint _dragStart;
-	int32 _started, _dragging, _above;
-
-	BoxShadow _aboveShadow;
-
-	int32 _scrollbar;
-};
+namespace internal {
+class StickersInner;
+} // namespace internal
 
 class StickersBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	StickersBox();
+	enum class Section {
+		Installed,
+		Featured,
+	};
+	StickersBox(Section section = Section::Installed);
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
@@ -242,20 +164,135 @@ private:
 	bool reorderFail(const RPCError &result);
 	void saveOrder();
 
-	StickersInner _inner;
-	BoxButton _save, _cancel;
+	Section _section;
+
+	ChildWidget<internal::StickersInner> _inner;
+	ChildWidget<BoxButton> _save = { nullptr };
+	ChildWidget<BoxButton> _cancel = { nullptr };
 	QMap<mtpRequestId, NullType> _disenableRequests;
 	mtpRequestId _reorderRequest;
 	PlainShadow _topShadow;
-	ScrollableBoxShadow _bottomShadow;
+	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
 
-	int32 _aboutWidth;
+	int _aboutWidth = 0;
 	Text _about;
-	int32 _aboutHeight;
+	int _aboutHeight = 0;
 
 };
 
 int32 stickerPacksCount(bool includeDisabledOfficial = false);
+
+namespace internal {
+
+class StickersInner : public TWidget, public RPCSender {
+	Q_OBJECT
+
+public:
+	using Section = StickersBox::Section;
+	StickersInner(Section section);
+
+	void rebuild();
+	bool savingStart() {
+		if (_saving) return false;
+		_saving = true;
+		return true;
+	}
+
+	QVector<uint64> getOrder() const;
+	QVector<uint64> getDisabledSets() const;
+
+	void setVisibleScrollbar(int32 width);
+
+	~StickersInner();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+
+signals:
+	void checkDraggingScroll(int localY);
+	void noDraggingScroll();
+
+public slots:
+	void onUpdateSelected();
+
+private:
+	void paintFeaturedButton(Painter &p) const;
+
+	void step_shifting(uint64 ms, bool timer);
+	void paintRow(Painter &p, int32 index);
+	void clear();
+	void setActionSel(int32 actionSel);
+	float64 aboveShadowOpacity() const;
+
+	void installSet(uint64 setId);
+	void readFeaturedDone(const MTPBool &result);
+	bool readFeaturedFail(const RPCError &error);
+
+	Section _section;
+
+	int32 _rowHeight;
+	struct StickerSetRow {
+		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool installed, bool official, bool unread, bool disabled, int32 pixw, int32 pixh) : id(id)
+			, sticker(sticker)
+			, count(count)
+			, title(title)
+			, installed(installed)
+			, official(official)
+			, unread(unread)
+			, disabled(disabled)
+			, pixw(pixw)
+			, pixh(pixh)
+			, yadd(0, 0) {
+		}
+		uint64 id;
+		DocumentData *sticker;
+		int32 count;
+		QString title;
+		bool installed, official, unread, disabled;
+		int32 pixw, pixh;
+		anim::ivalue yadd;
+	};
+	typedef QList<StickerSetRow*> StickerSetRows;
+	StickerSetRows _rows;
+	QList<uint64> _animStartTimes;
+	uint64 _aboveShadowFadeStart = 0;
+	anim::fvalue _aboveShadowFadeOpacity = { 0., 0. };
+	Animation _a_shifting;
+
+	int32 _itemsTop;
+
+	bool _saving = false;
+
+	int _actionSel = -1;
+	int _actionDown = -1;
+
+	int _removeWidth, _returnWidth, _restoreWidth;
+
+	QString _addText;
+	int _addWidth;
+
+	int _featuredHeight = 0;
+	// Remember all the unread set ids to display unread dots.
+	OrderedSet<uint64> _unreadSets;
+
+	QPoint _mouse;
+	int _selected = -2; // -1 - featured stickers button
+	int _pressed = -2;
+	QPoint _dragStart;
+	int _started = -1;
+	int _dragging = -1;
+	int _above = -1;
+
+	BoxShadow _aboveShadow;
+
+	int32 _scrollbar = 0;
+};
+
+} // namespace internal

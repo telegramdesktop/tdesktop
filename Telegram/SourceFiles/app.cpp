@@ -1979,6 +1979,9 @@ namespace {
 		Global::SetStickerSets(Stickers::Sets());
 		Global::SetStickerSetsOrder(Stickers::Order());
 		Global::SetLastStickersUpdate(0);
+		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
+		Global::SetFeaturedStickerSetsUnreadCount(0);
+		Global::SetLastFeaturedStickersUpdate(0);
 		cSetSavedGifs(SavedGifs());
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());

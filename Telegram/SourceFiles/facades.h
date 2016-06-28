@@ -199,7 +199,13 @@ struct Set {
 };
 using Sets = QMap<uint64, Set>;
 using Order = QList<uint64>;
-using UnreadMap = OrderedSet<uint64>;
+
+inline MTPInputStickerSet inputSetId(const Set &set) {
+	if (set.id && set.access) {
+		return MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
+	}
+	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
+}
 
 } // namespace Stickers
 
@@ -250,7 +256,7 @@ DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
 DeclareVar(uint64, LastStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
-DeclareVar(Stickers::UnreadMap, FeaturedUnreadSets);
+DeclareVar(int, FeaturedStickerSetsUnreadCount);
 DeclareVar(uint64, LastFeaturedStickersUpdate);
 
 DeclareVar(MTP::DcOptions, DcOptions);

@@ -3378,7 +3378,6 @@ void MainWidget::stickersBox(const MTPInputStickerSet &set) {
 }
 
 void MainWidget::onStickersInstalled(uint64 setId) {
-	emit stickersUpdated();
 	_history->stickersInstalled(setId);
 }
 
@@ -4731,9 +4730,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadFeaturedStickers: {
-		Global::RefFeaturedUnreadSets().clear();
-		Local::writeStickers();
-		emit stickersUpdated();
+		for (auto &set : Global::RefStickerSets()) {
+			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
+				set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			}
+		}
+		if (Global::FeaturedStickerSetsUnreadCount()) {
+			Global::SetFeaturedStickerSetsUnreadCount(0);
+			Local::writeStickers();
+			emit stickersUpdated();
+		}
 	} break;
 
 	////// Cloud saved GIFs

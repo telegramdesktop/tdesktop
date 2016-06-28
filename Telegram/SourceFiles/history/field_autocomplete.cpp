@@ -196,14 +196,14 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 			return true;
 		};
-		auto filterNotPassedByName = [this](UserData *user) -> bool {
+		auto filterNotPassedByName = [this, &filterNotPassedByUsername](UserData *user) -> bool {
 			for_const (auto &namePart, user->names) {
 				if (namePart.startsWith(_filter, Qt::CaseInsensitive)) {
 					bool exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
 					return exactUsername;
 				}
 			}
-			return true;
+			return filterNotPassedByUsername(user);
 		};
 
 		bool listAllSuggestions = _filter.isEmpty();

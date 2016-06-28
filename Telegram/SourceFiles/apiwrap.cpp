@@ -924,10 +924,10 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	_stickerSetRequests.remove(setId);
 
 	if (result.type() != mtpc_messages_stickerSet) return;
-	const auto &d(result.c_messages_stickerSet());
+	auto &d(result.c_messages_stickerSet());
 
 	if (d.vset.type() != mtpc_stickerSet) return;
-	const auto &s(d.vset.c_stickerSet());
+	auto &s(d.vset.c_stickerSet());
 
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
@@ -937,7 +937,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
 	it->title = stickerSetTitle(s);
-	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded);
+	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded);
 	it->flags = s.vflags.v | clientFlags;
 	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
