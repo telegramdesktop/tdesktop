@@ -954,9 +954,9 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 		if (playVoice) {
 			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
+			audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice, &playingState);
 			if (playing == AudioMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				AudioMsgId audio(data, msgId);
 				audioPlayer()->play(audio);
@@ -966,15 +966,15 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				}
 			}
 		} else if (playMusic) {
-			SongMsgId playing;
+			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			audioPlayer()->currentState(&playing, AudioMsgId::Type::Song, &playingState);
+			if (playing == AudioMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(data, msgId);
+				AudioMsgId song(data, msgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
 		} else if (playVideo) {
 			if (!data->data().isEmpty()) {
@@ -1243,9 +1243,9 @@ void DocumentData::performActionOnLoad() {
 		if (loaded()) {
 			AudioMsgId playing;
 			AudioPlayerState state = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &state);
+			audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice, &state);
 			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
 				if (App::main()) App::main()->mediaMarkRead(this);
@@ -1253,15 +1253,15 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playMusic) {
 		if (loaded()) {
-			SongMsgId playing;
+			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(this, _actionOnLoadMsgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			audioPlayer()->currentState(&playing, AudioMsgId::Type::Song, &playingState);
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(this, _actionOnLoadMsgId);
+				AudioMsgId song(this, _actionOnLoadMsgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
 		}
 	} else if (playAnimation) {

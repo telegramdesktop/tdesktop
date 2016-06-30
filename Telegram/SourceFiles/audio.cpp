@@ -41,13 +41,13 @@ extern "C" {
 #undef iconv
 #undef iconv_close
 
-iconv_t iconv_open (const char* tocode, const char* fromcode) {
+iconv_t iconv_open(const char* tocode, const char* fromcode) {
 	return libiconv_open(tocode, fromcode);
 }
-size_t iconv (iconv_t cd,  char* * inbuf, size_t *inbytesleft, char* * outbuf, size_t *outbytesleft) {
+size_t iconv(iconv_t cd, char** inbuf, size_t *inbytesleft, char** outbuf, size_t *outbytesleft) {
 	return libiconv(cd, inbuf, inbytesleft, outbuf, outbytesleft);
 }
-int iconv_close (iconv_t cd) {
+int iconv_close(iconv_t cd) {
 	return libiconv_close(cd);
 }
 #endif // Q_OS_MAC
@@ -98,7 +98,6 @@ bool _checkALError() {
 }
 
 Q_DECLARE_METATYPE(AudioMsgId);
-Q_DECLARE_METATYPE(SongMsgId);
 Q_DECLARE_METATYPE(VoiceWaveform);
 void audioInit() {
 	if (!capture) {
@@ -209,7 +208,6 @@ void audioInit() {
 	if (!_checkALError()) return audioFinish();
 
 	qRegisterMetaType<AudioMsgId>();
-	qRegisterMetaType<SongMsgId>();
 	qRegisterMetaType<VoiceWaveform>();
 
 	player = new AudioPlayer();
@@ -263,7 +261,8 @@ void audioFinish() {
 	cSetHasAudioPlayer(false);
 }
 
-void AudioPlayer::Msg::clearData() {
+void AudioPlayer::AudioMsg::clear() {
+	audio = AudioMsgId();
 	file = FileLocation();
 	data = QByteArray();
 	position = duration = 0;
@@ -293,26 +292,18 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(this, SIGNAL(suppressAll()), _fader, SLOT(onSuppressAll()));
 	connect(this, SIGNAL(songVolumeChanged()), _fader, SLOT(onSongVolumeChanged()));
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&,qint64)), _loader, SLOT(onStart(const AudioMsgId&,qint64)));
-	connect(this, SIGNAL(loaderOnStart(const SongMsgId&,qint64)), _loader, SLOT(onStart(const SongMsgId&,qint64)));
 	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
-	connect(this, SIGNAL(loaderOnCancel(const SongMsgId&)), _loader, SLOT(onCancel(const SongMsgId&)));
 	connect(&_faderThread, SIGNAL(started()), _fader, SLOT(onInit()));
 	connect(&_loaderThread, SIGNAL(started()), _loader, SLOT(onInit()));
 	connect(&_faderThread, SIGNAL(finished()), _fader, SLOT(deleteLater()));
 	connect(&_loaderThread, SIGNAL(finished()), _loader, SLOT(deleteLater()));
 	connect(_loader, SIGNAL(needToCheck()), _fader, SLOT(onTimer()));
 	connect(_loader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
-	connect(_loader, SIGNAL(error(const SongMsgId&)), this, SLOT(onError(const SongMsgId&)));
 	connect(_fader, SIGNAL(needToPreload(const AudioMsgId&)), _loader, SLOT(onLoad(const AudioMsgId&)));
-	connect(_fader, SIGNAL(needToPreload(const SongMsgId&)), _loader, SLOT(onLoad(const SongMsgId&)));
 	connect(_fader, SIGNAL(playPositionUpdated(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)));
-	connect(_fader, SIGNAL(playPositionUpdated(const SongMsgId&)), this, SIGNAL(updated(const SongMsgId&)));
 	connect(_fader, SIGNAL(audioStopped(const AudioMsgId&)), this, SLOT(onStopped(const AudioMsgId&)));
-	connect(_fader, SIGNAL(audioStopped(const SongMsgId&)), this, SLOT(onStopped(const SongMsgId&)));
 	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
-	connect(_fader, SIGNAL(error(const SongMsgId&)), this, SLOT(onError(const SongMsgId&)));
 	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(stopped(const AudioMsgId&)), Qt::QueuedConnection);
-	connect(this, SIGNAL(stoppedOnError(const SongMsgId&)), this, SIGNAL(stopped(const SongMsgId&)), Qt::QueuedConnection);
 	_loaderThread.start();
 	_faderThread.start();
 }
@@ -323,31 +314,23 @@ AudioPlayer::~AudioPlayer() {
 		player = 0;
 	}
 
-	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
-		alSourceStop(_audioData[i].source);
-		if (alIsBuffer(_audioData[i].buffers[0])) {
-			alDeleteBuffers(3, _audioData[i].buffers);
-			for (int32 j = 0; j < 3; ++j) {
-				_audioData[i].buffers[j] = _audioData[i].samplesCount[j] = 0;
+	auto clearAudioMsg = [](AudioMsg *msg) {
+		alSourceStop(msg->source);
+		if (alIsBuffer(msg->buffers[0])) {
+			alDeleteBuffers(3, msg->buffers);
+			for (int j = 0; j < 3; ++j) {
+				msg->buffers[j] = msg->samplesCount[j] = 0;
 			}
 		}
-		if (alIsSource(_audioData[i].source)) {
-			alDeleteSources(1, &_audioData[i].source);
-			_audioData[i].source = 0;
+		if (alIsSource(msg->source)) {
+			alDeleteSources(1, &msg->source);
+			msg->source = 0;
 		}
-	}
-	for (int32 i = 0; i < AudioSongSimultaneously; ++i) {
-		alSourceStop(_songData[i].source);
-		if (alIsBuffer(_songData[i].buffers[0])) {
-			alDeleteBuffers(3, _songData[i].buffers);
-			for (int32 j = 0; j < 3; ++j) {
-				_songData[i].buffers[j] = _songData[i].samplesCount[j] = 0;
-			}
-		}
-		if (alIsSource(_songData[i].source)) {
-			alDeleteSources(1, &_songData[i].source);
-			_songData[i].source = 0;
-		}
+	};
+
+	for (int i = 0; i < AudioSimultaneousLimit; ++i) {
+		clearAudioMsg(dataForType(AudioMsgId::Type::Voice, i));
+		clearAudioMsg(dataForType(AudioMsgId::Type::Song, i));
 	}
 	_faderThread.quit();
 	_loaderThread.quit();
@@ -357,28 +340,45 @@ AudioPlayer::~AudioPlayer() {
 
 void AudioPlayer::onError(const AudioMsgId &audio) {
 	emit stoppedOnError(audio);
-	emit unsuppressSong();
-}
-
-void AudioPlayer::onError(const SongMsgId &song) {
-	emit stoppedOnError(song);
+	if (audio.type() == AudioMsgId::Type::Voice) {
+		emit unsuppressSong();
+	}
 }
 
 void AudioPlayer::onStopped(const AudioMsgId &audio) {
 	emit stopped(audio);
-	emit unsuppressSong();
-}
-
-void AudioPlayer::onStopped(const SongMsgId &song) {
-	emit stopped(song);
-}
-
-bool AudioPlayer::updateCurrentStarted(MediaOverviewType type, int32 pos) {
-	Msg *data = 0;
-	switch (type) {
-	case OverviewVoiceFiles: data = &_audioData[_audioCurrent]; break;
-	case OverviewFiles: data = &_songData[_songCurrent]; break;
+	if (audio.type() == AudioMsgId::Type::Voice) {
+		emit unsuppressSong();
 	}
+}
+
+AudioPlayer::AudioMsg *AudioPlayer::dataForType(AudioMsgId::Type type, int index) {
+	if (index < 0) index = *currentIndex(type);
+	switch (type) {
+	case AudioMsgId::Type::Voice: return &_audioData[index];
+	case AudioMsgId::Type::Song: return &_songData[index];
+	}
+	return nullptr;
+}
+
+const AudioPlayer::AudioMsg *AudioPlayer::dataForType(AudioMsgId::Type type, int index) const {
+	return const_cast<AudioPlayer*>(this)->dataForType(type, index);
+}
+
+int *AudioPlayer::currentIndex(AudioMsgId::Type type) {
+	switch (type) {
+	case AudioMsgId::Type::Voice: return &_audioCurrent;
+	case AudioMsgId::Type::Song: return &_songCurrent;
+	}
+	return nullptr;
+}
+
+const int *AudioPlayer::currentIndex(AudioMsgId::Type type) const {
+	return const_cast<AudioPlayer*>(this)->currentIndex(type);
+}
+
+bool AudioPlayer::updateCurrentStarted(AudioMsgId::Type type, int32 pos) {
+	auto data = dataForType(type);
 	if (!data) return false;
 
 	if (pos < 0) {
@@ -389,10 +389,7 @@ bool AudioPlayer::updateCurrentStarted(MediaOverviewType type, int32 pos) {
 		}
 		if (!_checkALError()) {
 			setStoppedState(data, AudioPlayerStoppedAtError);
-			switch (type) {
-			case OverviewVoiceFiles: onError(_audioData[_audioCurrent].audio); break;
-			case OverviewFiles: onError(_songData[_songCurrent].song); break;
-			}
+			onError(data->audio);
 			return false;
 		}
 	}
@@ -400,12 +397,8 @@ bool AudioPlayer::updateCurrentStarted(MediaOverviewType type, int32 pos) {
 	return true;
 }
 
-bool AudioPlayer::fadedStop(MediaOverviewType type, bool *fadedStart) {
-	Msg *current = 0;
-	switch (type) {
-	case OverviewVoiceFiles: current = &_audioData[_audioCurrent]; break;
-	case OverviewFiles: current = &_songData[_songCurrent]; break;
-	}
+bool AudioPlayer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
+	auto current = dataForType(type);
 	if (!current) return false;
 
 	switch (current->state) {
@@ -429,14 +422,18 @@ bool AudioPlayer::fadedStop(MediaOverviewType type, bool *fadedStart) {
 }
 
 void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
+	bool fadedStart = false;
+	auto type = audio.type();
 	AudioMsgId stopped;
 	{
 		QMutexLocker lock(&playerMutex);
 
 		bool fadedStart = false;
-		AudioMsg *current = &_audioData[_audioCurrent];
+		auto current = dataForType(type);
+		if (!current) return;
+
 		if (current->audio != audio) {
-			if (fadedStop(OverviewVoiceFiles, &fadedStart)) {
+			if (fadedStop(type, &fadedStart)) {
 				stopped = current->audio;
 			}
 			if (current->audio) {
@@ -444,110 +441,65 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 				emit faderOnTimer();
 			}
 
-			int32 index = 0;
-			for (; index < AudioVoiceMsgSimultaneously; ++index) {
-				if (_audioData[index].audio == audio) {
-					_audioCurrent = index;
+			auto foundCurrent = currentIndex(type);
+			int index = 0;
+			for (; index < AudioSimultaneousLimit; ++index) {
+				if (dataForType(type, index)->audio == audio) {
+					*foundCurrent = index;
 					break;
 				}
 			}
-			if (index == AudioVoiceMsgSimultaneously && ++_audioCurrent >= AudioVoiceMsgSimultaneously) {
-				_audioCurrent -= AudioVoiceMsgSimultaneously;
+			if (index == AudioSimultaneousLimit && ++*foundCurrent >= AudioSimultaneousLimit) {
+				*foundCurrent -= AudioSimultaneousLimit;
 			}
-			current = &_audioData[_audioCurrent];
+			current = dataForType(type);
 		}
 		current->audio = audio;
-		current->file = audio.audio->location(true);
-		current->data = audio.audio->data();
+		current->file = audio.audio()->location(true);
+		current->data = audio.audio()->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
-			setStoppedState(current, AudioPlayerStoppedAtError);
-			onError(audio);
+			if (audio.type() == AudioMsgId::Type::Song) {
+				setStoppedState(current);
+				if (!audio.audio()->loading()) {
+					DocumentOpenClickHandler::doOpen(audio.audio());
+				}
+			} else {
+				setStoppedState(current, AudioPlayerStoppedAtError);
+				onError(audio);
+			}
 		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
 			current->loading = true;
 			emit loaderOnStart(audio, position);
-			emit suppressSong();
+			if (type == AudioMsgId::Type::Voice) {
+				emit suppressSong();
+			}
 		}
 	}
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::play(const SongMsgId &song, int64 position) {
-	SongMsgId stopped;
-	{
-		QMutexLocker lock(&playerMutex);
-
-		bool fadedStart = false;
-		SongMsg *current = &_songData[_songCurrent];
-		if (current->song != song) {
-			if (fadedStop(OverviewFiles, &fadedStart)) {
-				stopped = current->song;
-			}
-			if (current->song) {
-				emit loaderOnCancel(current->song);
-				emit faderOnTimer();
-			}
-
-			int32 index = 0;
-			for (; index < AudioSongSimultaneously; ++index) {
-				if (_songData[index].song == song) {
-					_songCurrent = index;
-					break;
-				}
-			}
-			if (index == AudioSongSimultaneously && ++_songCurrent >= AudioSongSimultaneously) {
-				_songCurrent -= AudioSongSimultaneously;
-			}
-			current = &_songData[_songCurrent];
-		}
-		current->song = song;
-		current->file = song.song->location(true);
-		current->data = song.song->data();
-		if (current->file.isEmpty() && current->data.isEmpty()) {
-			setStoppedState(current);
-			if (!song.song->loading()) {
-				DocumentOpenClickHandler::doOpen(song.song);
-			}
-		} else {
-			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
-			current->loading = true;
-			emit loaderOnStart(song, position);
-		}
-	}
-	if (stopped) emit updated(stopped);
-}
-
-bool AudioPlayer::checkCurrentALError(MediaOverviewType type) {
+bool AudioPlayer::checkCurrentALError(AudioMsgId::Type type) {
 	if (_checkALError()) return true;
 
-	switch (type) {
-	case OverviewVoiceFiles:
-		setStoppedState(&_audioData[_audioCurrent], AudioPlayerStoppedAtError);
-		onError(_audioData[_audioCurrent].audio);
-		break;
-	case OverviewFiles:
-		setStoppedState(&_songData[_songCurrent], AudioPlayerStoppedAtError);
-		onError(_songData[_songCurrent].song);
-		break;
+	auto data = dataForType(type);
+	if (!data) {
+		setStoppedState(data, AudioPlayerStoppedAtError);
+		onError(data->audio);
 	}
 	return false;
 }
 
-void AudioPlayer::pauseresume(MediaOverviewType type, bool fast) {
+void AudioPlayer::pauseresume(AudioMsgId::Type type, bool fast) {
 	QMutexLocker lock(&playerMutex);
 
-	Msg *current = 0;
+	auto current = dataForType(type);
 	float64 suppressGain = 1.;
 	switch (type) {
-	case OverviewVoiceFiles:
-		current = &_audioData[_audioCurrent];
-		suppressGain = suppressAllGain;
-		break;
-	case OverviewFiles:
-		current = &_songData[_songCurrent];
-		suppressGain = suppressSongGain * cSongVolume();
-		break;
+	case AudioMsgId::Type::Voice: suppressGain = suppressAllGain; break;
+	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * cSongVolume(); break;
 	}
+
 	switch (current->state) {
 	case AudioPlayerPausing:
 	case AudioPlayerPaused:
@@ -575,14 +527,14 @@ void AudioPlayer::pauseresume(MediaOverviewType type, bool fast) {
 			alSourcePlay(current->source);
 			if (!checkCurrentALError(type)) return;
 		}
-		if (type == OverviewVoiceFiles) emit suppressSong();
+		if (type == AudioMsgId::Type::Voice) emit suppressSong();
 	} break;
 	case AudioPlayerStarting:
 	case AudioPlayerResuming:
 	case AudioPlayerPlaying:
 		current->state = AudioPlayerPausing;
 		updateCurrentStarted(type);
-		if (type == OverviewVoiceFiles) emit unsuppressSong();
+		if (type == AudioMsgId::Type::Voice) emit unsuppressSong();
 	break;
 	case AudioPlayerFinishing: current->state = AudioPlayerPausing; break;
 	}
@@ -592,23 +544,14 @@ void AudioPlayer::pauseresume(MediaOverviewType type, bool fast) {
 void AudioPlayer::seek(int64 position) {
 	QMutexLocker lock(&playerMutex);
 
-	MediaOverviewType type = OverviewFiles;
-	Msg *current = 0;
+	auto type = AudioMsgId::Type::Song;
+	auto current = dataForType(type);
 	float64 suppressGain = 1.;
-	AudioMsgId audio;
-	SongMsgId song;
 	switch (type) {
-	case OverviewVoiceFiles:
-		current = &_audioData[_audioCurrent];
-		audio = _audioData[_audioCurrent].audio;
-		suppressGain = suppressAllGain;
-		break;
-	case OverviewFiles:
-		current = &_songData[_songCurrent];
-		song = _songData[_songCurrent].song;
-		suppressGain = suppressSongGain * cSongVolume();
-		break;
+	case AudioMsgId::Type::Voice: suppressGain = suppressAllGain; break;
+	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * cSongVolume(); break;
 	}
+	auto audio = current->audio;
 
 	bool isSource = alIsSource(current->source);
 	bool fastSeek = (position >= current->skipStart && position < current->duration - current->skipEnd - (current->skipEnd ? AudioVoiceMsgFrequency : 0));
@@ -637,7 +580,7 @@ void AudioPlayer::seek(int64 position) {
 	case AudioPlayerPlaying:
 		current->state = AudioPlayerPausing;
 		updateCurrentStarted(type);
-		if (type == OverviewVoiceFiles) emit unsuppressSong();
+		if (type == AudioMsgId::Type::Voice) emit unsuppressSong();
 		break;
 	case AudioPlayerFinishing:
 	case AudioPlayerStopped:
@@ -645,113 +588,80 @@ void AudioPlayer::seek(int64 position) {
 	case AudioPlayerStoppedAtError:
 	case AudioPlayerStoppedAtStart:
 		lock.unlock();
-		switch (type) {
-		case OverviewVoiceFiles: if (audio) return play(audio, position);
-		case OverviewFiles: if (song) return play(song, position);
-		}
+		return play(audio, position);
 	}
 	emit faderOnTimer();
 }
 
-void AudioPlayer::stop(MediaOverviewType type) {
-	switch (type) {
-	case OverviewVoiceFiles: {
-		AudioMsgId current;
-		{
-			QMutexLocker lock(&playerMutex);
-			current = _audioData[_audioCurrent].audio;
-			fadedStop(type);
-		}
-		if (current) emit updated(current);
-	} break;
-
-	case OverviewFiles: {
-		SongMsgId current;
-		{
-			QMutexLocker lock(&playerMutex);
-			current = _songData[_songCurrent].song;
-			fadedStop(type);
-		}
-		if (current) emit updated(current);
-	} break;
+void AudioPlayer::stop(AudioMsgId::Type type) {
+	AudioMsgId current;
+	{
+		QMutexLocker lock(&playerMutex);
+		current = dataForType(type)->audio;
+		fadedStop(type);
 	}
+	if (current) emit updated(current);
 }
 
 void AudioPlayer::stopAndClear() {
-	AudioMsg *current_audio = 0;
+	AudioMsg *current_audio = nullptr, *current_song = nullptr;
 	{
 		QMutexLocker lock(&playerMutex);
-		current_audio = &_audioData[_audioCurrent];
-		if (current_audio) {
+		if ((current_audio = dataForType(AudioMsgId::Type::Voice))) {
 			setStoppedState(current_audio);
 		}
-	}
-	SongMsg *current_song = 0;
-	{
-		QMutexLocker lock(&playerMutex);
-		current_song = &_songData[_songCurrent];
-		if (current_song) {
+		if ((current_song = dataForType(AudioMsgId::Type::Song))) {
 			setStoppedState(current_song);
 		}
 	}
 	if (current_song) {
-		emit updated(current_song->song);
+		emit updated(current_song->audio);
 	}
 	if (current_audio) {
 		emit updated(current_audio->audio);
 	}
 	{
 		QMutexLocker lock(&playerMutex);
-		for (int32 index = 0; index < AudioVoiceMsgSimultaneously; ++index) {
-			if (_audioData[index].audio) {
-				emit loaderOnCancel(_audioData[index].audio);
+		auto clearAndCancel = [this](AudioMsgId::Type type, int index) {
+			auto data = dataForType(type, index);
+			if (data->audio) {
+				emit loaderOnCancel(data->audio);
 			}
-			_audioData[index].clear();
-			if (_songData[index].song) {
-				emit loaderOnCancel(_songData[index].song);
-			}
-			_songData[index].clear();
+			data->clear();
+		};
+		for (int index = 0; index < AudioSimultaneousLimit; ++index) {
+			clearAndCancel(AudioMsgId::Type::Voice, index);
+			clearAndCancel(AudioMsgId::Type::Song, index);
 		}
 	}
 }
 
-void AudioPlayer::currentState(AudioMsgId *audio, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
+void AudioPlayer::currentState(AudioMsgId *audio, AudioMsgId::Type type, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
 	QMutexLocker lock(&playerMutex);
-	AudioMsg *current = &_audioData[_audioCurrent];
+	auto current = dataForType(type);
+	if (!current) return;
+
 	if (audio) *audio = current->audio;
 	return currentState(current, state, position, duration, frequency);
 }
 
-void AudioPlayer::currentState(SongMsgId *song, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
-	QMutexLocker lock(&playerMutex);
-	SongMsg *current = &_songData[_songCurrent];
-	if (song) *song = current->song;
-	return currentState(current, state, position, duration, frequency);
-}
-
-void AudioPlayer::currentState(Msg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
+void AudioPlayer::currentState(AudioMsg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
 	if (state) *state = current->state;
 	if (position) *position = current->position;
 	if (duration) *duration = current->duration;
 	if (frequency) *frequency = current->frequency;
 }
 
-void AudioPlayer::setStoppedState(Msg *current, AudioPlayerState state) {
+void AudioPlayer::setStoppedState(AudioMsg *current, AudioPlayerState state) {
 	current->state = state;
 	current->position = 0;
 }
 
 void AudioPlayer::clearStoppedAtStart(const AudioMsgId &audio) {
 	QMutexLocker lock(&playerMutex);
-	if (_audioData[_audioCurrent].audio == audio && _audioData[_audioCurrent].state == AudioPlayerStoppedAtStart) {
-		setStoppedState(&_audioData[_audioCurrent]);
-	}
-}
-
-void AudioPlayer::clearStoppedAtStart(const SongMsgId &song) {
-	QMutexLocker lock(&playerMutex);
-	if (_songData[_songCurrent].song == song && _songData[_songCurrent].state == AudioPlayerStoppedAtStart) {
-		setStoppedState(&_songData[_songCurrent]);
+	auto data = dataForType(audio.type());
+	if (data && data->audio == audio && data->state == AudioPlayerStoppedAtStart) {
+		setStoppedState(data);
 	}
 }
 
@@ -860,29 +770,26 @@ void AudioPlayerFader::onTimer() {
 		suppressSongGain = qMin(suppressAllGain, _suppressSongGain.current());
 		suppressSongChanged = (suppressSongGain != wasSong);
 	}
-	bool hasFading = (_suppressAll || _suppressSongAnim), hasPlaying = false;
+	bool hasFading = (_suppressAll || _suppressSongAnim);
+	bool hasPlaying = false;
 
-	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
-		AudioPlayer::AudioMsg &m(voice->_audioData[i]);
-		if ((m.state & AudioPlayerStoppedMask) || m.state == AudioPlayerPaused || !m.source) continue;
+	auto updatePlayback = [this, voice, &hasPlaying, &hasFading](AudioMsgId::Type type, int index, float64 suppressGain, bool suppressGainChanged) {
+		auto data = voice->dataForType(type, index);
+		if ((data->state & AudioPlayerStoppedMask) || data->state == AudioPlayerPaused || !data->source) return;
 
-		int32 emitSignals = updateOnePlayback(&m, hasPlaying, hasFading, suppressAllGain, suppressAudioChanged);
-		if (emitSignals & EmitError) emit error(m.audio);
-		if (emitSignals & EmitStopped) emit audioStopped(m.audio);
-		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(m.audio);
-		if (emitSignals & EmitNeedToPreload) emit needToPreload(m.audio);
+		int32 emitSignals = updateOnePlayback(data, hasPlaying, hasFading, suppressGain, suppressGainChanged);
+		if (emitSignals & EmitError) emit error(data->audio);
+		if (emitSignals & EmitStopped) emit audioStopped(data->audio);
+		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(data->audio);
+		if (emitSignals & EmitNeedToPreload) emit needToPreload(data->audio);
+	};
+	auto suppressGainForMusic = suppressSongGain * cSongVolume();
+	auto suppressGainForMusicChanged = suppressSongChanged || _songVolumeChanged;
+	for (int i = 0; i < AudioSimultaneousLimit; ++i) {
+		updatePlayback(AudioMsgId::Type::Voice, i, suppressAllGain, suppressAudioChanged);
+		updatePlayback(AudioMsgId::Type::Song, i, suppressGainForMusic, suppressGainForMusicChanged);
 	}
 
-	for (int32 i = 0; i < AudioSongSimultaneously; ++i) {
-		AudioPlayer::SongMsg &m(voice->_songData[i]);
-		if ((m.state & AudioPlayerStoppedMask) || m.state == AudioPlayerPaused || !m.source) continue;
-
-		int32 emitSignals = updateOnePlayback(&m, hasPlaying, hasFading, suppressSongGain * cSongVolume(), suppressSongChanged || _songVolumeChanged);
-		if (emitSignals & EmitError) emit error(m.song);
-		if (emitSignals & EmitStopped) emit audioStopped(m.song);
-		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(m.song);
-		if (emitSignals & EmitNeedToPreload) emit needToPreload(m.song);
-	}
 	_songVolumeChanged = false;
 
 	if (!hasFading) {
@@ -907,7 +814,7 @@ void AudioPlayerFader::onTimer() {
 	}
 }
 
-int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged) {
+int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged) {
 	bool playing = false, fading = false;
 
 	ALint pos = 0;
@@ -1006,7 +913,7 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying,
 	return emitSignals;
 }
 
-void AudioPlayerFader::setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state) {
+void AudioPlayerFader::setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state) {
 	m->state = state;
 	m->position = 0;
 }
@@ -1478,53 +1385,38 @@ void AudioPlayerLoaders::onInit() {
 }
 
 void AudioPlayerLoaders::onStart(const AudioMsgId &audio, qint64 position) {
-	_audio = AudioMsgId();
-	delete _audioLoader;
-	_audioLoader = 0;
-
+	auto type = audio.type();
+	clear(type);
 	{
 		QMutexLocker lock(&playerMutex);
 		AudioPlayer *voice = audioPlayer();
 		if (!voice) return;
 
-		voice->_audioData[voice->_audioCurrent].loading = true;
+		auto data = voice->dataForType(type);
+		if (!data) return;
+
+		data->loading = true;
 	}
 
-	loadData(OverviewVoiceFiles, static_cast<const void*>(&audio), position);
+	loadData(audio, position);
 }
 
-void AudioPlayerLoaders::onStart(const SongMsgId &song, qint64 position) {
-	_song = SongMsgId();
-	delete _songLoader;
-	_songLoader = 0;
-
-	{
-		QMutexLocker lock(&playerMutex);
-		AudioPlayer *voice = audioPlayer();
-		if (!voice) return;
-
-		voice->_songData[voice->_songCurrent].loading = true;
-	}
-
-	loadData(OverviewFiles, static_cast<const void*>(&song), position);
-}
-
-void AudioPlayerLoaders::clear(MediaOverviewType type) {
+void AudioPlayerLoaders::clear(AudioMsgId::Type type) {
 	switch (type) {
-	case OverviewVoiceFiles: clearAudio(); break;
-	case OverviewFiles: clearSong(); break;
+	case AudioMsgId::Type::Voice: clearAudio(); break;
+	case AudioMsgId::Type::Song: clearSong(); break;
 	}
 }
 
-void AudioPlayerLoaders::setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state) {
+void AudioPlayerLoaders::setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state) {
 	m->state = state;
 	m->position = 0;
 }
 
-void AudioPlayerLoaders::emitError(MediaOverviewType type) {
+void AudioPlayerLoaders::emitError(AudioMsgId::Type type) {
 	switch (type) {
-	case OverviewVoiceFiles: emit error(clearAudio()); break;
-	case OverviewFiles: emit error(clearSong()); break;
+	case AudioMsgId::Type::Voice: emit error(clearAudio()); break;
+	case AudioMsgId::Type::Song: emit error(clearSong()); break;
 	}
 }
 
@@ -1532,29 +1424,26 @@ AudioMsgId AudioPlayerLoaders::clearAudio() {
 	AudioMsgId current = _audio;
 	_audio = AudioMsgId();
 	delete _audioLoader;
-	_audioLoader = 0;
+	_audioLoader = nullptr;
 	return current;
 }
 
-SongMsgId AudioPlayerLoaders::clearSong() {
-	SongMsgId current = _song;
-	_song = SongMsgId();
+AudioMsgId AudioPlayerLoaders::clearSong() {
+	AudioMsgId current = _song;
+	_song = AudioMsgId();
 	delete _songLoader;
-	_songLoader = 0;
+	_songLoader = nullptr;
 	return current;
 }
 
 void AudioPlayerLoaders::onLoad(const AudioMsgId &audio) {
-	loadData(OverviewVoiceFiles, static_cast<const void*>(&audio), 0);
+	loadData(audio, 0);
 }
 
-void AudioPlayerLoaders::onLoad(const SongMsgId &song) {
-	loadData(OverviewFiles, static_cast<const void*>(&song), 0);
-}
-
-void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qint64 position) {
+void AudioPlayerLoaders::loadData(const AudioMsgId &audio, qint64 position) {
 	SetupError err = SetupNoErrorStarted;
-	AudioPlayerLoader *l = setupLoader(type, objId, err, position);
+	auto type = audio.type();
+	AudioPlayerLoader *l = setupLoader(audio, err, position);
 	if (!l) {
 		if (err == SetupErrorAtStart) {
 			emitError(type);
@@ -1572,7 +1461,7 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 			if (errAtStart) {
 				{
 					QMutexLocker lock(&playerMutex);
-					AudioPlayer::Msg *m = checkLoader(type);
+					AudioPlayer::AudioMsg *m = checkLoader(type);
 					if (m) m->state = AudioPlayerStoppedAtStart;
 				}
 				emitError(type);
@@ -1591,7 +1480,7 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 	}
 
 	QMutexLocker lock(&playerMutex);
-	AudioPlayer::Msg *m = checkLoader(type);
+	AudioPlayer::AudioMsg *m = checkLoader(type);
 	if (!m) {
 		clear(type);
 		return;
@@ -1662,8 +1551,8 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 				audioPlayer()->resumeDevice();
 
 				switch (type) {
-				case OverviewVoiceFiles: alSourcef(m->source, AL_GAIN, suppressAllGain); break;
-				case OverviewFiles: alSourcef(m->source, AL_GAIN, suppressSongGain * cSongVolume()); break;
+				case AudioMsgId::Type::Voice: alSourcef(m->source, AL_GAIN, suppressAllGain); break;
+				case AudioMsgId::Type::Song: alSourcef(m->source, AL_GAIN, suppressSongGain * cSongVolume()); break;
 				}
 				if (!_checkALError()) {
 					setStoppedState(m, AudioPlayerStoppedAtError);
@@ -1687,93 +1576,59 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 	}
 }
 
-AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const void *objId, SetupError &err, qint64 position) {
+AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 position) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(&playerMutex);
 	AudioPlayer *voice = audioPlayer();
 	if (!voice) return nullptr;
 
-	bool isGoodId = false;
-	AudioPlayer::Msg *m = 0;
-	AudioPlayerLoader **l = 0;
-	switch (type) {
-	case OverviewVoiceFiles: {
-		AudioPlayer::AudioMsg &msg(voice->_audioData[voice->_audioCurrent]);
-		const AudioMsgId &audio(*static_cast<const AudioMsgId*>(objId));
-		if (msg.audio != audio || !msg.loading) {
-			emit error(audio);
-			break;
-		}
-		m = &msg;
-		l = &_audioLoader;
-		isGoodId = (_audio == audio);
-	} break;
-	case OverviewFiles: {
-		AudioPlayer::SongMsg &msg(voice->_songData[voice->_songCurrent]);
-		const SongMsgId &song(*static_cast<const SongMsgId*>(objId));
-		if (msg.song != song || !msg.loading) {
-			emit error(song);
-			break;
-		}
-		m = &msg;
-		l = &_songLoader;
-		isGoodId = (_song == song);
-	} break;
-	}
-	if (!l || !m) {
+	auto data = voice->dataForType(audio.type());
+	if (!data || data->audio != audio || !data->loading) {
+		emit error(audio);
 		LOG(("Audio Error: trying to load part of audio, that is not current at the moment"));
 		err = SetupErrorNotPlaying;
 		return nullptr;
 	}
 
-	if (*l && (!isGoodId || !(*l)->check(m->file, m->data))) {
+	bool isGoodId = false;
+	AudioPlayerLoader **l = nullptr;
+	switch (audio.type()) {
+	case AudioMsgId::Type::Voice: l = &_audioLoader; isGoodId = (_audio == audio); break;
+	case AudioMsgId::Type::Song: l = &_songLoader; isGoodId = (_song == audio); break;
+	}
+
+	if (*l && (!isGoodId || !(*l)->check(data->file, data->data))) {
 		delete *l;
-		*l = 0;
-		switch (type) {
-		case OverviewVoiceFiles: _audio = AudioMsgId(); break;
-		case OverviewFiles: _song = SongMsgId(); break;
+		*l = nullptr;
+		switch (audio.type()) {
+		case AudioMsgId::Type::Voice: _audio = AudioMsgId(); break;
+		case AudioMsgId::Type::Song: _song = AudioMsgId(); break;
 		}
 	}
 
 	if (!*l) {
-		switch (type) {
-		case OverviewVoiceFiles: _audio = *static_cast<const AudioMsgId*>(objId); break;
-		case OverviewFiles: _song = *static_cast<const SongMsgId*>(objId); break;
+		switch (audio.type()) {
+		case AudioMsgId::Type::Voice: _audio = audio; break;
+		case AudioMsgId::Type::Song: _song = audio; break;
 		}
 
-//		QByteArray header = m->data.mid(0, 8);
-//		if (header.isEmpty()) {
-//			QFile f(m->fname);
-//			if (!f.open(QIODevice::ReadOnly)) {
-//				LOG(("Audio Error: could not open file '%1'").arg(m->fname));
-//				m->state = AudioPlayerStoppedAtStart;
-//				return nullptr;
-//			}
-//			header = f.read(8);
-//		}
-//		if (header.size() < 8) {
-//			LOG(("Audio Error: could not read header from file '%1', data size %2").arg(m->fname).arg(m->data.isEmpty() ? QFileInfo(m->fname).size() : m->data.size()));
-//			m->state = AudioPlayerStoppedAtStart;
-//			return nullptr;
-//		}
-
-		*l = new FFMpegLoader(m->file, m->data);
+		*l = new FFMpegLoader(data->file, data->data);
 
 		if (!(*l)->open(position)) {
-			m->state = AudioPlayerStoppedAtStart;
+			data->state = AudioPlayerStoppedAtStart;
 			return nullptr;
 		}
 		int64 duration = (*l)->duration();
 		if (duration <= 0) {
-			m->state = AudioPlayerStoppedAtStart;
+			data->state = AudioPlayerStoppedAtStart;
 			return nullptr;
 		}
-		m->duration = duration;
-		m->frequency = (*l)->frequency();
-		if (!m->frequency) m->frequency = AudioVoiceMsgFrequency;
+		data->duration = duration;
+		data->frequency = (*l)->frequency();
+		if (!data->frequency) data->frequency = AudioVoiceMsgFrequency;
 		err = SetupNoErrorStarted;
 	} else {
-		if (!m->skipEnd) {
+		if (!data->skipEnd) {
 			err = SetupErrorLoadedFull;
 			LOG(("Audio Error: trying to load part of audio, that is already loaded to the end"));
 			return nullptr;
@@ -1782,71 +1637,41 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 	return *l;
 }
 
-AudioPlayer::Msg *AudioPlayerLoaders::checkLoader(MediaOverviewType type) {
+AudioPlayer::AudioMsg *AudioPlayerLoaders::checkLoader(AudioMsgId::Type type) {
 	AudioPlayer *voice = audioPlayer();
 	if (!voice) return 0;
 
+	auto data = voice->dataForType(type);
 	bool isGoodId = false;
-	AudioPlayer::Msg *m = 0;
-	AudioPlayerLoader **l = 0;
+	AudioPlayerLoader **l = nullptr;
 	switch (type) {
-	case OverviewVoiceFiles: {
-		AudioPlayer::AudioMsg &msg(voice->_audioData[voice->_audioCurrent]);
-		isGoodId = (msg.audio == _audio);
-		l = &_audioLoader;
-		m = &msg;
-	} break;
-	case OverviewFiles: {
-		AudioPlayer::SongMsg &msg(voice->_songData[voice->_songCurrent]);
-		isGoodId = (msg.song == _song);
-		l = &_songLoader;
-		m = &msg;
-	} break;
+	case AudioMsgId::Type::Voice: l = &_audioLoader; isGoodId = (data->audio == _audio); break;
+	case AudioMsgId::Type::Song: l = &_songLoader; isGoodId = (data->audio == _song); break;
 	}
-	if (!l || !m) return 0;
+	if (!l || !data) return nullptr;
 
-	if (!isGoodId || !m->loading || !(*l)->check(m->file, m->data)) {
+	if (!isGoodId || !data->loading || !(*l)->check(data->file, data->data)) {
 		LOG(("Audio Error: playing changed while loading"));
-		return 0;
+		return nullptr;
 	}
 
-	return m;
+	return data;
 }
 
 void AudioPlayerLoaders::onCancel(const AudioMsgId &audio) {
-	if (_audio == audio) {
-		_audio = AudioMsgId();
-		delete _audioLoader;
-		_audioLoader = 0;
+	switch (audio.type()) {
+	case AudioMsgId::Type::Voice: if (_audio == audio) clear(audio.type()); break;
+	case AudioMsgId::Type::Song: if (_song == audio) clear(audio.type()); break;
 	}
 
 	QMutexLocker lock(&playerMutex);
 	AudioPlayer *voice = audioPlayer();
 	if (!voice) return;
 
-	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
-		AudioPlayer::AudioMsg &m(voice->_audioData[i]);
-		if (m.audio == audio) {
-			m.loading = false;
-		}
-	}
-}
-
-void AudioPlayerLoaders::onCancel(const SongMsgId &song) {
-	if (_song == song) {
-		_song = SongMsgId();
-		delete _songLoader;
-		_songLoader = 0;
-	}
-
-	QMutexLocker lock(&playerMutex);
-	AudioPlayer *voice = audioPlayer();
-	if (!voice) return;
-
-	for (int32 i = 0; i < AudioSongSimultaneously; ++i) {
-		AudioPlayer::SongMsg &m(voice->_songData[i]);
-		if (m.song == song) {
-			m.loading = false;
+	for (int i = 0; i < AudioSimultaneousLimit; ++i) {
+		auto data = voice->dataForType(audio.type(), i);
+		if (data->audio == audio) {
+			data->loading = false;
 		}
 	}
 }

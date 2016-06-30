@@ -859,7 +859,7 @@ bool File::updateStatusText() const {
 			int64 playingPosition = 0, playingDuration = 0;
 			int32 playingFrequency = 0;
 			if (audioPlayer()) {
-				audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+				audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 			}
 
 			if (playing == AudioMsgId(document, FullMsgId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
@@ -870,22 +870,22 @@ bool File::updateStatusText() const {
 				statusSize = FileStatusSizeLoaded;
 			}
 		} else if (document->song()) {
-			SongMsgId playing;
+			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			int64 playingPosition = 0, playingDuration = 0;
 			int32 playingFrequency = 0;
 			if (audioPlayer()) {
-				audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+				audioPlayer()->currentState(&playing, AudioMsgId::Type::Song, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 			}
 
-			if (playing == SongMsgId(document, FullMsgId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+			if (playing == AudioMsgId(document, FullMsgId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
 				realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
 				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 			} else {
 				statusSize = FileStatusSizeLoaded;
 			}
-			if (!showPause && (playing == SongMsgId(document, FullMsgId())) && App::main() && App::main()->player()->seekingSong(playing)) {
+			if (!showPause && (playing == AudioMsgId(document, FullMsgId())) && App::main() && App::main()->player()->seekingSong(playing)) {
 				showPause = true;
 			}
 		} else {

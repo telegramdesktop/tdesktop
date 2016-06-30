@@ -1229,51 +1229,62 @@ private:
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
-struct SongMsgId {
-	SongMsgId() : song(nullptr) {
-	}
-	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), contextId(msgId) {
-	}
-	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), contextId(channelId, msgId) {
-	}
-	explicit operator bool() const {
-		return song;
-	}
-	DocumentData *song;
-	FullMsgId contextId;
+class AudioMsgId {
+public:
+	enum class Type {
+		Unknown,
+		Voice,
+		Song,
+		Video,
+	};
 
-};
-inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
-	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.contextId < b.contextId);
-}
-inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
-	return a.song == b.song && a.contextId == b.contextId;
-}
-inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
-	return !(a == b);
-}
+	AudioMsgId() {
+	}
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : _audio(audio), _contextId(msgId) {
+		setType();
+	}
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : _audio(audio), _contextId(channelId, msgId) {
+		setType();
+	}
 
-struct AudioMsgId {
-	AudioMsgId() : audio(nullptr) {
+	Type type() const {
+		return _type;
 	}
-	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), contextId(msgId) {
+	DocumentData *audio() const {
+		return _audio;
 	}
-	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), contextId(channelId, msgId) {
+	FullMsgId contextId() const {
+		return _contextId;
 	}
 
 	explicit operator bool() const {
-		return audio;
+		return _audio;
 	}
-	DocumentData *audio;
-	FullMsgId contextId;
+
+private:
+	void setType() {
+		if (_audio->voice()) {
+			_type = Type::Voice;
+		} else if (_audio->song()) {
+			_type = Type::Song;
+		} else if (_audio->isVideo()) {
+			_type = Type::Video;
+		} else {
+			_type = Type::Unknown;
+		}
+	}
+
+	DocumentData *_audio = nullptr;
+	Type _type = Type::Unknown;
+	FullMsgId _contextId;
 
 };
 
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.contextId < b.contextId);
+	return quintptr(a.audio()) < quintptr(b.audio()) || (quintptr(a.audio()) == quintptr(b.audio()) && a.contextId() < b.contextId());
 }
 inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.contextId == b.contextId;
+	return a.audio() == b.audio() && a.contextId() == b.contextId();
 }
 inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);

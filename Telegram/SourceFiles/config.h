@@ -100,8 +100,7 @@ enum {
 	// a new message from the same sender is attached to previous within 15 minutes
 	AttachMessageToPreviousSecondsDelta = 900,
 
-	AudioVoiceMsgSimultaneously = 4,
-	AudioSongSimultaneously = 4,
+	AudioSimultaneousLimit = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
 	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
 	AudioFadeTimeout = 7, // 7ms
