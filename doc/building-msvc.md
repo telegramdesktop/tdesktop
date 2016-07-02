@@ -214,6 +214,8 @@ and run
     ..\depot_tools\fetch breakpad
     ..\depot_tools\gclient sync
 
+`gclient sync` might print `Error: client not configured; see 'gclient config'` - You can safely ignore it.
+
 There's now a src folder within a src folder: D:\TBuild\Libraries\breakpad\src\src.  Telegram only expects one src folder.  Either via the command line or File Explorer, rename the top-level src folder and move the inner src folder one level up.  This way, what was once breakpad\src\src\client is now breakpad\src\client, etc.
 
 #####Building library
