@@ -11,6 +11,8 @@ env:
   - BUILD_VERSION="disable_desktop_file_generation"
 
 arch:
+  repos:
+   - home_ItachiSan_archlinux_Arch_Extra=http://download.opensuse.org/repositories/home:/ItachiSan:/archlinux/Arch_Extra/$arch
   packages:
    - bzr
    - wget
@@ -18,7 +20,7 @@ arch:
 
    - git
    - patch
-   - dee-fixed
+   - home_ItachiSan_archlinux_Arch_Extra/dee # Use fixed dee version (See #2005)
    - libunity
    - libappindicator-gtk2
 
