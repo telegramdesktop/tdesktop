@@ -541,6 +541,7 @@ namespace {
 		dbiHiddenPinnedMessages = 0x39,
 		dbiDialogsMode          = 0x40,
 		dbiModerateMode         = 0x41,
+		dbiCloseMainOnEscape    = 0x42,
 
 		dbiEncryptedWithSalt    = 333,
 		dbiEncrypted            = 444,
@@ -890,6 +891,14 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetSendToMenu(v == 1);
+		} break;
+
+		case dbiCloseMainOnEscape: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetCloseMainOnEscape(v == 1);
 		} break;
 
 		case dbiSoundNotify: {
@@ -2184,6 +2193,7 @@ namespace Local {
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
+		data.stream << quint32(dbiCloseMainOnEscape) << qint32(cCloseMainOnEscape());
 		data.stream << quint32(dbiWorkMode) << qint32(cWorkMode());
 		data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 		data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());

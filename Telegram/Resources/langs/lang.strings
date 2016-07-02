@@ -259,6 +259,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
 "lng_settings_add_sendto" = "Place Telegram in «Send to» menu";
+"lng_settings_close_main_on_escape" = "Close Telegram when Escape is pressed";
 "lng_settings_scale_label" = "Interface scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 

@@ -1899,7 +1899,14 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 }
 
 void DialogsWidget::onCancel() {
-	if (!onCancelSearch() || (!_searchInPeer && !App::main()->selectingPeer())) {
+	if (!onCancelSearch()) {
+		const bool close = !_searchInPeer && !App::main()->selectingPeer();
+		emit cancelled();
+		if (close && cCloseMainOnEscape()) {
+			App::wnd()->close();
+		}
+	}
+	else if (!_searchInPeer && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }
