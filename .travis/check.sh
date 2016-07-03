@@ -22,7 +22,10 @@ checkCommitMessage() {
 }
 
 addCommentToGitHubPR() {
-    curl -H "Authorization: token ${GH_AUTH_TOKEN}" --data "{\"body\": \"TEST\"}" "https://api.github.com/repos/${TRAVIS_REPO_SLUG}/issues/${TRAVIS_PULL_REQUEST}/comments"
+	if [[ $BUILD_VERSION == "" ]]; then
+		info_msg "https://api.github.com/repos/${TRAVIS_REPO_SLUG}/issues/${TRAVIS_PULL_REQUEST}/comments"
+		curl -H "Authorization: token ${GH_AUTH_TOKEN}" --data "{\"body\": \"TEST\"}" "https://api.github.com/repos/${TRAVIS_REPO_SLUG}/issues/${TRAVIS_PULL_REQUEST}/comments"
+	fi
 }
 
 source ./.travis/common.sh
