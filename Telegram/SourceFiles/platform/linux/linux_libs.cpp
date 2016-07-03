@@ -130,28 +130,17 @@ void start() {
 	bool gtkLoaded = false;
 	bool indicatorLoaded = false;
 	QLibrary lib_gtk, lib_indicator;
-	if (loadLibrary(lib_indicator, "appindicator3", 1)) {
-		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+	if (loadLibrary(lib_indicator, "appindicator", 1)) {
+		if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+			gtkLoaded = indicatorLoaded = false;
 			gtkLoaded = setupGtkBase(lib_gtk);
 			indicatorLoaded = setupAppIndicator(lib_indicator);
-		}
-	}
-	if (!gtkLoaded || !indicatorLoaded) {
-		if (loadLibrary(lib_indicator, "appindicator", 1)) {
-			if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-				gtkLoaded = indicatorLoaded = false;
-				gtkLoaded = setupGtkBase(lib_gtk);
-				indicatorLoaded = setupAppIndicator(lib_indicator);
-			}
 		}
 	}
 
 	// If no appindicator, try at least load gtk.
 	if (!gtkLoaded && !indicatorLoaded) {
-		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
-			gtkLoaded = setupGtkBase(lib_gtk);
-		}
-		if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+		if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 			gtkLoaded = setupGtkBase(lib_gtk);
 		}
 	}
