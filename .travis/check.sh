@@ -31,6 +31,7 @@ Please read our [contributing policy](https://github.com/telegramdesktop/tdeskto
 (See [travis build](https://travis-ci.org/telegramdesktop/tdesktop/jobs/${TRAVIS_JOB_ID}))"
 		addCommentToGitHub "${TEXT}"
 		addLabelToGitHub "missing signature"
+		info_msg "Added missing signature info on github"
 	fi
 }
 
