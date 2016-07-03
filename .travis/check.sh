@@ -26,13 +26,11 @@ addMissingSignatureComment() {
 		local TEXT="Hi,\n\
 thanks for the pull request!\n\
 \n\
-Please read our [contributing policy](https://github.com/telegramdesktop/tdesktop/blob/master/.github/CONTRIBUTING.md). You'll need to make a pull request with the \"Signed-off-by:\" signature being the last line of your commit message, like it is described in [sign your work](https://github.com/telegramdesktop/tdesktop/blob/master/.github/CONTRIBUTING.md#sign-your-work) section. That will grant your work into the public domain.\n\
+Please read our [contributing policy](https://github.com/telegramdesktop/tdesktop/blob/master/.github/CONTRIBUTING.md). You'll need to make a pull request with the \\\"Signed-off-by:\\\" signature being the last line of your commit message, like it is described in [sign your work](https://github.com/telegramdesktop/tdesktop/blob/master/.github/CONTRIBUTING.md#sign-your-work) section. That will grant your work into the public domain.\n\
 \n\
 (See [travis build](https://travis-ci.org/telegramdesktop/tdesktop/jobs/${TRAVIS_JOB_ID}))"
 		addCommentToGitHubPR "${TEXT}"
 	fi
-	
-	
 }
 
 addCommentToGitHubPR() {
