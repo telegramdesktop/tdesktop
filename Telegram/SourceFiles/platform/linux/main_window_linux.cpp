@@ -181,7 +181,9 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
     return FALSE;
 }
 
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 UnityLauncherEntry *_psUnityLauncherEntry = nullptr;
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 } // namespace
 
@@ -319,6 +321,7 @@ void MainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadBadge();
 
 	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (_psUnityLauncherEntry) {
 		if (counter > 0) {
 			Libs::unity_launcher_entry_set_count(_psUnityLauncherEntry, (counter > 9999) ? 9999 : counter);
@@ -327,6 +330,7 @@ void MainWindow::psUpdateCounter() {
 			Libs::unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, FALSE);
 		}
 	}
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	if (noQtTrayIcon) {
 		if (useAppIndicator) {
@@ -416,12 +420,14 @@ void MainWindow::LibsLoaded() {
 		DEBUG_LOG(("Status icon api loaded!"));
 	}
 
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	useUnityCount = (Libs::unity_launcher_entry_get_for_desktop_id != nullptr)
 			&& (Libs::unity_launcher_entry_set_count != nullptr)
 			&& (Libs::unity_launcher_entry_set_count_visible != nullptr);
 	if (useUnityCount) {
 		DEBUG_LOG(("Unity count api loaded!"));
 	}
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 }
 
 void MainWindow::psUpdateDelegate() {
@@ -598,6 +604,7 @@ void MainWindow::psCreateTrayIcon() {
 void MainWindow::psFirstShow() {
 	psCreateTrayIcon();
 
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (useUnityCount) {
 		_psUnityLauncherEntry = Libs::unity_launcher_entry_get_for_desktop_id("telegramdesktop.desktop");
 		if (_psUnityLauncherEntry) {
@@ -613,6 +620,7 @@ void MainWindow::psFirstShow() {
 	} else {
 		LOG(("Not using Unity Launcher count."));
 	}
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	psUpdateMargins();
 
