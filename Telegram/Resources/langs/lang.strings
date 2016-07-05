@@ -921,7 +921,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Introducing Drafts: Seamless syncing for unsent messages on all your devices. Drafts are now visible in your chats list.\n— Completely redesigned group and user profiles.\n— Unread messages counter on the 'Scroll to bottom' button.\n\nMore about this update: {link}";
+"lng_new_version_text" = "— Fixed photo viewer to handle screen resolution change correctly\n— Fixed forwarding photos via drag-n-drop\n— Various design improvements and other bug fixes";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

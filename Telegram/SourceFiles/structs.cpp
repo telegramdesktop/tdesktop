@@ -983,11 +983,21 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				App::wnd()->showDocument(data, item);
 				location.accessDisable();
 			} else {
-				psOpenFile(location.name());
+				auto filepath = location.name();
+				if (documentIsValidMediaFile(filepath)) {
+					psOpenFile(filepath);
+				} else {
+					psShowInFolder(filepath);
+				}
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
-		} else if (data->voice() || data->isVideo()) {
-			psOpenFile(location.name());
+		} else if (data->voice() || data->song() || data->isVideo()) {
+			auto filepath = location.name();
+			if (documentIsValidMediaFile(filepath)) {
+				psOpenFile(filepath);
+			} else {
+				psShowInFolder(filepath);
+			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
@@ -1281,8 +1291,12 @@ void DocumentData::performActionOnLoad() {
 				psOpenFile(already, true);
 			}
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-			if (voice() || isVideo()) {
-				psOpenFile(already);
+			if (voice() || song() || isVideo()) {
+				if (documentIsValidMediaFile(already)) {
+					psOpenFile(already);
+				} else {
+					psShowInFolder(already);
+				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {

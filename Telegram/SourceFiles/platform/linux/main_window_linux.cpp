@@ -249,9 +249,9 @@ void MainWindow::psSetupTrayIcon() {
 			trayIcon = new QSystemTrayIcon(this);
 
 			QIcon icon;
-			QFileInfo f(_trayIconImageFile());
-			if (f.exists()) {
-				QByteArray path = QFile::encodeName(f.absoluteFilePath());
+			QFileInfo iconFile(_trayIconImageFile());
+			if (iconFile.exists()) {
+				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				icon = QIcon(path.constData());
 			} else {
 				icon = QIcon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
@@ -303,9 +303,9 @@ void MainWindow::psUpdateWorkmode() {
 void MainWindow::psUpdateIndicator() {
 	_psUpdateIndicatorTimer.stop();
 	_psLastIndicatorUpdate = getms();
-	QFileInfo f(_trayIconImageFile());
-	if (f.exists()) {
-		QByteArray path = QFile::encodeName(f.absoluteFilePath()), name = QFile::encodeName(f.fileName());
+	QFileInfo iconFile(_trayIconImageFile());
+	if (iconFile.exists()) {
+		QByteArray path = QFile::encodeName(iconFile.absoluteFilePath()), name = QFile::encodeName(iconFile.fileName());
 		name = name.mid(0, name.size() - 4);
 		Libs::app_indicator_set_icon_full(_trayIndicator, path.constData(), name);
 	} else {
@@ -338,7 +338,7 @@ void MainWindow::psUpdateCounter() {
 		} else if (useStatusIcon && trayIconChecked) {
 			QFileInfo iconFile(_trayIconImageFile());
 			if (iconFile.exists()) {
-				QByteArray path = QFile::encodeName(f.absoluteFilePath());
+				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				Libs::gtk_status_icon_set_from_file(_trayIcon, path.constData());
 			} else {
 				loadPixbuf(_trayIconImageGen());
@@ -347,9 +347,9 @@ void MainWindow::psUpdateCounter() {
 		}
 	} else if (trayIcon) {
 		QIcon icon;
-		QFileInfo f(_trayIconImageFile());
-		if (f.exists()) {
-			QByteArray path = QFile::encodeName(f.absoluteFilePath());
+		QFileInfo iconFile(_trayIconImageFile());
+		if (iconFile.exists()) {
+			QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 			icon = QIcon(path.constData());
 		} else {
 			int32 counter = App::histories().unreadBadge();
@@ -524,9 +524,9 @@ void MainWindow::psCreateTrayIcon() {
 		_trayMenu = Libs::gtk_menu_new();
 		if (_trayMenu) {
 			DEBUG_LOG(("Created gtk menu for appindicator!"));
-			QFileInfo f(_trayIconImageFile());
-			if (f.exists()) {
-				QByteArray path = QFile::encodeName(f.absoluteFilePath());
+			QFileInfo iconFile(_trayIconImageFile());
+			if (iconFile.exists()) {
+				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				_trayIndicator = Libs::app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
 				if (_trayIndicator) {
 					DEBUG_LOG(("Created appindicator!"));

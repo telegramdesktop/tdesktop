@@ -347,7 +347,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 		} else {
 			p.setBrush(st::white);
 		}
-		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2, _st.thickness / 2, _st.thickness / 2, _st.thickness / 2)), st::msgRadius - (_st.thickness / 2), st::msgRadius - (_st.thickness / 2));
+		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::msgRadius - (_st.thickness / 2.), st::msgRadius - (_st.thickness / 2.));
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 		if (checked > 0) {
@@ -485,9 +485,9 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
-		//int32 skip = qCeil(_st.thickness / 2);
+		//int32 skip = qCeil(_st.thickness / 2.);
 		//p.drawEllipse(_checkRect.marginsRemoved(QMargins(skip, skip, skip, skip)));
-		p.drawEllipse(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2, _st.thickness / 2, _st.thickness / 2, _st.thickness / 2)));
+		p.drawEllipse(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)));
 
 		if (checked > 0) {
 			p.setPen(Qt::NoPen);

@@ -1542,7 +1542,11 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		DocumentData *audio = audioId.audio();
 		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
-			psOpenFile(filepath);
+			if (documentIsValidMediaFile(filepath)) {
+				psOpenFile(filepath);
+			} else {
+				psShowInFolder(filepath);
+			}
 		}
 	}
 

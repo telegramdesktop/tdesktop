@@ -1471,6 +1471,10 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		_widget->onListEscapePressed();
 	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
 		copySelectedText();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+#endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		int32 selectedForForward, selectedForDelete;
 		getSelectionState(selectedForForward, selectedForDelete);
@@ -2481,12 +2485,22 @@ void BotKeyboard::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
-bool BotKeyboard::moderateKeyActivate(int index) {
+bool BotKeyboard::moderateKeyActivate(int key) {
 	if (auto item = App::histItemById(_wasForMsgId)) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
-				App::activateBotCommand(item, 0, index);
-				return true;
+			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
+				int index = (key - Qt::Key_1);
+				if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
+					App::activateBotCommand(item, 0, index);
+					return true;
+				}
+			} else if (key == Qt::Key_Q) {
+				if (auto user = item->history()->peer->asUser()) {
+					if (user->botInfo && item->from() == user) {
+						App::sendBotCommand(user, user, qsl("/translate"));
+						return true;
+					}
+				}
 			}
 		}
 	}

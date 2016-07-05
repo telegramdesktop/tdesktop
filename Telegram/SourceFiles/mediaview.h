@@ -74,6 +74,8 @@ public:
 	void clipCallback(Media::Clip::Notification notification);
 	PeerData *ui_getPeerForMouseAction();
 
+	void clearData();
+
 	~MediaView();
 
 	// ClickHandlerHost interface

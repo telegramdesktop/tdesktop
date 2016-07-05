@@ -66,6 +66,8 @@ flatButton {
 	overFont: font;
 	duration: int;
 	cursor: cursor;
+
+	radius: pixels;
 }
 
 iconedButton {

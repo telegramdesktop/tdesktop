@@ -174,14 +174,15 @@ QRect FlatInput::getTextRect() const {
 
 void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(rect(), a_bgColor.current());
-	if (_st.borderWidth) {
-		QBrush b(a_borderColor.current());
-		p.fillRect(0, 0, width() - _st.borderWidth, _st.borderWidth, b);
-		p.fillRect(width() - _st.borderWidth, 0, _st.borderWidth, height() - _st.borderWidth, b);
-		p.fillRect(_st.borderWidth, height() - _st.borderWidth, width() - _st.borderWidth, _st.borderWidth, b);
-		p.fillRect(0, _st.borderWidth, _st.borderWidth, height() - _st.borderWidth, b);
-	}
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	auto pen = QPen(a_borderColor.current());
+	pen.setWidth(_st.borderWidth);
+	p.setPen(pen);
+	p.setBrush(QBrush(a_bgColor.current()));
+	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::msgRadius - (_st.borderWidth / 2.), st::msgRadius - (_st.borderWidth / 2.));
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
 	if (_st.imgRect.pxWidth()) {
 		p.drawSprite(_st.imgPos, _st.imgRect);
 	}
@@ -344,6 +345,13 @@ void FlatInput::keyPressEvent(QKeyEvent *e) {
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		emit submitted(ctrl && shift);
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto selected = selectedText();
+		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
+			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	}
 }
 
@@ -765,11 +773,11 @@ void InputArea::startBorderAnimation() {
 }
 
 void InputArea::focusInEvent(QFocusEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputArea::mousePressEvent(QMouseEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputArea::contextMenuEvent(QContextMenuEvent *e) {
@@ -1228,6 +1236,14 @@ void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 	} else if (f()->_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
 		e->ignore();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto cursor = textCursor();
+		int start = cursor.selectionStart(), end = cursor.selectionEnd();
+		if (end > start) {
+			QApplication::clipboard()->setText(f()->getText(start, end), QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {
@@ -1457,11 +1473,11 @@ void InputField::startBorderAnimation() {
 }
 
 void InputField::focusInEvent(QFocusEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputField::mousePressEvent(QMouseEvent *e) {
-	_inner.setFocus();
+	QTimer::singleShot(0, &_inner, SLOT(setFocus()));
 }
 
 void InputField::contextMenuEvent(QContextMenuEvent *e) {
@@ -1943,6 +1959,14 @@ void InputField::InputFieldInner::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 	} else if (f()->_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
 		e->ignore();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto cursor = textCursor();
+		int start = cursor.selectionStart(), end = cursor.selectionEnd();
+		if (end > start) {
+			QApplication::clipboard()->setText(f()->getText(start, end), QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {
@@ -2337,6 +2361,13 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		emit submitted(ctrl && shift);
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		auto selected = selectedText();
+		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
+			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+		}
+#endif // Q_OS_MAC
 	}
 }
 
