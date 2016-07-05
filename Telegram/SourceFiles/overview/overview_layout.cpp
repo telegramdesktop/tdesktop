@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "fileuploader.h"
 #include "mainwindow.h"
 #include "playerwidget.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 
 namespace Overview {

@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "mainwidget.h"
 #include "localstorage.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _a_state(animation(this, &PlayerWidget::step_state))

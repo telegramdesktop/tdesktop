@@ -47,7 +47,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/downloadpathbox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -1565,12 +1565,14 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (HistoryItem *item = App::histItemById(audioId.contextId())) {
-		Ui::repaintHistoryItem(item);
-	}
-	if (auto items = InlineBots::Layout::documentItems()) {
-		for (auto item : items->value(audioId.audio())) {
-			Ui::repaintInlineItem(item);
+	if (audioId.type() != AudioMsgId::Type::Video) {
+		if (auto item = App::histItemById(audioId.contextId())) {
+			Ui::repaintHistoryItem(item);
+		}
+		if (auto items = InlineBots::Layout::documentItems()) {
+			for (auto item : items->value(audioId.audio())) {
+				Ui::repaintInlineItem(item);
+			}
 		}
 	}
 }

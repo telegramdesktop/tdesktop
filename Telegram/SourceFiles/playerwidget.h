@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "audio.h"
+#include "media/media_audio.h"
 
 class PlayerWidget : public TWidget {
 	Q_OBJECT

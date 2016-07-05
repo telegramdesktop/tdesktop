@@ -104,7 +104,6 @@ SOURCES += \
     ./SourceFiles/apiwrap.cpp \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
-    ./SourceFiles/audio.cpp \
     ./SourceFiles/autoupdater.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
@@ -172,6 +171,11 @@ SOURCES += \
     ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
     ./SourceFiles/intro/introstart.cpp \
+    ./SourceFiles/media/media_audio.cpp \
+    ./SourceFiles/media/media_clip_ffmpeg.cpp \
+    ./SourceFiles/media/media_clip_implementation.cpp \
+    ./SourceFiles/media/media_clip_qtgif.cpp \
+    ./SourceFiles/media/media_clip_reader.cpp \
     ./SourceFiles/mtproto/facade.cpp \
     ./SourceFiles/mtproto/auth_key.cpp \
     ./SourceFiles/mtproto/connection.cpp \
@@ -254,7 +258,6 @@ HEADERS += \
     ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
-    ./SourceFiles/audio.h \
     ./SourceFiles/autoupdater.h \
     ./SourceFiles/config.h \
     ./SourceFiles/countries.h \
@@ -328,6 +331,11 @@ HEADERS += \
     ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
     ./SourceFiles/intro/introstart.h \
+    ./SourceFiles/media/media_audio.h \
+    ./SourceFiles/media/media_clip_ffmpeg.h \
+    ./SourceFiles/media/media_clip_implementation.h \
+    ./SourceFiles/media/media_clip_qtgif.h \
+    ./SourceFiles/media/media_clip_reader.h \
     ./SourceFiles/mtproto/facade.h \
     ./SourceFiles/mtproto/auth_key.h \
     ./SourceFiles/mtproto/connection.h \

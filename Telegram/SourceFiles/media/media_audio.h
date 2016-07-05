@@ -28,23 +28,26 @@ void audioPlayNotify();
 void audioFinish();
 
 enum AudioPlayerState {
-	AudioPlayerStopped        = 0x01,
-	AudioPlayerStoppedAtEnd   = 0x02,
+	AudioPlayerStopped = 0x01,
+	AudioPlayerStoppedAtEnd = 0x02,
 	AudioPlayerStoppedAtError = 0x03,
 	AudioPlayerStoppedAtStart = 0x04,
-	AudioPlayerStoppedMask    = 0x07,
+	AudioPlayerStoppedMask = 0x07,
 
-	AudioPlayerStarting       = 0x08,
-	AudioPlayerPlaying        = 0x10,
-	AudioPlayerFinishing      = 0x18,
-	AudioPlayerPausing        = 0x20,
-	AudioPlayerPaused         = 0x28,
-	AudioPlayerPausedAtEnd    = 0x30,
-	AudioPlayerResuming       = 0x38,
+	AudioPlayerStarting = 0x08,
+	AudioPlayerPlaying = 0x10,
+	AudioPlayerFinishing = 0x18,
+	AudioPlayerPausing = 0x20,
+	AudioPlayerPaused = 0x28,
+	AudioPlayerPausedAtEnd = 0x30,
+	AudioPlayerResuming = 0x38,
 };
 
 class AudioPlayerFader;
 class AudioPlayerLoaders;
+
+struct VideoSoundData;
+struct VideoSoundPart;
 
 class AudioPlayer : public QObject {
 	Q_OBJECT
@@ -57,6 +60,10 @@ public:
 	void pauseresume(AudioMsgId::Type type, bool fast = false);
 	void seek(int64 position); // type == AudioMsgId::Type::Song
 	void stop(AudioMsgId::Type type);
+
+	// Video player audio stream interface.
+	void playFromVideo(const AudioMsgId &audio, int64 position, std_::unique_ptr<VideoSoundData> &&data);
+	void feedFromVideo(VideoSoundPart &&part);
 
 	void stopAndClear();
 
@@ -115,6 +122,8 @@ private:
 		int32 nextBuffer = 0;
 		uint32 buffers[3] = { 0 };
 		int64 samplesCount[3] = { 0 };
+
+		std_::unique_ptr<VideoSoundData> videoData;
 	};
 
 	void currentState(AudioMsg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency);
@@ -131,6 +140,8 @@ private:
 	int _songCurrent;
 	AudioMsg _songData[AudioSimultaneousLimit];
 
+	AudioMsg _videoData;
+
 	QMutex _mutex;
 
 	friend class AudioPlayerFader;
@@ -141,6 +152,15 @@ private:
 	AudioPlayerLoaders *_loader;
 
 };
+
+namespace internal {
+
+QMutex *audioPlayerMutex();
+float64 audioSuppressGain();
+float64 audioSuppressSongGain();
+bool audioCheckError();
+
+} // namespace internal
 
 class AudioCaptureInner;
 
@@ -196,7 +216,7 @@ signals:
 
 	void stopPauseDevice();
 
-public slots:
+	public slots:
 
 	void onInit();
 	void onTimer();
@@ -211,10 +231,10 @@ public slots:
 private:
 
 	enum {
-		EmitError           = 0x01,
-		EmitStopped         = 0x02,
+		EmitError = 0x01,
+		EmitStopped = 0x02,
 		EmitPositionUpdated = 0x04,
-		EmitNeedToPreload   = 0x08,
+		EmitNeedToPreload = 0x08,
 	};
 	int32 updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged);
 	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
@@ -226,54 +246,6 @@ private:
 	bool _suppressAll, _suppressAllAnim, _suppressSong, _suppressSongAnim, _songVolumeChanged;
 	anim::fvalue _suppressAllGain, _suppressSongGain;
 	uint64 _suppressAllStart, _suppressSongStart;
-
-};
-
-class AudioPlayerLoader;
-class AudioPlayerLoaders : public QObject {
-	Q_OBJECT
-
-public:
-
-	AudioPlayerLoaders(QThread *thread);
-	~AudioPlayerLoaders();
-
-signals:
-
-	void error(const AudioMsgId &audio);
-	void needToCheck();
-
-public slots:
-
-	void onInit();
-
-	void onStart(const AudioMsgId &audio, qint64 position);
-	void onLoad(const AudioMsgId &audio);
-	void onCancel(const AudioMsgId &audio);
-
-private:
-
-	AudioMsgId _audio;
-	AudioPlayerLoader *_audioLoader;
-
-	AudioMsgId _song;
-	AudioPlayerLoader *_songLoader;
-
-	void emitError(AudioMsgId::Type type);
-	void clear(AudioMsgId::Type type);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
-	AudioMsgId clearAudio();
-	AudioMsgId clearSong();
-
-	enum SetupError {
-		SetupErrorAtStart    = 0,
-		SetupErrorNotPlaying = 1,
-		SetupErrorLoadedFull = 2,
-		SetupNoErrorStarted  = 3,
-	};
-	void loadData(const AudioMsgId &audio, qint64 position);
-	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 position);
-	AudioPlayer::AudioMsg *checkLoader(AudioMsgId::Type type);
 
 };
 
@@ -293,7 +265,7 @@ signals:
 	void update(quint16 level, qint32 samples);
 	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
 
-public slots:
+	public slots:
 
 	void onInit();
 	void onStart();

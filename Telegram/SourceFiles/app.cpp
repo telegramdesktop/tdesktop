@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"

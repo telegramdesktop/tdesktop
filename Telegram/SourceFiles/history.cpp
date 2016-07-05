@@ -35,7 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"

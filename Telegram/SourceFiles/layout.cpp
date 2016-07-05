@@ -30,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 
 TextParseOptions _textNameOptions = {

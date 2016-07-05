@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "localimageloader.h"
 #include "ui/filedialog.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 #include "boxes/photosendbox.h"
 #include "media/media_clip_reader.h"

@@ -21,6 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/media_clip_ffmpeg.h"
 
+#include "media/media_audio.h"
+#include "media/media_child_ffmpeg_loader.h"
+
 namespace Media {
 namespace Clip {
 namespace internal {
@@ -104,7 +107,12 @@ bool FFMpegReaderImplementation::readNextFrame() {
 		}
 
 		if (eofReached) {
+			if (_mode == Mode::Normal) {
+				return false;
+			}
+
 			clearPacketQueue();
+
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
 				if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
 					if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_FRAME)) < 0) {
@@ -119,6 +127,7 @@ bool FFMpegReaderImplementation::readNextFrame() {
 			avcodec_flush_buffers(_codecContext);
 			_hadFrame = false;
 			_frameMs = 0;
+			_lastReadPacketMs = 0;
 		}
 	}
 
@@ -162,6 +171,16 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 		}
 	}
 
+	// Read some future packets for audio stream.
+	if (_audioStreamId) {
+		while (_frameMs + 5000 > _lastReadPacketMs) {
+			auto packetResult = readPacket();
+			if (packetResult != PacketResult::Ok) {
+				break;
+			}
+		}
+	}
+
 	av_frame_unref(_frame);
 	return true;
 }
@@ -171,6 +190,8 @@ int FFMpegReaderImplementation::nextFrameDelay() {
 }
 
 bool FFMpegReaderImplementation::start(Mode mode) {
+	_mode = mode;
+
 	initDevice();
 	if (!_device->open(QIODevice::ReadOnly)) {
 		LOG(("Gif Error: Unable to open device %1").arg(logData()));
@@ -207,12 +228,12 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 	}
 	_packetNull.stream_index = _streamId;
 
-	// Get a pointer to the codec context for the audio stream
+	// Get a pointer to the codec context for the video stream
 	_codecContext = _fmtContext->streams[_streamId]->codec;
 	_codec = avcodec_find_decoder(_codecContext->codec_id);
 
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
-	if (mode == Mode::OnlyGifv) {
+	if (_mode == Mode::OnlyGifv) {
 		if (_audioStreamId >= 0) { // should be no audio stream
 			return false;
 		}
@@ -222,13 +243,42 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
 			return false;
 		}
-	} else if (mode == Mode::Silent) {
+	} else if (_mode == Mode::Silent || !audioPlayer()) {
 		_audioStreamId = -1;
 	}
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 	if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
 		LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
+	}
+
+	if (_audioStreamId >= 0) {
+		// Get a pointer to the codec context for the audio stream
+		auto audioContextOriginal = _fmtContext->streams[_audioStreamId]->codec;
+		auto audioCodec = avcodec_find_decoder(audioContextOriginal->codec_id);
+
+		AVCodecContext *audioContext = avcodec_alloc_context3(audioCodec);
+		if ((res = avcodec_copy_context(audioContext, audioContextOriginal)) != 0) {
+			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+		av_opt_set_int(audioContext, "refcounted_frames", 1, 0);
+		if ((res = avcodec_open2(audioContext, audioCodec, 0)) < 0) {
+			avcodec_free_context(&audioContext);
+			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+
+		auto soundData = std_::make_unique<VideoSoundData>();
+		soundData->context = audioContext;
+		soundData->frequency = audioContextOriginal->sample_rate;
+		if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
+			soundData->length = (_fmtContext->duration * soundData->frequency) / AV_TIME_BASE;
+		} else {
+			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
+		}
+		soundData->videoPlayId = _playId = rand_value<uint64>();
+		audioPlayer()->playFromVideo(AudioMsgId(AudioMsgId::Type::Video), 0, std_::move(soundData));
 	}
 
 	return true;
@@ -281,6 +331,10 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 	bool videoPacket = (packet.stream_index == _streamId);
 	bool audioPacket = (_audioStreamId >= 0 && packet.stream_index == _audioStreamId);
 	if (audioPacket || videoPacket) {
+		int64 packetPts = (packet.pts == AV_NOPTS_VALUE) ? packet.dts : packet.pts;
+		int64 packetMs = (packetPts * 1000LL * _fmtContext->streams[packet.stream_index]->time_base.num) / _fmtContext->streams[packet.stream_index]->time_base.den;
+		_lastReadPacketMs = packetMs;
+
 		//AVPacket packetForQueue;
 		//av_init_packet(&packetForQueue);
 		//if ((res = av_packet_ref(&packetForQueue, &packet)) < 0) {
@@ -294,9 +348,10 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 			//_packetQueue.enqueue(packetForQueue);
 		} else if (audioPacket) {
 			// queue packet to audio player
-			// audioPlayer()->enqueuePacket(packet, &isEnough)
-			//av_packet_unref(&packetForQueue);
-			av_packet_unref(&packet);
+			VideoSoundPart part;
+			part.packet = &packet;
+			part.videoPlayId = _playId;
+			audioPlayer()->feedFromVideo(std_::move(part));
 		}
 	} else {
 		av_packet_unref(&packet);

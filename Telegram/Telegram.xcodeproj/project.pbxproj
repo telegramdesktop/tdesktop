@@ -163,8 +163,8 @@
 		07C8FE101CB80890007A8702 /* toast.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE0C1CB80890007A8702 /* toast.cpp */; };
 		07C8FE121CB80915007A8702 /* moc_toast_manager.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */; };
 		07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07CAACD71AEA64F00058E508 /* AudioUnit.framework */; };
-		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
-		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
+		07D7034B19B8755A00C4EED2 /* media_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* media_audio.cpp */; };
+		07D703BB19B88FB900C4EED2 /* moc_media_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_media_audio.cpp */; };
 		07D7954A1B5544B200DE9598 /* qtpcre in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07D795491B5544B200DE9598 /* qtpcre */; };
 		07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 07D7EABC1A597DD000838BA2 /* Localizable.strings */; };
 		07D8509419F5C97E00623D75 /* core_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509219F5C97E00623D75 /* core_types.cpp */; };
@@ -603,9 +603,9 @@
 		07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_toast_manager.cpp; path = GeneratedFiles/Debug/moc_toast_manager.cpp; sourceTree = SOURCE_ROOT; };
 		07CAACD71AEA64F00058E508 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		07D518D41CD0E27600F5FF59 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = SourceFiles/core/version.h; sourceTree = SOURCE_ROOT; };
-		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
-		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
-		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D7034919B8755A00C4EED2 /* media_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = media_audio.cpp; path = SourceFiles/media/media_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D7034A19B8755A00C4EED2 /* media_audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = media_audio.h; path = SourceFiles/media/media_audio.h; sourceTree = SOURCE_ROOT; };
+		07D703BA19B88FB900C4EED2 /* moc_media_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_media_audio.cpp; path = GeneratedFiles/Debug/moc_media_audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "$(QT_PATH)/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		07D7EABB1A597DD000838BA2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Resources/langs/en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07D7EABD1A597DD200838BA2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = Resources/langs/es.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -1413,8 +1413,8 @@
 				C19DF71B273A4843553518F2 /* app.h */,
 				C20F9DD8C7B031B8E20D5653 /* application.cpp */,
 				09FD01F2BD652EB838A296D8 /* application.h */,
-				07D7034919B8755A00C4EED2 /* audio.cpp */,
-				07D7034A19B8755A00C4EED2 /* audio.h */,
+				07D7034919B8755A00C4EED2 /* media_audio.cpp */,
+				07D7034A19B8755A00C4EED2 /* media_audio.h */,
 				07C7596D1B1F7E0000662169 /* autoupdater.cpp */,
 				07C7596E1B1F7E0000662169 /* autoupdater.h */,
 				206B4F5CBD5354BCE19FF32F /* countries.h */,
@@ -1500,7 +1500,7 @@
 				A1479F94376F9732B57C69DB /* moc_animation.cpp */,
 				0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */,
 				E181C525E21A16F2D4396CA7 /* moc_application.cpp */,
-				07D703BA19B88FB900C4EED2 /* moc_audio.cpp */,
+				07D703BA19B88FB900C4EED2 /* moc_media_audio.cpp */,
 				07DE92A91AA4928200A18F6F /* moc_autolockbox.cpp */,
 				07C759711B1F7E2800662169 /* moc_autoupdater.cpp */,
 				078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */,
@@ -2013,7 +2013,7 @@
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
 				0716C9561D0589A700797B22 /* profile_userpic_button.cpp in Compile Sources */,
-				07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */,
+				07D7034B19B8755A00C4EED2 /* media_audio.cpp in Compile Sources */,
 				A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */,
 				4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */,
 				07C7596F1B1F7E0000662169 /* autoupdater.cpp in Compile Sources */,
@@ -2024,7 +2024,7 @@
 				07C8FE0F1CB80890007A8702 /* toast_widget.cpp in Compile Sources */,
 				0716C9741D058C8600797B22 /* moc_profile_inner_widget.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
-				07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */,
+				07D703BB19B88FB900C4EED2 /* moc_media_audio.cpp in Compile Sources */,
 				77B998AC22A13EF3DDEE07AC /* photocropbox.cpp in Compile Sources */,
 				F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */,
 				E8D95529CED88F18818C9A8B /* introwidget.cpp in Compile Sources */,

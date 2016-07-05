@@ -62,6 +62,8 @@ private:
 	static int _read(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek(void *opaque, int64_t offset, int whence);
 
+	Mode _mode = Mode::Normal;
+
 	uchar *_ioBuffer = nullptr;
 	AVIOContext *_ioContext = nullptr;
 	AVFormatContext *_fmtContext = nullptr;
@@ -74,6 +76,8 @@ private:
 	bool _frameRead = false;
 
 	int _audioStreamId = 0;
+	uint64 _playId = 0;
+	int64 _lastReadPacketMs = 0;
 
 	QQueue<AVPacket> _packetQueue;
 	AVPacket _packetNull; // for final decoding

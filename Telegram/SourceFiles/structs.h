@@ -1241,10 +1241,12 @@ public:
 	AudioMsgId() {
 	}
 	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : _audio(audio), _contextId(msgId) {
-		setType();
+		setTypeFromAudio();
 	}
 	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : _audio(audio), _contextId(channelId, msgId) {
-		setType();
+		setTypeFromAudio();
+	}
+	AudioMsgId(Type type) : _type(type) {
 	}
 
 	Type type() const {
@@ -1262,7 +1264,7 @@ public:
 	}
 
 private:
-	void setType() {
+	void setTypeFromAudio() {
 		if (_audio->voice()) {
 			_type = Type::Voice;
 		} else if (_audio->song()) {

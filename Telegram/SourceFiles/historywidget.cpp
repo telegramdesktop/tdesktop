@@ -40,7 +40,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "fileuploader.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"

@@ -447,18 +447,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_overviewwidget.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\audio.cpp">
-      <Filter>SourceFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_audio.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_audio.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\boxes\usernamebox.cpp">
       <Filter>SourceFiles\boxes</Filter>
     </ClCompile>
@@ -1368,6 +1356,39 @@
     <ClCompile Include="SourceFiles\media\media_clip_qtgif.cpp">
       <Filter>SourceFiles\media</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_child_ffmpeg_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_ffmpeg_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_loaders.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1628,6 +1649,15 @@
     <ClInclude Include="SourceFiles\media\media_clip_qtgif.h">
       <Filter>SourceFiles\media</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_child_ffmpeg_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_audio_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_audio_ffmpeg_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">
@@ -1703,9 +1733,6 @@
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\overviewwidget.h">
-      <Filter>SourceFiles</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\audio.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
@@ -1919,6 +1946,12 @@
       <Filter>SourceFiles\ui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\media\media_clip_reader.h">
+      <Filter>SourceFiles\media</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_audio.h">
+      <Filter>SourceFiles\media</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_audio_loaders.h">
       <Filter>SourceFiles\media</Filter>
     </CustomBuild>
   </ItemGroup>

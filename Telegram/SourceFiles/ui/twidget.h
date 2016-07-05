@@ -265,23 +265,23 @@ class SingleDelayedCall : public QObject {
 	Q_OBJECT
 
 public:
-	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _pending(false), _member(member) {
+	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _member(member) {
 	}
 	void call() {
-		if (!_pending) {
-			_pending = true;
+		if (!_pending.loadAcquire()) {
+			_pending.storeRelease(1);
 			QMetaObject::invokeMethod(this, "makeDelayedCall", Qt::QueuedConnection);
 		}
 	}
 
 private slots:
 	void makeDelayedCall() {
-		_pending = false;
+		_pending.storeRelease(0);
 		QMetaObject::invokeMethod(parent(), _member);
 	}
 
 private:
-	bool _pending;
+	QAtomicInt _pending = { 0 };
 	const char *_member;
 
 };
