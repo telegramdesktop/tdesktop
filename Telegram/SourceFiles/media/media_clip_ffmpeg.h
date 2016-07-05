@@ -41,7 +41,7 @@ public:
 	bool readNextFrame() override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 	int nextFrameDelay() override;
-	bool start(bool onlyGifv) override;
+	bool start(Mode mode) override;
 
 	int duration() const;
 	QString logData() const;
@@ -49,8 +49,15 @@ public:
 	~FFMpegReaderImplementation();
 
 private:
-	void rememberPacket();
-	void freePacket();
+	enum class PacketResult {
+		Ok,
+		EndOfFile,
+		Error,
+	};
+	PacketResult readPacket();
+	void startPacket();
+	void finishPacket();
+	void clearPacketQueue();
 
 	static int _read(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek(void *opaque, int64_t offset, int whence);
@@ -68,10 +75,11 @@ private:
 
 	int _audioStreamId = 0;
 
-	AVPacket _avpkt;
-	int _packetSize = 0;
-	uint8_t *_packetData = nullptr;
-	bool _packetWas = false;
+	QQueue<AVPacket> _packetQueue;
+	AVPacket _packetNull; // for final decoding
+	int _packetStartedSize = 0;
+	uint8_t *_packetStartedData = nullptr;
+	bool _packetStarted = false;
 
 	int _width = 0;
 	int _height = 0;

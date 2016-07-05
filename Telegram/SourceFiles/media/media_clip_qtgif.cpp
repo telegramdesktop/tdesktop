@@ -70,8 +70,8 @@ int QtGifReaderImplementation::nextFrameDelay() {
 	return _frameDelay;
 }
 
-bool QtGifReaderImplementation::start(bool onlyGifv) {
-	if (onlyGifv) return false;
+bool QtGifReaderImplementation::start(Mode mode) {
+	if (mode == Mode::OnlyGifv) return false;
 	return jumpToStart();
 }
 

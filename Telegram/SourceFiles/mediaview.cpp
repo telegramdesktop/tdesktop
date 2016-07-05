@@ -1087,7 +1087,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
 							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 						}
-						_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback));
+						auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
+						_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback), mode);
 					}
 				} else {
 					if (QImageReader(location.name()).canRead()) {

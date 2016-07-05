@@ -101,6 +101,10 @@ public:
 	void stop();
 	void error();
 
+	Mode mode() const {
+		return _mode;
+	}
+
 	~Reader();
 
 private:

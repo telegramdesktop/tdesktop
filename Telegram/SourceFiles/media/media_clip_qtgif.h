@@ -34,7 +34,7 @@ public:
 	bool readNextFrame() override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 	int nextFrameDelay() override;
-	bool start(bool onlyGifv) override;
+	bool start(Mode mode) override;
 
 	~QtGifReaderImplementation();
 

@@ -287,10 +287,10 @@ Reader::~Reader() {
 
 class ReaderPrivate {
 public:
-
 	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
-		, _data(data)
-		, _location(_data.isEmpty() ? new FileLocation(location) : 0) {
+	, _mode(reader->mode())
+	, _data(data)
+	, _location(_data.isEmpty() ? new FileLocation(location) : 0) {
 		if (_data.isEmpty() && !_location->accessEnable()) {
 			error();
 			return;
@@ -381,9 +381,17 @@ public:
 			}
 		}
 
-		_implementation = new internal::FFMpegReaderImplementation(_location, &_data);
+		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location, &_data);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
-		return _implementation->start(false);
+
+		auto implementationMode = [this]() {
+			using ImplementationMode = internal::ReaderImplementation::Mode;
+			if (_mode == Reader::Mode::Gif) {
+				return ImplementationMode::Silent;
+			}
+			return ImplementationMode::Normal;
+		};
+		return _implementation->start(implementationMode());
 	}
 
 	ProcessResult error() {
@@ -393,8 +401,7 @@ public:
 	}
 
 	void stop() {
-		delete _implementation;
-		_implementation = 0;
+		_implementation = nullptr;
 
 		if (_location) {
 			if (_accessed) {
@@ -409,21 +416,20 @@ public:
 	~ReaderPrivate() {
 		stop();
 		deleteAndMark(_location);
-		deleteAndMark(_implementation);
 		_data.clear();
 	}
 
 private:
-
 	Reader *_interface;
 	State _state = State::Reading;
+	Reader::Mode _mode;
 
 	QByteArray _data;
 	FileLocation *_location;
 	bool _accessed = false;
 
 	QBuffer _buffer;
-	internal::ReaderImplementation *_implementation = nullptr;
+	std_::unique_ptr<internal::ReaderImplementation> _implementation;
 
 	FrameRequest _request;
 	struct Frame {
@@ -474,7 +480,7 @@ void Manager::start(Reader *reader) {
 
 void Manager::update(Reader *reader) {
 	QReadLocker lock(&_readerPointersMutex);
-	ReaderPointers::const_iterator i = _readerPointers.constFind(reader);
+	auto i = _readerPointers.constFind(reader);
 	if (i == _readerPointers.cend()) {
 		lock.unlock();
 
@@ -615,9 +621,9 @@ void Manager::process() {
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
 	{
 		QReadLocker lock(&_readerPointersMutex);
-		for (ReaderPointers::iterator it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
+		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
 			if (it->v.loadAcquire()) {
-				Readers::iterator i = _readers.find(it.key()->_private);
+				auto i = _readers.find(it.key()->_private);
 				if (i == _readers.cend()) {
 					_readers.insert(it.key()->_private, 0);
 				} else {
@@ -633,7 +639,7 @@ void Manager::process() {
 		}
 	}
 
-	for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e;) {
+	for (auto i = _readers.begin(), e = _readers.end(); i != e;) {
 		ReaderPrivate *reader = i.key();
 		if (i.value() <= ms) {
 			ResultHandleState state = handleResult(reader, reader->process(ms), ms);
@@ -693,7 +699,7 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 	QByteArray localdata(data);
 
 	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata);
-	if (reader->start(true)) {
+	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv)) {
 		bool hasAlpha = false;
 		if (reader->readNextFrame() && reader->renderFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {

@@ -33,10 +33,15 @@ public:
 		: _location(location)
 		, _data(data) {
 	}
+	enum class Mode {
+		OnlyGifv,
+		Silent,
+		Normal,
+	};
 	virtual bool readNextFrame() = 0;
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 	virtual int nextFrameDelay() = 0;
-	virtual bool start(bool onlyGifv) = 0;
+	virtual bool start(Mode mode) = 0;
 	virtual ~ReaderImplementation() {
 	}
 	int64 dataSize() const {

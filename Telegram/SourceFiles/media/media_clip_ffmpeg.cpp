@@ -27,9 +27,9 @@ namespace internal {
 
 FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, QByteArray *data) : ReaderImplementation(location, data) {
 	_frame = av_frame_alloc();
-	av_init_packet(&_avpkt);
-	_avpkt.data = NULL;
-	_avpkt.size = 0;
+	av_init_packet(&_packetNull);
+	_packetNull.data = nullptr;
+	_packetNull.size = 0;
 }
 
 bool FFMpegReaderImplementation::readNextFrame() {
@@ -38,57 +38,50 @@ bool FFMpegReaderImplementation::readNextFrame() {
 		_frameRead = false;
 	}
 
-	int res;
 	while (true) {
-		if (_avpkt.size > 0) { // previous packet not finished
-			res = 0;
-		} else if ((res = av_read_frame(_fmtContext, &_avpkt)) < 0) {
-			if (res != AVERROR_EOF || !_hadFrame) {
-				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-				LOG(("Gif Error: Unable to av_read_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		while (_packetQueue.isEmpty()) {
+			auto packetResult = readPacket();
+			if (packetResult == PacketResult::Error) {
+				return false;
+			} else if (packetResult == PacketResult::EndOfFile) {
+				break;
+			}
+		}
+		bool eofReached = _packetQueue.isEmpty();
+
+		startPacket();
+
+		int got_frame = 0;
+		int decoded = 0;
+		auto packet = &_packetNull;
+		if (!_packetQueue.isEmpty()) {
+			packet = &_packetQueue.head();
+			decoded = packet->size;
+		}
+
+		int res = 0;
+		if ((res = avcodec_decode_video2(_codecContext, _frame, &got_frame, packet)) < 0) {
+			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+			LOG(("Gif Error: Unable to avcodec_decode_video2() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+
+			if (res == AVERROR_INVALIDDATA) { // try to skip bad packet
+				finishPacket();
+				continue;
+			}
+
+			eofReached = (res == AVERROR_EOF);
+			if (!eofReached || !_hadFrame) { // try to skip end of file
 				return false;
 			}
 		}
+		if (res > 0) decoded = res;
 
-		bool finished = (res < 0);
-		if (finished) {
-			_avpkt.data = NULL;
-			_avpkt.size = 0;
-		} else {
-			rememberPacket();
-		}
-
-		int32 got_frame = 0;
-		int32 decoded = _avpkt.size;
-		if (_avpkt.stream_index == _streamId) {
-			if ((res = avcodec_decode_video2(_codecContext, _frame, &got_frame, &_avpkt)) < 0) {
-				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-				LOG(("Gif Error: Unable to avcodec_decode_video2() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-
-				if (res == AVERROR_INVALIDDATA) { // try to skip bad packet
-					freePacket();
-					_avpkt.data = NULL;
-					_avpkt.size = 0;
-					continue;
-				}
-
-				if (res != AVERROR_EOF || !_hadFrame) { // try to skip end of file
-					return false;
-				}
-				freePacket();
-				_avpkt.data = NULL;
-				_avpkt.size = 0;
-				continue;
+		if (!_packetQueue.isEmpty()) {
+			packet->data += decoded;
+			packet->size -= decoded;
+			if (packet->size <= 0) {
+				finishPacket();
 			}
-			if (res > 0) decoded = res;
-		} else if (_audioStreamId >= 0 && _avpkt.stream_index == _audioStreamId) {
-			freePacket();
-			continue;
-		}
-		if (!finished) {
-			_avpkt.data += decoded;
-			_avpkt.size -= decoded;
-			if (_avpkt.size <= 0) freePacket();
 		}
 
 		if (got_frame) {
@@ -110,7 +103,8 @@ bool FFMpegReaderImplementation::readNextFrame() {
 			return true;
 		}
 
-		if (finished) {
+		if (eofReached) {
+			clearPacketQueue();
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
 				if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
 					if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_FRAME)) < 0) {
@@ -176,7 +170,7 @@ int FFMpegReaderImplementation::nextFrameDelay() {
 	return _currentFrameDelay;
 }
 
-bool FFMpegReaderImplementation::start(bool onlyGifv) {
+bool FFMpegReaderImplementation::start(Mode mode) {
 	initDevice();
 	if (!_device->open(QIODevice::ReadOnly)) {
 		LOG(("Gif Error: Unable to open device %1").arg(logData()));
@@ -211,13 +205,14 @@ bool FFMpegReaderImplementation::start(bool onlyGifv) {
 		LOG(("Gif Error: Unable to av_find_best_stream %1, error %2, %3").arg(logData()).arg(_streamId).arg(av_make_error_string(err, sizeof(err), _streamId)));
 		return false;
 	}
+	_packetNull.stream_index = _streamId;
 
 	// Get a pointer to the codec context for the audio stream
 	_codecContext = _fmtContext->streams[_streamId]->codec;
 	_codec = avcodec_find_decoder(_codecContext->codec_id);
 
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
-	if (onlyGifv) {
+	if (mode == Mode::OnlyGifv) {
 		if (_audioStreamId >= 0) { // should be no audio stream
 			return false;
 		}
@@ -227,6 +222,8 @@ bool FFMpegReaderImplementation::start(bool onlyGifv) {
 		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
 			return false;
 		}
+	} else if (mode == Mode::Silent) {
+		_audioStreamId = -1;
 	}
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 	if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
@@ -261,23 +258,75 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	}
 	if (_fmtContext) avformat_free_context(_fmtContext);
 	av_frame_free(&_frame);
-	freePacket();
+
+	clearPacketQueue();
 }
 
-void FFMpegReaderImplementation::rememberPacket() {
-	if (!_packetWas) {
-		_packetSize = _avpkt.size;
-		_packetData = _avpkt.data;
-		_packetWas = true;
+FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket() {
+	AVPacket packet;
+	av_init_packet(&packet);
+	packet.data = nullptr;
+	packet.size = 0;
+
+	int res = 0;
+	if ((res = av_read_frame(_fmtContext, &packet)) < 0) {
+		if (res == AVERROR_EOF) {
+			return PacketResult::EndOfFile;
+		}
+		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+		LOG(("Gif Error: Unable to av_read_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		return PacketResult::Error;
+	}
+
+	bool videoPacket = (packet.stream_index == _streamId);
+	bool audioPacket = (_audioStreamId >= 0 && packet.stream_index == _audioStreamId);
+	if (audioPacket || videoPacket) {
+		//AVPacket packetForQueue;
+		//av_init_packet(&packetForQueue);
+		//if ((res = av_packet_ref(&packetForQueue, &packet)) < 0) {
+		//	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+		//	LOG(("Gif Error: Unable to av_packet_ref() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		//	return PacketResult::Error;
+		//}
+
+		if (videoPacket) {
+			_packetQueue.enqueue(packet);
+			//_packetQueue.enqueue(packetForQueue);
+		} else if (audioPacket) {
+			// queue packet to audio player
+			// audioPlayer()->enqueuePacket(packet, &isEnough)
+			//av_packet_unref(&packetForQueue);
+			av_packet_unref(&packet);
+		}
+	} else {
+		av_packet_unref(&packet);
+	}
+	//av_packet_unref(&packet);
+	return PacketResult::Ok;
+}
+
+void FFMpegReaderImplementation::startPacket() {
+	if (!_packetStarted && !_packetQueue.isEmpty()) {
+		_packetStartedSize = _packetQueue.head().size;
+		_packetStartedData = _packetQueue.head().data;
+		_packetStarted = true;
 	}
 }
 
-void FFMpegReaderImplementation::freePacket() {
-	if (_packetWas) {
-		_avpkt.size = _packetSize;
-		_avpkt.data = _packetData;
-		_packetWas = false;
-		av_packet_unref(&_avpkt);
+void FFMpegReaderImplementation::finishPacket() {
+	if (_packetStarted) {
+		_packetQueue.head().size = _packetStartedSize;
+		_packetQueue.head().data = _packetStartedData;
+		_packetStarted = false;
+		av_packet_unref(&_packetQueue.dequeue());
+	}
+}
+
+void FFMpegReaderImplementation::clearPacketQueue() {
+	finishPacket();
+	auto packets = createAndSwap(_packetQueue);
+	for (auto &packet : packets) {
+		av_packet_unref(&packet);
 	}
 }
 
