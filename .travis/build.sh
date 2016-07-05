@@ -83,6 +83,10 @@ prepare() {
 		options+="\nDEFINES += TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION"
 	fi
 
+	if [[ $BUILD_VERSION == *"disable_unity_integration"* ]]; then
+		options+="\nDEFINES += TDESKTOP_DISABLE_UNITY_INTEGRATION"
+	fi
+
 	options+='\nINCLUDEPATH += "/usr/lib/glib-2.0/include"'
 	options+='\nINCLUDEPATH += "/usr/lib/gtk-2.0/include"'
 	options+='\nINCLUDEPATH += "/usr/include/opus"'

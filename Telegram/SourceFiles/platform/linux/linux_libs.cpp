@@ -118,9 +118,11 @@ f_gtk_get_current_event_time gtk_get_current_event_time = nullptr;
 f_g_object_ref_sink g_object_ref_sink = nullptr;
 f_g_object_unref g_object_unref = nullptr;
 f_g_idle_add g_idle_add = nullptr;
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 f_unity_launcher_entry_set_count unity_launcher_entry_set_count = nullptr;
 f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_visible = nullptr;
 f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id = nullptr;
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 void start() {
 	DEBUG_LOG(("Loading libraries"));
@@ -174,6 +176,7 @@ void start() {
 		LOG(("Could not load gtk-x11-2.0!"));
 	}
 
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (QString(getenv("XDG_CURRENT_DESKTOP")).toLower() == qstr("unity")) {
 		QLibrary lib_unity(qstr("unity"), 9, 0);
 		loadLibrary(lib_unity, "unity", 9);
@@ -182,6 +185,7 @@ void start() {
 		load(lib_unity, "unity_launcher_entry_set_count", unity_launcher_entry_set_count);
 		load(lib_unity, "unity_launcher_entry_set_count_visible", unity_launcher_entry_set_count_visible);
 	}
+#endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
 }
 
 } // namespace Libs
