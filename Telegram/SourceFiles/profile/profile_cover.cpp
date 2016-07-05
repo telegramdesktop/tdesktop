@@ -467,7 +467,7 @@ void CoverWidget::onOnlineCountUpdated(int onlineCount) {
 }
 
 void CoverWidget::onSendMessage() {
-	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 }
 
 void CoverWidget::onShareContact() {

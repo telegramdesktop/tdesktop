@@ -1519,8 +1519,8 @@ void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
 	onShareContact(recipient->id, App::self());
 }
 
-void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
-	Ui::showPeerHistory(peerId, showAtMsgId);
+void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
+	Ui::showPeerHistory(peerId, showAtMsgId, way);
 }
 
 void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
@@ -2016,7 +2016,7 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 	_history->updateFieldSubmitSettings();
 }
 
-void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
+void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
 	if (PeerData *peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
@@ -2030,8 +2030,37 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			return;
 		}
 	}
-	if (!back && (!peerId || (_stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId))) {
-		back = true;
+
+	bool back = (way == Ui::ShowWay::Backward || !peerId);
+	bool foundInStack = !peerId;
+	if (foundInStack || (way == Ui::ShowWay::ClearStack)) {
+		for_const (auto &item, _stack) {
+			clearBotStartToken(item->peer);
+		}
+		_stack.clear();
+	} else {
+		for (int i = 0, s = _stack.size(); i < s; ++i) {
+			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer->id == peerId) {
+				foundInStack = true;
+				while (_stack.size() > i) {
+					clearBotStartToken(_stack.back()->peer);
+					_stack.pop_back();
+				}
+				if (!back) {
+					back = true;
+				}
+				break;
+			}
+		}
+	}
+
+	if (back || (way == Ui::ShowWay::ClearStack)) {
+		dlgUpdated();
+		_peerInStack = nullptr;
+		_msgIdInStack = 0;
+		dlgUpdated();
+	} else {
+		saveSectionInStack();
 	}
 
 	PeerData *wasActivePeer = activePeer();
@@ -2043,10 +2072,12 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 	}
 
 	Window::SectionSlideParams animationParams;
-	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)))) {
+	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
 		animationParams = prepareHistoryAnimation(peerId);
 	}
-	if (_history->peer() && _history->peer()->id != peerId) clearBotStartToken(_history->peer());
+	if (_history->peer() && _history->peer()->id != peerId) {
+		clearBotStartToken(_history->peer());
+	}
 	_history->showHistory(peerId, showAtMsgId);
 
 	bool noPeer = (!_history->peer() || !_history->peer()->id), onlyDialogs = noPeer && Adaptive::OneColumn();
@@ -2063,11 +2094,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			_overview->rpcClear();
 			_overview = nullptr;
 		}
-		clearBotStartToken(_peerInStack);
-		dlgUpdated();
-		_peerInStack = 0;
-		_msgIdInStack = 0;
-		_stack.clear();
 	}
 	if (onlyDialogs) {
 		_topBar->hide();
@@ -2111,6 +2137,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		}
 		_dialogs->update();
 	}
+	topBar()->showAll();
 	App::wnd()->getTitle()->updateBackButton();
 }
 
@@ -2167,6 +2194,21 @@ bool MainWidget::mediaTypeSwitch() {
 	return true;
 }
 
+void MainWidget::saveSectionInStack() {
+	if (_overview) {
+		_stack.push_back(std_::make_unique<StackItemOverview>(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
+	} else if (_wideSection) {
+		_stack.push_back(std_::make_unique<StackItemSection>(_wideSection->createMemento()));
+	} else if (_history->peer()) {
+		dlgUpdated();
+		_peerInStack = _history->peer();
+		_msgIdInStack = _history->msgId();
+		dlgUpdated();
+
+		_stack.push_back(std_::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
+	}
+}
+
 void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
 	if (peer->migrateTo()) {
 		peer = peer->migrateTo();
@@ -2187,17 +2229,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		animationParams = prepareOverviewAnimation();
 	}
 	if (!back) {
-		if (_overview) {
-			_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-		} else if (_wideSection) {
-			_stack.push_back(new StackItemSection(_wideSection->createMemento()));
-		} else if (_history->peer()) {
-			dlgUpdated();
-			_peerInStack = _history->peer();
-			_msgIdInStack = _history->msgId();
-			dlgUpdated();
-			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
-		}
+		saveSectionInStack();
 	}
 	if (_overview) {
 		_overview->hide();
@@ -2222,7 +2254,9 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		_overview->fastShow();
 	}
 	_history->animStop();
-	if (back) clearBotStartToken(_history->peer());
+	if (back) {
+		clearBotStartToken(_history->peer());
+	}
 	_history->showHistory(0, 0);
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
@@ -2238,17 +2272,7 @@ void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 		return;
 	}
 
-	if (_overview) {
-		_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-	} else if (_wideSection) {
-		_stack.push_back(new StackItemSection(_wideSection->createMemento()));
-	} else if (_history->peer()) {
-		dlgUpdated();
-		_peerInStack = _history->peer();
-		_msgIdInStack = _history->msgId();
-		dlgUpdated();
-		_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
-	}
+	saveSectionInStack();
 	showWideSectionAnimated(&memento, false);
 }
 
@@ -2341,6 +2365,10 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	App::wnd()->getTitle()->updateBackButton();
 }
 
+bool MainWidget::stackIsEmpty() const {
+	return _stack.isEmpty();
+}
+
 void MainWidget::showBackFromStack() {
 	if (selectingPeer()) return;
 	if (_stack.isEmpty()) {
@@ -2348,34 +2376,33 @@ void MainWidget::showBackFromStack() {
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
-	StackItem *item = _stack.back();
+	auto item = std_::move(_stack.back());
 	_stack.pop_back();
 	if (auto currentHistoryPeer = _history->peer()) {
 		clearBotStartToken(currentHistoryPeer);
 	}
 	if (item->type() == HistoryStackItem) {
 		dlgUpdated();
-		_peerInStack = 0;
+		_peerInStack = nullptr;
 		_msgIdInStack = 0;
 		for (int32 i = _stack.size(); i > 0;) {
 			if (_stack.at(--i)->type() == HistoryStackItem) {
-				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i))->peer;
-				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i))->msgId;
+				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->peer;
+				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->msgId;
 				dlgUpdated();
 				break;
 			}
 		}
-		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
-		Ui::showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
+		StackItemHistory *histItem = static_cast<StackItemHistory*>(item.get());
+		Ui::showPeerHistory(histItem->peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Backward);
 		_history->setReplyReturns(histItem->peer->id, histItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
-		StackItemSection *sectionItem = static_cast<StackItemSection*>(item);
+		StackItemSection *sectionItem = static_cast<StackItemSection*>(item.get());
 		showWideSectionAnimated(sectionItem->memento(), true);
 	} else if (item->type() == OverviewStackItem) {
-		StackItemOverview *overItem = static_cast<StackItemOverview*>(item);
+		StackItemOverview *overItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
 	}
-	delete item;
 }
 
 void MainWidget::orderWidgets() {
@@ -3343,7 +3370,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				Ui::showLayer(new ContactsBox(peer->asUser()));
 			} else if (peer->isUser() && peer->asUser()->botInfo) {
 				// Always open bot chats, even from mention links.
-				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
+				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 			} else {
 				Ui::showPeerProfile(peer);
 			}
@@ -3358,7 +3385,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 					_history->resizeEvent(0);
 				}
 			}
-			Ui::showPeerHistoryAsync(peer->id, msgId);
+			Ui::showPeerHistoryAsync(peer->id, msgId, Ui::ShowWay::Forward);
 		}
 	} else {
 		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(msgId, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
@@ -3425,7 +3452,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			Ui::showLayer(new ContactsBox(peer->asUser()));
 		} else if (peer->isUser() && peer->asUser()->botInfo) {
 			// Always open bot chats, even from mention links.
-			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 		} else {
 			Ui::showPeerProfile(peer);
 		}

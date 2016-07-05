@@ -5178,7 +5178,7 @@ int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryM
 }
 
 void SendMessageClickHandler::onClickImpl() const {
-	Ui::showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(peer()->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 }
 
 void AddContactClickHandler::onClickImpl() const {

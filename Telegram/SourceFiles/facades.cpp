@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
+Q_DECLARE_METATYPE(Ui::ShowWay);
 
 namespace App {
 
@@ -253,13 +254,14 @@ void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
 	}
 }
 
-void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
-	if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
+void showPeerHistory(const PeerId &peer, MsgId msgId, ShowWay way) {
+	if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, way);
 }
 
-void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
+void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way) {
 	if (MainWidget *m = App::main()) {
-		QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
+		qRegisterMetaType<Ui::ShowWay>();
+		QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId), Q_ARG(Ui::ShowWay, way));
 	}
 }
 

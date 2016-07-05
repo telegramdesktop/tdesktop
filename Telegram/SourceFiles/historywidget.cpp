@@ -3761,7 +3761,7 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {
 				auto clientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
-				if (unread.contains(set.vid.v)) {
+				if (unread.contains(set.vid.v) || !(set.vflags.v & MTPDstickerSet::Flag::f_installed)) {
 					clientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}
 				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | clientFlags));
@@ -4673,7 +4673,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		PeerData *was = _peer;
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 		Ui::showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
@@ -4685,7 +4685,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 		_preloadDownRequest = 0;
 	} else if (_firstLoadRequest == requestId) {
 		_firstLoadRequest = 0;
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 	} else if (_delayedShowAtRequest == requestId) {
 		_delayedShowAtRequest = 0;
 	}
@@ -5704,7 +5704,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 				Ui::Toast::Show(App::wnd(), toast);
 			}
 		} else if (answerData.has_url()) {
-			UrlClickHandler::doOpen(qs(answerData.vurl));
+			HiddenUrlClickHandler(qs(answerData.vurl)).onClick(Qt::LeftButton);
 		}
 	}
 }
@@ -6139,7 +6139,7 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 
 	if (!_history) return;
 
-	int32 increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
+	int32 increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	decreaseWidth += increaseLeft;
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dialogsTextFont);
@@ -6154,7 +6154,7 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	p.setPen(st::dialogsNameFg);
 	_peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
-	if (Adaptive::OneColumn()) {
+	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawSprite(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), st::topBarBackwardImg);
 	} else {
@@ -6164,7 +6164,7 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 }
 
 QRect HistoryWidget::getMembersShowAreaGeometry() const {
-	int increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
+	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	int membersTextLeft = st::topBarForwardPadding.left() + increaseLeft;
 	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
@@ -6210,8 +6210,8 @@ void HistoryWidget::onMembersDropdownHidden() {
 }
 
 void HistoryWidget::topBarClick() {
-	if (Adaptive::OneColumn()) {
-		Ui::showChatsList();
+	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
+		App::main()->showBackFromStack();
 	} else {
 		if (_history) Ui::showPeerProfile(_peer);
 	}
@@ -6763,10 +6763,10 @@ void HistoryWidget::onReportSpamClear() {
 	if (_clearPeer->isUser()) {
 		App::main()->deleteConversation(_clearPeer);
 	} else if (_clearPeer->isChat()) {
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 		MTP::send(MTPmessages_DeleteChatUser(_clearPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
 	} else if (_clearPeer->isChannel()) {
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 		if (_clearPeer->migrateFrom()) {
 			App::main()->deleteConversation(_clearPeer->migrateFrom());
 		}
@@ -7294,7 +7294,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Back) {
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 		emit cancelled();
 	} else if (e->key() == Qt::Key_PageDown) {
 		_scroll.keyPressEvent(e);
@@ -8072,7 +8072,7 @@ void HistoryWidget::onCancel() {
 	} else if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->hideStart();
 	} else  {
-		Ui::showChatsList();
+		App::main()->showBackFromStack();
 		emit cancelled();
 	}
 }
@@ -8110,7 +8110,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		}
 		QString restriction = _peer->restrictionReason();
 		if (!restriction.isEmpty()) {
-			Ui::showChatsList();
+			App::main()->showBackFromStack();
 			Ui::showLayer(new InformBox(restriction));
 			return;
 		}

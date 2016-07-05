@@ -4018,6 +4018,19 @@ void _serialize_documentAttributeFilename(MTPStringLogger &to, int32 stage, int3
 	}
 }
 
+void _serialize_documentAttributeVersion(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ documentAttributeVersion");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_messages_stickersNotModified(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ messages_stickersNotModified }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -8612,6 +8625,7 @@ namespace {
 		_serializers.insert(mtpc_documentAttributeVideo, _serialize_documentAttributeVideo);
 		_serializers.insert(mtpc_documentAttributeAudio, _serialize_documentAttributeAudio);
 		_serializers.insert(mtpc_documentAttributeFilename, _serialize_documentAttributeFilename);
+		_serializers.insert(mtpc_documentAttributeVersion, _serialize_documentAttributeVersion);
 		_serializers.insert(mtpc_messages_stickersNotModified, _serialize_messages_stickersNotModified);
 		_serializers.insert(mtpc_messages_stickers, _serialize_messages_stickers);
 		_serializers.insert(mtpc_stickerPack, _serialize_stickerPack);
