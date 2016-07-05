@@ -25,6 +25,7 @@ macx {
 linux {
     SOURCES += ./SourceFiles/pspecific_linux.cpp
     HEADERS += ./SourceFiles/pspecific_linux.h
+    QTPLUGIN.platformthemes += qgtk2
 }
 
 CONFIG(debug, debug|release) {
