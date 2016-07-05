@@ -30,14 +30,14 @@ AudioPlayerLoaders::AudioPlayerLoaders(QThread *thread) : _fromVideoNotify(this,
 }
 
 void AudioPlayerLoaders::feedFromVideo(VideoSoundPart &&part) {
-	bool invoke = true;
+	bool invoke = false;
 	{
 		QMutexLocker lock(&_fromVideoMutex);
 		if (_fromVideoPlayId == part.videoPlayId) {
 			_fromVideoQueue.enqueue(*part.packet);
+			invoke = true;
 		} else {
-			av_packet_unref(part.packet);
-			invoke = false;
+			FFMpeg::freePacket(part.packet);
 		}
 	}
 	if (invoke) {
@@ -77,7 +77,7 @@ AudioPlayerLoaders::~AudioPlayerLoaders() {
 void AudioPlayerLoaders::clearFromVideoQueue() {
 	auto queue = createAndSwap(_fromVideoQueue);
 	for (auto &packet : queue) {
-		av_packet_unref(&packet);
+		FFMpeg::freePacket(&packet);
 	}
 }
 
@@ -124,7 +124,7 @@ void AudioPlayerLoaders::onLoad(const AudioMsgId &audio) {
 	loadData(audio, 0);
 }
 
-void AudioPlayerLoaders::loadData(const AudioMsgId &audio, qint64 position) {
+void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 	SetupError err = SetupNoErrorStarted;
 	auto type = audio.type();
 	AudioPlayerLoader *l = setupLoader(audio, err, position);
@@ -160,10 +160,13 @@ void AudioPlayerLoaders::loadData(const AudioMsgId &audio, qint64 position) {
 			}
 			finished = true;
 			break;
+		} else if (res == Result::EndOfFile) {
+			finished = true;
+			break;
 		} else if (res == Result::Ok) {
 			errAtStart = false;
 		} else if (res == Result::Wait) {
-			waiting = samples.isEmpty();// (samples.size() < AudioVoiceMsgBufferSize);
+			waiting = (samples.size() < AudioVoiceMsgBufferSize);
 			if (waiting) {
 				l->saveDecodedSamples(&samples, &samplesCount);
 			}
@@ -335,11 +338,12 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 	switch (audio.type()) {
 	case AudioMsgId::Type::Voice: l = _audioLoader.get(); isGoodId = (_audio == audio); break;
 	case AudioMsgId::Type::Song: l = _songLoader.get(); isGoodId = (_song == audio); break;
-	case AudioMsgId::Type::Video: l = _videoLoader.get(); isGoodId = (_song == audio); break;
+	case AudioMsgId::Type::Video: l = _videoLoader.get(); isGoodId = (_video == audio); break;
 	}
 
 	if (l && (!isGoodId || !l->check(data->file, data->data))) {
 		clear(audio.type());
+		l = nullptr;
 	}
 
 	if (!l) {
@@ -351,6 +355,12 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 		}
 
 		if (audio.type() == AudioMsgId::Type::Video) {
+			if (!data->videoData) {
+				data->state = AudioPlayerStoppedAtError;
+				emit error(audio);
+				LOG(("Audio Error: video sound data not ready"));
+				return nullptr;
+			}
 			_videoLoader = std_::make_unique<ChildFFMpegLoader>(std_::move(data->videoData));
 			l = _videoLoader.get();
 		} else {

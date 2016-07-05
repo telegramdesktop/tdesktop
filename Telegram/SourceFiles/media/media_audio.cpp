@@ -636,8 +636,14 @@ void AudioPlayer::stop(AudioMsgId::Type type) {
 	AudioMsgId current;
 	{
 		QMutexLocker lock(&playerMutex);
-		current = dataForType(type)->audio;
+		auto data = dataForType(type);
+		t_assert(data != nullptr);
+
+		current = data->audio;
 		fadedStop(type);
+		if (type == AudioMsgId::Type::Video) {
+			data->clear();
+		}
 	}
 	if (current) emit updated(current);
 }

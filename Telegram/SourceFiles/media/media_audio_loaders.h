@@ -78,7 +78,7 @@ private:
 		SetupErrorLoadedFull = 2,
 		SetupNoErrorStarted = 3,
 	};
-	void loadData(const AudioMsgId &audio, qint64 position);
+	void loadData(AudioMsgId audio, qint64 position);
 	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 position);
 	AudioPlayer::AudioMsg *checkLoader(AudioMsgId::Type type);
 

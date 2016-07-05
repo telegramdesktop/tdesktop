@@ -235,8 +235,9 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readMore(QByteArray &result, int64 &
 		if (res != AVERROR_EOF) {
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 			LOG(("Audio Error: Unable to av_read_frame() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return ReadResult::Error;
 		}
-		return ReadResult::Error;
+		return ReadResult::EndOfFile;
 	}
 	if (avpkt.stream_index == streamId) {
 		av_frame_unref(frame);

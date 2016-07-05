@@ -107,11 +107,10 @@ bool FFMpegReaderImplementation::readNextFrame() {
 		}
 
 		if (eofReached) {
+			clearPacketQueue();
 			if (_mode == Mode::Normal) {
 				return false;
 			}
-
-			clearPacketQueue();
 
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
 				if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
@@ -294,6 +293,9 @@ int FFMpegReaderImplementation::duration() const {
 }
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
+	if (_mode == Mode::Normal && _audioStreamId >= 0) {
+		audioPlayer()->stop(AudioMsgId::Type::Video);
+	}
 	if (_frameRead) {
 		av_frame_unref(_frame);
 		_frameRead = false;
@@ -321,6 +323,13 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 	int res = 0;
 	if ((res = av_read_frame(_fmtContext, &packet)) < 0) {
 		if (res == AVERROR_EOF) {
+			if (_audioStreamId >= 0) {
+				// queue terminating packet to audio player
+				VideoSoundPart part;
+				part.packet = &_packetNull;
+				part.videoPlayId = _playId;
+				audioPlayer()->feedFromVideo(std_::move(part));
+			}
 			return PacketResult::EndOfFile;
 		}
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -335,17 +344,8 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 		int64 packetMs = (packetPts * 1000LL * _fmtContext->streams[packet.stream_index]->time_base.num) / _fmtContext->streams[packet.stream_index]->time_base.den;
 		_lastReadPacketMs = packetMs;
 
-		//AVPacket packetForQueue;
-		//av_init_packet(&packetForQueue);
-		//if ((res = av_packet_ref(&packetForQueue, &packet)) < 0) {
-		//	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-		//	LOG(("Gif Error: Unable to av_packet_ref() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		//	return PacketResult::Error;
-		//}
-
 		if (videoPacket) {
 			_packetQueue.enqueue(packet);
-			//_packetQueue.enqueue(packetForQueue);
 		} else if (audioPacket) {
 			// queue packet to audio player
 			VideoSoundPart part;
@@ -356,7 +356,6 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 	} else {
 		av_packet_unref(&packet);
 	}
-	//av_packet_unref(&packet);
 	return PacketResult::Ok;
 }
 

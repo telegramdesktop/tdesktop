@@ -222,14 +222,14 @@ bool MediaView::gifShown() const {
 			_gif->start(_gif->width(), _gif->height(), _gif->width(), _gif->height(), false);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
-		return _gif->state() != Media::Clip::State::Error;
+		return true;// _gif->state() != Media::Clip::State::Error;
 	}
 	return false;
 }
 
 void MediaView::stopGif() {
 	delete _gif;
-	_gif = 0;
+	_gif = nullptr;
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
@@ -506,8 +506,7 @@ void MediaView::clearData() {
 		_a_state.stop();
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
-	delete _gif;
-	_gif = nullptr;
+	stopGif();
 	delete _menu;
 	_menu = nullptr;
 	_history = _migrated = nullptr;

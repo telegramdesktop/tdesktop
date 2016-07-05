@@ -113,18 +113,23 @@ bool ChildFFMpegLoader::open(qint64 position) {
 
 AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, int64 &samplesAdded) {
 	if (_queue.isEmpty()) {
-		return ReadResult::Wait;
+		return _eofReached ? ReadResult::EndOfFile : ReadResult::Wait;
 	}
 
 	av_frame_unref(_frame);
 	int got_frame = 0;
 	int res = 0;
 	auto packet = _queue.dequeue();
+	_eofReached = FFMpeg::isNullPacket(packet);
+	if (_eofReached) {
+		return ReadResult::EndOfFile;
+	}
+
 	if ((res = avcodec_decode_audio4(_parentData->context, _frame, &got_frame, &packet)) < 0) {
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-		av_packet_unref(&packet);
+		FFMpeg::freePacket(&packet);
 		if (res == AVERROR_INVALIDDATA) {
 			return ReadResult::NotYet; // try to skip bad packet
 		}
@@ -143,7 +148,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 					LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-					av_packet_unref(&packet);
+					FFMpeg::freePacket(&packet);
 					return ReadResult::Error;
 				}
 			}
@@ -151,7 +156,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-				av_packet_unref(&packet);
+				FFMpeg::freePacket(&packet);
 				return ReadResult::Error;
 			}
 			int32 resultLen = av_samples_get_buffer_size(0, AudioToChannels, res, AudioToFormat, 1);
@@ -162,7 +167,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 			samplesAdded += _frame->nb_samples;
 		}
 	}
-	av_packet_unref(&packet);
+	FFMpeg::freePacket(&packet);
 	return ReadResult::Ok;
 }
 
@@ -174,7 +179,7 @@ void ChildFFMpegLoader::enqueuePackets(QQueue<AVPacket> &packets) {
 ChildFFMpegLoader::~ChildFFMpegLoader() {
 	auto queue = createAndSwap(_queue);
 	for (auto &packet : queue) {
-		av_packet_unref(&packet);
+		FFMpeg::freePacket(&packet);
 	}
 	if (_dstSamplesData) {
 		if (_dstSamplesData[0]) {

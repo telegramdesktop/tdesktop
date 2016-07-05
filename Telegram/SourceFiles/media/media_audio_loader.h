@@ -37,6 +37,7 @@ public:
 		NotYet,
 		Ok,
 		Wait,
+		EndOfFile,
 	};
 	virtual ReadResult readMore(QByteArray &samples, int64 &samplesCount) = 0;
 

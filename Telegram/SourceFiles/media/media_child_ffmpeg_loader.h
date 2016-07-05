@@ -44,6 +44,24 @@ struct VideoSoundPart {
 	uint64 videoPlayId = 0;
 };
 
+namespace FFMpeg {
+
+inline bool isNullPacket(const AVPacket &packet) {
+	return packet.data == nullptr && packet.size == 0;
+}
+
+inline bool isNullPacket(const AVPacket *packet) {
+	return isNullPacket(*packet);
+}
+
+inline void freePacket(AVPacket *packet) {
+	if (!isNullPacket(packet)) {
+		av_packet_unref(packet);
+	}
+}
+
+} // namespace FFMpeg
+
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
 	ChildFFMpegLoader(std_::unique_ptr<VideoSoundData> &&data);
@@ -72,10 +90,15 @@ public:
 	uint64 playId() const {
 		return _parentData->videoPlayId;
 	}
+	bool eofReached() const {
+		return _eofReached;
+	}
 
 	~ChildFFMpegLoader();
 
 private:
+	bool _eofReached = false;
+
 	int32 _sampleSize = 2 * sizeof(uint16);
 	int32 _format = AL_FORMAT_STEREO16;
 	int32 _srcRate = AudioVoiceMsgFrequency;
