@@ -16,5 +16,6 @@ isEmpty(QT_TDESKTOP_VERSION) {
 
 INCLUDEPATH += $${QT_TDESKTOP_PATH}/include/QtGui/$${QT_TDESKTOP_VERSION}/QtGui \
                $${QT_TDESKTOP_PATH}/include/QtCore/$${QT_TDESKTOP_VERSION}/QtCore \
+               $${QT_TDESKTOP_PATH}/include/QtCore/$${QT_TDESKTOP_VERSION} \
                $${QT_TDESKTOP_PATH}/include
 

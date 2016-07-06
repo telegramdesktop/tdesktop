@@ -27,8 +27,6 @@ class MainWindow;
 class MainWidget;
 class SettingsWidget;
 class ApiWrap;
-class Font;
-class Color;
 class FileUploader;
 
 #include "history.h"
