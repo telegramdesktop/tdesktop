@@ -326,6 +326,7 @@ RoundButton {
 	padding: margins;
 
 	textTop: pixels;
+	downTextTop: pixels;
 
 	icon: icon;
 

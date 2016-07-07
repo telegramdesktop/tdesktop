@@ -127,6 +127,8 @@ QString objcString(NSString *str) {
 - (id) init:(PsMacWindowPrivate *)aWnd;
 - (void) activeSpaceDidChange:(NSNotification *)aNotification;
 - (void) darkModeChanged:(NSNotification *)aNotification;
+- (void) screenIsLocked:(NSNotification *)aNotification;
+- (void) screenIsUnlocked:(NSNotification *)aNotification;
 
 @end
 
@@ -195,6 +197,14 @@ public:
 	wnd->darkModeChanged();
 }
 
+- (void) screenIsLocked:(NSNotification *)aNotification {
+	Global::SetScreenIsLocked(true);
+}
+
+- (void) screenIsUnlocked:(NSNotification *)aNotification {
+	Global::SetScreenIsLocked(false);
+}
+
 @end
 
 @implementation NotifyHandler {
@@ -232,6 +242,8 @@ public:
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(darkModeChanged:) name:QNSString(strNotificationAboutThemeChange()).s() object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:QNSString(strNotificationAboutScreenLocked()).s() object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:QNSString(strNotificationAboutScreenUnlocked()).s() object:nil];
 }
 
 void PsMacWindowPrivate::setWindowBadge(const QString &str) {

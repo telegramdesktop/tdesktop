@@ -58,14 +58,14 @@ void createCircleMasks() {
 	serviceMessageStyle.createIfNull();
 	if (!serviceMessageStyle->circle[NormalMask].isNull()) return;
 
-	int size = st::msgRadius * 2;
+	int size = st::serviceMsgRadius * 2;
 	serviceMessageStyle->circle[NormalMask] = style::createCircleMask(size);
 	serviceMessageStyle->circle[InvertedMask] = style::createInvertedCircleMask(size);
 }
 
 QPixmap circleCorner(int corner) {
 	if (serviceMessageStyle->corners[corner].isNull()) {
-		int size = st::msgRadius * cIntRetinaFactor();
+		int size = st::serviceMsgRadius * cIntRetinaFactor();
 
 		int xoffset = 0, yoffset = 0;
 		if (corner & CornerRight) {
@@ -120,7 +120,7 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 		y += skip;
 		height -= skip;
 	}
-	if (int skip = paintBubbleSide(p, x, y + height - st::msgRadius, width, bottomStyle, CornerBottom)) {
+	if (int skip = paintBubbleSide(p, x, y + height - st::serviceMsgRadius, width, bottomStyle, CornerBottom)) {
 		height -= skip;
 	}
 
@@ -258,7 +258,7 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Text &text, const QRec
 	lineWidths.reserve(linesCount);
 	text.countLineWidths(textRect.width(), &lineWidths);
 
-	int minDelta = 4 * st::msgRadius;
+	int minDelta = 4 * st::serviceMsgRadius;
 	for (int i = 0, count = lineWidths.size(); i < count; ++i) {
 		int width = qMax(lineWidths.at(i), 0);
 		if (i > 0) {

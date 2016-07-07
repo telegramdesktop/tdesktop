@@ -123,6 +123,7 @@ defaultBoxButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+	downTextTop: 9px;
 
 	font: boxButtonFont;
 	duration: 200;
@@ -284,9 +285,9 @@ solidScroll: flatScroll {
 	barOverColor: #3f729734;
 	bgOverColor: #214f751a;
 
-	round: 0px;
 	minHeight: 20px;
 
+	round: 2px;
 	deltax: 5px;
 	width: 14px;
 	deltat: 6px;
@@ -345,6 +346,7 @@ defaultTooltip: Tooltip {
 
 almostTransparent: #ffffff0d;
 boxScroll: flatScroll(solidScroll) {
+	round: 3px;
 	width: 18px;
 	deltax: 6px;
 }
@@ -647,7 +649,7 @@ scrollDef: flatScroll {
 	barOverColor: rgba(0, 0, 0, 122);
 	bgOverColor: rgba(0, 0, 0, 44);
 
-	round: 0px;
+	round: 2px;
 
 	width: 10px;
 	minHeight: 20px;
@@ -663,7 +665,9 @@ scrollDef: flatScroll {
 	hiding: 1000;
 }
 
-msgRadius: 3px;
+msgRadius: 16px;
+serviceMsgRadius: 10px;
+buttonRadius: 3px;
 
 scrollCountries: flatScroll(scrollDef) {
 	topsh: 0px;
@@ -732,7 +736,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 
 	width: 300px;
-	radius: msgRadius;
+	radius: buttonRadius;
 }
 
 boxShadow: sprite(363px, 50px, 15px, 15px);
@@ -999,6 +1003,7 @@ topBarButton: RoundButton {
 	padding: margins(0px, 14px, 12px, 12px);
 
 	textTop: 6px;
+	downTextTop: 7px;
 
 	font: font(fsize);
 	duration: 200;
@@ -1009,7 +1014,7 @@ defaultActiveButton: RoundButton {
 	secondaryTextFg: #cceeff;
 	secondaryTextFgOver: #cceeff;
 	textBg: windowActiveBg;
-	textBgOver: windowActiveBg;
+	textBgOver: #46b4eb;
 
 	secondarySkip: 7px;
 
@@ -1018,6 +1023,7 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+	downTextTop: 9px;
 
 	font: semiboldFont;
 	duration: 200;
@@ -1486,7 +1492,7 @@ historyScroll: flatScroll(scrollDef) {
 	barOverColor: #89a0b4bc;
 	bgOverColor: #89a0b46b;
 
-	round: 0px;
+	round: 3px;
 
 	width: 12px;
 	deltax: 3px;
@@ -1829,6 +1835,7 @@ stickersMaxHeight: 440px;
 stickersPadding: margins(19px, 17px, 19px, 17px);
 stickersSize: size(64px, 64px);
 stickersScroll: flatScroll(boxScroll) {
+	round: 2px;
 	deltax: 7px;
 	deltat: 23px;
 	deltab: 9px;
@@ -2016,6 +2023,7 @@ switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
 	height: 34px;
 	textTop: 7px;
+	downTextTop: 8px;
 }
 
 minPhotoSize: 100px;
@@ -2205,6 +2213,7 @@ langsButton: Radiobutton(defaultRadiobutton) {
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
 backgroundScroll: flatScroll(boxScroll) {
+	round: 2px;
 	width: 10px;
 	deltax: 3px;
 	deltat: 10px;
@@ -2243,6 +2252,7 @@ mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
 
 sessionsScroll: flatScroll(boxScroll) {
+	round: 2px;
 	deltax: 5px;
 	width: 14px;
 }

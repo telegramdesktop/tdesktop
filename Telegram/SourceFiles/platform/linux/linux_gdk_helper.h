@@ -20,11 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/basic_types.h"
+#include <QtCore/QObject>
 
-#define BETA_VERSION_MACRO (0ULL)
+extern "C" {
+#undef signals
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#define signals public
+} // extern "C"
 
-constexpr int AppVersion = 9057;
-constexpr str_const AppVersionStr = "0.9.57";
-constexpr bool AppAlphaVersion = true;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+namespace Platform {
+namespace internal {
+
+void GdkHelperLoad(QLibrary &lib);
+bool GdkHelperLoaded();
+void XSetTransientForHint(GdkWindow *window, quintptr winId);
+
+} // namespace internal
+} // namespace Platform

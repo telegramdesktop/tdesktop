@@ -51,7 +51,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.setOpacity(_shownLevel);
-	App::roundRect(p, rect(), st::toastBg);
+	App::roundRect(p, rect(), st::toastBg, ImageRoundRadius::Large);
 
 	p.setPen(st::toastFg);
 	textstyleSet(&st::defaultTextStyle);

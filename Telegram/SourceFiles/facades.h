@@ -213,6 +213,8 @@ DeclareVar(bool, DialogsModeEnabled);
 DeclareVar(Dialogs::Mode, DialogsMode);
 DeclareVar(bool, ModerateModeEnabled);
 
+DeclareVar(bool, ScreenIsLocked);
+
 DeclareVar(int32, DebugLoggingFlags);
 
 // config
