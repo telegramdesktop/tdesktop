@@ -979,8 +979,6 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
 				psOpenFile(filepath);
-			} else {
-				psShowInFolder(filepath);
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
@@ -1278,8 +1276,6 @@ void DocumentData::performActionOnLoad() {
 			if (voice() || song() || isVideo()) {
 				if (documentIsValidMediaFile(already)) {
 					psOpenFile(already);
-				} else {
-					psShowInFolder(already);
 				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {

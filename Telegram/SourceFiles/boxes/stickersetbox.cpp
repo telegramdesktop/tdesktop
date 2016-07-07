@@ -154,7 +154,11 @@ void StickerSetInner::installDone(const MTPBool &result) {
 bool StickerSetInner::installFailed(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)));
+	} else {
+		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	}
 
 	return true;
 }

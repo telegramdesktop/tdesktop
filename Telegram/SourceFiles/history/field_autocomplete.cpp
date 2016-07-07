@@ -104,7 +104,7 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInli
 	bool resetScroll = (_type != type || _filter != plainQuery);
 	if (resetScroll) {
 		_type = type;
-		_filter = plainQuery.toString();
+		_filter = textAccentFold(plainQuery.toString());
 	}
 	_addInlineBots = addInlineBots;
 
@@ -259,7 +259,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) continue;
+			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) {
+				continue;
+			}
 			hrows.push_back(i->first);
 		}
 	} else if (_type == Type::BotCommands) {
