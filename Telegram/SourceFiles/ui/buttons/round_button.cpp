@@ -102,12 +102,12 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	if (_fullWidthOverride < 0) {
 		rounded = QRect(0, rounded.top(), innerWidth - _fullWidthOverride, rounded.height());
 	}
-	App::roundRect(p, rounded, _st.textBg);
+	App::roundRect(p, rounded, _st.textBg, ImageRoundRadius::Small);
 
 	auto o = a_textBgOverOpacity.current();
 	if (o > 0) {
 		p.setOpacity(o);
-		App::roundRect(p, rounded, _st.textBgOver);
+		App::roundRect(p, rounded, _st.textBgOver, ImageRoundRadius::Small);
 		p.setOpacity(1);
 	}
 

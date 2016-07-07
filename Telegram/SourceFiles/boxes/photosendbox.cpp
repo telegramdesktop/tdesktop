@@ -123,7 +123,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRounded, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRoundedSmall, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		_name.setText(st::semiboldFont, _file->filename, _textNameOptions);
@@ -427,7 +427,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRounded, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRoundedSmall, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		if (doc) {
@@ -462,7 +462,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixRounded, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth, maxW, maxH);
 		}
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {

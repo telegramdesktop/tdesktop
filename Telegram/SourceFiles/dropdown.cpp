@@ -948,9 +948,9 @@ void EmojiPanInner::onShowPicker() {
 			int32 size = (c == tab) ? (sel - (sel % EmojiPanPerRow)) : _counts[c], rows = (size / EmojiPanPerRow) + ((size % EmojiPanPerRow) ? 1 : 0);
 			y += st::emojiPanHeader + (rows * st::emojiPanSize.height());
 		}
-		y -= _picker.height() - st::msgRadius + _top;
+		y -= _picker.height() - st::buttonRadius + _top;
 		if (y < 0) {
-			y += _picker.height() - st::msgRadius + st::emojiPanSize.height() - st::msgRadius;
+			y += _picker.height() - st::buttonRadius + st::emojiPanSize.height() - st::buttonRadius;
 		}
 		int xmax = width() - _picker.width();
 		float64 coef = float64(sel % EmojiPanPerRow) / float64(EmojiPanPerRow - 1);
@@ -1406,7 +1406,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 					sticker->checkSticker();
 				}
 
-				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
+				float64 coef = qMin((st::stickerPanSize.width() - st::buttonRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(sticker->dimensions.height()));
 				if (coef > 1) coef = 1;
 				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
 				if (w < 1) w = 1;

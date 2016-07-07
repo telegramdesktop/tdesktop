@@ -663,7 +663,9 @@ scrollDef: flatScroll {
 	hiding: 1000;
 }
 
-msgRadius: 3px;
+msgRadius: 16px;
+serviceMsgRadius: 10px;
+buttonRadius: 3px;
 
 scrollCountries: flatScroll(scrollDef) {
 	topsh: 0px;
@@ -732,7 +734,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 
 	width: 300px;
-	radius: msgRadius;
+	radius: buttonRadius;
 }
 
 boxShadow: sprite(363px, 50px, 15px, 15px);

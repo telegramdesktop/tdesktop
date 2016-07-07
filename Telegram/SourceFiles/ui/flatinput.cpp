@@ -180,7 +180,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
 	p.setBrush(QBrush(a_bgColor.current()));
-	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::msgRadius - (_st.borderWidth / 2.), st::msgRadius - (_st.borderWidth / 2.));
+	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	if (_st.imgRect.pxWidth()) {

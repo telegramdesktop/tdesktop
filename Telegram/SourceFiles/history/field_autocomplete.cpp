@@ -578,7 +578,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					sticker->checkSticker();
 				}
 
-				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
+				float64 coef = qMin((st::stickerPanSize.width() - st::buttonRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(sticker->dimensions.height()));
 				if (coef > 1) coef = 1;
 				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
 				if (w < 1) w = 1;

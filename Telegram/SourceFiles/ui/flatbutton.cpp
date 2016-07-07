@@ -371,7 +371,7 @@ void BoxButton::paintEvent(QPaintEvent *e) {
 	float64 o = a_textBgOverOpacity.current();
 	if (o > 0) {
 		p.setOpacity(o);
-		App::roundRect(p, rect(), _st.textBgOver);
+		App::roundRect(p, rect(), _st.textBgOver, ImageRoundRadius::Small);
 		p.setOpacity(1);
 		p.setPen(a_textFg.current());
 	} else {

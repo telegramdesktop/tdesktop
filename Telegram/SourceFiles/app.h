@@ -271,7 +271,7 @@ namespace App {
 #endif
 	void setProxySettings(QTcpSocket &socket);
 
-	QImage **cornersMask();
+	QImage **cornersMask(ImageRoundRadius radius);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
 	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
@@ -280,9 +280,9 @@ namespace App {
 	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
 		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg) {
-		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, ImageRoundRadius radius) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius);
 	}
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
