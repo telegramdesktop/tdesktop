@@ -115,20 +115,17 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 
 namespace internal {
 
-QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget)
-{
-    g_signal_connect_swapped(G_OBJECT(gtkWidget), "response", G_CALLBACK(onResponse), this);
-    g_signal_connect(G_OBJECT(gtkWidget), "delete-event", G_CALLBACK(Libs::gtk_widget_hide_on_delete), NULL);
+QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
+    Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "response", GCallback(onResponse), this);
+    Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), NULL);
 }
 
-QGtkDialog::~QGtkDialog()
-{
+QGtkDialog::~QGtkDialog() {
     Libs::gtk_clipboard_store(Libs::gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
     Libs::gtk_widget_destroy(gtkWidget);
 }
 
-GtkDialog *QGtkDialog::gtkDialog() const
-{
+GtkDialog *QGtkDialog::gtkDialog() const {
     return Libs::gtk_dialog_cast(gtkWidget);
 }
 
@@ -183,8 +180,7 @@ void QGtkDialog::onResponse(QGtkDialog *dialog, int response) {
         emit dialog->reject();
 }
 
-void QGtkDialog::onParentWindowDestroyed()
-{
+void QGtkDialog::onParentWindowDestroyed() {
     // The Gtk*DialogHelper classes own this object. Make sure the parent doesn't delete it.
     setParent(nullptr);
 }
@@ -224,8 +220,8 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
     connect(d.data(), SIGNAL(accept()), this, SLOT(onAccepted()));
     connect(d.data(), SIGNAL(reject()), this, SLOT(onRejected()));
 
-    g_signal_connect(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
-    g_signal_connect_swapped(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
+    Libs::g_signal_connect_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
+    Libs::g_signal_connect_swapped_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
 }
 
 GtkFileDialog::~GtkFileDialog() {
@@ -313,7 +309,7 @@ QDir GtkFileDialog::directory() const {
     gchar *folder = Libs::gtk_file_chooser_get_current_folder(Libs::gtk_file_chooser_cast(gtkDialog));
     if (folder) {
         ret = QString::fromUtf8(folder);
-        g_free(folder);
+        Libs::g_free(folder);
     }
     return QDir(ret);
 }
@@ -334,7 +330,7 @@ QStringList GtkFileDialog::selectedFiles() const {
     GSList *filenames = Libs::gtk_file_chooser_get_filenames(Libs::gtk_file_chooser_cast(gtkDialog));
     for (GSList *it  = filenames; it; it = it->next)
         selection += QString::fromUtf8((const char*)it->data);
-    g_slist_free(filenames);
+    Libs::g_slist_free(filenames);
     return selection;
 }
 

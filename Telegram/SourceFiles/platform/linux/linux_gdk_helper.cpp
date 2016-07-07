@@ -51,18 +51,14 @@ using f_gdk_x11_drawable_get_xid = XID(*)(GdkDrawable*);
 f_gdk_x11_drawable_get_xid gdk_x11_drawable_get_xid = nullptr;
 
 // Gtk 3
-
-// To be able to compile with gtk-2.0 headers as well
-#ifndef GDK_TYPE_X11_WINDOW
-#define GDK_TYPE_X11_WINDOW (gdk_x11_window_get_type())
-#endif // GDK_TYPE_X11_WINDOW
-
-#ifndef GDK_IS_X11_WINDOW
-#define GDK_IS_X11_WINDOW(object) (G_TYPE_CHECK_INSTANCE_TYPE((object), GDK_TYPE_X11_WINDOW))
-#endif // GDK_IS_X11_WINDOW
-
 using f_gdk_x11_window_get_type = GType (*)(void);
 f_gdk_x11_window_get_type gdk_x11_window_get_type = nullptr;
+
+// To be able to compile with gtk-2.0 headers as well
+template <typename Object>
+inline bool gdk_is_x11_window_check(Object *obj) {
+	return Libs::g_type_cit_helper(obj, gdk_x11_window_get_type());
+}
 
 using f_gdk_window_get_display = GdkDisplay*(*)(GdkWindow *window);
 f_gdk_window_get_display gdk_window_get_display = nullptr;
@@ -106,7 +102,7 @@ void XSetTransientForHint(GdkWindow *window, quintptr winId) {
 							   gdk_x11_drawable_get_xid(window),
 							   winId);
 	} else if (gdk_helper_loaded == GtkLoaded::Gtk3) {
-		if (GDK_IS_X11_WINDOW(window)) {
+		if (gdk_is_x11_window_check(window)) {
 			::XSetTransientForHint(gdk_x11_display_get_xdisplay(gdk_window_get_display(window)),
 								   gdk_x11_window_get_xid(window),
 								   winId);

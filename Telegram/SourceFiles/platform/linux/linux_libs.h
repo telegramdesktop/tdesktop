@@ -198,6 +198,11 @@ inline GtkDialog *gtk_dialog_cast(Object *obj) {
 	return g_type_cic_helper<GtkDialog, Object>(obj, gtk_dialog_get_type());
 }
 
+template <typename Object>
+inline GObject *g_object_cast(Object *obj) {
+	return g_type_cic_helper<GObject, Object>(obj, G_TYPE_OBJECT);
+}
+
 typedef GType (*f_gtk_file_chooser_get_type)(void) G_GNUC_CONST;
 extern f_gtk_file_chooser_get_type gtk_file_chooser_get_type;
 
@@ -222,13 +227,32 @@ inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
 }
 
+typedef gboolean (*f_g_type_check_instance_is_a)(GTypeInstance *instance, GType iface_type) G_GNUC_PURE;
+extern f_g_type_check_instance_is_a g_type_check_instance_is_a;
+
+template <typename Object>
+inline bool g_type_cit_helper(Object *instance, GType iface_type) {
+	if (!instance) return false;
+
+	auto ginstance = reinterpret_cast<GTypeInstance*>(instance);
+	if (ginstance->g_class && ginstance->g_class->g_type == iface_type) {
+		return true;
+	}
+    return g_type_check_instance_is_a(ginstance, iface_type);
+}
+
 typedef gint (*f_gtk_dialog_run)(GtkDialog *dialog);
 extern f_gtk_dialog_run gtk_dialog_run;
 
 typedef gulong (*f_g_signal_connect_data)(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data, GConnectFlags connect_flags);
 extern f_g_signal_connect_data g_signal_connect_data;
+
 inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
 	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, (GConnectFlags)0);
+}
+
+inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
+	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, G_CONNECT_SWAPPED);
 }
 
 typedef AppIndicator* (*f_app_indicator_new)(const gchar *id, const gchar *icon_name, AppIndicatorCategory category);
@@ -293,6 +317,12 @@ extern f_g_object_unref g_object_unref;
 
 typedef guint (*f_g_idle_add)(GSourceFunc function, gpointer data);
 extern f_g_idle_add g_idle_add;
+
+typedef void (*f_g_free)(gpointer mem);
+extern f_g_free g_free;
+
+typedef void (*f_g_slist_free)(GSList *list);
+extern f_g_slist_free g_slist_free;
 
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 typedef void (*f_unity_launcher_entry_set_count)(UnityLauncherEntry* self, gint64 value);

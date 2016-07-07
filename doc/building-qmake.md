@@ -72,7 +72,7 @@ Building
     cd "$srcdir/Libraries/QtStatic"
     ./configure -prefix "$srcdir/qt" -release -opensource -confirm-license -qt-zlib \
                 -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
-                -qt-xkbcommon-x11 -no-opengl -static -nomake examples -nomake tests
+                -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -nomake examples -nomake tests
     make module-qtbase module-qtimageformats
     make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
 

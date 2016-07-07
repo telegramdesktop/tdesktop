@@ -140,10 +140,12 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	int32 deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
 	if (_st->round) {
+		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
 		p.setBrush(a_bg.current());
 		p.drawRoundedRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), _st->round, _st->round);
 		p.setBrush(a_bar.current());
 		p.drawRoundedRect(_bar, _st->round, _st->round);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	} else {
 		p.fillRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), a_bg.current());
 		p.fillRect(_bar, a_bar.current());

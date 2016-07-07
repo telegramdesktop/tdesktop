@@ -90,10 +90,13 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_dialog_run", gtk_dialog_run)) return false;
 
 	if (!load(lib_gtk, "g_type_check_instance_cast", g_type_check_instance_cast)) return false;
+	if (!load(lib_gtk, "g_type_check_instance_is_a", g_type_check_instance_is_a)) return false;
 	if (!load(lib_gtk, "g_signal_connect_data", g_signal_connect_data)) return false;
 
 	if (!load(lib_gtk, "g_object_ref_sink", g_object_ref_sink)) return false;
 	if (!load(lib_gtk, "g_object_unref", g_object_unref)) return false;
+	if (!load(lib_gtk, "g_free", g_free)) return false;
+	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
 	if (!gtk_init_check(0, 0)) {
@@ -164,6 +167,7 @@ f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
 f_gtk_dialog_run gtk_dialog_run = nullptr;
 f_g_type_check_instance_cast g_type_check_instance_cast = nullptr;
+f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
 f_g_signal_connect_data g_signal_connect_data = nullptr;
 f_app_indicator_new app_indicator_new = nullptr;
 f_app_indicator_set_status app_indicator_set_status = nullptr;
@@ -186,6 +190,8 @@ f_gtk_get_current_event_time gtk_get_current_event_time = nullptr;
 f_g_object_ref_sink g_object_ref_sink = nullptr;
 f_g_object_unref g_object_unref = nullptr;
 f_g_idle_add g_idle_add = nullptr;
+f_g_free g_free = nullptr;
+f_g_slist_free g_slist_free = nullptr;
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 f_unity_launcher_entry_set_count unity_launcher_entry_set_count = nullptr;
 f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_visible = nullptr;

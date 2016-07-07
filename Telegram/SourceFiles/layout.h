@@ -29,12 +29,14 @@ const TextParseOptions &itemTextOptions(History *h, PeerData *f);
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);
 
 enum RoundCorners {
-	NoneCorners = 0x00, // for images
-	BlackCorners,
+	SmallMaskCorners = 0x00, // for images
+	LargeMaskCorners,
+
 	WhiteCorners,
 	ServiceCorners,
 	ServiceSelectedCorners,
-	SelectedOverlayCorners,
+	SelectedOverlaySmallCorners,
+	SelectedOverlayLargeCorners,
 	DateCorners,
 	DateSelectedCorners,
 	ForwardCorners,

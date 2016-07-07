@@ -108,6 +108,8 @@ private:
 };
 
 QString strNotificationAboutThemeChange();
+QString strNotificationAboutScreenLocked();
+QString strNotificationAboutScreenUnlocked();
 QString strStyleOfInterface();
 QString strNeedToReload();
 QString strNeedToRefresh1();
