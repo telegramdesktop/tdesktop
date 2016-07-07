@@ -116,7 +116,8 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	if (_fullWidthOverride < 0) {
 		textLeft = -_fullWidthOverride / 2;
 	}
-	int textTop = _st.padding.top() + _st.textTop;
+	int textTopDelta = (_state & StateDown) ? (_st.downTextTop - _st.textTop) : 0;
+	int textTop = _st.padding.top() + _st.textTop + textTopDelta;
 	if (!_text.isEmpty()) {
 		if (o > 0) {
 			p.setPen(a_textFg.current());
@@ -134,7 +135,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		}
 		p.drawTextLeft(textLeft, textTop, width(), _secondaryText);
 	}
-	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right()), width());
+	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right() + textTopDelta), width());
 }
 
 void RoundButton::step_over(float64 ms, bool timer) {

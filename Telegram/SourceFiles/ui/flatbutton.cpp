@@ -378,7 +378,9 @@ void BoxButton::paintEvent(QPaintEvent *e) {
 		p.setPen(_st.textFg);
 	}
 	p.setFont(_st.font);
-	p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
+
+	auto textTop = (_state & StateDown) ? _st.downTextTop : _st.textTop;
+	p.drawText((width() - _textWidth) / 2, textTop + _st.font->ascent, _text);
 }
 
 void BoxButton::step_over(float64 ms, bool timer) {
