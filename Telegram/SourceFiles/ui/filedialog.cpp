@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 #include "localstorage.h"
+#include "platform/platform_file_dialog.h"
 
 void filedialogInit() {
 	if (cDialogLastPath().isEmpty()) {
@@ -69,28 +70,33 @@ void filedialogInit() {
 	}
 }
 
-// multipleFiles: 1 - multi open, 0 - single open, -1 - single save, -2 - select dir
-bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, int multipleFiles, QString startFile = QString()) {
+namespace FileDialog {
+namespace internal {
 
+bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, FileDialog::internal::Type type, QString startFile = QString()) {
 	filedialogInit();
+
+	if (Platform::FileDialog::Supported()) {
+		return Platform::FileDialog::Get(files, remoteContent, caption, filter, type, startFile);
+	}
 
 #if defined Q_OS_LINUX || defined Q_OS_MAC // use native
     remoteContent = QByteArray();
 	if (startFile.isEmpty() || startFile.at(0) != '/') {
 		startFile = cDialogLastPath() + '/' + startFile;
 	}
-    QString file;
-    if (multipleFiles >= 0) {
+	QString file;
+	if (type == Type::ReadFiles) {
 		files = QFileDialog::getOpenFileNames(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
 			Local::writeUserSettings();
 		}
-        return !files.isEmpty();
-    } else if (multipleFiles < -1) {
+		return !files.isEmpty();
+    } else if (type == Type::ReadFolder) {
 		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile);
-    } else if (multipleFiles < 0) {
+    } else if (type == Type::WriteFile) {
 		file = QFileDialog::getSaveFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
     } else {
 		file = QFileDialog::getOpenFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
@@ -112,11 +118,11 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 	// hack for fast non-native dialog create
 	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, cDialogHelperPathFinal(), filter);
 
-    dialog.setModal(true);
-	if (multipleFiles >= 0) { // open file or files
-		dialog.setFileMode(multipleFiles ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
+	dialog.setModal(true);
+	if (type == Type::ReadFile || type == Type::ReadFiles) {
+		dialog.setFileMode((type == Type::ReadFiles) ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
-	} else if (multipleFiles < -1) { // save dir
+	} else if (type == Type::ReadFolder) { // save dir
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
 		dialog.setFileMode(QFileDialog::Directory);
 		dialog.setOption(QFileDialog::ShowDirsOnly);
@@ -127,7 +133,7 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 	dialog.show();
 
 	if (!cDialogLastPath().isEmpty()) dialog.setDirectory(cDialogLastPath());
-	if (multipleFiles == -1) {
+	if (type == Type::WriteFile) {
 		QString toSelect(startFile);
 #ifdef Q_OS_WIN
 		int32 lastSlash = toSelect.lastIndexOf('/');
@@ -151,12 +157,12 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 	}
 
 	if (res == QDialog::Accepted) {
-		if (multipleFiles > 0) {
+		if (type == Type::ReadFiles) {
 			files = dialog.selectedFiles();
 		} else {
 			files = dialog.selectedFiles().mid(0, 1);
 		}
-		if (multipleFiles >= 0) {
+		if (type == Type::ReadFile || type == Type::ReadFiles) {
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
 			remoteContent = dialog.selectedRemoteContent();
 #endif // Q_OS_WIN && !Q_OS_WINRT
@@ -169,13 +175,16 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 	return false;
 }
 
+} // namespace internal
+} // namespace FileDialog
+
 bool filedialogGetOpenFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter) {
-	return _filedialogGetFiles(files, remoteContent, caption, filter, 1);
+	return FileDialog::internal::getFiles(files, remoteContent, caption, filter, FileDialog::internal::Type::ReadFiles);
 }
 
 bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QString &caption, const QString &filter) {
 	QStringList files;
-	bool result = _filedialogGetFiles(files, remoteContent, caption, filter, 0);
+	bool result = FileDialog::internal::getFiles(files, remoteContent, caption, filter, FileDialog::internal::Type::ReadFile);
 	file = files.isEmpty() ? QString() : files.at(0);
 	return result;
 }
@@ -183,7 +192,7 @@ bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QStri
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &startName) {
 	QStringList files;
 	QByteArray remoteContent;
-	bool result = _filedialogGetFiles(files, remoteContent, caption, filter, -1, startName);
+	bool result = FileDialog::internal::getFiles(files, remoteContent, caption, filter, FileDialog::internal::Type::WriteFile, startName);
 	file = files.isEmpty() ? QString() : files.at(0);
 	return result;
 }
@@ -191,7 +200,7 @@ bool filedialogGetSaveFile(QString &file, const QString &caption, const QString 
 bool filedialogGetDir(QString &dir, const QString &caption) {
 	QStringList files;
 	QByteArray remoteContent;
-	bool result = _filedialogGetFiles(files, remoteContent, caption, QString(), -2);
+	bool result = FileDialog::internal::getFiles(files, remoteContent, caption, QString(), FileDialog::internal::Type::ReadFolder);
 	dir = files.isEmpty() ? QString() : files.at(0);
 	return result;
 }

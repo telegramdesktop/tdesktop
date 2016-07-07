@@ -1541,7 +1541,11 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		DocumentData *audio = audioId.audio;
 		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
-			psOpenFile(filepath);
+			if (documentIsValidMediaFile(filepath)) {
+				psOpenFile(filepath);
+			} else {
+				psShowInFolder(filepath);
+			}
 		}
 	}
 
@@ -1568,7 +1572,11 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 		DocumentData *document = songId.song;
 		QString filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
-			psOpenFile(filepath);
+			if (documentIsValidMediaFile(filepath)) {
+				psOpenFile(filepath);
+			} else {
+				psShowInFolder(filepath);
+			}
 		}
 	}
 
