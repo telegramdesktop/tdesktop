@@ -5043,7 +5043,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, u
 			// Make the bottom of the rect at the same level as the bottom of the info rect.
 			recty -= st::msgDateImgDelta;
 
-			App::roundRect(p, rectx, recty, rectw, recth, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
+			App::roundRect(p, rectx, recty, rectw, recth, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? StickerSelectedCorners : StickerCorners);
 			rectx += st::msgReplyPadding.left();
 			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 			if (via) {
@@ -6561,7 +6561,7 @@ void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
 }
 
 void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
-	App::roundRect(p, rect, App::msgServiceBg(), ServiceCorners);
+	App::roundRect(p, rect, App::msgServiceBg(), StickerCorners);
 	if (down) {
 		howMuchOver = 1.;
 	}
@@ -7289,7 +7289,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	} else if (type == InfoDisplayOverBackground) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? StickerSelectedCorners : StickerCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 

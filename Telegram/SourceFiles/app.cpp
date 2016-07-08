@@ -2112,12 +2112,12 @@ namespace {
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(WhiteCorners, st::buttonRadius, st::white);
-		prepareCorners(ServiceCorners, st::serviceMsgRadius, st::msgServiceBg);
-		prepareCorners(ServiceSelectedCorners, st::serviceMsgRadius, st::msgServiceSelectBg);
+		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
 		prepareCorners(SelectedOverlayLargeCorners, st::msgRadius, st::msgSelectOverlay);
-		prepareCorners(DateCorners, st::serviceMsgRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::serviceMsgRadius, st::msgDateImgBgSelected);
+		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
+		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
@@ -2768,8 +2768,8 @@ namespace {
 		uchar bsel = snap(qRound(((1. - alphaSel) * b + addSel) / alphaSel), 0, 0xFF);
 		_msgServiceSelectBg = style::color(r, g, b, qRound(alphaSel * 0xFF));
 
-		prepareCorners(ServiceCorners, st::serviceMsgRadius, _msgServiceBg);
-		prepareCorners(ServiceSelectedCorners, st::serviceMsgRadius, _msgServiceSelectBg);
+		prepareCorners(StickerCorners, st::dateRadius, _msgServiceBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, _msgServiceSelectBg);
 
 		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
 		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));
