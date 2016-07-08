@@ -602,6 +602,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
+"lng_group_invite_members" = "{count:_not_used_|# member|# members}, among them:";
+
 "lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";

@@ -530,9 +530,9 @@ void StickersInner::paintRow(Painter &p, int32 index) {
 		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::defaultActiveButton.height) / 2;
 		QRect add(myrtlrect(addx, addy, addw, st::defaultActiveButton.height));
 
-		App::roundRect(p, add, st::defaultActiveButton.textBgOver, ImageRoundRadius::Small);
+		App::roundRect(p, add, st::defaultActiveButton.textBg, ImageRoundRadius::Small);
 		p.setFont(st::defaultActiveButton.font);
-		p.setPen(st::defaultActiveButton.textFg);
+		p.setPen(st::defaultActiveButton.textFg); // textBgOver / downTextTop
 		p.drawTextLeft(addx - st::defaultActiveButton.width / 2, addy + st::defaultActiveButton.textTop, width(), _addText, _addWidth);
 	}
 

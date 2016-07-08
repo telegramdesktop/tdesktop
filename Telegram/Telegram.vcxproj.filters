@@ -1344,6 +1344,9 @@
     <ClCompile Include="SourceFiles\platform\linux\linux_libs.cpp">
       <Filter>SourceFiles\platform\linux</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_boxes.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1594,6 +1597,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\platform\linux\linux_libs.h">
       <Filter>SourceFiles\platform\linux</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_boxes.h">
+      <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1965,6 +1971,9 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\profile\profile.style">
       <Filter>SourceFiles\profile</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\boxes\boxes.style">
+      <Filter>SourceFiles\boxes</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

@@ -65,7 +65,9 @@ namespace App {
 	bool onlineColorUse(UserData *user, TimeId now);
 	bool onlineColorUse(TimeId online, TimeId now);
 
+	UserData *feedUser(const MTPUser &user);
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
+	PeerData *feedChat(const MTPChat &chat);
 	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);

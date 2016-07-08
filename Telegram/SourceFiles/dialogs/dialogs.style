@@ -85,8 +85,8 @@ dialogsTextStyleActive: textStyle(dialogsTextStyle) {
 	linkFgDown: dialogsTextFgActive;
 }
 dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
-	linkFg: #ffd6d6;
-	linkFgDown: #ffd6d6;
+	linkFg: #c6e1f7;
+	linkFgDown: #c6e1f7;
 }
 
 dialogsNewChatIcon: icon {

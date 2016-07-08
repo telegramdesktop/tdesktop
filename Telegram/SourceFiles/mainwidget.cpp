@@ -3487,11 +3487,22 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
-		const auto &d(invite.c_chatInvite());
-		ConfirmBox *box = new ConfirmBox(((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
+		auto &d(invite.c_chatInvite());
+		((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join);
+
+		QVector<UserData*> participants;
+		if (d.has_participants()) {
+			auto &v = d.vparticipants.c_vector().v;
+			participants.reserve(v.size());
+			for_const (auto &user, v) {
+				if (auto feededUser = App::feedUser(user)) {
+					participants.push_back(feededUser);
+				}
+			}
+		}
+		auto box = std_::make_unique<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, 3, participants);
 		_inviteHash = hash;
-		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
-		Ui::showLayer(box);
+		Ui::showLayer(box.release());
 	} break;
 
 	case mtpc_chatInviteAlready: {
