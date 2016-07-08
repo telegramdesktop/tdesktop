@@ -828,6 +828,7 @@ void _serialize_inputDocumentFileLocation(MTPStringLogger &to, int32 stage, int3
 	switch (stage) {
 	case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -3016,6 +3017,10 @@ void _serialize_updateReadFeaturedStickers(MTPStringLogger &to, int32 stage, int
 	to.add("{ updateReadFeaturedStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
+void _serialize_updateRecentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ updateRecentStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
 void _serialize_updates_state(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -3676,7 +3681,8 @@ void _serialize_document(MTPStringLogger &to, int32 stage, int32 lev, Types &typ
 	case 4: to.add("  size: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  thumb: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  dc_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 7: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 7: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 8: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4018,19 +4024,6 @@ void _serialize_documentAttributeFilename(MTPStringLogger &to, int32 stage, int3
 	}
 }
 
-void _serialize_documentAttributeVersion(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ documentAttributeVersion");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
 void _serialize_messages_stickersNotModified(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ messages_stickersNotModified }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -4356,6 +4349,8 @@ void _serialize_chatInvite(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	case 3: to.add("  public: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_public) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	case 4: to.add("  megagroup: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_megagroup) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
 	case 5: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 7: to.add("  participants: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_participants) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -5783,6 +5778,24 @@ void _serialize_messages_featuredStickers(MTPStringLogger &to, int32 stage, int3
 	}
 }
 
+void _serialize_messages_recentStickersNotModified(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ messages_recentStickersNotModified }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_messages_recentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_recentStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  stickers: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -6403,6 +6416,10 @@ void _serialize_messages_saveDraft(MTPStringLogger &to, int32 stage, int32 lev, 
 
 void _serialize_messages_readFeaturedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ messages_readFeaturedStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_messages_clearRecentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ messages_clearRecentStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
 void _serialize_upload_saveFilePart(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -8084,6 +8101,32 @@ void _serialize_messages_getFeaturedStickers(MTPStringLogger &to, int32 stage, i
 	}
 }
 
+void _serialize_messages_getRecentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getRecentStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_getUnusedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getUnusedStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_updates_getState(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ updates_getState }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -8542,6 +8585,7 @@ namespace {
 		_serializers.insert(mtpc_updateReadChannelOutbox, _serialize_updateReadChannelOutbox);
 		_serializers.insert(mtpc_updateDraftMessage, _serialize_updateDraftMessage);
 		_serializers.insert(mtpc_updateReadFeaturedStickers, _serialize_updateReadFeaturedStickers);
+		_serializers.insert(mtpc_updateRecentStickers, _serialize_updateRecentStickers);
 		_serializers.insert(mtpc_updates_state, _serialize_updates_state);
 		_serializers.insert(mtpc_updates_differenceEmpty, _serialize_updates_differenceEmpty);
 		_serializers.insert(mtpc_updates_difference, _serialize_updates_difference);
@@ -8625,7 +8669,6 @@ namespace {
 		_serializers.insert(mtpc_documentAttributeVideo, _serialize_documentAttributeVideo);
 		_serializers.insert(mtpc_documentAttributeAudio, _serialize_documentAttributeAudio);
 		_serializers.insert(mtpc_documentAttributeFilename, _serialize_documentAttributeFilename);
-		_serializers.insert(mtpc_documentAttributeVersion, _serialize_documentAttributeVersion);
 		_serializers.insert(mtpc_messages_stickersNotModified, _serialize_messages_stickersNotModified);
 		_serializers.insert(mtpc_messages_stickers, _serialize_messages_stickers);
 		_serializers.insert(mtpc_stickerPack, _serialize_stickerPack);
@@ -8758,6 +8801,8 @@ namespace {
 		_serializers.insert(mtpc_draftMessage, _serialize_draftMessage);
 		_serializers.insert(mtpc_messages_featuredStickersNotModified, _serialize_messages_featuredStickersNotModified);
 		_serializers.insert(mtpc_messages_featuredStickers, _serialize_messages_featuredStickers);
+		_serializers.insert(mtpc_messages_recentStickersNotModified, _serialize_messages_recentStickersNotModified);
+		_serializers.insert(mtpc_messages_recentStickers, _serialize_messages_recentStickers);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -8805,6 +8850,7 @@ namespace {
 		_serializers.insert(mtpc_messages_setBotCallbackAnswer, _serialize_messages_setBotCallbackAnswer);
 		_serializers.insert(mtpc_messages_saveDraft, _serialize_messages_saveDraft);
 		_serializers.insert(mtpc_messages_readFeaturedStickers, _serialize_messages_readFeaturedStickers);
+		_serializers.insert(mtpc_messages_clearRecentStickers, _serialize_messages_clearRecentStickers);
 		_serializers.insert(mtpc_upload_saveFilePart, _serialize_upload_saveFilePart);
 		_serializers.insert(mtpc_upload_saveBigFilePart, _serialize_upload_saveBigFilePart);
 		_serializers.insert(mtpc_help_saveAppLog, _serialize_help_saveAppLog);
@@ -8924,6 +8970,8 @@ namespace {
 		_serializers.insert(mtpc_messages_getBotCallbackAnswer, _serialize_messages_getBotCallbackAnswer);
 		_serializers.insert(mtpc_messages_getPeerDialogs, _serialize_messages_getPeerDialogs);
 		_serializers.insert(mtpc_messages_getFeaturedStickers, _serialize_messages_getFeaturedStickers);
+		_serializers.insert(mtpc_messages_getRecentStickers, _serialize_messages_getRecentStickers);
+		_serializers.insert(mtpc_messages_getUnusedStickers, _serialize_messages_getUnusedStickers);
 		_serializers.insert(mtpc_updates_getState, _serialize_updates_getState);
 		_serializers.insert(mtpc_updates_getDifference, _serialize_updates_getDifference);
 		_serializers.insert(mtpc_updates_getChannelDifference, _serialize_updates_getChannelDifference);

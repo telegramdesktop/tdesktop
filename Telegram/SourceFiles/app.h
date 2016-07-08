@@ -149,7 +149,7 @@ namespace App {
 	PhotoData *photo(const PhotoId &photo);
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
 	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
+	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
 	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	LocationData *location(const LocationCoords &coords);

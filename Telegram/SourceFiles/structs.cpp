@@ -1082,10 +1082,11 @@ VoiceData::~VoiceData() {
 DocumentAdditionalData::~DocumentAdditionalData() {
 }
 
-DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
+DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
 : id(id)
 , _dc(dc)
 , _access(accessHash)
+, _version(version)
 , _url(url) {
 	setattributes(attributes);
 	if (_dc && _access) {
@@ -1094,15 +1095,15 @@ DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QSt
 }
 
 DocumentData *DocumentData::create(DocumentId id) {
-	return new DocumentData(id, 0, 0, QString(), QVector<MTPDocumentAttribute>());
+	return new DocumentData(id, 0, 0, 0, QString(), QVector<MTPDocumentAttribute>());
 }
 
-DocumentData *DocumentData::create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes) {
-	return new DocumentData(id, dc, accessHash, QString(), attributes);
+DocumentData *DocumentData::create(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QVector<MTPDocumentAttribute> &attributes) {
+	return new DocumentData(id, dc, accessHash, version, QString(), attributes);
 }
 
 DocumentData *DocumentData::create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes) {
-	return new DocumentData(id, 0, 0, url, attributes);
+	return new DocumentData(id, 0, 0, 0, url, attributes);
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1385,7 +1386,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		if (!_access && !_url.isEmpty()) {
 			_loader = new webFileLoader(_url, toFile, fromCloud, autoLoading);
 		} else {
-			_loader = new mtpFileLoader(_dc, id, _access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+			_loader = new mtpFileLoader(_dc, id, _access, _version, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		}
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
@@ -1524,6 +1525,22 @@ bool fileIsImage(const QString &name, const QString &mime) {
 void DocumentData::recountIsImage() {
 	if (isAnimation() || isVideo()) return;
 	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
+}
+
+bool DocumentData::setRemoteVersion(int32 version) {
+	if (_version == version) {
+		return false;
+	}
+	_version = version;
+	_location = FileLocation();
+	_data = QByteArray();
+	status = FileReady;
+	if (loading()) {
+		_loader->deleteLater();
+		_loader->stop();
+		_loader = nullptr;
+	}
+	return true;
 }
 
 void DocumentData::setRemoteLocation(int32 dc, uint64 access) {

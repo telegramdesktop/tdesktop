@@ -3145,7 +3145,7 @@ namespace Local {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 			}
 
-			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
+			DocumentData *doc = App::documentSet(id, 0, access, 0, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
 			if (!doc->sticker()) continue;
 
 			if (value > 0) {
@@ -3247,7 +3247,7 @@ namespace Local {
 			Serialize::Document::StickerSetInfo info(setId, setAccess, setShortName);
 			OrderedSet<DocumentId> read;
 			for (int32 j = 0; j < scnt; ++j) {
-				auto document = Serialize::Document::readStickerFromStream(stickers.stream, info);
+				auto document = Serialize::Document::readStickerFromStream(stickers.version, stickers.stream, info);
 				if (!document || !document->sticker()) continue;
 
 				if (read.contains(document->id)) continue;
@@ -3407,7 +3407,7 @@ namespace Local {
 		saved.reserve(cnt);
 		OrderedSet<DocumentId> read;
 		for (uint32 i = 0; i < cnt; ++i) {
-			DocumentData *document = Serialize::Document::readFromStream(gifs.stream);
+			DocumentData *document = Serialize::Document::readFromStream(gifs.version, gifs.stream);
 			if (!document || !document->isAnimation()) continue;
 
 			if (read.contains(document->id)) continue;

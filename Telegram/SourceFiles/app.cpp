@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
+#include "inline_bots/inline_bot_layout_item.h"
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -1454,7 +1455,7 @@ namespace {
 		switch (document.type()) {
 		case mtpc_document: {
 			const auto &d(document.c_document());
-			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
+			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
 		}
@@ -1467,14 +1468,14 @@ namespace {
 			return feedDocument(document.c_document(), convert);
 		} break;
 		case mtpc_documentEmpty: {
-			return App::documentSet(document.c_documentEmpty().vid.v, convert, 0, 0, QVector<MTPDocumentAttribute>(), QString(), ImagePtr(), 0, 0, StorageImageLocation());
+			return App::documentSet(document.c_documentEmpty().vid.v, convert, 0, 0, 0, QVector<MTPDocumentAttribute>(), QString(), ImagePtr(), 0, 0, StorageImageLocation());
 		} break;
 		}
 		return App::document(0);
 	}
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
+		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vversion.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
@@ -1631,11 +1632,13 @@ namespace {
 		return i.value();
 	}
 
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+		bool versionChanged = false;
 		bool sentSticker = false;
 		if (convert) {
 			MediaKey oldKey = convert->mediaKey();
-			if (convert->id != document) {
+			bool idChanged = (convert->id != document);
+			if (idChanged) {
 				DocumentsData::iterator i = ::documentsData.find(convert->id);
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
@@ -1647,10 +1650,11 @@ namespace {
 			}
 			if (date) {
 				convert->setattributes(attributes);
+				versionChanged = convert->setRemoteVersion(version);
 				convert->setRemoteLocation(dc, access);
 				convert->date = date;
 				convert->mime = mime;
-				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
+				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height() || versionChanged)) {
 					updateImage(convert->thumb, thumb);
 				}
 				convert->size = size;
@@ -1660,7 +1664,7 @@ namespace {
 				}
 
 				MediaKey newKey = convert->mediaKey();
-				if (newKey != oldKey) {
+				if (idChanged) {
 					if (convert->voice()) {
 						Local::copyAudio(oldKey, newKey);
 					} else if (convert->sticker() || convert->isAnimation()) {
@@ -1679,7 +1683,7 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = DocumentData::create(document, dc, access, attributes);
+				result = DocumentData::create(document, dc, access, version, attributes);
 				result->date = date;
 				result->mime = mime;
 				result->thumb = thumb;
@@ -1694,12 +1698,13 @@ namespace {
 			result = i.value();
 			if (result != convert && date) {
 				result->setattributes(attributes);
+				versionChanged = result->setRemoteVersion(version);
 				if (!result->isValid()) {
 					result->setRemoteLocation(dc, access);
 				}
 				result->date = date;
 				result->mime = mime;
-				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
+				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height() || versionChanged)) {
 					result->thumb = thumb;
 				}
 				result->size = size;
@@ -1711,6 +1716,18 @@ namespace {
 		}
 		if (sentSticker && App::main()) {
 			App::main()->incrementSticker(result);
+		}
+		if (versionChanged) {
+			if (result->sticker()) {
+				Local::writeStickers();
+			}
+			auto &items = App::documentItems();
+			auto i = items.constFind(result);
+			if (i != items.cend()) {
+				for (auto j = i->cbegin(), e = i->cend(); j != e; ++j) {
+					j.key()->setPendingInitDimensions();
+				}
+			}
 		}
 		return result;
 	}

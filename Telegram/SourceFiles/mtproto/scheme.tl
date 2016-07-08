@@ -168,7 +168,7 @@ inputPhoto#fb95c6c4 id:long access_hash:long = InputPhoto;
 
 inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
-inputDocumentFileLocation#4e45abe9 id:long access_hash:long = InputFileLocation;
+inputDocumentFileLocation#430f0724 id:long access_hash:long version:int = InputFileLocation;
 
 inputPhotoCropAuto#ade6b004 = InputPhotoCrop;
 inputPhotoCrop#d9915325 crop_left:double crop_top:double crop_width:double = InputPhotoCrop;
@@ -393,6 +393,7 @@ updateInlineBotCallbackQuery#2cbd95af query_id:long user_id:int msg_id:InputBotI
 updateReadChannelOutbox#25d6c9c7 channel_id:int max_id:int = Update;
 updateDraftMessage#ee2bb969 peer:Peer draft:DraftMessage = Update;
 updateReadFeaturedStickers#571d2742 = Update;
+updateRecentStickers#9a422c20 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -455,7 +456,7 @@ inputDocumentEmpty#72f0eaae = InputDocument;
 inputDocument#18798952 id:long access_hash:long = InputDocument;
 
 documentEmpty#36f8c871 id:long = Document;
-document#f9a39f4f id:long access_hash:long date:int mime_type:string size:int thumb:PhotoSize dc_id:int attributes:Vector<DocumentAttribute> = Document;
+document#87232bc7 id:long access_hash:long date:int mime_type:string size:int thumb:PhotoSize dc_id:int version:int attributes:Vector<DocumentAttribute> = Document;
 
 help.support#17c6b5f6 phone_number:string user:User = help.Support;
 
@@ -507,7 +508,6 @@ documentAttributeSticker#3a556302 alt:string stickerset:InputStickerSet = Docume
 documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
 documentAttributeAudio#9852f9c6 flags:# voice:flags.10?true duration:int title:flags.0?string performer:flags.1?string waveform:flags.2?bytes = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
-documentAttributeVersion#99cd09ab version:int = DocumentAttribute;
 
 messages.stickersNotModified#f1749a22 = messages.Stickers;
 messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stickers;
@@ -549,7 +549,7 @@ chatInviteEmpty#69df3769 = ExportedChatInvite;
 chatInviteExported#fc2e05bc link:string = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
-chatInvite#93e99b60 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string = ChatInvite;
+chatInvite#2d492881 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string photo:ChatPhoto participants:flags.4?Vector<User> = ChatInvite;
 
 inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
@@ -701,6 +701,9 @@ draftMessage#fd8e711f flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?in
 messages.featuredStickersNotModified#4ede3cf = messages.FeaturedStickers;
 messages.featuredStickers#ed6392b7 hash:int sets:Vector<StickerSet> unread:Vector<long> = messages.FeaturedStickers;
 
+messages.recentStickersNotModified#b17f890 = messages.RecentStickers;
+messages.recentStickers#5ce20970 hash:int stickers:Vector<Document> = messages.RecentStickers;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -837,6 +840,9 @@ messages.saveDraft#bc39e14b flags:# no_webpage:flags.1?true reply_to_msg_id:flag
 messages.getAllDrafts#6a3f8d65 = Updates;
 messages.getFeaturedStickers#2dacca4f hash:int = messages.FeaturedStickers;
 messages.readFeaturedStickers#e21cbb = Bool;
+messages.getRecentStickers#99197c2c hash:int = messages.RecentStickers;
+messages.clearRecentStickers#ab02e5d2 = Bool;
+messages.getUnusedStickers#a978d356 limit:int = Vector<StickerSet>;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
