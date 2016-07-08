@@ -92,7 +92,7 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
 				history->cloudDraftTextCache.setText(st::dialogsTextFont, draftText, _textDlgOptions);
 			}
-			textstyleSet(&(active ? st::dialogsTextStyleActive : st::dialogsTextStyleDraft));
+			textstyleSet(&(active ? st::dialogsTextStyleDraftActive : st::dialogsTextStyleDraft));
 			p.setFont(st::dialogsTextFont);
 			p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFg);
 			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, 1);

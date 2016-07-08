@@ -35,6 +35,7 @@ historyToDownBadgeSize: 22px;
 membersInnerScroll: flatScroll(solidScroll) {
 	deltat: 3px;
 	deltab: 3px;
+	round: 1px;
 	width: 8px;
 	deltax: 3px;
 }
@@ -44,3 +45,7 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
+
+historyServiceMsgRadius: 12px;
+historyServiceMsgInvertedRadius: 6px;
+historyServiceMsgInvertedShrink: 4px;

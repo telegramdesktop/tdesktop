@@ -104,7 +104,7 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInli
 	bool resetScroll = (_type != type || _filter != plainQuery);
 	if (resetScroll) {
 		_type = type;
-		_filter = plainQuery.toString();
+		_filter = textAccentFold(plainQuery.toString());
 	}
 	_addInlineBots = addInlineBots;
 
@@ -259,7 +259,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) continue;
+			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) {
+				continue;
+			}
 			hrows.push_back(i->first);
 		}
 	} else if (_type == Type::BotCommands) {
@@ -578,7 +580,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					sticker->checkSticker();
 				}
 
-				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
+				float64 coef = qMin((st::stickerPanSize.width() - st::buttonRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(sticker->dimensions.height()));
 				if (coef > 1) coef = 1;
 				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
 				if (w < 1) w = 1;

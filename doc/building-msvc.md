@@ -1,10 +1,36 @@
-##Build instructions for Visual Studio 2015
+# Build instructions for Visual Studio 2015
 
-###Prepare folder
+  * [Prepare folder](#prepare-folder)
+  * [Clone source code](#clone-source-code)
+  * [Prepare libraries](#prepare-libraries)
+    + [OpenSSL](#openssl)
+    + [LZMA SDK 9.20](#lzma-sdk-920)
+      - [Building library](#building-library)
+    + [zlib 1.2.8](#zlib-128)
+      - [Building library](#building-library-1)
+    + [libexif 0.6.20](#libexif-0620)
+      - [Building library](#building-library-2)
+    + [OpenAL Soft, slightly patched](#openal-soft-slightly-patched)
+      - [Building library](#building-library-3)
+    + [Opus codec](#opus-codec)
+      - [Building libraries](#building-libraries)
+    + [FFmpeg](#ffmpeg)
+      - [Building libraries](#building-libraries-1)
+    + [Qt 5.6.0, slightly patched](#qt-560-slightly-patched)
+      - [Apply the patch](#apply-the-patch)
+      - [Install Windows SDKs](#install-windows-sdks)
+      - [Building library](#building-library-4)
+    + [Qt5Package](#qt5package)
+    + [Google Breakpad](#google-breakpad)
+      - [Install](#install)
+      - [Build](#build)
+  * [Building Telegram Desktop](#building-telegram-desktop)
+
+## Prepare folder
 
 Choose a folder for the future build, for example **D:\TBuild\**. There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-###Clone source code
+## Clone source code
 
 By git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and run
 
@@ -12,9 +38,9 @@ By git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and r
 
 or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to **tdesktop** to have **D:\TBuild\tdesktop\Telegram.sln** solution
 
-###Prepare libraries
+## Prepare libraries
 
-####OpenSSL
+### OpenSSL
 
 Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
@@ -35,13 +61,13 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     nmake -f ms\nt.mak install
 
 
-####LZMA SDK 9.20
+### LZMA SDK 9.20
 
 http://www.7-zip.org/sdk.html > Download [**LZMA SDK (C, C++, C#, Java)** 9.20](http://downloads.sourceforge.net/sevenzip/lzma920.tar.bz2)
 
 Extract to **D:\TBuild\Libraries**
 
-#####Building library
+#### Building library
 
 * Open in VS2015 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade – **OK**
 * For **Debug** and **Release** configurations
@@ -53,13 +79,13 @@ Extract to **D:\TBuild\Libraries**
 * Build Debug configuration
 * Build Release configuration
 
-####zlib 1.2.8
+### zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
 
 Extract to **D:\\TBuild\\Libraries\\**
 
-#####Building library
+#### Building library
 
 * Open in VS2015 **D:\TBuild\Libraries\zlib-1.2.8\contrib\vstudio\vc11\zlibvc.sln** > One-way upgrade – **OK**
 * We are interested only in **zlibstat** project, but it depends on some custom pre-build step, so build all
@@ -70,7 +96,7 @@ Extract to **D:\\TBuild\\Libraries\\**
 * Build Solution for Debug configuration – only **zlibstat** project builds successfully
 * Build Solution for Release configuration – only **zlibstat** project builds successfully
 
-####libexif 0.6.20
+### libexif 0.6.20
 
 Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
@@ -78,13 +104,13 @@ Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – i
 
 or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6.20-master** to **libexif-0.6.20** to have **D:\TBuild\Libraries\libexif-0.6.20\win32\lib_exif.sln** solution
 
-#####Building library
+#### Building library
 
 * Open in VS2015 **D:\TBuild\Libraries\libexif-0.6.20\win32\lib_exif.sln**
 * Build Debug configuration
 * Build Release configuration
 
-####OpenAL Soft, slightly patched
+### OpenAL Soft, slightly patched
 
 Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
@@ -93,7 +119,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     git checkout 90349b38
     git apply ./../../tdesktop/Telegram/Patches/openal.diff
 
-#####Building library
+#### Building library
 
 * Install [CMake](http://www.cmake.org/)
 * Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\TBuild\Libraries\openal-soft\build\** and run
@@ -102,7 +128,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
 
 * Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln** and build Debug and Release configurations
 
-####Opus codec
+### Opus codec
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
@@ -110,13 +136,13 @@ Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tb
 
 to have **D:\TBuild\Libraries\opus\win32**
 
-#####Building libraries
+#### Building libraries
 
 * Open in VS2015 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln**
 * Build Debug configuration
 * Build Release configuration (it will be required in **FFmpeg** build!)
 
-####FFmpeg
+### FFmpeg
 
 Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder) and run
 
@@ -126,7 +152,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
 
 http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
 
-#####Building libraries
+#### Building libraries
 
 Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 14\\VC\\bin\\**
 
@@ -148,7 +174,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     make
     make install
 
-####Qt 5.6.0, slightly patched
+### Qt 5.6.0, slightly patched
 
 * Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
 * Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
@@ -168,17 +194,17 @@ and run
     cd qtimageformats && git checkout v5.6.0 && cd ..
     cd qtbase && git checkout v5.6.0 && cd ..
 
-#####Apply the patch
+#### Apply the patch
 
     cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
 
-#####Install Windows SDKs
+#### Install Windows SDKs
 
 If you didn't install Windows SDKs before, you need to install them now. To install the SDKs just open Telegram solution at **D:\TBuild\tdesktop\Telegram.sln** and on startup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
 
 If you already have Windows SDKs then find the library folder and correct it at configure's command below (like **C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86**).
 
-#####Building library
+#### Building library
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "D:\TBuild\Libraries\openssl\Release\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\openssl_debug\Debug\lib\ssleay32.lib D:\TBuild\Libraries\openssl_debug\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\openssl\Release\lib\ssleay32.lib D:\TBuild\Libraries\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
     nmake
@@ -186,15 +212,19 @@ If you already have Windows SDKs then find the library folder and correct it at 
 
 building (**nmake** command) will take really long time.
 
-####Qt5Package
+### Qt5Package
 
 https://visualstudiogallery.msdn.microsoft.com/c89ff880-8509-47a4-a262-e4fa07168408
 
 Download, close all VS2015 instances and install for VS2015
 
-####Google Breakpad
+### Google Breakpad
 
-* Install Python 2.7.11 from https://www.python.org/downloads/release/python-2711/ > [**Windows x86 MSI installer**](https://www.python.org/ftp/python/2.7.11/python-2.7.11.msi)
+Breakpad is a set of client and server components which implement a crash-reporting system.
+
+#### Install
+
+* Install Python 2.7.12 from https://www.python.org/downloads/release/python-2712/ > [**Windows x86 MSI installer**](https://www.python.org/ftp/python/2.7.12/python-2.7.12.msi). Make sure that python is added to your `PATH` (there is an option for this in the python installer).
 * Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
 
 There go to Libraries directory
@@ -204,19 +234,18 @@ There go to Libraries directory
 
 and run
 
-    set PATH=C:\Python27;%PATH%
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd depot_tools
+    gclient config "https://chromium.googlesource.com/breakpad/breakpad.git"
     gclient sync
     cd ..
-    md breakpad
-    cd breakpad
+    md breakpad && cd breakpad
     ..\depot_tools\fetch breakpad
     ..\depot_tools\gclient sync
+    xcopy src\src\* src /s /i
 
-There's now a src folder within a src folder: D:\TBuild\Libraries\breakpad\src\src.  Telegram only expects one src folder.  Either via the command line or File Explorer, rename the top-level src folder and move the inner src folder one level up.  This way, what was once breakpad\src\src\client is now breakpad\src\client, etc.
 
-#####Building library
+#### Build
 
 * Open in VS2015 **D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln**
 * Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations
@@ -224,7 +253,7 @@ There's now a src folder within a src folder: D:\TBuild\Libraries\breakpad\src\s
 * Build Debug configuration
 * Build Release configuration
 
-###Building Telegram Desktop
+## Building Telegram Desktop
 
 * Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add

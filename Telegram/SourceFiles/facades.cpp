@@ -536,6 +536,8 @@ struct Data {
 	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
 	bool ModerateModeEnabled = false;
 
+	bool ScreenIsLocked = false;
+
 	int32 DebugLoggingFlags = 0;
 
 	// config
@@ -604,6 +606,8 @@ DefineVar(Global, bool, AdaptiveForWide);
 DefineVar(Global, bool, DialogsModeEnabled);
 DefineVar(Global, Dialogs::Mode, DialogsMode);
 DefineVar(Global, bool, ModerateModeEnabled);
+
+DefineVar(Global, bool, ScreenIsLocked);
 
 DefineVar(Global, int32, DebugLoggingFlags);
 

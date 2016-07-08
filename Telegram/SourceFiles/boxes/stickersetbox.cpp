@@ -158,7 +158,11 @@ void StickerSetInner::installDone(const MTPBool &result) {
 bool StickerSetInner::installFailed(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)));
+	} else {
+		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	}
 
 	return true;
 }
@@ -233,7 +237,7 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 
-			float64 coef = qMin((st::stickersSize.width() - st::msgRadius * 2) / float64(doc->dimensions.width()), (st::stickersSize.height() - st::msgRadius * 2) / float64(doc->dimensions.height()));
+			float64 coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(doc->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(doc->dimensions.height()));
 			if (coef > 1) coef = 1;
 			int32 w = qRound(coef * doc->dimensions.width()), h = qRound(coef * doc->dimensions.height());
 			if (w < 1) w = 1;

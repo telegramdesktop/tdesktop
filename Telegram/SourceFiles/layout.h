@@ -29,12 +29,14 @@ const TextParseOptions &itemTextOptions(History *h, PeerData *f);
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);
 
 enum RoundCorners {
-	NoneCorners = 0x00, // for images
-	BlackCorners,
+	SmallMaskCorners = 0x00, // for images
+	LargeMaskCorners,
+
 	WhiteCorners,
-	ServiceCorners,
-	ServiceSelectedCorners,
-	SelectedOverlayCorners,
+	StickerCorners,
+	StickerSelectedCorners,
+	SelectedOverlaySmallCorners,
+	SelectedOverlayLargeCorners,
 	DateCorners,
 	DateSelectedCorners,
 	ForwardCorners,
@@ -81,6 +83,7 @@ style::color documentOverColor(int32 colorIndex);
 style::color documentSelectedColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
+bool documentIsValidMediaFile(const QString &filepath);
 
 class PaintContextBase {
 public:

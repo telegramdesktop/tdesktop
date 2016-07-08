@@ -32,6 +32,16 @@ QString filedialogDefaultName(const QString &prefix, const QString &extension, c
 QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path = QString());
 
 namespace FileDialog {
+namespace internal {
+
+enum class Type {
+	ReadFile,
+	ReadFiles,
+	ReadFolder,
+	WriteFile,
+};
+
+} // namespace internal
 
 using QueryId = uint64;
 struct QueryUpdate {
