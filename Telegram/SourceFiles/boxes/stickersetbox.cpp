@@ -530,10 +530,12 @@ void StickersInner::paintRow(Painter &p, int32 index) {
 		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::defaultActiveButton.height) / 2;
 		QRect add(myrtlrect(addx, addy, addw, st::defaultActiveButton.height));
 
-		App::roundRect(p, add, st::defaultActiveButton.textBg, ImageRoundRadius::Small);
+		auto textBg = (_actionSel == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
+		App::roundRect(p, add, textBg, ImageRoundRadius::Small);
 		p.setFont(st::defaultActiveButton.font);
-		p.setPen(st::defaultActiveButton.textFg); // textBgOver / downTextTop
-		p.drawTextLeft(addx - st::defaultActiveButton.width / 2, addy + st::defaultActiveButton.textTop, width(), _addText, _addWidth);
+		p.setPen(st::defaultActiveButton.textFg);
+		int textTop = (_actionSel == index && _actionDown == index) ? st::defaultActiveButton.downTextTop : st::defaultActiveButton.textTop;
+		p.drawTextLeft(addx - st::defaultActiveButton.width / 2, addy + textTop, width(), _addText, _addWidth);
 	}
 
 	if (s->disabled) p.setOpacity(st::stickersRowDisabledOpacity);
@@ -700,7 +702,7 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 		}
 
 		_dragging = _started = -1;
-	} else if (pressed == _selected) {
+	} else if (pressed == _selected && _actionSel < 0 && _actionDown < 0) {
 		if (_selected == -1) {
 			_selected = -2;
 			Ui::showLayer(new StickersBox(Section::Featured), KeepOtherLayers);
