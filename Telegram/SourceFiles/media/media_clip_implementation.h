@@ -28,7 +28,6 @@ namespace internal {
 
 class ReaderImplementation {
 public:
-
 	ReaderImplementation(FileLocation *location, QByteArray *data)
 		: _location(location)
 		, _data(data) {
@@ -38,9 +37,16 @@ public:
 		Silent,
 		Normal,
 	};
-	virtual bool readNextFrame() = 0;
+
+	// Read frames till current frame will have presentation time > ms.
+	virtual bool readFramesTill(int64 ms) = 0;
+
+	// Get current frame presentation time.
+	virtual uint64 framePresentationTime() const = 0;
+
+	// Render current frame to an image with specific size.
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
-	virtual int nextFrameDelay() = 0;
+
 	virtual bool start(Mode mode) = 0;
 	virtual ~ReaderImplementation() {
 	}

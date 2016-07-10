@@ -37,9 +37,9 @@ class FFMpegReaderImplementation : public ReaderImplementation {
 public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data);
 
-	bool readNextFrame() override;
+	bool readFramesTill(int64 ms) override;
+	uint64 framePresentationTime() const override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
-	int nextFrameDelay() override;
 	bool start(Mode mode) override;
 
 	int duration() const;
@@ -48,6 +48,8 @@ public:
 	~FFMpegReaderImplementation();
 
 private:
+	bool readNextFrame();
+
 	enum class PacketResult {
 		Ok,
 		EndOfFile,
@@ -92,6 +94,9 @@ private:
 	int64 _frameMs = 0;
 	int _nextFrameDelay = 0;
 	int _currentFrameDelay = 0;
+
+	int64 _frameTime = 0;
+	int64 _frameTimeCorrection = 0;
 
 };
 

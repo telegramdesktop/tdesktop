@@ -31,18 +31,20 @@ public:
 
 	QtGifReaderImplementation(FileLocation *location, QByteArray *data);
 
-	bool readNextFrame() override;
+	bool readFramesTill(int64 ms) override;
+	uint64 framePresentationTime() const override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
-	int nextFrameDelay() override;
 	bool start(Mode mode) override;
 
 	~QtGifReaderImplementation();
 
 private:
 	bool jumpToStart();
+	bool readNextFrame();
 
 	QImageReader *_reader = nullptr;
 	int _framesLeft = 0;
+	int64 _frameTime = 0;
 	int _frameDelay = 0;
 	QImage _frame;
 

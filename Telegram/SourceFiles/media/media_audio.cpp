@@ -482,7 +482,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::playFromVideo(const AudioMsgId &audio, int64 position, std_::unique_ptr<VideoSoundData> &&data) {
+void AudioPlayer::playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
 	t_assert(audio.type() == AudioMsgId::Type::Video);
 
 	auto type = audio.type();
@@ -502,8 +502,15 @@ void AudioPlayer::playFromVideo(const AudioMsgId &audio, int64 position, std_::u
 		emit faderOnTimer();
 		current->clear();
 		current->audio = audio;
+		current->videoPlayId = videoPlayId;
 		current->videoData = std_::move(data);
-		_loader->startFromVideo(current->videoData->videoPlayId);
+		{
+			QMutexLocker videoLock(&_lastVideoMutex);
+			_lastVideoPlayId = current->videoPlayId;
+			_lastVideoPlaybackWhen = 0;
+			_lastVideoPlaybackCorrectedMs = 0;
+		}
+		_loader->startFromVideo(current->videoPlayId);
 
 		current->playbackState.state = AudioPlayerPlaying;
 		current->loading = true;
@@ -514,6 +521,36 @@ void AudioPlayer::playFromVideo(const AudioMsgId &audio, int64 position, std_::u
 
 void AudioPlayer::feedFromVideo(VideoSoundPart &&part) {
 	_loader->feedFromVideo(std_::move(part));
+}
+
+int64 AudioPlayer::getVideoCorrectedTime(uint64 playId, uint64 systemMs) {
+	int64 result = systemMs;
+
+	QMutexLocker videoLock(&_lastVideoMutex);
+	if (_lastVideoPlayId == playId && _lastVideoPlaybackWhen > 0) {
+		result = static_cast<int64>(_lastVideoPlaybackCorrectedMs);
+		if (systemMs > _lastVideoPlaybackWhen) {
+			result += (systemMs - _lastVideoPlaybackWhen);
+		}
+	}
+
+	return result;
+}
+
+void AudioPlayer::videoSoundProgress(const AudioMsgId &audio) {
+	auto type = audio.type();
+	t_assert(type == AudioMsgId::Type::Video);
+
+	QMutexLocker lock(&playerMutex);
+	QMutexLocker videoLock(&_lastVideoMutex);
+
+	auto current = dataForType(type);
+	t_assert(current != nullptr);
+
+	if (current->videoPlayId == _lastVideoPlayId && current->playbackState.frequency) {
+		_lastVideoPlaybackWhen = getms();
+		_lastVideoPlaybackCorrectedMs = (current->playbackState.position * 1000ULL) / current->playbackState.frequency;
+	}
 }
 
 bool AudioPlayer::checkCurrentALError(AudioMsgId::Type type) {

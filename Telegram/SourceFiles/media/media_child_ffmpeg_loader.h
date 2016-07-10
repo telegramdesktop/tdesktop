@@ -32,7 +32,6 @@ extern "C" {
 #include <AL/al.h>
 
 struct VideoSoundData {
-	uint64 videoPlayId = 0;
 	AVCodecContext *context = nullptr;
 	int32 frequency = AudioVoiceMsgFrequency;
 	int64 length = 0;
@@ -64,7 +63,7 @@ inline void freePacket(AVPacket *packet) {
 
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
-	ChildFFMpegLoader(std_::unique_ptr<VideoSoundData> &&data);
+	ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data);
 
 	bool open(qint64 position = 0) override;
 
@@ -88,7 +87,7 @@ public:
 	void enqueuePackets(QQueue<AVPacket> &packets);
 
 	uint64 playId() const {
-		return _parentData->videoPlayId;
+		return _videoPlayId;
 	}
 	bool eofReached() const {
 		return _eofReached;
@@ -106,6 +105,7 @@ private:
 	int32 _maxResampleSamples = 1024;
 	uint8_t **_dstSamplesData = nullptr;
 
+	uint64 _videoPlayId = 0;
 	std_::unique_ptr<VideoSoundData> _parentData;
 	AVSampleFormat _inputFormat;
 	AVFrame *_frame = nullptr;

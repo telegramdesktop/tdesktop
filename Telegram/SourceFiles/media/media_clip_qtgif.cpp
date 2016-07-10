@@ -28,6 +28,29 @@ namespace internal {
 QtGifReaderImplementation::QtGifReaderImplementation(FileLocation *location, QByteArray *data) : ReaderImplementation(location, data) {
 }
 
+bool QtGifReaderImplementation::readFramesTill(int64 ms) {
+	if (!_frame.isNull() && _frameTime > ms) {
+		return true;
+	}
+	if (!readNextFrame()) {
+		return false;
+	}
+	if (_frameTime > ms) {
+		return true;
+	}
+	if (!readNextFrame()) {
+		return false;
+	}
+	if (_frameTime <= ms) {
+		_frameTime = ms + 5; // keep up
+	}
+	return true;
+}
+
+uint64 QtGifReaderImplementation::framePresentationTime() const {
+	return static_cast<uint64>(qMax(_frameTime, 0LL));
+}
+
 bool QtGifReaderImplementation::readNextFrame() {
 	if (_reader) _frameDelay = _reader->nextImageDelay();
 	if (_framesLeft < 1 && !jumpToStart()) {
@@ -39,6 +62,7 @@ bool QtGifReaderImplementation::readNextFrame() {
 		return false;
 	}
 	--_framesLeft;
+	_frameTime += _frameDelay;
 	return true;
 }
 
@@ -64,10 +88,6 @@ bool QtGifReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QS
 	hasAlpha = _frame.hasAlphaChannel();
 	_frame = QImage();
 	return true;
-}
-
-int QtGifReaderImplementation::nextFrameDelay() {
-	return _frameDelay;
 }
 
 bool QtGifReaderImplementation::start(Mode mode) {

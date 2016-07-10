@@ -33,7 +33,8 @@ VideoSoundData::~VideoSoundData() {
 	}
 }
 
-ChildFFMpegLoader::ChildFFMpegLoader(std_::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
+ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
+, _videoPlayId(videoPlayId)
 , _parentData(std_::move(data)) {
 	_frame = av_frame_alloc();
 }

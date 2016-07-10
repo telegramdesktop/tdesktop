@@ -103,6 +103,7 @@ bool FFMpegReaderImplementation::readNextFrame() {
 			_frameMs = frameMs;
 
 			_hadFrame = _frameRead = true;
+			_frameTime += _currentFrameDelay;
 			return true;
 		}
 
@@ -131,6 +132,44 @@ bool FFMpegReaderImplementation::readNextFrame() {
 	}
 
 	return false;
+}
+
+bool FFMpegReaderImplementation::readFramesTill(int64 ms) {
+	if (_audioStreamId >= 0) { // sync by audio stream
+		auto correctMs = audioPlayer()->getVideoCorrectedTime(_playId, ms);
+
+		if (!_frameRead && !readNextFrame()) {
+			return false;
+		}
+		while (_frameTime <= correctMs) {
+			if (!readNextFrame()) {
+				return false;
+			}
+		}
+		_frameTimeCorrection = ms - correctMs;
+		return true;
+	} else { // just keep up
+		if (_frameRead && _frameTime > ms) {
+			return true;
+		}
+		if (!readNextFrame()) {
+			return false;
+		}
+		if (_frameTime > ms) {
+			return true;
+		}
+		if (!readNextFrame()) {
+			return false;
+		}
+		if (_frameTime <= ms) {
+			_frameTime = ms + 5; // keep up
+		}
+		return true;
+	}
+}
+
+uint64 FFMpegReaderImplementation::framePresentationTime() const {
+	return static_cast<uint64>(qMax(_frameTime + _frameTimeCorrection, 0LL));
 }
 
 bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
@@ -182,10 +221,6 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 
 	av_frame_unref(_frame);
 	return true;
-}
-
-int FFMpegReaderImplementation::nextFrameDelay() {
-	return _currentFrameDelay;
 }
 
 bool FFMpegReaderImplementation::start(Mode mode) {
@@ -276,8 +311,8 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		} else {
 			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
 		}
-		soundData->videoPlayId = _playId = rand_value<uint64>();
-		audioPlayer()->playFromVideo(AudioMsgId(AudioMsgId::Type::Video), 0, std_::move(soundData));
+		_playId = rand_value<uint64>();
+		audioPlayer()->playFromVideo(AudioMsgId(AudioMsgId::Type::Video), _playId, std_::move(soundData), 0);
 	}
 
 	return true;

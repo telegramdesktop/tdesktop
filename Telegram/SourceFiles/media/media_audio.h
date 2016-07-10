@@ -67,9 +67,10 @@ public:
 	void stop(AudioMsgId::Type type);
 
 	// Video player audio stream interface.
-	void playFromVideo(const AudioMsgId &audio, int64 position, std_::unique_ptr<VideoSoundData> &&data);
+	void playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
-	AudioPlaybackState getStateForVideo(uint64 playId);
+	int64 getVideoCorrectedTime(uint64 playId, uint64 systemMs);
+	void videoSoundProgress(const AudioMsgId &audio);
 
 	void stopAndClear();
 
@@ -122,6 +123,7 @@ private:
 		uint32 buffers[3] = { 0 };
 		int64 samplesCount[3] = { 0 };
 
+		uint64 videoPlayId = 0;
 		std_::unique_ptr<VideoSoundData> videoData;
 
 	private:
@@ -147,8 +149,10 @@ private:
 	AudioMsg _songData[AudioSimultaneousLimit];
 
 	AudioMsg _videoData;
-	uint64 _lastVideoPlayId;
-	AudioPlaybackState _lastVideoPlaybackState;
+	uint64 _lastVideoPlayId = 0;
+	uint64 _lastVideoPlaybackWhen = 0;
+	uint64 _lastVideoPlaybackCorrectedMs = 0;
+	QMutex _lastVideoMutex;
 
 	QMutex _mutex;
 

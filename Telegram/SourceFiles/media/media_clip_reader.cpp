@@ -303,7 +303,7 @@ public:
 			return error();
 		}
 		if (frame() && frame()->original.isNull()) {
-			if (!_implementation->readNextFrame()) {
+			if (!_implementation->readFramesTill(-1)) { // Read the first frame.
 				return error();
 			}
 			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
@@ -330,32 +330,15 @@ public:
 	}
 
 	ProcessResult finishProcess(uint64 ms) {
-		if (!readNextFrame()) {
+		if (!_implementation->readFramesTill(ms - _animationStarted)) {
 			return error();
 		}
-		if (ms >= _nextFrameWhen && !readNextFrame(true)) {
-			return error();
-		}
+		_nextFrameWhen = _animationStarted + _implementation->framePresentationTime();
+
 		if (!renderFrame()) {
 			return error();
 		}
 		return ProcessResult::CopyFrame;
-	}
-
-	uint64 nextFrameDelay() {
-		int32 delay = _implementation->nextFrameDelay();
-		return qMax(delay, 5);
-	}
-
-	bool readNextFrame(bool keepup = false) {
-		if (!_implementation->readNextFrame()) {
-			return false;
-		}
-		_nextFrameWhen += nextFrameDelay();
-		if (keepup) {
-			_nextFrameWhen = qMax(_nextFrameWhen, getms());
-		}
-		return true;
 	}
 
 	bool renderFrame() {
@@ -392,6 +375,10 @@ public:
 			return ImplementationMode::Normal;
 		};
 		return _implementation->start(implementationMode());
+	}
+
+	void startedAt(uint64 ms) {
+		_animationStarted = _nextFrameWhen = ms;
 	}
 
 	ProcessResult error() {
@@ -447,6 +434,7 @@ private:
 	int _width = 0;
 	int _height = 0;
 
+	uint64 _animationStarted = 0;
 	uint64 _nextFrameWhen = 0;
 
 	bool _paused = false;
@@ -541,7 +529,8 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 	if (result == ProcessResult::Started) {
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 	}
-	if (!reader->_paused && result == ProcessResult::Repaint) {
+	// See if we need to pause GIF because it is not displayed right now.
+	if (!reader->_paused && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
 		Reader::Frame *showing = it.key()->frameToShow(&ishowing), *previous = it.key()->frameToWriteNext(false, &iprevious);
 		t_assert(previous != 0 && showing != 0 && ishowing >= 0 && iprevious >= 0);
@@ -561,7 +550,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 		frame->original = reader->frame()->original;
 		frame->displayed.storeRelease(0);
 		if (result == ProcessResult::Started) {
-			reader->_nextFrameWhen = ms;
+			reader->startedAt(ms);
 			it.key()->moveToNextWrite();
 			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
 		}
@@ -701,7 +690,7 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata);
 	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv)) {
 		bool hasAlpha = false;
-		if (reader->readNextFrame() && reader->renderFrame(cover, hasAlpha, QSize())) {
+		if (reader->readFramesTill(-1) && reader->renderFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
 				if (hasAlpha) {
 					QImage cacheForResize;

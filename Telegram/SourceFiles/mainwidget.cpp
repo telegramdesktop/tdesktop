@@ -1530,6 +1530,7 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	if (audioId.type() == AudioMsgId::Type::Video) {
+		audioPlayer()->videoSoundProgress(audioId);
 		return;
 	}
 

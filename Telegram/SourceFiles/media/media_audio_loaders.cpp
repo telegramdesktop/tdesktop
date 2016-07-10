@@ -361,7 +361,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 				LOG(("Audio Error: video sound data not ready"));
 				return nullptr;
 			}
-			_videoLoader = std_::make_unique<ChildFFMpegLoader>(std_::move(data->videoData));
+			_videoLoader = std_::make_unique<ChildFFMpegLoader>(data->videoPlayId, std_::move(data->videoData));
 			l = _videoLoader.get();
 		} else {
 			*loader = std_::make_unique<FFMpegLoader>(data->file, data->data);
