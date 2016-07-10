@@ -58,8 +58,6 @@ prepare() {
 	fi
 
 	sed -i 's/CUSTOM_API_ID//g' "$srcdir/tdesktop/Telegram/Telegram.pro"
-	sed -i 's,LIBS += /usr/local/lib/libxkbcommon.a,,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
-	sed -i 's,LIBS += /usr/local/lib/libz.a,LIBS += -lz,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 
 	local options=""
 
@@ -86,11 +84,6 @@ prepare() {
 	if [[ $BUILD_VERSION == *"disable_unity_integration"* ]]; then
 		options+="\nDEFINES += TDESKTOP_DISABLE_UNITY_INTEGRATION"
 	fi
-
-	options+='\nINCLUDEPATH += "/usr/lib/glib-2.0/include"'
-	options+='\nINCLUDEPATH += "/usr/lib/gtk-2.0/include"'
-	options+='\nINCLUDEPATH += "/usr/include/opus"'
-	options+='\nLIBS += -lcrypto -lssl'
 
 	info_msg "Build options: ${options}"
 

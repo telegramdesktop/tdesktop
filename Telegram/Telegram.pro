@@ -476,35 +476,45 @@ CONFIG(debug, debug|release) {
 include(qt_static.pri)
 
 INCLUDEPATH += \
-	/usr/local/include\
-	/usr/local/include/opus\
 	./SourceFiles\
 	./GeneratedFiles\
 	./ThirdParty/minizip\
 	./../../Libraries/breakpad/src
 
-INCLUDEPATH += "/usr/include/libappindicator-0.1"
-#INCLUDEPATH += "/usr/include/gtk-3.0"
-INCLUDEPATH += "/usr/include/gtk-2.0"
-INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/gtk-2.0/include"
-INCLUDEPATH += "/usr/lib/i386-linux-gnu/gtk-2.0/include"
-INCLUDEPATH += "/usr/include/glib-2.0"
-INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/glib-2.0/include"
-INCLUDEPATH += "/usr/lib/i386-linux-gnu/glib-2.0/include"
-INCLUDEPATH += "/usr/include/cairo"
-INCLUDEPATH += "/usr/include/pango-1.0"
-INCLUDEPATH += "/usr/include/gdk-pixbuf-2.0"
-INCLUDEPATH += "/usr/include/atk-1.0"
+CONFIG += link_pkgconfig
+PKG_CONFIG = $$pkgConfigExecutable()
 
-INCLUDEPATH += "/usr/include/dee-1.0"
-INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
+# include dirs only
+QMAKE_CXXFLAGS += `$$PKG_CONFIG --cflags appindicator-0.1`
+QMAKE_CXXFLAGS += `$$PKG_CONFIG --cflags gtk+-2.0`
+QMAKE_CXXFLAGS += `$$PKG_CONFIG --cflags glib-2.0`
+QMAKE_CXXFLAGS += `$$PKG_CONFIG --cflags dee-1.0`
 
-LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+# include dirs and libraries
+PKGCONFIG += \
+	x11\
+	xi\
+	xext\
+	xkbcommon\
+	openal\
+	libavformat\
+	libavcodec\
+	libswresample\
+	libswscale\
+	libavutil\
+	opus\
+	libva\
+	libssl\
+	libcrypto\
+	zlib\
+	liblzma
+
+LIBS += -ldl
+
 LIBS += $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
-LIBS += /usr/local/lib/libz.a
-LIBS += /usr/local/lib/libxkbcommon.a
+
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
