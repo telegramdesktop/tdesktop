@@ -263,12 +263,10 @@ void AudioPlayer::AudioMsg::clear() {
 	audio = AudioMsgId();
 	file = FileLocation();
 	data = QByteArray();
-	position = duration = 0;
-	frequency = AudioVoiceMsgFrequency;
+	playbackState = defaultState();
 	skipStart = skipEnd = 0;
 	loading = false;
 	started = 0;
-	state = AudioPlayerStopped;
 	if (alIsSource(source)) {
 		alSourceStop(source);
 	}
@@ -305,7 +303,7 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(_fader, SIGNAL(playPositionUpdated(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)));
 	connect(_fader, SIGNAL(audioStopped(const AudioMsgId&)), this, SLOT(onStopped(const AudioMsgId&)));
 	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
-	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(stopped(const AudioMsgId&)), Qt::QueuedConnection);
+	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)), Qt::QueuedConnection);
 	_loaderThread.start();
 	_faderThread.start();
 }
@@ -350,7 +348,7 @@ void AudioPlayer::onError(const AudioMsgId &audio) {
 }
 
 void AudioPlayer::onStopped(const AudioMsgId &audio) {
-	emit stopped(audio);
+	emit updated(audio);
 	if (audio.type() == AudioMsgId::Type::Voice) {
 		emit unsuppressSong();
 	}
@@ -399,7 +397,7 @@ bool AudioPlayer::updateCurrentStarted(AudioMsgId::Type type, int32 pos) {
 			return false;
 		}
 	}
-	data->started = data->position = pos + data->skipStart;
+	data->started = data->playbackState.position = pos + data->skipStart;
 	return true;
 }
 
@@ -407,16 +405,16 @@ bool AudioPlayer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 	auto current = dataForType(type);
 	if (!current) return false;
 
-	switch (current->state) {
+	switch (current->playbackState.state) {
 	case AudioPlayerStarting:
 	case AudioPlayerResuming:
 	case AudioPlayerPlaying:
-		current->state = AudioPlayerFinishing;
+		current->playbackState.state = AudioPlayerFinishing;
 		updateCurrentStarted(type);
 		if (fadedStart) *fadedStart = true;
 		break;
 	case AudioPlayerPausing:
-		current->state = AudioPlayerFinishing;
+		current->playbackState.state = AudioPlayerFinishing;
 		if (fadedStart) *fadedStart = true;
 		break;
 	case AudioPlayerPaused:
@@ -473,7 +471,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 				onError(audio);
 			}
 		} else {
-			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
+			current->playbackState.state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
 			current->loading = true;
 			emit loaderOnStart(audio, position);
 			if (type == AudioMsgId::Type::Voice) {
@@ -507,7 +505,7 @@ void AudioPlayer::playFromVideo(const AudioMsgId &audio, int64 position, std_::u
 		current->videoData = std_::move(data);
 		_loader->startFromVideo(current->videoData->videoPlayId);
 
-		current->state = AudioPlayerPlaying;
+		current->playbackState.state = AudioPlayerPlaying;
 		current->loading = true;
 		emit loaderOnStart(audio, position);
 	}
@@ -539,19 +537,19 @@ void AudioPlayer::pauseresume(AudioMsgId::Type type, bool fast) {
 	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * cSongVolume(); break;
 	}
 
-	switch (current->state) {
+	switch (current->playbackState.state) {
 	case AudioPlayerPausing:
 	case AudioPlayerPaused:
 	case AudioPlayerPausedAtEnd: {
-		if (current->state == AudioPlayerPaused) {
+		if (current->playbackState.state == AudioPlayerPaused) {
 			updateCurrentStarted(type);
-		} else if (current->state == AudioPlayerPausedAtEnd) {
+		} else if (current->playbackState.state == AudioPlayerPausedAtEnd) {
 			if (alIsSource(current->source)) {
-				alSourcei(current->source, AL_SAMPLE_OFFSET, qMax(current->position - current->skipStart, 0LL));
+				alSourcei(current->source, AL_SAMPLE_OFFSET, qMax(current->playbackState.position - current->skipStart, 0LL));
 				if (!checkCurrentALError(type)) return;
 			}
 		}
-		current->state = fast ? AudioPlayerPlaying : AudioPlayerResuming;
+		current->playbackState.state = fast ? AudioPlayerPlaying : AudioPlayerResuming;
 
 		ALint state = AL_INITIAL;
 		alGetSourcei(current->source, AL_SOURCE_STATE, &state);
@@ -571,11 +569,11 @@ void AudioPlayer::pauseresume(AudioMsgId::Type type, bool fast) {
 	case AudioPlayerStarting:
 	case AudioPlayerResuming:
 	case AudioPlayerPlaying:
-		current->state = AudioPlayerPausing;
+		current->playbackState.state = AudioPlayerPausing;
 		updateCurrentStarted(type);
 		if (type == AudioMsgId::Type::Voice) emit unsuppressSong();
 	break;
-	case AudioPlayerFinishing: current->state = AudioPlayerPausing; break;
+	case AudioPlayerFinishing: current->playbackState.state = AudioPlayerPausing; break;
 	}
 	emit faderOnTimer();
 }
@@ -593,7 +591,7 @@ void AudioPlayer::seek(int64 position) {
 	auto audio = current->audio;
 
 	bool isSource = alIsSource(current->source);
-	bool fastSeek = (position >= current->skipStart && position < current->duration - current->skipEnd - (current->skipEnd ? AudioVoiceMsgFrequency : 0));
+	bool fastSeek = (position >= current->skipStart && position < current->playbackState.duration - current->skipEnd - (current->skipEnd ? AudioVoiceMsgFrequency : 0));
 	if (fastSeek && isSource) {
 		alSourcei(current->source, AL_SAMPLE_OFFSET, position - current->skipStart);
 		if (!checkCurrentALError(type)) return;
@@ -604,12 +602,12 @@ void AudioPlayer::seek(int64 position) {
 		setStoppedState(current);
 		if (isSource) alSourceStop(current->source);
 	}
-	switch (current->state) {
+	switch (current->playbackState.state) {
 	case AudioPlayerPausing:
 	case AudioPlayerPaused:
 	case AudioPlayerPausedAtEnd: {
-		if (current->state == AudioPlayerPausedAtEnd) {
-			current->state = AudioPlayerPaused;
+		if (current->playbackState.state == AudioPlayerPausedAtEnd) {
+			current->playbackState.state = AudioPlayerPaused;
 		}
 		lock.unlock();
 		return pauseresume(type, true);
@@ -617,7 +615,7 @@ void AudioPlayer::seek(int64 position) {
 	case AudioPlayerStarting:
 	case AudioPlayerResuming:
 	case AudioPlayerPlaying:
-		current->state = AudioPlayerPausing;
+		current->playbackState.state = AudioPlayerPausing;
 		updateCurrentStarted(type);
 		if (type == AudioMsgId::Type::Voice) emit unsuppressSong();
 		break;
@@ -683,31 +681,24 @@ void AudioPlayer::stopAndClear() {
 	}
 }
 
-void AudioPlayer::currentState(AudioMsgId *audio, AudioMsgId::Type type, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
+AudioPlaybackState AudioPlayer::currentState(AudioMsgId *audio, AudioMsgId::Type type) {
 	QMutexLocker lock(&playerMutex);
 	auto current = dataForType(type);
-	if (!current) return;
+	if (!current) return AudioPlaybackState();
 
 	if (audio) *audio = current->audio;
-	return currentState(current, state, position, duration, frequency);
-}
-
-void AudioPlayer::currentState(AudioMsg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
-	if (state) *state = current->state;
-	if (position) *position = current->position;
-	if (duration) *duration = current->duration;
-	if (frequency) *frequency = current->frequency;
+	return current->playbackState;
 }
 
 void AudioPlayer::setStoppedState(AudioMsg *current, AudioPlayerState state) {
-	current->state = state;
-	current->position = 0;
+	current->playbackState.state = state;
+	current->playbackState.position = 0;
 }
 
 void AudioPlayer::clearStoppedAtStart(const AudioMsgId &audio) {
 	QMutexLocker lock(&playerMutex);
 	auto data = dataForType(audio.type());
-	if (data && data->audio == audio && data->state == AudioPlayerStoppedAtStart) {
+	if (data && data->audio == audio && data->playbackState.state == AudioPlayerStoppedAtStart) {
 		setStoppedState(data);
 	}
 }
@@ -843,7 +834,7 @@ void AudioPlayerFader::onTimer() {
 
 	auto updatePlayback = [this, voice, &hasPlaying, &hasFading](AudioMsgId::Type type, int index, float64 suppressGain, bool suppressGainChanged) {
 		auto data = voice->dataForType(type, index);
-		if ((data->state & AudioPlayerStoppedMask) || data->state == AudioPlayerPaused || !data->source) return;
+		if ((data->playbackState.state & AudioPlayerStoppedMask) || data->playbackState.state == AudioPlayerPaused || !data->source) return;
 
 		int32 emitSignals = updateOnePlayback(data, hasPlaying, hasFading, suppressGain, suppressGainChanged);
 		if (emitSignals & EmitError) emit error(data->audio);
@@ -894,7 +885,7 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPla
 	if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 
 	int32 emitSignals = 0;
-	switch (m->state) {
+	switch (m->playbackState.state) {
 	case AudioPlayerFinishing:
 	case AudioPlayerPausing:
 	case AudioPlayerStarting:
@@ -914,17 +905,17 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPla
 				alSourcef(m->source, AL_GAIN, 1);
 				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 			}
-			if (m->state == AudioPlayerPausing) {
-				m->state = AudioPlayerPausedAtEnd;
+			if (m->playbackState.state == AudioPlayerPausing) {
+				m->playbackState.state = AudioPlayerPausedAtEnd;
 			} else {
 				setStoppedState(m, AudioPlayerStoppedAtEnd);
 			}
 			emitSignals |= EmitStopped;
-		} else if (1000 * (pos + m->skipStart - m->started) >= AudioFadeDuration * m->frequency) {
+		} else if (1000 * (pos + m->skipStart - m->started) >= AudioFadeDuration * m->playbackState.frequency) {
 			fading = false;
 			alSourcef(m->source, AL_GAIN, 1. * suppressGain);
 			if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
-			switch (m->state) {
+			switch (m->playbackState.state) {
 			case AudioPlayerFinishing:
 				alSourceStop(m->source);
 				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
@@ -934,17 +925,17 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPla
 			case AudioPlayerPausing:
 				alSourcePause(m->source);
 				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
-				m->state = AudioPlayerPaused;
+				m->playbackState.state = AudioPlayerPaused;
 				break;
 			case AudioPlayerStarting:
 			case AudioPlayerResuming:
-				m->state = AudioPlayerPlaying;
+				m->playbackState.state = AudioPlayerPlaying;
 				playing = true;
 				break;
 			}
 		} else {
-			float64 newGain = 1000. * (pos + m->skipStart - m->started) / (AudioFadeDuration * m->frequency);
-			if (m->state == AudioPlayerPausing || m->state == AudioPlayerFinishing) {
+			float64 newGain = 1000. * (pos + m->skipStart - m->started) / (AudioFadeDuration * m->playbackState.frequency);
+			if (m->playbackState.state == AudioPlayerPausing || m->playbackState.state == AudioPlayerFinishing) {
 				newGain = 1. - newGain;
 			}
 			alSourcef(m->source, AL_GAIN, newGain * suppressGain);
@@ -966,12 +957,12 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPla
 			if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 		}
 	}
-	if (state == AL_PLAYING && pos + m->skipStart - m->position >= AudioCheckPositionDelta) {
-		m->position = pos + m->skipStart;
+	if (state == AL_PLAYING && pos + m->skipStart - m->playbackState.position >= AudioCheckPositionDelta) {
+		m->playbackState.position = pos + m->skipStart;
 		emitSignals |= EmitPositionUpdated;
 	}
-	if (playing || m->state == AudioPlayerStarting || m->state == AudioPlayerResuming) {
-		if (!m->loading && m->skipEnd > 0 && m->position + AudioPreloadSamples + m->skipEnd > m->duration) {
+	if (playing || m->playbackState.state == AudioPlayerStarting || m->playbackState.state == AudioPlayerResuming) {
+		if (!m->loading && m->skipEnd > 0 && m->playbackState.position + AudioPreloadSamples + m->skipEnd > m->playbackState.duration) {
 			m->loading = true;
 			emitSignals |= EmitNeedToPreload;
 		}
@@ -983,8 +974,8 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPla
 }
 
 void AudioPlayerFader::setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state) {
-	m->state = state;
-	m->position = 0;
+	m->playbackState.state = state;
+	m->playbackState.position = 0;
 }
 
 void AudioPlayerFader::onPauseTimer() {

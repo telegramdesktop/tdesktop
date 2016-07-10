@@ -556,20 +556,15 @@ bool Voice::updateStatusText() const {
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->loaded()) {
-		AudioMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
+		statusSize = FileStatusSizeLoaded;
 		if (audioPlayer()) {
-			audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-		}
-
-		if (playing == AudioMsgId(_data, _parent->fullId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-			statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
-			realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
-			showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
-		} else {
-			statusSize = FileStatusSizeLoaded;
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
+			if (playing == AudioMsgId(_data, _parent->fullId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
+				realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+				showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+			}
 		}
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -865,23 +860,18 @@ bool Document::updateStatusText() const {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
 		if (_data->song()) {
-			AudioMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			int64 playingPosition = 0, playingDuration = 0;
-			int32 playingFrequency = 0;
+			statusSize = FileStatusSizeLoaded;
 			if (audioPlayer()) {
-				audioPlayer()->currentState(&playing, AudioMsgId::Type::Song, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-			}
-
-			if (playing == AudioMsgId(_data, _parent->fullId()) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
-				realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
-				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
-			} else {
-				statusSize = FileStatusSizeLoaded;
-			}
-			if (!showPause && (playing == AudioMsgId(_data, _parent->fullId())) && App::main() && App::main()->player()->seekingSong(playing)) {
-				showPause = true;
+				AudioMsgId playing;
+				auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+				if (playing == AudioMsgId(_data, _parent->fullId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+					statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
+					realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+					showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+				}
+				if (!showPause && (playing == AudioMsgId(_data, _parent->fullId())) && App::main() && App::main()->player()->seekingSong(playing)) {
+					showPause = true;
+				}
 			}
 		} else {
 			statusSize = FileStatusSizeLoaded;

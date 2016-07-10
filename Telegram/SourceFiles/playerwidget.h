@@ -47,7 +47,7 @@ public:
 	void step_progress(float64 ms, bool timer);
 	void step_state(uint64 ms, bool timer);
 
-	void updateState(AudioMsgId playing, AudioPlayerState playingState, int64 playingPosition, int64 playingDuration, int32 playingFrequency);
+	void updateState(AudioMsgId playing, AudioPlaybackState playbackState);
 	void updateState();
 	void clearSelection();
 

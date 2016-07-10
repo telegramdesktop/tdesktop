@@ -112,8 +112,8 @@ AudioMsgId AudioPlayerLoaders::clear(AudioMsgId::Type type) {
 }
 
 void AudioPlayerLoaders::setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state) {
-	m->state = state;
-	m->position = 0;
+	m->playbackState.state = state;
+	m->playbackState.position = 0;
 }
 
 void AudioPlayerLoaders::emitError(AudioMsgId::Type type) {
@@ -153,7 +153,7 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 				{
 					QMutexLocker lock(internal::audioPlayerMutex());
 					AudioPlayer::AudioMsg *m = checkLoader(type);
-					if (m) m->state = AudioPlayerStoppedAtStart;
+					if (m) m->playbackState.state = AudioPlayerStoppedAtStart;
 				}
 				emitError(type);
 				return;
@@ -200,8 +200,8 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 			m->nextBuffer = 0;
 		}
 		m->skipStart = position;
-		m->skipEnd = m->duration - position;
-		m->position = 0;
+		m->skipEnd = m->playbackState.duration - position;
+		m->playbackState.position = 0;
 		m->started = 0;
 	}
 	if (samplesCount) {
@@ -280,12 +280,12 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 
 	if (finished) {
 		m->skipEnd = 0;
-		m->duration = m->skipStart + m->samplesCount[0] + m->samplesCount[1] + m->samplesCount[2];
+		m->playbackState.duration = m->skipStart + m->samplesCount[0] + m->samplesCount[1] + m->samplesCount[2];
 		clear(type);
 	}
 
 	m->loading = false;
-	if (m->state == AudioPlayerResuming || m->state == AudioPlayerPlaying || m->state == AudioPlayerStarting) {
+	if (m->playbackState.state == AudioPlayerResuming || m->playbackState.state == AudioPlayerPlaying || m->playbackState.state == AudioPlayerStarting) {
 		ALint state = AL_INITIAL;
 		alGetSourcei(m->source, AL_SOURCE_STATE, &state);
 		if (internal::audioCheckError()) {
@@ -356,7 +356,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 
 		if (audio.type() == AudioMsgId::Type::Video) {
 			if (!data->videoData) {
-				data->state = AudioPlayerStoppedAtError;
+				data->playbackState.state = AudioPlayerStoppedAtError;
 				emit error(audio);
 				LOG(("Audio Error: video sound data not ready"));
 				return nullptr;
@@ -369,17 +369,17 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 		}
 
 		if (!l->open(position)) {
-			data->state = AudioPlayerStoppedAtStart;
+			data->playbackState.state = AudioPlayerStoppedAtStart;
 			return nullptr;
 		}
 		int64 duration = l->duration();
 		if (duration <= 0) {
-			data->state = AudioPlayerStoppedAtStart;
+			data->playbackState.state = AudioPlayerStoppedAtStart;
 			return nullptr;
 		}
-		data->duration = duration;
-		data->frequency = l->frequency();
-		if (!data->frequency) data->frequency = AudioVoiceMsgFrequency;
+		data->playbackState.duration = duration;
+		data->playbackState.frequency = l->frequency();
+		if (!data->playbackState.frequency) data->playbackState.frequency = AudioVoiceMsgFrequency;
 		err = SetupNoErrorStarted;
 	} else {
 		if (!data->skipEnd) {

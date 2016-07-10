@@ -26,7 +26,6 @@ class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-
 	MediaView();
 
 	void paintEvent(QPaintEvent *e) override;
@@ -83,7 +82,6 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
-
 	void onHideControls(bool force = false);
 	void onDropdownHiding();
 
@@ -109,7 +107,6 @@ public slots:
 	void updateImage();
 
 private:
-
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();

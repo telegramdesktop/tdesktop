@@ -35,7 +35,6 @@ namespace internal {
 
 class FFMpegReaderImplementation : public ReaderImplementation {
 public:
-
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data);
 
 	bool readNextFrame() override;

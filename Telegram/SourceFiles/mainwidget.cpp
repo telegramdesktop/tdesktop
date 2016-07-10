@@ -91,7 +91,6 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	if (audioPlayer()) {
 		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
-		connect(audioPlayer(), SIGNAL(stopped(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
 	}
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
@@ -1530,13 +1529,14 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 }
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
+	if (audioId.type() == AudioMsgId::Type::Video) {
+		return;
+	}
+
 	AudioMsgId playing;
-	AudioPlayerState playingState = AudioPlayerStopped;
-	int64 playingPosition = 0, playingDuration = 0;
-	int32 playingFrequency = 0;
-	audioPlayer()->currentState(&playing, audioId.type(), &playingState, &playingPosition, &playingDuration, &playingFrequency);
-	if (playing == audioId && playingState == AudioPlayerStoppedAtStart) {
-		playingState = AudioPlayerStopped;
+	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
+	if (playing == audioId && playbackState.state == AudioPlayerStoppedAtStart) {
+		playbackState.state = AudioPlayerStopped;
 		audioPlayer()->clearStoppedAtStart(audioId);
 
 		DocumentData *audio = audioId.audio();
@@ -1551,9 +1551,9 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
+		_player->updateState(playing, playbackState);
 
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
 			if (!_player->isOpened()) {
 				_player->openPlayer();
 				if (_player->isHidden() && !_a_show.animating()) {
@@ -1609,12 +1609,9 @@ void MainWidget::documentLoadProgress(FileLoader *loader) {
 
 	if (!document->loaded() && document->loading() && document->song() && audioPlayer()) {
 		AudioMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
-		audioPlayer()->currentState(&playing, AudioMsgId::Type::Song, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
 		if (playing.audio() == document && !_player->isHidden()) {
-			_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
+			_player->updateState(playing, playbackState);
 		}
 	}
 }

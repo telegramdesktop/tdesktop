@@ -48,12 +48,17 @@ class AudioPlayerLoaders;
 
 struct VideoSoundData;
 struct VideoSoundPart;
+struct AudioPlaybackState {
+	AudioPlayerState state = AudioPlayerStopped;
+	int64 position = 0;
+	int64 duration = 0;
+	int32 frequency = 0;
+};
 
 class AudioPlayer : public QObject {
 	Q_OBJECT
 
 public:
-
 	AudioPlayer();
 
 	void play(const AudioMsgId &audio, int64 position = 0);
@@ -64,10 +69,11 @@ public:
 	// Video player audio stream interface.
 	void playFromVideo(const AudioMsgId &audio, int64 position, std_::unique_ptr<VideoSoundData> &&data);
 	void feedFromVideo(VideoSoundPart &&part);
+	AudioPlaybackState getStateForVideo(uint64 playId);
 
 	void stopAndClear();
 
-	void currentState(AudioMsgId *audio, AudioMsgId::Type type, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
+	AudioPlaybackState currentState(AudioMsgId *audio, AudioMsgId::Type type);
 
 	void clearStoppedAtStart(const AudioMsgId &audio);
 
@@ -76,14 +82,11 @@ public:
 	~AudioPlayer();
 
 public slots:
-
 	void onError(const AudioMsgId &audio);
 	void onStopped(const AudioMsgId &audio);
 
 signals:
-
 	void updated(const AudioMsgId &audio);
-	void stopped(const AudioMsgId &audio);
 	void stoppedOnError(const AudioMsgId &audio);
 	void loaderOnStart(const AudioMsgId &audio, qint64 position);
 	void loaderOnCancel(const AudioMsgId &audio);
@@ -97,7 +100,6 @@ signals:
 	void songVolumeChanged();
 
 private:
-
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
 	bool updateCurrentStarted(AudioMsgId::Type type, int32 pos = -1);
 	bool checkCurrentALError(AudioMsgId::Type type);
@@ -109,14 +111,11 @@ private:
 
 		FileLocation file;
 		QByteArray data;
-		int64 position = 0;
-		int64 duration = 0;
-		int32 frequency = AudioVoiceMsgFrequency;
+		AudioPlaybackState playbackState = defaultState();
 		int64 skipStart = 0;
 		int64 skipEnd = 0;
 		bool loading = false;
 		int64 started = 0;
-		AudioPlayerState state = AudioPlayerStopped;
 
 		uint32 source = 0;
 		int32 nextBuffer = 0;
@@ -124,9 +123,16 @@ private:
 		int64 samplesCount[3] = { 0 };
 
 		std_::unique_ptr<VideoSoundData> videoData;
+
+	private:
+		static AudioPlaybackState defaultState() {
+			AudioPlaybackState result;
+			result.frequency = AudioVoiceMsgFrequency;
+			return result;
+		}
+
 	};
 
-	void currentState(AudioMsg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency);
 	void setStoppedState(AudioMsg *current, AudioPlayerState state = AudioPlayerStopped);
 
 	AudioMsg *dataForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)
@@ -141,6 +147,8 @@ private:
 	AudioMsg _songData[AudioSimultaneousLimit];
 
 	AudioMsg _videoData;
+	uint64 _lastVideoPlayId;
+	AudioPlaybackState _lastVideoPlaybackState;
 
 	QMutex _mutex;
 
