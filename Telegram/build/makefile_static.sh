@@ -48,6 +48,9 @@ Replace () {
     fi
 }
 
+Replace '\-lssl' "$ArchDirPath\/libssl\.a"
+Replace '\-lcrypto' "$ArchDirPath\/libcrypto\.a"
+Replace '\-lz' "$ArchDirPath\/libz\.a"
 Replace '\-llzma' "$ArchDirPath\/liblzma\.a"
 Replace '\-lXi' "$ArchDirPath\/libXi\.a $ArchDirPath\/libXext\.a"
 Replace '\-lSM' "$ArchDirPath\/libSM\.a"
@@ -55,6 +58,7 @@ Replace '\-lICE' "$ArchDirPath\/libICE\.a"
 Replace '\-lfontconfig' "$ArchDirPath\/libfontconfig\.a $ArchDirPath\/libexpat\.a"
 Replace '\-lfreetype' "$ArchDirPath\/libfreetype\.a"
 Replace '\-lXext' "$ArchDirPath\/libXext\.a"
+Replace '\-lxkbcommon' "$LocalDirPath\/libxkbcommon\.a"
 Replace '\-lopus' "$LocalDirPath\/libopus\.a"
 Replace '\-lopenal' "$LocalDirPath\/libopenal\.a"
 Replace '\-lavformat' "$LocalDirPath\/libavformat\.a"
