@@ -1545,8 +1545,6 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		if (!filepath.isEmpty()) {
 			if (documentIsValidMediaFile(filepath)) {
 				psOpenFile(filepath);
-			} else {
-				psShowInFolder(filepath);
 			}
 		}
 	}

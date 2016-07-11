@@ -179,3 +179,4 @@ void AnimationManager::timeout() {
 void AnimationManager::clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification) {
 	Media::Clip::Reader::callback(reader, threadIndex, Media::Clip::Notification(notification));
 }
+

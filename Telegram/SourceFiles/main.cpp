@@ -44,21 +44,9 @@ int main(int argc, char *argv[]) {
 	Logs::start(); // must be started before Platform is started
 	Platform::start(); // must be started before QApplication is created
 
-	// prepare fake args to disable QT_STYLE_OVERRIDE env variable
-	// currently this is required in some desktop environments, including Xubuntu 15.10
-	// when we don't default style to "none" Qt dynamically loads GTK somehow internally and
-	// our own GTK dynamic load and usage leads GTK errors and freeze of the current main thread
-	// we can't disable our own GTK loading because it is required by libappindicator, which
-	// provides the tray icon for this system, because Qt tray icon is broken there
-	// see https://github.com/telegramdesktop/tdesktop/issues/1774
-	QByteArray args[] = { "-style=0" };
-	static const int a_cnt = sizeof(args) / sizeof(args[0]);
-	int a_argc = a_cnt + 1;
-	char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
-
 	int result = 0;
 	{
-		Application app(a_argc, a_argv);
+		Application app(argc, argv);
 		result = app.exec();
 	}
 

@@ -422,8 +422,8 @@ void Sticker::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 
 QSize Sticker::getThumbSize() const {
 	int width = qMax(content_width(), 1), height = qMax(content_height(), 1);
-	float64 coefw = (st::stickerPanSize.width() - st::msgRadius * 2) / float64(width);
-	float64 coefh = (st::stickerPanSize.height() - st::msgRadius * 2) / float64(height);
+	float64 coefw = (st::stickerPanSize.width() - st::buttonRadius * 2) / float64(width);
+	float64 coefh = (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(height);
 	float64 coef = qMin(qMin(coefw, coefh), 1.);
 	int w = qRound(coef * content_width()), h = qRound(coef * content_height());
 	return QSize(qMax(w, 1), qMax(h, 1));

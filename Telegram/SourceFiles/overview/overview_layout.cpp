@@ -1041,15 +1041,15 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->medium->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->full->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			} else {
-				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->thumb->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
 			}
 			p.drawPixmapLeft(0, top, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
-			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize));
+			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize));
 		} else {
 			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
 			switch (index) {

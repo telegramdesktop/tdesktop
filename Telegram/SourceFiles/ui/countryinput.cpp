@@ -117,7 +117,7 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	p.setBrush(_st.bgColor);
 	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(_inner, st::msgRadius, st::msgRadius);
+	p.drawRoundedRect(_inner, st::buttonRadius, st::buttonRadius);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	p.drawPixmap(_arrowRect.x(), _arrowRect.top(), _arrow);

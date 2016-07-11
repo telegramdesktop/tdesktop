@@ -186,11 +186,11 @@ StorageKey PeerData::userpicUniqueKey() const {
 }
 
 void PeerData::saveUserpic(const QString &path, int size) const {
-	currentUserpic()->pixRounded(size, size).save(path, "PNG");
+	currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size).save(path, "PNG");
 }
 
 QPixmap PeerData::genUserpic(int size) const {
-	return currentUserpic()->pixRounded(size, size);
+	return currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size);
 }
 
 const Text &BotCommand::descriptionText() const {
@@ -993,8 +993,6 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
 				psOpenFile(filepath);
-			} else {
-				psShowInFolder(filepath);
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
@@ -1290,8 +1288,6 @@ void DocumentData::performActionOnLoad() {
 			if (voice() || song() || isVideo()) {
 				if (documentIsValidMediaFile(already)) {
 					psOpenFile(already);
-				} else {
-					psShowInFolder(already);
 				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {

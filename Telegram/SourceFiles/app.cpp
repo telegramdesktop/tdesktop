@@ -103,7 +103,7 @@ namespace {
 	CornersPixmaps corners[RoundCornersCount];
 	typedef QMap<uint32, CornersPixmaps> CornersMap;
 	CornersMap cornersMap;
-	QImage *cornersMask[4] = { 0 };
+	QImage *cornersMaskLarge[4] = { 0 }, *cornersMaskSmall[4] = { 0 };
 
 	typedef QMap<uint64, QPixmap> EmojiMap;
 	EmojiMap mainEmojiMap;
@@ -2062,7 +2062,7 @@ namespace {
 		cors[1] = rect.copy(r * 2, 0, r, r);
 		cors[2] = rect.copy(0, r * 2, r, r + (shadow ? s : 0));
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
-		if (index != NoneCorners) {
+		if (index != SmallMaskCorners && index != LargeMaskCorners) {
 			for (int i = 0; i < 4; ++i) {
 				::corners[index].p[i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
 				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
@@ -2101,33 +2101,38 @@ namespace {
 		}
 
 		QImage mask[4];
-		prepareCorners(NoneCorners, st::msgRadius, st::white, 0, mask);
+		prepareCorners(LargeMaskCorners, st::msgRadius, st::white, 0, mask);
 		for (int i = 0; i < 4; ++i) {
-			::cornersMask[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
-			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
+			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
+			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(BlackCorners, st::msgRadius, st::black);
-		prepareCorners(WhiteCorners, st::msgRadius, st::white);
-		prepareCorners(ServiceCorners, st::msgRadius, st::msgServiceBg);
-		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
-		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);
-		prepareCorners(DateCorners, st::msgRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgBgSelected);
+		prepareCorners(SmallMaskCorners, st::buttonRadius, st::white, 0, mask);
+		for (int i = 0; i < 4; ++i) {
+			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
+			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
+		}
+		prepareCorners(WhiteCorners, st::buttonRadius, st::white);
+		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
+		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
+		prepareCorners(SelectedOverlayLargeCorners, st::msgRadius, st::msgSelectOverlay);
+		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
+		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
-		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
-		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
-		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
-		prepareCorners(BotKeyboardOverCorners, st::msgRadius, st::botKbOverBg);
-		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
-		prepareCorners(PhotoSelectOverlayCorners, st::msgRadius, st::overviewPhotoSelectOverlay);
+		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
+		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
+		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
+		prepareCorners(BotKeyboardOverCorners, st::buttonRadius, st::botKbOverBg);
+		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
+		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
 
-		prepareCorners(DocBlueCorners, st::msgRadius, st::msgFileBlueColor);
-		prepareCorners(DocGreenCorners, st::msgRadius, st::msgFileGreenColor);
-		prepareCorners(DocRedCorners, st::msgRadius, st::msgFileRedColor);
-		prepareCorners(DocYellowCorners, st::msgRadius, st::msgFileYellowColor);
+		prepareCorners(DocBlueCorners, st::buttonRadius, st::msgFileBlueColor);
+		prepareCorners(DocGreenCorners, st::buttonRadius, st::msgFileGreenColor);
+		prepareCorners(DocRedCorners, st::buttonRadius, st::msgFileRedColor);
+		prepareCorners(DocYellowCorners, st::buttonRadius, st::msgFileYellowColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
@@ -2156,9 +2161,10 @@ namespace {
 		::emojiLarge = 0;
 		for (int32 j = 0; j < 4; ++j) {
 			for (int32 i = 0; i < RoundCornersCount; ++i) {
-				delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
+				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
 			}
-			delete ::cornersMask[j]; ::cornersMask[j] = 0;
+			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
+			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
 		}
 		for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
 			for (int32 j = 0; j < 4; ++j) {
@@ -2552,8 +2558,13 @@ namespace {
 #endif
 	}
 
-	QImage **cornersMask() {
-		return ::cornersMask;
+	QImage **cornersMask(ImageRoundRadius radius) {
+		switch (radius) {
+		case ImageRoundRadius::Large: return ::cornersMaskLarge;
+		case ImageRoundRadius::Small:
+		default: break;
+		}
+		return ::cornersMaskSmall;
 	}
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &c, const style::color *sh) {
 		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
@@ -2586,12 +2597,15 @@ namespace {
 		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c.p[3]);
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius) {
 		uint32 colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
 		CornersMap::const_iterator i = cornersMap.find(colorKey);
 		if (i == cornersMap.cend()) {
 			QImage images[4];
-			prepareCorners(NoneCorners, st::msgRadius, bg, 0, images);
+			switch (radius) {
+			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, 0, images); break;
+			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::msgRadius, bg, 0, images); break;
+			}
 
 			CornersPixmaps pixmaps;
 			for (int j = 0; j < 4; ++j) {
@@ -2754,8 +2768,8 @@ namespace {
 		uchar bsel = snap(qRound(((1. - alphaSel) * b + addSel) / alphaSel), 0, 0xFF);
 		_msgServiceSelectBg = style::color(r, g, b, qRound(alphaSel * 0xFF));
 
-		prepareCorners(ServiceCorners, st::msgRadius, _msgServiceBg);
-		prepareCorners(ServiceSelectedCorners, st::msgRadius, _msgServiceSelectBg);
+		prepareCorners(StickerCorners, st::dateRadius, _msgServiceBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, _msgServiceSelectBg);
 
 		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
 		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));

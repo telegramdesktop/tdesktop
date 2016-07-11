@@ -147,7 +147,7 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_0/qtbase/s
 
 In Terminal go to **/home/user/TBuild/Libraries/qt5_6_0** and there run
 
-    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
+    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -openssl-linked -nomake examples -nomake tests
     make -j4
     sudo make install
 
