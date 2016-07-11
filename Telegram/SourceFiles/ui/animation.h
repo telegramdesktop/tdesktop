@@ -486,7 +486,6 @@ using FloatAnimation = SimpleAnimation<anim::fvalue>;
 using IntAnimation = SimpleAnimation<anim::ivalue>;
 using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
-
 // Macro allows us to lazily create updateCallback.
 #define ENSURE_ANIMATION(animation, updateCallback, from) \
 if ((animation).isNull()) { \

@@ -22,22 +22,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dropdown.h"
 
+namespace Media {
+namespace Clip {
+class Controller;
+} // namespace Clip
+} // namespace Media
+
 class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
 	MediaView();
-
-	void paintEvent(QPaintEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-
-	bool event(QEvent *e) override;
 
 	void hide();
 
@@ -106,11 +101,39 @@ public slots:
 
 	void updateImage();
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	bool event(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+private slots:
+	void onVideoPlay();
+	void onVideoPause();
+	void onVideoSeekProgress(int64 position);
+	void onVideoSeekFinished(int64 position);
+	void onVideoVolumeChanged(float64 volume);
+	void onVideoToFullScreen();
+	void onVideoFromFullScreen();
+
 private:
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();
 	void loadBack();
+
+	void createClipController();
+	void setClipControllerGeometry();
+
+	void initAnimation();
+	void createClipReader();
 
 	// Radial animation interface.
 	float64 radialProgress() const;
@@ -154,6 +177,8 @@ private:
 	QString _dateText;
 	QString _headerText;
 
+	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
+
 	Text _caption;
 	QRect _captionRect;
 
@@ -168,7 +193,7 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QPixmap _current;
-	Media::Clip::Reader *_gif = nullptr;
+	std_::unique_ptr<Media::Clip::Reader> _gif;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
 
 	bool fileShown() const;

@@ -533,6 +533,12 @@ namespace Sandbox {
 		}
 	}
 
+	void removeEventFilter(QObject *filter) {
+		if (Application *a = application()) {
+			a->removeEventFilter(filter);
+		}
+	}
+
 	void execExternal(const QString &cmd) {
 		DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
 		if (cmd == "show") {

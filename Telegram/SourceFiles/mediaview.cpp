@@ -27,6 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/filedialog.h"
 #include "media/media_clip_reader.h"
+#include "media/view/media_clip_controller.h"
+#include "styles/style_mediaview.h"
 
 namespace {
 
@@ -228,8 +230,9 @@ bool MediaView::gifShown() const {
 }
 
 void MediaView::stopGif() {
-	delete _gif;
 	_gif = nullptr;
+	_clipController.destroy();
+	Sandbox::removeEventFilter(this);
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
@@ -364,6 +367,7 @@ void MediaView::updateControls() {
 	} else {
 		_leftNavVisible = _rightNavVisible = false;
 	}
+
 	if (!_caption.isEmpty()) {
 		int32 skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
 		int32 maxw = qMin(qMax(width() - 2 * skipw - st::mvCaptionPadding.left() - st::mvCaptionPadding.right() - 2 * st::mvCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
@@ -371,6 +375,9 @@ void MediaView::updateControls() {
 		_captionRect = QRect((width() - maxw) / 2, height() - maxh - st::mvCaptionPadding.bottom() - st::mvCaptionMargin.height(), maxw, maxh);
 	} else {
 		_captionRect = QRect();
+	}
+	if (_clipController) {
+		setClipControllerGeometry();
 	}
 	updateOver(mapFromGlobal(QCursor::pos()));
 	update();
@@ -519,7 +526,6 @@ void MediaView::clearData() {
 }
 
 MediaView::~MediaView() {
-	deleteAndMark(_gif);
 	deleteAndMark(_menu);
 }
 
@@ -551,6 +557,9 @@ void MediaView::activateControls() {
 		a_cOpacity.start(1);
 		if (!_a_state.animating()) _a_state.start();
 	}
+	if (_clipController) {
+		_clipController->showAnimated();
+	}
 }
 
 void MediaView::onHideControls(bool force) {
@@ -560,6 +569,9 @@ void MediaView::onHideControls(bool force) {
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
 	if (!_a_state.animating()) _a_state.start();
+	if (_clipController) {
+		_clipController->hideAnimated();
+	}
 }
 
 void MediaView::onDropdownHiding() {
@@ -1072,24 +1084,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		} else {
 			_doc->automaticLoad(item);
 
-			const FileLocation &location(_doc->location(true));
-			if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
-				if (!_gif) {
-					if (_doc->dimensions.width() && _doc->dimensions.height()) {
-						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
-					}
-					_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback));
-				}
-			} else if (location.accessEnable()) {
-				if (_doc->isAnimation() || _doc->isVideo()) {
-					if (!_gif) {
-						if (_doc->dimensions.width() && _doc->dimensions.height()) {
-							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
-						}
-						auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-						_gif = new Media::Clip::Reader(location, _doc->data(), func(this, &MediaView::clipCallback), mode);
-					}
-				} else {
+			if (_doc->isAnimation() || _doc->isVideo()) {
+				initAnimation();
+			} else {
+				const FileLocation &location(_doc->location(true));
+				if (location.accessEnable()) {
 					if (QImageReader(location.name()).canRead()) {
 						_current = QPixmap::fromImage(App::readImage(location.name(), 0, false), Qt::ColorOnly);
 					}
@@ -1200,6 +1199,94 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		Sandbox::setActiveWindow(this);
 		setFocus();
 	}
+}
+
+void MediaView::initAnimation() {
+	t_assert(_doc != nullptr);
+	t_assert(_doc->isAnimation() || _doc->isVideo());
+
+	auto &location = _doc->location(true);
+	if (!_doc->data().isEmpty()) {
+		createClipReader();
+	} else if (location.accessEnable()) {
+		createClipReader();
+		location.accessDisable();
+	}
+}
+
+void MediaView::createClipReader() {
+	if (_gif) return;
+
+	t_assert(_doc != nullptr);
+	t_assert(_doc->isAnimation() || _doc->isVideo());
+
+	if (_doc->dimensions.width() && _doc->dimensions.height()) {
+		_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
+	}
+	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
+	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), mode);
+
+	createClipController();
+}
+
+void MediaView::createClipController() {
+	if (!_doc->isVideo()) return;
+
+	_clipController.destroy();
+	_clipController = new Media::Clip::Controller(this);
+	setClipControllerGeometry();
+	_clipController->show();
+
+	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPlay()));
+	connect(_clipController, SIGNAL(pausePressed()), this, SLOT(onVideoPause()));
+	connect(_clipController, SIGNAL(seekProgress(int64)), this, SLOT(onVideoSeekProgress(int64)));
+	connect(_clipController, SIGNAL(seekFinished(int64)), this, SLOT(onVideoSeekFinished(int64)));
+	connect(_clipController, SIGNAL(volumeChanged(float64)), this, SLOT(onVideoVolumeChanged(float64)));
+	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToFullScreen()));
+	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoFromFullScreen()));
+
+	Sandbox::removeEventFilter(this);
+	Sandbox::installEventFilter(this);
+}
+
+void MediaView::setClipControllerGeometry() {
+	t_assert(_clipController != nullptr);
+
+	int controllerBottom = _captionRect.isEmpty() ? height() : _captionRect.y();
+	_clipController->setGeometry(
+		(width() - _clipController->width()) / 2,
+		controllerBottom - _clipController->height() - st::mvCaptionPadding.bottom() - st::mvCaptionMargin.height(),
+		st::mediaviewControllerSize.width(),
+		st::mediaviewControllerSize.height());
+	myEnsureResized(_clipController);
+}
+
+void MediaView::onVideoPlay() {
+
+}
+
+void MediaView::onVideoPause() {
+
+}
+
+void MediaView::onVideoSeekProgress(int64 position) {
+
+}
+
+void MediaView::onVideoSeekFinished(int64 position) {
+
+}
+
+void MediaView::onVideoVolumeChanged(float64 volume) {
+
+}
+
+void MediaView::onVideoToFullScreen() {
+
+}
+
+void MediaView::onVideoFromFullScreen() {
+
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {
@@ -1833,9 +1920,6 @@ void MediaView::snapXY() {
 }
 
 void MediaView::mouseMoveEvent(QMouseEvent *e) {
-	bool moved = (e->pos() != _lastMouseMovePos);
-	_lastMouseMovePos = e->pos();
-
 	updateOver(e->pos());
 	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::mvDeltaFromLastAction) {
 		_lastAction = QPoint(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction);
@@ -1858,7 +1942,6 @@ void MediaView::mouseMoveEvent(QMouseEvent *e) {
 			update();
 		}
 	}
-	if (moved) activateControls();
 }
 
 void MediaView::updateOverRect(OverState state) {
@@ -2103,6 +2186,18 @@ bool MediaView::event(QEvent *e) {
 		}
 	}
 	return QWidget::event(e);
+}
+
+bool MediaView::eventFilter(QObject *obj, QEvent *e) {
+	if (e->type() == QEvent::MouseMove && obj->isWidgetType()) {
+		if (isAncestorOf(static_cast<QWidget*>(obj))) {
+			auto mousePosition = mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPos());
+			bool moved = (mousePosition != _lastMouseMovePos);
+			_lastMouseMovePos = mousePosition;
+			if (moved) activateControls();
+		}
+	}
+	return TWidget::eventFilter(obj, e);
 }
 
 void MediaView::hide() {

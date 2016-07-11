@@ -449,3 +449,17 @@ OutlineButton {
 	font: font;
 	padding: margins;
 }
+
+IconButton {
+	width: pixels;
+	height: pixels;
+
+	opacity: double;
+	overOpacity: double;
+
+	icon: icon;
+	iconPosition: point;
+	downIconPosition: point;
+
+	duration: int;
+}
