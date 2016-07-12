@@ -32,8 +32,10 @@ public:
 	QtGifReaderImplementation(FileLocation *location, QByteArray *data);
 
 	bool readFramesTill(int64 ms) override;
+	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
+	int64 durationMs() const override;
 	bool start(Mode mode) override;
 
 	~QtGifReaderImplementation();
@@ -44,6 +46,7 @@ private:
 
 	QImageReader *_reader = nullptr;
 	int _framesLeft = 0;
+	int64 _frameRealTime = 0;
 	int64 _frameTime = 0;
 	int _frameDelay = 0;
 	QImage _frame;

@@ -28,6 +28,8 @@ class Controller;
 } // namespace Clip
 } // namespace Media
 
+struct AudioPlaybackState;
+
 class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
@@ -130,6 +132,9 @@ private:
 	void findCurrent();
 	void loadBack();
 
+	void updateVideoPlaybackState(const AudioPlaybackState &state);
+	void updateSilentVideoPlaybackState();
+
 	void createClipController();
 	void setClipControllerGeometry();
 
@@ -196,6 +201,13 @@ private:
 	QPixmap _current;
 	std_::unique_ptr<Media::Clip::Reader> _gif;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
+
+	// Video without audio stream playback information.
+	bool _videoIsSilent = false;
+	bool _videoPaused = false;
+	int64 _videoPositionMs = 0;
+	int64 _videoDurationMs = 0;
+	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
 
 	bool fileShown() const;
 	bool gifShown() const;

@@ -169,8 +169,17 @@ bool FFMpegReaderImplementation::readFramesTill(int64 ms) {
 	}
 }
 
+int64 FFMpegReaderImplementation::frameRealTime() const {
+	return _frameMs;
+}
+
 uint64 FFMpegReaderImplementation::framePresentationTime() const {
 	return static_cast<uint64>(qMax(_frameTime + _frameTimeCorrection, 0LL));
+}
+
+int64 FFMpegReaderImplementation::durationMs() const {
+	if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
+	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
 
 bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
@@ -320,11 +329,6 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 
 QString FFMpegReaderImplementation::logData() const {
 	return qsl("for file '%1', data size '%2'").arg(_location ? _location->name() : QString()).arg(_data->size());
-}
-
-int FFMpegReaderImplementation::duration() const {
-	if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
-	return (_fmtContext->streams[_streamId]->duration * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {

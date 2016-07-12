@@ -47,6 +47,10 @@ bool QtGifReaderImplementation::readFramesTill(int64 ms) {
 	return true;
 }
 
+int64 QtGifReaderImplementation::frameRealTime() const {
+	return _frameRealTime;
+}
+
 uint64 QtGifReaderImplementation::framePresentationTime() const {
 	return static_cast<uint64>(qMax(_frameTime, 0LL));
 }
@@ -63,6 +67,7 @@ bool QtGifReaderImplementation::readNextFrame() {
 	}
 	--_framesLeft;
 	_frameTime += _frameDelay;
+	_frameRealTime += _frameDelay;
 	return true;
 }
 
@@ -88,6 +93,10 @@ bool QtGifReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QS
 	hasAlpha = _frame.hasAlphaChannel();
 	_frame = QImage();
 	return true;
+}
+
+int64 QtGifReaderImplementation::durationMs() const {
+	return 0; // not supported
 }
 
 bool QtGifReaderImplementation::start(Mode mode) {

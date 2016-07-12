@@ -44,7 +44,9 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 	}
 
 	float64 progress = 0.;
-	if (duration) {
+	if (position > duration) {
+		progress = 1.;
+	} else if (duration) {
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 	}
 	if (duration != _duration || position != _position) {

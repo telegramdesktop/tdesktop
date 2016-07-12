@@ -101,6 +101,10 @@ public:
 	}
 	bool ready() const;
 
+	bool hasAudio() const;
+	int64 getPositionMs() const;
+	int64 getDurationMs() const;
+
 	void stop();
 	void error();
 
@@ -118,6 +122,8 @@ private:
 	State _state = State::Reading;
 
 	uint64 _playId;
+	bool _hasAudio = false;
+	int64 _durationMs = 0;
 
 	mutable int _width = 0;
 	mutable int _height = 0;
@@ -125,8 +131,6 @@ private:
 	// -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
 	mutable QAtomicInt _step = WaitingForDimensionsStep;
 	struct Frame {
-		Frame() : displayed(false) {
-		}
 		void clear() {
 			pix = QPixmap();
 			original = QImage();
@@ -134,7 +138,11 @@ private:
 		QPixmap pix;
 		QImage original;
 		FrameRequest request;
-		QAtomicInt displayed;
+		QAtomicInt displayed = 0;
+
+		// Should be counted from the end,
+		// so that positionMs <= _durationMs.
+		int64 positionMs = 0;
 	};
 	mutable Frame _frames[3];
 	Frame *frameToShow(int *index = 0) const; // 0 means not ready

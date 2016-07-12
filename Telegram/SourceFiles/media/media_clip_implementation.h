@@ -41,11 +41,14 @@ public:
 	// Read frames till current frame will have presentation time > ms.
 	virtual bool readFramesTill(int64 ms) = 0;
 
-	// Get current frame presentation time.
+	// Get current frame real and presentation time.
+	virtual int64 frameRealTime() const = 0;
 	virtual uint64 framePresentationTime() const = 0;
 
 	// Render current frame to an image with specific size.
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
+
+	virtual int64 durationMs() const = 0;
 
 	virtual bool start(Mode mode) = 0;
 	virtual ~ReaderImplementation() {

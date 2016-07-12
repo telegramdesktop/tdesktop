@@ -701,9 +701,15 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 
 	switch (notification) {
 	case NotificationReinit: {
-		if (HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+		if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 			if (_gif->state() == State::Error) {
 				_current = QPixmap();
+			}
+			_videoIsSilent = _doc->isVideo() && !_gif->hasAudio();
+			if (_videoIsSilent) {
+				_videoDurationMs = _gif->getDurationMs();
+				_videoPositionMs = _gif->getPositionMs();
+				updateSilentVideoPlaybackState();
 			}
 			displayDocument(_doc, item);
 		} else {
@@ -713,6 +719,10 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 
 	case NotificationRepaint: {
 		if (!_gif->currentDisplayed()) {
+			if (_videoIsSilent) {
+				_videoPositionMs = _gif->getPositionMs();
+				updateSilentVideoPlaybackState();
+			}
 			update(_x, _y, _w, _h);
 		}
 	} break;
@@ -1230,6 +1240,11 @@ void MediaView::createClipReader() {
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
 	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), mode);
 
+	// Correct values will be set when gif gets inited.
+	_videoIsSilent = false;
+	_videoPositionMs = 0ULL;
+	_videoDurationMs = _doc->duration() * 1000ULL;
+
 	createClipController();
 }
 
@@ -1305,9 +1320,28 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	t_assert(_gif != nullptr);
 	t_assert(audioPlayer() != nullptr);
 	auto state = audioPlayer()->currentVideoState(_gif->playId());
+	updateVideoPlaybackState(state);
+}
+
+void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
 	if (state.frequency) {
 		_clipController->updatePlayback(state);
 	}
+}
+
+void MediaView::updateSilentVideoPlaybackState() {
+	AudioPlaybackState state;
+	if (_videoPaused) {
+		state.state = AudioPlayerPaused;
+	} else if (_videoPositionMs == _videoDurationMs) {
+		state.state = AudioPlayerStoppedAtEnd;
+	} else {
+		state.state = AudioPlayerPlaying;
+	}
+	state.position = _videoPositionMs;
+	state.duration = _videoDurationMs;
+	state.frequency = _videoFrequencyMs;
+	updateVideoPlaybackState(state);
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {

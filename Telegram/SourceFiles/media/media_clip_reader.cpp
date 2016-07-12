@@ -112,7 +112,7 @@ Reader::Frame *Reader::frameToShow(int32 *index) const { // 0 means not ready
 	int32 step = _step.loadAcquire(), i;
 	if (step == WaitingForDimensionsStep) {
 		if (index) *index = 0;
-		return 0;
+		return nullptr;
 	} else if (step == WaitingForRequestStep) {
 		i = 0;
 	} else if (step == WaitingForFirstFrameStep) {
@@ -130,7 +130,7 @@ Reader::Frame *Reader::frameToWrite(int32 *index) const { // 0 means not ready
 		i = 0;
 	} else if (step == WaitingForRequestStep) {
 		if (index) *index = 0;
-		return 0;
+		return nullptr;
 	} else if (step == WaitingForFirstFrameStep) {
 		i = 0;
 	} else {
@@ -144,7 +144,7 @@ Reader::Frame *Reader::frameToWriteNext(bool checkNotWriting, int32 *index) cons
 	int32 step = _step.loadAcquire(), i;
 	if (step == WaitingForDimensionsStep || step == WaitingForRequestStep || (checkNotWriting && (step % 2))) {
 		if (index) *index = 0;
-		return 0;
+		return nullptr;
 	}
 	i = ((step + 4) / 2) % 3;
 	if (index) *index = i;
@@ -258,6 +258,21 @@ bool Reader::ready() const {
 	return false;
 }
 
+bool Reader::hasAudio() const {
+	return ready() ? _hasAudio : false;
+}
+
+int64 Reader::getPositionMs() const {
+	if (auto frame = frameToShow()) {
+		return frame->positionMs;
+	}
+	return 0;
+}
+
+int64 Reader::getDurationMs() const {
+	return ready() ? _durationMs : 0;
+}
+
 int32 Reader::width() const {
 	return _width;
 }
@@ -313,6 +328,7 @@ public:
 			}
 			_width = frame()->original.width();
 			_height = frame()->original.height();
+			_durationMs = _implementation->durationMs();
 			return ProcessResult::Started;
 		}
 		return ProcessResult::Wait;
@@ -335,6 +351,7 @@ public:
 		if (!_implementation->readFramesTill(ms - _animationStarted)) {
 			return error();
 		}
+		_nextFramePositionMs = _implementation->frameRealTime();
 		_nextFrameWhen = _animationStarted + _implementation->framePresentationTime();
 
 		if (!renderFrame()) {
@@ -352,6 +369,7 @@ public:
 		frame()->pix = QPixmap();
 		frame()->pix = _prepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
 		frame()->when = _nextFrameWhen;
+		frame()->positionMs = _nextFramePositionMs;
 		return true;
 	}
 
@@ -427,6 +445,9 @@ private:
 		QImage original, cache;
 		bool alpha = true;
 		uint64 when = 0;
+
+		// Counted from the end, so that positionMs <= durationMs despite keep up delays.
+		int64 positionMs = 0;
 	};
 	Frame _frames[3];
 	int _frame = 0;
@@ -437,8 +458,10 @@ private:
 	int _width = 0;
 	int _height = 0;
 
+	int64 _durationMs = 0;
 	uint64 _animationStarted = 0;
 	uint64 _nextFrameWhen = 0;
+	int64 _nextFramePositionMs = 0;
 
 	bool _paused = false;
 
@@ -531,6 +554,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 
 	if (result == ProcessResult::Started) {
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
+		it.key()->_durationMs = reader->_durationMs;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
 	if (!reader->_paused && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
@@ -552,6 +576,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 		frame->pix = reader->frame()->pix;
 		frame->original = reader->frame()->original;
 		frame->displayed.storeRelease(0);
+		frame->positionMs = reader->frame()->positionMs;
 		if (result == ProcessResult::Started) {
 			reader->startedAt(ms);
 			it.key()->moveToNextWrite();
@@ -704,7 +729,7 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 					request.factor = 1;
 					cover = _prepareFrame(request, cover, hasAlpha, cacheForResize).toImage();
 				}
-				int duration = reader->duration();
+				int duration = reader->durationMs() / 1000;
 				return MTP_documentAttributeVideo(MTP_int(duration), MTP_int(cover.width()), MTP_int(cover.height()));
 			}
 		}

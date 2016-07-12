@@ -38,11 +38,12 @@ public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
 	bool readFramesTill(int64 ms) override;
+	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
+	int64 durationMs() const override;
 	bool start(Mode mode) override;
 
-	int duration() const;
 	QString logData() const;
 
 	~FFMpegReaderImplementation();
