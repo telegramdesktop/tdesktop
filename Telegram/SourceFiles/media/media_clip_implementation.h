@@ -38,8 +38,13 @@ public:
 		Normal,
 	};
 
+	enum class ReadResult {
+		Success,
+		Error,
+		Eof,
+	};
 	// Read frames till current frame will have presentation time > ms.
-	virtual bool readFramesTill(int64 ms) = 0;
+	virtual ReadResult readFramesTill(int64 ms) = 0;
 
 	// Get current frame real and presentation time.
 	virtual int64 frameRealTime() const = 0;
@@ -49,6 +54,7 @@ public:
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 
 	virtual int64 durationMs() const = 0;
+	virtual bool hasAudio() const = 0;
 
 	virtual bool start(Mode mode) = 0;
 	virtual ~ReaderImplementation() {

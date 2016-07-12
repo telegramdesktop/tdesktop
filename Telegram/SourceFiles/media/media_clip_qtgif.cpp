@@ -28,23 +28,19 @@ namespace internal {
 QtGifReaderImplementation::QtGifReaderImplementation(FileLocation *location, QByteArray *data) : ReaderImplementation(location, data) {
 }
 
-bool QtGifReaderImplementation::readFramesTill(int64 ms) {
+ReaderImplementation::ReadResult QtGifReaderImplementation::readFramesTill(int64 ms) {
 	if (!_frame.isNull() && _frameTime > ms) {
-		return true;
+		return ReadResult::Success;
 	}
-	if (!readNextFrame()) {
-		return false;
+	auto readResult = readNextFrame();
+	if (readResult != ReadResult::Success || _frameTime > ms) {
+		return readResult;
 	}
-	if (_frameTime > ms) {
-		return true;
-	}
-	if (!readNextFrame()) {
-		return false;
-	}
+	readResult = readNextFrame();
 	if (_frameTime <= ms) {
 		_frameTime = ms + 5; // keep up
 	}
-	return true;
+	return readResult;
 }
 
 int64 QtGifReaderImplementation::frameRealTime() const {
@@ -55,20 +51,24 @@ uint64 QtGifReaderImplementation::framePresentationTime() const {
 	return static_cast<uint64>(qMax(_frameTime, 0LL));
 }
 
-bool QtGifReaderImplementation::readNextFrame() {
+ReaderImplementation::ReadResult QtGifReaderImplementation::readNextFrame() {
 	if (_reader) _frameDelay = _reader->nextImageDelay();
-	if (_framesLeft < 1 && !jumpToStart()) {
-		return false;
+	if (_framesLeft < 1) {
+		if (_mode == Mode::Normal) {
+			return ReadResult::Eof;
+		} else if (!jumpToStart()) {
+			return ReadResult::Error;
+		}
 	}
 
 	_frame = QImage(); // QGifHandler always reads first to internal QImage and returns it
 	if (!_reader->read(&_frame) || _frame.isNull()) {
-		return false;
+		return ReadResult::Error;
 	}
 	--_framesLeft;
 	_frameTime += _frameDelay;
 	_frameRealTime += _frameDelay;
-	return true;
+	return ReadResult::Success;
 }
 
 bool QtGifReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
@@ -101,6 +101,7 @@ int64 QtGifReaderImplementation::durationMs() const {
 
 bool QtGifReaderImplementation::start(Mode mode) {
 	if (mode == Mode::OnlyGifv) return false;
+	_mode = mode;
 	return jumpToStart();
 }
 

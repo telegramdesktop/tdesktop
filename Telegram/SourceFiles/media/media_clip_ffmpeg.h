@@ -37,11 +37,14 @@ class FFMpegReaderImplementation : public ReaderImplementation {
 public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
-	bool readFramesTill(int64 ms) override;
+	ReadResult readFramesTill(int64 ms) override;
 	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 	int64 durationMs() const override;
+	bool hasAudio() const override {
+		return (_audioStreamId >= 0);
+	}
 	bool start(Mode mode) override;
 
 	QString logData() const;
@@ -49,7 +52,7 @@ public:
 	~FFMpegReaderImplementation();
 
 private:
-	bool readNextFrame();
+	ReadResult readNextFrame();
 
 	enum class PacketResult {
 		Ok,

@@ -36,7 +36,7 @@ FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, Q
 	_packetNull.size = 0;
 }
 
-bool FFMpegReaderImplementation::readNextFrame() {
+ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 	if (_frameRead) {
 		av_frame_unref(_frame);
 		_frameRead = false;
@@ -46,7 +46,7 @@ bool FFMpegReaderImplementation::readNextFrame() {
 		while (_packetQueue.isEmpty()) {
 			auto packetResult = readPacket();
 			if (packetResult == PacketResult::Error) {
-				return false;
+				return ReadResult::Error;
 			} else if (packetResult == PacketResult::EndOfFile) {
 				break;
 			}
@@ -75,7 +75,7 @@ bool FFMpegReaderImplementation::readNextFrame() {
 
 			eofReached = (res == AVERROR_EOF);
 			if (!eofReached || !_hadFrame) { // try to skip end of file
-				return false;
+				return ReadResult::Error;
 			}
 		}
 		if (res > 0) decoded = res;
@@ -105,13 +105,13 @@ bool FFMpegReaderImplementation::readNextFrame() {
 
 			_hadFrame = _frameRead = true;
 			_frameTime += _currentFrameDelay;
-			return true;
+			return ReadResult::Success;
 		}
 
 		if (eofReached) {
 			clearPacketQueue();
 			if (_mode == Mode::Normal) {
-				return false;
+				return ReadResult::Eof;
 			}
 
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
@@ -120,7 +120,7 @@ bool FFMpegReaderImplementation::readNextFrame() {
 						if ((res = av_seek_frame(_fmtContext, _streamId, 0, 0)) < 0) {
 							char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 							LOG(("Gif Error: Unable to av_seek_frame() to the start %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-							return false;
+							return ReadResult::Error;
 						}
 					}
 				}
@@ -132,41 +132,42 @@ bool FFMpegReaderImplementation::readNextFrame() {
 		}
 	}
 
-	return false;
+	return ReadResult::Error;
 }
 
-bool FFMpegReaderImplementation::readFramesTill(int64 ms) {
-	if (_audioStreamId >= 0) { // sync by audio stream
-		auto correctMs = audioPlayer()->getVideoCorrectedTime(_playId, ms);
-
-		if (!_frameRead && !readNextFrame()) {
-			return false;
-		}
-		while (_frameTime <= correctMs) {
-			if (!readNextFrame()) {
-				return false;
-			}
-		}
-		_frameTimeCorrection = ms - correctMs;
-		return true;
-	} else { // just keep up
+ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int64 ms) {
+	if (_audioStreamId < 0) { // just keep up
 		if (_frameRead && _frameTime > ms) {
-			return true;
+			return ReadResult::Success;
 		}
-		if (!readNextFrame()) {
-			return false;
+		auto readResult = readNextFrame();
+		if (readResult != ReadResult::Success || _frameTime > ms) {
+			return readResult;
 		}
-		if (_frameTime > ms) {
-			return true;
-		}
-		if (!readNextFrame()) {
-			return false;
-		}
+		readResult = readNextFrame();
 		if (_frameTime <= ms) {
 			_frameTime = ms + 5; // keep up
 		}
-		return true;
+		return readResult;
 	}
+
+	// sync by audio stream
+	auto correctMs = audioPlayer()->getVideoCorrectedTime(_playId, ms);
+
+	if (!_frameRead) {
+		auto readResult = readNextFrame();
+		if (readResult != ReadResult::Success) {
+			return readResult;
+		}
+	}
+	while (_frameTime <= correctMs) {
+		auto readResult = readNextFrame();
+		if (readResult != ReadResult::Success) {
+			return readResult;
+		}
+	}
+	_frameTimeCorrection = ms - correctMs;
+	return ReadResult::Success;
 }
 
 int64 FFMpegReaderImplementation::frameRealTime() const {
@@ -333,7 +334,7 @@ QString FFMpegReaderImplementation::logData() const {
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_mode == Mode::Normal && _audioStreamId >= 0) {
-		audioPlayer()->stop(AudioMsgId::Type::Video);
+		audioPlayer()->stopFromVideo(_playId);
 	}
 	if (_frameRead) {
 		av_frame_unref(_frame);

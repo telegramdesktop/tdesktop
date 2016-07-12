@@ -349,7 +349,7 @@ void MediaView::updateControls() {
 		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	}
 	updateHeader();
-	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewChatPhotos || _overview == OverviewFiles))) {
+	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewChatPhotos || _overview == OverviewFiles || _overview == OverviewVideos))) {
 		_leftNavVisible = (_index > 0) || (_index == 0 && (
 			(!_msgmigrated && _history && _history->overview[_overview].size() < _history->overviewCount(_overview)) ||
 			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount(_overview)) ||
@@ -554,7 +554,7 @@ void MediaView::close() {
 }
 
 void MediaView::activateControls() {
-	if (!_menu && !_mousePressed) {
+	if (!_menu && !_mousePressed && (!_clipController || !_clipController->geometry().contains(_lastMouseMovePos))) {
 		_controlsHideTimer.start(int(st::mvWaitHide));
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
@@ -564,19 +564,19 @@ void MediaView::activateControls() {
 		if (!_a_state.animating()) _a_state.start();
 	}
 	if (_clipController) {
-		_clipController->showAnimated();
+//		_clipController->showAnimated();
 	}
 }
 
 void MediaView::onHideControls(bool force) {
-	if (!force && (!_dropdown.isHidden() || _menu || _mousePressed)) return;
+	if (!force && (!_dropdown.isHidden() || _menu || _mousePressed || (_clipController && _clipController->geometry().contains(_lastMouseMovePos)))) return;
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
 	if (!_a_state.animating()) _a_state.start();
 	if (_clipController) {
-		_clipController->hideAnimated();
+//		_clipController->hideAnimated();
 	}
 }
 
@@ -706,12 +706,16 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 		if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 			if (_gif->state() == State::Error) {
 				_current = QPixmap();
-			}
-			_videoIsSilent = _doc->isVideo() && !_gif->hasAudio();
-			if (_videoIsSilent) {
+			} else if (_gif->state() == State::Finished) {
+				_videoPositionMs = _videoDurationMs;
+				updateSilentVideoPlaybackState();
+			} else {
+				_videoIsSilent = _doc->isVideo() && !_gif->hasAudio();
 				_videoDurationMs = _gif->getDurationMs();
 				_videoPositionMs = _gif->getPositionMs();
-				updateSilentVideoPlaybackState();
+				if (_videoIsSilent) {
+					updateSilentVideoPlaybackState();
+				}
 			}
 			displayDocument(_doc, item);
 		} else {
@@ -721,8 +725,8 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 
 	case NotificationRepaint: {
 		if (!_gif->currentDisplayed()) {
+			_videoPositionMs = _gif->getPositionMs();
 			if (_videoIsSilent) {
-				_videoPositionMs = _gif->getPositionMs();
 				updateSilentVideoPlaybackState();
 			}
 			update(_x, _y, _w, _h);
@@ -1016,7 +1020,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_canForward = _msgid > 0;
 	_canDelete = context ? context->canDelete() : false;
 	if (_history) {
-		_overview = OverviewFiles;
+		_overview = doc->isVideo() ? OverviewVideos : OverviewFiles;
 		findCurrent();
 	}
 	displayDocument(doc, context);
@@ -1287,7 +1291,29 @@ void MediaView::setClipControllerGeometry() {
 }
 
 void MediaView::onVideoPlay() {
+	if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+		if (_gif->state() == Media::Clip::State::Error) {
+			displayDocument(_doc, item);
+		} else if (_gif->state() == Media::Clip::State::Finished) {
+			_current = _gif->current(_gif->width(), _gif->height(), _gif->width(), _gif->height(), getms());
+			_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), Media::Clip::Reader::Mode::Video);
 
+			// Correct values will be set when gif gets inited.
+			_videoIsSilent = false;
+			_videoPositionMs = 0;
+
+			AudioPlaybackState state;
+			state.state = AudioPlayerStopped;
+			state.position = _videoPositionMs;
+			state.duration = _videoDurationMs;
+			state.frequency = _videoFrequencyMs;
+			updateVideoPlaybackState(state);
+		} else {
+			//
+		}
+	} else {
+		stopGif();
+	}
 }
 
 void MediaView::onVideoPause() {
@@ -1329,6 +1355,9 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
 	if (state.frequency) {
 		_clipController->updatePlayback(state);
+	} else { // Audio has stopped already.
+		_videoIsSilent = true;
+		updateSilentVideoPlaybackState();
 	}
 }
 
@@ -1660,6 +1689,8 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && !fileShown()) {
 			onDocClick();
+		} else if (_doc->isVideo()) {
+			onVideoPlay();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		moveToNext(-1);
@@ -1777,7 +1808,7 @@ bool MediaView::moveToNext(int32 delta) {
 		}
 		return false;
 	}
-	if ((_history && _overview != OverviewPhotos && _overview != OverviewChatPhotos && _overview != OverviewFiles) || (_overview == OverviewCount && !_user)) {
+	if ((_history && _overview != OverviewPhotos && _overview != OverviewChatPhotos && _overview != OverviewFiles && _overview != OverviewVideos) || (_overview == OverviewCount && !_user)) {
 		return false;
 	}
 	if (_msgmigrated && !_history->overviewLoaded(_overview)) {
@@ -1807,6 +1838,7 @@ bool MediaView::moveToNext(int32 delta) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
 					case MediaTypeFile:
+					case MediaTypeVideo:
 					case MediaTypeGif:
 					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
@@ -1870,6 +1902,7 @@ void MediaView::preloadData(int32 delta) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
 					case MediaTypeFile:
+					case MediaTypeVideo:
 					case MediaTypeGif:
 					case MediaTypeSticker: media->getDocument()->forget(); break;
 					}
@@ -1895,6 +1928,7 @@ void MediaView::preloadData(int32 delta) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->download(); break;
 						case MediaTypeFile:
+						case MediaTypeVideo:
 						case MediaTypeGif: {
 							DocumentData *doc = media->getDocument();
 							doc->thumb->load();

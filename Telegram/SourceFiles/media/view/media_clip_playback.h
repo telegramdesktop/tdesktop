@@ -65,6 +65,7 @@ private:
 	float64 _downProgress = 0.;
 
 	float64 _fadeOpacity = 1.;
+	bool _playing = false;
 
 };
 

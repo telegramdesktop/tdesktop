@@ -297,6 +297,10 @@ void Reader::error() {
 	_state = State::Error;
 }
 
+void Reader::finished() {
+	_state = State::Finished;
+}
+
 Reader::~Reader() {
 	stop();
 }
@@ -306,11 +310,13 @@ public:
 	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
 	, _mode(reader->mode())
 	, _playId(reader->playId())
-	, _data(data)
-	, _location(_data.isEmpty() ? new FileLocation(location) : 0) {
-		if (_data.isEmpty() && !_location->accessEnable()) {
-			error();
-			return;
+	, _data(data) {
+		if (_data.isEmpty()) {
+			_location = std_::make_unique<FileLocation>(location);
+			if (!_location->accessEnable()) {
+				error();
+				return;
+			}
 		}
 		_accessed = true;
 	}
@@ -320,7 +326,8 @@ public:
 			return error();
 		}
 		if (frame() && frame()->original.isNull()) {
-			if (!_implementation->readFramesTill(-1)) { // Read the first frame.
+			auto readResult = _implementation->readFramesTill(-1);
+			if (readResult != internal::ReaderImplementation::ReadResult::Success) { // Read the first frame.
 				return error();
 			}
 			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
@@ -329,13 +336,18 @@ public:
 			_width = frame()->original.width();
 			_height = frame()->original.height();
 			_durationMs = _implementation->durationMs();
+			_hasAudio = _implementation->hasAudio();
 			return ProcessResult::Started;
 		}
 		return ProcessResult::Wait;
 	}
 
 	ProcessResult process(uint64 ms) { // -1 - do nothing, 0 - update, 1 - reinit
-		if (_state == State::Error) return ProcessResult::Error;
+		if (_state == State::Error) {
+			return ProcessResult::Error;
+		} else if (_state == State::Finished) {
+			return ProcessResult::Finished;
+		}
 
 		if (!_request.valid()) {
 			return start(ms);
@@ -348,7 +360,12 @@ public:
 	}
 
 	ProcessResult finishProcess(uint64 ms) {
-		if (!_implementation->readFramesTill(ms - _animationStarted)) {
+		auto readResult = _implementation->readFramesTill(ms - _animationStarted);
+		if (readResult == internal::ReaderImplementation::ReadResult::Eof) {
+			stop();
+			_state = State::Finished;
+			return ProcessResult::Finished;
+		} else if (readResult == internal::ReaderImplementation::ReadResult::Error) {
 			return error();
 		}
 		_nextFramePositionMs = _implementation->frameRealTime();
@@ -384,7 +401,7 @@ public:
 			}
 		}
 
-		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location, &_data, _playId);
+		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _playId);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
 
 		auto implementationMode = [this]() {
@@ -414,15 +431,13 @@ public:
 			if (_accessed) {
 				_location->accessDisable();
 			}
-			delete _location;
-			_location = 0;
+			_location = nullptr;
 		}
 		_accessed = false;
 	}
 
 	~ReaderPrivate() {
 		stop();
-		deleteAndMark(_location);
 		_data.clear();
 	}
 
@@ -433,7 +448,7 @@ private:
 	uint64 _playId;
 
 	QByteArray _data;
-	FileLocation *_location;
+	std_::unique_ptr<FileLocation> _location;
 	bool _accessed = false;
 
 	QBuffer _buffer;
@@ -458,6 +473,7 @@ private:
 	int _width = 0;
 	int _height = 0;
 
+	bool _hasAudio = false;
 	int64 _durationMs = 0;
 	uint64 _animationStarted = 0;
 	uint64 _nextFrameWhen = 0;
@@ -547,6 +563,12 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 			if (i != _readerPointers.cend()) _readerPointers.erase(i);
 		}
 		return false;
+	} else if (result == ProcessResult::Finished) {
+		if (it != _readerPointers.cend()) {
+			it.key()->finished();
+			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+		}
+		return false;
 	}
 	if (it == _readerPointers.cend()) {
 		return false;
@@ -555,6 +577,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 	if (result == ProcessResult::Started) {
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 		it.key()->_durationMs = reader->_durationMs;
+		it.key()->_hasAudio = reader->_hasAudio;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
 	if (!reader->_paused && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
@@ -719,7 +742,9 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
 	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv)) {
 		bool hasAlpha = false;
-		if (reader->readFramesTill(-1) && reader->renderFrame(cover, hasAlpha, QSize())) {
+		auto readResult = reader->readFramesTill(-1);
+		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
+		if (readFrame && reader->renderFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
 				if (hasAlpha) {
 					QImage cacheForResize;

@@ -71,7 +71,7 @@ void Controller::showAnimated() {
 
 void Controller::hideAnimated() {
 	startFading([this]() {
-		_fadeAnimation->fadeOut(st::mvShowDuration);
+		_fadeAnimation->fadeOut(st::mvHideDuration);
 	});
 }
 

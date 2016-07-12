@@ -281,6 +281,7 @@ void AudioPlayer::AudioMsg::clear() {
 	nextBuffer = 0;
 
 	videoData = nullptr;
+	videoPlayId = 0;
 }
 
 AudioPlayer::AudioPlayer() : _audioCurrent(0), _songCurrent(0),
@@ -518,6 +519,24 @@ void AudioPlayer::playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std
 		emit loaderOnStart(audio, position);
 	}
 	if (stopped) emit updated(stopped);
+}
+
+void AudioPlayer::stopFromVideo(uint64 videoPlayId) {
+	AudioMsgId current;
+	{
+		QMutexLocker lock(&playerMutex);
+		auto data = dataForType(AudioMsgId::Type::Video);
+		t_assert(data != nullptr);
+
+		if (data->videoPlayId != videoPlayId) {
+			return;
+		}
+
+		current = data->audio;
+		fadedStop(AudioMsgId::Type::Video);
+		data->clear();
+	}
+	if (current) emit updated(current);
 }
 
 void AudioPlayer::feedFromVideo(VideoSoundPart &&part) {

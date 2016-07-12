@@ -35,7 +35,8 @@ Playback::Playback(QWidget *parent) : TWidget(parent)
 void Playback::updateState(const AudioPlaybackState &playbackState) {
 	qint64 position = 0, duration = playbackState.duration;
 
-	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+	_playing = !(playbackState.state & AudioPlayerStoppedMask);
+	if (_playing && playbackState.state != AudioPlayerFinishing) {
 		position = playbackState.position;
 	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
 		position = playbackState.duration;
@@ -50,7 +51,7 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 	}
 	if (duration != _duration || position != _position) {
-		if (duration && _duration) {
+		if (duration && _duration && playbackState.state != AudioPlayerStopped) {
 			a_progress.start(progress);
 			_a_progress.start();
 		} else {

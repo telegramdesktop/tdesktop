@@ -28,6 +28,7 @@ namespace Clip {
 enum class State {
 	Reading,
 	Error,
+	Finished,
 };
 
 struct FrameRequest {
@@ -107,6 +108,7 @@ public:
 
 	void stop();
 	void error();
+	void finished();
 
 	Mode mode() const {
 		return _mode;
@@ -165,6 +167,7 @@ private:
 enum class ProcessResult {
 	Error,
 	Started,
+	Finished,
 	Paused,
 	Repaint,
 	CopyFrame,

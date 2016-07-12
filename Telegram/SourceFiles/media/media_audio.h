@@ -72,6 +72,7 @@ public:
 	int64 getVideoCorrectedTime(uint64 playId, uint64 systemMs);
 	void videoSoundProgress(const AudioMsgId &audio);
 	AudioPlaybackState currentVideoState(uint64 videoPlayId);
+	void stopFromVideo(uint64 videoPlayId);
 
 	void stopAndClear();
 
