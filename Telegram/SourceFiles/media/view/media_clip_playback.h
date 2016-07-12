@@ -32,6 +32,7 @@ public:
 	Playback(QWidget *parent);
 
 	void updateState(const AudioPlaybackState &playbackState);
+	void setFadeOpacity(float64 opacity);
 
 signals:
 	void seekProgress(int64 position);
@@ -62,6 +63,8 @@ private:
 
 	bool _mouseDown = false;
 	float64 _downProgress = 0.;
+
+	float64 _fadeOpacity = 1.;
 
 };
 

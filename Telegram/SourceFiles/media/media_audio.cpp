@@ -718,6 +718,14 @@ void AudioPlayer::stopAndClear() {
 	}
 }
 
+AudioPlaybackState AudioPlayer::currentVideoState(uint64 videoPlayId) {
+	QMutexLocker lock(&playerMutex);
+	auto current = dataForType(AudioMsgId::Type::Video);
+	if (!current || current->videoPlayId != videoPlayId) return AudioPlaybackState();
+
+	return current->playbackState;
+}
+
 AudioPlaybackState AudioPlayer::currentState(AudioMsgId *audio, AudioMsgId::Type type) {
 	QMutexLocker lock(&playerMutex);
 	auto current = dataForType(type);

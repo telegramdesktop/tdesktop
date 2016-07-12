@@ -28,8 +28,10 @@ mediaviewOverDuration: 150;
 
 mediaviewControllerSize: size(600px, 50px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
+	font: semiboldFont;
 	textFg: #ffffffc7;
 }
+mediaviewPlayProgressTop: 8px;
 mediaviewPlayButton: IconButton {
 	width: 25px;
 	height: 24px;
@@ -63,6 +65,7 @@ mediaviewFullScreenOutIcon: icon {
 mediaviewPlaybackActive: #ffffff;
 mediaviewPlaybackInactive: #474747;
 mediaviewPlaybackWidth: 3px;
+mediaviewPlaybackTop: 23px;
 mediaviewSeekSize: size(2px, 13px);
 
 mediaviewVolumeSize: size(44px, 12px);

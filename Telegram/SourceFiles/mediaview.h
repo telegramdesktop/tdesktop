@@ -122,6 +122,7 @@ private slots:
 	void onVideoVolumeChanged(float64 volume);
 	void onVideoToFullScreen();
 	void onVideoFromFullScreen();
+	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
 	void displayPhoto(PhotoData *photo, HistoryItem *item);

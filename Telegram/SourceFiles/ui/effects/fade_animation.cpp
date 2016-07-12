@@ -29,18 +29,24 @@ FadeAnimation::FadeAnimation(TWidget *widget) : _widget(widget) {
 bool FadeAnimation::paint(Painter &p) {
 	if (_cache.isNull()) return false;
 
-	bool animating = _animation.animating(getms());
-
 	p.setOpacity(_animation.current(_visible ? 1. : 0.));
 	p.drawPixmap(0, 0, _cache);
-	if (!animating) {
-		stopAnimation();
-	}
 	return true;
+}
+
+void FadeAnimation::refreshCache() {
+	if (!_cache.isNull()) {
+		_cache = QPixmap();
+		_cache = myGrab(_widget);
+	}
 }
 
 void FadeAnimation::setFinishedCallback(FinishedCallback &&callback) {
 	_finishedCallback = std_::move(callback);
+}
+
+void FadeAnimation::setUpdatedCallback(UpdatedCallback &&callback) {
+	_updatedCallback = std_::move(callback);
 }
 
 void FadeAnimation::show() {
@@ -93,7 +99,12 @@ void FadeAnimation::startAnimation(int duration) {
 }
 
 void FadeAnimation::updateCallback() {
-	_widget->update();
+	if (_animation.animating(getms())) {
+		_widget->update();
+		_updatedCallback.call(_animation.current());
+	} else {
+		stopAnimation();
+	}
 }
 
 } // namespace Ui

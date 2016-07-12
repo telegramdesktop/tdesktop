@@ -46,6 +46,9 @@ public:
 	void updatePlayback(const AudioPlaybackState &playbackState);
 	void setInFullScreen(bool inFullScreen);
 
+	void grabStart() override;
+	void grabFinish() override;
+
 signals:
 	void playPressed();
 	void pausePressed();
@@ -64,6 +67,14 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	template <typename Callback>
+	void startFading(Callback start);
+	void fadeFinished();
+	void fadeUpdated(float64 opacity);
+
+	void updatePlayPauseResumeState(const AudioPlaybackState &playbackState);
+	void updateTimeTexts(const AudioPlaybackState &playbackState);
+
 	bool _showPause = false;
 	int64 _seekPosition = -1;
 

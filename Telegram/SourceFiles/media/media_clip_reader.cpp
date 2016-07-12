@@ -87,7 +87,8 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 
 Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode)
 : _callback(std_::move(callback))
-, _mode(mode) {
+, _mode(mode)
+, _playId(rand_value<uint64>()) {
 	if (threads.size() < ClipThreadsCount) {
 		_threadIndex = threads.size();
 		threads.push_back(new QThread());
@@ -289,6 +290,7 @@ class ReaderPrivate {
 public:
 	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
 	, _mode(reader->mode())
+	, _playId(reader->playId())
 	, _data(data)
 	, _location(_data.isEmpty() ? new FileLocation(location) : 0) {
 		if (_data.isEmpty() && !_location->accessEnable()) {
@@ -364,7 +366,7 @@ public:
 			}
 		}
 
-		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location, &_data);
+		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location, &_data, _playId);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
 
 		auto implementationMode = [this]() {
@@ -410,6 +412,7 @@ private:
 	Reader *_interface;
 	State _state = State::Reading;
 	Reader::Mode _mode;
+	uint64 _playId;
 
 	QByteArray _data;
 	FileLocation *_location;
@@ -687,7 +690,8 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 	FileLocation localloc(StorageFilePartial, fname);
 	QByteArray localdata(data);
 
-	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata);
+	auto playId = 0ULL;
+	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
 	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv)) {
 		bool hasAlpha = false;
 		if (reader->readFramesTill(-1) && reader->renderFrame(cover, hasAlpha, QSize())) {

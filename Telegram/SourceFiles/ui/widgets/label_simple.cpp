@@ -28,17 +28,29 @@ LabelSimple::LabelSimple(QWidget *parent, const style::LabelSimple &st, const QS
 	setText(value);
 }
 
-void LabelSimple::setText(const QString &value) {
+void LabelSimple::setText(const QString &value, bool *outTextChanged) {
+	if (_fullText == value) {
+		if (outTextChanged) *outTextChanged = false;
+		return;
+	}
+
 	_fullText = value;
 	_fullTextWidth = _st.font->width(_fullText);
 	if (!_st.maxWidth || _fullTextWidth <= _st.maxWidth) {
 		_text = _fullText;
 		_textWidth = _fullTextWidth;
 	} else {
-		_text = _st.font->elided(_fullText, _st.maxWidth);
+		auto newText = _st.font->elided(_fullText, _st.maxWidth);
+		if (newText == _text) {
+			if (outTextChanged) *outTextChanged = false;
+			return;
+		}
+		_text = newText;
 		_textWidth = _st.font->width(_text);
 	}
 	resize(_textWidth, _st.font->height);
+	update();
+	if (outTextChanged) *outTextChanged = true;
 }
 
 void LabelSimple::paintEvent(QPaintEvent *e) {

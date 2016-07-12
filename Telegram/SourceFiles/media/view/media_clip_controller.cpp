@@ -41,6 +41,8 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
 , _fadeAnimation(std_::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
+	_fadeAnimation->setFinishedCallback(func(this, &Controller::fadeFinished));
+	_fadeAnimation->setUpdatedCallback(func(this, &Controller::fadeUpdated));
 	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
 	connect(_playback, SIGNAL(seekProgress(int64)), this, SLOT(onSeekProgress(int64)));
@@ -59,14 +61,38 @@ void Controller::onSeekFinished(int64 position) {
 }
 
 void Controller::showAnimated() {
-	_fadeAnimation->fadeIn(st::mvShowDuration);
+	startFading([this]() {
+		_fadeAnimation->fadeIn(st::mvShowDuration);
+	});
 }
 
 void Controller::hideAnimated() {
-	_fadeAnimation->fadeOut(st::mvHideDuration);
+	startFading([this]() {
+		_fadeAnimation->fadeOut(st::mvShowDuration);
+	});
+}
+
+template <typename Callback>
+void Controller::startFading(Callback start) {
+	start();
+	_playback->show();
+}
+
+void Controller::fadeFinished() {
+	fadeUpdated(1.);
+}
+
+void Controller::fadeUpdated(float64 opacity) {
+	_playback->setFadeOpacity(opacity);
 }
 
 void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
+	updatePlayPauseResumeState(playbackState);
+	_playback->updateState(playbackState);
+	updateTimeTexts(playbackState);
+}
+
+void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackState) {
 	bool showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming);
 	if (showPause != _showPause) {
 		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
@@ -75,8 +101,32 @@ void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
 
 		_playPauseResume->setIcon(_showPause ? &st::mediaviewPauseIcon : nullptr);
 	}
+}
 
-	_playback->updateState(playbackState);
+void Controller::updateTimeTexts(const AudioPlaybackState &playbackState) {
+	qint64 position = 0, duration = playbackState.duration;
+
+	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+		position = playbackState.position;
+	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
+		position = playbackState.duration;
+	} else {
+		position = 0;
+	}
+	auto playFrequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+	auto playAlready = position / playFrequency;
+	auto playLeft = (playbackState.duration / playFrequency) - playAlready;
+
+	auto timeAlready = formatDurationText(playAlready);
+	auto minus = QChar(8722);
+	auto timeLeft = minus + formatDurationText(playLeft);
+
+	auto alreadyChanged = false, leftChanged = false;
+	_playedAlready->setText(timeAlready, &alreadyChanged);
+	_toPlayLeft->setText(timeLeft, &leftChanged);
+	if (alreadyChanged || leftChanged) {
+		_fadeAnimation->refreshCache();
+	}
 }
 
 void Controller::setInFullScreen(bool inFullScreen) {
@@ -88,18 +138,29 @@ void Controller::setInFullScreen(bool inFullScreen) {
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, handler);
 }
 
+void Controller::grabStart() {
+	showChildren();
+	_playback->hide();
+}
+
+void Controller::grabFinish() {
+	hideChildren();
+	_playback->show();
+}
+
 void Controller::resizeEvent(QResizeEvent *e) {
 	int playTop = (height() - _playPauseResume->height()) / 2;
 	_playPauseResume->moveToLeft(playTop, playTop);
-	_playedAlready->moveToLeft(playTop + _playPauseResume->width() + playTop, 0);
 
 	int fullScreenTop = (height() - _fullScreenToggle->height()) / 2;
 	_fullScreenToggle->moveToRight(fullScreenTop, fullScreenTop);
-	_toPlayLeft->moveToRight(fullScreenTop + _fullScreenToggle->width() + fullScreenTop, 0);
 
 	_volumeController->moveToRight(fullScreenTop + _fullScreenToggle->width() + fullScreenTop, (height() - _volumeController->height()) / 2);
 	_playback->resize(width() - playTop - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - fullScreenTop - _fullScreenToggle->width() - fullScreenTop, _volumeController->height());
-	_playback->moveToLeft(playTop + _playPauseResume->width() + playTop, (height() - _playback->height()) / 2);
+	_playback->moveToLeft(playTop + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
+
+	_playedAlready->moveToLeft(playTop + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
+	_toPlayLeft->moveToRight(width() - (playTop + _playPauseResume->width() + playTop) - _playback->width(), st::mediaviewPlayProgressTop);
 }
 
 void Controller::paintEvent(QPaintEvent *e) {

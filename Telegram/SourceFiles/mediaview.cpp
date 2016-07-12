@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
+#include "media/media_audio.h"
 
 namespace {
 
@@ -233,6 +234,9 @@ void MediaView::stopGif() {
 	_gif = nullptr;
 	_clipController.destroy();
 	Sandbox::removeEventFilter(this);
+	if (audioPlayer()) {
+		disconnect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
+	}
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
@@ -1247,6 +1251,10 @@ void MediaView::createClipController() {
 
 	Sandbox::removeEventFilter(this);
 	Sandbox::installEventFilter(this);
+
+	if (audioPlayer()) {
+		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
+	}
 }
 
 void MediaView::setClipControllerGeometry() {
@@ -1287,6 +1295,19 @@ void MediaView::onVideoToFullScreen() {
 
 void MediaView::onVideoFromFullScreen() {
 
+}
+
+void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
+	if (audioId.type() != AudioMsgId::Type::Video) {
+		return;
+	}
+
+	t_assert(_gif != nullptr);
+	t_assert(audioPlayer() != nullptr);
+	auto state = audioPlayer()->currentVideoState(_gif->playId());
+	if (state.frequency) {
+		_clipController->updatePlayback(state);
+	}
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {

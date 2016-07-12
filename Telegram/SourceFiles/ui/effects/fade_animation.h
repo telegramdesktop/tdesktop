@@ -29,9 +29,13 @@ public:
 	FadeAnimation(TWidget *widget);
 
 	bool paint(Painter &p);
+	void refreshCache();
 
 	using FinishedCallback = Function<void>;
 	void setFinishedCallback(FinishedCallback &&callback);
+
+	using UpdatedCallback = Function<void, float64>;
+	void setUpdatedCallback(UpdatedCallback &&callback);
 
 	void show();
 	void hide();
@@ -51,6 +55,7 @@ private:
 	bool _visible = false;
 
 	FinishedCallback _finishedCallback;
+	UpdatedCallback _updatedCallback;
 
 };
 

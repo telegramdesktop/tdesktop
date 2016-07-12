@@ -28,7 +28,8 @@ namespace Media {
 namespace Clip {
 namespace internal {
 
-FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, QByteArray *data) : ReaderImplementation(location, data) {
+FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId) : ReaderImplementation(location, data)
+, _playId(playId) {
 	_frame = av_frame_alloc();
 	av_init_packet(&_packetNull);
 	_packetNull.data = nullptr;
@@ -311,7 +312,6 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		} else {
 			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
 		}
-		_playId = rand_value<uint64>();
 		audioPlayer()->playFromVideo(AudioMsgId(AudioMsgId::Type::Video), _playId, std_::move(soundData), 0);
 	}
 

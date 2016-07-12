@@ -29,7 +29,7 @@ public:
 	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
 
 	// This method also resizes the label.
-	void setText(const QString &newText);
+	void setText(const QString &newText, bool *outTextChanged = nullptr);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

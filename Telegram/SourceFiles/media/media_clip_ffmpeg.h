@@ -35,7 +35,7 @@ namespace internal {
 
 class FFMpegReaderImplementation : public ReaderImplementation {
 public:
-	FFMpegReaderImplementation(FileLocation *location, QByteArray *data);
+	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
 	bool readFramesTill(int64 ms) override;
 	uint64 framePresentationTime() const override;

@@ -71,6 +71,7 @@ public:
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(uint64 playId, uint64 systemMs);
 	void videoSoundProgress(const AudioMsgId &audio);
+	AudioPlaybackState currentVideoState(uint64 videoPlayId);
 
 	void stopAndClear();
 
@@ -215,12 +216,10 @@ class AudioPlayerFader : public QObject {
 	Q_OBJECT
 
 public:
-
 	AudioPlayerFader(QThread *thread);
 	void resumeDevice();
 
 signals:
-
 	void error(const AudioMsgId &audio);
 	void playPositionUpdated(const AudioMsgId &audio);
 	void audioStopped(const AudioMsgId &audio);
@@ -228,8 +227,7 @@ signals:
 
 	void stopPauseDevice();
 
-	public slots:
-
+public slots:
 	void onInit();
 	void onTimer();
 	void onPauseTimer();
@@ -241,7 +239,6 @@ signals:
 	void onSongVolumeChanged();
 
 private:
-
 	enum {
 		EmitError = 0x01,
 		EmitStopped = 0x02,

@@ -51,7 +51,6 @@ enum ReaderSteps {
 class ReaderPrivate;
 class Reader {
 public:
-
 	using Callback = Function<void, Notification>;
 	enum class Mode {
 		Gif,
@@ -66,6 +65,10 @@ public:
 	}
 	bool autoplay() const {
 		return _autoplay;
+	}
+
+	uint64 playId() const {
+		return _playId;
 	}
 
 	void start(int framew, int frameh, int outerw, int outerh, bool rounded);
@@ -113,6 +116,8 @@ private:
 	Mode _mode;
 
 	State _state = State::Reading;
+
+	uint64 _playId;
 
 	mutable int _width = 0;
 	mutable int _height = 0;
