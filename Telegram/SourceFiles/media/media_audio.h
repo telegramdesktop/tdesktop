@@ -100,6 +100,7 @@ signals:
 	void suppressAll();
 
 	void songVolumeChanged();
+	void videoVolumeChanged();
 
 private:
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
@@ -237,6 +238,7 @@ public slots:
 	void onUnsuppressSong();
 	void onSuppressAll();
 	void onSongVolumeChanged();
+	void onVideoVolumeChanged();
 
 private:
 	enum {
@@ -252,7 +254,7 @@ private:
 	QMutex _pauseMutex;
 	bool _pauseFlag, _paused;
 
-	bool _suppressAll, _suppressAllAnim, _suppressSong, _suppressSongAnim, _songVolumeChanged;
+	bool _suppressAll, _suppressAllAnim, _suppressSong, _suppressSongAnim, _songVolumeChanged, _videoVolumeChanged;
 	anim::fvalue _suppressAllGain, _suppressSongGain;
 	uint64 _suppressAllStart, _suppressSongStart;
 

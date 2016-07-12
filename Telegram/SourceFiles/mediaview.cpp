@@ -554,7 +554,9 @@ void MediaView::close() {
 }
 
 void MediaView::activateControls() {
-	if (!_menu) _controlsHideTimer.start(int(st::mvWaitHide));
+	if (!_menu && !_mousePressed) {
+		_controlsHideTimer.start(int(st::mvWaitHide));
+	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
 		_controlsState = ControlsShowing;
 		_controlsAnimStarted = getms();
@@ -567,7 +569,7 @@ void MediaView::activateControls() {
 }
 
 void MediaView::onHideControls(bool force) {
-	if (!force && (!_dropdown.isHidden() || _menu)) return;
+	if (!force && (!_dropdown.isHidden() || _menu || _mousePressed)) return;
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
@@ -1301,7 +1303,8 @@ void MediaView::onVideoSeekFinished(int64 position) {
 }
 
 void MediaView::onVideoVolumeChanged(float64 volume) {
-
+	Global::SetVideoVolume(volume);
+	emit audioPlayer()->videoVolumeChanged();
 }
 
 void MediaView::onVideoToFullScreen() {
@@ -2244,12 +2247,21 @@ bool MediaView::event(QEvent *e) {
 }
 
 bool MediaView::eventFilter(QObject *obj, QEvent *e) {
-	if (e->type() == QEvent::MouseMove && obj->isWidgetType()) {
+	auto type = e->type();
+	if ((type == QEvent::MouseMove || type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease) && obj->isWidgetType()) {
 		if (isAncestorOf(static_cast<QWidget*>(obj))) {
-			auto mousePosition = mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPos());
-			bool moved = (mousePosition != _lastMouseMovePos);
+			auto mouseEvent = static_cast<QMouseEvent*>(e);
+			auto mousePosition = mapFromGlobal(mouseEvent->globalPos());
+			bool activate = (mousePosition != _lastMouseMovePos);
 			_lastMouseMovePos = mousePosition;
-			if (moved) activateControls();
+			if (type == QEvent::MouseButtonPress) {
+				_mousePressed = true;
+				activate = true;
+			} else if (type == QEvent::MouseButtonRelease) {
+				_mousePressed = false;
+				activate = true;
+			}
+			if (activate) activateControls();
 		}
 	}
 	return TWidget::eventFilter(obj, e);

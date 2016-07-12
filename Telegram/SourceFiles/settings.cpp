@@ -148,8 +148,6 @@ bool gDialogsReceived = false;
 
 int gOtherOnline = 0;
 
-float64 gSongVolume = 0.9;
-
 SavedPeers gSavedPeers;
 SavedPeersByTime gSavedPeersByTime;
 

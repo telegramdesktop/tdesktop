@@ -294,8 +294,8 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 
 				switch (type) {
 				case AudioMsgId::Type::Voice: alSourcef(m->source, AL_GAIN, internal::audioSuppressGain()); break;
-				case AudioMsgId::Type::Song: alSourcef(m->source, AL_GAIN, internal::audioSuppressSongGain() * cSongVolume()); break;
-				case AudioMsgId::Type::Video: alSourcef(m->source, AL_GAIN, internal::audioSuppressSongGain() * cSongVolume()); break;
+				case AudioMsgId::Type::Song: alSourcef(m->source, AL_GAIN, internal::audioSuppressSongGain() * Global::SongVolume()); break;
+				case AudioMsgId::Type::Video: alSourcef(m->source, AL_GAIN, internal::audioSuppressSongGain() * Global::VideoVolume()); break;
 				}
 				if (!internal::audioCheckError()) {
 					setStoppedState(m, AudioPlayerStoppedAtError);

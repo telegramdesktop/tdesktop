@@ -541,6 +541,7 @@ namespace {
 		dbiHiddenPinnedMessages = 0x39,
 		dbiDialogsMode          = 0x40,
 		dbiModerateMode         = 0x41,
+		dbiVideoVolume          = 0x42,
 
 		dbiEncryptedWithSalt    = 333,
 		dbiEncrypted            = 444,
@@ -1308,7 +1309,15 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetSongVolume(snap(v / 1e6, 0., 1.));
+			Global::SetSongVolume(snap(v / 1e6, 0., 1.));
+		} break;
+
+		case dbiVideoVolume: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetVideoVolume(snap(v / 1e6, 0., 1.));
 		} break;
 
 		default:
@@ -1532,7 +1541,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 17 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 18 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + Serialize::stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + Serialize::bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1561,7 +1570,8 @@ namespace {
 		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath()) << (cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
-		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
+		data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
+		data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
 		data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
 		data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 		data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);

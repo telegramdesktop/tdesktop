@@ -217,6 +217,9 @@ DeclareVar(bool, ScreenIsLocked);
 
 DeclareVar(int32, DebugLoggingFlags);
 
+DeclareVar(float64, SongVolume);
+DeclareVar(float64, VideoVolume);
+
 // config
 DeclareVar(int32, ChatSizeMax);
 DeclareVar(int32, MegagroupSizeMax);

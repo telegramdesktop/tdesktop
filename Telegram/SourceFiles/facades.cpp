@@ -538,6 +538,9 @@ struct Data {
 
 	int32 DebugLoggingFlags = 0;
 
+	float64 SongVolume = 0.9;
+	float64 VideoVolume = 0.9;
+
 	// config
 	int32 ChatSizeMax = 200;
 	int32 MegagroupSizeMax = 1000;
@@ -605,6 +608,9 @@ DefineVar(Global, bool, ModerateModeEnabled);
 DefineVar(Global, bool, ScreenIsLocked);
 
 DefineVar(Global, int32, DebugLoggingFlags);
+
+DefineVar(Global, float64, SongVolume);
+DefineVar(Global, float64, VideoVolume);
 
 // config
 DefineVar(Global, int32, ChatSizeMax);

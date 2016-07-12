@@ -29,6 +29,7 @@ namespace Clip {
 VolumeController::VolumeController(QWidget *parent) : TWidget(parent) {
 	resize(st::mediaviewVolumeSize);
 	setCursor(style::cur_pointer);
+	setMouseTracking(true);
 }
 
 void VolumeController::setVolume(float64 volume) {
@@ -57,12 +58,33 @@ void VolumeController::paintEvent(QPaintEvent *e) {
 }
 
 void VolumeController::mouseMoveEvent(QMouseEvent *e) {
+	if (_downCoord < 0) {
+		return;
+	}
+	int delta = e->pos().x() - _downCoord;
+	int left = (width() - st::mediaviewVolumeIcon.width()) / 2;
+	float64 startFrom = snap((_downCoord - left) / float64(st::mediaviewVolumeIcon.width()), 0., 1.);
+	float64 add = delta / float64(4 * st::mediaviewVolumeIcon.width());
+	auto newVolume = snap(startFrom + add, 0., 1.);
+	changeVolume(newVolume);
 }
 
 void VolumeController::mousePressEvent(QMouseEvent *e) {
+	_downCoord = snap(e->pos().x(), 0, width());
+	int left = (width() - st::mediaviewVolumeIcon.width()) / 2;
+	auto newVolume = snap((_downCoord - left) / float64(st::mediaviewVolumeIcon.width()), 0., 1.);
+	changeVolume(newVolume);
+}
+
+void VolumeController::changeVolume(float64 newVolume) {
+	if (newVolume != _volume) {
+		setVolume(newVolume);
+		emit volumeChanged(_volume);
+	}
 }
 
 void VolumeController::mouseReleaseEvent(QMouseEvent *e) {
+	_downCoord = -1;
 }
 
 void VolumeController::enterEvent(QEvent *e) {

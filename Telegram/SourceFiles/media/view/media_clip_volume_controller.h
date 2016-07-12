@@ -47,8 +47,10 @@ private:
 		update();
 	}
 	void setOver(bool over);
+	void changeVolume(float64 newVolume);
 
 	float64 _volume = 0.;
+	int _downCoord = -1; // < 0 means mouse is not pressed
 
 	bool _over = false;
 	FloatAnimation _a_over;

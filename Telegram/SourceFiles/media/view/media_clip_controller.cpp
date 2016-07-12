@@ -43,6 +43,9 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback(func(this, &Controller::fadeFinished));
 	_fadeAnimation->setUpdatedCallback(func(this, &Controller::fadeUpdated));
+
+	_volumeController->setVolume(Global::VideoVolume());
+
 	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
 	connect(_playback, SIGNAL(seekProgress(int64)), this, SLOT(onSeekProgress(int64)));
@@ -171,6 +174,10 @@ void Controller::paintEvent(QPaintEvent *e) {
 	}
 
 	App::roundRect(p, rect(), st::medviewSaveMsg, MediaviewSaveCorners);
+}
+
+void Controller::mousePressEvent(QMouseEvent *e) {
+	e->accept(); // Don't pass event to the MediaView.
 }
 
 } // namespace Clip

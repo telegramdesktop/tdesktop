@@ -280,6 +280,7 @@ private:
 	uint64 _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
+	bool _mousePressed = false;
 
 	PopupMenu *_menu = nullptr;
 	Dropdown _dropdown;

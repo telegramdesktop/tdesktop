@@ -65,6 +65,7 @@ private slots:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
 
 private:
 	template <typename Callback>

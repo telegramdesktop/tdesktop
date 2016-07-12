@@ -79,7 +79,7 @@ void PlayerWidget::paintEvent(QPaintEvent *e) {
 			p.setOpacity(o * 1. + (1. - o) * st::playerInactiveOpacity);
 			int32 top = _volumeRect.y() + (_volumeRect.height() - st::playerVolume.pxHeight()) / 2;
 			int32 left = _volumeRect.x() + (_volumeRect.width() - st::playerVolume.pxWidth()) / 2;
-			int32 mid = left + qRound(st::playerVolume.pxWidth() * cSongVolume());
+			int32 mid = left + qRound(st::playerVolume.pxWidth() * Global::SongVolume());
 			int32 right = left + st::playerVolume.pxWidth();
 			if (rtl()) {
 				left = width() - left;
@@ -164,7 +164,7 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 		} else if (_over == OverVolume) {
 			_down = OverVolume;
 			_downCoord = pos.x() - _volumeRect.x();
-			cSetSongVolume(snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.));
+			Global::SetSongVolume(snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.));
 			emit audioPlayer()->songVolumeChanged();
 			rtlupdate(_volumeRect);
 		} else if (_over == OverPlayback) {
@@ -401,8 +401,8 @@ void PlayerWidget::updateSelected() {
 		int32 delta = (pos.x() - _volumeRect.x()) - _downCoord;
 		float64 startFrom = snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.);
 		float64 add = delta / float64(4 * st::playerVolume.pxWidth()), result = snap(startFrom + add, 0., 1.);
-		if (result != cSongVolume()) {
-			cSetSongVolume(result);
+		if (result != Global::SongVolume()) {
+			Global::SetSongVolume(result);
 			emit audioPlayer()->songVolumeChanged();
 			rtlupdate(_volumeRect);
 		}

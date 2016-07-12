@@ -291,6 +291,7 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(this, SIGNAL(unsuppressSong()), _fader, SLOT(onUnsuppressSong()));
 	connect(this, SIGNAL(suppressAll()), _fader, SLOT(onSuppressAll()));
 	connect(this, SIGNAL(songVolumeChanged()), _fader, SLOT(onSongVolumeChanged()));
+	connect(this, SIGNAL(videoVolumeChanged()), _fader, SLOT(onVideoVolumeChanged()));
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&,qint64)), _loader, SLOT(onStart(const AudioMsgId&,qint64)));
 	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
 	connect(&_faderThread, SIGNAL(started()), _fader, SLOT(onInit()));
@@ -571,7 +572,7 @@ void AudioPlayer::pauseresume(AudioMsgId::Type type, bool fast) {
 	float64 suppressGain = 1.;
 	switch (type) {
 	case AudioMsgId::Type::Voice: suppressGain = suppressAllGain; break;
-	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * cSongVolume(); break;
+	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * Global::SongVolume(); break;
 	}
 
 	switch (current->playbackState.state) {
@@ -623,7 +624,7 @@ void AudioPlayer::seek(int64 position) {
 	float64 suppressGain = 1.;
 	switch (type) {
 	case AudioMsgId::Type::Voice: suppressGain = suppressAllGain; break;
-	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * cSongVolume(); break;
+	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * Global::SongVolume(); break;
 	}
 	auto audio = current->audio;
 
@@ -887,15 +888,17 @@ void AudioPlayerFader::onTimer() {
 		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(data->audio);
 		if (emitSignals & EmitNeedToPreload) emit needToPreload(data->audio);
 	};
-	auto suppressGainForMusic = suppressSongGain * cSongVolume();
+	auto suppressGainForMusic = suppressSongGain * Global::SongVolume();
 	auto suppressGainForMusicChanged = suppressSongChanged || _songVolumeChanged;
 	for (int i = 0; i < AudioSimultaneousLimit; ++i) {
 		updatePlayback(AudioMsgId::Type::Voice, i, suppressAllGain, suppressAudioChanged);
 		updatePlayback(AudioMsgId::Type::Song, i, suppressGainForMusic, suppressGainForMusicChanged);
 	}
-	updatePlayback(AudioMsgId::Type::Video, 0, suppressGainForMusic, suppressGainForMusicChanged);
+	auto suppressGainForVideo = suppressSongGain * Global::VideoVolume();
+	auto suppressGainForVideoChanged = suppressSongChanged || _videoVolumeChanged;
+	updatePlayback(AudioMsgId::Type::Video, 0, suppressGainForVideo, suppressGainForVideoChanged);
 
-	_songVolumeChanged = false;
+	_songVolumeChanged = _videoVolumeChanged = false;
 
 	if (!hasFading) {
 		if (!hasPlaying) {
@@ -1064,6 +1067,11 @@ void AudioPlayerFader::onSuppressAll() {
 
 void AudioPlayerFader::onSongVolumeChanged() {
 	_songVolumeChanged = true;
+	onTimer();
+}
+
+void AudioPlayerFader::onVideoVolumeChanged() {
+	_videoVolumeChanged = true;
 	onTimer();
 }
 
