@@ -220,7 +220,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
 			if (_userpic.v() == userDefPhoto(colorIndex).v()) {
-				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+				newPhoto = ImagePtr(App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
 			}
 		} else {
 			newPhoto = userDefPhoto(colorIndex);
@@ -299,12 +299,11 @@ void UserData::setBotInfoVersion(int version) {
 				botInfo->commands.clear();
 				Notify::botCommandsChanged(this);
 			}
-			delete botInfo;
-			botInfo = 0;
+			botInfo = nullptr;
 			Notify::userIsBotChanged(this);
 		}
 	} else if (!botInfo) {
-		botInfo = new BotInfo();
+		botInfo = std_::make_unique<BotInfo>();
 		botInfo->version = version;
 		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {

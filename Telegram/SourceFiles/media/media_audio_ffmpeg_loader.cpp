@@ -76,9 +76,12 @@ bool AbstractFFMpegLoader::open(qint64 position) {
 }
 
 AbstractFFMpegLoader::~AbstractFFMpegLoader() {
-	if (ioContext) av_free(ioContext);
 	if (_opened) {
 		avformat_close_input(&fmtContext);
+	}
+	if (ioContext) {
+		av_free(ioContext->buffer);
+		av_free(ioContext);
 	} else if (ioBuffer) {
 		av_free(ioBuffer);
 	}
@@ -221,9 +224,6 @@ bool FFMpegLoader::open(qint64 position) {
 			if (av_seek_frame(fmtContext, streamId, ts, 0) < 0) {
 			}
 		}
-		//if (dstSamplesData) {
-		//	position = qRound(srcRate * (position / float64(dstRate)));
-		//}
 	}
 
 	return true;

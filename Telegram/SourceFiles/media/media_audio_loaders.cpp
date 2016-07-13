@@ -201,7 +201,7 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 		}
 		m->skipStart = position;
 		m->skipEnd = m->playbackState.duration - position;
-		m->playbackState.position = 0;
+		m->playbackState.position = position;
 		m->started = 0;
 	}
 	if (samplesCount) {

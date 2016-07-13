@@ -31,12 +31,12 @@ class Playback : public TWidget {
 public:
 	Playback(QWidget *parent);
 
-	void updateState(const AudioPlaybackState &playbackState);
+	void updateState(const AudioPlaybackState &playbackState, bool reset);
 	void setFadeOpacity(float64 opacity);
 
 signals:
-	void seekProgress(int64 position);
-	void seekFinished(int64 position);
+	void seekProgress(float64 progress);
+	void seekFinished(float64 progress);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

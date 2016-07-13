@@ -99,7 +99,7 @@ int64 QtGifReaderImplementation::durationMs() const {
 	return 0; // not supported
 }
 
-bool QtGifReaderImplementation::start(Mode mode) {
+bool QtGifReaderImplementation::start(Mode mode, int64 positionMs) {
 	if (mode == Mode::OnlyGifv) return false;
 	_mode = mode;
 	return jumpToStart();

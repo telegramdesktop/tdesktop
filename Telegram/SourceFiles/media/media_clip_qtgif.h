@@ -47,7 +47,7 @@ public:
 	void resumeAudio() override {
 	}
 
-	bool start(Mode mode) override;
+	bool start(Mode mode, int64 positionMs) override;
 
 	~QtGifReaderImplementation();
 

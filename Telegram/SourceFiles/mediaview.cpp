@@ -236,6 +236,7 @@ bool MediaView::gifShown() const {
 
 void MediaView::stopGif() {
 	_gif = nullptr;
+	_videoPaused = _videoIsSilent = false;
 	_clipController.destroy();
 	Sandbox::removeEventFilter(this);
 	if (audioPlayer()) {
@@ -1121,7 +1122,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 				const FileLocation &location(_doc->location(true));
 				if (location.accessEnable()) {
 					if (QImageReader(location.name()).canRead()) {
-						_current = QPixmap::fromImage(App::readImage(location.name(), 0, false), Qt::ColorOnly);
+						_current = App::pixmapFromImageInPlace(App::readImage(location.name(), 0, false));
 					}
 				}
 				location.accessDisable();
@@ -1258,7 +1259,7 @@ void MediaView::createClipReader() {
 	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), mode);
 
 	// Correct values will be set when gif gets inited.
-	_videoIsSilent = false;
+	_videoPaused = _videoIsSilent = false;
 	_videoPositionMs = 0ULL;
 	_videoDurationMs = _doc->duration() * 1000ULL;
 
@@ -1306,21 +1307,7 @@ void MediaView::onVideoPauseResume() {
 		if (_gif->state() == Media::Clip::State::Error) {
 			displayDocument(_doc, item);
 		} else if (_gif->state() == Media::Clip::State::Finished) {
-			_autoplayVideoDocument = _doc;
-
-			_current = _gif->current(_gif->width(), _gif->height(), _gif->width(), _gif->height(), getms());
-			_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), Media::Clip::Reader::Mode::Video);
-
-			// Correct values will be set when gif gets inited.
-			_videoIsSilent = false;
-			_videoPositionMs = 0;
-
-			AudioPlaybackState state;
-			state.state = AudioPlayerStopped;
-			state.position = _videoPositionMs;
-			state.duration = _videoDurationMs;
-			state.frequency = _videoFrequencyMs;
-			updateVideoPlaybackState(state);
+			restartVideoAtSeekPosition(0);
 		} else {
 			_gif->pauseResumeVideo();
 			_videoPaused = _gif->videoPaused();
@@ -1333,12 +1320,34 @@ void MediaView::onVideoPauseResume() {
 	}
 }
 
-void MediaView::onVideoSeekProgress(int64 position) {
+void MediaView::restartVideoAtSeekPosition(int64 positionMs) {
+	_autoplayVideoDocument = _doc;
 
+	if (_current.isNull()) {
+		_current = _gif->current(_gif->width(), _gif->height(), _gif->width(), _gif->height(), getms());
+	}
+	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), Media::Clip::Reader::Mode::Video, positionMs);
+
+	// Correct values will be set when gif gets inited.
+	_videoPaused = _videoIsSilent = false;
+	_videoPositionMs = positionMs;
+
+	AudioPlaybackState state;
+	state.state = AudioPlayerPlaying;
+	state.position = _videoPositionMs;
+	state.duration = _videoDurationMs;
+	state.frequency = _videoFrequencyMs;
+	updateVideoPlaybackState(state, true);
 }
 
-void MediaView::onVideoSeekFinished(int64 position) {
+void MediaView::onVideoSeekProgress(int64 positionMs) {
+	if (!_videoPaused) {
+		onVideoPauseResume();
+	}
+}
 
+void MediaView::onVideoSeekFinished(int64 positionMs) {
+	restartVideoAtSeekPosition(positionMs);
 }
 
 void MediaView::onVideoVolumeChanged(float64 volume) {
@@ -1361,12 +1370,14 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 
 	t_assert(audioPlayer() != nullptr);
 	auto state = audioPlayer()->currentVideoState(_gif->playId());
-	updateVideoPlaybackState(state);
+	if (state.duration) {
+		updateVideoPlaybackState(state);
+	}
 }
 
-void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
+void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state, bool reset) {
 	if (state.frequency) {
-		_clipController->updatePlayback(state);
+		_clipController->updatePlayback(state, reset);
 	} else { // Audio has stopped already.
 		_videoIsSilent = true;
 		updateSilentVideoPlaybackState();

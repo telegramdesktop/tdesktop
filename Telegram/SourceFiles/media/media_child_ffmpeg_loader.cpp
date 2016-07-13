@@ -182,6 +182,7 @@ ChildFFMpegLoader::~ChildFFMpegLoader() {
 	for (auto &packet : queue) {
 		FFMpeg::freePacket(&packet);
 	}
+	if (_swrContext) swr_free(&_swrContext);
 	if (_dstSamplesData) {
 		if (_dstSamplesData[0]) {
 			av_freep(&_dstSamplesData[0]);

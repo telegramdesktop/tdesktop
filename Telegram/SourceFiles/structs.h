@@ -471,7 +471,7 @@ public:
 		return _about;
 	}
 
-	BotInfo *botInfo = nullptr;
+	std_::unique_ptr<BotInfo> botInfo;
 
 	QString restrictionReason() const override {
 		return _restrictionReason;

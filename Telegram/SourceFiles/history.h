@@ -2445,8 +2445,6 @@ struct LocationData;
 class LocationManager : public QObject {
 	Q_OBJECT
 public:
-	LocationManager() : manager(0), black(0) {
-	}
 	void init();
 	void reinit();
 	void deinit();
@@ -2464,10 +2462,10 @@ public slots:
 private:
 	void failed(LocationData *data);
 
-	QNetworkAccessManager *manager;
+	QNetworkAccessManager *manager = nullptr;
 	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
 	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *black;
+	ImagePtr *black = nullptr;
 };
 
 class HistoryLocation : public HistoryMedia {

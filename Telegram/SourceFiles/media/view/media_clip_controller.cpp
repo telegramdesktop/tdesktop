@@ -48,19 +48,29 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 
 	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
-	connect(_playback, SIGNAL(seekProgress(int64)), this, SLOT(onSeekProgress(int64)));
-	connect(_playback, SIGNAL(seekFinished(int64)), this, SLOT(onSeekFinished(int64)));
+	connect(_playback, SIGNAL(seekProgress(float64)), this, SLOT(onSeekProgress(float64)));
+	connect(_playback, SIGNAL(seekFinished(float64)), this, SLOT(onSeekFinished(float64)));
 	connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
 }
 
-void Controller::onSeekProgress(int64 position) {
-	_seekPosition = position;
-	emit seekProgress(position);
+void Controller::onSeekProgress(float64 progress) {
+	if (!_lastDurationMs) return;
+
+	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	if (_seekPositionMs != positionMs) {
+		_seekPositionMs = positionMs;
+		emit seekProgress(positionMs);
+		refreshTimeTexts();
+	}
 }
 
-void Controller::onSeekFinished(int64 position) {
-	_seekPosition = -1;
-	emit seekFinished(position);
+void Controller::onSeekFinished(float64 progress) {
+	if (!_lastDurationMs) return;
+
+	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	_seekPositionMs = -1;
+	emit seekFinished(positionMs);
+	refreshTimeTexts();
 }
 
 void Controller::showAnimated() {
@@ -89,14 +99,14 @@ void Controller::fadeUpdated(float64 opacity) {
 	_playback->setFadeOpacity(opacity);
 }
 
-void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
+void Controller::updatePlayback(const AudioPlaybackState &playbackState, bool reset) {
 	updatePlayPauseResumeState(playbackState);
-	_playback->updateState(playbackState);
+	_playback->updateState(playbackState, reset);
 	updateTimeTexts(playbackState);
 }
 
 void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackState) {
-	bool showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming);
+	bool showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || _seekPositionMs >= 0);
 	if (showPause != _showPause) {
 		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 		_showPause = showPause;
@@ -120,11 +130,30 @@ void Controller::updateTimeTexts(const AudioPlaybackState &playbackState) {
 	auto playAlready = position / playFrequency;
 	auto playLeft = (playbackState.duration / playFrequency) - playAlready;
 
-	auto timeAlready = formatDurationText(playAlready);
-	auto minus = QChar(8722);
-	auto timeLeft = minus + formatDurationText(playLeft);
+	_lastDurationMs = (playbackState.duration * 1000LL) / playFrequency;
 
+	_timeAlready = formatDurationText(playAlready);
+	auto minus = QChar(8722);
+	_timeLeft = minus + formatDurationText(playLeft);
+
+	if (_seekPositionMs < 0) {
+		refreshTimeTexts();
+	}
+}
+
+void Controller::refreshTimeTexts() {
 	auto alreadyChanged = false, leftChanged = false;
+	auto timeAlready = _timeAlready;
+	auto timeLeft = _timeLeft;
+	if (_seekPositionMs >= 0) {
+		auto playAlready = _seekPositionMs / 1000LL;
+		auto playLeft = (_lastDurationMs / 1000LL) - playAlready;
+
+		timeAlready = formatDurationText(playAlready);
+		auto minus = QChar(8722);
+		timeLeft = minus + formatDurationText(playLeft);
+	}
+
 	_playedAlready->setText(timeAlready, &alreadyChanged);
 	_toPlayLeft->setText(timeLeft, &leftChanged);
 	if (alreadyChanged || leftChanged) {

@@ -58,7 +58,7 @@ public:
 	virtual void pauseAudio() = 0;
 	virtual void resumeAudio() = 0;
 
-	virtual bool start(Mode mode) = 0;
+	virtual bool start(Mode mode, int64 positionMs) = 0;
 	virtual ~ReaderImplementation() {
 	}
 	int64 dataSize() const {

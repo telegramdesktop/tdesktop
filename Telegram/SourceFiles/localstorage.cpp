@@ -2643,7 +2643,7 @@ namespace Local {
 						case StorageFileWebp: guessFormat = "WEBP"; break;
 						default: guessFormat = QByteArray(); break;
 					}
-					pixmap = QPixmap::fromImage(App::readImage(data, &guessFormat, false), Qt::ColorOnly);
+					pixmap = App::pixmapFromImageInPlace(App::readImage(data, &guessFormat, false));
 					if (!pixmap.isNull()) {
 						format = guessFormat;
 					}
@@ -2910,7 +2910,7 @@ namespace Local {
 		struct Result {
 			Result(StorageFileType type, const QByteArray &data) : image(type, data) {
 				QByteArray guessFormat;
-				pixmap = QPixmap::fromImage(App::readImage(data, &guessFormat, false), Qt::ColorOnly);
+				pixmap = App::pixmapFromImageInPlace(App::readImage(data, &guessFormat, false));
 				if (!pixmap.isNull()) {
 					format = guessFormat;
 				}

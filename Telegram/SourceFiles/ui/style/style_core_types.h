@@ -37,6 +37,7 @@ namespace internal {
 
 void loadSprite();
 int spriteWidth();
+void destroySprite();
 
 class Sprite {
 public:

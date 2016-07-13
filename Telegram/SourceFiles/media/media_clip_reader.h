@@ -58,7 +58,7 @@ public:
 		Video,
 	};
 
-	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif);
+	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, int64 seekMs = 0);
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -70,6 +70,9 @@ public:
 
 	uint64 playId() const {
 		return _playId;
+	}
+	int64 seekPositionMs() const {
+		return _seekPositionMs;
 	}
 
 	void start(int framew, int frameh, int outerw, int outerh, bool rounded);
@@ -128,6 +131,7 @@ private:
 	uint64 _playId;
 	bool _hasAudio = false;
 	int64 _durationMs = 0;
+	int64 _seekPositionMs = 0;
 
 	mutable int _width = 0;
 	mutable int _height = 0;

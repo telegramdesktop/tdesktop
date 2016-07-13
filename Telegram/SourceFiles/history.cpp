@@ -5857,7 +5857,7 @@ HistoryWebPage::~HistoryWebPage() {
 }
 
 namespace {
-	LocationManager manager;
+	LocationManager *locationManager = nullptr;
 }
 
 void LocationManager::init() {
@@ -5869,13 +5869,16 @@ void LocationManager::init() {
 	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
 	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
 
-	if (black) delete black;
+	if (black) {
+		delete black->v();
+		delete black;
+	}
 	QImage b(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	{
 		QPainter p(&b);
 		p.fillRect(QRect(0, 0, cIntRetinaFactor(), cIntRetinaFactor()), st::white->b);
 	}
-	QPixmap p = QPixmap::fromImage(b, Qt::ColorOnly);
+	QPixmap p = App::pixmapFromImageInPlace(std_::move(b));
 	p.setDevicePixelRatio(cRetinaFactor());
 	black = new ImagePtr(p, "PNG");
 }
@@ -5887,26 +5890,36 @@ void LocationManager::reinit() {
 void LocationManager::deinit() {
 	if (manager) {
 		delete manager;
-		manager = 0;
+		manager = nullptr;
 	}
 	if (black) {
+		delete black->v();
 		delete black;
-		black = 0;
+		black = nullptr;
 	}
 	dataLoadings.clear();
 	imageLoadings.clear();
 }
 
 void initImageLinkManager() {
-	manager.init();
+	if (!locationManager) {
+		locationManager = new LocationManager();
+		locationManager->init();
+	}
 }
 
 void reinitImageLinkManager() {
-	manager.reinit();
+	if (locationManager) {
+		locationManager->reinit();
+	}
 }
 
 void deinitImageLinkManager() {
-	manager.deinit();
+	if (locationManager) {
+		locationManager->deinit();
+		delete locationManager;
+		locationManager = nullptr;
+	}
 }
 
 void LocationManager::getData(LocationData *data) {
@@ -6046,7 +6059,9 @@ void LocationData::load() {
 	if (loading) return;
 
 	loading = true;
-	manager.getData(this);
+	if (locationManager) {
+		locationManager->getData(this);
+	}
 }
 
 HistoryLocation::HistoryLocation(HistoryItem *parent, const LocationCoords &coords, const QString &title, const QString &description) : HistoryMedia(parent)

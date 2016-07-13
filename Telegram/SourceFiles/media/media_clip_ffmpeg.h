@@ -51,7 +51,7 @@ public:
 	void pauseAudio() override;
 	void resumeAudio() override;
 
-	bool start(Mode mode) override;
+	bool start(Mode mode, int64 positionMs) override;
 
 	QString logData() const;
 

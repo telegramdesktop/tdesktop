@@ -202,7 +202,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = QPixmap::fromImage(img, Qt::ColorOnly);
+			_pix = App::pixmapFromImageInPlace(std_::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}
@@ -274,7 +274,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = QPixmap::fromImage(img, Qt::ColorOnly);
+			_pix = App::pixmapFromImageInPlace(std_::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}

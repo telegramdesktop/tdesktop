@@ -118,8 +118,8 @@ protected:
 
 private slots:
 	void onVideoPauseResume();
-	void onVideoSeekProgress(int64 position);
-	void onVideoSeekFinished(int64 position);
+	void onVideoSeekProgress(int64 positionMs);
+	void onVideoSeekFinished(int64 positionMs);
 	void onVideoVolumeChanged(float64 volume);
 	void onVideoToFullScreen();
 	void onVideoFromFullScreen();
@@ -131,8 +131,9 @@ private:
 	void findCurrent();
 	void loadBack();
 
-	void updateVideoPlaybackState(const AudioPlaybackState &state);
+	void updateVideoPlaybackState(const AudioPlaybackState &state, bool reset = false);
 	void updateSilentVideoPlaybackState();
+	void restartVideoAtSeekPosition(int64 positionMs);
 
 	void createClipController();
 	void setClipControllerGeometry();

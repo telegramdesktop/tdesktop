@@ -484,14 +484,12 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::initFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
-	t_assert(audio.type() == AudioMsgId::Type::Video);
-
-	auto type = audio.type();
+void AudioPlayer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
 	AudioMsgId stopped;
 	{
 		QMutexLocker lock(&playerMutex);
 
+		auto type = AudioMsgId::Type::Video;
 		auto current = dataForType(type);
 		t_assert(current != nullptr);
 
@@ -503,7 +501,7 @@ void AudioPlayer::initFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std
 		}
 		emit faderOnTimer();
 		current->clear();
-		current->audio = audio;
+		current->audio = AudioMsgId(AudioMsgId::Type::Video);
 		current->videoPlayId = videoPlayId;
 		current->videoData = std_::move(data);
 		{
@@ -516,7 +514,7 @@ void AudioPlayer::initFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std
 
 		current->playbackState.state = AudioPlayerPaused;
 		current->loading = true;
-		emit loaderOnStart(audio, position);
+		emit loaderOnStart(current->audio, position);
 	}
 	if (stopped) emit updated(stopped);
 }
@@ -651,7 +649,7 @@ void AudioPlayer::videoSoundProgress(const AudioMsgId &audio) {
 	auto current = dataForType(type);
 	t_assert(current != nullptr);
 
-	if (current->videoPlayId == _lastVideoPlayId && current->playbackState.frequency) {
+	if (current->videoPlayId == _lastVideoPlayId && current->playbackState.duration && current->playbackState.frequency) {
 		_lastVideoPlaybackWhen = getms();
 		_lastVideoPlaybackCorrectedMs = (current->playbackState.position * 1000ULL) / current->playbackState.frequency;
 	}
@@ -1523,15 +1521,11 @@ void AudioCaptureInner::onStop(bool needResult) {
 	if (d->device) {
 		alcCaptureStop(d->device);
 		alcCaptureCloseDevice(d->device);
-		d->device = 0;
+		d->device = nullptr;
 
-		if (d->ioContext) {
-			av_free(d->ioContext);
-			d->ioContext = 0;
-		}
 		if (d->codecContext) {
 			avcodec_close(d->codecContext);
-			d->codecContext = 0;
+			d->codecContext = nullptr;
 		}
 		if (d->srcSamplesData) {
 			if (d->srcSamplesData[0]) {
@@ -1548,23 +1542,28 @@ void AudioCaptureInner::onStop(bool needResult) {
 		d->fullSamples = 0;
 		if (d->swrContext) {
 			swr_free(&d->swrContext);
-			d->swrContext = 0;
+			d->swrContext = nullptr;
 		}
 		if (d->opened) {
 			avformat_close_input(&d->fmtContext);
 			d->opened = false;
-			d->ioBuffer = 0;
+		}
+		if (d->ioContext) {
+			av_free(d->ioContext->buffer);
+			av_free(d->ioContext);
+			d->ioContext = nullptr;
+			d->ioBuffer = nullptr;
 		} else if (d->ioBuffer) {
 			av_free(d->ioBuffer);
-			d->ioBuffer = 0;
+			d->ioBuffer = nullptr;
 		}
 		if (d->fmtContext) {
 			avformat_free_context(d->fmtContext);
-			d->fmtContext = 0;
+			d->fmtContext = nullptr;
 		}
-		d->fmt = 0;
-		d->stream = 0;
-		d->codec = 0;
+		d->fmt = nullptr;
+		d->stream = nullptr;
+		d->codec = nullptr;
 
 		d->lastUpdate = 0;
 		d->levelMax = 0;

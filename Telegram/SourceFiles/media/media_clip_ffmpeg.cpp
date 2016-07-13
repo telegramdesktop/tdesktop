@@ -233,7 +233,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	}
 
 	// Read some future packets for audio stream.
-	if (_audioStreamId) {
+	if (_audioStreamId >= 0) {
 		while (_frameMs + 5000 > _lastReadPacketMs) {
 			auto packetResult = readPacket();
 			if (packetResult != PacketResult::Ok) {
@@ -246,7 +246,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	return true;
 }
 
-bool FFMpegReaderImplementation::start(Mode mode) {
+bool FFMpegReaderImplementation::start(Mode mode, int64 positionMs) {
 	_mode = mode;
 
 	initDevice();
@@ -309,6 +309,7 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		return false;
 	}
 
+	std_::unique_ptr<VideoSoundData> soundData;
 	if (_audioStreamId >= 0) {
 		// Get a pointer to the codec context for the audio stream
 		auto audioContextOriginal = _fmtContext->streams[_audioStreamId]->codec;
@@ -326,7 +327,7 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 			return false;
 		}
 
-		auto soundData = std_::make_unique<VideoSoundData>();
+		soundData = std_::make_unique<VideoSoundData>();
 		soundData->context = audioContext;
 		soundData->frequency = audioContextOriginal->sample_rate;
 		if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
@@ -334,7 +335,20 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		} else {
 			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
 		}
-		audioPlayer()->initFromVideo(AudioMsgId(AudioMsgId::Type::Video), _playId, std_::move(soundData), 0);
+	}
+
+	if (positionMs) {
+		int64 ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
+		if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_ANY) < 0) {
+			if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
+				positionMs = 0;
+			}
+		}
+	}
+
+	if (_audioStreamId >= 0) {
+		int64 position = (positionMs * soundData->frequency) / 1000LL;
+		audioPlayer()->initFromVideo(_playId, std_::move(soundData), position);
 	}
 
 	return true;
@@ -348,22 +362,26 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_audioStreamId >= 0) {
 		audioPlayer()->stopFromVideo(_playId);
 	}
+
+	clearPacketQueue();
+
 	if (_frameRead) {
 		av_frame_unref(_frame);
 		_frameRead = false;
 	}
-	if (_ioContext) av_free(_ioContext);
 	if (_codecContext) avcodec_close(_codecContext);
 	if (_swsContext) sws_freeContext(_swsContext);
 	if (_opened) {
 		avformat_close_input(&_fmtContext);
+	}
+	if (_ioContext) {
+		av_free(_ioContext->buffer);
+		av_free(_ioContext);
 	} else if (_ioBuffer) {
 		av_free(_ioBuffer);
 	}
 	if (_fmtContext) avformat_free_context(_fmtContext);
 	av_frame_free(&_frame);
-
-	clearPacketQueue();
 }
 
 FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket() {

@@ -32,11 +32,11 @@ Playback::Playback(QWidget *parent) : TWidget(parent)
 	setCursor(style::cur_pointer);
 }
 
-void Playback::updateState(const AudioPlaybackState &playbackState) {
+void Playback::updateState(const AudioPlaybackState &playbackState, bool reset) {
 	qint64 position = 0, duration = playbackState.duration;
 
 	_playing = !(playbackState.state & AudioPlayerStoppedMask);
-	if (_playing && playbackState.state != AudioPlayerFinishing) {
+	if (_playing || playbackState.state == AudioPlayerStopped) {
 		position = playbackState.position;
 	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
 		position = playbackState.duration;
@@ -51,7 +51,7 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 	}
 	if (duration != _duration || position != _position) {
-		if (duration && _duration && playbackState.state != AudioPlayerStopped) {
+		if (duration && _duration && !reset) {
 			a_progress.start(progress);
 			_a_progress.start();
 		} else {
@@ -112,12 +112,26 @@ void Playback::paintEvent(QPaintEvent *e) {
 }
 
 void Playback::mouseMoveEvent(QMouseEvent *e) {
+	if (_mouseDown) {
+		_downProgress = snap(e->pos().x() / float64(width()), 0., 1.);
+		emit seekProgress(_downProgress);
+		update();
+	}
 }
 
 void Playback::mousePressEvent(QMouseEvent *e) {
+	_mouseDown = true;
+	_downProgress = snap(e->pos().x() / float64(width()), 0., 1.);
+	emit seekProgress(_downProgress);
+	update();
 }
 
 void Playback::mouseReleaseEvent(QMouseEvent *e) {
+	if (_mouseDown) {
+		_mouseDown = false;
+		emit seekFinished(_downProgress);
+		update();
+	}
 }
 
 void Playback::enterEvent(QEvent *e) {

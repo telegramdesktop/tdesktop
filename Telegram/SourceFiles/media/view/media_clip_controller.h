@@ -43,7 +43,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void updatePlayback(const AudioPlaybackState &playbackState);
+	void updatePlayback(const AudioPlaybackState &playbackState, bool reset);
 	void setInFullScreen(bool inFullScreen);
 
 	void grabStart() override;
@@ -52,15 +52,15 @@ public:
 signals:
 	void playPressed();
 	void pausePressed();
-	void seekProgress(int64 position);
-	void seekFinished(int64 position);
+	void seekProgress(int64 positionMs);
+	void seekFinished(int64 positionMs);
 	void volumeChanged(float64 volume);
 	void toFullScreenPressed();
 	void fromFullScreenPressed();
 
 private slots:
-	void onSeekProgress(int64 position);
-	void onSeekFinished(int64 position);
+	void onSeekProgress(float64 progress);
+	void onSeekFinished(float64 progress);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -75,9 +75,12 @@ private:
 
 	void updatePlayPauseResumeState(const AudioPlaybackState &playbackState);
 	void updateTimeTexts(const AudioPlaybackState &playbackState);
+	void refreshTimeTexts();
 
 	bool _showPause = false;
-	int64 _seekPosition = -1;
+	QString _timeAlready, _timeLeft;
+	int64 _seekPositionMs = -1;
+	int64 _lastDurationMs = 0;
 
 	ChildWidget<Ui::IconButton> _playPauseResume;
 	ChildWidget<Playback> _playback;

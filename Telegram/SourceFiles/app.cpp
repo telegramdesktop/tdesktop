@@ -2064,7 +2064,7 @@ namespace {
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
 		if (index != SmallMaskCorners && index != LargeMaskCorners) {
 			for (int i = 0; i < 4; ++i) {
-				::corners[index].p[i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
+				::corners[index].p[i] = new QPixmap(pixmapFromImageInPlace(std_::move(cors[i])));
 				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
 			}
 		}
@@ -2101,12 +2101,12 @@ namespace {
 		}
 
 		QImage mask[4];
-		prepareCorners(LargeMaskCorners, st::msgRadius, st::white, 0, mask);
+		prepareCorners(LargeMaskCorners, st::msgRadius, st::white, nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(SmallMaskCorners, st::buttonRadius, st::white, 0, mask);
+		prepareCorners(SmallMaskCorners, st::buttonRadius, st::white, nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
@@ -2267,7 +2267,7 @@ namespace {
 				p.setCompositionMode(m);
 				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - ESize) / 2);
 			}
-			i = map->insert(emojiKey(emoji), QPixmap::fromImage(img, Qt::ColorOnly));
+			i = map->insert(emojiKey(emoji), App::pixmapFromImageInPlace(std_::move(img)));
 		}
 		return i.value();
 	}
@@ -2603,13 +2603,13 @@ namespace {
 		if (i == cornersMap.cend()) {
 			QImage images[4];
 			switch (radius) {
-			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, 0, images); break;
-			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::msgRadius, bg, 0, images); break;
+			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images); break;
+			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::msgRadius, bg, nullptr, images); break;
 			}
 
 			CornersPixmaps pixmaps;
 			for (int j = 0; j < 4; ++j) {
-				pixmaps.p[j] = new QPixmap(QPixmap::fromImage(images[j], Qt::ColorOnly));
+				pixmaps.p[j] = new QPixmap(pixmapFromImageInPlace(std_::move(images[j])));
 				pixmaps.p[j]->setDevicePixelRatio(cRetinaFactor());
 			}
 			i = cornersMap.insert(colorKey, pixmaps);
@@ -2620,46 +2620,51 @@ namespace {
 	void initBackground(int32 id, const QImage &p, bool nowrite) {
 		if (Local::readBackground()) return;
 
-		QImage img(p);
-		bool remove = false;
-		if (p.isNull()) {
-			if (id == DefaultChatBackground) {
-				img.load(st::msgBG);
-			} else {
-				img.load(st::msgBG0);
-				if (cRetina()) {
-					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
-				} else if (cScale() != dbisOne) {
-					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
-				}
-				id = 0;
-			}
-			remove = true;
-		}
-		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
-			img = img.convertToFormat(QImage::Format_RGB32);
-		}
-		img.setDevicePixelRatio(cRetinaFactor());
-
-		if (!nowrite) {
-			Local::writeBackground(id, remove ? QImage() : img);
-		}
-
-		delete cChatBackground();
-		cSetChatBackground(new QPixmap(QPixmap::fromImage(img, Qt::ColorOnly)));
-		cSetChatBackgroundId(id);
-
-		if (App::main()) App::main()->clearCachedBackground();
-
 		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
-		int w = img.width(), h = img.height(), size = w * h;
-		const uchar *pix = img.constBits();
-		if (pix) {
-			for (int32 i = 0, l = size * 4; i < l; i += 4) {
-				components[2] += pix[i + 0];
-				components[1] += pix[i + 1];
-				components[0] += pix[i + 2];
+		int size = 0;
+		{
+			QImage img(p);
+			bool remove = false;
+			if (p.isNull()) {
+				if (id == DefaultChatBackground) {
+					img.load(st::msgBG);
+				} else {
+					img.load(st::msgBG0);
+					if (cRetina()) {
+						img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
+					} else if (cScale() != dbisOne) {
+						img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
+					}
+					id = 0;
+				}
+				remove = true;
 			}
+			if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
+				img = img.convertToFormat(QImage::Format_RGB32);
+			}
+			img.setDevicePixelRatio(cRetinaFactor());
+
+			if (!nowrite) {
+				Local::writeBackground(id, remove ? QImage() : img);
+			}
+
+			int w = img.width(), h = img.height();
+			size = w * h;
+			const uchar *pix = img.constBits();
+			if (pix) {
+				for (int32 i = 0, l = size * 4; i < l; i += 4) {
+					components[2] += pix[i + 0];
+					components[1] += pix[i + 1];
+					components[0] += pix[i + 2];
+				}
+			}
+
+			delete cChatBackground();
+			cSetChatBackground(new QPixmap(pixmapFromImageInPlace(std_::move(img))));
+			cSetChatBackgroundId(id);
+
+			if (App::main()) App::main()->clearCachedBackground();
+
 		}
 		if (size) {
 			for (int32 i = 0; i < 3; ++i) components[i] /= size;
@@ -2677,41 +2682,43 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
-		QImage::Format f = dog.format();
-		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
-			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-		}
-		uchar *dogBits = dog.bits();
-		if (max != min) {
-			float64 coef = float64(mid - min) / float64(max - min);
-			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-				int dogmaxtomin[3] = { i, i + 1, i + 2 };
-				if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
-					qSwap(dogmaxtomin[0], dogmaxtomin[1]);
-				}
-				if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
-					qSwap(dogmaxtomin[1], dogmaxtomin[2]);
+		{
+			QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
+			QImage::Format f = dog.format();
+			if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
+				dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			}
+			uchar *dogBits = dog.bits();
+			if (max != min) {
+				float64 coef = float64(mid - min) / float64(max - min);
+				for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+					int dogmaxtomin[3] = { i, i + 1, i + 2 };
 					if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
 						qSwap(dogmaxtomin[0], dogmaxtomin[1]);
 					}
+					if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
+						qSwap(dogmaxtomin[1], dogmaxtomin[2]);
+						if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+							qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+						}
+					}
+					uchar result[3];
+					result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
+					result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
+					result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
+					dogBits[i] = result[2];
+					dogBits[i + 1] = result[1];
+					dogBits[i + 2] = result[0];
 				}
-				uchar result[3];
-				result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
-				result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
-				result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
-				dogBits[i] = result[2];
-				dogBits[i + 1] = result[1];
-				dogBits[i + 2] = result[0];
+			} else {
+				for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+					uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
+					dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
+				}
 			}
-		} else {
-			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-				uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
-				dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
-			}
+			delete cChatDogImage();
+			cSetChatDogImage(new QPixmap(pixmapFromImageInPlace(std_::move(dog))));
 		}
-		delete cChatDogImage();
-		cSetChatDogImage(new QPixmap(QPixmap::fromImage(dog)));
 
 		memcpy(componentsScroll, components, sizeof(components));
 		memcpy(componentsPoint, components, sizeof(components));
@@ -2768,6 +2775,10 @@ namespace {
 		uchar bsel = snap(qRound(((1. - alphaSel) * b + addSel) / alphaSel), 0, 0xFF);
 		_msgServiceSelectBg = style::color(r, g, b, qRound(alphaSel * 0xFF));
 
+		for (int i = 0; i < 4; ++i) {
+			delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
+			delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
+		}
 		prepareCorners(StickerCorners, st::dateRadius, _msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, _msgServiceSelectBg);
 

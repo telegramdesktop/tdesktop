@@ -85,10 +85,11 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 
 } // namespace
 
-Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode)
+Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode, int64 seekMs)
 : _callback(std_::move(callback))
 , _mode(mode)
-, _playId(rand_value<uint64>()) {
+, _playId(rand_value<uint64>())
+, _seekPositionMs(seekMs) {
 	if (threads.size() < ClipThreadsCount) {
 		_threadIndex = threads.size();
 		threads.push_back(new QThread());
@@ -269,7 +270,7 @@ int64 Reader::getPositionMs() const {
 	if (auto frame = frameToShow()) {
 		return frame->positionMs;
 	}
-	return 0;
+	return _seekPositionMs;
 }
 
 int64 Reader::getDurationMs() const {
@@ -310,10 +311,12 @@ void Reader::stop() {
 
 void Reader::error() {
 	_state = State::Error;
+	_private = nullptr;
 }
 
 void Reader::finished() {
 	_state = State::Finished;
+	_private = nullptr;
 }
 
 Reader::~Reader() {
@@ -325,6 +328,7 @@ public:
 	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
 	, _mode(reader->mode())
 	, _playId(reader->playId())
+	, _seekPositionMs(reader->seekPositionMs())
 	, _data(data) {
 		if (_data.isEmpty()) {
 			_location = std_::make_unique<FileLocation>(location);
@@ -337,7 +341,7 @@ public:
 	}
 
 	ProcessResult start(uint64 ms) {
-		if (!_implementation && !init()) {
+		if (!_implementation && !init(_seekPositionMs)) {
 			return error();
 		}
 		if (frame() && frame()->original.isNull()) {
@@ -348,6 +352,8 @@ public:
 			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
 				return error();
 			}
+			frame()->positionMs = _implementation->frameRealTime();
+
 			_width = frame()->original.width();
 			_height = frame()->original.height();
 			_durationMs = _implementation->durationMs();
@@ -381,7 +387,7 @@ public:
 	}
 
 	ProcessResult finishProcess(uint64 ms) {
-		auto readResult = _implementation->readFramesTill(ms - _animationStarted);
+		auto readResult = _implementation->readFramesTill(_skippedMs + ms - _animationStarted);
 		if (readResult == internal::ReaderImplementation::ReadResult::Eof) {
 			stop();
 			_state = State::Finished;
@@ -391,6 +397,11 @@ public:
 		}
 		_nextFramePositionMs = _implementation->frameRealTime();
 		_nextFrameWhen = _animationStarted + _implementation->framePresentationTime();
+		if (static_cast<int64>(_nextFrameWhen) > _skippedMs) {
+			_nextFrameWhen -= _skippedMs;
+		} else {
+			_nextFrameWhen = 1;
+		}
 
 		if (!renderFrame()) {
 			return error();
@@ -411,7 +422,7 @@ public:
 		return true;
 	}
 
-	bool init() {
+	bool init(int64 positionMs) {
 		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
@@ -432,7 +443,8 @@ public:
 			}
 			return ImplementationMode::Normal;
 		};
-		return _implementation->start(implementationMode());
+		_skippedMs = positionMs;
+		return _implementation->start(implementationMode(), positionMs);
 	}
 
 	void startedAt(uint64 ms) {
@@ -485,6 +497,7 @@ private:
 	State _state = State::Reading;
 	Reader::Mode _mode;
 	uint64 _playId;
+	int64 _seekPositionMs = 0;
 
 	QByteArray _data;
 	std_::unique_ptr<FileLocation> _location;
@@ -517,6 +530,7 @@ private:
 	uint64 _animationStarted = 0;
 	uint64 _nextFrameWhen = 0;
 	int64 _nextFramePositionMs = 0;
+	int64 _skippedMs = 0;
 
 	bool _autoPausedGif = false;
 	bool _started = false;
@@ -699,11 +713,12 @@ void Manager::process() {
 	_timer.stop();
 	_processingInThread = thread();
 
+	bool checkAllReaders = false;
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
 	{
 		QReadLocker lock(&_readerPointersMutex);
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
-			if (it->v.loadAcquire()) {
+			if (it->v.loadAcquire() && it.key()->_private != nullptr) {
 				auto i = _readers.find(it.key()->_private);
 				if (i == _readers.cend()) {
 					_readers.insert(it.key()->_private, 0);
@@ -723,6 +738,7 @@ void Manager::process() {
 				it->v.storeRelease(0);
 			}
 		}
+		checkAllReaders = (_readers.size() > _readerPointers.size());
 	}
 
 	for (auto i = _readers.begin(), e = _readers.end(); i != e;) {
@@ -743,6 +759,15 @@ void Manager::process() {
 				i.value() = reader->_nextFrameWhen;
 			} else {
 				i.value() = (ms + 86400 * 1000ULL);
+			}
+		} else if (checkAllReaders) {
+			QReadLocker lock(&_readerPointersMutex);
+			ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(reader);
+			if (it == _readerPointers.cend()) {
+				_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : AverageGifSize));
+				delete reader;
+				i = _readers.erase(i);
+				continue;
 			}
 		}
 		if (!reader->_autoPausedGif && i.value() < minms) {
@@ -771,7 +796,7 @@ void Manager::clear() {
 	{
 		QWriteLocker lock(&_readerPointersMutex);
 		for (ReaderPointers::iterator it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
-			it.key()->_private = 0;
+			it.key()->_private = nullptr;
 		}
 		_readerPointers.clear();
 	}
@@ -792,7 +817,7 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 
 	auto playId = 0ULL;
 	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
-	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv)) {
+	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, 0)) {
 		bool hasAlpha = false;
 		auto readResult = reader->readFramesTill(-1);
 		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
