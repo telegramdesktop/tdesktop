@@ -117,8 +117,7 @@ protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private slots:
-	void onVideoPlay();
-	void onVideoPause();
+	void onVideoPauseResume();
 	void onVideoSeekProgress(int64 position);
 	void onVideoSeekFinished(int64 position);
 	void onVideoVolumeChanged(float64 volume);
@@ -184,6 +183,7 @@ private:
 	QString _headerText;
 
 	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
+	DocumentData *_autoplayVideoDocument = nullptr;
 
 	Text _caption;
 	QRect _captionRect;

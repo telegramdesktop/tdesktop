@@ -85,9 +85,10 @@ public:
 		Frame *frame = frameToShow();
 		return frame ? (frame->displayed.loadAcquire() != 0) : true;
 	}
-	bool paused() const {
-		return _paused.loadAcquire();
+	bool autoPausedGif() const {
+		return _autoPausedGif.loadAcquire();
 	}
+	bool videoPaused() const;
 	int threadIndex() const {
 		return _threadIndex;
 	}
@@ -105,6 +106,7 @@ public:
 	bool hasAudio() const;
 	int64 getPositionMs() const;
 	int64 getDurationMs() const;
+	void pauseResumeVideo();
 
 	void stop();
 	void error();
@@ -153,7 +155,8 @@ private:
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 
-	QAtomicInt _paused = 0;
+	QAtomicInt _autoPausedGif = 0;
+	QAtomicInt _videoPauseRequest = 0;
 	int32 _threadIndex;
 
 	bool _autoplay = false;

@@ -1260,7 +1260,7 @@ public:
 	}
 
 	explicit operator bool() const {
-		return _audio;
+		return _audio || (_type == Type::Video);
 	}
 
 private:

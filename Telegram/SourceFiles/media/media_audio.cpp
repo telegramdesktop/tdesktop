@@ -484,7 +484,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
+void AudioPlayer::initFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
 	t_assert(audio.type() == AudioMsgId::Type::Video);
 
 	auto type = audio.type();
@@ -514,7 +514,7 @@ void AudioPlayer::playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std
 		}
 		_loader->startFromVideo(current->videoPlayId);
 
-		current->playbackState.state = AudioPlayerPlaying;
+		current->playbackState.state = AudioPlayerPaused;
 		current->loading = true;
 		emit loaderOnStart(audio, position);
 	}
@@ -535,6 +535,90 @@ void AudioPlayer::stopFromVideo(uint64 videoPlayId) {
 		current = data->audio;
 		fadedStop(AudioMsgId::Type::Video);
 		data->clear();
+	}
+	if (current) emit updated(current);
+}
+
+void AudioPlayer::pauseFromVideo(uint64 videoPlayId) {
+	AudioMsgId current;
+	{
+		QMutexLocker lock(&playerMutex);
+		auto type = AudioMsgId::Type::Video;
+		auto data = dataForType(type);
+		t_assert(data != nullptr);
+
+		if (data->videoPlayId != videoPlayId) {
+			return;
+		}
+
+		current = data->audio;
+		switch (data->playbackState.state) {
+		case AudioPlayerStarting:
+		case AudioPlayerResuming:
+		case AudioPlayerPlaying: {
+			data->playbackState.state = AudioPlayerPaused;
+			updateCurrentStarted(type);
+
+			ALint state = AL_INITIAL;
+			alGetSourcei(data->source, AL_SOURCE_STATE, &state);
+			if (!checkCurrentALError(type)) return;
+
+			if (state == AL_PLAYING) {
+				alSourcePause(data->source);
+				if (!checkCurrentALError(type)) return;
+			}
+		} break;
+		}
+		emit faderOnTimer();
+	}
+	if (current) emit updated(current);
+}
+
+void AudioPlayer::resumeFromVideo(uint64 videoPlayId) {
+	AudioMsgId current;
+	{
+		QMutexLocker lock(&playerMutex);
+		auto type = AudioMsgId::Type::Video;
+		auto data = dataForType(type);
+		t_assert(data != nullptr);
+
+		if (data->videoPlayId != videoPlayId) {
+			return;
+		}
+
+		float64 suppressGain = suppressSongGain * Global::VideoVolume();
+
+		current = data->audio;
+		switch (data->playbackState.state) {
+		case AudioPlayerPausing:
+		case AudioPlayerPaused:
+		case AudioPlayerPausedAtEnd: {
+			if (data->playbackState.state == AudioPlayerPaused) {
+				updateCurrentStarted(type);
+			} else if (data->playbackState.state == AudioPlayerPausedAtEnd) {
+				if (alIsSource(data->source)) {
+					alSourcei(data->source, AL_SAMPLE_OFFSET, qMax(data->playbackState.position - data->skipStart, 0LL));
+					if (!checkCurrentALError(type)) return;
+				}
+			}
+			data->playbackState.state = AudioPlayerPlaying;
+
+			ALint state = AL_INITIAL;
+			alGetSourcei(data->source, AL_SOURCE_STATE, &state);
+			if (!checkCurrentALError(type)) return;
+
+			if (state != AL_PLAYING) {
+				audioPlayer()->resumeDevice();
+
+				alSourcef(data->source, AL_GAIN, suppressGain);
+				if (!checkCurrentALError(type)) return;
+
+				alSourcePlay(data->source);
+				if (!checkCurrentALError(type)) return;
+			}
+		} break;
+		}
+		emit faderOnTimer();
 	}
 	if (current) emit updated(current);
 }
@@ -592,6 +676,7 @@ void AudioPlayer::pauseresume(AudioMsgId::Type type, bool fast) {
 	switch (type) {
 	case AudioMsgId::Type::Voice: suppressGain = suppressAllGain; break;
 	case AudioMsgId::Type::Song: suppressGain = suppressSongGain * Global::SongVolume(); break;
+	case AudioMsgId::Type::Video: suppressGain = suppressSongGain * Global::VideoVolume(); break;
 	}
 
 	switch (current->playbackState.state) {

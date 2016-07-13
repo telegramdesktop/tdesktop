@@ -183,6 +183,18 @@ int64 FFMpegReaderImplementation::durationMs() const {
 	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
 
+void FFMpegReaderImplementation::pauseAudio() {
+	if (_audioStreamId >= 0) {
+		audioPlayer()->pauseFromVideo(_playId);
+	}
+}
+
+void FFMpegReaderImplementation::resumeAudio() {
+	if (_audioStreamId >= 0) {
+		audioPlayer()->resumeFromVideo(_playId);
+	}
+}
+
 bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
 	t_assert(_frameRead);
 	_frameRead = false;
@@ -322,7 +334,7 @@ bool FFMpegReaderImplementation::start(Mode mode) {
 		} else {
 			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
 		}
-		audioPlayer()->playFromVideo(AudioMsgId(AudioMsgId::Type::Video), _playId, std_::move(soundData), 0);
+		audioPlayer()->initFromVideo(AudioMsgId(AudioMsgId::Type::Video), _playId, std_::move(soundData), 0);
 	}
 
 	return true;
@@ -333,7 +345,7 @@ QString FFMpegReaderImplementation::logData() const {
 }
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
-	if (_mode == Mode::Normal && _audioStreamId >= 0) {
+	if (_audioStreamId >= 0) {
 		audioPlayer()->stopFromVideo(_playId);
 	}
 	if (_frameRead) {

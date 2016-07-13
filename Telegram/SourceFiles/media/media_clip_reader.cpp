@@ -169,6 +169,9 @@ void Reader::moveToNextWrite() const {
 	} else if (step == WaitingForRequestStep) {
 	} else if (step == WaitingForFirstFrameStep) {
 		_step.storeRelease(0);
+
+		// Force paint the first frame so moveToNextShow() is called.
+		_frames[0].displayed.storeRelease(0);
 	} else if (step % 2) {
 		_step.storeRelease((step + 1) % 6);
 	}
@@ -206,8 +209,8 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 
 	if (ms) {
 		frame->displayed.storeRelease(1);
-		if (_paused.loadAcquire()) {
-			_paused.storeRelease(0);
+		if (_autoPausedGif.loadAcquire()) {
+			_autoPausedGif.storeRelease(0);
 			if (managers.size() <= _threadIndex) error();
 			if (_state != State::Error) {
 				managers.at(_threadIndex)->update(this);
@@ -271,6 +274,18 @@ int64 Reader::getPositionMs() const {
 
 int64 Reader::getDurationMs() const {
 	return ready() ? _durationMs : 0;
+}
+
+void Reader::pauseResumeVideo() {
+	if (managers.size() <= _threadIndex) error();
+	if (_state == State::Error) return;
+
+	_videoPauseRequest.storeRelease(1 - _videoPauseRequest.loadAcquire());
+	managers.at(_threadIndex)->start(this);
+}
+
+bool Reader::videoPaused() const {
+	return _videoPauseRequest.loadAcquire() != 0;
 }
 
 int32 Reader::width() const {
@@ -352,8 +367,14 @@ public:
 		if (!_request.valid()) {
 			return start(ms);
 		}
+		if (!_started) {
+			_started = true;
+			if (!_videoPausedAtMs) {
+				_implementation->resumeAudio();
+			}
+		}
 
-		if (!_paused && ms >= _nextFrameWhen) {
+		if (!_autoPausedGif && !_videoPausedAtMs && ms >= _nextFrameWhen) {
 			return ProcessResult::Repaint;
 		}
 		return ProcessResult::Wait;
@@ -418,6 +439,24 @@ public:
 		_animationStarted = _nextFrameWhen = ms;
 	}
 
+	void pauseVideo(uint64 ms) {
+		if (_videoPausedAtMs) return; // Paused already.
+
+		_videoPausedAtMs = ms;
+		_implementation->pauseAudio();
+	}
+
+	void resumeVideo(uint64 ms) {
+		if (!_videoPausedAtMs) return; // Not paused.
+
+		int64 delta = static_cast<int64>(ms) - static_cast<int64>(_videoPausedAtMs);
+		_animationStarted += delta;
+		_nextFrameWhen += delta;
+
+		_videoPausedAtMs = 0;
+		_implementation->resumeAudio();
+	}
+
 	ProcessResult error() {
 		stop();
 		_state = State::Error;
@@ -479,7 +518,9 @@ private:
 	uint64 _nextFrameWhen = 0;
 	int64 _nextFramePositionMs = 0;
 
-	bool _paused = false;
+	bool _autoPausedGif = false;
+	bool _started = false;
+	uint64 _videoPausedAtMs = 0;
 
 	friend class Manager;
 
@@ -580,14 +621,14 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 		it.key()->_hasAudio = reader->_hasAudio;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
-	if (!reader->_paused && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
+	if (!reader->_autoPausedGif && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
 		Reader::Frame *showing = it.key()->frameToShow(&ishowing), *previous = it.key()->frameToWriteNext(false, &iprevious);
 		t_assert(previous != 0 && showing != 0 && ishowing >= 0 && iprevious >= 0);
 		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
 			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
-				reader->_paused = true;
-				it.key()->_paused.storeRelease(1);
+				reader->_autoPausedGif = true;
+				it.key()->_autoPausedGif.storeRelease(1);
 				result = ProcessResult::Paused;
 			}
 		}
@@ -668,8 +709,13 @@ void Manager::process() {
 					_readers.insert(it.key()->_private, 0);
 				} else {
 					i.value() = ms;
-					if (i.key()->_paused && !it.key()->_paused.loadAcquire()) {
-						i.key()->_paused = false;
+					if (i.key()->_autoPausedGif && !it.key()->_autoPausedGif.loadAcquire()) {
+						i.key()->_autoPausedGif = false;
+					}
+					if (it.key()->_videoPauseRequest.loadAcquire()) {
+						i.key()->pauseVideo(ms);
+					} else {
+						i.key()->resumeVideo(ms);
 					}
 				}
 				Reader::Frame *frame = it.key()->frameToWrite();
@@ -691,9 +737,15 @@ void Manager::process() {
 				return;
 			}
 			ms = getms();
-			i.value() = reader->_nextFrameWhen ? reader->_nextFrameWhen : (ms + 86400 * 1000ULL);
+			if (reader->_videoPausedAtMs) {
+				i.value() = ms + 86400 * 1000ULL;
+			} else if (reader->_nextFrameWhen && reader->_started) {
+				i.value() = reader->_nextFrameWhen;
+			} else {
+				i.value() = (ms + 86400 * 1000ULL);
+			}
 		}
-		if (!reader->_paused && i.value() < minms) {
+		if (!reader->_autoPausedGif && i.value() < minms) {
 			minms = i.value();
 		}
 		++i;

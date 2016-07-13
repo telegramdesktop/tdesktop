@@ -222,6 +222,10 @@ bool MediaView::fileShown() const {
 bool MediaView::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
+			if (_doc->isVideo() && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
+				_gif->pauseResumeVideo();
+				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
+			}
 			_gif->start(_gif->width(), _gif->height(), _gif->width(), _gif->height(), false);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
@@ -1023,6 +1027,9 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 		_overview = doc->isVideo() ? OverviewVideos : OverviewFiles;
 		findCurrent();
 	}
+	if (doc->isVideo()) {
+		_autoplayVideoDocument = doc;
+	}
 	displayDocument(doc, context);
 	preloadData(0);
 	activateControls();
@@ -1089,6 +1096,10 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	_doc = doc;
 	_photo = nullptr;
 	_radial.stop();
+
+	if (_autoplayVideoDocument && _doc != _autoplayVideoDocument) {
+		_autoplayVideoDocument = nullptr;
+	}
 
 	_current = QPixmap();
 
@@ -1262,8 +1273,8 @@ void MediaView::createClipController() {
 	setClipControllerGeometry();
 	_clipController->show();
 
-	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPlay()));
-	connect(_clipController, SIGNAL(pausePressed()), this, SLOT(onVideoPause()));
+	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPauseResume()));
+	connect(_clipController, SIGNAL(pausePressed()), this, SLOT(onVideoPauseResume()));
 	connect(_clipController, SIGNAL(seekProgress(int64)), this, SLOT(onVideoSeekProgress(int64)));
 	connect(_clipController, SIGNAL(seekFinished(int64)), this, SLOT(onVideoSeekFinished(int64)));
 	connect(_clipController, SIGNAL(volumeChanged(float64)), this, SLOT(onVideoVolumeChanged(float64)));
@@ -1290,11 +1301,13 @@ void MediaView::setClipControllerGeometry() {
 	myEnsureResized(_clipController);
 }
 
-void MediaView::onVideoPlay() {
+void MediaView::onVideoPauseResume() {
 	if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 		if (_gif->state() == Media::Clip::State::Error) {
 			displayDocument(_doc, item);
 		} else if (_gif->state() == Media::Clip::State::Finished) {
+			_autoplayVideoDocument = _doc;
+
 			_current = _gif->current(_gif->width(), _gif->height(), _gif->width(), _gif->height(), getms());
 			_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), Media::Clip::Reader::Mode::Video);
 
@@ -1309,15 +1322,15 @@ void MediaView::onVideoPlay() {
 			state.frequency = _videoFrequencyMs;
 			updateVideoPlaybackState(state);
 		} else {
-			//
+			_gif->pauseResumeVideo();
+			_videoPaused = _gif->videoPaused();
+			if (_videoIsSilent) {
+				updateSilentVideoPlaybackState();
+			}
 		}
 	} else {
 		stopGif();
 	}
-}
-
-void MediaView::onVideoPause() {
-
 }
 
 void MediaView::onVideoSeekProgress(int64 position) {
@@ -1342,11 +1355,10 @@ void MediaView::onVideoFromFullScreen() {
 }
 
 void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
-	if (audioId.type() != AudioMsgId::Type::Video) {
+	if (audioId.type() != AudioMsgId::Type::Video || !_gif) {
 		return;
 	}
 
-	t_assert(_gif != nullptr);
 	t_assert(audioPlayer() != nullptr);
 	auto state = audioPlayer()->currentVideoState(_gif->playId());
 	updateVideoPlaybackState(state);
@@ -1690,7 +1702,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		if (_doc && !_doc->loading() && !fileShown()) {
 			onDocClick();
 		} else if (_doc->isVideo()) {
-			onVideoPlay();
+			onVideoPauseResume();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		moveToNext(-1);

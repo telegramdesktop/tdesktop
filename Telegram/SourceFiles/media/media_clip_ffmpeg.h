@@ -38,13 +38,19 @@ public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
 	ReadResult readFramesTill(int64 ms) override;
+
 	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
+
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
+
 	int64 durationMs() const override;
 	bool hasAudio() const override {
 		return (_audioStreamId >= 0);
 	}
+	void pauseAudio() override;
+	void resumeAudio() override;
+
 	bool start(Mode mode) override;
 
 	QString logData() const;

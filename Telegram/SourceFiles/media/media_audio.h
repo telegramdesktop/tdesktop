@@ -67,12 +67,14 @@ public:
 	void stop(AudioMsgId::Type type);
 
 	// Video player audio stream interface.
-	void playFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
+	void initFromVideo(const AudioMsgId &audio, uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(uint64 playId, uint64 systemMs);
 	void videoSoundProgress(const AudioMsgId &audio);
 	AudioPlaybackState currentVideoState(uint64 videoPlayId);
 	void stopFromVideo(uint64 videoPlayId);
+	void pauseFromVideo(uint64 videoPlayId);
+	void resumeFromVideo(uint64 videoPlayId);
 
 	void stopAndClear();
 

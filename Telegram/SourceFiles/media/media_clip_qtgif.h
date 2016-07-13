@@ -32,13 +32,21 @@ public:
 	QtGifReaderImplementation(FileLocation *location, QByteArray *data);
 
 	ReadResult readFramesTill(int64 ms) override;
+
 	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
+
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
+
 	int64 durationMs() const override;
 	bool hasAudio() const override {
 		return false;
 	}
+	void pauseAudio() override {
+	}
+	void resumeAudio() override {
+	}
+
 	bool start(Mode mode) override;
 
 	~QtGifReaderImplementation();

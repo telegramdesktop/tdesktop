@@ -2936,7 +2936,7 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 	switch (notification) {
 	case NotificationReinit: {
 		bool stopped = false;
-		if (reader->paused()) {
+		if (reader->autoPausedGif()) {
 			if (MainWidget *m = App::main()) {
 				if (!m->isItemVisible(this)) { // stop animation if it is not visible
 					media->stopInline();
