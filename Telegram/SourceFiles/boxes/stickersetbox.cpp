@@ -155,11 +155,11 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	emit installed(_setId);
 }
 
-bool StickerSetInner::installFailed(const RPCError &error) {
+bool StickerSetInner::installFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)));
+		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)), KeepOtherLayers);
 	} else {
 		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 	}
@@ -283,7 +283,7 @@ QString StickerSetInner::shortName() const {
 
 void StickerSetInner::install() {
 	if (_installRequest) return;
-	_installRequest = MTP::send(MTPmessages_InstallStickerSet(_input, MTP_bool(false)), rpcDone(&StickerSetInner::installDone), rpcFail(&StickerSetInner::installFailed));
+	_installRequest = MTP::send(MTPmessages_InstallStickerSet(_input, MTP_bool(false)), rpcDone(&StickerSetInner::installDone), rpcFail(&StickerSetInner::installFail));
 }
 
 StickerSetInner::~StickerSetInner() {
@@ -734,7 +734,7 @@ void StickersInner::installSet(uint64 setId) {
 		return;
 	}
 
-	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()));
+	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), RPCDoneHandlerPtr(), rpcFail(&StickersInner::installFail, setId));
 
 	it->flags &= ~(MTPDstickerSet::Flag::f_disabled | MTPDstickerSet_ClientFlag::f_unread);
 	it->flags |= MTPDstickerSet::Flag::f_installed;
@@ -760,6 +760,36 @@ void StickersInner::installSet(uint64 setId) {
 	}
 	Local::writeStickers();
 	emit App::main()->stickersUpdated();
+}
+
+bool StickersInner::installFail(uint64 setId, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(setId);
+	if (it == sets.cend()) {
+		rebuild();
+		return true;
+	}
+
+	it->flags &= ~MTPDstickerSet::Flag::f_installed;
+
+	auto &order = Global::RefStickerSetsOrder();
+	int currentIndex = order.indexOf(setId);
+	if (currentIndex >= 0) {
+		order.removeAt(currentIndex);
+	}
+
+	Local::writeStickers();
+	emit App::main()->stickersUpdated();
+
+	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
+		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)), KeepOtherLayers);
+	} else {
+		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
+	}
+
+	return true;
 }
 
 void StickersInner::step_shifting(uint64 ms, bool timer) {

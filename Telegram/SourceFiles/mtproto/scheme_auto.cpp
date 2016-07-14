@@ -4350,7 +4350,8 @@ void _serialize_chatInvite(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	case 4: to.add("  megagroup: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_megagroup) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
 	case 5: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 7: to.add("  participants: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_participants) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 7: to.add("  participants_count: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 8: to.add("  participants: "); ++stages.back(); if (flag & MTPDchatInvite::Flag::f_participants) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }

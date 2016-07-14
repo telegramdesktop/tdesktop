@@ -3214,20 +3214,20 @@ namespace Local {
 					setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_not_loaded);
 				}
 			}
-			if (stickers.version < 9057) {
+			if (stickers.version < 9058) {
 				setFlags |= qFlags(MTPDstickerSet::Flag::f_installed);
 			}
 
 			if (setId == Stickers::DefaultSetId) {
 				setTitle = lang(lng_stickers_default_set);
 				setFlags |= qFlags(MTPDstickerSet::Flag::f_official);
-				if (stickers.version < 9057) {
+				if (stickers.version < 9058) {
 					order.push_front(setId);
 				}
 			} else if (setId == Stickers::CustomSetId) {
 				setTitle = lang(lng_custom_stickers);
 			} else if (setId) {
-				if (stickers.version < 9057) {
+				if (stickers.version < 9058) {
 					order.push_back(setId);
 				}
 			} else {
@@ -3282,29 +3282,29 @@ namespace Local {
 		}
 
 		// Read orders of installed and featured stickers.
-		if (stickers.version >= 9057) {
+		if (stickers.version >= 9058) {
 			stickers.stream >> order;
 			stickers.stream >> featuredOrder;
-
-			// Set flags and count unread featured sets.
-			for_const (auto setId, order) {
-				auto it = sets.find(setId);
-				if (it != sets.cend()) {
-					it->flags |= MTPDstickerSet::Flag::f_installed;
-				}
-			}
-			int unreadCount = 0;
-			for_const (auto setId, featuredOrder) {
-				auto it = sets.find(setId);
-				if (it != sets.cend()) {
-					it->flags |= MTPDstickerSet_ClientFlag::f_featured;
-					if (it->flags & MTPDstickerSet_ClientFlag::f_unread) {
-						++unreadCount;
-					}
-				}
-			}
-			Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
 		}
+
+		// Set flags and count unread featured sets.
+		for_const (auto setId, order) {
+			auto it = sets.find(setId);
+			if (it != sets.cend()) {
+				it->flags |= MTPDstickerSet::Flag::f_installed;
+			}
+		}
+		int unreadCount = 0;
+		for_const (auto setId, featuredOrder) {
+			auto it = sets.find(setId);
+			if (it != sets.cend()) {
+				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
+				if (it->flags & MTPDstickerSet_ClientFlag::f_unread) {
+					++unreadCount;
+				}
+			}
+		}
+		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
 	}
 
 	int32 countStickersHash(bool checkOfficial) {

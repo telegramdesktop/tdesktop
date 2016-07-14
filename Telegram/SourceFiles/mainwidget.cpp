@@ -3488,7 +3488,6 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
 		auto &d(invite.c_chatInvite());
-		((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join);
 
 		QVector<UserData*> participants;
 		if (d.has_participants()) {
@@ -3500,7 +3499,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 				}
 			}
 		}
-		auto box = std_::make_unique<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, 3, participants);
+		auto box = std_::make_unique<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, d.vparticipants_count.v, participants);
 		_inviteHash = hash;
 		Ui::showLayer(box.release());
 	} break;

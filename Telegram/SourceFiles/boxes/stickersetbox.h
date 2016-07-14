@@ -63,7 +63,7 @@ private:
 	bool failedSet(const RPCError &error);
 
 	void installDone(const MTPBool &result);
-	bool installFailed(const RPCError &error);
+	bool installFail(const RPCError &error);
 
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
@@ -232,6 +232,7 @@ private:
 	float64 aboveShadowOpacity() const;
 
 	void installSet(uint64 setId);
+	bool installFail(uint64 setId, const RPCError &error);
 	void readFeaturedDone(const MTPBool &result);
 	bool readFeaturedFail(const RPCError &error);
 

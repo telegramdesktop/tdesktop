@@ -398,7 +398,7 @@ enum {
 	mtpc_chatInviteEmpty = 0x69df3769,
 	mtpc_chatInviteExported = 0xfc2e05bc,
 	mtpc_chatInviteAlready = 0x5a686d7c,
-	mtpc_chatInvite = 0x2d492881,
+	mtpc_chatInvite = 0xdb74f558,
 	mtpc_inputStickerSetEmpty = 0xffb62b95,
 	mtpc_inputStickerSetID = 0x9de7a269,
 	mtpc_inputStickerSetShortName = 0x861cc8a0,
@@ -13160,12 +13160,13 @@ public:
 
 	MTPDchatInvite() {
 	}
-	MTPDchatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, const MTPVector<MTPUser> &_participants) : vflags(_flags), vtitle(_title), vphoto(_photo), vparticipants(_participants) {
+	MTPDchatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, const MTPVector<MTPUser> &_participants) : vflags(_flags), vtitle(_title), vphoto(_photo), vparticipants_count(_participants_count), vparticipants(_participants) {
 	}
 
 	MTPflags<MTPDchatInvite::Flags> vflags;
 	MTPstring vtitle;
 	MTPChatPhoto vphoto;
+	MTPint vparticipants_count;
 	MTPVector<MTPUser> vparticipants;
 };
 
@@ -23580,8 +23581,8 @@ public:
 	inline static MTPchatInvite new_chatInviteAlready(const MTPChat &_chat) {
 		return MTPchatInvite(new MTPDchatInviteAlready(_chat));
 	}
-	inline static MTPchatInvite new_chatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, const MTPVector<MTPUser> &_participants) {
-		return MTPchatInvite(new MTPDchatInvite(_flags, _title, _photo, _participants));
+	inline static MTPchatInvite new_chatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, const MTPVector<MTPUser> &_participants) {
+		return MTPchatInvite(new MTPDchatInvite(_flags, _title, _photo, _participants_count, _participants));
 	}
 	inline static MTPinputStickerSet new_inputStickerSetEmpty() {
 		return MTPinputStickerSet(mtpc_inputStickerSetEmpty);
@@ -32441,7 +32442,7 @@ inline uint32 MTPchatInvite::innerLength() const {
 		}
 		case mtpc_chatInvite: {
 			const MTPDchatInvite &v(c_chatInvite());
-			return v.vflags.innerLength() + v.vtitle.innerLength() + v.vphoto.innerLength() + (v.has_participants() ? v.vparticipants.innerLength() : 0);
+			return v.vflags.innerLength() + v.vtitle.innerLength() + v.vphoto.innerLength() + v.vparticipants_count.innerLength() + (v.has_participants() ? v.vparticipants.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -32464,6 +32465,7 @@ inline void MTPchatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 			v.vflags.read(from, end);
 			v.vtitle.read(from, end);
 			v.vphoto.read(from, end);
+			v.vparticipants_count.read(from, end);
 			if (v.has_participants()) { v.vparticipants.read(from, end); } else { v.vparticipants = MTPVector<MTPUser>(); }
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatInvite");
@@ -32480,6 +32482,7 @@ inline void MTPchatInvite::write(mtpBuffer &to) const {
 			v.vflags.write(to);
 			v.vtitle.write(to);
 			v.vphoto.write(to);
+			v.vparticipants_count.write(to);
 			if (v.has_participants()) v.vparticipants.write(to);
 		} break;
 	}
@@ -32499,8 +32502,8 @@ inline MTPchatInvite MTP_chatInviteAlready(const MTPChat &_chat) {
 	return MTP::internal::TypeCreator::new_chatInviteAlready(_chat);
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDchatInvite::Flags)
-inline MTPchatInvite MTP_chatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, const MTPVector<MTPUser> &_participants) {
-	return MTP::internal::TypeCreator::new_chatInvite(_flags, _title, _photo, _participants);
+inline MTPchatInvite MTP_chatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, const MTPVector<MTPUser> &_participants) {
+	return MTP::internal::TypeCreator::new_chatInvite(_flags, _title, _photo, _participants_count, _participants);
 }
 
 inline uint32 MTPinputStickerSet::innerLength() const {
