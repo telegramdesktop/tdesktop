@@ -43,8 +43,8 @@ public:
 		Error,
 		Eof,
 	};
-	// Read frames till current frame will have presentation time > ms.
-	virtual ReadResult readFramesTill(int64 ms) = 0;
+	// Read frames till current frame will have presentation time > frameMs, systemMs = getms().
+	virtual ReadResult readFramesTill(int64 frameMs, uint64 systemMs) = 0;
 
 	// Get current frame real and presentation time.
 	virtual int64 frameRealTime() const = 0;
@@ -58,7 +58,7 @@ public:
 	virtual void pauseAudio() = 0;
 	virtual void resumeAudio() = 0;
 
-	virtual bool start(Mode mode, int64 positionMs) = 0;
+	virtual bool start(Mode mode, int64 &positionMs) = 0;
 	virtual ~ReaderImplementation() {
 	}
 	int64 dataSize() const {

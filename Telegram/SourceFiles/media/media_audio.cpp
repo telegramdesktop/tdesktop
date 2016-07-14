@@ -489,11 +489,24 @@ void AudioPlayer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundD
 	{
 		QMutexLocker lock(&playerMutex);
 
+		// Pause current song.
+		auto currentSong = dataForType(AudioMsgId::Type::Song);
+		float64 suppressGain = suppressSongGain * Global::SongVolume();
+
+		switch (currentSong->playbackState.state) {
+		case AudioPlayerStarting:
+		case AudioPlayerResuming:
+		case AudioPlayerPlaying:
+			currentSong->playbackState.state = AudioPlayerPausing;
+			updateCurrentStarted(AudioMsgId::Type::Song);
+		break;
+		case AudioPlayerFinishing: currentSong->playbackState.state = AudioPlayerPausing; break;
+		}
+
 		auto type = AudioMsgId::Type::Video;
 		auto current = dataForType(type);
 		t_assert(current != nullptr);
 
-		fadedStop(AudioMsgId::Type::Song);
 		if (current->audio) {
 			fadedStop(type);
 			stopped = current->audio;
@@ -625,8 +638,8 @@ void AudioPlayer::feedFromVideo(VideoSoundPart &&part) {
 	_loader->feedFromVideo(std_::move(part));
 }
 
-int64 AudioPlayer::getVideoCorrectedTime(uint64 playId, uint64 systemMs) {
-	int64 result = systemMs;
+int64 AudioPlayer::getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs) {
+	int64 result = frameMs;
 
 	QMutexLocker videoLock(&_lastVideoMutex);
 	if (_lastVideoPlayId == playId && _lastVideoPlaybackWhen > 0) {

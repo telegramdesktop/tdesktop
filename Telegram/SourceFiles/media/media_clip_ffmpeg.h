@@ -29,6 +29,8 @@ extern "C" {
 
 #include "media/media_clip_implementation.h"
 
+struct VideoSoundData;
+
 namespace Media {
 namespace Clip {
 namespace internal {
@@ -37,7 +39,7 @@ class FFMpegReaderImplementation : public ReaderImplementation {
 public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
-	ReadResult readFramesTill(int64 ms) override;
+	ReadResult readFramesTill(int64 frameMs, uint64 systemMs) override;
 
 	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
@@ -51,7 +53,7 @@ public:
 	void pauseAudio() override;
 	void resumeAudio() override;
 
-	bool start(Mode mode, int64 positionMs) override;
+	bool start(Mode mode, int64 &positionMs) override;
 
 	QString logData() const;
 
@@ -65,7 +67,11 @@ private:
 		EndOfFile,
 		Error,
 	};
-	PacketResult readPacket();
+	PacketResult readPacket(AVPacket *packet);
+	void processPacket(AVPacket *packet);
+	int64 countPacketMs(AVPacket *packet) const;
+	PacketResult readAndProcessPacket();
+
 	void startPacket();
 	void finishPacket();
 	void clearPacketQueue();

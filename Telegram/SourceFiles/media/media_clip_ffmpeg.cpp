@@ -44,7 +44,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 
 	while (true) {
 		while (_packetQueue.isEmpty()) {
-			auto packetResult = readPacket();
+			auto packetResult = readAndProcessPacket();
 			if (packetResult == PacketResult::Error) {
 				return ReadResult::Error;
 			} else if (packetResult == PacketResult::EndOfFile) {
@@ -135,24 +135,24 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 	return ReadResult::Error;
 }
 
-ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int64 ms) {
+ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int64 frameMs, uint64 systemMs) {
 	if (_audioStreamId < 0) { // just keep up
-		if (_frameRead && _frameTime > ms) {
+		if (_frameRead && _frameTime > frameMs) {
 			return ReadResult::Success;
 		}
 		auto readResult = readNextFrame();
-		if (readResult != ReadResult::Success || _frameTime > ms) {
+		if (readResult != ReadResult::Success || _frameTime > frameMs) {
 			return readResult;
 		}
 		readResult = readNextFrame();
-		if (_frameTime <= ms) {
-			_frameTime = ms + 5; // keep up
+		if (_frameTime <= frameMs) {
+			_frameTime = frameMs + 5; // keep up
 		}
 		return readResult;
 	}
 
 	// sync by audio stream
-	auto correctMs = audioPlayer()->getVideoCorrectedTime(_playId, ms);
+	auto correctMs = (frameMs >= 0) ? audioPlayer()->getVideoCorrectedTime(_playId, frameMs, systemMs) : frameMs;
 
 	if (!_frameRead) {
 		auto readResult = readNextFrame();
@@ -166,7 +166,9 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int6
 			return readResult;
 		}
 	}
-	_frameTimeCorrection = ms - correctMs;
+	if (frameMs >= 0) {
+		_frameTimeCorrection = frameMs - correctMs;
+	}
 	return ReadResult::Success;
 }
 
@@ -235,7 +237,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	// Read some future packets for audio stream.
 	if (_audioStreamId >= 0) {
 		while (_frameMs + 5000 > _lastReadPacketMs) {
-			auto packetResult = readPacket();
+			auto packetResult = readAndProcessPacket();
 			if (packetResult != PacketResult::Ok) {
 				break;
 			}
@@ -246,7 +248,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	return true;
 }
 
-bool FFMpegReaderImplementation::start(Mode mode, int64 positionMs) {
+bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 	_mode = mode;
 
 	initDevice();
@@ -300,7 +302,7 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 positionMs) {
 		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
 			return false;
 		}
-	} else if (_mode == Mode::Silent || !audioPlayer()) {
+	} else if (_mode == Mode::Silent || !audioPlayer() || !_playId) {
 		_audioStreamId = -1;
 	}
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
@@ -337,18 +339,28 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 positionMs) {
 		}
 	}
 
-	if (positionMs) {
+	if (positionMs > 0) {
 		int64 ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
-		if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_ANY) < 0) {
-			if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
-				positionMs = 0;
+		if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
+			if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_BACKWARD) < 0) {
+				return false;
 			}
 		}
+	}
+
+	AVPacket packet;
+	auto readResult = readPacket(&packet);
+	if (readResult == PacketResult::Ok && positionMs > 0) {
+		positionMs = countPacketMs(&packet);
 	}
 
 	if (_audioStreamId >= 0) {
 		int64 position = (positionMs * soundData->frequency) / 1000LL;
 		audioPlayer()->initFromVideo(_playId, std_::move(soundData), position);
+	}
+
+	if (readResult == PacketResult::Ok) {
+		processPacket(&packet);
 	}
 
 	return true;
@@ -384,14 +396,13 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	av_frame_free(&_frame);
 }
 
-FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket() {
-	AVPacket packet;
-	av_init_packet(&packet);
-	packet.data = nullptr;
-	packet.size = 0;
+FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(AVPacket *packet) {
+	av_init_packet(packet);
+	packet->data = nullptr;
+	packet->size = 0;
 
 	int res = 0;
-	if ((res = av_read_frame(_fmtContext, &packet)) < 0) {
+	if ((res = av_read_frame(_fmtContext, packet)) < 0) {
 		if (res == AVERROR_EOF) {
 			if (_audioStreamId >= 0) {
 				// queue terminating packet to audio player
@@ -406,27 +417,42 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 		LOG(("Gif Error: Unable to av_read_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return PacketResult::Error;
 	}
+	return PacketResult::Ok;
+}
 
-	bool videoPacket = (packet.stream_index == _streamId);
-	bool audioPacket = (_audioStreamId >= 0 && packet.stream_index == _audioStreamId);
+void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
+	bool videoPacket = (packet->stream_index == _streamId);
+	bool audioPacket = (_audioStreamId >= 0 && packet->stream_index == _audioStreamId);
 	if (audioPacket || videoPacket) {
-		int64 packetPts = (packet.pts == AV_NOPTS_VALUE) ? packet.dts : packet.pts;
-		int64 packetMs = (packetPts * 1000LL * _fmtContext->streams[packet.stream_index]->time_base.num) / _fmtContext->streams[packet.stream_index]->time_base.den;
-		_lastReadPacketMs = packetMs;
+		_lastReadPacketMs = countPacketMs(packet);
 
 		if (videoPacket) {
-			_packetQueue.enqueue(packet);
+			_packetQueue.enqueue(*packet);
 		} else if (audioPacket) {
 			// queue packet to audio player
 			VideoSoundPart part;
-			part.packet = &packet;
+			part.packet = packet;
 			part.videoPlayId = _playId;
 			audioPlayer()->feedFromVideo(std_::move(part));
 		}
 	} else {
-		av_packet_unref(&packet);
+		av_packet_unref(packet);
 	}
-	return PacketResult::Ok;
+}
+
+int64 FFMpegReaderImplementation::countPacketMs(AVPacket *packet) const {
+	int64 packetPts = (packet->pts == AV_NOPTS_VALUE) ? packet->dts : packet->pts;
+	int64 packetMs = (packetPts * 1000LL * _fmtContext->streams[packet->stream_index]->time_base.num) / _fmtContext->streams[packet->stream_index]->time_base.den;
+	return packetMs;
+}
+
+FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProcessPacket() {
+	AVPacket packet;
+	auto result = readPacket(&packet);
+	if (result == PacketResult::Ok) {
+		processPacket(&packet);
+	}
+	return result;
 }
 
 void FFMpegReaderImplementation::startPacket() {

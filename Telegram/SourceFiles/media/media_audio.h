@@ -69,7 +69,7 @@ public:
 	// Video player audio stream interface.
 	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
-	int64 getVideoCorrectedTime(uint64 playId, uint64 systemMs);
+	int64 getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs);
 	void videoSoundProgress(const AudioMsgId &audio);
 	AudioPlaybackState currentVideoState(uint64 videoPlayId);
 	void stopFromVideo(uint64 videoPlayId);

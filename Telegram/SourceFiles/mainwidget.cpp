@@ -515,16 +515,19 @@ void MainWidget::notify_handlePendingHistoryUpdate() {
 	_history->notify_handlePendingHistoryUpdate();
 }
 
-void MainWidget::cmd_search() {
-	_history->cmd_search();
+bool MainWidget::cmd_search() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_search();
 }
 
-void MainWidget::cmd_next_chat() {
-	_history->cmd_next_chat();
+bool MainWidget::cmd_next_chat() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_next_chat();
 }
 
-void MainWidget::cmd_previous_chat() {
-	_history->cmd_previous_chat();
+bool MainWidget::cmd_previous_chat() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_previous_chat();
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {

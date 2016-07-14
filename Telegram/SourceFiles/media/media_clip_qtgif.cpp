@@ -28,17 +28,17 @@ namespace internal {
 QtGifReaderImplementation::QtGifReaderImplementation(FileLocation *location, QByteArray *data) : ReaderImplementation(location, data) {
 }
 
-ReaderImplementation::ReadResult QtGifReaderImplementation::readFramesTill(int64 ms) {
-	if (!_frame.isNull() && _frameTime > ms) {
+ReaderImplementation::ReadResult QtGifReaderImplementation::readFramesTill(int64 frameMs, uint64 systemMs) {
+	if (!_frame.isNull() && _frameTime > frameMs) {
 		return ReadResult::Success;
 	}
 	auto readResult = readNextFrame();
-	if (readResult != ReadResult::Success || _frameTime > ms) {
+	if (readResult != ReadResult::Success || _frameTime > frameMs) {
 		return readResult;
 	}
 	readResult = readNextFrame();
-	if (_frameTime <= ms) {
-		_frameTime = ms + 5; // keep up
+	if (_frameTime <= frameMs) {
+		_frameTime = frameMs + 5; // keep up
 	}
 	return readResult;
 }
@@ -99,7 +99,7 @@ int64 QtGifReaderImplementation::durationMs() const {
 	return 0; // not supported
 }
 
-bool QtGifReaderImplementation::start(Mode mode, int64 positionMs) {
+bool QtGifReaderImplementation::start(Mode mode, int64 &positionMs) {
 	if (mode == Mode::OnlyGifv) return false;
 	_mode = mode;
 	return jumpToStart();

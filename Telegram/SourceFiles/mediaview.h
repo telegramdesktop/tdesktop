@@ -108,6 +108,7 @@ protected:
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
@@ -121,8 +122,7 @@ private slots:
 	void onVideoSeekProgress(int64 positionMs);
 	void onVideoSeekFinished(int64 positionMs);
 	void onVideoVolumeChanged(float64 volume);
-	void onVideoToFullScreen();
-	void onVideoFromFullScreen();
+	void onVideoToggleFullScreen();
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
@@ -130,6 +130,8 @@ private:
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();
 	void loadBack();
+
+	void setZoomLevel(int newZoom);
 
 	void updateVideoPlaybackState(const AudioPlaybackState &state, bool reset = false);
 	void updateSilentVideoPlaybackState();
@@ -185,6 +187,8 @@ private:
 
 	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
 	DocumentData *_autoplayVideoDocument = nullptr;
+	bool _fullScreenVideo = false;
+	int _fullScreenZoomCache = 0;
 
 	Text _caption;
 	QRect _captionRect;
@@ -206,6 +210,7 @@ private:
 	// Video without audio stream playback information.
 	bool _videoIsSilent = false;
 	bool _videoPaused = false;
+	bool _videoStopped = false;
 	int64 _videoPositionMs = 0;
 	int64 _videoDurationMs = 0;
 	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
@@ -263,6 +268,7 @@ private:
 		OverSave,
 		OverMore,
 		OverIcon,
+		OverVideo,
 	};
 	OverState _over = OverNone;
 	OverState _down = OverNone;

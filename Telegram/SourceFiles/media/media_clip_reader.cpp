@@ -341,12 +341,37 @@ public:
 	}
 
 	ProcessResult start(uint64 ms) {
-		if (!_implementation && !init(_seekPositionMs)) {
+		if (!_implementation && !init()) {
 			return error();
 		}
 		if (frame() && frame()->original.isNull()) {
-			auto readResult = _implementation->readFramesTill(-1);
-			if (readResult != internal::ReaderImplementation::ReadResult::Success) { // Read the first frame.
+			auto readResult = _implementation->readFramesTill(-1, ms);
+			if (readResult == internal::ReaderImplementation::ReadResult::Eof && _seekPositionMs > 0) {
+				// If seek was done to the end: try to read the first frame,
+				// get the frame size and return a black frame with that size.
+
+				auto firstFramePlayId = 0LL;
+				auto firstFramePositionMs = 0LL;
+				auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, firstFramePlayId);
+				if (reader->start(internal::ReaderImplementation::Mode::Normal, firstFramePositionMs)) {
+					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
+					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
+						if (reader->renderFrame(frame()->original, frame()->alpha, QSize())) {
+							frame()->original.fill(QColor(0, 0, 0));
+
+							frame()->positionMs = _seekPositionMs;
+
+							_width = frame()->original.width();
+							_height = frame()->original.height();
+							_durationMs = _implementation->durationMs();
+							_hasAudio = _implementation->hasAudio();
+							return ProcessResult::Started;
+						}
+					}
+				}
+
+				return error();
+			} else if (readResult != internal::ReaderImplementation::ReadResult::Success) { // Read the first frame.
 				return error();
 			}
 			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
@@ -387,7 +412,8 @@ public:
 	}
 
 	ProcessResult finishProcess(uint64 ms) {
-		auto readResult = _implementation->readFramesTill(_skippedMs + ms - _animationStarted);
+		auto frameMs = _seekPositionMs + ms - _animationStarted;
+		auto readResult = _implementation->readFramesTill(frameMs, ms);
 		if (readResult == internal::ReaderImplementation::ReadResult::Eof) {
 			stop();
 			_state = State::Finished;
@@ -397,8 +423,8 @@ public:
 		}
 		_nextFramePositionMs = _implementation->frameRealTime();
 		_nextFrameWhen = _animationStarted + _implementation->framePresentationTime();
-		if (static_cast<int64>(_nextFrameWhen) > _skippedMs) {
-			_nextFrameWhen -= _skippedMs;
+		if (static_cast<int64>(_nextFrameWhen) > _seekPositionMs) {
+			_nextFrameWhen -= _seekPositionMs;
 		} else {
 			_nextFrameWhen = 1;
 		}
@@ -422,7 +448,7 @@ public:
 		return true;
 	}
 
-	bool init(int64 positionMs) {
+	bool init() {
 		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
@@ -443,8 +469,7 @@ public:
 			}
 			return ImplementationMode::Normal;
 		};
-		_skippedMs = positionMs;
-		return _implementation->start(implementationMode(), positionMs);
+		return _implementation->start(implementationMode(), _seekPositionMs);
 	}
 
 	void startedAt(uint64 ms) {
@@ -530,7 +555,6 @@ private:
 	uint64 _animationStarted = 0;
 	uint64 _nextFrameWhen = 0;
 	int64 _nextFramePositionMs = 0;
-	int64 _skippedMs = 0;
 
 	bool _autoPausedGif = false;
 	bool _started = false;
@@ -816,10 +840,11 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 	QByteArray localdata(data);
 
 	auto playId = 0ULL;
+	auto seekPositionMs = 0LL;
 	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
-	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, 0)) {
+	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, seekPositionMs)) {
 		bool hasAlpha = false;
-		auto readResult = reader->readFramesTill(-1);
+		auto readResult = reader->readFramesTill(-1, getms());
 		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
 		if (readFrame && reader->renderFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {

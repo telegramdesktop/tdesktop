@@ -31,7 +31,7 @@ public:
 
 	QtGifReaderImplementation(FileLocation *location, QByteArray *data);
 
-	ReadResult readFramesTill(int64 ms) override;
+	ReadResult readFramesTill(int64 frameMs, uint64 systemMs) override;
 
 	int64 frameRealTime() const override;
 	uint64 framePresentationTime() const override;
@@ -47,7 +47,7 @@ public:
 	void resumeAudio() override {
 	}
 
-	bool start(Mode mode, int64 positionMs) override;
+	bool start(Mode mode, int64 &positionMs) override;
 
 	~QtGifReaderImplementation();
 

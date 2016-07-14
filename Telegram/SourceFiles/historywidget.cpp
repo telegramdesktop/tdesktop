@@ -3616,24 +3616,33 @@ void HistoryWidget::notify_clipStopperHidden(ClipStopperType type) {
 	if (_list) _list->update();
 }
 
-void HistoryWidget::cmd_search() {
-	if (!inFocusChain() || !_peer) return;
+bool HistoryWidget::cmd_search() {
+	if (!inFocusChain() || !_peer) return false;
 
 	App::main()->searchInPeer(_peer);
+	return true;
 }
 
-void HistoryWidget::cmd_next_chat() {
+bool HistoryWidget::cmd_next_chat() {
 	PeerData *p = 0;
 	MsgId m = 0;
 	App::main()->peerAfter(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) Ui::showPeerHistory(p, m);
+	if (p) {
+		Ui::showPeerHistory(p, m);
+		return true;
+	}
+	return false;
 }
 
-void HistoryWidget::cmd_previous_chat() {
+bool HistoryWidget::cmd_previous_chat() {
 	PeerData *p = 0;
 	MsgId m = 0;
 	App::main()->peerBefore(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) Ui::showPeerHistory(p, m);
+	if (p) {
+		Ui::showPeerHistory(p, m);
+		return true;
+	}
+	return false;
 }
 
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
