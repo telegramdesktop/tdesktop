@@ -937,7 +937,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
 	it->title = stickerSetTitle(s);
-	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded);
+	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
 	it->flags = s.vflags.v | clientFlags;
 	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 

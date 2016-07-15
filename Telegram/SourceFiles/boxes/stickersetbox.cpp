@@ -87,7 +87,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 			auto &sets = Global::RefStickerSets();
 			auto it = sets.find(_setId);
 			if (it != sets.cend()) {
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread);
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_special);
 				_setFlags |= clientFlags;
 				it->flags = _setFlags;
 				it->stickers = _pack;
@@ -418,6 +418,7 @@ StickersInner::StickersInner(StickersBox::Section section) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _a_shifting(animation(this, &StickersInner::step_shifting))
 , _itemsTop(st::membersPadding.top())
+, _clearWidth(st::normalFont->width(lang(lng_stickers_clear_recent)))
 , _removeWidth(st::normalFont->width(lang(lng_stickers_remove)))
 , _returnWidth(st::normalFont->width(lang(lng_stickers_return)))
 , _restoreWidth(st::normalFont->width(lang(lng_stickers_restore)))
@@ -500,8 +501,8 @@ void StickersInner::paintRow(Painter &p, int32 index) {
 		} else {
 			p.setPen(st::btnDefLink.color);
 		}
-		int32 remWidth = s->disabled ? (s->official ? _restoreWidth : _returnWidth) : _removeWidth;
-		QString remText = lang(s->disabled ? (s->official ? lng_stickers_restore : lng_stickers_return) : lng_stickers_remove);
+		int32 remWidth = s->recent ? _clearWidth : (s->disabled ? (s->official ? _restoreWidth : _returnWidth) : _removeWidth);
+		QString remText = lang(s->recent ? lng_stickers_clear_recent : (s->disabled ? (s->official ? lng_stickers_restore : lng_stickers_return) : lng_stickers_remove));
 		p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), remText, remWidth);
 
 		if (index == _above) {
@@ -581,7 +582,7 @@ void StickersInner::mousePressEvent(QMouseEvent *e) {
 	if (_actionSel >= 0) {
 		_actionDown = _actionSel;
 		update(0, _itemsTop + _actionSel * _rowHeight, width(), _rowHeight);
-	} else if (_selected >= 0 && _section == Section::Installed) {
+	} else if (_selected >= 0 && _section == Section::Installed && !_rows.at(_selected)->recent) {
 		_above = _dragging = _started = _selected;
 		_dragStart = mapFromGlobal(_mouse);
 	}
@@ -599,8 +600,12 @@ void StickersInner::onUpdateSelected() {
 	if (_dragging >= 0) {
 		int32 shift = 0;
 		uint64 ms = getms();
+		int firstSetIndex = 0;
+		if (_rows.at(firstSetIndex)->recent) {
+			++firstSetIndex;
+		}
 		if (_dragStart.y() > local.y() && _dragging > 0) {
-			shift = -floorclamp(_dragStart.y() - local.y() + (_rowHeight / 2), _rowHeight, 0, _dragging);
+			shift = -floorclamp(_dragStart.y() - local.y() + (_rowHeight / 2), _rowHeight, 0, _dragging - firstSetIndex);
 			for (int32 from = _dragging, to = _dragging + shift; from > to; --from) {
 				qSwap(_rows[from], _rows[from - 1]);
 				_rows.at(from)->yadd = anim::ivalue(_rows.at(from)->yadd.current() - _rowHeight, 0);
@@ -635,7 +640,7 @@ void StickersInner::onUpdateSelected() {
 			selected = floorclamp(local.y() - _itemsTop, _rowHeight, 0, _rows.size() - 1);
 
 			if (_section == Section::Installed) {
-				int remw = _rows.at(selected)->disabled ? (_rows.at(selected)->official ? _restoreWidth : _returnWidth) : _removeWidth;
+				int remw = _rows.at(selected)->recent ? _clearWidth : (_rows.at(selected)->disabled ? (_rows.at(selected)->official ? _restoreWidth : _returnWidth) : _removeWidth);
 				QRect rem(myrtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - remw, st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, remw, st::normalFont->height));
 				actionSel = rem.contains(local.x(), local.y() - _itemsTop - selected * _rowHeight) ? selected : -1;
 			} else if (_rows.at(selected)->installed) {
@@ -666,6 +671,34 @@ void StickersInner::onUpdateSelected() {
 	}
 }
 
+void StickersInner::onClearRecent() {
+	if (_clearBox) {
+		_clearBox->onClose();
+	}
+
+	auto &sets = Global::RefStickerSets();
+	sets.remove(Stickers::CloudRecentSetId);
+	sets.remove(Stickers::CustomSetId);
+
+	auto &recent = cGetRecentStickers();
+	if (!recent.isEmpty()) {
+		recent.clear();
+		Local::writeUserSettings();
+	}
+
+	Local::writeStickers();
+	emit App::main()->updateStickers();
+	rebuild();
+
+	MTP::send(MTPmessages_ClearRecentStickers());
+}
+
+void StickersInner::onClearBoxDestroyed(QObject *box) {
+	if (box == _clearBox) {
+		_clearBox = nullptr;
+	}
+}
+
 float64 StickersInner::aboveShadowOpacity() const {
 	if (_above < 0) return 0;
 
@@ -688,7 +721,14 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 	onUpdateSelected();
 	if (_actionDown == _actionSel && _actionSel >= 0) {
 		if (_section == Section::Installed) {
-			_rows[_actionDown]->disabled = !_rows[_actionDown]->disabled;
+			if (_rows[_actionDown]->recent) {
+				_clearBox = new ConfirmBox(lang(lng_stickers_clear_recent_sure), lang(lng_stickers_clear_recent));
+				connect(_clearBox, SIGNAL(confirmed()), this, SLOT(onClearRecent()));
+				connect(_clearBox, SIGNAL(destroyed(QObject*)), this, SLOT(onClearBoxDestroyed(QObject*)));
+				Ui::showLayer(_clearBox, KeepOtherLayers);
+			} else {
+				_rows[_actionDown]->disabled = !_rows[_actionDown]->disabled;
+			}
 		} else {
 			installSet(_rows[_actionDown]->id);
 		}
@@ -876,7 +916,7 @@ void StickersInner::rebuild() {
 	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int namew = st::boxWideWidth - namex - st::contactsPadding.right() - st::contactsCheckPosition.x();
 	if (_section == Section::Installed) {
-		namew -= qMax(qMax(_returnWidth, _removeWidth), _restoreWidth);
+		namew -= qMax(qMax(qMax(_returnWidth, _removeWidth), _restoreWidth), _clearWidth);
 	} else {
 		namew -= _addWidth - st::defaultActiveButton.width;
 	}
@@ -886,12 +926,54 @@ void StickersInner::rebuild() {
 	_animStartTimes.reserve(order.size());
 
 	auto &sets = Global::StickerSets();
+	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
+	if (cloudIt != sets.cend() && !cloudIt->stickers.isEmpty()) {
+		DocumentData *sticker = cloudIt->stickers.at(0);
+		int32 pixw = 0, pixh = 0;
+		if (sticker) {
+			pixw = sticker->thumb->width();
+			pixh = sticker->thumb->height();
+			if (pixw > st::contactsPhotoSize) {
+				if (pixw > pixh) {
+					pixh = (pixh * st::contactsPhotoSize) / pixw;
+					pixw = st::contactsPhotoSize;
+				} else {
+					pixw = (pixw * st::contactsPhotoSize) / pixh;
+					pixh = st::contactsPhotoSize;
+				}
+			} else if (pixh > st::contactsPhotoSize) {
+				pixw = (pixw * st::contactsPhotoSize) / pixh;
+				pixh = st::contactsPhotoSize;
+			}
+		}
+		QString title = cloudIt->title;
+		int32 titleWidth = st::contactsNameFont->width(title);
+		if (titleWidth > namew) {
+			title = st::contactsNameFont->elided(title, namew);
+		}
+		int count = cloudIt->stickers.size();
+		int added = 0;
+		auto customIt = sets.constFind(Stickers::CustomSetId);
+		if (customIt != sets.cend()) {
+			added = customIt->stickers.size();
+			for_const (auto &sticker, cGetRecentStickers()) {
+				if (customIt->stickers.indexOf(sticker.first) < 0) {
+					++added;
+				}
+			}
+		} else {
+			added = cGetRecentStickers().size();
+		}
+		rows.push_back(new StickerSetRow(cloudIt->id, cloudIt->stickers.front(), count + added, title, true, true, false, false, true, pixw, pixh));
+		_animStartTimes.push_back(0);
+	}
 	for_const (auto setId, order) {
 		auto it = sets.constFind(setId);
 		if (it == sets.cend()) {
 			continue;
 		}
 
+		bool recent = false;
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool disabled = (_section == Section::Installed) && (it->flags & MTPDstickerSet::Flag::f_disabled);
 		bool official = (it->flags & MTPDstickerSet::Flag::f_official);
@@ -924,7 +1006,7 @@ void StickersInner::rebuild() {
 		if (titleWidth > namew) {
 			title = st::contactsNameFont->elided(title, namew);
 		}
-		(disabled ? rowsDisabled : rows).push_back(new StickerSetRow(it->id, sticker, it->stickers.size(), title, installed, official, unread, disabled, pixw, pixh));
+		(disabled ? rowsDisabled : rows).push_back(new StickerSetRow(it->id, sticker, it->stickers.size(), title, installed, official, unread, disabled, recent, pixw, pixh));
 		_animStartTimes.push_back(0);
 		if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
 			App::api()->scheduleStickerSetRequest(it->id, it->access);
@@ -972,6 +1054,9 @@ QVector<uint64> StickersInner::getOrder() const {
 			if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_official)) {
 				continue;
 			}
+		}
+		if (_rows.at(i)->recent) {
+			continue;
 		}
 		result.push_back(_rows.at(i)->id);
 	}
@@ -1167,7 +1252,7 @@ void StickersBox::onSave() {
 	}
 
 	bool writeRecent = false;
-	RecentStickerPack &recent(cGetRecentStickers());
+	auto &recent = cGetRecentStickers();
 	auto &sets = Global::RefStickerSets();
 
 	QVector<uint64> reorder = _inner->getOrder(), disabled = _inner->getDisabledSets();
@@ -1191,7 +1276,7 @@ void StickersBox::onSave() {
 					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
 					int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
 					if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
-					if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured)) {
+					if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 						sets.erase(it);
 					} else {
 						it->flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet::Flag::f_disabled);
@@ -1221,10 +1306,9 @@ void StickersBox::onSave() {
 		}
 	}
 	for (auto it = sets.begin(); it != sets.cend();) {
-		if (it->id == Stickers::CustomSetId
-			|| it->id == Stickers::RecentSetId
-			|| (it->flags & MTPDstickerSet_ClientFlag::f_featured)
-			|| (it->flags & MTPDstickerSet::Flag::f_installed)) {
+		if ((it->flags & MTPDstickerSet_ClientFlag::f_featured)
+			|| (it->flags & MTPDstickerSet::Flag::f_installed)
+			|| (it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 			++it;
 		} else {
 			it = sets.erase(it);

@@ -187,7 +187,6 @@ public slots:
 	void onUpdateLocalStorage();
 
 private slots:
-	void onClearStickers();
 	void onSwitchModerateMode();
 
 	void onAskQuestion();

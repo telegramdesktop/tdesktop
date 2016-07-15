@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+class ConfirmBox;
+
 class StickerSetInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -221,6 +223,8 @@ signals:
 
 public slots:
 	void onUpdateSelected();
+	void onClearRecent();
+	void onClearBoxDestroyed(QObject *box);
 
 private:
 	void paintFeaturedButton(Painter &p) const;
@@ -240,7 +244,7 @@ private:
 
 	int32 _rowHeight;
 	struct StickerSetRow {
-		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool installed, bool official, bool unread, bool disabled, int32 pixw, int32 pixh) : id(id)
+		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool installed, bool official, bool unread, bool disabled, bool recent, int32 pixw, int32 pixh) : id(id)
 			, sticker(sticker)
 			, count(count)
 			, title(title)
@@ -248,6 +252,7 @@ private:
 			, official(official)
 			, unread(unread)
 			, disabled(disabled)
+			, recent(recent)
 			, pixw(pixw)
 			, pixh(pixh)
 			, yadd(0, 0) {
@@ -256,7 +261,7 @@ private:
 		DocumentData *sticker;
 		int32 count;
 		QString title;
-		bool installed, official, unread, disabled;
+		bool installed, official, unread, disabled, recent;
 		int32 pixw, pixh;
 		anim::ivalue yadd;
 	};
@@ -274,7 +279,9 @@ private:
 	int _actionSel = -1;
 	int _actionDown = -1;
 
-	int _removeWidth, _returnWidth, _restoreWidth;
+	int _clearWidth, _removeWidth, _returnWidth, _restoreWidth;
+
+	ConfirmBox *_clearBox = nullptr;
 
 	QString _addText;
 	int _addWidth;

@@ -1066,8 +1066,11 @@ enum class MTPDstickerSet_ClientFlag : int32 {
 	// sticker set is an unread featured set
 	f_unread = (1 << 28),
 
+	// special set like recent or custom stickers
+	f_special = (1 << 27),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 28),
+	MIN_FIELD = (1 << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
 

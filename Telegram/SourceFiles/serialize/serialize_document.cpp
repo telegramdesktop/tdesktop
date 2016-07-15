@@ -93,7 +93,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
 		} else if (info) {
-			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CustomSetId) {
+			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CloudRecentSetId || info->setId == Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 

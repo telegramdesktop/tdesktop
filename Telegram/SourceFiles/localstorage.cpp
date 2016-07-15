@@ -3052,7 +3052,7 @@ namespace Local {
 			quint32 size = sizeof(quint32) + Serialize::bytearraySize(hashToWrite);
 			for_const (auto &set, sets) {
 				bool notLoaded = (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded);
-				if (notLoaded) {
+				if (notLoaded && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
 					if (!(set.flags & MTPDstickerSet::Flag::f_disabled)
 						|| (set.flags & MTPDstickerSet::Flag::f_official)
 						|| (set.flags & MTPDstickerSet_ClientFlag::f_featured)) { // waiting to receive
@@ -3118,8 +3118,8 @@ namespace Local {
 		auto &recent = cRefRecentStickers();
 		recent.clear();
 
-		auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed)).value();
-		auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed)).value();
+		auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
+		auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
 
 		QMap<uint64, bool> read;
 		while (!stickers.stream.atEnd()) {
@@ -3220,12 +3220,16 @@ namespace Local {
 
 			if (setId == Stickers::DefaultSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= qFlags(MTPDstickerSet::Flag::f_official);
+				setFlags |= qFlags(MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special);
 				if (stickers.version < 9058) {
 					order.push_front(setId);
 				}
 			} else if (setId == Stickers::CustomSetId) {
 				setTitle = lang(lng_custom_stickers);
+				setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
+			} else if (setId == Stickers::CloudRecentSetId) {
+				setTitle = lang(lng_emoji_category0); // Frequently used
+				setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 			} else if (setId) {
 				if (stickers.version < 9058) {
 					order.push_back(setId);
@@ -3328,6 +3332,20 @@ namespace Local {
 		return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
 	}
 
+	int32 countRecentStickersHash() {
+		uint32 acc = 0;
+		auto &sets = Global::StickerSets();
+		auto it = sets.constFind(Stickers::CloudRecentSetId);
+		if (it != sets.cend()) {
+			for_const (auto doc, it->stickers) {
+				auto docId = doc->id;
+				acc = (acc * 20261) + uint32(docId >> 32);
+				acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
+			}
+		}
+		return int32(acc & 0x7FFFFFFF);
+	}
+
 	int32 countFeaturedStickersHash() {
 		uint32 acc = 0;
 		auto &sets = Global::StickerSets();
@@ -3346,10 +3364,9 @@ namespace Local {
 
 	int32 countSavedGifsHash() {
 		uint32 acc = 0;
-		const SavedGifs &saved(cSavedGifs());
-		for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
-			uint64 docId = (*i)->id;
-
+		auto &saved = cSavedGifs();
+		for_const (auto doc, saved) {
+			auto docId = doc->id;
 			acc = (acc * 20261) + uint32(docId >> 32);
 			acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
 		}

@@ -714,7 +714,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 }
 
 EmojiPanInner::EmojiPanInner() : TWidget()
-, _maxHeight(int(st::emojiPanMaxHeight))
+, _maxHeight(int(st::emojiPanMaxHeight) - st::rbEmoji.height)
 , _a_selected(animation(this, &EmojiPanInner::step_selected))
 , _top(0)
 , _selected(-1)
@@ -1230,7 +1230,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _pressedSel(-1)
 , _settings(this, lang(lng_stickers_you_have))
 , _previewShown(false) {
-	setMaxHeight(st::emojiPanMaxHeight);
+	setMaxHeight(st::emojiPanMaxHeight - st::rbEmoji.height);
 
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
@@ -2111,37 +2111,49 @@ void StickerPanInner::refreshRecent() {
 void StickerPanInner::refreshRecentStickers(bool performResize) {
 	_custom.clear();
 	clearSelection(true);
-	auto customIt = Global::StickerSets().constFind(Stickers::CustomSetId);
-	if (cGetRecentStickers().isEmpty() && (customIt == Global::StickerSets().cend() || customIt->stickers.isEmpty())) {
+	auto &sets = Global::StickerSets();
+	auto &recent = cGetRecentStickers();
+	auto customIt = sets.constFind(Stickers::CustomSetId);
+	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
+	if (recent.isEmpty()
+		&& (customIt == sets.cend() || customIt->stickers.isEmpty())
+		&& (cloudIt == sets.cend() || cloudIt->stickers.isEmpty())) {
 		if (!_sets.isEmpty() && _sets.at(0).id == Stickers::RecentSetId) {
 			_sets.pop_front();
 		}
 	} else {
-		StickerPack recent;
-		int32 customCnt = (customIt == Global::StickerSets().cend() ? 0 : customIt->stickers.size());
-		QMap<DocumentData*, bool> recentOnly;
-		recent.reserve(cGetRecentStickers().size() + customCnt);
-		_custom.reserve(cGetRecentStickers().size() + customCnt);
-		for (int32 i = 0, l = cGetRecentStickers().size(); i < l; ++i) {
-			DocumentData *s = cGetRecentStickers().at(i).first;
-			recent.push_back(s);
-			recentOnly.insert(s, true);
+		StickerPack recentPack;
+		int customCnt = (customIt == sets.cend()) ? 0 : customIt->stickers.size();
+		int cloudCnt = (cloudIt == sets.cend()) ? 0 : cloudIt->stickers.size();
+		recentPack.reserve(cloudCnt + recent.size() + customCnt);
+		_custom.reserve(cloudCnt + recent.size() + customCnt);
+		if (cloudCnt > 0) {
+			for_const (auto sticker, cloudIt->stickers) {
+				recentPack.push_back(sticker);
+				_custom.push_back(false);
+			}
+		}
+		for_const (auto &recentSticker, recent) {
+			auto sticker = recentSticker.first;
+			recentPack.push_back(sticker);
 			_custom.push_back(false);
 		}
-		for (int32 i = 0; i < customCnt; ++i) {
-			DocumentData *s = customIt->stickers.at(i);
-			if (recentOnly.contains(s)) {
-				_custom[recent.indexOf(s)] = true;
-			} else {
-				recent.push_back(s);
-				_custom.push_back(true);
+		if (customCnt > 0) {
+			for_const (auto &sticker, customIt->stickers) {
+				auto index = recentPack.indexOf(sticker);
+				if (index >= cloudCnt) {
+					_custom[index] = true; // mark stickers from recent as custom
+				} else {
+					recentPack.push_back(sticker);
+					_custom.push_back(true);
+				}
 			}
 		}
 		if (_sets.isEmpty() || _sets.at(0).id != Stickers::RecentSetId) {
-			_sets.push_back(DisplayedSet(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official, lang(lng_emoji_category0), recent.size() * 2, recent));
+			_sets.push_back(DisplayedSet(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_emoji_category0), recentPack.size() * 2, recentPack));
 		} else {
-			_sets[0].pack = recent;
-			_sets[0].hovers.resize(recent.size() * 2);
+			_sets[0].pack = recentPack;
+			_sets[0].hovers.resize(recentPack.size() * 2);
 		}
 	}
 
@@ -3244,7 +3256,7 @@ void EmojiPan::step_icons(uint64 ms, bool timer) {
 	}
 
 	if (_iconsStartAnim) {
-		float64 dt = (ms - _iconsStartAnim) / st::stickerIconMove;
+		float64 dt = (ms - _iconsStartAnim) / float64(st::stickerIconMove);
 		if (dt >= 1) {
 			_iconsStartAnim = 0;
 			_iconsX.finish();
@@ -3669,7 +3681,7 @@ void EmojiPan::onRemoveSetSure() {
 			}
 		}
 		it->flags &= ~MTPDstickerSet::Flag::f_installed;
-		if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured)) {
+		if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 			Global::RefStickerSets().erase(it);
 		}
 		int removeIndex = Global::StickerSetsOrder().indexOf(_removingSetId);

@@ -183,8 +183,10 @@ enum Flags {
 namespace Stickers {
 
 static const uint64 DefaultSetId = 0; // for backward compatibility
-static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL, RecentSetId = 0xFFFFFFFFFFFFFFFEULL;
-static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
+static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
+static const uint64 RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
+static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
+static const uint64 CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
 struct Set {
 	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
 		: id(id)
@@ -262,6 +264,7 @@ DeclareRefVar(PendingItemsMap, PendingRepaintItems);
 DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
 DeclareVar(uint64, LastStickersUpdate);
+DeclareVar(uint64, LastRecentStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
 DeclareVar(uint64, LastFeaturedStickersUpdate);

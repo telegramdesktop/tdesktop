@@ -3530,6 +3530,11 @@ void HistoryWidget::updateStickers() {
 			_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true))), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 		}
 	}
+	if (!Global::LastRecentStickersUpdate() || now >= Global::LastRecentStickersUpdate() + StickersUpdateTimeout) {
+		if (!_recentStickersUpdateRequest) {
+			_recentStickersUpdateRequest = MTP::send(MTPmessages_GetRecentStickers(MTP_int(Local::countRecentStickersHash())), rpcDone(&HistoryWidget::recentStickersGot), rpcFail(&HistoryWidget::recentStickersFailed));
+		}
+	}
 	if (!Global::LastFeaturedStickersUpdate() || now >= Global::LastFeaturedStickersUpdate() + StickersUpdateTimeout) {
 		if (!_featuredStickersUpdateRequest) {
 			_featuredStickersUpdateRequest = MTP::send(MTPmessages_GetFeaturedStickers(MTP_int(Local::countFeaturedStickersHash())), rpcDone(&HistoryWidget::featuredStickersGot), rpcFail(&HistoryWidget::featuredStickersFailed));
@@ -3671,7 +3676,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				it->access = set.vaccess_hash.v;
 				it->title = title;
 				it->shortName = qs(set.vshort_name);
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded);
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
 				it->flags = set.vflags.v | clientFlags;
 				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
 					it->count = set.vcount.v;
@@ -3692,6 +3697,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	for (Stickers::Sets::iterator it = sets.begin(), e = sets.end(); it != e;) {
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
+		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
 		if (!installed) { // remove not mine sets from recent stickers
 			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
 				if (it->stickers.indexOf(i->first) >= 0) {
@@ -3702,7 +3708,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				}
 			}
 		}
-		if (installed || featured) {
+		if (installed || featured || special) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -3736,6 +3742,92 @@ bool HistoryWidget::stickersFailed(const RPCError &error) {
 	return true;
 }
 
+void HistoryWidget::recentStickersGot(const MTPmessages_RecentStickers &stickers) {
+	Global::SetLastRecentStickersUpdate(getms(true));
+	_recentStickersUpdateRequest = 0;
+
+	if (stickers.type() != mtpc_messages_recentStickers) return;
+	auto &d = stickers.c_messages_recentStickers();
+
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(Stickers::CloudRecentSetId);
+
+	auto &d_docs = d.vstickers.c_vector().v;
+	if (d_docs.isEmpty()) {
+		if (it != sets.cend()) {
+			sets.erase(it);
+		}
+	} else {
+		if (it == sets.cend()) {
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_emoji_category0), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		} else {
+			it->title = lang(lng_emoji_category0);
+		}
+		it->hash = d.vhash.v;
+
+		auto custom = sets.find(Stickers::CustomSetId);
+
+		StickerPack pack;
+		pack.reserve(d_docs.size());
+		for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
+			DocumentData *doc = App::feedDocument(d_docs.at(i));
+			if (!doc || !doc->sticker()) continue;
+
+			pack.push_back(doc);
+			if (custom != sets.cend()) {
+				int32 index = custom->stickers.indexOf(doc);
+				if (index >= 0) {
+					custom->stickers.removeAt(index);
+				}
+			}
+		}
+		if (custom != sets.cend() && custom->stickers.isEmpty()) {
+			sets.erase(custom);
+			custom = sets.end();
+		}
+
+		bool writeRecent = false;
+		RecentStickerPack &recent(cGetRecentStickers());
+		for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+			if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+				i = recent.erase(i);
+				writeRecent = true;
+			} else {
+				++i;
+			}
+		}
+
+		if (pack.isEmpty()) {
+			sets.erase(it);
+		} else {
+			it->stickers = pack;
+			it->emoji.clear();
+		}
+
+		if (writeRecent) {
+			Local::writeUserSettings();
+		}
+	}
+
+	if (Local::countRecentStickersHash() != d.vhash.v) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countRecentStickersHash()));
+	}
+
+	Local::writeStickers();
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+bool HistoryWidget::recentStickersFailed(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	LOG(("App Fail: Failed to get recent stickers!"));
+
+	Global::SetLastRecentStickersUpdate(getms(true));
+	_recentStickersUpdateRequest = 0;
+	return true;
+}
+
 void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stickers) {
 	Global::SetLastFeaturedStickersUpdate(getms(true));
 	_featuredStickersUpdateRequest = 0;
@@ -3764,16 +3856,16 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 			auto it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {
-				auto clientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
+				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
 				if (unread.contains(set.vid.v) || !(set.vflags.v & MTPDstickerSet::Flag::f_installed)) {
-					clientFlags |= MTPDstickerSet_ClientFlag::f_unread;
+					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}
-				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | clientFlags));
+				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | setClientFlags));
 			} else {
 				it->access = set.vaccess_hash.v;
 				it->title = title;
 				it->shortName = qs(set.vshort_name);
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded);
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
 				it->flags = set.vflags.v | clientFlags;
 				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
 				if (unread.contains(it->id)) {
@@ -3798,7 +3890,8 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 	for (auto it = sets.begin(), e = sets.end(); it != e;) {
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
-		if (installed || featured) {
+		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
+		if (installed || featured || special) {
 			if (featured && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
 				++unreadCount;
 			}

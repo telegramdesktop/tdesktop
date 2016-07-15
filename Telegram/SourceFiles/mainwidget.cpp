@@ -301,11 +301,6 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 				FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
 				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, msg);
-				if (HistoryMedia *media = msg->getMedia()) {
-					if (media->type() == MediaTypeSticker) {
-						App::main()->incrementSticker(media->getDocument());
-					}
-				}
 				App::historyRegRandom(randomId, newId);
 			}
 			if (forwardFrom != i.value()->history()->peer) {
@@ -3679,71 +3674,60 @@ void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify,
 
 void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!sticker || !sticker->sticker()) return;
+	if (sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) return;
 
-	RecentStickerPack &recent(cGetRecentStickers());
-	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
-	for (; i != e; ++i) {
+	bool writeStickers = false;
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(Stickers::CloudRecentSetId);
+	if (it == sets.cend()) {
+		if (it == sets.cend()) {
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_emoji_category0), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		} else {
+			it->title = lang(lng_emoji_category0);
+		}
+	}
+	auto index = it->stickers.indexOf(sticker);
+	if (index > 0) {
+		it->stickers.removeAt(index);
+	}
+	if (index) {
+		it->stickers.push_front(sticker);
+		writeStickers = true;
+	}
+
+	// Remove that sticker from old recent, now it is in cloud recent stickers.
+	bool writeRecent = false;
+	auto &recent = cGetRecentStickers();
+	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
 		if (i->first == sticker) {
-			i->second = recent.begin()->second; // throw to the first place
-			//++i->second;
-			//if (i->second > 0x8000) {
-			//	for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-			//		if (j->second > 1) {
-			//			j->second /= 2;
-			//		} else {
-			//			j->second = 1;
-			//		}
-			//	}
-			//}
-			for (; i != recent.begin(); --i) {
-				if ((i - 1)->second > i->second) {
-					break;
-				}
-				qSwap(*i, *(i - 1));
-			}
+			writeRecent = true;
+			recent.erase(i);
 			break;
 		}
 	}
-	if (i == e) {
-		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
-		recent.push_front(qMakePair(sticker, recent.isEmpty() ? 1 : recent.begin()->second));
-		//recent.push_back(qMakePair(sticker, 1));
-		//for (i = recent.end() - 1; i != recent.begin(); --i) {
-		//	if ((i - 1)->second > i->second) {
-		//		break;
-		//	}
-		//	qSwap(*i, *(i - 1));
-		//}
+	while (!recent.isEmpty() && it->stickers.size() + recent.size() > StickerPanPerRow * StickerPanRowsPerPage) {
+		writeRecent = true;
+		recent.pop_back();
 	}
 
-	Local::writeUserSettings();
-
-	bool found = false;
-	uint64 setId = 0;
-	QString setName;
-	switch (sticker->sticker()->set.type()) {
-	case mtpc_inputStickerSetID: setId = sticker->sticker()->set.c_inputStickerSetID().vid.v; break;
-	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker()->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
+	if (writeRecent) {
+		Local::writeUserSettings();
 	}
-	Stickers::Sets &sets(Global::RefStickerSets());
-	for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
-		if (i->id == Stickers::CustomSetId || i->id == Stickers::DefaultSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
-			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
-				if (i->stickers.at(j) == sticker) {
-					found = true;
-					break;
-				}
+
+	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
+	auto custom = sets.find(Stickers::CustomSetId);
+	if (custom != sets.cend()) {
+		int removeIndex = custom->stickers.indexOf(sticker);
+		if (removeIndex >= 0) {
+			custom->stickers.removeAt(removeIndex);
+			if (custom->stickers.isEmpty()) {
+				sets.erase(custom);
 			}
-			if (found) break;
+			writeStickers = true;
 		}
 	}
-	if (!found) {
-		Stickers::Sets::iterator it = sets.find(Stickers::CustomSetId);
-		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed));
-		}
-		it->stickers.push_back(sticker);
-		++it->count;
+
+	if (writeStickers) {
 		Local::writeStickers();
 	}
 	_history->updateRecentStickers();
@@ -4766,6 +4750,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateStickerSets: {
+		Global::SetLastStickersUpdate(0);
+		App::main()->updateStickers();
+	} break;
+
+	case mtpc_updateRecentStickers: {
 		Global::SetLastStickersUpdate(0);
 		App::main()->updateStickers();
 	} break;

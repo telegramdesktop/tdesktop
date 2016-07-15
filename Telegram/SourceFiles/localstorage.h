@@ -156,6 +156,7 @@ namespace Local {
 	void writeStickers();
 	void readStickers();
 	int32 countStickersHash(bool checkOfficial = false);
+	int32 countRecentStickersHash();
 	int32 countFeaturedStickersHash();
 
 	void writeSavedGifs();
