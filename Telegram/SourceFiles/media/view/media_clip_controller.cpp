@@ -157,6 +157,7 @@ void Controller::refreshTimeTexts() {
 	_playedAlready->setText(timeAlready, &alreadyChanged);
 	_toPlayLeft->setText(timeLeft, &leftChanged);
 	if (alreadyChanged || leftChanged) {
+		resizeEvent(nullptr);
 		_fadeAnimation->refreshCache();
 	}
 }
