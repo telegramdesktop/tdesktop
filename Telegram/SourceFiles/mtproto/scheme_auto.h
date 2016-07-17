@@ -39,7 +39,7 @@ class TypeCreator;
 
 // Type id constants
 enum {
-	mtpc_resPQ = 0x05162463,
+	mtpc_resPQ = 0x5162463,
 	mtpc_p_q_inner_data = 0x83c95aec,
 	mtpc_server_DH_params_fail = 0x79cb045d,
 	mtpc_server_DH_params_ok = 0xd0e8075c,
@@ -55,7 +55,7 @@ enum {
 	mtpc_bad_msg_notification = 0xa7eff811,
 	mtpc_bad_server_salt = 0xedab447b,
 	mtpc_msgs_state_req = 0xda69fb52,
-	mtpc_msgs_state_info = 0x04deb57d,
+	mtpc_msgs_state_info = 0x4deb57d,
 	mtpc_msgs_all_info = 0x8cc0d131,
 	mtpc_msg_detailed_info = 0x276d3ec6,
 	mtpc_msg_new_detailed_info = 0x809db6df,
@@ -64,7 +64,7 @@ enum {
 	mtpc_rpc_answer_unknown = 0x5e2ad36e,
 	mtpc_rpc_answer_dropped_running = 0xcd78e586,
 	mtpc_rpc_answer_dropped = 0xa43ad8b7,
-	mtpc_future_salt = 0x0949d9dc,
+	mtpc_future_salt = 0x949d9dc,
 	mtpc_future_salts = 0xae500895,
 	mtpc_pong = 0x347773c5,
 	mtpc_destroy_session_ok = 0xe22045fc,
@@ -76,7 +76,6 @@ enum {
 	mtpc_ping = 0x7abe77ec,
 	mtpc_ping_delay_disconnect = 0xf3427b8c,
 	mtpc_destroy_session = 0xe7512126,
-	mtpc_register_saveDeveloperInfo = 0x9a5f6e95,
 	mtpc_boolFalse = 0xbc799737,
 	mtpc_boolTrue = 0x997275b5,
 	mtpc_true = 0x3fedd339,
@@ -14747,57 +14746,6 @@ public:
 	MTPDestroy_session(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPdestroy_session>(from, end, cons) {
 	}
 	MTPDestroy_session(const MTPlong &_session_id) : MTPBoxed<MTPdestroy_session>(MTPdestroy_session(_session_id)) {
-	}
-};
-
-class MTPregister_saveDeveloperInfo { // RPC method 'register.saveDeveloperInfo'
-public:
-	MTPstring vname;
-	MTPstring vemail;
-	MTPstring vphone_number;
-	MTPint vage;
-	MTPstring vcity;
-
-	MTPregister_saveDeveloperInfo() {
-	}
-	MTPregister_saveDeveloperInfo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_register_saveDeveloperInfo) {
-		read(from, end, cons);
-	}
-	MTPregister_saveDeveloperInfo(const MTPstring &_name, const MTPstring &_email, const MTPstring &_phone_number, MTPint _age, const MTPstring &_city) : vname(_name), vemail(_email), vphone_number(_phone_number), vage(_age), vcity(_city) {
-	}
-
-	uint32 innerLength() const {
-		return vname.innerLength() + vemail.innerLength() + vphone_number.innerLength() + vage.innerLength() + vcity.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_register_saveDeveloperInfo;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_register_saveDeveloperInfo) {
-		vname.read(from, end);
-		vemail.read(from, end);
-		vphone_number.read(from, end);
-		vage.read(from, end);
-		vcity.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vname.write(to);
-		vemail.write(to);
-		vphone_number.write(to);
-		vage.write(to);
-		vcity.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPregister_SaveDeveloperInfo : public MTPBoxed<MTPregister_saveDeveloperInfo> {
-public:
-	MTPregister_SaveDeveloperInfo() {
-	}
-	MTPregister_SaveDeveloperInfo(const MTPregister_saveDeveloperInfo &v) : MTPBoxed<MTPregister_saveDeveloperInfo>(v) {
-	}
-	MTPregister_SaveDeveloperInfo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPregister_saveDeveloperInfo>(from, end, cons) {
-	}
-	MTPregister_SaveDeveloperInfo(const MTPstring &_name, const MTPstring &_email, const MTPstring &_phone_number, MTPint _age, const MTPstring &_city) : MTPBoxed<MTPregister_saveDeveloperInfo>(MTPregister_saveDeveloperInfo(_name, _email, _phone_number, _age, _city)) {
 	}
 };
 
