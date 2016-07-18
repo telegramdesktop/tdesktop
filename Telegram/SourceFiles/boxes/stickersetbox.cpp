@@ -29,6 +29,40 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "dialogs/dialogs_layout.h"
+#include "styles/style_boxes.h"
+
+namespace Stickers {
+
+void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
+	auto &v = d.vsets.c_vector().v;
+	auto &sets = Global::RefStickerSets();
+	auto &order = Global::RefStickerSetsOrder();
+	Stickers::Order archived;
+	archived.reserve(v.size());
+	QMap<uint64, uint64> setsToRequest;
+	for_const (auto &stickerSet, v) {
+		if (stickerSet.type() == mtpc_stickerSet) {
+			auto set = Stickers::feedSet(stickerSet.c_stickerSet());
+			if (set->stickers.isEmpty()) {
+				setsToRequest.insert(set->id, set->access);
+			}
+			auto index = order.indexOf(set->id);
+			if (index >= 0) {
+				order.removeAt(index);
+			}
+			archived.push_back(set->id);
+		}
+	}
+	if (!setsToRequest.isEmpty()) {
+		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			App::api()->scheduleStickerSetRequest(i.key(), i.value());
+		}
+		App::api()->requestStickerSets();
+	}
+	Ui::showLayer(new StickersBox(archived), KeepOtherLayers);
+}
+
+} // namespace Stickers
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
 , _input(set) {
@@ -117,10 +151,10 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 	return true;
 }
 
-void StickerSetInner::installDone(const MTPBool &result) {
+void StickerSetInner::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	auto &sets = Global::RefStickerSets();
 
-	_setFlags &= ~MTPDstickerSet::Flag::f_disabled;
+	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
 	_setFlags |= MTPDstickerSet::Flag::f_installed;
 	auto it = sets.find(_setId);
 	if (it == sets.cend()) {
@@ -150,6 +184,11 @@ void StickerSetInner::installDone(const MTPBool &result) {
 			sets.erase(custom);
 		}
 	}
+
+	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
+		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+	}
+
 	Local::writeStickers();
 	emit App::main()->stickersUpdated();
 	emit installed(_setId);
@@ -158,11 +197,7 @@ void StickerSetInner::installDone(const MTPBool &result) {
 bool StickerSetInner::installFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)), KeepOtherLayers);
-	} else {
-		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
-	}
+	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -265,7 +300,7 @@ bool StickerSetInner::loaded() const {
 int32 StickerSetInner::notInstalled() const {
 	if (!_loaded) return 0;
 	auto it = Global::StickerSets().constFind(_setId);
-	if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_disabled)) return _pack.size();
+	if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) return _pack.size();
 	return 0;
 }
 
@@ -425,6 +460,26 @@ StickersInner::StickersInner(StickersBox::Section section) : TWidget()
 , _addText(lang(lng_stickers_add).toUpper())
 , _addWidth(st::defaultActiveButton.font->width(_addText))
 , _aboveShadow(st::boxShadow) {
+	setup();
+}
+
+StickersInner::StickersInner(const Stickers::Order &archivedIds) : TWidget()
+, _section(StickersBox::Section::ArchivedPart)
+, _archivedIds(archivedIds)
+, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+, _a_shifting(animation(this, &StickersInner::step_shifting))
+, _itemsTop(st::membersPadding.top())
+, _clearWidth(st::normalFont->width(lang(lng_stickers_clear_recent)))
+, _removeWidth(st::normalFont->width(lang(lng_stickers_remove)))
+, _returnWidth(st::normalFont->width(lang(lng_stickers_return)))
+, _restoreWidth(st::normalFont->width(lang(lng_stickers_restore)))
+, _addText(lang(lng_stickers_add).toUpper())
+, _addWidth(st::defaultActiveButton.font->width(_addText))
+, _aboveShadow(st::boxShadow) {
+	setup();
+}
+
+void StickersInner::setup() {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	setMouseTracking(true);
 }
@@ -520,26 +575,28 @@ void StickersInner::paintRow(Painter &p, int32 index) {
 			p.fillRect(row, st::white);
 			p.setOpacity(1);
 		}
-	} else if (s->installed) {
-		int addw = _addWidth - st::defaultActiveButton.width;
+	} else if (s->installed && !s->disabled) {
+		int addw = st::stickersAddSize.width();
 		int checkx = width() - (st::contactsPadding.right() + st::contactsCheckPosition.x() + (addw + st::stickersFeaturedInstalled.width()) / 2);
 		int checky = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersFeaturedInstalled.height()) / 2;
 		st::stickersFeaturedInstalled.paint(p, QPoint(checkx, checky), width());
 	} else {
-		int addw = _addWidth - st::defaultActiveButton.width;
+		int addw = st::stickersAddSize.width();
 		int addx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - addw;
-		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::defaultActiveButton.height) / 2;
-		QRect add(myrtlrect(addx, addy, addw, st::defaultActiveButton.height));
+		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
+		QRect add(myrtlrect(addx, addy, addw, st::stickersAddSize.height()));
 
 		auto textBg = (_actionSel == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
 		App::roundRect(p, add, textBg, ImageRoundRadius::Small);
-		p.setFont(st::defaultActiveButton.font);
-		p.setPen(st::defaultActiveButton.textFg);
-		int textTop = (_actionSel == index && _actionDown == index) ? st::defaultActiveButton.downTextTop : st::defaultActiveButton.textTop;
-		p.drawTextLeft(addx - st::defaultActiveButton.width / 2, addy + textTop, width(), _addText, _addWidth);
+		int iconx = addx + (st::stickersAddSize.width() - st::stickersAddIcon.width()) / 2;
+		int icony = addy + (st::stickersAddSize.height() - st::stickersAddIcon.height()) / 2;
+		icony += (_actionSel == index && _actionDown == index) ? (st::defaultActiveButton.downTextTop - st::defaultActiveButton.textTop) : 0;
+		st::stickersAddIcon.paint(p, QPoint(iconx, icony), width());
 	}
 
-	if (s->disabled) p.setOpacity(st::stickersRowDisabledOpacity);
+	if (s->disabled && _section == Section::Installed) {
+		p.setOpacity(st::stickersRowDisabledOpacity);
+	}
 	if (s->sticker) {
 		s->sticker->thumb->load();
 		QPixmap pix(s->sticker->thumb->pix(s->pixw, s->pixh));
@@ -643,13 +700,13 @@ void StickersInner::onUpdateSelected() {
 				int remw = _rows.at(selected)->recent ? _clearWidth : (_rows.at(selected)->disabled ? (_rows.at(selected)->official ? _restoreWidth : _returnWidth) : _removeWidth);
 				QRect rem(myrtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - remw, st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, remw, st::normalFont->height));
 				actionSel = rem.contains(local.x(), local.y() - _itemsTop - selected * _rowHeight) ? selected : -1;
-			} else if (_rows.at(selected)->installed) {
+			} else if (_rows.at(selected)->installed && !_rows.at(selected)->disabled) {
 				actionSel = -1;
 			} else {
-				int addw = _addWidth - st::defaultActiveButton.width;
+				int addw = st::stickersAddSize.width();
 				int addx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - addw;
-				int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::defaultActiveButton.height) / 2;
-				QRect add(myrtlrect(addx, addy, addw, st::defaultActiveButton.height));
+				int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
+				QRect add(myrtlrect(addx, addy, addw, st::stickersAddSize.height()));
 				actionSel = add.contains(local.x(), local.y() - _itemsTop - selected * _rowHeight) ? selected : -1;
 			}
 		} else if (_featuredHeight && QRect(0, st::membersPadding.top(), width(), _featuredHeight).contains(local)) {
@@ -661,7 +718,7 @@ void StickersInner::onUpdateSelected() {
 			if ((_selected == -1) != (selected == -1)) {
 				update();
 			}
-			if (_section == Section::Featured && ((_selected >= 0 || _pressed >= 0) != (selected >= 0 || _pressed >= 0))) {
+			if (_section != Section::Installed && ((_selected >= 0 || _pressed >= 0) != (selected >= 0 || _pressed >= 0))) {
 				setCursor((selected >= 0 || _pressed >= 0) ? style::cur_pointer : style::cur_default);
 			}
 			_selected = selected;
@@ -711,7 +768,7 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = _pressed;
 	_pressed = -2;
 
-	if (_section == Section::Featured && _selected < 0 && pressed >= 0) {
+	if (_section != Section::Installed && _selected < 0 && pressed >= 0) {
 		setCursor(style::cur_default);
 	}
 
@@ -746,7 +803,7 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 		if (_selected == -1) {
 			_selected = -2;
 			Ui::showLayer(new StickersBox(Section::Featured), KeepOtherLayers);
-		} else if (_selected >= 0 && _section == Section::Featured) {
+		} else if (_selected >= 0 && _section != Section::Installed) {
 			auto &sets = Global::RefStickerSets();
 			auto it = sets.find(_rows.at(pressed)->id);
 			if (it != sets.cend()) {
@@ -774,9 +831,9 @@ void StickersInner::installSet(uint64 setId) {
 		return;
 	}
 
-	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), RPCDoneHandlerPtr(), rpcFail(&StickersInner::installFail, setId));
+	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersInner::installDone), rpcFail(&StickersInner::installFail, setId));
 
-	it->flags &= ~(MTPDstickerSet::Flag::f_disabled | MTPDstickerSet_ClientFlag::f_unread);
+	it->flags &= ~(MTPDstickerSet::Flag::f_archived | MTPDstickerSet_ClientFlag::f_unread);
 	it->flags |= MTPDstickerSet::Flag::f_installed;
 
 	auto &order = Global::RefStickerSetsOrder();
@@ -802,6 +859,24 @@ void StickersInner::installSet(uint64 setId) {
 	emit App::main()->stickersUpdated();
 }
 
+void StickersInner::installDone(const MTPmessages_StickerSetInstallResult &result) {
+	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
+		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		Local::writeStickers();
+		emit App::main()->stickersUpdated();
+	}
+
+	// TEST DATA ONLY
+	//MTPVector<MTPStickerSet> v = MTP_vector<MTPStickerSet>(0);
+	//for (auto &set : Global::RefStickerSets()) {
+	//	if (rand() < RAND_MAX / 2) {
+	//		set.flags |= MTPDstickerSet::Flag::f_archived;
+	//		v._vector().v.push_back(MTP_stickerSet(MTP_flags(set.flags), MTP_long(set.id), MTP_long(set.access), MTP_string(set.title), MTP_string(set.shortName), MTP_int(set.count), MTP_int(set.hash)));
+	//	}
+	//}
+	//Stickers::applyArchivedResult(MTP_messages_stickerSetInstallResultArchive(v).c_messages_stickerSetInstallResultArchive());
+}
+
 bool StickersInner::installFail(uint64 setId, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
@@ -823,11 +898,7 @@ bool StickersInner::installFail(uint64 setId, const RPCError &error) {
 	Local::writeStickers();
 	emit App::main()->stickersUpdated();
 
-	if (error.type() == qstr("STICKERSETS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_stickers_too_many_packs)), KeepOtherLayers);
-	} else {
-		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
-	}
+	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
 
 	return true;
 }
@@ -884,12 +955,12 @@ void StickersInner::clear() {
 	_aboveShadowFadeStart = 0;
 	_aboveShadowFadeOpacity = anim::fvalue(0, 0);
 	_a_shifting.stop();
-_above = _dragging = _started = -1;
-_selected = -2;
-_pressed = -2;
-_actionDown = -1;
-setActionSel(-1);
-update();
+	_above = _dragging = _started = -1;
+	_selected = -2;
+	_pressed = -2;
+	_actionDown = -1;
+	setActionSel(-1);
+	update();
 }
 
 void StickersInner::setActionSel(int32 actionSel) {
@@ -922,50 +993,23 @@ void StickersInner::rebuild() {
 	}
 
 	clear();
-	auto &order = (_section == Section::Installed) ? Global::StickerSetsOrder() : Global::FeaturedStickerSetsOrder();
-	_animStartTimes.reserve(order.size());
+	auto &order = ([this]() {
+		if (_section == Section::Installed) {
+			return Global::StickerSetsOrder();
+		} else if (_section == Section::Featured) {
+			return Global::FeaturedStickerSetsOrder();
+		}
+		return _archivedIds;
+	})();
+	_rows.reserve(order.size() + 1);
+	_animStartTimes.reserve(order.size() + 1);
 
 	auto &sets = Global::StickerSets();
-	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
-	if (cloudIt != sets.cend() && !cloudIt->stickers.isEmpty()) {
-		DocumentData *sticker = cloudIt->stickers.at(0);
-		int32 pixw = 0, pixh = 0;
-		if (sticker) {
-			pixw = sticker->thumb->width();
-			pixh = sticker->thumb->height();
-			if (pixw > st::contactsPhotoSize) {
-				if (pixw > pixh) {
-					pixh = (pixh * st::contactsPhotoSize) / pixw;
-					pixw = st::contactsPhotoSize;
-				} else {
-					pixw = (pixw * st::contactsPhotoSize) / pixh;
-					pixh = st::contactsPhotoSize;
-				}
-			} else if (pixh > st::contactsPhotoSize) {
-				pixw = (pixw * st::contactsPhotoSize) / pixh;
-				pixh = st::contactsPhotoSize;
-			}
+	if (_section == Section::Installed) {
+		auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
+		if (cloudIt != sets.cend() && !cloudIt->stickers.isEmpty()) {
+			rebuildAppendSet(cloudIt.value(), namew);
 		}
-		QString title = cloudIt->title;
-		int32 titleWidth = st::contactsNameFont->width(title);
-		if (titleWidth > namew) {
-			title = st::contactsNameFont->elided(title, namew);
-		}
-		int count = cloudIt->stickers.size();
-		int added = 0;
-		auto customIt = sets.constFind(Stickers::CustomSetId);
-		if (customIt != sets.cend()) {
-			added = customIt->stickers.size();
-			for_const (auto &sticker, cGetRecentStickers()) {
-				if (customIt->stickers.indexOf(sticker.first) < 0) {
-					++added;
-				}
-			}
-		} else {
-			added = cGetRecentStickers().size();
-		}
-		rows.push_back(new StickerSetRow(cloudIt->id, cloudIt->stickers.front(), count + added, title, true, true, false, false, true, pixw, pixh));
-		_animStartTimes.push_back(0);
 	}
 	for_const (auto setId, order) {
 		auto it = sets.constFind(setId);
@@ -973,47 +1017,13 @@ void StickersInner::rebuild() {
 			continue;
 		}
 
-		bool recent = false;
-		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
-		bool disabled = (_section == Section::Installed) && (it->flags & MTPDstickerSet::Flag::f_disabled);
-		bool official = (it->flags & MTPDstickerSet::Flag::f_official);
-		bool unread = (_section == Section::Featured) && _unreadSets.contains(it->id);
-		if (!unread && _section == Section::Featured && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
-			unread = true;
-			_unreadSets.insert(it->id);
-		}
+		rebuildAppendSet(it.value(), namew);
 
-		DocumentData *sticker = it->stickers.isEmpty() ? 0 : it->stickers.at(0);
-		int32 pixw = 0, pixh = 0;
-		if (sticker) {
-			pixw = sticker->thumb->width();
-			pixh = sticker->thumb->height();
-			if (pixw > st::contactsPhotoSize) {
-				if (pixw > pixh) {
-					pixh = (pixh * st::contactsPhotoSize) / pixw;
-					pixw = st::contactsPhotoSize;
-				} else {
-					pixw = (pixw * st::contactsPhotoSize) / pixh;
-					pixh = st::contactsPhotoSize;
-				}
-			} else if (pixh > st::contactsPhotoSize) {
-				pixw = (pixw * st::contactsPhotoSize) / pixh;
-				pixh = st::contactsPhotoSize;
-			}
-		}
-		QString title = it->title;
-		int32 titleWidth = st::contactsNameFont->width(title);
-		if (titleWidth > namew) {
-			title = st::contactsNameFont->elided(title, namew);
-		}
-		(disabled ? rowsDisabled : rows).push_back(new StickerSetRow(it->id, sticker, it->stickers.size(), title, installed, official, unread, disabled, recent, pixw, pixh));
-		_animStartTimes.push_back(0);
 		if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
 			App::api()->scheduleStickerSetRequest(it->id, it->access);
 		}
 	}
 	App::api()->requestStickerSets();
-	_rows = rows + rowsDisabled;
 	resize(width(), _itemsTop + _rows.size() * _rowHeight + st::membersPadding.bottom());
 
 	if (_section == Section::Featured && Global::FeaturedStickerSetsUnreadCount()) {
@@ -1023,6 +1033,68 @@ void StickersInner::rebuild() {
 		}
 		MTP::send(MTPmessages_ReadFeaturedStickers(), rpcDone(&StickersInner::readFeaturedDone), rpcFail(&StickersInner::readFeaturedFail));
 	}
+}
+
+void StickersInner::rebuildAppendSet(const Stickers::Set &set, int maxNameWidth) {
+	bool recent = (set.id == Stickers::CloudRecentSetId);
+	bool installed = true;
+	bool official = true;
+	bool unread = false;
+	bool disabled = false;
+	if (!recent) {
+		installed = (set.flags & MTPDstickerSet::Flag::f_installed);
+		official = (set.flags & MTPDstickerSet::Flag::f_official);
+		disabled = (set.flags & MTPDstickerSet::Flag::f_archived);
+		if (_section == Section::Featured) {
+			unread = _unreadSets.contains(set.id);
+			if (!unread && (set.flags & MTPDstickerSet_ClientFlag::f_unread)) {
+				unread = true;
+				_unreadSets.insert(set.id);
+			}
+		} else if (_section == Section::Installed && disabled) {
+			return;
+		}
+	}
+
+	auto sticker = set.stickers.at(0);
+	int32 pixw = 0, pixh = 0;
+	if (sticker) {
+		pixw = sticker->thumb->width();
+		pixh = sticker->thumb->height();
+		if (pixw > st::contactsPhotoSize) {
+			if (pixw > pixh) {
+				pixh = (pixh * st::contactsPhotoSize) / pixw;
+				pixw = st::contactsPhotoSize;
+			} else {
+				pixw = (pixw * st::contactsPhotoSize) / pixh;
+				pixh = st::contactsPhotoSize;
+			}
+		} else if (pixh > st::contactsPhotoSize) {
+			pixw = (pixw * st::contactsPhotoSize) / pixh;
+			pixh = st::contactsPhotoSize;
+		}
+	}
+	QString title = set.title;
+	int32 titleWidth = st::contactsNameFont->width(title);
+	if (titleWidth > maxNameWidth) {
+		title = st::contactsNameFont->elided(title, maxNameWidth);
+	}
+	int count = set.stickers.size(), added = 0;
+	if (recent) {
+		auto customIt = Global::StickerSets().constFind(Stickers::CustomSetId);
+		if (customIt != Global::StickerSets().cend()) {
+			added = customIt->stickers.size();
+			for_const (auto &sticker, cGetRecentStickers()) {
+				if (customIt->stickers.indexOf(sticker.first) < 0) {
+					++added;
+				}
+			}
+		} else {
+			added = cGetRecentStickers().size();
+		}
+	}
+	_rows.push_back(new StickerSetRow(set.id, sticker, count + added, title, installed, official, unread, disabled, recent, pixw, pixh));
+	_animStartTimes.push_back(0);
 }
 
 void StickersInner::readFeaturedDone(const MTPBool &result) {
@@ -1045,8 +1117,8 @@ bool StickersInner::readFeaturedFail(const RPCError &error) {
 	return true;
 }
 
-QVector<uint64> StickersInner::getOrder() const {
-	QVector<uint64> result;
+Stickers::Order StickersInner::getOrder() const {
+	Stickers::Order result;
 	result.reserve(_rows.size());
 	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
 		if (_rows.at(i)->disabled) {
@@ -1063,8 +1135,8 @@ QVector<uint64> StickersInner::getOrder() const {
 	return result;
 }
 
-QVector<uint64> StickersInner::getDisabledSets() const {
-	QVector<uint64> result;
+Stickers::Order StickersInner::getDisabledSets() const {
+	Stickers::Order result;
 	result.reserve(_rows.size());
 	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
 		if (_rows.at(i)->disabled) {
@@ -1087,15 +1159,24 @@ StickersInner::~StickersInner() {
 StickersBox::StickersBox(Section section) : ItemListBox(st::boxScroll)
 , _section(section)
 , _inner(section)
-, _reorderRequest(0)
-, _topShadow(this, st::contactsAboutShadow)
-, _scrollDelta(0)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
 , _about(st::boxTextFont, lang(lng_stickers_reorder), _defaultOptions, _aboutWidth) {
+	setup();
+}
 
+StickersBox::StickersBox(const Stickers::Order &archivedIds) : ItemListBox(st::boxScroll)
+, _section(Section::ArchivedPart)
+, _inner(archivedIds)
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
+, _about(st::boxTextFont, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
+	setup();
+}
+
+void StickersBox::setup() {
 	int bottomSkip = st::boxPadding.bottom();
 	if (_section == Section::Installed) {
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
+		_topShadow = new PlainShadow(this, st::contactsAboutShadow);
 
 		_save = new BoxButton(this, lang(lng_settings_save), st::defaultBoxButton);
 		connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -1105,6 +1186,12 @@ StickersBox::StickersBox(Section section) : ItemListBox(st::boxScroll)
 
 		_bottomShadow = new ScrollableBoxShadow(this);
 		bottomSkip = st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
+	} else if (_section == Section::ArchivedPart) {
+		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
+		_topShadow = new PlainShadow(this, st::contactsAboutShadow);
+
+		_save = new BoxButton(this, lang(lng_box_ok), st::defaultBoxButton);
+		connect(_save, SIGNAL(clicked()), this, SLOT(onClose()));
 	}
 	ItemListBox::init(_inner, bottomSkip, st::boxTitleHeight + _aboutHeight);
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
@@ -1130,7 +1217,7 @@ int32 StickersBox::countHeight() const {
 	return st::boxTitleHeight + _aboutHeight + _inner->height() + bottomSkip;
 }
 
-void StickersBox::disenableDone(const MTPBool & result, mtpRequestId req) {
+void StickersBox::disenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req) {
 	_disenableRequests.remove(req);
 	if (_disenableRequests.isEmpty()) {
 		saveOrder();
@@ -1178,7 +1265,15 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_stickers_packs));
+	auto title = ([this]() {
+		if (_section == Section::Installed) {
+			return lang(lng_stickers_packs);
+		} else if (_section == Section::Featured) {
+			return lang(lng_stickers_featured);
+		}
+		return lang(lng_stickers_archived);
+	})();
+	paintTitle(p, title);
 	p.translate(0, st::boxTitleHeight);
 
 	if (_aboutHeight > 0) {
@@ -1207,10 +1302,14 @@ void StickersBox::closePressed() {
 void StickersBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _aboutHeight, width(), st::lineWidth);
 	_inner->setVisibleScrollbar((_scroll.scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
+	if (_topShadow) {
+		_topShadow->setGeometry(0, st::boxTitleHeight + _aboutHeight, width(), st::lineWidth);
+	}
 	if (_save) {
 		_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	}
+	if (_cancel) {
 		_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 		_bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _save->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 	}
@@ -1255,7 +1354,7 @@ void StickersBox::onSave() {
 	auto &recent = cGetRecentStickers();
 	auto &sets = Global::RefStickerSets();
 
-	QVector<uint64> reorder = _inner->getOrder(), disabled = _inner->getDisabledSets();
+	auto reorder = _inner->getOrder(), disabled = _inner->getDisabledSets();
 	for (int32 i = 0, l = disabled.size(); i < l; ++i) {
 		auto it = sets.find(disabled.at(i));
 		if (it != sets.cend()) {
@@ -1267,11 +1366,11 @@ void StickersBox::onSave() {
 					++i;
 				}
 			}
-			if (!(it->flags & MTPDstickerSet::Flag::f_disabled)) {
+			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
 				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
 				if (it->flags & MTPDstickerSet::Flag::f_official) {
 					_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolTrue()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
-					it->flags |= MTPDstickerSet::Flag::f_disabled;
+					it->flags |= MTPDstickerSet::Flag::f_archived;
 				} else {
 					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
 					int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
@@ -1279,7 +1378,7 @@ void StickersBox::onSave() {
 					if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 						sets.erase(it);
 					} else {
-						it->flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet::Flag::f_disabled);
+						it->flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet::Flag::f_archived);
 					}
 				}
 			}
@@ -1296,10 +1395,10 @@ void StickersBox::onSave() {
 	for (int i = 0, l = reorder.size(); i < l; ++i) {
 		auto it = sets.find(reorder.at(i));
 		if (it != sets.cend()) {
-			if ((it->flags & MTPDstickerSet::Flag::f_disabled) && !disabled.contains(it->id)) {
+			if ((it->flags & MTPDstickerSet::Flag::f_archived) && !disabled.contains(it->id)) {
 				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
 				_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolFalse()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
-				it->flags &= ~MTPDstickerSet::Flag::f_disabled;
+				it->flags &= ~MTPDstickerSet::Flag::f_archived;
 			}
 			order.push_back(reorder.at(i));
 			it->flags |= MTPDstickerSet::Flag::f_installed;
@@ -1327,9 +1426,13 @@ void StickersBox::onSave() {
 }
 
 void StickersBox::hideAll() {
-	_topShadow.hide();
+	if (_topShadow) {
+		_topShadow->hide();
+	}
 	if (_save) {
 		_save->hide();
+	}
+	if (_cancel) {
 		_cancel->hide();
 		_bottomShadow->hide();
 	}
@@ -1337,9 +1440,13 @@ void StickersBox::hideAll() {
 }
 
 void StickersBox::showAll() {
-	_topShadow.show();
+	if (_topShadow) {
+		_topShadow->show();
+	}
 	if (_save) {
 		_save->show();
+	}
+	if (_cancel) {
 		_cancel->show();
 		_bottomShadow->show();
 	}
@@ -1353,7 +1460,7 @@ int32 stickerPacksCount(bool includeDisabledOfficial) {
 	for (int i = 0, l = order.size(); i < l; ++i) {
 		auto it = sets.constFind(order.at(i));
 		if (it != sets.cend()) {
-			if (!(it->flags & MTPDstickerSet::Flag::f_disabled) || ((it->flags & MTPDstickerSet::Flag::f_official) && includeDisabledOfficial)) {
+			if (!(it->flags & MTPDstickerSet::Flag::f_archived) || ((it->flags & MTPDstickerSet::Flag::f_official) && includeDisabledOfficial)) {
 				++result;
 			}
 		}

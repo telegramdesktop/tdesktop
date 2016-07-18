@@ -64,7 +64,7 @@ private:
 	void gotSet(const MTPmessages_StickerSet &set);
 	bool failedSet(const RPCError &error);
 
-	void installDone(const MTPBool &result);
+	void installDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installFail(const RPCError &error);
 
 	StickerPack _pack;
@@ -130,19 +130,21 @@ class StickersBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	enum class Section {
 		Installed,
 		Featured,
+		Archived,
+		ArchivedPart,
 	};
 	StickersBox(Section section = Section::Installed);
+	StickersBox(const Stickers::Order &archivedIds);
+
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
 	void closePressed();
 
 public slots:
-
 	void onStickersUpdated();
 
 	void onCheckDraggingScroll(int localY);
@@ -152,15 +154,14 @@ public slots:
 	void onSave();
 
 protected:
-
 	void hideAll();
 	void showAll();
 
 private:
-
+	void setup();
 	int32 countHeight() const;
 
-	void disenableDone(const MTPBool &result, mtpRequestId req);
+	void disenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
 	bool disenableFail(const RPCError &error, mtpRequestId req);
 	void reorderDone(const MTPBool &result);
 	bool reorderFail(const RPCError &result);
@@ -172,12 +173,12 @@ private:
 	ChildWidget<BoxButton> _save = { nullptr };
 	ChildWidget<BoxButton> _cancel = { nullptr };
 	QMap<mtpRequestId, NullType> _disenableRequests;
-	mtpRequestId _reorderRequest;
-	PlainShadow _topShadow;
+	mtpRequestId _reorderRequest = 0;
+	ChildWidget<PlainShadow> _topShadow = { nullptr };
 	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
 	QTimer _scrollTimer;
-	int32 _scrollDelta;
+	int32 _scrollDelta = 0;
 
 	int _aboutWidth = 0;
 	Text _about;
@@ -195,6 +196,7 @@ class StickersInner : public TWidget, public RPCSender {
 public:
 	using Section = StickersBox::Section;
 	StickersInner(Section section);
+	StickersInner(const Stickers::Order &archivedIds);
 
 	void rebuild();
 	bool savingStart() {
@@ -203,8 +205,8 @@ public:
 		return true;
 	}
 
-	QVector<uint64> getOrder() const;
-	QVector<uint64> getDisabledSets() const;
+	Stickers::Order getOrder() const;
+	Stickers::Order getDisabledSets() const;
 
 	void setVisibleScrollbar(int32 width);
 
@@ -227,6 +229,7 @@ public slots:
 	void onClearBoxDestroyed(QObject *box);
 
 private:
+	void setup();
 	void paintFeaturedButton(Painter &p) const;
 
 	void step_shifting(uint64 ms, bool timer);
@@ -236,11 +239,13 @@ private:
 	float64 aboveShadowOpacity() const;
 
 	void installSet(uint64 setId);
+	void installDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installFail(uint64 setId, const RPCError &error);
 	void readFeaturedDone(const MTPBool &result);
 	bool readFeaturedFail(const RPCError &error);
 
 	Section _section;
+	Stickers::Order _archivedIds;
 
 	int32 _rowHeight;
 	struct StickerSetRow {
@@ -265,7 +270,10 @@ private:
 		int32 pixw, pixh;
 		anim::ivalue yadd;
 	};
-	typedef QList<StickerSetRow*> StickerSetRows;
+	using StickerSetRows = QList<StickerSetRow*>;
+
+	void rebuildAppendSet(const Stickers::Set &set, int maxNameWidth);
+
 	StickerSetRows _rows;
 	QList<uint64> _animStartTimes;
 	uint64 _aboveShadowFadeStart = 0;

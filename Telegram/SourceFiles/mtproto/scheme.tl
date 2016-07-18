@@ -418,7 +418,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true id:int ip_address:string port:int = DcOption;
 
-config#c9411388 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int disabled_features:Vector<DisabledFeature> = Config;
+config#f401a4bf date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -555,7 +555,7 @@ inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
 inputStickerSetShortName#861cc8a0 short_name:string = InputStickerSet;
 
-stickerSet#cd303b41 flags:# installed:flags.0?true disabled:flags.1?true official:flags.2?true id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
+stickerSet#cd303b41 flags:# installed:flags.0?true archived:flags.1?true official:flags.2?true id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
 
 messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:Vector<Document> = messages.StickerSet;
 
@@ -672,7 +672,7 @@ auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
 auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 
-messages.botCallbackAnswer#31fde6e4 flags:# alert:flags.1?true allow_pip:flags.2?true message:flags.0?string url:flags.3?string = messages.BotCallbackAnswer;
+messages.botCallbackAnswer#31fde6e4 flags:# alert:flags.1?true message:flags.0?string url:flags.3?string = messages.BotCallbackAnswer;
 
 messages.messageEditData#26b5dde6 flags:# caption:flags.0?true = messages.MessageEditData;
 
@@ -703,6 +703,11 @@ messages.featuredStickers#ed6392b7 hash:int sets:Vector<StickerSet> unread:Vecto
 
 messages.recentStickersNotModified#b17f890 = messages.RecentStickers;
 messages.recentStickers#5ce20970 hash:int stickers:Vector<Document> = messages.RecentStickers;
+
+messages.archivedStickers#f3475c0c count:int sets:Vector<StickerSet> = messages.ArchivedStickers;
+
+messages.stickerSetInstallResultSuccess#38641628 = messages.StickerSetInstallResult;
+messages.stickerSetInstallResultArchive#192c8a4e sets:Vector<StickerSet> = messages.StickerSetInstallResult;
 
 ---functions---
 
@@ -814,7 +819,7 @@ messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
-messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = Bool;
+messages.installStickerSet#c78fe460 stickerset:InputStickerSet archived:Bool = messages.StickerSetInstallResult;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#e6df7378 bot:InputUser peer:InputPeer random_id:long start_param:string = Updates;
 messages.getMessagesViews#c4c8a55d peer:InputPeer id:Vector<int> increment:Bool = Vector<int>;
@@ -834,15 +839,17 @@ messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEdi
 messages.editMessage#ce91e4ca flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
 messages.editInlineBotMessage#130c2c85 flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:flags.11?string reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getBotCallbackAnswer#a6e94f04 peer:InputPeer msg_id:int data:bytes = messages.BotCallbackAnswer;
-messages.setBotCallbackAnswer#70dc0fa3 flags:# alert:flags.1?true allow_pip:flags.2?true query_id:long message:flags.0?string url:flags.3?string = Bool;
+messages.setBotCallbackAnswer#70dc0fa3 flags:# alert:flags.1?true query_id:long message:flags.0?string url:flags.3?string = Bool;
 messages.getPeerDialogs#2d9776b9 peers:Vector<InputPeer> = messages.PeerDialogs;
 messages.saveDraft#bc39e14b flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int peer:InputPeer message:string entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getAllDrafts#6a3f8d65 = Updates;
 messages.getFeaturedStickers#2dacca4f hash:int = messages.FeaturedStickers;
 messages.readFeaturedStickers#e21cbb = Bool;
 messages.getRecentStickers#99197c2c hash:int = messages.RecentStickers;
+messages.saveRecentSticker#348e39bf id:InputDocument unsave:Bool = Bool;
 messages.clearRecentStickers#ab02e5d2 = Bool;
 messages.getUnusedStickers#a978d356 limit:int = Vector<StickerSet>;
+messages.getArchivedStickers#906e241f offset_id:long limit:int = messages.ArchivedStickers;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

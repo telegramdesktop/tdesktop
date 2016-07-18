@@ -520,6 +520,31 @@ DefineVar(Sandbox, ConnectionProxy, PreLaunchProxy);
 
 } // namespace Sandbox
 
+namespace Stickers {
+
+Set *feedSet(const MTPDstickerSet &set) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(set.vid.v);
+	auto title = stickerSetTitle(set);
+	if (it == sets.cend()) {
+		it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded));
+	} else {
+		it->access = set.vaccess_hash.v;
+		it->title = title;
+		it->shortName = qs(set.vshort_name);
+		auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
+		it->flags = set.vflags.v | clientFlags;
+		if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
+			it->count = set.vcount.v;
+			it->hash = set.vhash.v;
+			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+		}
+	}
+	return &it.value();
+}
+
+} // namespace Stickers
+
 namespace Global {
 namespace internal {
 
@@ -556,6 +581,7 @@ struct Data {
 	int32 PushChatLimit = 2;
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
+	int32 StickersRecentLimit = 30;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -628,6 +654,7 @@ DefineVar(Global, int32, PushChatPeriod);
 DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
+DefineVar(Global, int32, StickersRecentLimit);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

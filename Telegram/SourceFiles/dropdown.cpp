@@ -2088,7 +2088,7 @@ bool StickerPanInner::ui_isInlineItemBeingChosen() {
 void StickerPanInner::appendSet(uint64 setId) {
 	auto &sets = Global::StickerSets();
 	auto it = sets.constFind(setId);
-	if (it == sets.cend() || (it->flags & MTPDstickerSet::Flag::f_disabled) || it->stickers.isEmpty()) return;
+	if (it == sets.cend() || (it->flags & MTPDstickerSet::Flag::f_archived) || it->stickers.isEmpty()) return;
 
 	StickerPack pack;
 	pack.reserve(it->stickers.size());

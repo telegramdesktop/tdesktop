@@ -214,6 +214,8 @@ inline MTPInputStickerSet inputSetId(const Set &set) {
 	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
 }
 
+Set *feedSet(const MTPDstickerSet &set);
+
 } // namespace Stickers
 
 namespace Global {
@@ -254,6 +256,7 @@ DeclareVar(int32, PushChatPeriod);
 DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
+DeclareVar(int32, StickersRecentLimit);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);

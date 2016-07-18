@@ -161,7 +161,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (it->emoji.isEmpty()) {
 					setsToRequest.insert(it->id, it->access);
 					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
-				} else if (!(it->flags & MTPDstickerSet::Flag::f_disabled)) {
+				} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
 					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
 					if (i != it->emoji.cend()) {
 						srows += *i;

@@ -3667,27 +3667,11 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	}
 	for_const (auto &setData, d_sets) {
 		if (setData.type() == mtpc_stickerSet) {
-			const auto &set(setData.c_stickerSet());
-			auto it = sets.find(set.vid.v);
-			QString title = stickerSetTitle(set);
-			if (it == sets.cend()) {
-				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded));
-			} else {
-				it->access = set.vaccess_hash.v;
-				it->title = title;
-				it->shortName = qs(set.vshort_name);
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-				it->flags = set.vflags.v | clientFlags;
-				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
-					it->count = set.vcount.v;
-					it->hash = set.vhash.v;
-					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
-				}
-			}
-			if (!(it->flags & MTPDstickerSet::Flag::f_disabled) || (it->flags & MTPDstickerSet::Flag::f_official)) {
-				setsOrder.push_back(set.vid.v);
-				if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
+			auto set = Stickers::feedSet(setData.c_stickerSet());
+			if (!(set->flags & MTPDstickerSet::Flag::f_archived) || (set->flags & MTPDstickerSet::Flag::f_official)) {
+				setsOrder.push_back(set->id);
+				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+					setsToRequest.insert(set->id, set->access);
 				}
 			}
 		}

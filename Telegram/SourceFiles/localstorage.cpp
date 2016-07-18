@@ -541,6 +541,7 @@ namespace {
 		dbiHiddenPinnedMessages = 0x39,
 		dbiDialogsMode          = 0x40,
 		dbiModerateMode         = 0x41,
+		dbiStickersRecentLimit  = 0x43,
 
 		dbiEncryptedWithSalt    = 333,
 		dbiEncrypted            = 444,
@@ -832,6 +833,14 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			Global::SetSavedGifsLimit(limit);
+		} break;
+
+		case dbiStickersRecentLimit: {
+			qint32 limit;
+			stream >> limit;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetStickersRecentLimit(limit);
 		} break;
 
 		case dbiMegagroupSizeMax: {
@@ -2175,12 +2184,13 @@ namespace Local {
 			size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 		}
 
-		size += sizeof(quint32) + sizeof(qint32) * 6;
+		size += sizeof(quint32) + sizeof(qint32) * 7;
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiChatSizeMax) << qint32(Global::ChatSizeMax());
 		data.stream << quint32(dbiMegagroupSizeMax) << qint32(Global::MegagroupSizeMax());
 		data.stream << quint32(dbiSavedGifsLimit) << qint32(Global::SavedGifsLimit());
+		data.stream << quint32(dbiStickersRecentLimit) << qint32(Global::StickersRecentLimit());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -3053,7 +3063,7 @@ namespace Local {
 			for_const (auto &set, sets) {
 				bool notLoaded = (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 				if (notLoaded && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
-					if (!(set.flags & MTPDstickerSet::Flag::f_disabled)
+					if (!(set.flags & MTPDstickerSet::Flag::f_archived)
 						|| (set.flags & MTPDstickerSet::Flag::f_official)
 						|| (set.flags & MTPDstickerSet_ClientFlag::f_featured)) { // waiting to receive
 						return;
@@ -3155,7 +3165,9 @@ namespace Local {
 				custom.stickers.push_back(doc);
 				++custom.count;
 			}
-			if (recent.size() < StickerPanPerRow * StickerPanRowsPerPage && qAbs(value) > 1) recent.push_back(qMakePair(doc, qAbs(value)));
+			if (recent.size() < Global::StickersRecentLimit() && qAbs(value) > 1) {
+				recent.push_back(qMakePair(doc, qAbs(value)));
+			}
 		}
 		if (def.stickers.isEmpty()) {
 			sets.remove(Stickers::DefaultSetId);
@@ -3324,7 +3336,7 @@ namespace Local {
 				} else if (j->flags & MTPDstickerSet::Flag::f_official) {
 					foundOfficial = true;
 				}
-				if (!(j->flags & MTPDstickerSet::Flag::f_disabled)) {
+				if (!(j->flags & MTPDstickerSet::Flag::f_archived)) {
 					acc = (acc * 20261) + j->hash;
 				}
 			}

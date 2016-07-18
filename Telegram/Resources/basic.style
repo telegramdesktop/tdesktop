@@ -1845,20 +1845,6 @@ stickersReorderFg: #777;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
-stickersFeaturedHeight: 32px;
-stickersFeaturedFont: contactsNameFont;
-stickersFeaturedPosition: point(16px, 6px);
-stickersFeaturedBadgeFont: semiboldFont;
-stickersFeaturedBadgeSize: 21px;
-stickersFeaturedPen: contactsNewItemFg;
-stickersFeaturedUnreadBg: msgFileInBg;
-stickersFeaturedUnreadSize: 5px;
-stickersFeaturedUnreadSkip: 5px;
-stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {
-	{ "mediaview_save_check", #40ace3 }
-};
-
 emojiScroll: flatScroll(solidScroll) {
 	deltat: 48px;
 }

@@ -3705,7 +3705,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			break;
 		}
 	}
-	while (!recent.isEmpty() && it->stickers.size() + recent.size() > StickerPanPerRow * StickerPanRowsPerPage) {
+	while (!recent.isEmpty() && it->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
 		writeRecent = true;
 		recent.pop_back();
 	}
