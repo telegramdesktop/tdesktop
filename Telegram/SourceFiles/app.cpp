@@ -858,7 +858,6 @@ namespace {
 					chat->botStatus = botStatus;
 					if (!found) {
 						h->clearLastKeyboard();
-						if (App::main()) App::main()->updateBotKeyboard(h);
 					}
 				}
 			}
@@ -961,7 +960,6 @@ namespace {
 						History *h = App::historyLoaded(chat->id);
 						if (h && h->lastKeyboardFrom == user->id) {
 							h->clearLastKeyboard();
-							if (App::main()) App::main()->updateBotKeyboard(h);
 						}
 					}
 					if (chat->botStatus > 0 && user->botInfo) {

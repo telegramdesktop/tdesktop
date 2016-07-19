@@ -5930,8 +5930,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 		} else {
 			if (_history) {
 				_history->clearLastKeyboard();
+			} else {
+				updateBotKeyboard();
 			}
-			updateBotKeyboard();
 		}
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
 		_kbHide.hide();

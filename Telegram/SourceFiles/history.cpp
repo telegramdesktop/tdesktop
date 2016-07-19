@@ -151,6 +151,9 @@ void History::clearLastKeyboard() {
 			lastKeyboardHiddenId = 0;
 		}
 		lastKeyboardId = 0;
+		if (auto main = App::main()) {
+			main->updateBotKeyboard(this);
+		}
 	}
 	lastKeyboardInited = true;
 	lastKeyboardFrom = 0;
@@ -839,7 +842,6 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 				PeerId uid = peerFromUser(d.vuser_id);
 				if (lastKeyboardFrom == uid) {
 					clearLastKeyboard();
-					if (App::main()) App::main()->updateBotKeyboard(this);
 				}
 				if (peer->isMegagroup()) {
 					if (auto user = App::userLoaded(uid)) {
@@ -2719,7 +2721,6 @@ void HistoryItem::finishEditionToEmpty() {
 	}
 	if (history()->lastKeyboardId == id) {
 		history()->clearLastKeyboard();
-		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
 	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
 		history()->setUnreadCount(history()->unreadCount() - 1);
@@ -2767,7 +2768,6 @@ void HistoryItem::destroy() {
 	}
 	if (history()->lastKeyboardId == id) {
 		history()->clearLastKeyboard();
-		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
 	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
 		history()->setUnreadCount(history()->unreadCount() - 1);
