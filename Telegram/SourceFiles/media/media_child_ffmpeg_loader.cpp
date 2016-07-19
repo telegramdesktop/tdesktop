@@ -120,7 +120,10 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 	av_frame_unref(_frame);
 	int got_frame = 0;
 	int res = 0;
-	auto packet = _queue.dequeue();
+
+	AVPacket packet;
+	FFMpeg::packetFromDataWrap(packet, _queue.dequeue());
+
 	_eofReached = FFMpeg::isNullPacket(packet);
 	if (_eofReached) {
 		return ReadResult::EndOfFile;
@@ -172,14 +175,16 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 	return ReadResult::Ok;
 }
 
-void ChildFFMpegLoader::enqueuePackets(QQueue<AVPacket> &packets) {
+void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
 	_queue += std_::move(packets);
 	packets.clear();
 }
 
 ChildFFMpegLoader::~ChildFFMpegLoader() {
 	auto queue = createAndSwap(_queue);
-	for (auto &packet : queue) {
+	for (auto &packetData : queue) {
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, packetData);
 		FFMpeg::freePacket(&packet);
 	}
 	if (_swrContext) swr_free(&_swrContext);

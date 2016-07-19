@@ -21,15 +21,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
+
 #include <libswscale/swscale.h>
-}
+
+} // extern "C"
 
 #include "media/media_clip_implementation.h"
-
-struct VideoSoundData;
+#include "media/media_child_ffmpeg_loader.h"
 
 namespace Media {
 namespace Clip {
@@ -96,7 +94,7 @@ private:
 	uint64 _playId = 0;
 	int64 _lastReadPacketMs = 0;
 
-	QQueue<AVPacket> _packetQueue;
+	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
 	AVPacket _packetNull; // for final decoding
 	int _packetStartedSize = 0;
 	uint8_t *_packetStartedData = nullptr;

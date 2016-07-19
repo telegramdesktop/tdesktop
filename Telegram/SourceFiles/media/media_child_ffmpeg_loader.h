@@ -45,6 +45,24 @@ struct VideoSoundPart {
 
 namespace FFMpeg {
 
+// AVPacket has a deprecated field, so when you copy an AVPacket
+// variable (e.g. inside QQueue), a compile warning is emited.
+// We wrap full AVPacket data in a new AVPacketDataWrap struct.
+// All other fields are copied from AVPacket without modifications.
+struct AVPacketDataWrap {
+	char __data[sizeof(AVPacket)];
+};
+
+inline void packetFromDataWrap(AVPacket &packet, const AVPacketDataWrap &data) {
+	memcpy(&packet, &data, sizeof(data));
+}
+
+inline AVPacketDataWrap dataWrapFromPacket(const AVPacket &packet) {
+	AVPacketDataWrap data;
+	memcpy(&data, &packet, sizeof(data));
+	return data;
+}
+
 inline bool isNullPacket(const AVPacket &packet) {
 	return packet.data == nullptr && packet.size == 0;
 }
@@ -84,7 +102,7 @@ public:
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-	void enqueuePackets(QQueue<AVPacket> &packets);
+	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets);
 
 	uint64 playId() const {
 		return _videoPlayId;
@@ -111,6 +129,6 @@ private:
 	AVFrame *_frame = nullptr;
 
 	SwrContext *_swrContext = nullptr;
-	QQueue<AVPacket> _queue;
+	QQueue<FFMpeg::AVPacketDataWrap> _queue;
 
 };

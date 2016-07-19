@@ -56,12 +56,13 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 		startPacket();
 
 		int got_frame = 0;
-		int decoded = 0;
 		auto packet = &_packetNull;
+		AVPacket tempPacket;
 		if (!_packetQueue.isEmpty()) {
-			packet = &_packetQueue.head();
-			decoded = packet->size;
+			FFMpeg::packetFromDataWrap(tempPacket, _packetQueue.head());
+			packet = &tempPacket;
 		}
+		int decoded = packet->size;
 
 		int res = 0;
 		if ((res = avcodec_decode_video2(_codecContext, _frame, &got_frame, packet)) < 0) {
@@ -427,7 +428,7 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 		_lastReadPacketMs = countPacketMs(packet);
 
 		if (videoPacket) {
-			_packetQueue.enqueue(*packet);
+			_packetQueue.enqueue(FFMpeg::dataWrapFromPacket(*packet));
 		} else if (audioPacket) {
 			// queue packet to audio player
 			VideoSoundPart part;
@@ -457,18 +458,22 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProc
 
 void FFMpegReaderImplementation::startPacket() {
 	if (!_packetStarted && !_packetQueue.isEmpty()) {
-		_packetStartedSize = _packetQueue.head().size;
-		_packetStartedData = _packetQueue.head().data;
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, _packetQueue.head());
+		_packetStartedSize = packet.size;
+		_packetStartedData = packet.data;
 		_packetStarted = true;
 	}
 }
 
 void FFMpegReaderImplementation::finishPacket() {
 	if (_packetStarted) {
-		_packetQueue.head().size = _packetStartedSize;
-		_packetQueue.head().data = _packetStartedData;
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, _packetQueue.head());
+		packet.size = _packetStartedSize;
+		packet.data = _packetStartedData;
 		_packetStarted = false;
-		av_packet_unref(&_packetQueue.head());
+		av_packet_unref(&packet);
 		_packetQueue.dequeue();
 	}
 }
@@ -476,7 +481,9 @@ void FFMpegReaderImplementation::finishPacket() {
 void FFMpegReaderImplementation::clearPacketQueue() {
 	finishPacket();
 	auto packets = createAndSwap(_packetQueue);
-	for (auto &packet : packets) {
+	for (auto &packetData : packets) {
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, packetData);
 		av_packet_unref(&packet);
 	}
 }

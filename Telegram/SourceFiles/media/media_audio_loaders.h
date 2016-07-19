@@ -22,13 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "media/media_child_ffmpeg_loader.h"
 #include "media/media_audio.h"
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-} // extern "C"
+#include "media/media_child_ffmpeg_loader.h"
 
 class AudioPlayerLoader;
 class ChildFFMpegLoader;
@@ -65,7 +59,7 @@ private:
 
 	QMutex _fromVideoMutex;
 	uint64 _fromVideoPlayId;
-	QQueue<AVPacket> _fromVideoQueue;
+	QQueue<FFMpeg::AVPacketDataWrap> _fromVideoQueue;
 	SingleDelayedCall _fromVideoNotify;
 
 	void emitError(AudioMsgId::Type type);

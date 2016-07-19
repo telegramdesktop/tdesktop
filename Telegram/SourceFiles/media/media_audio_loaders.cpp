@@ -34,7 +34,7 @@ void AudioPlayerLoaders::feedFromVideo(VideoSoundPart &&part) {
 	{
 		QMutexLocker lock(&_fromVideoMutex);
 		if (_fromVideoPlayId == part.videoPlayId) {
-			_fromVideoQueue.enqueue(*part.packet);
+			_fromVideoQueue.enqueue(FFMpeg::dataWrapFromPacket(*part.packet));
 			invoke = true;
 		} else {
 			FFMpeg::freePacket(part.packet);
@@ -76,7 +76,9 @@ AudioPlayerLoaders::~AudioPlayerLoaders() {
 
 void AudioPlayerLoaders::clearFromVideoQueue() {
 	auto queue = createAndSwap(_fromVideoQueue);
-	for (auto &packet : queue) {
+	for (auto &packetData : queue) {
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, packetData);
 		FFMpeg::freePacket(&packet);
 	}
 }
