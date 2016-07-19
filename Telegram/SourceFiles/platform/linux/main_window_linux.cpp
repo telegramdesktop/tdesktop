@@ -360,8 +360,8 @@ void MainWindow::psUpdateCounter() {
 			bool muted = App::histories().unreadOnlyMuted();
 
 			style::color bg = muted ? st::counterMuteBG : st::counterBG;
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
 		}
 		trayIcon->setIcon(icon);
 	}

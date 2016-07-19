@@ -141,6 +141,8 @@ build() {
 
     # Patch tdesktop
     sed -i 's/CUSTOM_API_ID//g' "$UPSTREAM/Telegram/Telegram.pro"
+    sed -i 's,LIBS += /usr/local/lib/libxkbcommon.a,,g" "$UPSTREAM/Telegram/Telegram.pro"
+    sed -i 's,#xkbcommon,xkbcommon,g" "$UPSTREAM/Telegram/Telegram.pro"
     sed -i "s,\..*/Libraries/breakpad/,$BREAKPAD_PATH/,g" "$UPSTREAM/Telegram/Telegram.pro"
 
 	local options=""
