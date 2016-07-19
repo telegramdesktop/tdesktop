@@ -11,30 +11,55 @@ Pur='\e[0;35m';     BPur='\e[1;35m';    UPur='\e[4;35m';    IPur='\e[0;95m';    
 Cya='\e[0;36m';     BCya='\e[1;36m';    UCya='\e[4;36m';    ICya='\e[0;96m';    BICya='\e[1;96m';   On_Cya='\e[46m';    On_ICya='\e[0;106m';
 Whi='\e[0;37m';     BWhi='\e[1;37m';    UWhi='\e[4;37m';    IWhi='\e[0;97m';    BIWhi='\e[1;97m';   On_Whi='\e[47m';    On_IWhi='\e[0;107m';
 
-# Set variables
-_qtver=5.6.0
-srcdir=${PWD}
+
 
 start_msg() {
-	echo -e "\n${Gre}$*${RCol}"
+    echo -e "\n${Gre}$*${RCol}"
 }
 
 info_msg() {
-	echo -e "\n${Cya}$*${RCol}"
+    sameLineInfoMessage "\n$1"
 }
 
 error_msg() {
-	echo -e "\n${BRed}$*${RCol}"
+    echo -e "\n${BRed}$*${RCol}"
 }
 
 success_msg() {
-	echo -e "\n${BGre}$*${RCol}"
+    echo -e "\n${BGre}$*${RCol}"
 }
 
-travis_fold_start() {
-	echo "travis_fold:start:$*"
+sameLineInfoMessage() {
+    echo -e "${Cya}$*${RCol}"
 }
 
-travis_fold_end() {
-	echo "travis_fold:end:$*"
+TRAVIS_LAST_FOLD=""
+
+travisStartFold() {
+    local TITLE="$1"
+    local NAME=$(sanitizeName "$TITLE")
+
+    if [ "$TRAVIS_LAST_FOLD" != "" ]; then
+        travisEndFold
+    fi
+
+    echo "travis_fold:start:$NAME"
+    sameLineInfoMessage "$TITLE"   
+
+    TRAVIS_LAST_FOLD="$NAME"
+}
+
+travisEndFold() {
+    if [ "$TRAVIS_LAST_FOLD" == "" ]; then
+        return
+    fi
+
+    echo "travis_fold:end:$TRAVIS_LAST_FOLD"
+    TRAVIS_LAST_FOLD=""
+}
+
+sanitizeName() {
+    local NAME="${1// /_}"
+    local NAME="${NAME,,}"
+    echo "$NAME"
 }

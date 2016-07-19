@@ -52,16 +52,10 @@ Preparation
     fi
 
     sed -i 's/CUSTOM_API_ID//g' "$srcdir/tdesktop/Telegram/Telegram.pro"
-    sed -i 's,LIBS += /usr/local/lib/libxkbcommon.a,,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
-    sed -i 's,LIBS += /usr/local/lib/libz.a,LIBS += -lz,g' "$srcdir/tdesktop/Telegram/Telegram.pro"
 
     (
       echo "DEFINES += TDESKTOP_DISABLE_AUTOUPDATE"
       echo "DEFINES += TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME"
-      echo 'INCLUDEPATH += "/usr/lib/glib-2.0/include"'
-      echo 'INCLUDEPATH += "/usr/lib/gtk-2.0/include"'
-      echo 'INCLUDEPATH += "/usr/include/opus"'
-      echo 'LIBS += -lcrypto -lssl'
     ) >> "$srcdir/tdesktop/Telegram/Telegram.pro"
 
 Building
