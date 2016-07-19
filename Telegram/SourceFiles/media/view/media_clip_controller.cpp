@@ -210,5 +210,8 @@ void Controller::mousePressEvent(QMouseEvent *e) {
 	e->accept(); // Don't pass event to the MediaView.
 }
 
+Controller::~Controller() {
+}
+
 } // namespace Clip
 } // namespace Media

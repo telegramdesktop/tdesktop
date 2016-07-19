@@ -99,7 +99,11 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
 	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -238,7 +242,11 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
 	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -320,7 +328,11 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
 	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
 	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -501,8 +513,20 @@ GeneratedFiles/Debug/moc_mainwindow.cpp: SourceFiles/mainwindow.h
 GeneratedFiles/Debug/moc_media_audio.cpp: SourceFiles/media/media_audio.h
 	$(MOC_FILE) SourceFiles/media/media_audio.h -o GeneratedFiles/Debug/moc_media_audio.cpp
 
+GeneratedFiles/Debug/moc_media_audio_loaders.cpp: SourceFiles/media/media_audio_loaders.h
+	$(MOC_FILE) SourceFiles/media/media_audio_loaders.h -o GeneratedFiles/Debug/moc_media_audio_loaders.cpp
+
+GeneratedFiles/Debug/moc_media_clip_controller.cpp: SourceFiles/media/view/media_clip_controller.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_controller.h -o GeneratedFiles/Debug/moc_media_clip_controller.cpp
+
+GeneratedFiles/Debug/moc_media_clip_playback.cpp: SourceFiles/media/view/media_clip_playback.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_playback.h -o GeneratedFiles/Debug/moc_media_clip_playback.cpp
+
 GeneratedFiles/Debug/moc_media_clip_reader.cpp: SourceFiles/media/media_clip_reader.h
 	$(MOC_FILE) SourceFiles/media/media_clip_reader.h -o GeneratedFiles/Debug/moc_media_clip_reader.cpp
+
+GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp: SourceFiles/media/view/media_clip_volume_controller.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_volume_controller.h -o GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp
 
 GeneratedFiles/Debug/moc_mediaview.cpp: SourceFiles/mediaview.h
 	$(MOC_FILE) SourceFiles/mediaview.h -o GeneratedFiles/Debug/moc_mediaview.cpp

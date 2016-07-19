@@ -468,7 +468,8 @@ void FFMpegReaderImplementation::finishPacket() {
 		_packetQueue.head().size = _packetStartedSize;
 		_packetQueue.head().data = _packetStartedData;
 		_packetStarted = false;
-		av_packet_unref(&_packetQueue.dequeue());
+		av_packet_unref(&_packetQueue.head());
+		_packetQueue.dequeue();
 	}
 }
 

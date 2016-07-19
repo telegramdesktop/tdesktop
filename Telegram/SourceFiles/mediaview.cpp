@@ -1266,8 +1266,13 @@ void MediaView::initAnimation() {
 	} else if (location.accessEnable()) {
 		createClipReader();
 		location.accessDisable();
+	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
+		int w = _doc->dimensions.width();
+		int h = _doc->dimensions.height();
+		_current = _doc->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mvDocIconSize, st::mvDocIconSize);
 	}
 }
 
@@ -1278,7 +1283,12 @@ void MediaView::createClipReader() {
 	t_assert(_doc->isAnimation() || _doc->isVideo());
 
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
-		_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
+		int w = _doc->dimensions.width();
+		int h = _doc->dimensions.height();
+		_current = _doc->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+	} else {
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mvDocIconSize, st::mvDocIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
 	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), mode);

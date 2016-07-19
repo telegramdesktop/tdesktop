@@ -49,6 +49,8 @@ public:
 	void grabStart() override;
 	void grabFinish() override;
 
+	~Controller();
+
 signals:
 	void playPressed();
 	void pausePressed();
