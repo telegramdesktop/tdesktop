@@ -226,7 +226,7 @@ bool MediaView::gifShown() const {
 				_gif->pauseResumeVideo();
 				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
 			}
-			_gif->start(_gif->width(), _gif->height(), _gif->width(), _gif->height(), false);
+			_gif->start(_gif->width(), _gif->height(), _gif->width(), _gif->height(), ImageRoundRadius::None);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
 		return true;// _gif->state() != Media::Clip::State::Error;
@@ -500,6 +500,9 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 		update(radialRect());
 	}
 	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
+		if (_doc->isVideo()) {
+			_autoplayVideoDocument = _doc;
+		}
 		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
 			displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 		} else {
@@ -1149,6 +1152,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		}
 	}
 
+	_docIconRect = QRect((width() - st::mvDocIconSize) / 2, (height() - st::mvDocIconSize) / 2, st::mvDocIconSize, st::mvDocIconSize);
 	if (!fileShown()) {
 		if (!_doc || _doc->thumb->isNull()) {
 			int32 colorIndex = documentColorIndex(_doc, _docExt);
@@ -1262,6 +1266,8 @@ void MediaView::initAnimation() {
 	} else if (location.accessEnable()) {
 		createClipReader();
 		location.accessDisable();
+	} else {
+		_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 	}
 }
 
@@ -1322,6 +1328,8 @@ void MediaView::setClipControllerGeometry() {
 }
 
 void MediaView::onVideoPauseResume() {
+	if (!_gif) return;
+
 	if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 		if (_gif->state() == Media::Clip::State::Error) {
 			displayDocument(_doc, item);
@@ -1440,7 +1448,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	bool name = false, icon = false;
+	bool name = false;
 
 	p.setClipRegion(region);
 
@@ -1504,19 +1512,24 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				radial = _radial.animating();
 				radialOpacity = _radial.opacity();
 			}
-			if (radial) {
-				QRect inner(QPoint(_photoRadialRect.x(), _photoRadialRect.y()), st::radialSize);
-				p.setPen(Qt::NoPen);
-				p.setBrush(st::black);
-				p.setOpacity(radialOpacity * st::radialBgOpacity);
+			if (_photo) {
+				if (radial) {
+					auto inner = radialRect();
 
-				p.setRenderHint(QPainter::HighQualityAntialiasing);
-				p.drawEllipse(inner);
-				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::black);
+					p.setOpacity(radialOpacity * st::radialBgOpacity);
 
-				p.setOpacity(1);
-				QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-				_radial.draw(p, arc, st::radialLine, st::white);
+					p.setRenderHint(QPainter::HighQualityAntialiasing);
+					p.drawEllipse(inner);
+					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+					p.setOpacity(1);
+					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+					_radial.draw(p, arc, st::radialLine, st::white);
+				}
+			} else if (_doc) {
+				paintDocRadialLoading(p, radial, radialOpacity);
 			}
 
 			if (_saveMsgStarted) {
@@ -1559,7 +1572,6 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					radial = _radial.animating();
 					radialOpacity = _radial.opacity();
 				}
-				icon = true;
 				if (!_doc || _doc->thumb->isNull()) {
 					p.fillRect(_docIconRect, _docIconColor->b);
 					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1)) {
@@ -1575,42 +1587,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mvDocIconSize * rf, st::mvDocIconSize * rf));
 				}
 
-				float64 o = overLevel(OverIcon);
-				if (radial) {
-					if (!_doc->loaded() && radialOpacity < 1) {
-						p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity) * (1 - radialOpacity));
-						p.drawSpriteCenter(_docIconRect, st::radialDownload);
-					}
-
-					QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::black);
-					p.setOpacity(radialOpacity * st::radialBgOpacity);
-
-					p.setRenderHint(QPainter::HighQualityAntialiasing);
-					p.drawEllipse(inner);
-					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-
-					p.setOpacity((o * 1. + (1 - o) * st::radialCancelOpacity) * radialOpacity);
-					p.drawSpriteCenter(_docIconRect, st::radialCancel);
-					p.setOpacity(1);
-
-					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-					_radial.draw(p, arc, st::radialLine, st::white);
-				} else if (_doc && !_doc->loaded()) {
-					p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity));
-					p.drawSpriteCenter(_docIconRect, st::radialDownload);
-				}
+				paintDocRadialLoading(p, radial, radialOpacity);
 			}
 
 			if (!_docIconRect.contains(r)) {
 				name = true;
-				p.setPen(st::mvDocNameColor->p);
-				p.setFont(st::mvDocNameFont->f);
+				p.setPen(st::mvDocNameColor);
+				p.setFont(st::mvDocNameFont);
 				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocNameTop, width(), _docName, _docNameWidth);
 
-				p.setPen(st::mvDocSizeColor->p);
-				p.setFont(st::mvFont->f);
+				p.setPen(st::mvDocSizeColor);
+				p.setFont(st::mvFont);
 				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocSizeTop, width(), _docSize, _docSizeWidth);
 			}
 		}
@@ -1740,6 +1727,35 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
+	float64 o = overLevel(OverIcon);
+	if (radial) {
+		if (!_doc->loaded() && radialOpacity < 1) {
+			p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity) * (1 - radialOpacity));
+			p.drawSpriteCenter(_docIconRect, st::radialDownload);
+		}
+
+		QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::black);
+		p.setOpacity(radialOpacity * st::radialBgOpacity);
+
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.drawEllipse(inner);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+		p.setOpacity((o * 1. + (1 - o) * st::radialCancelOpacity) * radialOpacity);
+		p.drawSpriteCenter(_docIconRect, st::radialCancel);
+		p.setOpacity(1);
+
+		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+		_radial.draw(p, arc, st::radialLine, st::white);
+	} else if (_doc && !_doc->loaded()) {
+		p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity));
+		p.drawSpriteCenter(_docIconRect, st::radialDownload);
+	}
+}
+
 void MediaView::keyPressEvent(QKeyEvent *e) {
 	if (_clipController) {
 		auto toggle1 = (e->key() == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
@@ -1758,13 +1774,17 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		}
 	}
 	if (!_menu && e->key() == Qt::Key_Escape) {
-		close();
+		if (_doc && _doc->loading()) {
+			onDocClick();
+		} else {
+			close();
+		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
 		onSaveAs();
 	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
 		onCopy();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
-		if (_doc && !_doc->loading() && !fileShown()) {
+		if (_doc && !_doc->loading() && (!fileShown() || !_doc->loaded())) {
 			onDocClick();
 		} else if (_doc->isVideo()) {
 			onVideoPauseResume();
@@ -2229,8 +2249,14 @@ void MediaView::updateOver(QPoint pos) {
 		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
-	} else if (_doc && _doc->isVideo() && _gif && QRect(_x, _y, _w, _h).contains(pos)) {
-		updateOverState(OverVideo);
+	} else if (_doc && fileShown() && QRect(_x, _y, _w, _h).contains(pos)) {
+		if (_doc->isVideo() && _gif) {
+			updateOverState(OverVideo);
+		} else if (!_doc->loaded()) {
+			updateOverState(OverIcon);
+		} else if (_over != OverNone) {
+			updateOverState(OverNone);
+		}
 	} else if (_over != OverNone) {
 		updateOverState(OverNone);
 	}
@@ -2645,19 +2671,7 @@ void MediaView::updateHeader() {
 	_headerNav = myrtlrect(st::mvTextLeft, height() - st::mvHeaderTop, hwidth, st::mvThickFont->height);
 }
 
-QColor MediaView::overColor(const QColor &a, float64 ca, const QColor &b, float64 cb) {
-	QColor res;
-	float64 o = a.alphaF() * ca + b.alphaF() * cb - a.alphaF() * ca * b.alphaF() * cb;
-	float64 ka = (o > 0.001) ? (a.alphaF() * ca * (1 - (b.alphaF() * cb)) / o) : 0;
-	float64 kb = (o > 0.001) ? (b.alphaF() * cb / o) : 0;
-	res.setRedF(a.redF() * ka + b.redF() * kb);
-	res.setGreenF(a.greenF() * ka + b.greenF() * kb);
-	res.setBlueF(a.blueF() * ka + b.blueF() * kb);
-	res.setAlphaF(o);
-	return res;
-}
-
-float64 MediaView::overLevel(OverState control) {
+float64 MediaView::overLevel(OverState control) const {
 	ShowingOpacities::const_iterator i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
 }

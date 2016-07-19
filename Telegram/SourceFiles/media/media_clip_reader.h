@@ -40,7 +40,7 @@ struct FrameRequest {
 	int frameh = 0;
 	int outerw = 0;
 	int outerh = 0;
-	bool rounded = false;
+	ImageRoundRadius radius = ImageRoundRadius::None;
 };
 
 enum ReaderSteps {
@@ -75,7 +75,7 @@ public:
 		return _seekPositionMs;
 	}
 
-	void start(int framew, int frameh, int outerw, int outerh, bool rounded);
+	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius);
 	QPixmap current(int framew, int frameh, int outerw, int outerh, uint64 ms);
 	QPixmap frameOriginal() const {
 		Frame *frame = frameToShow();

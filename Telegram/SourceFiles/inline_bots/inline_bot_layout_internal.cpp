@@ -339,7 +339,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
-				_gif->start(frame.width(), frame.height(), _width, height, false);
+				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
 				delete _gif;
 				_gif = nullptr;

@@ -3408,11 +3408,13 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		App::roundShadow(p, 0, 0, width, height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
+	auto inWebPage = (_parent->getMedia() != this);
+	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 	QPixmap pix;
 	if (loaded) {
-		pix = _data->full->pixSingle(ImageRoundRadius::Large, _pixw, _pixh, width, height);
+		pix = _data->full->pixSingle(roundRadius, _pixw, _pixh, width, height);
 	} else {
-		pix = _data->thumb->pixBlurredSingle(ImageRoundRadius::Large, _pixw, _pixh, width, height);
+		pix = _data->thumb->pixBlurredSingle(roundRadius, _pixw, _pixh, width, height);
 	}
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 	p.drawPixmap(rthumb.topLeft(), pix);
@@ -4621,7 +4623,9 @@ int HistoryGif::resizeGetHeight(int width) {
 	_width = qMax(_width, _parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (gif() && _gif->ready()) {
 		if (!_gif->started()) {
-			_gif->start(_thumbw, _thumbh, _width, _height, true);
+			auto inWebPage = (_parent->getMedia() != this);
+			auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius);
 		}
 	} else {
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));

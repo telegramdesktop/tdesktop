@@ -2605,6 +2605,7 @@ namespace {
 			switch (radius) {
 			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images); break;
 			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::msgRadius, bg, nullptr, images); break;
+			default: p.fillRect(x, y, w, h, bg); return;
 			}
 
 			CornersPixmaps pixmaps;

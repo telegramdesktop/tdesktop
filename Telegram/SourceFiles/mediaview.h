@@ -169,6 +169,8 @@ private:
 	void step_state(uint64 ms, bool timer);
 	void step_radial(uint64 ms, bool timer);
 
+	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
@@ -315,7 +317,6 @@ private:
 
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control);
-	QColor overColor(const QColor &a, float64 ca, const QColor &b, float64 cb);
+	float64 overLevel(OverState control) const;
 
 };

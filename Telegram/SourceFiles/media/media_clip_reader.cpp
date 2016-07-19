@@ -43,7 +43,7 @@ QVector<Manager*> managers;
 QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
 	bool badSize = (original.width() != request.framew) || (original.height() != request.frameh);
 	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
-	if (badSize || needOuter || hasAlpha || request.rounded) {
+	if (badSize || needOuter || hasAlpha || request.radius != ImageRoundRadius::None) {
 		int32 factor(request.factor);
 		bool newcache = (cache.width() != request.outerw || cache.height() != request.outerh);
 		if (newcache) {
@@ -75,8 +75,8 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 				p.drawImage(position, original);
 			}
 		}
-		if (request.rounded) {
-			imageRound(cache, ImageRoundRadius::Large);
+		if (request.radius != ImageRoundRadius::None) {
+			imageRound(cache, request.radius);
 		}
 		return QPixmap::fromImage(cache, Qt::ColorOnly);
 	}
@@ -185,7 +185,7 @@ void Reader::callback(Reader *reader, int32 threadIndex, Notification notificati
 	}
 }
 
-void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded) {
+void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius) {
 	if (managers.size() <= _threadIndex) error();
 	if (_state == State::Error) return;
 
@@ -197,7 +197,7 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool 
 		request.frameh = frameh * factor;
 		request.outerw = outerw * factor;
 		request.outerh = outerh * factor;
-		request.rounded = rounded;
+		request.radius = radius;
 		_frames[0].request = _frames[1].request = _frames[2].request = request;
 		moveToNextShow();
 		managers.at(_threadIndex)->start(this);
@@ -489,6 +489,7 @@ public:
 		int64 delta = static_cast<int64>(ms) - static_cast<int64>(_videoPausedAtMs);
 		_animationStarted += delta;
 		_nextFrameWhen += delta;
+		LOG(("RESUME VIDEO: next when: %1, started: %2, delta: %3").arg(_nextFrameWhen).arg(_animationStarted).arg(delta));
 
 		_videoPausedAtMs = 0;
 		_implementation->resumeAudio();

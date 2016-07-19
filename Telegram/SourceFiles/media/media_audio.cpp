@@ -581,6 +581,12 @@ void AudioPlayer::pauseFromVideo(uint64 videoPlayId) {
 		} break;
 		}
 		emit faderOnTimer();
+
+		QMutexLocker videoLock(&_lastVideoMutex);
+		if (_lastVideoPlayId == videoPlayId) {
+			_lastVideoPlaybackWhen = 0;
+			_lastVideoPlaybackCorrectedMs = 0;
+		}
 	}
 	if (current) emit updated(current);
 }
@@ -663,8 +669,10 @@ void AudioPlayer::videoSoundProgress(const AudioMsgId &audio) {
 	t_assert(current != nullptr);
 
 	if (current->videoPlayId == _lastVideoPlayId && current->playbackState.duration && current->playbackState.frequency) {
-		_lastVideoPlaybackWhen = getms();
-		_lastVideoPlaybackCorrectedMs = (current->playbackState.position * 1000ULL) / current->playbackState.frequency;
+		if (current->playbackState.state == AudioPlayerPlaying) {
+			_lastVideoPlaybackWhen = getms();
+			_lastVideoPlaybackCorrectedMs = (current->playbackState.position * 1000ULL) / current->playbackState.frequency;
+		}
 	}
 }
 

@@ -397,7 +397,7 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 
 		if (gif() && _gif->ready() && !_gif->started()) {
 			QSize s = currentDimensions();
-			_gif->start(s.width(), s.height(), s.width(), s.height(), false);
+			_gif->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None);
 		}
 
 		update();
