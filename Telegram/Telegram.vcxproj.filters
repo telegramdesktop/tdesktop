@@ -1323,9 +1323,6 @@
     <ClCompile Include="GeneratedFiles\Deploy\moc_main_window_linux.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_main_window_linux.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_main_window_linux.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
