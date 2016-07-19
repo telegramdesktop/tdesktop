@@ -421,9 +421,9 @@ public:
 	void notify_historyMuteUpdated(History *history);
 	void notify_handlePendingHistoryUpdate();
 
-	void cmd_search();
-	void cmd_next_chat();
-	void cmd_previous_chat();
+	bool cmd_search();
+	bool cmd_next_chat();
+	bool cmd_previous_chat();
 
 	~MainWidget();
 
@@ -445,7 +445,6 @@ public slots:
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
-	void documentPlayProgress(const SongMsgId &songId);
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
 

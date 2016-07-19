@@ -2091,11 +2091,10 @@ int32 OverviewWidget::lastScrollTop() const {
 
 int32 OverviewWidget::countBestScroll() const {
 	if (type() == OverviewMusicFiles && audioPlayer()) {
-		SongMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		audioPlayer()->currentState(&playing, &playingState);
+		AudioMsgId playing;
+		audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
 		if (playing) {
-			int32 top = _inner.itemTop(playing.contextId);
+			int32 top = _inner.itemTop(playing.contextId());
 			if (top >= 0) {
 				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
 			}

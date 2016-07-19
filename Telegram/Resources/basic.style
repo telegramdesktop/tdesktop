@@ -666,7 +666,7 @@ scrollDef: flatScroll {
 }
 
 msgRadius: 16px;
-serviceMsgRadius: 10px;
+dateRadius: 10px;
 buttonRadius: 3px;
 
 scrollCountries: flatScroll(scrollDef) {

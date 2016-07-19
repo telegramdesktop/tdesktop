@@ -41,7 +41,7 @@ void loadSprite() {
 	}
 	QString spriteFile = qsl(":/gui/art/sprite") + spriteFilePostfix + qsl(".png");
 	if (rtl()) {
-		spriteData = new QPixmap(QPixmap::fromImage(QImage(spriteFile).mirrored(true, false)));
+		spriteData = new QPixmap(App::pixmapFromImageInPlace(QImage(spriteFile).mirrored(true, false)));
 	} else {
 		spriteData = new QPixmap(spriteFile);
 	}
@@ -51,6 +51,11 @@ void loadSprite() {
 
 int spriteWidth() {
 	return spriteWidthValue;
+}
+
+void destroySprite() {
+	delete spriteData;
+	spriteData = nullptr;
 }
 
 } // namespace internal

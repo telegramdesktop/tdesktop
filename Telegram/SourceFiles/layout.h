@@ -33,8 +33,8 @@ enum RoundCorners {
 	LargeMaskCorners,
 
 	WhiteCorners,
-	ServiceCorners,
-	ServiceSelectedCorners,
+	StickerCorners,
+	StickerSelectedCorners,
 	SelectedOverlaySmallCorners,
 	SelectedOverlayLargeCorners,
 	DateCorners,

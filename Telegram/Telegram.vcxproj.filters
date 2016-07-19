@@ -112,6 +112,18 @@
     <Filter Include="SourceFiles\platform\winrt">
       <UniqueIdentifier>{385d4cd5-f702-41b7-9e39-707d16b118d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SourceFiles\media">
+      <UniqueIdentifier>{a281888a-8b70-4e95-9b03-ebcb02837df4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\ui\widgets">
+      <UniqueIdentifier>{1937d8d7-6dd1-4147-8afb-6f03daff4f0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\media\view">
+      <UniqueIdentifier>{59996402-fc66-481c-9a12-5619112c60a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SourceFiles\ui\effects">
+      <UniqueIdentifier>{4fdf499d-a1be-46ce-9f17-af007a72e915}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -442,18 +454,6 @@
       <Filter>GeneratedFiles\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_overviewwidget.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\audio.cpp">
-      <Filter>SourceFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_audio.cpp">
-      <Filter>GeneratedFiles\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_audio.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\boxes\usernamebox.cpp">
@@ -1323,9 +1323,6 @@
     <ClCompile Include="GeneratedFiles\Deploy\moc_main_window_linux.cpp">
       <Filter>GeneratedFiles\Deploy</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_main_window_linux.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_main_window_linux.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
@@ -1343,6 +1340,111 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\platform\linux\linux_libs.cpp">
       <Filter>SourceFiles\platform\linux</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_clip_reader.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_reader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_implementation.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_ffmpeg.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_clip_qtgif.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_audio.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_child_ffmpeg_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_ffmpeg_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_loaders.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_audio_loaders.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\media_audio_loader.cpp">
+      <Filter>SourceFiles\media</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\widgets\label_simple.cpp">
+      <Filter>SourceFiles\ui\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_clip_controller.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_clip_controller.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_clip_controller.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\view\media_clip_controller.cpp">
+      <Filter>SourceFiles\media\view</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_mediaview.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_widgets.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\effects\fade_animation.cpp">
+      <Filter>SourceFiles\ui\effects</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\buttons\icon_button.cpp">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\view\media_clip_playback.cpp">
+      <Filter>SourceFiles\media\view</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_clip_playback.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\media\view\media_clip_volume_controller.cpp">
+      <Filter>SourceFiles\media\view</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_clip_playback.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_clip_playback.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_media_clip_volume_controller.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_media_clip_volume_controller.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_media_clip_volume_controller.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1595,6 +1697,36 @@
     <ClInclude Include="SourceFiles\platform\linux\linux_libs.h">
       <Filter>SourceFiles\platform\linux</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_implementation.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_ffmpeg.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_clip_qtgif.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_child_ffmpeg_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_audio_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\media\media_audio_ffmpeg_loader.h">
+      <Filter>SourceFiles\media</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_mediaview.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_widgets.h">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\effects\fade_animation.h">
+      <Filter>SourceFiles\ui\effects</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\buttons\icon_button.h">
+      <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">
@@ -1670,9 +1802,6 @@
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\overviewwidget.h">
-      <Filter>SourceFiles</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\audio.h">
       <Filter>SourceFiles</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
@@ -1885,6 +2014,27 @@
     <CustomBuild Include="SourceFiles\ui\inner_dropdown.h">
       <Filter>SourceFiles\ui</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_clip_reader.h">
+      <Filter>SourceFiles\media</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_audio.h">
+      <Filter>SourceFiles\media</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\media_audio_loaders.h">
+      <Filter>SourceFiles\media</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\widgets\label_simple.h">
+      <Filter>SourceFiles\ui\widgets</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\view\media_clip_controller.h">
+      <Filter>SourceFiles\media\view</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\view\media_clip_playback.h">
+      <Filter>SourceFiles\media\view</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\media\view\media_clip_volume_controller.h">
+      <Filter>SourceFiles\media\view</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\langs\lang_it.strings">
@@ -1965,6 +2115,12 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\profile\profile.style">
       <Filter>SourceFiles\profile</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\ui\widgets\widgets.style">
+      <Filter>SourceFiles\ui\widgets</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\media\view\mediaview.style">
+      <Filter>SourceFiles\media\view</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

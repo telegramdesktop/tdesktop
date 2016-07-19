@@ -45,3 +45,7 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 }
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
+
+historyServiceMsgRadius: 12px;
+historyServiceMsgInvertedRadius: 6px;
+historyServiceMsgInvertedShrink: 4px;

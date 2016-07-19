@@ -56,8 +56,6 @@ BoxShadow::BoxShadow(const style::sprite &topLeft) : _size(topLeft.pxWidth()), _
 		m.setDevicePixelRatio(cRetinaFactor());
 		p.drawImage(_size, 0, m, _pixsize, 0, _pixsize, _pixsize * 2);
 	}
-	_corners = QPixmap::fromImage(cornersImage, Qt::ColorOnly);
-	_corners.setDevicePixelRatio(cRetinaFactor());
 	_colors.reserve(_pixsize);
 	uchar prev = 0;
 	for (int i = 0; i < _pixsize; ++i) {
@@ -68,15 +66,17 @@ BoxShadow::BoxShadow(const style::sprite &topLeft) : _size(topLeft.pxWidth()), _
 		prev = a;
 	}
 	if (cRetina()) {
-		_left = QPixmap::fromImage(cornersImage.copy(0, _pixsize - 1, _colors.size(), 1), Qt::ColorOnly);
+		_left = App::pixmapFromImageInPlace(cornersImage.copy(0, _pixsize - 1, _colors.size(), 1));
 		_left.setDevicePixelRatio(cRetinaFactor());
-		_top = QPixmap::fromImage(cornersImage.copy(_pixsize - 1, 0, 1, _colors.size()), Qt::ColorOnly);
+		_top = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize - 1, 0, 1, _colors.size()));
 		_top.setDevicePixelRatio(cRetinaFactor());
-		_right = QPixmap::fromImage(cornersImage.copy(_pixsize * 2 - _colors.size(), _pixsize, _colors.size(), 1), Qt::ColorOnly);
+		_right = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize * 2 - _colors.size(), _pixsize, _colors.size(), 1));
 		_right.setDevicePixelRatio(cRetinaFactor());
-		_bottom = QPixmap::fromImage(cornersImage.copy(_pixsize, _pixsize * 2 - _colors.size(), 1, _colors.size()), Qt::ColorOnly);
+		_bottom = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize, _pixsize * 2 - _colors.size(), 1, _colors.size()));
 		_bottom.setDevicePixelRatio(cRetinaFactor());
 	}
+	_corners = App::pixmapFromImageInPlace(std_::move(cornersImage));
+	_corners.setDevicePixelRatio(cRetinaFactor());
 }
 
 void BoxShadow::paint(QPainter &p, const QRect &box, int32 shifty, int32 flags) {
@@ -140,8 +140,6 @@ RectShadow::RectShadow(const style::icon &topLeft) : _size(topLeft.width()), _pi
 		m.setDevicePixelRatio(cRetinaFactor());
 		p.drawImage(_size, 0, m, _pixsize, 0, _pixsize, _pixsize * 2);
 	}
-	_corners = QPixmap::fromImage(cornersImage, Qt::ColorOnly);
-	_corners.setDevicePixelRatio(cRetinaFactor());
 
 	uchar prev = 0;
 	for (int i = 0; i < _pixsize; ++i) {
@@ -152,14 +150,17 @@ RectShadow::RectShadow(const style::icon &topLeft) : _size(topLeft.width()), _pi
 		prev = a;
 	}
 
-	_left = QPixmap::fromImage(cornersImage.copy(0, _pixsize - 1, _thickness, 1), Qt::ColorOnly);
+	_left = App::pixmapFromImageInPlace(cornersImage.copy(0, _pixsize - 1, _thickness, 1));
 	_left.setDevicePixelRatio(cRetinaFactor());
-	_top = QPixmap::fromImage(cornersImage.copy(_pixsize - 1, 0, 1, _thickness), Qt::ColorOnly);
+	_top = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize - 1, 0, 1, _thickness));
 	_top.setDevicePixelRatio(cRetinaFactor());
-	_right = QPixmap::fromImage(cornersImage.copy(_pixsize * 2 - _thickness, _pixsize, _thickness, 1), Qt::ColorOnly);
+	_right = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize * 2 - _thickness, _pixsize, _thickness, 1));
 	_right.setDevicePixelRatio(cRetinaFactor());
-	_bottom = QPixmap::fromImage(cornersImage.copy(_pixsize, _pixsize * 2 - _thickness, 1, _thickness), Qt::ColorOnly);
+	_bottom = App::pixmapFromImageInPlace(cornersImage.copy(_pixsize, _pixsize * 2 - _thickness, 1, _thickness));
 	_bottom.setDevicePixelRatio(cRetinaFactor());
+
+	_corners = App::pixmapFromImageInPlace(std_::move(cornersImage));
+	_corners.setDevicePixelRatio(cRetinaFactor());
 }
 
 void RectShadow::paint(Painter &p, const QRect &box, int shifty, Sides sides) {

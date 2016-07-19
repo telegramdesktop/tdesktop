@@ -64,7 +64,7 @@ ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, I
 }
 
 Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
-	_data = QPixmap::fromImage(App::readImage(file, &fmt, false, 0, &_saved), Qt::ColorOnly);
+	_data = App::pixmapFromImageInPlace(App::readImage(file, &fmt, false, 0, &_saved));
 	_format = fmt;
 	if (!_data.isNull()) {
 		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
@@ -72,7 +72,7 @@ Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
 }
 
 Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
-	_data = QPixmap::fromImage(App::readImage(filecontent, &fmt, false), Qt::ColorOnly);
+	_data = App::pixmapFromImageInPlace(App::readImage(filecontent, &fmt, false));
 	_format = fmt;
 	_saved = filecontent;
 	if (!_data.isNull()) {
@@ -420,7 +420,7 @@ const QPixmap &circleMask(int width, int height) {
 			p.drawEllipse(0, 0, width, height);
 		}
 		mask.setDevicePixelRatio(cRetinaFactor());
-		i = masks.insert(key, QPixmap::fromImage(mask));
+		i = masks.insert(key, App::pixmapFromImageInPlace(std_::move(mask)));
 	}
 	return i.value();
 }
@@ -543,7 +543,7 @@ QPixmap imagePix(QImage img, int32 w, int32 h, ImagePixOptions options, int32 ou
 		imageRound(img, ImageRoundRadius::Small);
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	return QPixmap::fromImage(img, Qt::ColorOnly);
+	return App::pixmapFromImageInPlace(std_::move(img));
 }
 
 QPixmap Image::pixNoCache(int w, int h, ImagePixOptions options, int outerw, int outerh) const {
@@ -584,7 +584,7 @@ QPixmap Image::pixNoCache(int w, int h, ImagePixOptions options, int outerw, int
 		} else if (options.testFlag(ImagePixRoundedSmall)) {
 			imageRound(result, ImageRoundRadius::Small);
 		}
-		return QPixmap::fromImage(result, Qt::ColorOnly);
+		return App::pixmapFromImageInPlace(std_::move(result));
 	}
 
 	return imagePix(_data.toImage(), w, h, options, outerw, outerh);
@@ -596,11 +596,11 @@ QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool
 	if (_data.isNull()) return blank()->pix();
 
 	QImage img = _data.toImage();
-	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return QPixmap::fromImage(imageColored(add, img));
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return App::pixmapFromImageInPlace(imageColored(add, img));
 	if (h <= 0) {
-		return QPixmap::fromImage(imageColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
+		return App::pixmapFromImageInPlace(imageColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 	}
-	return QPixmap::fromImage(imageColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
+	return App::pixmapFromImageInPlace(imageColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 }
 
 QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h) const {
@@ -615,7 +615,7 @@ QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	}
 
-	return QPixmap::fromImage(imageColored(add, img), Qt::ColorOnly);
+	return App::pixmapFromImageInPlace(imageColored(add, img));
 }
 
 void Image::forget() const {
@@ -738,7 +738,7 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 		globalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 	QByteArray fmt(bytesFormat);
-	_data = QPixmap::fromImage(App::readImage(bytes, &fmt, false), Qt::ColorOnly);
+	_data = App::pixmapFromImageInPlace(App::readImage(bytes, &fmt, false));
 	if (!_data.isNull()) {
 		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
 		setInformation(bytes.size(), _data.width(), _data.height());

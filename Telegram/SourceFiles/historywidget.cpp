@@ -40,7 +40,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "fileuploader.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
@@ -2143,7 +2143,7 @@ int HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not b
 }
 
 void HistoryInner::notifyIsBotChanged() {
-	BotInfo *newinfo = (_history && _history->peer->isUser()) ? _history->peer->asUser()->botInfo : nullptr;
+	BotInfo *newinfo = (_history && _history->peer->isUser()) ? _history->peer->asUser()->botInfo.get() : nullptr;
 	if ((!newinfo && !_botAbout) || (newinfo && _botAbout && _botAbout->info == newinfo)) {
 		return;
 	}
@@ -3616,24 +3616,33 @@ void HistoryWidget::notify_clipStopperHidden(ClipStopperType type) {
 	if (_list) _list->update();
 }
 
-void HistoryWidget::cmd_search() {
-	if (!inFocusChain() || !_peer) return;
+bool HistoryWidget::cmd_search() {
+	if (!inFocusChain() || !_peer) return false;
 
 	App::main()->searchInPeer(_peer);
+	return true;
 }
 
-void HistoryWidget::cmd_next_chat() {
+bool HistoryWidget::cmd_next_chat() {
 	PeerData *p = 0;
 	MsgId m = 0;
 	App::main()->peerAfter(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) Ui::showPeerHistory(p, m);
+	if (p) {
+		Ui::showPeerHistory(p, m);
+		return true;
+	}
+	return false;
 }
 
-void HistoryWidget::cmd_previous_chat() {
+bool HistoryWidget::cmd_previous_chat() {
 	PeerData *p = 0;
 	MsgId m = 0;
 	App::main()->peerBefore(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) Ui::showPeerHistory(p, m);
+	if (p) {
+		Ui::showPeerHistory(p, m);
+		return true;
+	}
+	return false;
 }
 
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
@@ -5921,8 +5930,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 		} else {
 			if (_history) {
 				_history->clearLastKeyboard();
+			} else {
+				updateBotKeyboard();
 			}
-			updateBotKeyboard();
 		}
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
 		_kbHide.hide();
@@ -8525,7 +8535,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		style::font font(st::msgServiceFont);
 		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
-		App::roundRect(p, tr, App::msgServiceBg(), ServiceCorners);
+		HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
 		p.setPen(st::msgServiceColor->p);
 		p.setFont(font->f);

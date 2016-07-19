@@ -212,8 +212,8 @@ void MainWindow::psUpdateCounter() {
 		int32 size = cRetina() ? 44 : 22;
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::counterMacInvColor : st::counterColor);
 		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
-		icon.addPixmap(QPixmap::fromImage(img, Qt::ColorOnly));
-		icon.addPixmap(QPixmap::fromImage(imgsel, Qt::ColorOnly), QIcon::Selected);
+		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
+		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
 }
