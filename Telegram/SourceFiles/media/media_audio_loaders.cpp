@@ -321,7 +321,7 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 }
 
-AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 position) {
+AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(internal::audioPlayerMutex());
 	AudioPlayer *voice = audioPlayer();

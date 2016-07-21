@@ -39,7 +39,7 @@ ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoS
 	_frame = av_frame_alloc();
 }
 
-bool ChildFFMpegLoader::open(qint64 position) {
+bool ChildFFMpegLoader::open(qint64 &position) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
@@ -100,6 +100,7 @@ bool ChildFFMpegLoader::open(qint64 position) {
 		_sampleSize = AudioToChannels * sizeof(short);
 		_parentData->frequency = _dstRate;
 		_parentData->length = av_rescale_rnd(_parentData->length, _dstRate, _srcRate, AV_ROUND_UP);
+		position = av_rescale_rnd(position, _dstRate, _srcRate, AV_ROUND_DOWN);
 		_format = AL_FORMAT_STEREO16;
 
 		_maxResampleSamples = av_rescale_rnd(AVBlockSize / _sampleSize, _dstRate, _srcRate, AV_ROUND_UP);

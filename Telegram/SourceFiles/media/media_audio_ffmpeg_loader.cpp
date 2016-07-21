@@ -25,7 +25,7 @@ constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
 constexpr int64_t AudioToChannelLayout = AV_CH_LAYOUT_STEREO;
 constexpr int32 AudioToChannels = 2;
 
-bool AbstractFFMpegLoader::open(qint64 position) {
+bool AbstractFFMpegLoader::open(qint64 &position) {
 	if (!AudioPlayerLoader::openFile()) {
 		return false;
 	}
@@ -137,7 +137,7 @@ FFMpegLoader::FFMpegLoader(const FileLocation &file, const QByteArray &data) : A
 	frame = av_frame_alloc();
 }
 
-bool FFMpegLoader::open(qint64 position) {
+bool FFMpegLoader::open(qint64 &position) {
 	if (!AbstractFFMpegLoader::open(position)) {
 		return false;
 	}
@@ -210,6 +210,7 @@ bool FFMpegLoader::open(qint64 position) {
 		sampleSize = AudioToChannels * sizeof(short);
 		freq = dstRate;
 		len = av_rescale_rnd(len, dstRate, srcRate, AV_ROUND_UP);
+		position = av_rescale_rnd(position, dstRate, srcRate, AV_ROUND_DOWN);
 		fmt = AL_FORMAT_STEREO16;
 
 		maxResampleSamples = av_rescale_rnd(AVBlockSize / sampleSize, dstRate, srcRate, AV_ROUND_UP);

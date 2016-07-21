@@ -1765,8 +1765,8 @@ public:
 	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data) : AbstractFFMpegLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override {
-		if (!AbstractFFMpegLoader::open()) {
+	bool open(qint64 &position) override {
+		if (!AbstractFFMpegLoader::open(position)) {
 			return false;
 		}
 
@@ -1862,7 +1862,8 @@ private:
 
 MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat) {
 	FFMpegAttributesReader reader(FileLocation(StorageFilePartial, fname), data);
-	if (reader.open()) {
+	qint64 position = 0;
+	if (reader.open(position)) {
 		int32 duration = reader.duration() / reader.frequency();
 		if (reader.duration() > 0) {
 			cover = reader.cover();
@@ -1880,7 +1881,7 @@ public:
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override {
+	bool open(qint64 &position) override {
 		if (!FFMpegLoader::open(position)) {
 			return false;
 		}
@@ -1976,7 +1977,8 @@ private:
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data) {
 	FFMpegWaveformCounter counter(file, data);
-	if (counter.open()) {
+	qint64 position = 0;
+	if (counter.open(position)) {
 		return counter.waveform();
 	}
 	return VoiceWaveform();

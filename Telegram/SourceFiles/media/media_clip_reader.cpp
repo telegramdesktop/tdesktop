@@ -489,7 +489,6 @@ public:
 		int64 delta = static_cast<int64>(ms) - static_cast<int64>(_videoPausedAtMs);
 		_animationStarted += delta;
 		_nextFrameWhen += delta;
-		LOG(("RESUME VIDEO: next when: %1, started: %2, delta: %3").arg(_nextFrameWhen).arg(_animationStarted).arg(delta));
 
 		_videoPausedAtMs = 0;
 		_implementation->resumeAudio();

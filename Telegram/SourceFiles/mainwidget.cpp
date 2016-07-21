@@ -4107,7 +4107,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
-		const auto &d(update.c_updateNewMessage());
+		auto &d = update.c_updateNewMessage();
+
+		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
+		if (!requestingDifference() && isDataLoaded != DataIsLoadedResult::Ok) {
+			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+
+			// This can be if this update was created by grouping
+			// some short message update into an updates vector.
+			return getDifference();
+		}
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4462,7 +4471,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
-		const auto &d(update.c_updateNewChannelMessage());
+		auto &d = update.c_updateNewChannelMessage();
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {

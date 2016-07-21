@@ -36,7 +36,7 @@ public:
 	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data) : AudioPlayerLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override;
+	bool open(qint64 &position) override;
 
 	int64 duration() override {
 		return len;
@@ -72,7 +72,7 @@ class FFMpegLoader : public AbstractFFMpegLoader {
 public:
 	FFMpegLoader(const FileLocation &file, const QByteArray &data);
 
-	bool open(qint64 position = 0) override;
+	bool open(qint64 &position) override;
 
 	int32 format() override {
 		return fmt;

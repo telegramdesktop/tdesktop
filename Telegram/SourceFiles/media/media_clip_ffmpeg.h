@@ -92,7 +92,8 @@ private:
 
 	int _audioStreamId = 0;
 	uint64 _playId = 0;
-	int64 _lastReadPacketMs = 0;
+	int64 _lastReadVideoMs = 0;
+	int64 _lastReadAudioMs = 0;
 
 	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
 	AVPacket _packetNull; // for final decoding
