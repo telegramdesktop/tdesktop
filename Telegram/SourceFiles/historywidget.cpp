@@ -3663,7 +3663,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	auto &sets = Global::RefStickerSets();
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &set : sets) {
-		set.flags &= ~MTPDstickerSet::Flag::f_installed; // mark for removing
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
+			set.flags &= ~MTPDstickerSet::Flag::f_installed; // mark for removing
+		}
 	}
 	for_const (auto &setData, d_sets) {
 		if (setData.type() == mtpc_stickerSet) {
@@ -3682,6 +3684,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
 		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
+		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
 		if (!installed) { // remove not mine sets from recent stickers
 			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
 				if (it->stickers.indexOf(i->first) >= 0) {
@@ -3692,7 +3695,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				}
 			}
 		}
-		if (installed || featured || special) {
+		if (installed || featured || special || archived) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -3710,7 +3713,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		App::api()->requestStickerSets();
 	}
 
-	Local::writeStickers();
+	Local::writeInstalledStickers();
 	if (writeRecent) Local::writeUserSettings();
 
 	if (App::main()) emit App::main()->stickersUpdated();
@@ -3797,7 +3800,7 @@ void HistoryWidget::recentStickersGot(const MTPmessages_RecentStickers &stickers
 		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countRecentStickersHash()));
 	}
 
-	Local::writeStickers();
+	Local::writeRecentStickers();
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }
@@ -3875,7 +3878,8 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
 		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
-		if (installed || featured || special) {
+		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
+		if (installed || featured || special || archived) {
 			if (featured && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
 				++unreadCount;
 			}
@@ -3897,7 +3901,7 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 		App::api()->requestStickerSets();
 	}
 
-	Local::writeStickers();
+	Local::writeFeaturedStickers();
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }

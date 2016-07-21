@@ -1518,7 +1518,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 					if (it->stickers.isEmpty()) {
 						sets.erase(it);
 					}
-					Local::writeStickers();
+					Local::writeInstalledStickers();
 					refresh = true;
 					break;
 				}
@@ -3651,8 +3651,9 @@ void EmojiPan::onSwitch() {
 }
 
 void EmojiPan::onRemoveSet(quint64 setId) {
-	auto it = Global::StickerSets().constFind(setId);
-	if (it != Global::StickerSets().cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
+	auto &sets = Global::StickerSets();
+	auto it = sets.constFind(setId);
+	if (it != sets.cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
 		_removingSetId = it->id;
 		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
@@ -3663,8 +3664,9 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 
 void EmojiPan::onRemoveSetSure() {
 	Ui::hideLayer();
-	auto it = Global::RefStickerSets().find(_removingSetId);
-	if (it != Global::RefStickerSets().cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(_removingSetId);
+	if (it != sets.cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {
@@ -3682,12 +3684,12 @@ void EmojiPan::onRemoveSetSure() {
 		}
 		it->flags &= ~MTPDstickerSet::Flag::f_installed;
 		if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
-			Global::RefStickerSets().erase(it);
+			sets.erase(it);
 		}
 		int removeIndex = Global::StickerSetsOrder().indexOf(_removingSetId);
 		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
 		refreshStickers();
-		Local::writeStickers();
+		Local::writeInstalledStickers();
 		if (writeRecent) Local::writeUserSettings();
 	}
 	_removingSetId = 0;

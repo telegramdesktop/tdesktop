@@ -144,6 +144,8 @@ public:
 
 	void closePressed();
 
+	~StickersBox();
+
 public slots:
 	void onStickersUpdated();
 

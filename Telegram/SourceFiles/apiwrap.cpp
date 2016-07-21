@@ -1005,7 +1005,14 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 		Local::writeUserSettings();
 	}
 
-	Local::writeStickers();
+	if (it->flags & MTPDstickerSet::Flag::f_installed) {
+		if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+			Local::writeInstalledStickers();
+		}
+	}
+	if (it->flags & MTPDstickerSet_ClientFlag::f_featured) {
+		Local::writeFeaturedStickers();
+	}
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }

@@ -35,7 +35,6 @@ namespace Stickers {
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets.c_vector().v;
-	auto &sets = Global::RefStickerSets();
 	auto &order = Global::RefStickerSetsOrder();
 	Stickers::Order archived;
 	archived.reserve(v.size());
@@ -189,7 +188,7 @@ void StickerSetInner::installDone(const MTPmessages_StickerSetInstallResult &res
 		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
 	}
 
-	Local::writeStickers();
+	Local::writeInstalledStickers();
 	emit App::main()->stickersUpdated();
 	emit installed(_setId);
 }
@@ -734,8 +733,8 @@ void StickersInner::onClearRecent() {
 	}
 
 	auto &sets = Global::RefStickerSets();
-	sets.remove(Stickers::CloudRecentSetId);
-	sets.remove(Stickers::CustomSetId);
+	bool removedCloud = (sets.remove(Stickers::CloudRecentSetId) != 0);
+	bool removedCustom = (sets.remove(Stickers::CustomSetId) != 0);
 
 	auto &recent = cGetRecentStickers();
 	if (!recent.isEmpty()) {
@@ -743,7 +742,8 @@ void StickersInner::onClearRecent() {
 		Local::writeUserSettings();
 	}
 
-	Local::writeStickers();
+	if (removedCustom) Local::writeInstalledStickers();
+	if (removedCloud) Local::writeRecentStickers();
 	emit App::main()->updateStickers();
 	rebuild();
 
@@ -833,8 +833,10 @@ void StickersInner::installSet(uint64 setId) {
 
 	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersInner::installDone), rpcFail(&StickersInner::installFail, setId));
 
+	auto flags = it->flags;
 	it->flags &= ~(MTPDstickerSet::Flag::f_archived | MTPDstickerSet_ClientFlag::f_unread);
 	it->flags |= MTPDstickerSet::Flag::f_installed;
+	auto changedFlags = flags ^ it->flags;
 
 	auto &order = Global::RefStickerSetsOrder();
 	int insertAtIndex = 0, currentIndex = order.indexOf(setId);
@@ -855,14 +857,16 @@ void StickersInner::installSet(uint64 setId) {
 			sets.erase(custom);
 		}
 	}
-	Local::writeStickers();
+	Local::writeInstalledStickers();
+	if (changedFlags & MTPDstickerSet_ClientFlag::f_unread) Local::writeFeaturedStickers();
 	emit App::main()->stickersUpdated();
 }
 
 void StickersInner::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
-		Local::writeStickers();
+		Local::writeInstalledStickers();
+		Local::writeArchivedStickers();
 		emit App::main()->stickersUpdated();
 	}
 
@@ -895,7 +899,7 @@ bool StickersInner::installFail(uint64 setId, const RPCError &error) {
 		order.removeAt(currentIndex);
 	}
 
-	Local::writeStickers();
+	Local::writeInstalledStickers();
 	emit App::main()->stickersUpdated();
 
 	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
@@ -1098,7 +1102,7 @@ void StickersInner::rebuildAppendSet(const Stickers::Set &set, int maxNameWidth)
 }
 
 void StickersInner::readFeaturedDone(const MTPBool &result) {
-	Local::writeStickers();
+	Local::writeFeaturedStickers();
 	emit App::main()->stickersUpdated();
 }
 
@@ -1121,13 +1125,7 @@ Stickers::Order StickersInner::getOrder() const {
 	Stickers::Order result;
 	result.reserve(_rows.size());
 	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
-		if (_rows.at(i)->disabled) {
-			auto it = Global::StickerSets().constFind(_rows.at(i)->id);
-			if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_official)) {
-				continue;
-			}
-		}
-		if (_rows.at(i)->recent) {
+		if (_rows.at(i)->disabled || _rows.at(i)->recent) {
 			continue;
 		}
 		result.push_back(_rows.at(i)->id);
@@ -1161,6 +1159,9 @@ StickersBox::StickersBox(Section section) : ItemListBox(st::boxScroll)
 , _inner(section)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
 , _about(st::boxTextFont, lang(lng_stickers_reorder), _defaultOptions, _aboutWidth) {
+	if (section == Section::Archived) {
+		Local::readArchivedStickers();
+	}
 	setup();
 }
 
@@ -1169,6 +1170,7 @@ StickersBox::StickersBox(const Stickers::Order &archivedIds) : ItemListBox(st::b
 , _inner(archivedIds)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
 , _about(st::boxTextFont, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
+	Local::readArchivedStickers();
 	setup();
 }
 
@@ -1299,6 +1301,14 @@ void StickersBox::closePressed() {
 	}
 }
 
+StickersBox::~StickersBox() {
+	if (_section == Section::Featured) {
+		Local::writeFeaturedStickers();
+	} else if (_section == Section::Archived) {
+		Local::writeArchivedStickers();
+	}
+}
+
 void StickersBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
@@ -1387,7 +1397,9 @@ void StickersBox::onSave() {
 
 	// Clear all installed flags, set only for sets from order.
 	for (auto &set : sets) {
-		set.flags &= ~MTPDstickerSet::Flag::f_installed;
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
+			set.flags &= ~MTPDstickerSet::Flag::f_installed;
+		}
 	}
 
 	auto &order(Global::RefStickerSetsOrder());
@@ -1407,6 +1419,7 @@ void StickersBox::onSave() {
 	for (auto it = sets.begin(); it != sets.cend();) {
 		if ((it->flags & MTPDstickerSet_ClientFlag::f_featured)
 			|| (it->flags & MTPDstickerSet::Flag::f_installed)
+			|| (it->flags & MTPDstickerSet::Flag::f_archived)
 			|| (it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 			++it;
 		} else {
@@ -1414,7 +1427,7 @@ void StickersBox::onSave() {
 		}
 	}
 
-	Local::writeStickers();
+	Local::writeInstalledStickers();
 	if (writeRecent) Local::writeUserSettings();
 	emit App::main()->stickersUpdated();
 

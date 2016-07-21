@@ -3298,7 +3298,9 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
-	Local::readStickers();
+	Local::readInstalledStickers();
+	Local::readFeaturedStickers();
+	Local::readRecentStickers();
 	Local::readSavedGifs();
 	_history->start();
 }
@@ -3676,7 +3678,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!sticker || !sticker->sticker()) return;
 	if (sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) return;
 
-	bool writeStickers = false;
+	bool writeRecentStickers = false;
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
@@ -3692,29 +3694,30 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	if (index) {
 		it->stickers.push_front(sticker);
-		writeStickers = true;
+		writeRecentStickers = true;
 	}
 
 	// Remove that sticker from old recent, now it is in cloud recent stickers.
-	bool writeRecent = false;
+	bool writeOldRecent = false;
 	auto &recent = cGetRecentStickers();
 	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
 		if (i->first == sticker) {
-			writeRecent = true;
+			writeOldRecent = true;
 			recent.erase(i);
 			break;
 		}
 	}
 	while (!recent.isEmpty() && it->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
-		writeRecent = true;
+		writeOldRecent = true;
 		recent.pop_back();
 	}
 
-	if (writeRecent) {
+	if (writeOldRecent) {
 		Local::writeUserSettings();
 	}
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
+	bool writeInstalledStickers = false;
 	auto custom = sets.find(Stickers::CustomSetId);
 	if (custom != sets.cend()) {
 		int removeIndex = custom->stickers.indexOf(sticker);
@@ -3723,12 +3726,15 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			if (custom->stickers.isEmpty()) {
 				sets.erase(custom);
 			}
-			writeStickers = true;
+			writeInstalledStickers = true;
 		}
 	}
 
-	if (writeStickers) {
-		Local::writeStickers();
+	if (writeInstalledStickers) {
+		Local::writeInstalledStickers();
+	}
+	if (writeRecentStickers) {
+		Local::writeRecentStickers();
 	}
 	_history->updateRecentStickers();
 }
@@ -4673,6 +4679,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
 				} else {
 					it->flags |= MTPDstickerSet::Flag::f_installed;
+					it->flags &= ~MTPDstickerSet::Flag::f_archived;
 				}
 
 				const auto &v(set.vdocuments.c_vector().v);
@@ -4722,7 +4729,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						sets.erase(custom);
 					}
 				}
-				Local::writeStickers();
+				Local::writeInstalledStickers();
 				emit stickersUpdated();
 			}
 		}
@@ -4744,7 +4751,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			App::main()->updateStickers();
 		} else {
 			Global::SetStickerSetsOrder(result);
-			Local::writeStickers();
+			Local::writeInstalledStickers();
 			emit stickersUpdated();
 		}
 	} break;
@@ -4767,7 +4774,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 		if (Global::FeaturedStickerSetsUnreadCount()) {
 			Global::SetFeaturedStickerSetsUnreadCount(0);
-			Local::writeStickers();
+			Local::writeFeaturedStickers();
 			emit stickersUpdated();
 		}
 	} break;

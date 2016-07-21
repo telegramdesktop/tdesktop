@@ -1734,8 +1734,20 @@ namespace {
 			App::main()->incrementSticker(result);
 		}
 		if (versionChanged) {
-			if (result->sticker()) {
-				Local::writeStickers();
+			if (result->sticker() && result->sticker()->set.type() == mtpc_inputStickerSetID) {
+				auto it = Global::StickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
+				if (it != Global::StickerSets().cend()) {
+					if (it->id == Stickers::CloudRecentSetId) {
+						Local::writeRecentStickers();
+					} else if (it->flags & MTPDstickerSet::Flag::f_archived) {
+						Local::writeArchivedStickers();
+					} else if (it->flags & MTPDstickerSet::Flag::f_installed) {
+						Local::writeInstalledStickers();
+					}
+					if (it->flags & MTPDstickerSet_ClientFlag::f_featured) {
+						Local::writeFeaturedStickers();
+					}
+				}
 			}
 			auto &items = App::documentItems();
 			auto i = items.constFind(result);
