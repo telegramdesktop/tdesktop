@@ -2028,6 +2028,7 @@ namespace {
 		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
 		Global::SetFeaturedStickerSetsUnreadCount(0);
 		Global::SetLastFeaturedStickersUpdate(0);
+		Global::SetArchivedStickerSetsOrder(Stickers::Order());
 		cSetSavedGifs(SavedGifs());
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());

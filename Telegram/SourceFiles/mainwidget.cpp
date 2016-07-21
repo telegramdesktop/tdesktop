@@ -4667,19 +4667,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
-		const auto &d(update.c_updateNewStickerSet());
+		auto &d = update.c_updateNewStickerSet();
+		bool writeArchived = false;
 		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
-			const auto &set(d.vstickerset.c_messages_stickerSet());
+			auto &set = d.vstickerset.c_messages_stickerSet();
 			if (set.vset.type() == mtpc_stickerSet) {
-				const auto &s(set.vset.c_stickerSet());
+				auto &s = set.vset.c_stickerSet();
 
-				Stickers::Sets &sets(Global::RefStickerSets());
+				auto &sets = Global::RefStickerSets();
 				auto it = sets.find(s.vid.v);
 				if (it == sets.cend()) {
 					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
 				} else {
 					it->flags |= MTPDstickerSet::Flag::f_installed;
-					it->flags &= ~MTPDstickerSet::Flag::f_archived;
+					if (it->flags & MTPDstickerSet::Flag::f_archived) {
+						it->flags &= ~MTPDstickerSet::Flag::f_archived;
+						writeArchived = true;
+					}
 				}
 
 				const auto &v(set.vdocuments.c_vector().v);
@@ -4692,12 +4696,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it->stickers.push_back(doc);
 				}
 				it->emoji.clear();
-				const auto &packs(set.vpacks.c_vector().v);
+				auto &packs = set.vpacks.c_vector().v;
 				for (int32 i = 0, l = packs.size(); i < l; ++i) {
 					if (packs.at(i).type() != mtpc_stickerPack) continue;
-					const auto &pack(packs.at(i).c_stickerPack());
+					auto &pack = packs.at(i).c_stickerPack();
 					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-						const auto &stickers(pack.vdocuments.c_vector().v);
+						auto &stickers = pack.vdocuments.c_vector().v;
 						StickerPack p;
 						p.reserve(stickers.size());
 						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
@@ -4730,6 +4734,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 				}
 				Local::writeInstalledStickers();
+				if (writeArchived) Local::writeArchivedStickers();
 				emit stickersUpdated();
 			}
 		}

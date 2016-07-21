@@ -523,6 +523,8 @@ DefineVar(Sandbox, ConnectionProxy, PreLaunchProxy);
 namespace Stickers {
 
 Set *feedSet(const MTPDstickerSet &set) {
+	MTPDstickerSet::Flags flags = 0;
+
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(set.vid.v);
 	auto title = stickerSetTitle(set);
@@ -532,12 +534,24 @@ Set *feedSet(const MTPDstickerSet &set) {
 		it->access = set.vaccess_hash.v;
 		it->title = title;
 		it->shortName = qs(set.vshort_name);
+		flags = it->flags;
 		auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
 		it->flags = set.vflags.v | clientFlags;
 		if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
 			it->count = set.vcount.v;
 			it->hash = set.vhash.v;
 			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+		}
+	}
+	auto changedFlags = (flags ^ it->flags);
+	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
+		auto index = Global::ArchivedStickerSetsOrder().indexOf(it->id);
+		if (it->flags & MTPDstickerSet::Flag::f_archived) {
+			if (index < 0) {
+				Global::RefArchivedStickerSetsOrder().push_front(it->id);
+			}
+		} else if (index >= 0) {
+			Global::RefArchivedStickerSetsOrder().removeAt(index);
 		}
 	}
 	return &it.value();
@@ -594,6 +608,7 @@ struct Data {
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
 	uint64 LastFeaturedStickersUpdate = 0;
+	Stickers::Order ArchivedStickerSetsOrder;
 
 	MTP::DcOptions DcOptions;
 
@@ -667,6 +682,7 @@ DefineVar(Global, uint64, LastRecentStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineVar(Global, uint64, LastFeaturedStickersUpdate);
+DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 
 DefineVar(Global, MTP::DcOptions, DcOptions);
 

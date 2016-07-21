@@ -3325,7 +3325,7 @@ namespace Local {
 				return StickerSetCheckResult::Skip;
 			}
 			return StickerSetCheckResult::Write;
-		}, Stickers::Order());
+		}, Global::ArchivedStickerSetsOrder());
 	}
 
 	void importOldRecentStickers() {
@@ -3434,30 +3434,28 @@ namespace Local {
 	void readArchivedStickers() {
 		static bool archivedStickersRead = false;
 		if (!archivedStickersRead) {
-			_readStickerSets(_archivedStickersKey);
+			_readStickerSets(_archivedStickersKey, &Global::RefArchivedStickerSetsOrder());
 			archivedStickersRead = true;
 		}
 	}
 
-	int32 countStickersHash(bool checkOfficial) {
+	int32 countStickersHash(bool checkOutdatedInfo) {
 		uint32 acc = 0;
-		bool foundOfficial = false, foundBad = false;;
+		bool foundOutdated = false;
 		auto &sets = Global::StickerSets();
 		auto &order = Global::StickerSetsOrder();
 		for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
 			auto j = sets.constFind(*i);
 			if (j != sets.cend()) {
-				if (j->id == 0) {
-					foundBad = true;
-				} else if (j->flags & MTPDstickerSet::Flag::f_official) {
-					foundOfficial = true;
-				}
-				if (!(j->flags & MTPDstickerSet::Flag::f_archived)) {
+				if (j->id == Stickers::DefaultSetId) {
+					foundOutdated = true;
+				} else if (!(j->flags & MTPDstickerSet_ClientFlag::f_special)
+					&& !(j->flags & MTPDstickerSet::Flag::f_archived)) {
 					acc = (acc * 20261) + j->hash;
 				}
 			}
 		}
-		return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
+		return (!checkOutdatedInfo || !foundOutdated) ? int32(acc & 0x7FFFFFFF) : 0;
 	}
 
 	int32 countRecentStickersHash() {

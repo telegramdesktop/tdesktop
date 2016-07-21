@@ -683,7 +683,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_not_found" = "Sticker pack not found.";
 "lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
-"lng_stickers_archived" = "Archived stickers";
+"lng_stickers_archived" = "Archived Stickers";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage and reorder sticker packs";

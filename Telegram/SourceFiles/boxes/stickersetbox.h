@@ -155,6 +155,9 @@ public slots:
 
 	void onSave();
 
+private slots:
+	void onScroll();
+
 protected:
 	void hideAll();
 	void showAll();
@@ -162,12 +165,16 @@ protected:
 private:
 	void setup();
 	int32 countHeight() const;
+	void rebuildList();
 
 	void disenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
 	bool disenableFail(const RPCError &error, mtpRequestId req);
 	void reorderDone(const MTPBool &result);
 	bool reorderFail(const RPCError &result);
 	void saveOrder();
+
+	void checkLoadMoreArchived();
+	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
 
 	Section _section;
 
@@ -186,6 +193,9 @@ private:
 	Text _about;
 	int _aboutHeight = 0;
 
+	mtpRequestId _archivedRequestId = 0;
+	bool _allArchivedLoaded = false;
+
 };
 
 int32 stickerPacksCount(bool includeDisabledOfficial = false);
@@ -201,6 +211,9 @@ public:
 	StickersInner(const Stickers::Order &archivedIds);
 
 	void rebuild();
+	void updateSize();
+	void updateRows(); // refresh only pack cover stickers
+	bool appendSet(const Stickers::Set &set);
 	bool savingStart() {
 		if (_saving) return false;
 		_saving = true;
@@ -232,7 +245,7 @@ public slots:
 
 private:
 	void setup();
-	void paintFeaturedButton(Painter &p) const;
+	void paintButton(Painter &p, int y, bool selected, const QString &text, int badgeCounter) const;
 
 	void step_shifting(uint64 ms, bool timer);
 	void paintRow(Painter &p, int32 index);
@@ -275,6 +288,12 @@ private:
 	using StickerSetRows = QList<StickerSetRow*>;
 
 	void rebuildAppendSet(const Stickers::Set &set, int maxNameWidth);
+	void fillSetCover(const Stickers::Set &set, DocumentData **outSticker, int *outWidth, int *outHeight) const;
+	int fillSetCount(const Stickers::Set &set) const;
+	QString fillSetTitle(const Stickers::Set &set, int maxNameWidth) const;
+	void fillSetFlags(const Stickers::Set &set, bool *outRecent, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outDisabled);
+
+	int countMaxNameWidth() const;
 
 	StickerSetRows _rows;
 	QList<uint64> _animStartTimes;
@@ -296,12 +315,15 @@ private:
 	QString _addText;
 	int _addWidth;
 
-	int _featuredHeight = 0;
+	int _buttonHeight = 0;
+	bool _hasFeaturedButton = false;
+	bool _hasArchivedButton = false;
+
 	// Remember all the unread set ids to display unread dots.
 	OrderedSet<uint64> _unreadSets;
 
 	QPoint _mouse;
-	int _selected = -2; // -1 - featured stickers button
+	int _selected = -3; // -2 - featured stickers button, -1 - archived stickers button
 	int _pressed = -2;
 	QPoint _dragStart;
 	int _started = -1;

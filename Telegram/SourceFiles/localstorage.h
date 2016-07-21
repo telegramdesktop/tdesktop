@@ -161,7 +161,7 @@ namespace Local {
 	void readFeaturedStickers();
 	void readRecentStickers();
 	void readArchivedStickers();
-	int32 countStickersHash(bool checkOfficial = false);
+	int32 countStickersHash(bool checkOutdatedInfo = false);
 	int32 countRecentStickersHash();
 	int32 countFeaturedStickersHash();
 

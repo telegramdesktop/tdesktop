@@ -3844,7 +3844,7 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
-				if (unread.contains(set.vid.v) || !(set.vflags.v & MTPDstickerSet::Flag::f_installed)) {
+				if (unread.contains(set.vid.v)) {
 					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}
 				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | setClientFlags));

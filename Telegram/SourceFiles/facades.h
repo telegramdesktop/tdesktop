@@ -271,6 +271,7 @@ DeclareVar(uint64, LastRecentStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
 DeclareVar(uint64, LastFeaturedStickersUpdate);
+DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
 DeclareVar(MTP::DcOptions, DcOptions);
 
