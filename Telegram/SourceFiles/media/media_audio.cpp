@@ -1748,7 +1748,7 @@ void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	AVFrame *frame = av_frame_alloc();
 
 	frame->nb_samples = d->dstSamples;
-	frame->pts = av_rescale_q(d->fullSamples, (AVRational){1, d->codecContext->sample_rate}, d->codecContext->time_base);
+	frame->pts = av_rescale_q(d->fullSamples, AVRational{1, d->codecContext->sample_rate}, d->codecContext->time_base);
 
 	avcodec_fill_audio_frame(frame, d->codecContext->channels, d->codecContext->sample_fmt, d->dstSamplesData[0], d->dstSamplesSize, 0);
 
