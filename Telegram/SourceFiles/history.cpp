@@ -3407,14 +3407,14 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 
 	QPixmap pix;
 	if (loaded) {
-		pix = _data->full->pixSingle(_pixw, _pixh, width, height);
+		pix = _data->full->pixSingle(ImageRoundRadius::Large, _pixw, _pixh, width, height);
 	} else {
-		pix = _data->thumb->pixBlurredSingle(_pixw, _pixh, width, height);
+		pix = _data->thumb->pixBlurredSingle(ImageRoundRadius::Large, _pixw, _pixh, width, height);
 	}
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 	p.drawPixmap(rthumb.topLeft(), pix);
 	if (selected) {
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
 	}
 
 	if (notChild && (radial || (!loaded && !_data->loading()))) {
@@ -3736,9 +3736,9 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 	}
 
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
-	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, 0, width, height));
+	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(ImageRoundRadius::Large, _thumbw, 0, width, height));
 	if (selected) {
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
 	}
 
 	QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
@@ -4074,10 +4074,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		bottom = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
-		QPixmap thumb = loaded ? _data->thumb->pixSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
+		QPixmap thumb = loaded ? _data->thumb->pixSingle(ImageRoundRadius::Small, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(ImageRoundRadius::Small, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
-			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 		}
 
 		if (radial || (!loaded && !_data->loading())) {
@@ -4695,10 +4695,10 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 	if (animating) {
 		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, (Ui::isLayerShown() || Ui::isMediaViewShown() || Ui::isInlineItemBeingChosen()) ? 0 : ms));
 	} else {
-		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height));
+		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(ImageRoundRadius::Large, _thumbw, _thumbh, width, height));
 	}
 	if (selected) {
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
 	}
 
 	if (radial || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif())) || (_gif == BadClipReader)) {
@@ -5043,7 +5043,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, u
 			// Make the bottom of the rect at the same level as the bottom of the info rect.
 			recty -= st::msgDateImgDelta;
 
-			App::roundRect(p, rectx, recty, rectw, recth, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
+			App::roundRect(p, rectx, recty, rectw, recth, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? StickerSelectedCorners : StickerCorners);
 			rectx += st::msgReplyPadding.left();
 			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 			if (via) {
@@ -5272,7 +5272,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, u
 			p.drawPixmap(rthumb.topLeft(), userDefPhoto(qAbs(_userId) % UserColorsCount)->pixCircled(st::msgFileThumbSize, st::msgFileThumbSize));
 		}
 		if (selected) {
-			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 		}
 
 		bool over = ClickHandler::showAsActive(_linkl);
@@ -5664,13 +5664,13 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 			pixw = qRound(pixw * coef);
 		}
 		if (full) {
-			pix = _data->photo->medium->pixSingle(pixw, pixh, pw, ph);
+			pix = _data->photo->medium->pixSingle(ImageRoundRadius::Small, pixw, pixh, pw, ph);
 		} else {
-			pix = _data->photo->thumb->pixBlurredSingle(pixw, pixh, pw, ph);
+			pix = _data->photo->thumb->pixBlurredSingle(ImageRoundRadius::Small, pixw, pixh, pw, ph);
 		}
 		p.drawPixmapLeft(lshift + width - pw, 0, _width, pix);
 		if (selected) {
-			App::roundRect(p, rtlrect(lshift + width - pw, 0, pw, _pixh, _width), textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+			App::roundRect(p, rtlrect(lshift + width - pw, 0, pw, _pixh, _width), textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 		}
 		width -= pw + st::webPagePhotoDelta;
 	}
@@ -6196,20 +6196,20 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		int32 w = _data->thumb->width(), h = _data->thumb->height();
 		QPixmap pix;
 		if (width * h == height * w || (w == fullWidth() && h == fullHeight())) {
-			pix = _data->thumb->pixSingle(width, height, width, height);
+			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, width, height, width, height);
 		} else if (width * h > height * w) {
 			int32 nw = height * w / h;
-			pix = _data->thumb->pixSingle(nw, height, width, height);
+			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, nw, height, width, height);
 		} else {
 			int32 nh = width * h / w;
-			pix = _data->thumb->pixSingle(width, nh, width, height);
+			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, width, nh, width, height);
 		}
 		p.drawPixmap(QPoint(skipx, skipy), pix);
 	} else {
 		App::roundRect(p, skipx, skipy, width, height, st::white, MessageInCorners);
 	}
 	if (selected) {
-		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
 	}
 
 	if (_parent->getMedia() == this) {
@@ -6513,9 +6513,9 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
 				if (!replyPreview->isNull()) {
 					QRect to(rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x));
-					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
+					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(ImageRoundRadius::Small, replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 					if (selected) {
-						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 					}
 				}
 			}
@@ -6563,7 +6563,7 @@ void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
 }
 
 void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
-	App::roundRect(p, rect, App::msgServiceBg(), ServiceCorners);
+	App::roundRect(p, rect, App::msgServiceBg(), StickerCorners);
 	if (down) {
 		howMuchOver = 1.;
 	}
@@ -7291,7 +7291,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	} else if (type == InfoDisplayOverBackground) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? StickerSelectedCorners : StickerCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 

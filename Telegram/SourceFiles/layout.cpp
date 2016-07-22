@@ -215,3 +215,23 @@ style::sprite documentCorner(int32 colorIndex) {
 RoundCorners documentCorners(int32 colorIndex) {
 	return RoundCorners(DocBlueCorners + (colorIndex & 3));
 }
+
+bool documentIsValidMediaFile(const QString &filepath) {
+	static StaticNeverFreedPointer<QList<QString>> validMediaTypes(([] {
+		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+		*result = qsl("\
+webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf amv mp4 m4p \
+m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p f4a f4b wma divx evo mk3d \
+mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat dsh dvr-ms m1v fla flr sol wrap smi swf \
+wtv 8svx 16svx iff aiff aif aifc au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka \
+shn tak tta wv brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
+dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minipsf psflib \
+2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz \
+").split(' ');
+		return result.release();
+	})());
+
+	QFileInfo info(filepath);
+	auto parts = info.fileName().split('.', QString::SkipEmptyParts);
+	return !parts.isEmpty() && (validMediaTypes->indexOf(parts.back().toLower()) >= 0);
+}

@@ -1471,6 +1471,10 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		_widget->onListEscapePressed();
 	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
 		copySelectedText();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+#endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		int32 selectedForForward, selectedForDelete;
 		getSelectionState(selectedForForward, selectedForDelete);
@@ -8264,7 +8268,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					ImagePtr replyPreview = drawMsgText->getMedia()->replyPreview();
 					if (!replyPreview->isNull()) {
 						QRect to(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
+						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(ImageRoundRadius::Small, replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
@@ -8425,7 +8429,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 			ImagePtr replyPreview = _pinnedBar->msg->getMedia()->replyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(left, st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
+				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(ImageRoundRadius::Small, replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 			}
 			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}
@@ -8521,7 +8525,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		style::font font(st::msgServiceFont);
 		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
-		App::roundRect(p, tr, App::msgServiceBg(), ServiceCorners);
+		HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
 		p.setPen(st::msgServiceColor->p);
 		p.setFont(font->f);

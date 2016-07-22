@@ -20,34 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace HistoryLayout {
+#include <QtCore/QObject>
 
-struct PaintContext {
-	PaintContext(uint64 ms, const QRect &clip, TextSelection selection)
-		: ms(ms)
-		, clip(clip)
-		, selection(selection) {
-	}
-	uint64 ms;
-	const QRect &clip;
-	TextSelection selection;
-};
+extern "C" {
+#undef signals
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#define signals public
+} // extern "C"
 
-class ServiceMessagePainter {
-public:
-	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
+namespace Platform {
+namespace internal {
 
-	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
-	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
+void GdkHelperLoad(QLibrary &lib);
+bool GdkHelperLoaded();
+void XSetTransientForHint(GdkWindow *window, quintptr winId);
 
-	static void paintBubble(Painter &p, int x, int y, int w, int h);
-
-private:
-	static void paintComplexBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
-	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
-
-};
-
-void serviceColorsUpdated();
-
-} // namespace HistoryLayout
+} // namespace internal
+} // namespace Platform
