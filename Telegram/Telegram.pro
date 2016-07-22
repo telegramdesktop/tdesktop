@@ -111,7 +111,6 @@ SOURCES += \
 	./SourceFiles/apiwrap.cpp \
 	./SourceFiles/app.cpp \
 	./SourceFiles/application.cpp \
-	./SourceFiles/audio.cpp \
 	./SourceFiles/autoupdater.cpp \
 	./SourceFiles/dialogswidget.cpp \
 	./SourceFiles/dropdown.cpp \
@@ -280,7 +279,6 @@ HEADERS += \
 	./SourceFiles/apiwrap.h \
 	./SourceFiles/app.h \
 	./SourceFiles/application.h \
-	./SourceFiles/audio.h \
 	./SourceFiles/autoupdater.h \
 	./SourceFiles/config.h \
 	./SourceFiles/countries.h \
@@ -534,7 +532,11 @@ PKGCONFIG += \
 	x11\
 	xi\
 	xext\
-	xkbcommon\
+# In order to work libxkbcommon must be linked statically,
+# PKGCONFIG links it like "-L/usr/local/lib -lxkbcommon"
+# which makes a dynamic link which leads to segfault in
+# QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
+	#xkbcommon\
 	openal\
 	libavformat\
 	libavcodec\
@@ -555,6 +557,12 @@ LIBS += $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libcomposeplatforminp
         $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
 
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
+
+# In order to work libxkbcommon must be linked statically,
+# PKGCONFIG links it like "-L/usr/local/lib -lxkbcommon"
+# which makes a dynamic link which leads to segfault in
+# QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
+LIBS += /usr/local/lib/libxkbcommon.a
 
 RESOURCES += \
 	./Resources/telegram.qrc \

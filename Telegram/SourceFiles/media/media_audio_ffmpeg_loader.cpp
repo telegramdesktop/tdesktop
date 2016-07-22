@@ -25,7 +25,7 @@ constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
 constexpr int64_t AudioToChannelLayout = AV_CH_LAYOUT_STEREO;
 constexpr int32 AudioToChannels = 2;
 
-bool AbstractFFMpegLoader::open(qint64 position) {
+bool AbstractFFMpegLoader::open(qint64 &position) {
 	if (!AudioPlayerLoader::openFile()) {
 		return false;
 	}
@@ -65,7 +65,7 @@ bool AbstractFFMpegLoader::open(qint64 position) {
 		return false;
 	}
 
-	freq = fmtContext->streams[streamId]->codec->sample_rate;
+	freq = fmtContext->streams[streamId]->codecpar->sample_rate;
 	if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
 		len = (fmtContext->duration * freq) / AV_TIME_BASE;
 	} else {
@@ -137,7 +137,7 @@ FFMpegLoader::FFMpegLoader(const FileLocation &file, const QByteArray &data) : A
 	frame = av_frame_alloc();
 }
 
-bool FFMpegLoader::open(qint64 position) {
+bool FFMpegLoader::open(qint64 &position) {
 	if (!AbstractFFMpegLoader::open(position)) {
 		return false;
 	}
@@ -145,15 +145,26 @@ bool FFMpegLoader::open(qint64 position) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	// Get a pointer to the codec context for the audio stream
-	av_opt_set_int(fmtContext->streams[streamId]->codec, "refcounted_frames", 1, 0);
-	if ((res = avcodec_open2(fmtContext->streams[streamId]->codec, codec, 0)) < 0) {
+	auto codecParams = fmtContext->streams[streamId]->codecpar;
+
+	codecContext = avcodec_alloc_context3(nullptr);
+	if (!codecContext) {
+		LOG(("Audio Error: Unable to avcodec_alloc_context3 for file '%1', data size '%2'").arg(file.name()).arg(data.size()));
+		return false;
+	}
+	if ((res = avcodec_parameters_to_context(codecContext, codecParams)) < 0) {
+		LOG(("Audio Error: Unable to avcodec_parameters_to_context for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		return false;
+	}
+	av_codec_set_pkt_timebase(codecContext, fmtContext->streams[streamId]->time_base);
+	av_opt_set_int(codecContext, "refcounted_frames", 1, 0);
+
+	if ((res = avcodec_open2(codecContext, codec, 0)) < 0) {
 		LOG(("Audio Error: Unable to avcodec_open2 for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
 	}
-	codecContext = fmtContext->streams[streamId]->codec;
 
-	uint64_t layout = codecContext->channel_layout;
+	uint64_t layout = codecParams->channel_layout;
 	inputFormat = codecContext->sample_fmt;
 	switch (layout) {
 	case AV_CH_LAYOUT_MONO:
@@ -210,6 +221,7 @@ bool FFMpegLoader::open(qint64 position) {
 		sampleSize = AudioToChannels * sizeof(short);
 		freq = dstRate;
 		len = av_rescale_rnd(len, dstRate, srcRate, AV_ROUND_UP);
+		position = av_rescale_rnd(position, dstRate, srcRate, AV_ROUND_DOWN);
 		fmt = AL_FORMAT_STEREO16;
 
 		maxResampleSamples = av_rescale_rnd(AVBlockSize / sampleSize, dstRate, srcRate, AV_ROUND_UP);
@@ -231,66 +243,81 @@ bool FFMpegLoader::open(qint64 position) {
 
 AudioPlayerLoader::ReadResult FFMpegLoader::readMore(QByteArray &result, int64 &samplesAdded) {
 	int res;
+
+	av_frame_unref(frame);
+	res = avcodec_receive_frame(codecContext, frame);
+	if (res >= 0) {
+		return readFromReadyFrame(result, samplesAdded);
+	}
+
+	if (res == AVERROR_EOF) {
+		return ReadResult::EndOfFile;
+	} else if (res != AVERROR(EAGAIN)) {
+		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+		LOG(("Audio Error: Unable to avcodec_receive_frame() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		return ReadResult::Error;
+	}
+
 	if ((res = av_read_frame(fmtContext, &avpkt)) < 0) {
 		if (res != AVERROR_EOF) {
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 			LOG(("Audio Error: Unable to av_read_frame() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return ReadResult::Error;
 		}
-		return ReadResult::EndOfFile;
+		avcodec_send_packet(codecContext, nullptr); // drain
+		return ReadResult::Ok;
 	}
-	if (avpkt.stream_index == streamId) {
-		av_frame_unref(frame);
-		int got_frame = 0;
-		if ((res = avcodec_decode_audio4(codecContext, frame, &got_frame, &avpkt)) < 0) {
-			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-			LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
+	if (avpkt.stream_index == streamId) {
+		res = avcodec_send_packet(codecContext, &avpkt);
+		if (res < 0) {
 			av_packet_unref(&avpkt);
+
+			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+			LOG(("Audio Error: Unable to avcodec_send_packet() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			if (res == AVERROR_INVALIDDATA) {
 				return ReadResult::NotYet; // try to skip bad packet
 			}
 			return ReadResult::Error;
-		}
-
-		if (got_frame) {
-			if (dstSamplesData) { // convert needed
-				int64_t dstSamples = av_rescale_rnd(swr_get_delay(swrContext, srcRate) + frame->nb_samples, dstRate, srcRate, AV_ROUND_UP);
-				if (dstSamples > maxResampleSamples) {
-					maxResampleSamples = dstSamples;
-					av_free(dstSamplesData[0]);
-
-					if ((res = av_samples_alloc(dstSamplesData, 0, AudioToChannels, maxResampleSamples, AudioToFormat, 1)) < 0) {
-						dstSamplesData[0] = 0;
-						char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-						LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-
-						av_packet_unref(&avpkt);
-						return ReadResult::Error;
-					}
-				}
-				if ((res = swr_convert(swrContext, dstSamplesData, dstSamples, (const uint8_t**)frame->extended_data, frame->nb_samples)) < 0) {
-					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-					LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-
-					av_packet_unref(&avpkt);
-					return ReadResult::Error;
-				}
-				int32 resultLen = av_samples_get_buffer_size(0, AudioToChannels, res, AudioToFormat, 1);
-				result.append((const char*)dstSamplesData[0], resultLen);
-				samplesAdded += resultLen / sampleSize;
-			} else {
-				result.append((const char*)frame->extended_data[0], frame->nb_samples * sampleSize);
-				samplesAdded += frame->nb_samples;
-			}
 		}
 	}
 	av_packet_unref(&avpkt);
 	return ReadResult::Ok;
 }
 
+AudioPlayerLoader::ReadResult FFMpegLoader::readFromReadyFrame(QByteArray &result, int64 &samplesAdded) {
+	int res = 0;
+
+	if (dstSamplesData) { // convert needed
+		int64_t dstSamples = av_rescale_rnd(swr_get_delay(swrContext, srcRate) + frame->nb_samples, dstRate, srcRate, AV_ROUND_UP);
+		if (dstSamples > maxResampleSamples) {
+			maxResampleSamples = dstSamples;
+			av_free(dstSamplesData[0]);
+
+			if ((res = av_samples_alloc(dstSamplesData, 0, AudioToChannels, maxResampleSamples, AudioToFormat, 1)) < 0) {
+				dstSamplesData[0] = 0;
+				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+				return ReadResult::Error;
+			}
+		}
+		if ((res = swr_convert(swrContext, dstSamplesData, dstSamples, (const uint8_t**)frame->extended_data, frame->nb_samples)) < 0) {
+			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+			LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return ReadResult::Error;
+		}
+		int32 resultLen = av_samples_get_buffer_size(0, AudioToChannels, res, AudioToFormat, 1);
+		result.append((const char*)dstSamplesData[0], resultLen);
+		samplesAdded += resultLen / sampleSize;
+	} else {
+		result.append((const char*)frame->extended_data[0], frame->nb_samples * sampleSize);
+		samplesAdded += frame->nb_samples;
+	}
+	return ReadResult::Ok;
+}
+
 FFMpegLoader::~FFMpegLoader() {
-	if (codecContext) avcodec_close(codecContext);
+	if (codecContext) avcodec_free_context(&codecContext);
 	if (swrContext) swr_free(&swrContext);
 	if (dstSamplesData) {
 		if (dstSamplesData[0]) {

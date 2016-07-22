@@ -264,6 +264,7 @@ private:
 };
 
 struct AudioCapturePrivate;
+struct AVFrame;
 
 class AudioCaptureInner : public QObject {
 	Q_OBJECT
@@ -289,7 +290,13 @@ signals:
 
 private:
 
-	void writeFrame(int32 offset, int32 framesize);
+	void processFrame(int32 offset, int32 framesize);
+
+	void writeFrame(AVFrame *frame);
+
+	// Writes the packets till EAGAIN is got from av_receive_packet()
+	// Returns number of packets written or -1 on error
+	int writePackets();
 
 	AudioCapturePrivate *d;
 	QTimer _timer;

@@ -1379,7 +1379,14 @@ void AudioCaptureInner::onStart() {
 		return;
 	}
 	d->stream->id = d->fmtContext->nb_streams - 1;
-	d->codecContext = d->stream->codec;
+	d->codecContext = avcodec_alloc_context3(d->codec);
+	if (!d->codecContext) {
+		LOG(("Audio Error: Unable to avcodec_alloc_context3 for capture"));
+		onStop(false);
+		emit error();
+		return;
+	}
+
 	av_opt_set_int(d->codecContext, "refcounted_frames", 1, 0);
 
 	d->codecContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
@@ -1441,6 +1448,13 @@ void AudioCaptureInner::onStart() {
 	}
 	d->dstSamplesSize = av_samples_get_buffer_size(0, d->codecContext->channels, d->maxDstSamples, d->codecContext->sample_fmt, 0);
 
+	if ((res = avcodec_parameters_from_context(d->stream->codecpar, d->codecContext)) < 0) {
+		LOG(("Audio Error: Unable to avcodec_parameters_from_context for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		onStop(false);
+		emit error();
+		return;
+	}
+
 	// Write file header
 	if ((res = avformat_write_header(d->fmtContext, 0)) < 0) {
 		LOG(("Audio Error: Unable to avformat_write_header for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
@@ -1488,9 +1502,10 @@ void AudioCaptureInner::onStop(bool needResult) {
 
 			int32 framesize = d->srcSamples * d->codecContext->channels * sizeof(short), encoded = 0;
 			while (_captured.size() >= encoded + framesize) {
-				writeFrame(encoded, framesize);
+				processFrame(encoded, framesize);
 				encoded += framesize;
 			}
+			writeFrame(nullptr); // drain the codec
 			if (encoded != _captured.size()) {
 				d->fullSamples = 0;
 				d->dataPos = 0;
@@ -1547,7 +1562,7 @@ void AudioCaptureInner::onStop(bool needResult) {
 		d->device = nullptr;
 
 		if (d->codecContext) {
-			avcodec_close(d->codecContext);
+			avcodec_free_context(&d->codecContext);
 			d->codecContext = nullptr;
 		}
 		if (d->srcSamplesData) {
@@ -1650,7 +1665,7 @@ void AudioCaptureInner::onTimeout() {
 		// Write frames
 		int32 framesize = d->srcSamples * d->codecContext->channels * sizeof(short), encoded = 0;
 		while (uint32(_captured.size()) >= encoded + framesize + fadeSamples * sizeof(short)) {
-			writeFrame(encoded, framesize);
+			processFrame(encoded, framesize);
 			encoded += framesize;
 		}
 
@@ -1665,7 +1680,7 @@ void AudioCaptureInner::onTimeout() {
 	}
 }
 
-void AudioCaptureInner::writeFrame(int32 offset, int32 framesize) {
+void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	// Prepare audio frame
 
 	if (framesize % sizeof(short)) { // in the middle of a sample
@@ -1732,33 +1747,93 @@ void AudioCaptureInner::writeFrame(int32 offset, int32 framesize) {
 
 	// Write audio frame
 
-	AVPacket pkt;
-	memset(&pkt, 0, sizeof(pkt)); // data and size must be 0;
 	AVFrame *frame = av_frame_alloc();
-	int gotPacket;
-	av_init_packet(&pkt);
 
 	frame->nb_samples = d->dstSamples;
+	frame->pts = av_rescale_q(d->fullSamples, AVRational{1, d->codecContext->sample_rate}, d->codecContext->time_base);
+
 	avcodec_fill_audio_frame(frame, d->codecContext->channels, d->codecContext->sample_fmt, d->dstSamplesData[0], d->dstSamplesSize, 0);
-	if ((res = avcodec_encode_audio2(d->codecContext, &pkt, frame, &gotPacket)) < 0) {
-		LOG(("Audio Error: Unable to avcodec_encode_audio2 for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+
+	writeFrame(frame);
+
+	d->fullSamples += samplesCnt;
+
+	av_frame_free(&frame);
+}
+
+void AudioCaptureInner::writeFrame(AVFrame *frame) {
+	int res = 0;
+	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+
+	res = avcodec_send_frame(d->codecContext, frame);
+	if (res == AVERROR(EAGAIN)) {
+		int packetsWritten = writePackets();
+		if (packetsWritten < 0) {
+			if (frame && packetsWritten == AVERROR_EOF) {
+				LOG(("Audio Error: EOF in packets received when EAGAIN was got in avcodec_send_frame()"));
+				onStop(false);
+				emit error();
+			}
+			return;
+		} else if (!packetsWritten) {
+			LOG(("Audio Error: No packets received when EAGAIN was got in avcodec_send_frame()"));
+			onStop(false);
+			emit error();
+			return;
+		}
+		res = avcodec_send_frame(d->codecContext, frame);
+	}
+	if (res < 0) {
+		LOG(("Audio Error: Unable to avcodec_send_frame for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		onStop(false);
 		emit error();
 		return;
 	}
 
-	if (gotPacket) {
+	if (!frame) { // drain
+		if ((res = writePackets()) != AVERROR_EOF) {
+			LOG(("Audio Error: not EOF in packets received when draining the codec, result %1").arg(res));
+			onStop(false);
+			emit error();
+		}
+	}
+}
+
+int AudioCaptureInner::writePackets() {
+	AVPacket pkt;
+	memset(&pkt, 0, sizeof(pkt)); // data and size must be 0;
+
+	int res = 0;
+	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+
+	int written = 0;
+	do {
+		av_init_packet(&pkt);
+		if ((res = avcodec_receive_packet(d->codecContext, &pkt)) < 0) {
+			if (res == AVERROR(EAGAIN)) {
+				return written;
+			} else if (res == AVERROR_EOF) {
+				return res;
+			}
+			LOG(("Audio Error: Unable to avcodec_receive_packet for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			onStop(false);
+			emit error();
+			return res;
+		}
+
+		av_packet_rescale_ts(&pkt, d->codecContext->time_base, d->stream->time_base);
 		pkt.stream_index = d->stream->index;
 		if ((res = av_interleaved_write_frame(d->fmtContext, &pkt)) < 0) {
 			LOG(("Audio Error: Unable to av_interleaved_write_frame for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			onStop(false);
 			emit error();
-			return;
+			return -1;
 		}
-	}
-	d->fullSamples += samplesCnt;
 
-	av_frame_free(&frame);
+		++written;
+		av_packet_unref(&pkt);
+	} while (true);
+	return written;
 }
 
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
@@ -1767,8 +1842,8 @@ public:
 	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data) : AbstractFFMpegLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override {
-		if (!AbstractFFMpegLoader::open()) {
+	bool open(qint64 &position) override {
+		if (!AbstractFFMpegLoader::open(position)) {
 			return false;
 		}
 
@@ -1864,7 +1939,8 @@ private:
 
 MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat) {
 	FFMpegAttributesReader reader(FileLocation(StorageFilePartial, fname), data);
-	if (reader.open()) {
+	qint64 position = 0;
+	if (reader.open(position)) {
 		int32 duration = reader.duration() / reader.frequency();
 		if (reader.duration() > 0) {
 			cover = reader.cover();
@@ -1882,7 +1958,7 @@ public:
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override {
+	bool open(qint64 &position) override {
 		if (!FFMpegLoader::open(position)) {
 			return false;
 		}
@@ -1978,7 +2054,8 @@ private:
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data) {
 	FFMpegWaveformCounter counter(file, data);
-	if (counter.open()) {
+	qint64 position = 0;
+	if (counter.open(position)) {
 		return counter.waveform();
 	}
 	return VoiceWaveform();

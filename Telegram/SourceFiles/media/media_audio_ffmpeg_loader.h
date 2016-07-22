@@ -36,7 +36,7 @@ public:
 	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data) : AudioPlayerLoader(file, data) {
 	}
 
-	bool open(qint64 position = 0) override;
+	bool open(qint64 &position) override;
 
 	int64 duration() override {
 		return len;
@@ -72,7 +72,7 @@ class FFMpegLoader : public AbstractFFMpegLoader {
 public:
 	FFMpegLoader(const FileLocation &file, const QByteArray &data);
 
-	bool open(qint64 position = 0) override;
+	bool open(qint64 &position) override;
 
 	int32 format() override {
 		return fmt;
@@ -86,6 +86,8 @@ protected:
 	int32 sampleSize = 2 * sizeof(uint16);
 
 private:
+	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+
 	int32 fmt = AL_FORMAT_STEREO16;
 	int32 srcRate = AudioVoiceMsgFrequency;
 	int32 dstRate = AudioVoiceMsgFrequency;

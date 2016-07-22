@@ -42,74 +42,14 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 		_frameRead = false;
 	}
 
-	while (true) {
-		while (_packetQueue.isEmpty()) {
-			auto packetResult = readAndProcessPacket();
-			if (packetResult == PacketResult::Error) {
-				return ReadResult::Error;
-			} else if (packetResult == PacketResult::EndOfFile) {
-				break;
-			}
-		}
-		bool eofReached = _packetQueue.isEmpty();
-
-		startPacket();
-
-		int got_frame = 0;
-		auto packet = &_packetNull;
-		AVPacket tempPacket;
-		if (!_packetQueue.isEmpty()) {
-			FFMpeg::packetFromDataWrap(tempPacket, _packetQueue.head());
-			packet = &tempPacket;
-		}
-		int decoded = packet->size;
-
-		int res = 0;
-		if ((res = avcodec_decode_video2(_codecContext, _frame, &got_frame, packet)) < 0) {
-			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-			LOG(("Gif Error: Unable to avcodec_decode_video2() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-
-			if (res == AVERROR_INVALIDDATA) { // try to skip bad packet
-				finishPacket();
-				continue;
-			}
-
-			eofReached = (res == AVERROR_EOF);
-			if (!eofReached || !_hadFrame) { // try to skip end of file
-				return ReadResult::Error;
-			}
-		}
-		if (res > 0) decoded = res;
-
-		if (!_packetQueue.isEmpty()) {
-			packet->data += decoded;
-			packet->size -= decoded;
-			if (packet->size <= 0) {
-				finishPacket();
-			}
-		}
-
-		if (got_frame) {
-			int64 duration = av_frame_get_pkt_duration(_frame);
-			int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-			int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-			_currentFrameDelay = _nextFrameDelay;
-			if (_frameMs + _currentFrameDelay < frameMs) {
-				_currentFrameDelay = int32(frameMs - _frameMs);
-			}
-			if (duration == AV_NOPTS_VALUE) {
-				_nextFrameDelay = 0;
-			} else {
-				_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-			}
-			_frameMs = frameMs;
-
-			_hadFrame = _frameRead = true;
-			_frameTime += _currentFrameDelay;
+	do {
+		int res = avcodec_receive_frame(_codecContext, _frame);
+		if (res >= 0) {
+			processReadFrame();
 			return ReadResult::Success;
 		}
 
-		if (eofReached) {
+		if (res == AVERROR_EOF) {
 			clearPacketQueue();
 			if (_mode == Mode::Normal) {
 				return ReadResult::Eof;
@@ -129,11 +69,69 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 			avcodec_flush_buffers(_codecContext);
 			_hadFrame = false;
 			_frameMs = 0;
-			_lastReadPacketMs = 0;
+			_lastReadVideoMs = _lastReadAudioMs = 0;
+
+			continue;
+		} else if (res != AVERROR(EAGAIN)) {
+			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+			LOG(("Audio Error: Unable to avcodec_receive_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return ReadResult::Error;
 		}
-	}
+
+		while (_packetQueue.isEmpty()) {
+			auto packetResult = readAndProcessPacket();
+			if (packetResult == PacketResult::Error) {
+				return ReadResult::Error;
+			} else if (packetResult == PacketResult::EndOfFile) {
+				break;
+			}
+		}
+		if (_packetQueue.isEmpty()) {
+			avcodec_send_packet(_codecContext, nullptr); // drain
+			continue;
+		}
+
+		startPacket();
+
+		AVPacket packet;
+		FFMpeg::packetFromDataWrap(packet, _packetQueue.head());
+		res = avcodec_send_packet(_codecContext, &packet);
+		if (res < 0) {
+			finishPacket();
+
+			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+			LOG(("Audio Error: Unable to avcodec_send_packet() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			if (res == AVERROR_INVALIDDATA) {
+				continue; // try to skip bad packet
+			}
+			return ReadResult::Error;
+		}
+		finishPacket();
+	} while (true);
 
 	return ReadResult::Error;
+}
+
+void FFMpegReaderImplementation::processReadFrame() {
+	int64 duration = av_frame_get_pkt_duration(_frame);
+	int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+	int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+	_currentFrameDelay = _nextFrameDelay;
+	if (_frameMs + _currentFrameDelay < frameMs) {
+		_currentFrameDelay = int32(frameMs - _frameMs);
+	} else if (frameMs < _frameMs + _currentFrameDelay) {
+		frameMs = _frameMs + _currentFrameDelay;
+	}
+
+	if (duration == AV_NOPTS_VALUE) {
+		_nextFrameDelay = 0;
+	} else {
+		_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+	}
+	_frameMs = frameMs;
+
+	_hadFrame = _frameRead = true;
+	_frameTime += _currentFrameDelay;
 }
 
 ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int64 frameMs, uint64 systemMs) {
@@ -154,7 +152,6 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int6
 
 	// sync by audio stream
 	auto correctMs = (frameMs >= 0) ? audioPlayer()->getVideoCorrectedTime(_playId, frameMs, systemMs) : frameMs;
-
 	if (!_frameRead) {
 		auto readResult = readNextFrame();
 		if (readResult != ReadResult::Success) {
@@ -237,7 +234,8 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 
 	// Read some future packets for audio stream.
 	if (_audioStreamId >= 0) {
-		while (_frameMs + 5000 > _lastReadPacketMs) {
+		while (_frameMs + 5000 > _lastReadAudioMs
+			&& _frameMs + 15000 > _lastReadVideoMs) {
 			auto packetResult = readAndProcessPacket();
 			if (packetResult != PacketResult::Ok) {
 				break;
@@ -288,8 +286,18 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 	}
 	_packetNull.stream_index = _streamId;
 
-	// Get a pointer to the codec context for the video stream
-	_codecContext = _fmtContext->streams[_streamId]->codec;
+	_codecContext = avcodec_alloc_context3(nullptr);
+	if (!_codecContext) {
+		LOG(("Audio Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
+		return false;
+	}
+	if ((res = avcodec_parameters_to_context(_codecContext, _fmtContext->streams[_streamId]->codecpar)) < 0) {
+		LOG(("Audio Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		return false;
+	}
+	av_codec_set_pkt_timebase(_codecContext, _fmtContext->streams[_streamId]->time_base);
+	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
+
 	_codec = avcodec_find_decoder(_codecContext->codec_id);
 
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
@@ -306,7 +314,7 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 	} else if (_mode == Mode::Silent || !audioPlayer() || !_playId) {
 		_audioStreamId = -1;
 	}
-	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
+
 	if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
 		LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
@@ -314,29 +322,32 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 
 	std_::unique_ptr<VideoSoundData> soundData;
 	if (_audioStreamId >= 0) {
-		// Get a pointer to the codec context for the audio stream
-		auto audioContextOriginal = _fmtContext->streams[_audioStreamId]->codec;
-		auto audioCodec = avcodec_find_decoder(audioContextOriginal->codec_id);
-
-		AVCodecContext *audioContext = avcodec_alloc_context3(audioCodec);
-		if ((res = avcodec_copy_context(audioContext, audioContextOriginal)) != 0) {
-			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		AVCodecContext *audioContext = avcodec_alloc_context3(nullptr);
+		if (!audioContext) {
+			LOG(("Audio Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
 			return false;
 		}
+		if ((res = avcodec_parameters_to_context(audioContext, _fmtContext->streams[_audioStreamId]->codecpar)) < 0) {
+			LOG(("Audio Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+		av_codec_set_pkt_timebase(audioContext, _fmtContext->streams[_audioStreamId]->time_base);
 		av_opt_set_int(audioContext, "refcounted_frames", 1, 0);
+
+		auto audioCodec = avcodec_find_decoder(audioContext->codec_id);
 		if ((res = avcodec_open2(audioContext, audioCodec, 0)) < 0) {
 			avcodec_free_context(&audioContext);
 			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			return false;
-		}
-
-		soundData = std_::make_unique<VideoSoundData>();
-		soundData->context = audioContext;
-		soundData->frequency = audioContextOriginal->sample_rate;
-		if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
-			soundData->length = (_fmtContext->duration * soundData->frequency) / AV_TIME_BASE;
+			_audioStreamId = -1;
 		} else {
-			soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
+			soundData = std_::make_unique<VideoSoundData>();
+			soundData->context = audioContext;
+			soundData->frequency = _fmtContext->streams[_audioStreamId]->codecpar->sample_rate;
+			if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
+				soundData->length = (_fmtContext->duration * soundData->frequency) / AV_TIME_BASE;
+			} else {
+				soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
+			}
 		}
 	}
 
@@ -382,7 +393,7 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 		av_frame_unref(_frame);
 		_frameRead = false;
 	}
-	if (_codecContext) avcodec_close(_codecContext);
+	if (_codecContext) avcodec_free_context(&_codecContext);
 	if (_swsContext) sws_freeContext(_swsContext);
 	if (_opened) {
 		avformat_close_input(&_fmtContext);
@@ -425,11 +436,13 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 	bool videoPacket = (packet->stream_index == _streamId);
 	bool audioPacket = (_audioStreamId >= 0 && packet->stream_index == _audioStreamId);
 	if (audioPacket || videoPacket) {
-		_lastReadPacketMs = countPacketMs(packet);
-
 		if (videoPacket) {
+			_lastReadVideoMs = countPacketMs(packet);
+
 			_packetQueue.enqueue(FFMpeg::dataWrapFromPacket(*packet));
 		} else if (audioPacket) {
+			_lastReadAudioMs = countPacketMs(packet);
+
 			// queue packet to audio player
 			VideoSoundPart part;
 			part.packet = packet;

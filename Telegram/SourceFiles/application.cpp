@@ -1051,13 +1051,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9057) {
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Linux : trying to use GTK file chooser when it is available");
-#else // Q_OS_LINUX32 || Q_OS_LINUX64
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements");
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
-//				versionFeatures = langNewVersionText();
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9058) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Alpha version of an embedded video player");
 			} else if (Local::oldMapVersion() < 9056) {
 				versionFeatures = langNewVersionText();
 			} else {

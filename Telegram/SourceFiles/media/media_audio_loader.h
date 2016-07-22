@@ -27,7 +27,7 @@ public:
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
 
-	virtual bool open(qint64 position = 0) = 0;
+	virtual bool open(qint64 &position) = 0;
 	virtual int64 duration() = 0;
 	virtual int32 frequency() = 0;
 	virtual int32 format() = 0;
