@@ -505,9 +505,7 @@ void MainWindow::clearWidgets() {
 		intro = 0;
 	}
 	if (_mediaView) {
-		if (!_mediaView->isHidden()) {
-			_mediaView->hide();
-		}
+		hideMediaview();
 		_mediaView->rpcClear();
 	}
 	title->updateBackButton();
@@ -598,6 +596,10 @@ void MainWindow::setupIntro(bool anim) {
 	cSetContactsReceived(false);
 	cSetDialogsReceived(false);
 	if (intro && !intro->isHidden() && !main) return;
+
+	if (_mediaView) {
+		_mediaView->clearData();
+	}
 
 	QPixmap bg = anim ? grabInner() : QPixmap();
 

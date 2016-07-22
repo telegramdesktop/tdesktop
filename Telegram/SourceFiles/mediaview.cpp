@@ -494,6 +494,28 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 	}
 }
 
+void MediaView::clearData() {
+	if (!isHidden()) {
+		hide();
+	}
+	if (!_animations.isEmpty()) {
+		_animations.clear();
+		_a_state.stop();
+	}
+	if (!_animOpacities.isEmpty()) _animOpacities.clear();
+	delete _gif;
+	_gif = nullptr;
+	delete _menu;
+	_menu = nullptr;
+	_history = _migrated = nullptr;
+	_peer = _from = nullptr;
+	_user = nullptr;
+	_photo = _additionalChatPhoto = nullptr;
+	_doc = nullptr;
+	_saveMsgText.clear();
+	_caption.clear();
+}
+
 MediaView::~MediaView() {
 	deleteAndMark(_gif);
 	deleteAndMark(_menu);
@@ -813,6 +835,7 @@ void MediaView::onCopy() {
 
 void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	_history = context ? context->history() : nullptr;
+	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
 			_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -820,8 +843,6 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 			_migrated = _history;
 			_history = App::history(_history->peer->migrateTo()->id);
 		}
-	} else {
-		_migrated = nullptr;
 	}
 	_additionalChatPhoto = nullptr;
 	_firstOpenedPeerPhoto = false;
@@ -932,6 +953,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_photo = 0;
 	_history = context ? context->history() : nullptr;
+	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
 			_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -939,8 +961,6 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 			_migrated = _history;
 			_history = App::history(_history->peer->migrateTo()->id);
 		}
-	} else {
-		_migrated = 0;
 	}
 	_additionalChatPhoto = nullptr;
 	_saveMsgStarted = 0;
@@ -1674,7 +1694,7 @@ void MediaView::preloadData(int32 delta) {
 	int indexInOverview = _index;
 	bool indexOfMigratedItem = _msgmigrated;
 	if (_index < 0) {
-		if (_overview != OverviewChatPhotos) return;
+		if (_overview != OverviewChatPhotos || !_history) return;
 		indexInOverview = _history->overview[OverviewChatPhotos].size();
 		indexOfMigratedItem = false;
 	}

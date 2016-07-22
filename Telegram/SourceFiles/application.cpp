@@ -1045,10 +1045,14 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9055) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Main window position and size are saved between the launches in Windows\n\xe2\x80\x94 Dock and top bar hiding fixed in OS X\n\xe2\x80\x94 Various design improvements and other bug fixes");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9057) {
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Linux : trying to use GTK file chooser when it is available");
+#else // Q_OS_LINUX32 || Q_OS_LINUX64
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements");
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 //				versionFeatures = langNewVersionText();
-			} else if (Local::oldMapVersion() < 9050) {
+			} else if (Local::oldMapVersion() < 9056) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

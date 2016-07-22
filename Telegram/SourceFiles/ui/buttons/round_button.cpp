@@ -102,12 +102,12 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	if (_fullWidthOverride < 0) {
 		rounded = QRect(0, rounded.top(), innerWidth - _fullWidthOverride, rounded.height());
 	}
-	App::roundRect(p, rounded, _st.textBg);
+	App::roundRect(p, rounded, _st.textBg, ImageRoundRadius::Small);
 
 	auto o = a_textBgOverOpacity.current();
 	if (o > 0) {
 		p.setOpacity(o);
-		App::roundRect(p, rounded, _st.textBgOver);
+		App::roundRect(p, rounded, _st.textBgOver, ImageRoundRadius::Small);
 		p.setOpacity(1);
 	}
 
@@ -116,7 +116,8 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	if (_fullWidthOverride < 0) {
 		textLeft = -_fullWidthOverride / 2;
 	}
-	int textTop = _st.padding.top() + _st.textTop;
+	int textTopDelta = (_state & StateDown) ? (_st.downTextTop - _st.textTop) : 0;
+	int textTop = _st.padding.top() + _st.textTop + textTopDelta;
 	if (!_text.isEmpty()) {
 		if (o > 0) {
 			p.setPen(a_textFg.current());
@@ -134,7 +135,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		}
 		p.drawTextLeft(textLeft, textTop, width(), _secondaryText);
 	}
-	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right()), width());
+	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right() + textTopDelta), width());
 }
 
 void RoundButton::step_over(float64 ms, bool timer) {

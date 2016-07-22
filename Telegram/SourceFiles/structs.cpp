@@ -186,11 +186,11 @@ StorageKey PeerData::userpicUniqueKey() const {
 }
 
 void PeerData::saveUserpic(const QString &path, int size) const {
-	currentUserpic()->pixRounded(size, size).save(path, "PNG");
+	currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size).save(path, "PNG");
 }
 
 QPixmap PeerData::genUserpic(int size) const {
-	return currentUserpic()->pixRounded(size, size);
+	return currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size);
 }
 
 const Text &BotCommand::descriptionText() const {
@@ -975,8 +975,11 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
-		} else if (data->voice() || data->isVideo()) {
-			psOpenFile(location.name());
+		} else if (data->voice() || data->song() || data->isVideo()) {
+			auto filepath = location.name();
+			if (documentIsValidMediaFile(filepath)) {
+				psOpenFile(filepath);
+			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
@@ -1270,8 +1273,10 @@ void DocumentData::performActionOnLoad() {
 				psOpenFile(already, true);
 			}
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-			if (voice() || isVideo()) {
-				psOpenFile(already);
+			if (voice() || song() || isVideo()) {
+				if (documentIsValidMediaFile(already)) {
+					psOpenFile(already);
+				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
