@@ -672,7 +672,7 @@ auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
 auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 
-messages.botCallbackAnswer#31fde6e4 flags:# alert:flags.1?true message:flags.0?string url:flags.3?string = messages.BotCallbackAnswer;
+messages.botCallbackAnswer#b10df1fb flags:# alert:flags.1?true message:flags.0?string url:flags.2?string = messages.BotCallbackAnswer;
 
 messages.messageEditData#26b5dde6 flags:# caption:flags.0?true = messages.MessageEditData;
 
@@ -699,15 +699,17 @@ draftMessageEmpty#ba4baec5 = DraftMessage;
 draftMessage#fd8e711f flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int message:string entities:flags.3?Vector<MessageEntity> date:int = DraftMessage;
 
 messages.featuredStickersNotModified#4ede3cf = messages.FeaturedStickers;
-messages.featuredStickers#ed6392b7 hash:int sets:Vector<StickerSet> unread:Vector<long> = messages.FeaturedStickers;
+messages.featuredStickers#f89d88e5 hash:int sets:Vector<StickerSetCovered> unread:Vector<long> = messages.FeaturedStickers;
 
 messages.recentStickersNotModified#b17f890 = messages.RecentStickers;
 messages.recentStickers#5ce20970 hash:int stickers:Vector<Document> = messages.RecentStickers;
 
-messages.archivedStickers#f3475c0c count:int sets:Vector<StickerSet> = messages.ArchivedStickers;
+messages.archivedStickers#4fcba9c8 count:int sets:Vector<StickerSetCovered> = messages.ArchivedStickers;
 
 messages.stickerSetInstallResultSuccess#38641628 = messages.StickerSetInstallResult;
-messages.stickerSetInstallResultArchive#192c8a4e sets:Vector<StickerSet> = messages.StickerSetInstallResult;
+messages.stickerSetInstallResultArchive#35e410a8 sets:Vector<StickerSetCovered> = messages.StickerSetInstallResult;
+
+stickerSetCovered#6410a5d2 set:StickerSet cover:Document = StickerSetCovered;
 
 ---functions---
 
@@ -839,7 +841,7 @@ messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEdi
 messages.editMessage#ce91e4ca flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
 messages.editInlineBotMessage#130c2c85 flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:flags.11?string reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getBotCallbackAnswer#a6e94f04 peer:InputPeer msg_id:int data:bytes = messages.BotCallbackAnswer;
-messages.setBotCallbackAnswer#70dc0fa3 flags:# alert:flags.1?true query_id:long message:flags.0?string url:flags.3?string = Bool;
+messages.setBotCallbackAnswer#c927d44b flags:# alert:flags.1?true query_id:long message:flags.0?string url:flags.2?string = Bool;
 messages.getPeerDialogs#2d9776b9 peers:Vector<InputPeer> = messages.PeerDialogs;
 messages.saveDraft#bc39e14b flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int peer:InputPeer message:string entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getAllDrafts#6a3f8d65 = Updates;
@@ -848,7 +850,7 @@ messages.readFeaturedStickers#e21cbb = Bool;
 messages.getRecentStickers#99197c2c hash:int = messages.RecentStickers;
 messages.saveRecentSticker#348e39bf id:InputDocument unsave:Bool = Bool;
 messages.clearRecentStickers#ab02e5d2 = Bool;
-messages.getUnusedStickers#a978d356 limit:int = Vector<StickerSet>;
+messages.getUnusedStickers#4309d65b limit:int = Vector<StickerSetCovered>;
 messages.getArchivedStickers#906e241f offset_id:long limit:int = messages.ArchivedStickers;
 
 updates.getState#edd4882a = updates.State;

@@ -5601,7 +5601,7 @@ void _serialize_messages_botCallbackAnswer(MTPStringLogger &to, int32 stage, int
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  alert: "); ++stages.back(); if (flag & MTPDmessages_botCallbackAnswer::Flag::f_alert) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 2: to.add("  message: "); ++stages.back(); if (flag & MTPDmessages_botCallbackAnswer::Flag::f_message) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 3: to.add("  url: "); ++stages.back(); if (flag & MTPDmessages_botCallbackAnswer::Flag::f_url) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 3: to.add("  url: "); ++stages.back(); if (flag & MTPDmessages_botCallbackAnswer::Flag::f_url) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -5824,6 +5824,20 @@ void _serialize_messages_stickerSetInstallResultArchive(MTPStringLogger &to, int
 	}
 	switch (stage) {
 	case 0: to.add("  sets: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_stickerSetCovered(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ stickerSetCovered");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  set: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  cover: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6406,7 +6420,7 @@ void _serialize_messages_setBotCallbackAnswer(MTPStringLogger &to, int32 stage, 
 	case 1: to.add("  alert: "); ++stages.back(); if (flag & MTPmessages_setBotCallbackAnswer::Flag::f_alert) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 2: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  message: "); ++stages.back(); if (flag & MTPmessages_setBotCallbackAnswer::Flag::f_message) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 4: to.add("  url: "); ++stages.back(); if (flag & MTPmessages_setBotCallbackAnswer::Flag::f_url) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 4: to.add("  url: "); ++stages.back(); if (flag & MTPmessages_setBotCallbackAnswer::Flag::f_url) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8865,6 +8879,7 @@ namespace {
 		_serializers.insert(mtpc_messages_archivedStickers, _serialize_messages_archivedStickers);
 		_serializers.insert(mtpc_messages_stickerSetInstallResultSuccess, _serialize_messages_stickerSetInstallResultSuccess);
 		_serializers.insert(mtpc_messages_stickerSetInstallResultArchive, _serialize_messages_stickerSetInstallResultArchive);
+		_serializers.insert(mtpc_stickerSetCovered, _serialize_stickerSetCovered);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);

@@ -3838,8 +3838,8 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
 	}
 	for (int i = 0, l = d_sets.size(); i != l; ++i) {
-		if (d_sets.at(i).type() == mtpc_stickerSet) {
-			const auto &set(d_sets.at(i).c_stickerSet());
+		if (d_sets.at(i).type() == mtpc_stickerSetCovered && d_sets.at(i).c_stickerSetCovered().vset.type() == mtpc_stickerSet) {
+			const auto &set(d_sets.at(i).c_stickerSetCovered().vset.c_stickerSet());
 			auto it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {

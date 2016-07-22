@@ -47,8 +47,8 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
 	for_const (auto &stickerSet, v) {
-		if (stickerSet.type() == mtpc_stickerSet) {
-			auto set = Stickers::feedSet(stickerSet.c_stickerSet());
+		if (stickerSet.type() == mtpc_stickerSetCovered && stickerSet.c_stickerSetCovered().vset.type() == mtpc_stickerSet) {
+			auto set = Stickers::feedSet(stickerSet.c_stickerSetCovered().vset.c_stickerSet());
 			if (set->stickers.isEmpty()) {
 				setsToRequest.insert(set->id, set->access);
 			}
@@ -1313,9 +1313,9 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	bool addedSet = false;
 	auto &v = stickers.vsets.c_vector().v;
 	for_const (auto &stickerSet, v) {
-		if (stickerSet.type() != mtpc_stickerSet) continue;
+		if (stickerSet.type() != mtpc_stickerSetCovered || stickerSet.c_stickerSetCovered().vset.type() != mtpc_stickerSet) continue;
 
-		if (auto set = Stickers::feedSet(stickerSet.c_stickerSet())) {
+		if (auto set = Stickers::feedSet(stickerSet.c_stickerSetCovered().vset.c_stickerSet())) {
 			auto index = archived.indexOf(set->id);
 			if (archived.isEmpty() || index != archived.size() - 1) {
 				if (index < archived.size() - 1) {

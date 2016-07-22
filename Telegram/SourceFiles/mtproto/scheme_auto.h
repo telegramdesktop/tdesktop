@@ -487,7 +487,7 @@ enum {
 	mtpc_auth_sentCodeTypeSms = 0xc000bba2,
 	mtpc_auth_sentCodeTypeCall = 0x5353e5a7,
 	mtpc_auth_sentCodeTypeFlashCall = 0xab03c6d9,
-	mtpc_messages_botCallbackAnswer = 0x31fde6e4,
+	mtpc_messages_botCallbackAnswer = 0xb10df1fb,
 	mtpc_messages_messageEditData = 0x26b5dde6,
 	mtpc_inputBotInlineMessageID = 0x890c3d89,
 	mtpc_inlineBotSwitchPM = 0x3c20629f,
@@ -504,12 +504,13 @@ enum {
 	mtpc_draftMessageEmpty = 0xba4baec5,
 	mtpc_draftMessage = 0xfd8e711f,
 	mtpc_messages_featuredStickersNotModified = 0x4ede3cf,
-	mtpc_messages_featuredStickers = 0xed6392b7,
+	mtpc_messages_featuredStickers = 0xf89d88e5,
 	mtpc_messages_recentStickersNotModified = 0xb17f890,
 	mtpc_messages_recentStickers = 0x5ce20970,
-	mtpc_messages_archivedStickers = 0xf3475c0c,
+	mtpc_messages_archivedStickers = 0x4fcba9c8,
 	mtpc_messages_stickerSetInstallResultSuccess = 0x38641628,
-	mtpc_messages_stickerSetInstallResultArchive = 0x192c8a4e,
+	mtpc_messages_stickerSetInstallResultArchive = 0x35e410a8,
+	mtpc_stickerSetCovered = 0x6410a5d2,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -633,7 +634,7 @@ enum {
 	mtpc_messages_editMessage = 0xce91e4ca,
 	mtpc_messages_editInlineBotMessage = 0x130c2c85,
 	mtpc_messages_getBotCallbackAnswer = 0xa6e94f04,
-	mtpc_messages_setBotCallbackAnswer = 0x70dc0fa3,
+	mtpc_messages_setBotCallbackAnswer = 0xc927d44b,
 	mtpc_messages_getPeerDialogs = 0x2d9776b9,
 	mtpc_messages_saveDraft = 0xbc39e14b,
 	mtpc_messages_getAllDrafts = 0x6a3f8d65,
@@ -642,7 +643,7 @@ enum {
 	mtpc_messages_getRecentStickers = 0x99197c2c,
 	mtpc_messages_saveRecentSticker = 0x348e39bf,
 	mtpc_messages_clearRecentStickers = 0xab02e5d2,
-	mtpc_messages_getUnusedStickers = 0xa978d356,
+	mtpc_messages_getUnusedStickers = 0x4309d65b,
 	mtpc_messages_getArchivedStickers = 0x906e241f,
 	mtpc_updates_getState = 0xedd4882a,
 	mtpc_updates_getDifference = 0xa041495,
@@ -1381,6 +1382,9 @@ class MTPDmessages_archivedStickers;
 class MTPmessages_stickerSetInstallResult;
 class MTPDmessages_stickerSetInstallResultArchive;
 
+class MTPstickerSetCovered;
+class MTPDstickerSetCovered;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1559,6 +1563,7 @@ typedef MTPBoxed<MTPmessages_featuredStickers> MTPmessages_FeaturedStickers;
 typedef MTPBoxed<MTPmessages_recentStickers> MTPmessages_RecentStickers;
 typedef MTPBoxed<MTPmessages_archivedStickers> MTPmessages_ArchivedStickers;
 typedef MTPBoxed<MTPmessages_stickerSetInstallResult> MTPmessages_StickerSetInstallResult;
+typedef MTPBoxed<MTPstickerSetCovered> MTPStickerSetCovered;
 
 // Type classes definitions
 
@@ -9706,6 +9711,37 @@ private:
 };
 typedef MTPBoxed<MTPmessages_stickerSetInstallResult> MTPmessages_StickerSetInstallResult;
 
+class MTPstickerSetCovered : private mtpDataOwner {
+public:
+	MTPstickerSetCovered();
+	MTPstickerSetCovered(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_stickerSetCovered) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDstickerSetCovered &_stickerSetCovered() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDstickerSetCovered*)data;
+	}
+	const MTPDstickerSetCovered &c_stickerSetCovered() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDstickerSetCovered*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_stickerSetCovered);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPstickerSetCovered(MTPDstickerSetCovered *_data);
+
+	friend class MTP::internal::TypeCreator;
+};
+typedef MTPBoxed<MTPstickerSetCovered> MTPStickerSetCovered;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -14457,9 +14493,9 @@ public:
 	enum class Flag : int32 {
 		f_alert = (1 << 1),
 		f_message = (1 << 0),
-		f_url = (1 << 3),
+		f_url = (1 << 2),
 
-		MAX_FIELD = (1 << 3),
+		MAX_FIELD = (1 << 2),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -14601,11 +14637,11 @@ class MTPDmessages_featuredStickers : public mtpDataImpl<MTPDmessages_featuredSt
 public:
 	MTPDmessages_featuredStickers() {
 	}
-	MTPDmessages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPlong> &_unread) : vhash(_hash), vsets(_sets), vunread(_unread) {
+	MTPDmessages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSetCovered> &_sets, const MTPVector<MTPlong> &_unread) : vhash(_hash), vsets(_sets), vunread(_unread) {
 	}
 
 	MTPint vhash;
-	MTPVector<MTPStickerSet> vsets;
+	MTPVector<MTPStickerSetCovered> vsets;
 	MTPVector<MTPlong> vunread;
 };
 
@@ -14624,21 +14660,32 @@ class MTPDmessages_archivedStickers : public mtpDataImpl<MTPDmessages_archivedSt
 public:
 	MTPDmessages_archivedStickers() {
 	}
-	MTPDmessages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSet> &_sets) : vcount(_count), vsets(_sets) {
+	MTPDmessages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) : vcount(_count), vsets(_sets) {
 	}
 
 	MTPint vcount;
-	MTPVector<MTPStickerSet> vsets;
+	MTPVector<MTPStickerSetCovered> vsets;
 };
 
 class MTPDmessages_stickerSetInstallResultArchive : public mtpDataImpl<MTPDmessages_stickerSetInstallResultArchive> {
 public:
 	MTPDmessages_stickerSetInstallResultArchive() {
 	}
-	MTPDmessages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSet> &_sets) : vsets(_sets) {
+	MTPDmessages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSetCovered> &_sets) : vsets(_sets) {
 	}
 
-	MTPVector<MTPStickerSet> vsets;
+	MTPVector<MTPStickerSetCovered> vsets;
+};
+
+class MTPDstickerSetCovered : public mtpDataImpl<MTPDstickerSetCovered> {
+public:
+	MTPDstickerSetCovered() {
+	}
+	MTPDstickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) : vset(_set), vcover(_cover) {
+	}
+
+	MTPStickerSet vset;
+	MTPDocument vcover;
 };
 
 // RPC methods
@@ -20434,9 +20481,9 @@ public:
 	enum class Flag : int32 {
 		f_alert = (1 << 1),
 		f_message = (1 << 0),
-		f_url = (1 << 3),
+		f_url = (1 << 2),
 
-		MAX_FIELD = (1 << 3),
+		MAX_FIELD = (1 << 2),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -20837,7 +20884,7 @@ public:
 		vlimit.write(to);
 	}
 
-	typedef MTPVector<MTPStickerSet> ResponseType;
+	typedef MTPVector<MTPStickerSetCovered> ResponseType;
 };
 class MTPmessages_GetUnusedStickers : public MTPBoxed<MTPmessages_getUnusedStickers> {
 public:
@@ -24082,7 +24129,7 @@ public:
 	inline static MTPmessages_featuredStickers new_messages_featuredStickersNotModified() {
 		return MTPmessages_featuredStickers(mtpc_messages_featuredStickersNotModified);
 	}
-	inline static MTPmessages_featuredStickers new_messages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPlong> &_unread) {
+	inline static MTPmessages_featuredStickers new_messages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSetCovered> &_sets, const MTPVector<MTPlong> &_unread) {
 		return MTPmessages_featuredStickers(new MTPDmessages_featuredStickers(_hash, _sets, _unread));
 	}
 	inline static MTPmessages_recentStickers new_messages_recentStickersNotModified() {
@@ -24091,14 +24138,17 @@ public:
 	inline static MTPmessages_recentStickers new_messages_recentStickers(MTPint _hash, const MTPVector<MTPDocument> &_stickers) {
 		return MTPmessages_recentStickers(new MTPDmessages_recentStickers(_hash, _stickers));
 	}
-	inline static MTPmessages_archivedStickers new_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSet> &_sets) {
+	inline static MTPmessages_archivedStickers new_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) {
 		return MTPmessages_archivedStickers(new MTPDmessages_archivedStickers(_count, _sets));
 	}
 	inline static MTPmessages_stickerSetInstallResult new_messages_stickerSetInstallResultSuccess() {
 		return MTPmessages_stickerSetInstallResult(mtpc_messages_stickerSetInstallResultSuccess);
 	}
-	inline static MTPmessages_stickerSetInstallResult new_messages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSet> &_sets) {
+	inline static MTPmessages_stickerSetInstallResult new_messages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSetCovered> &_sets) {
 		return MTPmessages_stickerSetInstallResult(new MTPDmessages_stickerSetInstallResultArchive(_sets));
+	}
+	inline static MTPstickerSetCovered new_stickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) {
+		return MTPstickerSetCovered(new MTPDstickerSetCovered(_set, _cover));
 	}
 	};
 
@@ -35494,7 +35544,7 @@ inline MTPmessages_featuredStickers::MTPmessages_featuredStickers(MTPDmessages_f
 inline MTPmessages_featuredStickers MTP_messages_featuredStickersNotModified() {
 	return MTP::internal::TypeCreator::new_messages_featuredStickersNotModified();
 }
-inline MTPmessages_featuredStickers MTP_messages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPlong> &_unread) {
+inline MTPmessages_featuredStickers MTP_messages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSetCovered> &_sets, const MTPVector<MTPlong> &_unread) {
 	return MTP::internal::TypeCreator::new_messages_featuredStickers(_hash, _sets, _unread);
 }
 
@@ -35574,7 +35624,7 @@ inline void MTPmessages_archivedStickers::write(mtpBuffer &to) const {
 }
 inline MTPmessages_archivedStickers::MTPmessages_archivedStickers(MTPDmessages_archivedStickers *_data) : mtpDataOwner(_data) {
 }
-inline MTPmessages_archivedStickers MTP_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSet> &_sets) {
+inline MTPmessages_archivedStickers MTP_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) {
 	return MTP::internal::TypeCreator::new_messages_archivedStickers(_count, _sets);
 }
 
@@ -35623,8 +35673,37 @@ inline MTPmessages_stickerSetInstallResult::MTPmessages_stickerSetInstallResult(
 inline MTPmessages_stickerSetInstallResult MTP_messages_stickerSetInstallResultSuccess() {
 	return MTP::internal::TypeCreator::new_messages_stickerSetInstallResultSuccess();
 }
-inline MTPmessages_stickerSetInstallResult MTP_messages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSet> &_sets) {
+inline MTPmessages_stickerSetInstallResult MTP_messages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSetCovered> &_sets) {
 	return MTP::internal::TypeCreator::new_messages_stickerSetInstallResultArchive(_sets);
+}
+
+inline MTPstickerSetCovered::MTPstickerSetCovered() : mtpDataOwner(new MTPDstickerSetCovered()) {
+}
+
+inline uint32 MTPstickerSetCovered::innerLength() const {
+	const MTPDstickerSetCovered &v(c_stickerSetCovered());
+	return v.vset.innerLength() + v.vcover.innerLength();
+}
+inline mtpTypeId MTPstickerSetCovered::type() const {
+	return mtpc_stickerSetCovered;
+}
+inline void MTPstickerSetCovered::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_stickerSetCovered) throw mtpErrorUnexpected(cons, "MTPstickerSetCovered");
+
+	if (!data) setData(new MTPDstickerSetCovered());
+	MTPDstickerSetCovered &v(_stickerSetCovered());
+	v.vset.read(from, end);
+	v.vcover.read(from, end);
+}
+inline void MTPstickerSetCovered::write(mtpBuffer &to) const {
+	const MTPDstickerSetCovered &v(c_stickerSetCovered());
+	v.vset.write(to);
+	v.vcover.write(to);
+}
+inline MTPstickerSetCovered::MTPstickerSetCovered(MTPDstickerSetCovered *_data) : mtpDataOwner(_data) {
+}
+inline MTPstickerSetCovered MTP_stickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) {
+	return MTP::internal::TypeCreator::new_stickerSetCovered(_set, _cover);
 }
 inline MTPDmessage::Flags mtpCastFlags(MTPDmessageService::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
 inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDmessageService::Flags> flags) { return mtpCastFlags(flags.v); }
