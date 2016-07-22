@@ -1317,7 +1317,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 		if (auto set = Stickers::feedSet(stickerSet.c_stickerSet())) {
 			auto index = archived.indexOf(set->id);
-			if (index != archived.size() - 1) {
+			if (archived.isEmpty() || index != archived.size() - 1) {
 				if (index < archived.size() - 1) {
 					archived.removeAt(index);
 				}
