@@ -114,6 +114,8 @@ public:
 	~ChildFFMpegLoader();
 
 private:
+	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+
 	bool _eofReached = false;
 
 	int32 _sampleSize = 2 * sizeof(uint16);

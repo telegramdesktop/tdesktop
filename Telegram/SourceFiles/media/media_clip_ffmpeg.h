@@ -59,6 +59,7 @@ public:
 
 private:
 	ReadResult readNextFrame();
+	void processReadFrame();
 
 	enum class PacketResult {
 		Ok,

@@ -86,6 +86,8 @@ protected:
 	int32 sampleSize = 2 * sizeof(uint16);
 
 private:
+	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+
 	int32 fmt = AL_FORMAT_STEREO16;
 	int32 srcRate = AudioVoiceMsgFrequency;
 	int32 dstRate = AudioVoiceMsgFrequency;
