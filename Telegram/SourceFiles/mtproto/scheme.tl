@@ -84,7 +84,7 @@ rpc_answer_dropped_running#cd78e586 = RpcDropAnswer;
 rpc_answer_dropped#a43ad8b7 msg_id:long seq_no:int bytes:int = RpcDropAnswer;
 
 future_salt#0949d9dc valid_since:int valid_until:int salt:long = FutureSalt;
-future_salts#ae500895 req_msg_id:long now:int salts:vector<futureSalt> = FutureSalts;
+future_salts#ae500895 req_msg_id:long now:int salts:vector<future_salt> = FutureSalts;
 
 pong#347773c5 msg_id:long ping_id:long = Pong;
 
@@ -111,7 +111,7 @@ ping_delay_disconnect#f3427b8c ping_id:long disconnect_delay:int = Pong;
 
 destroy_session#e7512126 session_id:long = DestroySessionRes;
 
-register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string age:int city:string = Bool;
+#contest.saveDeveloperInfo#9a5f6e95 vk_id:int name:string phone_number:string age:int city:string = Bool;
 
 ///////////////////////////////
 ///////// Main application API

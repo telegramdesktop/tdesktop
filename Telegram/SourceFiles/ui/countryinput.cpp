@@ -106,7 +106,7 @@ CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWi
 		p.setBrush(_st.bgColor->b);
 		p.drawPolygon(trPoints, 3);
 	}
-	_arrow = QPixmap::fromImage(trImage, Qt::ColorOnly);
+	_arrow = App::pixmapFromImageInPlace(std_::move(trImage));
 	_inner = QRect(0, 0, _st.width, _st.height);
 	_arrowRect = QRect((st::inpIntroCountryCode.width - _arrow.width() - 1) / 2, _st.height, _arrow.width(), _arrow.height());
 }

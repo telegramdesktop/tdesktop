@@ -1753,7 +1753,7 @@ void SettingsInner::updateChatBackground() {
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
 	}
-	_background = QPixmap::fromImage(back);
+	_background = App::pixmapFromImageInPlace(std_::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 	_needBackgroundUpdate = false;
 

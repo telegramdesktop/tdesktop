@@ -37,7 +37,7 @@ typedef QHash<PhotoData*, HistoryItemsMap> PhotoItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
 typedef QHash<int32, HistoryItemsMap> SharedContactItems;
-typedef QHash<ClipReader*, HistoryItem*> GifItems;
+typedef QHash<Media::Clip::Reader*, HistoryItem*> GifItems;
 
 typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
@@ -255,8 +255,8 @@ namespace App {
 	const SharedContactItems &sharedContactItems();
 	QString phoneFromSharedContact(int32 userId);
 
-	void regGifItem(ClipReader *reader, HistoryItem *item);
-	void unregGifItem(ClipReader *reader);
+	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item);
+	void unregGifItem(Media::Clip::Reader *reader);
 	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);

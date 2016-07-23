@@ -24,6 +24,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
+namespace Media {
+namespace Clip {
+
+class Reader;
+static Reader * const BadReader = SharedMemoryLocation<Reader, 0>();
+
+class Manager;
+
+enum Notification {
+	NotificationReinit,
+	NotificationRepaint,
+};
+
+} // namespace Clip
+} // namespace Media
+
 namespace anim {
 
 	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
@@ -193,6 +209,7 @@ namespace anim {
 
 	void startManager();
 	void stopManager();
+	void registerClipManager(Media::Clip::Manager *manager);
 
 };
 
@@ -469,7 +486,6 @@ using FloatAnimation = SimpleAnimation<anim::fvalue>;
 using IntAnimation = SimpleAnimation<anim::ivalue>;
 using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
-
 // Macro allows us to lazily create updateCallback.
 #define ENSURE_ANIMATION(animation, updateCallback, from) \
 if ((animation).isNull()) { \
@@ -479,8 +495,6 @@ if ((animation).isNull()) { \
 #define START_ANIMATION(animation, updateCallback, from, to, duration, transition) \
 ENSURE_ANIMATION(animation, updateCallback, from); \
 (animation).start((to), (duration), (transition))
-
-class ClipReader;
 
 class AnimationManager : public QObject {
 Q_OBJECT
@@ -494,7 +508,7 @@ public:
 public slots:
 	void timeout();
 
-	void clipCallback(ClipReader *reader, qint32 threadIndex, qint32 notification);
+	void clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification);
 
 private:
 	typedef QMap<Animation*, NullType> AnimatingObjects;
@@ -503,198 +517,3 @@ private:
 	bool _iterating;
 
 };
-
-class FileLocation;
-
-enum ClipState {
-	ClipReading,
-	ClipError,
-};
-
-struct ClipFrameRequest {
-	ClipFrameRequest() : factor(0), framew(0), frameh(0), outerw(0), outerh(0), rounded(false) {
-	}
-	bool valid() const {
-		return factor > 0;
-	}
-	int32 factor;
-	int32 framew, frameh;
-	int32 outerw, outerh;
-	bool rounded;
-};
-
-enum ClipReaderNotification {
-	ClipReaderReinit,
-	ClipReaderRepaint,
-};
-
-enum ClipReaderSteps {
-	WaitingForDimensionsStep = -3, // before ClipReaderPrivate read the first image and got the original frame size
-	WaitingForRequestStep = -2, // before ClipReader got the original frame size and prepared the frame request
-	WaitingForFirstFrameStep = -1, // before ClipReaderPrivate got the frame request and started waiting for the 1-2 delay
-};
-
-class ClipReaderPrivate;
-class ClipReader {
-public:
-
-	using Callback = Function<void, ClipReaderNotification>;
-
-	ClipReader(const FileLocation &location, const QByteArray &data, Callback &&callback);
-	static void callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification); // reader can be deleted
-
-	void setAutoplay() {
-		_autoplay = true;
-	}
-	bool autoplay() const {
-		return _autoplay;
-	}
-
-	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
-	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
-	QPixmap frameOriginal() const {
-		Frame *frame = frameToShow();
-		if (!frame) return QPixmap();
-		QPixmap result(frame ? QPixmap::fromImage(frame->original) : QPixmap());
-		result.detach();
-		return result;
-	}
-	bool currentDisplayed() const {
-		Frame *frame = frameToShow();
-		return frame ? (frame->displayed.loadAcquire() != 0) : true;
-	}
-	bool paused() const {
-		return _paused.loadAcquire();
-	}
-	int32 threadIndex() const {
-		return _threadIndex;
-	}
-
-	int32 width() const;
-	int32 height() const;
-
-	ClipState state() const;
-	bool started() const {
-		int32 step = _step.loadAcquire();
-		return (step == WaitingForFirstFrameStep) || (step >= 0);
-	}
-	bool ready() const;
-
-	void stop();
-	void error();
-
-	~ClipReader();
-
-private:
-
-	Callback _callback;
-
-	ClipState _state;
-
-	mutable int32 _width, _height;
-
-	mutable QAtomicInt _step; // -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
-	struct Frame {
-		Frame() : displayed(false) {
-		}
-		void clear() {
-			pix = QPixmap();
-			original = QImage();
-		}
-		QPixmap pix;
-		QImage original;
-		ClipFrameRequest request;
-		QAtomicInt displayed;
-	};
-	mutable Frame _frames[3];
-	Frame *frameToShow(int32 *index = 0) const; // 0 means not ready
-	Frame *frameToWrite(int32 *index = 0) const; // 0 means not ready
-	Frame *frameToWriteNext(bool check, int32 *index = 0) const;
-	void moveToNextShow() const;
-	void moveToNextWrite() const;
-
-	QAtomicInt _paused;
-	int32 _threadIndex;
-
-	bool _autoplay;
-
-	friend class ClipReadManager;
-
-	ClipReaderPrivate *_private;
-
-};
-
-static ClipReader * const BadClipReader = SharedMemoryLocation<ClipReader, 0>();
-
-enum ClipProcessResult {
-	ClipProcessError,
-	ClipProcessStarted,
-	ClipProcessPaused,
-	ClipProcessRepaint,
-	ClipProcessCopyFrame,
-	ClipProcessWait,
-};
-
-class ClipReadManager : public QObject {
-	Q_OBJECT
-
-public:
-
-	ClipReadManager(QThread *thread);
-	int32 loadLevel() const {
-		return _loadLevel.load();
-	}
-	void append(ClipReader *reader, const FileLocation &location, const QByteArray &data);
-	void start(ClipReader *reader);
-	void update(ClipReader *reader);
-	void stop(ClipReader *reader);
-	bool carries(ClipReader *reader) const;
-	~ClipReadManager();
-
-signals:
-
-	void processDelayed();
-
-	void callback(ClipReader *reader, qint32 threadIndex, qint32 notification);
-
-public slots:
-
-	void process();
-    void finish();
-
-private:
-
-    void clear();
-
-	QAtomicInt _loadLevel;
-	struct MutableAtomicInt {
-		MutableAtomicInt(int value) : v(value) {
-		}
-		mutable QAtomicInt v;
-	};
-	typedef QMap<ClipReader*, MutableAtomicInt> ReaderPointers;
-	ReaderPointers _readerPointers;
-	mutable QReadWriteLock _readerPointersMutex;
-
-	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ClipReaderPrivate *reader) const;
-	ReaderPointers::iterator unsafeFindReaderPointer(ClipReaderPrivate *reader);
-
-	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
-
-	enum ResultHandleState {
-		ResultHandleRemove,
-		ResultHandleStop,
-		ResultHandleContinue,
-	};
-	ResultHandleState handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
-
-	typedef QMap<ClipReaderPrivate*, uint64> Readers;
-	Readers _readers;
-
-	QTimer _timer;
-	QThread *_processingInThread;
-	bool _needReProcess;
-
-};
-
-MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByteArray &data, QImage &cover);

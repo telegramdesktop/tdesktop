@@ -73,6 +73,8 @@ void stopManager() {
 	internal::stopModules();
 	internal::destroyFonts();
 	internal::destroyColors();
+	internal::destroyIcons();
+	internal::destroySprite();
 }
 
 QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {

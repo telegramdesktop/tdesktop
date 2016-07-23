@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "apiwrap.h"
 #include "boxes/confirmbox.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 
 namespace {
@@ -220,7 +220,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
 			if (_userpic.v() == userDefPhoto(colorIndex).v()) {
-				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+				newPhoto = ImagePtr(App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
 			}
 		} else {
 			newPhoto = userDefPhoto(colorIndex);
@@ -299,12 +299,11 @@ void UserData::setBotInfoVersion(int version) {
 				botInfo->commands.clear();
 				Notify::botCommandsChanged(this);
 			}
-			delete botInfo;
-			botInfo = 0;
+			botInfo = nullptr;
 			Notify::userIsBotChanged(this);
 		}
 	} else if (!botInfo) {
-		botInfo = new BotInfo();
+		botInfo = std_::make_unique<BotInfo>();
 		botInfo->version = version;
 		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
@@ -947,15 +946,15 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	}
 	bool playVoice = data->voice() && audioPlayer();
 	bool playMusic = data->song() && audioPlayer();
+	bool playVideo = data->isVideo() && audioPlayer();
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
+	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
 		if (playVoice) {
 			AudioMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == AudioMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
+			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				AudioMsgId audio(data, msgId);
 				audioPlayer()->play(audio);
@@ -965,16 +964,30 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				}
 			}
 		} else if (playMusic) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(data, msgId);
+				AudioMsgId song(data, msgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
+		} else if (playVideo) {
+			if (!data->data().isEmpty()) {
+				App::wnd()->showDocument(data, item);
+			} else if (location.accessEnable()) {
+				App::wnd()->showDocument(data, item);
+				location.accessDisable();
+			} else {
+				auto filepath = location.name();
+				if (documentIsValidMediaFile(filepath)) {
+					psOpenFile(filepath);
+				} else {
+					psShowInFolder(filepath);
+				}
+			}
+			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->voice() || data->song() || data->isVideo()) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
@@ -1234,10 +1247,9 @@ void DocumentData::performActionOnLoad() {
 	if (playVoice) {
 		if (loaded()) {
 			AudioMsgId playing;
-			AudioPlayerState state = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &state);
-			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
 				if (App::main()) App::main()->mediaMarkRead(this);
@@ -1245,15 +1257,14 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playMusic) {
 		if (loaded()) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(this, _actionOnLoadMsgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(this, _actionOnLoadMsgId);
+				AudioMsgId song(this, _actionOnLoadMsgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
 		}
 	} else if (playAnimation) {

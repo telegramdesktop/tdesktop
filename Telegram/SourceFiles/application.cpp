@@ -533,6 +533,12 @@ namespace Sandbox {
 		}
 	}
 
+	void removeEventFilter(QObject *filter) {
+		if (Application *a = application()) {
+			a->removeEventFilter(filter);
+		}
+	}
+
 	void execExternal(const QString &cmd) {
 		DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
 		if (cmd == "show") {
@@ -1008,11 +1014,11 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
 
-	QPixmap thumb = QPixmap::fromImage(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+	QPixmap thumb = App::pixmapFromImageInPlace(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	photoThumbs.insert('a', thumb);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-	QPixmap medium = QPixmap::fromImage(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+	QPixmap medium = App::pixmapFromImageInPlace(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	photoThumbs.insert('b', medium);
 	photoSizes.push_back(MTP_photoSize(MTP_string("b"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
@@ -1045,13 +1051,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9057) {
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Linux : trying to use GTK file chooser when it is available");
-#else // Q_OS_LINUX32 || Q_OS_LINUX64
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements");
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
-//				versionFeatures = langNewVersionText();
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9058) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Alpha version of an embedded video player");
 			} else if (Local::oldMapVersion() < 9056) {
 				versionFeatures = langNewVersionText();
 			} else {

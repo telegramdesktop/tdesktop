@@ -53,7 +53,7 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 	_inner->setGeometry(rect());
 	_scroll->setGeometry(rect());
 
-	_scroll->setWidget(_inner);
+	_scroll->setOwnedWidget(_inner);
 	_scroll->show();
 	_inner->show();
 
@@ -944,6 +944,9 @@ void FieldAutocompleteInner::onPreview() {
 		Ui::showMediaPreview(_srows->at(_down));
 		_previewShown = true;
 	}
+}
+
+FieldAutocompleteInner::~FieldAutocompleteInner() {
 }
 
 } // namespace internal

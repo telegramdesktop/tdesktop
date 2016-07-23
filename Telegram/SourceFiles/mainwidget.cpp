@@ -47,7 +47,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/downloadpathbox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -91,9 +91,6 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	if (audioPlayer()) {
 		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
-		connect(audioPlayer(), SIGNAL(stopped(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
-		connect(audioPlayer(), SIGNAL(updated(const SongMsgId&)), this, SLOT(documentPlayProgress(const SongMsgId&)));
-		connect(audioPlayer(), SIGNAL(stopped(const SongMsgId&)), this, SLOT(documentPlayProgress(const SongMsgId&)));
 	}
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
@@ -518,16 +515,19 @@ void MainWidget::notify_handlePendingHistoryUpdate() {
 	_history->notify_handlePendingHistoryUpdate();
 }
 
-void MainWidget::cmd_search() {
-	_history->cmd_search();
+bool MainWidget::cmd_search() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_search();
 }
 
-void MainWidget::cmd_next_chat() {
-	_history->cmd_next_chat();
+bool MainWidget::cmd_next_chat() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_next_chat();
 }
 
-void MainWidget::cmd_previous_chat() {
-	_history->cmd_previous_chat();
+bool MainWidget::cmd_previous_chat() {
+	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	return _history->cmd_previous_chat();
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1022,13 +1022,13 @@ void MainWidget::onCacheBackground() {
 		}
 		_cachedX = 0;
 		_cachedY = 0;
-		_cachedBackground = QPixmap::fromImage(result);
+		_cachedBackground = App::pixmapFromImageInPlace(std_::move(result));
 	} else {
 		QRect to, from;
 		backgroundParams(_willCacheFor, to, from);
 		_cachedX = to.x();
 		_cachedY = to.y();
-		_cachedBackground = QPixmap::fromImage(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_cachedBackground = App::pixmapFromImageInPlace(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
 	}
 	_cachedFor = _willCacheFor;
@@ -1532,13 +1532,18 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 }
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
+	if (audioId.type() == AudioMsgId::Type::Video) {
+		audioPlayer()->videoSoundProgress(audioId);
+		return;
+	}
+
 	AudioMsgId playing;
-	AudioPlayerState state = AudioPlayerStopped;
-	audioPlayer()->currentState(&playing, &state);
-	if (playing == audioId && state == AudioPlayerStoppedAtStart) {
+	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
+	if (playing == audioId && playbackState.state == AudioPlayerStoppedAtStart) {
+		playbackState.state = AudioPlayerStopped;
 		audioPlayer()->clearStoppedAtStart(audioId);
 
-		DocumentData *audio = audioId.audio;
+		DocumentData *audio = audioId.audio();
 		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
 			if (documentIsValidMediaFile(filepath)) {
@@ -1547,39 +1552,10 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (HistoryItem *item = App::histItemById(audioId.contextId)) {
-		Ui::repaintHistoryItem(item);
-	}
-	if (auto items = InlineBots::Layout::documentItems()) {
-		for (auto item : items->value(audioId.audio)) {
-			Ui::repaintInlineItem(item);
-		}
-	}
-}
+	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
+		_player->updateState(playing, playbackState);
 
-void MainWidget::documentPlayProgress(const SongMsgId &songId) {
-	SongMsgId playing;
-	AudioPlayerState playingState = AudioPlayerStopped;
-	int64 playingPosition = 0, playingDuration = 0;
-	int32 playingFrequency = 0;
-	audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-	if (playing == songId && playingState == AudioPlayerStoppedAtStart) {
-		playingState = AudioPlayerStopped;
-		audioPlayer()->clearStoppedAtStart(songId);
-
-		DocumentData *document = songId.song;
-		QString filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
-		if (!filepath.isEmpty()) {
-			if (documentIsValidMediaFile(filepath)) {
-				psOpenFile(filepath);
-			}
-		}
-	}
-
-	if (playing == songId) {
-		_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
-
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
 			if (!_player->isOpened()) {
 				_player->openPlayer();
 				if (_player->isHidden() && !_a_show.animating()) {
@@ -1591,12 +1567,14 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 		}
 	}
 
-	if (HistoryItem *item = App::histItemById(songId.contextId)) {
-		Ui::repaintHistoryItem(item);
-	}
-	if (auto items = InlineBots::Layout::documentItems()) {
-		for (auto item : items->value(songId.song)) {
-			Ui::repaintInlineItem(item);
+	if (audioId.type() != AudioMsgId::Type::Video) {
+		if (auto item = App::histItemById(audioId.contextId())) {
+			Ui::repaintHistoryItem(item);
+		}
+		if (auto items = InlineBots::Layout::documentItems()) {
+			for (auto item : items->value(audioId.audio())) {
+				Ui::repaintInlineItem(item);
+			}
 		}
 	}
 }
@@ -1632,13 +1610,10 @@ void MainWidget::documentLoadProgress(FileLoader *loader) {
 	App::wnd()->documentUpdated(document);
 
 	if (!document->loaded() && document->loading() && document->song() && audioPlayer()) {
-		SongMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
-		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-		if (playing.song == document && !_player->isHidden()) {
-			_player->updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
+		AudioMsgId playing;
+		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+		if (playing.audio() == document && !_player->isHidden()) {
+			_player->updateState(playing, playbackState);
 		}
 	}
 }
@@ -4132,7 +4107,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
-		const auto &d(update.c_updateNewMessage());
+		auto &d = update.c_updateNewMessage();
+
+		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
+		if (!requestingDifference() && isDataLoaded != DataIsLoadedResult::Ok) {
+			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+
+			// This can be if this update was created by grouping
+			// some short message update into an updates vector.
+			return getDifference();
+		}
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4487,7 +4471,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
-		const auto &d(update.c_updateNewChannelMessage());
+		auto &d = update.c_updateNewChannelMessage();
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {

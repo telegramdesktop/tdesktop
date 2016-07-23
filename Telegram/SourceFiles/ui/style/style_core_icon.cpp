@@ -64,7 +64,7 @@ QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
 	}
 	finalImage = colorizeImage(maskImage, color, r);
 	finalImage.setDevicePixelRatio(cRetinaFactor());
-	return QPixmap::fromImage(finalImage, Qt::ColorOnly);
+	return App::pixmapFromImageInPlace(std_::move(finalImage));
 }
 
 } // namespace

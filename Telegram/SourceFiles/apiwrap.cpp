@@ -543,7 +543,6 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	}
 	if (!keyboardBotFound) {
 		h->clearLastKeyboard();
-		if (App::main()) App::main()->updateBotKeyboard(h);
 	}
 	int newMembersCount = qMax(d.vcount.v, v.count());
 	if (newMembersCount > peer->membersCount()) {

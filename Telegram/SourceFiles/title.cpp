@@ -279,7 +279,7 @@ void TitleWidget::updateCounter() {
 		case dbisOneAndHalf: size = -24; break;
 		case dbisTwo: size = -32; break;
 		}
-		_counter = QPixmap::fromImage(App::wnd()->iconWithCounter(size, counter, bg, false), Qt::ColorOnly);
+		_counter = App::pixmapFromImageInPlace(App::wnd()->iconWithCounter(size, counter, bg, false));
 		_counter.setDevicePixelRatio(cRetinaFactor());
 		update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
 	} else {

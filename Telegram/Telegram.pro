@@ -63,18 +63,23 @@ file_style_basic.target = GeneratedFiles/styles/style_basic.cpp
 file_style_basic.depends = style_target
 file_style_basic_types.target = GeneratedFiles/styles/style_basic_types.cpp
 file_style_basic_types.depends = style_target
-file_style_overview.target = GeneratedFiles/styles/style_overview.cpp
-file_style_overview.depends = style_target
 file_style_dialogs.target = GeneratedFiles/styles/style_dialogs.cpp
 file_style_dialogs.depends = style_target
 file_style_history.target = GeneratedFiles/styles/style_history.cpp
 file_style_history.depends = style_target
+file_style_mediaview.target = GeneratedFiles/styles/style_mediaview.cpp
+file_style_mediaview.depends = style_target
+file_style_overview.target = GeneratedFiles/styles/style_overview.cpp
+file_style_overview.depends = style_target
 file_style_profile.target = GeneratedFiles/styles/style_profile.cpp
 file_style_profile.depends = style_target
+file_style_widgets.target = GeneratedFiles/styles/style_widgets.cpp
+file_style_widgets.depends = style_target
 
 QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang \
-	file_style_basic file_style_basic_types file_style_overview \
-	file_style_dialogs file_style_history file_style_profile
+	file_style_basic file_style_basic_types file_style_dialogs \
+	file_style_history file_style_mediaview file_style_overview \
+	file_style_profile file_style_widgets
 
 PRE_TARGETDEPS += style_target numbers_target lang_target
 
@@ -97,14 +102,15 @@ SOURCES += \
 	./GeneratedFiles/styles/style_basic_types.cpp \
 	./GeneratedFiles/styles/style_dialogs.cpp \
 	./GeneratedFiles/styles/style_history.cpp \
+	./GeneratedFiles/styles/style_mediaview.cpp \
 	./GeneratedFiles/styles/style_overview.cpp \
 	./GeneratedFiles/styles/style_profile.cpp \
+	./GeneratedFiles/styles/style_widgets.cpp \
 	./SourceFiles/main.cpp \
 	./SourceFiles/stdafx.cpp \
 	./SourceFiles/apiwrap.cpp \
 	./SourceFiles/app.cpp \
 	./SourceFiles/application.cpp \
-	./SourceFiles/audio.cpp \
 	./SourceFiles/autoupdater.cpp \
 	./SourceFiles/dialogswidget.cpp \
 	./SourceFiles/dropdown.cpp \
@@ -172,6 +178,18 @@ SOURCES += \
 	./SourceFiles/intro/intropwdcheck.cpp \
 	./SourceFiles/intro/introsignup.cpp \
 	./SourceFiles/intro/introstart.cpp \
+	./SourceFiles/media/view/media_clip_controller.cpp \
+	./SourceFiles/media/view/media_clip_playback.cpp \
+	./SourceFiles/media/view/media_clip_volume_controller.cpp \
+	./SourceFiles/media/media_audio.cpp \
+	./SourceFiles/media/media_audio_ffmpeg_loader.cpp \
+	./SourceFiles/media/media_audio_loader.cpp \
+	./SourceFiles/media/media_audio_loaders.cpp \
+	./SourceFiles/media/media_child_ffmpeg_loader.cpp \
+	./SourceFiles/media/media_clip_ffmpeg.cpp \
+	./SourceFiles/media/media_clip_implementation.cpp \
+	./SourceFiles/media/media_clip_qtgif.cpp \
+	./SourceFiles/media/media_clip_reader.cpp \
 	./SourceFiles/mtproto/facade.cpp \
 	./SourceFiles/mtproto/auth_key.cpp \
 	./SourceFiles/mtproto/connection.cpp \
@@ -208,9 +226,11 @@ SOURCES += \
 	./SourceFiles/serialize/serialize_common.cpp \
 	./SourceFiles/serialize/serialize_document.cpp \
 	./SourceFiles/ui/buttons/history_down_button.cpp \
+	./SourceFiles/ui/buttons/icon_button.cpp \
 	./SourceFiles/ui/buttons/left_outline_button.cpp \
 	./SourceFiles/ui/buttons/peer_avatar_button.cpp \
 	./SourceFiles/ui/buttons/round_button.cpp \
+	./SourceFiles/ui/effects/fade_animation.cpp \
 	./SourceFiles/ui/style/style_core.cpp \
 	./SourceFiles/ui/style/style_core_color.cpp \
 	./SourceFiles/ui/style/style_core_font.cpp \
@@ -222,6 +242,7 @@ SOURCES += \
 	./SourceFiles/ui/toast/toast.cpp \
 	./SourceFiles/ui/toast/toast_manager.cpp \
 	./SourceFiles/ui/toast/toast_widget.cpp \
+	./SourceFiles/ui/widgets/label_simple.cpp \
 	./SourceFiles/ui/animation.cpp \
 	./SourceFiles/ui/boxshadow.cpp \
 	./SourceFiles/ui/button.cpp \
@@ -250,13 +271,14 @@ HEADERS += \
 	./GeneratedFiles/styles/style_basic_types.h \
 	./GeneratedFiles/styles/style_dialogs.h \
 	./GeneratedFiles/styles/style_history.h \
+	./GeneratedFiles/styles/style_mediaview.h \
 	./GeneratedFiles/styles/style_overview.h \
 	./GeneratedFiles/styles/style_profile.h \
+	./GeneratedFiles/styles/style_widgets.h \
 	./SourceFiles/stdafx.h \
 	./SourceFiles/apiwrap.h \
 	./SourceFiles/app.h \
 	./SourceFiles/application.h \
-	./SourceFiles/audio.h \
 	./SourceFiles/autoupdater.h \
 	./SourceFiles/config.h \
 	./SourceFiles/countries.h \
@@ -330,6 +352,18 @@ HEADERS += \
 	./SourceFiles/intro/intropwdcheck.h \
 	./SourceFiles/intro/introsignup.h \
 	./SourceFiles/intro/introstart.h \
+	./SourceFiles/media/view/media_clip_controller.h \
+	./SourceFiles/media/view/media_clip_playback.h \
+	./SourceFiles/media/view/media_clip_volume_controller.h \
+	./SourceFiles/media/media_audio.h \
+	./SourceFiles/media/media_audio_ffmpeg_loader.h \
+	./SourceFiles/media/media_audio_loader.h \
+	./SourceFiles/media/media_audio_loaders.h \
+	./SourceFiles/media/media_child_ffmpeg_loader.h \
+	./SourceFiles/media/media_clip_ffmpeg.h \
+	./SourceFiles/media/media_clip_implementation.h \
+	./SourceFiles/media/media_clip_qtgif.h \
+	./SourceFiles/media/media_clip_reader.h \
 	./SourceFiles/mtproto/facade.h \
 	./SourceFiles/mtproto/auth_key.h \
 	./SourceFiles/mtproto/connection.h \
@@ -369,9 +403,11 @@ HEADERS += \
 	./SourceFiles/serialize/serialize_common.h \
 	./SourceFiles/serialize/serialize_document.h \
 	./SourceFiles/ui/buttons/history_down_button.h \
+	./SourceFiles/ui/buttons/icon_button.h \
 	./SourceFiles/ui/buttons/left_outline_button.h \
 	./SourceFiles/ui/buttons/peer_avatar_button.h \
 	./SourceFiles/ui/buttons/round_button.h \
+	./SourceFiles/ui/effects/fade_animation.h \
 	./SourceFiles/ui/style/style_core.h \
 	./SourceFiles/ui/style/style_core_color.h \
 	./SourceFiles/ui/style/style_core_font.h \
@@ -383,6 +419,7 @@ HEADERS += \
 	./SourceFiles/ui/toast/toast.h \
 	./SourceFiles/ui/toast/toast_manager.h \
 	./SourceFiles/ui/toast/toast_widget.h \
+	./SourceFiles/ui/widgets/label_simple.h \
 	./SourceFiles/ui/animation.h \
 	./SourceFiles/ui/boxshadow.h \
 	./SourceFiles/ui/button.h \
@@ -495,7 +532,11 @@ PKGCONFIG += \
 	x11\
 	xi\
 	xext\
-	xkbcommon\
+# In order to work libxkbcommon must be linked statically,
+# PKGCONFIG links it like "-L/usr/local/lib -lxkbcommon"
+# which makes a dynamic link which leads to segfault in
+# QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
+	#xkbcommon\
 	openal\
 	libavformat\
 	libavcodec\
@@ -517,6 +558,12 @@ LIBS += $${QT_TDESKTOP_PATH}/plugins/platforminputcontexts/libcomposeplatforminp
 
 LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
+# In order to work libxkbcommon must be linked statically,
+# PKGCONFIG links it like "-L/usr/local/lib -lxkbcommon"
+# which makes a dynamic link which leads to segfault in
+# QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
+LIBS += /usr/local/lib/libxkbcommon.a
+
 RESOURCES += \
 	./Resources/telegram.qrc \
 	./Resources/telegram_linux.qrc \
@@ -534,5 +581,7 @@ OTHER_FILES += \
 	./Resources/langs/lang_pt_BR.strings \
 	./SourceFiles/dialogs/dialogs.style \
 	./SourceFiles/history/history.style \
+	./SourceFiles/media/view/mediaview.style \
 	./SourceFiles/overview/overview.style \
-	./SourceFiles/profile/profile.style
+	./SourceFiles/profile/profile.style \
+	./SourceFiles/ui/widgets/widgets.style

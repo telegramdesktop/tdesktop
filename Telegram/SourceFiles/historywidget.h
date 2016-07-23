@@ -726,9 +726,9 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_handlePendingHistoryUpdate();
 
-	void cmd_search();
-	void cmd_next_chat();
-	void cmd_previous_chat();
+	bool cmd_search();
+	bool cmd_next_chat();
+	bool cmd_previous_chat();
 
 	~HistoryWidget();
 
