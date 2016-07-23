@@ -357,7 +357,13 @@ void AudioPlayer::onStopped(const AudioMsgId &audio) {
 }
 
 AudioPlayer::AudioMsg *AudioPlayer::dataForType(AudioMsgId::Type type, int index) {
-	if (index < 0) index = *currentIndex(type);
+	if (index < 0) {
+		if (auto indexPtr = currentIndex(type)) {
+			index = *indexPtr;
+		} else {
+			return nullptr;
+		}
+	}
 	switch (type) {
 	case AudioMsgId::Type::Voice: return &_audioData[index];
 	case AudioMsgId::Type::Song: return &_songData[index];
