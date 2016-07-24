@@ -303,6 +303,7 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
 	if (_mode == Mode::OnlyGifv) {
 		if (_audioStreamId >= 0) { // should be no audio stream
+			_audioStreamId = -1; // do not attempt to access audioPlayer()
 			return false;
 		}
 		if (dataSize() > AnimationInMemory) {

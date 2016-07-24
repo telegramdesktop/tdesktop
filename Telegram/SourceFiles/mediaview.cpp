@@ -239,7 +239,6 @@ void MediaView::stopGif() {
 	_videoPaused = _videoStopped = _videoIsSilent = false;
 	_fullScreenVideo = false;
 	_clipController.destroy();
-	Sandbox::removeEventFilter(this);
 	if (audioPlayer()) {
 		disconnect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 	}
@@ -437,7 +436,7 @@ void MediaView::step_state(uint64 ms, bool timer) {
 		if (dt >= 1) {
 			a_cOpacity.finish();
 			_controlsState = (_controlsState == ControlsShowing ? ControlsShown : ControlsHidden);
-			setCursor(_controlsState == ControlsHidden ? Qt::BlankCursor : (_over == OverNone ? style::cur_default : style::cur_pointer));
+			updateCursor();
 		} else {
 			a_cOpacity.update(dt, anim::linear);
 		}
@@ -448,6 +447,10 @@ void MediaView::step_state(uint64 ms, bool timer) {
 	if (!result && _animations.isEmpty()) {
 		_a_state.stop();
 	}
+}
+
+void MediaView::updateCursor() {
+	setCursor(_controlsState == ControlsHidden ? Qt::BlankCursor : (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
 
 float64 MediaView::radialProgress() const {
@@ -547,6 +550,7 @@ void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active)
 	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
 	update(QRegion(_saveMsg) + _captionRect);
 }
+
 void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	update(QRegion(_saveMsg) + _captionRect);
@@ -1317,9 +1321,6 @@ void MediaView::createClipController() {
 	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 
-	Sandbox::removeEventFilter(this);
-	Sandbox::installEventFilter(this);
-
 	if (audioPlayer()) {
 		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 	}
@@ -1403,6 +1404,7 @@ void MediaView::onVideoToggleFullScreen() {
 		setZoomLevel(ZoomToScreenLevel);
 	} else {
 		setZoomLevel(_fullScreenZoomCache);
+		_clipController->showAnimated();
 	}
 
 	_clipController->setInFullScreen(_fullScreenVideo);
@@ -2101,7 +2103,7 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 			} else if (!_saveMsg.contains(e->pos()) || !_saveMsgStarted) {
 				_pressed = true;
 				_dragging = 0;
-				setCursor(style::cur_default);
+				updateCursor();
 				_mStart = e->pos();
 				_xStart = _x;
 				_yStart = _y;
@@ -2205,10 +2207,8 @@ bool MediaView::updateOverState(OverState newState) {
 				_animOpacities.insert(_over, anim::fvalue(0, 1));
 			}
 			if (!_a_state.animating()) _a_state.start();
-			setCursor(style::cur_pointer);
-		} else {
-			setCursor(style::cur_default);
 		}
+		updateCursor();
 	}
 	return result;
 }
@@ -2438,15 +2438,22 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 	return TWidget::eventFilter(obj, e);
 }
 
-void MediaView::hide() {
-	_controlsHideTimer.stop();
-	_controlsState = ControlsShown;
-	a_cOpacity = anim::fvalue(1, 1);
-	TWidget::hide();
-	stopGif();
-	_radial.stop();
+void MediaView::setVisible(bool visible) {
+	if (!visible) {
+		_controlsHideTimer.stop();
+		_controlsState = ControlsShown;
+		a_cOpacity = anim::fvalue(1, 1);
+	}
+	TWidget::setVisible(visible);
+	if (visible) {
+		Sandbox::installEventFilter(this);
+	} else {
+		Sandbox::removeEventFilter(this);
 
-	Notify::clipStopperHidden(ClipStopperMediaview);
+		stopGif();
+		_radial.stop();
+		Notify::clipStopperHidden(ClipStopperMediaview);
+	}
 }
 
 void MediaView::onMenuDestroy(QObject *obj) {

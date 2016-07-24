@@ -2531,7 +2531,7 @@
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.59;
+				TDESKTOP_VERSION = 0.9.60;
 			};
 			name = Release;
 		};
@@ -2672,7 +2672,7 @@
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.59;
+				TDESKTOP_VERSION = 0.9.60;
 			};
 			name = Debug;
 		};

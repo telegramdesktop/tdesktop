@@ -36,7 +36,7 @@ class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 public:
 	MediaView();
 
-	void hide();
+	void setVisible(bool visible) override;
 
 	void updateOver(QPoint mpos);
 
@@ -131,6 +131,7 @@ private:
 	void findCurrent();
 	void loadBack();
 
+	void updateCursor();
 	void setZoomLevel(int newZoom);
 
 	void updateVideoPlaybackState(const AudioPlaybackState &state, bool reset = false);
