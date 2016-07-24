@@ -3497,7 +3497,7 @@ void HistoryWidget::onRecordError() {
 }
 
 void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples) {
-	if (!_peer) return;
+	if (!_peer || result.isEmpty()) return;
 
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;

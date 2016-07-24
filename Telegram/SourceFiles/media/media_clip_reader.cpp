@@ -630,16 +630,18 @@ Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(Re
 
 bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, uint64 ms) {
 	QReadLocker lock(&_readerPointersMutex);
-	ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(reader);
+	auto it = constUnsafeFindReaderPointer(reader);
 	if (result == ProcessResult::Error) {
 		if (it != _readerPointers.cend()) {
-			it.key()->error();
-			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
-
 			lock.unlock();
 			QWriteLocker lock(&_readerPointersMutex);
-			ReaderPointers::iterator i = unsafeFindReaderPointer(reader);
-			if (i != _readerPointers.cend()) _readerPointers.erase(i);
+
+			auto i = unsafeFindReaderPointer(reader);
+			if (i != _readerPointers.cend()) {
+				i.key()->error();
+				emit callback(i.key(), i.key()->threadIndex(), NotificationReinit);
+				_readerPointers.erase(i);
+			}
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {
