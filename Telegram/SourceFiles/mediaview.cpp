@@ -1796,7 +1796,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && (!fileShown() || !_doc->loaded())) {
 			onDocClick();
-		} else if (_doc->isVideo()) {
+		} else if (_doc && _doc->isVideo()) {
 			onVideoPauseResume();
 		}
 	} else if (e->key() == Qt::Key_Left) {
