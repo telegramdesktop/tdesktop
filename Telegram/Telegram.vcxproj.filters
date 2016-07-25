@@ -1446,6 +1446,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_media_clip_volume_controller.cpp">
       <Filter>GeneratedFiles\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\styles\style_boxes.cpp">
+      <Filter>GeneratedFiles\styles</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1726,6 +1729,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\buttons\icon_button.h">
       <Filter>SourceFiles\ui\buttons</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\styles\style_boxes.h">
+      <Filter>GeneratedFiles\styles</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -2121,6 +2127,9 @@
     </CodegenStyleItem>
     <CodegenStyleItem Include="SourceFiles\media\view\mediaview.style">
       <Filter>SourceFiles\media\view</Filter>
+    </CodegenStyleItem>
+    <CodegenStyleItem Include="SourceFiles\boxes\boxes.style">
+      <Filter>SourceFiles\boxes</Filter>
     </CodegenStyleItem>
   </ItemGroup>
   <ItemGroup>

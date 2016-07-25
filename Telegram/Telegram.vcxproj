@@ -1240,6 +1240,7 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\styles\style_basic.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_basic_types.cpp" />
+    <ClCompile Include="GeneratedFiles\styles\style_boxes.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_dialogs.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_history.cpp" />
     <ClCompile Include="GeneratedFiles\styles\style_mediaview.cpp" />
@@ -1528,6 +1529,7 @@
     <ClInclude Include="GeneratedFiles\numbers.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic.h" />
     <ClInclude Include="GeneratedFiles\styles\style_basic_types.h" />
+    <ClInclude Include="GeneratedFiles\styles\style_boxes.h" />
     <ClInclude Include="GeneratedFiles\styles\style_dialogs.h" />
     <ClInclude Include="GeneratedFiles\styles\style_history.h" />
     <ClInclude Include="GeneratedFiles\styles\style_mediaview.h" />
@@ -3030,6 +3032,7 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling style %(Identity)...</Message>
     </CustomBuild>
     <CodegenStyleItem Include="Resources\basic_types.style" />
+    <CodegenStyleItem Include="SourceFiles\boxes\boxes.style" />
     <CodegenStyleItem Include="SourceFiles\dialogs\dialogs.style" />
     <CodegenStyleItem Include="SourceFiles\history\history.style" />
     <CodegenStyleItem Include="SourceFiles\overview\overview.style" />

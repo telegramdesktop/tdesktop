@@ -849,16 +849,10 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			connect(box.get(), SIGNAL(confirmed()), this, SLOT(onSwitchModerateMode()));
 			Ui::showLayer(box.release());
 			break;
-		} else if (str == qstr("clearstickers")) {
-			auto box = std_::make_unique<ConfirmBox>(qsl("Clear frequently used stickers list?"));
-			connect(box.get(), SIGNAL(confirmed()), this, SLOT(onClearStickers()));
-			Ui::showLayer(box.release());
-			break;
 		} else if (
 			qsl("debugmode").startsWith(str) ||
 			qsl("testmode").startsWith(str) ||
 			qsl("loadlang").startsWith(str) ||
-			qsl("clearstickers").startsWith(str) ||
 			qsl("moderate").startsWith(str) ||
 			qsl("debugfiles").startsWith(str) ||
 			qsl("workmode").startsWith(str) ||
@@ -1265,24 +1259,6 @@ void SettingsInner::onUpdatePhoto() {
 void SettingsInner::onShowSessions() {
 	SessionsBox *box = new SessionsBox();
 	Ui::showLayer(box);
-}
-
-void SettingsInner::onClearStickers() {
-	auto &recent(cGetRecentStickers());
-	if (!recent.isEmpty()) {
-		recent.clear();
-		Local::writeUserSettings();
-	}
-	auto &sets(Global::RefStickerSets());
-	auto it = sets.find(Stickers::CustomSetId);
-	if (it != sets.cend()) {
-		sets.erase(it);
-		Local::writeStickers();
-	}
-	if (auto m = App::main()) {
-		emit m->stickersUpdated();
-	}
-	Ui::hideLayer();
 }
 
 void SettingsInner::onSwitchModerateMode() {

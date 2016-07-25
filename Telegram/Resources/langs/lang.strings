@@ -602,6 +602,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
+"lng_group_invite_members" = "{count:_not_used_|# member|# members}, among them:";
+
 "lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
@@ -680,15 +682,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Add stickers";
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_not_found" = "Sticker pack not found.";
-"lng_stickers_too_many_packs" = "You have too many sticker packs. Please remove some first.";
+"lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
+"lng_stickers_archived" = "Archived Stickers";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_packs" = "Sticker Packs";
 "lng_stickers_reorder" = "Click and drag to reorder sticker packs";
+"lng_stickers_featured" = "Featured Stickers";
+"lng_stickers_clear_recent" = "Clear";
+"lng_stickers_clear_recent_sure" = "Are you sure you want to clear your frequently used stickers list?";
 "lng_stickers_remove" = "Delete";
 "lng_stickers_return" = "Undo";
 "lng_stickers_restore" = "Restore";
+"lng_stickers_add" = "Add";
 "lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Photo";

@@ -28,6 +28,8 @@ namespace MTP {
 
 enum LocationType {
 	UnknownFileLocation  = 0,
+	// 1, 2, etc are used as "version" value in mediaKey() method.
+
 	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
 	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
 	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
@@ -221,9 +223,8 @@ class mtpFileLoader : public FileLoader, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
 
 	virtual int32 currentOffset(bool includeSkipped = false) const;
 
@@ -245,7 +246,6 @@ public:
 	~mtpFileLoader();
 
 protected:
-
 	virtual bool tryLoadLocal();
 	virtual void cancelRequests();
 
@@ -256,15 +256,16 @@ protected:
 	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
 	bool partFailed(const RPCError &error);
 
-	bool _lastComplete;
-	int32 _skippedBytes;
-	int32 _nextRequestOffset;
+	bool _lastComplete = false;
+	int32 _skippedBytes = 0;
+	int32 _nextRequestOffset = 0;
 
 	int32 _dc;
-	const StorageImageLocation *_location;
+	const StorageImageLocation *_location = nullptr;
 
-	uint64 _id; // for other locations
-	uint64 _access;
+	uint64 _id = 0; // for other locations
+	uint64 _access = 0;
+	int32 _version = 0;
 
 };
 

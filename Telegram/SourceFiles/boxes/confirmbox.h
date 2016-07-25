@@ -266,3 +266,26 @@ private:
 	UserData *_member;
 
 };
+
+class ConfirmInviteBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+	ConfirmInviteBox(const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+	void showAll();
+	void hideAll();
+
+private:
+	ChildWidget<FlatLabel> _title, _status;
+	ImagePtr _photo;
+	QVector<UserData*> _participants;
+
+	ChildWidget<BoxButton> _join, _cancel;
+	int _userWidth = 0;
+
+};
