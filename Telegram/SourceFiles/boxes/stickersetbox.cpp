@@ -473,8 +473,6 @@ StickersInner::StickersInner(StickersBox::Section section) : TWidget()
 , _removeWidth(st::normalFont->width(lang(lng_stickers_remove)))
 , _returnWidth(st::normalFont->width(lang(lng_stickers_return)))
 , _restoreWidth(st::normalFont->width(lang(lng_stickers_restore)))
-, _addText(lang(lng_stickers_add).toUpper())
-, _addWidth(st::defaultActiveButton.font->width(_addText))
 , _aboveShadow(st::boxShadow) {
 	setup();
 }
@@ -489,8 +487,6 @@ StickersInner::StickersInner(const Stickers::Order &archivedIds) : TWidget()
 , _removeWidth(st::normalFont->width(lang(lng_stickers_remove)))
 , _returnWidth(st::normalFont->width(lang(lng_stickers_return)))
 , _restoreWidth(st::normalFont->width(lang(lng_stickers_restore)))
-, _addText(lang(lng_stickers_add).toUpper())
-, _addWidth(st::defaultActiveButton.font->width(_addText))
 , _aboveShadow(st::boxShadow) {
 	setup();
 }
@@ -1128,7 +1124,7 @@ int StickersInner::countMaxNameWidth() const {
 	if (_section == Section::Installed) {
 		namew -= qMax(qMax(qMax(_returnWidth, _removeWidth), _restoreWidth), _clearWidth);
 	} else {
-		namew -= _addWidth - st::defaultActiveButton.width;
+		namew -= st::stickersAddIcon.width() - st::defaultActiveButton.width;
 	}
 	return namew;
 }

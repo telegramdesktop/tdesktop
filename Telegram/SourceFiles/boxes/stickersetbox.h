@@ -312,9 +312,6 @@ private:
 
 	ConfirmBox *_clearBox = nullptr;
 
-	QString _addText;
-	int _addWidth;
-
 	int _buttonHeight = 0;
 	bool _hasFeaturedButton = false;
 	bool _hasArchivedButton = false;

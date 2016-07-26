@@ -33,11 +33,16 @@ namespace Layout {
 
 namespace {
 
+// Show all dates that are in the last 20 hours in time format.
+constexpr int kRecentlyInSeconds = 20 * 3600;
+
 void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool active) {
 	QDateTime now(QDateTime::currentDateTime()), lastTime(date);
 	QDate nowDate(now.date()), lastDate(lastTime.date());
 	QString dt;
-	if (lastDate == nowDate) {
+	bool wasSameDay = (lastDate == nowDate);
+	bool wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
+	if (wasSameDay || wasRecently) {
 		dt = lastTime.toString(cTimeFormat());
 	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
 		dt = langDayOfWeek(lastDate);
