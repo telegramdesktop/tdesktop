@@ -1280,7 +1280,7 @@ StickersInner::~StickersInner() {
 StickersBox::StickersBox(Section section) : ItemListBox(st::boxScroll)
 , _section(section)
 , _inner(section)
-, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
+, _aboutWidth(st::boxWideWidth - 2 * st::stickersReorderPadding.top())
 , _about(st::boxTextFont, lang((section == Section::Archived) ? lng_stickers_packs_archived : lng_stickers_reorder), _defaultOptions, _aboutWidth) {
 	setup();
 }
@@ -1288,7 +1288,7 @@ StickersBox::StickersBox(Section section) : ItemListBox(st::boxScroll)
 StickersBox::StickersBox(const Stickers::Order &archivedIds) : ItemListBox(st::boxScroll)
 , _section(Section::ArchivedPart)
 , _inner(archivedIds)
-, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
+, _aboutWidth(st::boxWideWidth - 2 * st::stickersReorderPadding.top())
 , _about(st::boxTextFont, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
 	setup();
 }
@@ -1507,7 +1507,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 	if (_aboutHeight > 0) {
 		p.fillRect(0, 0, width(), _aboutHeight, st::contactsAboutBg);
 		p.setPen(st::stickersReorderFg);
-		_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
+		_about.draw(p, st::stickersReorderPadding.top(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 	}
 }
 
