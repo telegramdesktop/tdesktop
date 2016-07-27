@@ -191,8 +191,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 "lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
-"lng_signin_reset_in_days" = "{count_days:0 days|# day|# days} {count_hours:_not_used_|# hour|# hours} {count_minutes:_not_used_|# minute|# minutes}";
-"lng_signin_reset_in_hours" = "{count_hours:0 hours|# hour|# hours} {count_minutes:_not_used_|# minute|# minutes}";
+"lng_signin_reset_in_days" = "{count_days:0 days|# day|# days} {count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
+"lng_signin_reset_in_hours" = "{count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minutes|# minute|# minutes}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
 
@@ -700,7 +700,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_remove" = "Delete";
 "lng_stickers_return" = "Undo";
 "lng_stickers_restore" = "Restore";
-"lng_stickers_add" = "Add";
 "lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Photo";

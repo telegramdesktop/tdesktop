@@ -190,6 +190,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Konto zurücksetzen";
 "lng_signin_sure_reset" = "Hinweis!\n\nDu verlierst du alle Chats und Nachrichten, ebenso deine geteilten Bilder und Videos.\n\nKonto wirklich zurücksetzen?";
 "lng_signin_reset" = "Zurücksetzen";
+"lng_signin_reset_wait" = "Da dein Konto {phone_number} aktiv und durch ein Kennwort geschützt ist, löschen wir es aus Sicherheitsgründen in einer Woche. Du kannst den Vorgang jederzeit abbrechen.\n\nDu kannst dein Konto zurücksetzen in:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 Tage|# Tag|# Tage} {count_hours:0 Stunden|# Stunde|# Stunden} {count_minutes:0 Minuten|# Minute|# Minuten}";
+"lng_signin_reset_in_hours" = "{count_hours:0 Stunden|# Stunde|# Stunden} {count_minutes:0 Minuten|# Minute|# Minuten}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 Minuten|# Minute|# Minuten}";
+"lng_signin_reset_cancelled" = "Deine vorherigen Versuche das Konto zurückzusetzen wurden durch den aktiven Nutzer abgebrochen. Bitte in 7 Tagen erneut probieren.";
 
 "lng_signup_title" = "Information und Bild";
 "lng_signup_desc" = "Bitte trage deinen Namen ein \nund lade ein Bild hoch.";
@@ -602,6 +607,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Möchtest du dem Kanal «{title}» beitreten?";
 "lng_group_invite_join" = "Beitreten";
 
+"lng_group_invite_members" = "{count:_not_used_|# Mitglied|# Mitglieder}, darunter:";
+
 "lng_group_invite_link" = "Einladungslink:";
 "lng_group_invite_create" = "Neuer Link";
 "lng_group_invite_about" = "Jeder, der Telegram installiert hat,\nkann anhand dieses Links in deine Gruppe.";
@@ -680,11 +687,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Sticker hinzufügen";
 "lng_stickers_share_pack" = "Sticker teilen";
 "lng_stickers_not_found" = "Sticker-Paket nicht gefunden.";
+"lng_stickers_packs_archived" = "Einige deiner unbenutzen Sticker wurden archiviert, damit du Platz für neue Sticker hast.";
+"lng_stickers_archived" = "Archivierte Sticker";
 "lng_stickers_copied" = "Sticker-Paket Link in die Zwischenablage kopiert.";
 "lng_stickers_default_set" = "Große Denker";
 "lng_stickers_you_have" = "Sticker-Pakete verwalten";
 "lng_stickers_packs" = "Sticker-Pakete";
 "lng_stickers_reorder" = "Paket gedrückt halten und verschieben um die Anordnung zu ändern";
+"lng_stickers_featured" = "Besondere Sticker";
+"lng_stickers_clear_recent" = "Leeren";
+"lng_stickers_clear_recent_sure" = "Zuletzt benutzte Sticker leeren?";
 "lng_stickers_remove" = "Löschen";
 "lng_stickers_return" = "Rückgängig";
 "lng_stickers_restore" = "Zeigen";
@@ -881,7 +893,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_selected_forward" = "Weiterleiten";
 "lng_selected_count" = "{count:_not_used_|# Nachricht|# Nachrichten}";
 "lng_selected_cancel_sure_this" = "Upload abbrechen?";
-"lng_selected_upload_stop" = "Abbrechen";
+"lng_selected_upload_stop" = "Stoppen";
 "lng_selected_delete_sure_this" = "Diese Nachricht wirklich löschen?";
 "lng_selected_delete_sure" = "Willst du {count:_not_used_|# Nachricht|# Nachrichten} löschen?";
 "lng_delete_photo_sure" = "Dieses Bild wirklich löschen?";

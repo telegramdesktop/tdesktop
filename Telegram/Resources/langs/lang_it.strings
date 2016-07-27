@@ -190,6 +190,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Ripristina il tuo account";
 "lng_signin_sure_reset" = "Attenzione!\n\nPerderai tutte le chat e i messaggi, insieme a tutti i media e i file condivisi!\n\nVuoi ripristinare il tuo account?";
 "lng_signin_reset" = "Ripristina";
+"lng_signin_reset_wait" = "Dato che l'account {phone_number} è attivo e protetto da una password, lo elimineremo in 1 settimana per motivi di sicurezza. Puoi annullare questo processo in qualsiasi momento.\n\nSarai in grado di ripristinare il tuo account tra:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 giorni|# giorno|# giorni} {count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
+"lng_signin_reset_in_hours" = "{count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 minuti|# minuto|# minuti}";
+"lng_signin_reset_cancelled" = "I tuoi tentativi recenti di ripristinare questo account sono stati annullati dal suo utente attivo. Per favore riprova tra 7 giorni.";
 
 "lng_signup_title" = "Info e foto";
 "lng_signup_desc" = "Inserisci il tuo nome e\ncarica una foto.";
@@ -202,7 +207,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_dlg_new_channel_name" = "Nome canale";
 "lng_no_contacts" = "Non hai contatti";
 "lng_no_chats" = "Le tua chat saranno qui";
-"lng_contacts_loading" = "Caricamento...";
+"lng_contacts_loading" = "Carico...";
 "lng_contacts_not_found" = "Nessun contatto trovato";
 "lng_dlg_search_chat" = "Cerca in questa chat";
 "lng_dlg_search_channel" = "Cerca in questo canale";
@@ -211,7 +216,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_save" = "Salva";
 "lng_settings_upload" = "Imposta foto profilo";
 "lng_settings_crop_profile" = "Seleziona un riquadro per la tua foto profilo";
-"lng_settings_uploading_photo" = "Caricamento foto...";
+"lng_settings_uploading_photo" = "Carico foto...";
 
 "lng_username_title" = "Username";
 "lng_username_about" = "Puoi scegliere un username su Telegram.\nSe lo fai, le altre persone potranno trovarti\ntramite questo username e contattarti \nsenza conoscere il tuo numero di telefono.\n\nPuoi usare a-z, 0-9 e underscore.\nLa lunghezza minima è di 5 caratteri.";
@@ -348,7 +353,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cloud_password_email" = "Inserisci email di recupero";
 "lng_cloud_password_bad_email" = "E-mail non valida, riprova con un'altra.";
 "lng_cloud_password_about" = "La password sarà richiesta quando ti connetti da un nuovo dispositivo insieme al codice.";
-"lng_cloud_password_about_recover" = "Attenzione! Sei sicuro di non voler\naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
+"lng_cloud_password_about_recover" = "Attenzione! Sicuro di non voler\naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
 "lng_cloud_password_skip_email" = "Salta e-mail";
 "lng_cloud_password_almost" = "Abbiamo inviato un link di conferma\nall'e-mail che ci hai fornito. La verifica in due passaggi sarà attivata non appena aprirai quel link.";
 "lng_cloud_password_was_set" = "Verifica in due passaggi abilitata.";
@@ -445,7 +450,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_sure_kick" = "Rimuovere {user} dal gruppo?";
 "lng_profile_sure_kick_channel" = "Rimuovere {user} dal canale?";
 "lng_profile_sure_kick_admin" = "Rimuovere {user} dagli amministratori?";
-"lng_profile_loading" = "Caricamento...";
+"lng_profile_loading" = "Carico...";
 "lng_profile_shared_media" = "Media condivisi";
 "lng_profile_no_media" = "Nessun media in questa chat.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# foto}";
@@ -528,10 +533,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
 "lng_sure_delete_group_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi in «{group}»?\n\nQuesta azione non può essere annullata.";
 "lng_sure_delete_and_exit" = "Sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
-"lng_sure_leave_channel" = "Sei sicuro di voler lasciare\nquesto canale?";
-"lng_sure_delete_channel" = "Sei sicuro di voler eliminare questo canale? Tutti i membri verranno rimossi e i messaggi verranno persi.";
+"lng_sure_leave_channel" = "Sicuro di voler lasciare\nquesto canale?";
+"lng_sure_delete_channel" = "Sicuro di voler eliminare questo canale? Tutti i membri verranno rimossi e i messaggi verranno persi.";
 "lng_sure_leave_group" = "Sicuro di voler lasciare questo gruppo?\nQuesta azione non può essere annullata.";
-"lng_sure_delete_group" = "Sei sicuro di voler eliminare questo gruppo? Tutti i membri verranno rimossi e i messaggi verranno persi.";
+"lng_sure_delete_group" = "Sicuro di voler eliminare questo gruppo? Tutti i membri verranno rimossi e i messaggi verranno persi.";
 
 "lng_message_empty" = "Messaggio vuoto";
 "lng_message_unsupported" = "Questo messaggio non è supportato dalla tua versione di Telegram Desktop. Per favore, aggiorna all'ultima versione dalle Impostazioni o installalo da {link}";
@@ -601,6 +606,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join" = "Vuoi unirti al gruppo «{title}»?";
 "lng_group_invite_want_join_channel" = "Vuoi unirti al canale «{title}»?";
 "lng_group_invite_join" = "Unisciti";
+
+"lng_group_invite_members" = "{count:_not_used_|# membro|# membri}, tra cui:";
 
 "lng_group_invite_link" = "Link di invito:";
 "lng_group_invite_create" = "Crea un link di invito";
@@ -680,15 +687,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Aggiungi sticker";
 "lng_stickers_share_pack" = "Condividi sticker";
 "lng_stickers_not_found" = "Set di sticker non trovato.";
+"lng_stickers_packs_archived" = "Alcuni dei tuoi sticker non usati sono stati archiviati per fare spazio ai set che hai attivato.";
+"lng_stickers_archived" = "Sticker archiviati";
 "lng_stickers_copied" = "Link degli sticker copiato negli appunti.";
 "lng_stickers_default_set" = "Grandi menti";
 "lng_stickers_you_have" = "Organizza e riordina i set di sticker";
 "lng_stickers_packs" = "Set di sticker";
 "lng_stickers_reorder" = "Clicca e trascina per riordinare i set di sticker";
+"lng_stickers_featured" = "Sticker in primo piano";
+"lng_stickers_clear_recent" = "Elimina";
+"lng_stickers_clear_recent_sure" = "Sicuro di voler eliminare la lista degli sticker usati di recente?";
 "lng_stickers_remove" = "Elimina";
 "lng_stickers_return" = "Annulla";
 "lng_stickers_restore" = "Ripristina";
-"lng_stickers_count" = "{count:Caricamento...|# sticker|# sticker}";
+"lng_stickers_count" = "{count:Carico...|# sticker|# sticker}";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "File video";
@@ -704,9 +716,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Segnala spam";
 "lng_report_spam_hide" = "Nascondi";
 "lng_report_spam_thanks" = "Grazie per la tua segnalazione!";
-"lng_report_spam_sure" = "Sei sicuro di voler segnalare questo utente come spam?";
-"lng_report_spam_sure_group" = "Sei sicuro di voler segnalare dello spam in questo gruppo?";
-"lng_report_spam_sure_channel" = "Sei sicuro di voler segnalare dello spam in questo canale?";
+"lng_report_spam_sure" = "Sicuro di voler segnalare questo utente come spam?";
+"lng_report_spam_sure_group" = "Sicuro di voler segnalare dello spam in questo gruppo?";
+"lng_report_spam_sure_channel" = "Sicuro di voler segnalare dello spam in questo canale?";
 "lng_report_spam_ok" = "Segnala";
 "lng_cant_send_to_not_contact" = "Spiacenti, ma al momento puoi scrivere\nsolo ai contatti reciproci.\n{more_info}";
 "lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo contatti reciproci.\n{more_info}";
