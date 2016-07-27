@@ -1482,10 +1482,6 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		if (!_selected.isEmpty() && selectedForDelete == selectedForForward) {
 			_widget->onDeleteSelected();
 		}
-	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (_selected.isEmpty()) {
-			_widget->onListEnterPressed();
-		}
 	} else {
 		e->ignore();
 	}
@@ -7410,6 +7406,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			}
 			_scroll.keyPressEvent(e);
 		}
+	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
+		onListEnterPressed();
 	} else {
 		e->ignore();
 	}
