@@ -199,6 +199,13 @@ public:
 		}
 	}
 
+	QPointer<TWidget> weakThis() {
+		return QPointer<TWidget>(this);
+	}
+	QPointer<const TWidget> weakThis() const {
+		return QPointer<const TWidget>(this);
+	}
+
 	virtual ~TWidget() {
 	}
 

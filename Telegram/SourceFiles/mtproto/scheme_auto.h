@@ -76,6 +76,7 @@ enum {
 	mtpc_ping = 0x7abe77ec,
 	mtpc_ping_delay_disconnect = 0xf3427b8c,
 	mtpc_destroy_session = 0xe7512126,
+	mtpc_contest_saveDeveloperInfo = 0x9a5f6e95,
 	mtpc_boolFalse = 0xbc799737,
 	mtpc_boolTrue = 0x997275b5,
 	mtpc_true = 0x3fedd339,
@@ -555,6 +556,8 @@ enum {
 	mtpc_account_getPassword = 0x548a30f5,
 	mtpc_account_getPasswordSettings = 0xbc8d11bb,
 	mtpc_account_updatePasswordSettings = 0xfa7c4b86,
+	mtpc_account_sendConfirmPhoneCode = 0x1516d7bd,
+	mtpc_account_confirmPhone = 0x5f2178c3,
 	mtpc_users_getUsers = 0xd91a548,
 	mtpc_users_getFullUser = 0xca30a5b1,
 	mtpc_contacts_getStatuses = 0xc4a353ee,
@@ -15025,6 +15028,57 @@ public:
 	}
 };
 
+class MTPcontest_saveDeveloperInfo { // RPC method 'contest.saveDeveloperInfo'
+public:
+	MTPint vvk_id;
+	MTPstring vname;
+	MTPstring vphone_number;
+	MTPint vage;
+	MTPstring vcity;
+
+	MTPcontest_saveDeveloperInfo() {
+	}
+	MTPcontest_saveDeveloperInfo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contest_saveDeveloperInfo) {
+		read(from, end, cons);
+	}
+	MTPcontest_saveDeveloperInfo(MTPint _vk_id, const MTPstring &_name, const MTPstring &_phone_number, MTPint _age, const MTPstring &_city) : vvk_id(_vk_id), vname(_name), vphone_number(_phone_number), vage(_age), vcity(_city) {
+	}
+
+	uint32 innerLength() const {
+		return vvk_id.innerLength() + vname.innerLength() + vphone_number.innerLength() + vage.innerLength() + vcity.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_contest_saveDeveloperInfo;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contest_saveDeveloperInfo) {
+		vvk_id.read(from, end);
+		vname.read(from, end);
+		vphone_number.read(from, end);
+		vage.read(from, end);
+		vcity.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vvk_id.write(to);
+		vname.write(to);
+		vphone_number.write(to);
+		vage.write(to);
+		vcity.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPcontest_SaveDeveloperInfo : public MTPBoxed<MTPcontest_saveDeveloperInfo> {
+public:
+	MTPcontest_SaveDeveloperInfo() {
+	}
+	MTPcontest_SaveDeveloperInfo(const MTPcontest_saveDeveloperInfo &v) : MTPBoxed<MTPcontest_saveDeveloperInfo>(v) {
+	}
+	MTPcontest_SaveDeveloperInfo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontest_saveDeveloperInfo>(from, end, cons) {
+	}
+	MTPcontest_SaveDeveloperInfo(MTPint _vk_id, const MTPstring &_name, const MTPstring &_phone_number, MTPint _age, const MTPstring &_city) : MTPBoxed<MTPcontest_saveDeveloperInfo>(MTPcontest_saveDeveloperInfo(_vk_id, _name, _phone_number, _age, _city)) {
+	}
+};
+
 template <typename TQueryType>
 class MTPinvokeAfterMsg { // RPC method 'invokeAfterMsg'
 public:
@@ -16878,6 +16932,106 @@ public:
 	MTPaccount_UpdatePasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updatePasswordSettings>(from, end, cons) {
 	}
 	MTPaccount_UpdatePasswordSettings(const MTPbytes &_current_password_hash, const MTPaccount_PasswordInputSettings &_new_settings) : MTPBoxed<MTPaccount_updatePasswordSettings>(MTPaccount_updatePasswordSettings(_current_password_hash, _new_settings)) {
+	}
+};
+
+class MTPaccount_sendConfirmPhoneCode { // RPC method 'account.sendConfirmPhoneCode'
+public:
+	enum class Flag : int32 {
+		f_allow_flashcall = (1 << 0),
+		f_current_number = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_allow_flashcall() const { return vflags.v & Flag::f_allow_flashcall; }
+	bool has_current_number() const { return vflags.v & Flag::f_current_number; }
+
+	MTPflags<MTPaccount_sendConfirmPhoneCode::Flags> vflags;
+	MTPstring vhash;
+	MTPBool vcurrent_number;
+
+	MTPaccount_sendConfirmPhoneCode() {
+	}
+	MTPaccount_sendConfirmPhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendConfirmPhoneCode) {
+		read(from, end, cons);
+	}
+	MTPaccount_sendConfirmPhoneCode(const MTPflags<MTPaccount_sendConfirmPhoneCode::Flags> &_flags, const MTPstring &_hash, MTPBool _current_number) : vflags(_flags), vhash(_hash), vcurrent_number(_current_number) {
+	}
+
+	uint32 innerLength() const {
+		return vflags.innerLength() + vhash.innerLength() + (has_current_number() ? vcurrent_number.innerLength() : 0);
+	}
+	mtpTypeId type() const {
+		return mtpc_account_sendConfirmPhoneCode;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendConfirmPhoneCode) {
+		vflags.read(from, end);
+		vhash.read(from, end);
+		if (has_current_number()) { vcurrent_number.read(from, end); } else { vcurrent_number = MTPBool(); }
+	}
+	void write(mtpBuffer &to) const {
+		vflags.write(to);
+		vhash.write(to);
+		if (has_current_number()) vcurrent_number.write(to);
+	}
+
+	typedef MTPauth_SentCode ResponseType;
+};
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPaccount_sendConfirmPhoneCode::Flags)
+
+class MTPaccount_SendConfirmPhoneCode : public MTPBoxed<MTPaccount_sendConfirmPhoneCode> {
+public:
+	MTPaccount_SendConfirmPhoneCode() {
+	}
+	MTPaccount_SendConfirmPhoneCode(const MTPaccount_sendConfirmPhoneCode &v) : MTPBoxed<MTPaccount_sendConfirmPhoneCode>(v) {
+	}
+	MTPaccount_SendConfirmPhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_sendConfirmPhoneCode>(from, end, cons) {
+	}
+	MTPaccount_SendConfirmPhoneCode(const MTPflags<MTPaccount_sendConfirmPhoneCode::Flags> &_flags, const MTPstring &_hash, MTPBool _current_number) : MTPBoxed<MTPaccount_sendConfirmPhoneCode>(MTPaccount_sendConfirmPhoneCode(_flags, _hash, _current_number)) {
+	}
+};
+
+class MTPaccount_confirmPhone { // RPC method 'account.confirmPhone'
+public:
+	MTPstring vphone_code_hash;
+	MTPstring vphone_code;
+
+	MTPaccount_confirmPhone() {
+	}
+	MTPaccount_confirmPhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_confirmPhone) {
+		read(from, end, cons);
+	}
+	MTPaccount_confirmPhone(const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : vphone_code_hash(_phone_code_hash), vphone_code(_phone_code) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_code_hash.innerLength() + vphone_code.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_confirmPhone;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_confirmPhone) {
+		vphone_code_hash.read(from, end);
+		vphone_code.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_code_hash.write(to);
+		vphone_code.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_ConfirmPhone : public MTPBoxed<MTPaccount_confirmPhone> {
+public:
+	MTPaccount_ConfirmPhone() {
+	}
+	MTPaccount_ConfirmPhone(const MTPaccount_confirmPhone &v) : MTPBoxed<MTPaccount_confirmPhone>(v) {
+	}
+	MTPaccount_ConfirmPhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_confirmPhone>(from, end, cons) {
+	}
+	MTPaccount_ConfirmPhone(const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : MTPBoxed<MTPaccount_confirmPhone>(MTPaccount_confirmPhone(_phone_code_hash, _phone_code)) {
 	}
 };
 

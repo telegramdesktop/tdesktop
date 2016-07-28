@@ -67,3 +67,9 @@ stickersFeaturedUnreadTop: 7px;
 stickersFeaturedInstalled: icon {
 	{ "mediaview_save_check", #40ace3 }
 };
+
+confirmPhoneAboutLabel: flatLabel(labelDefFlat) {
+	width: 282px;
+}
+confirmPhoneCodeField: InputField(defaultInputField) {
+}

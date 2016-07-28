@@ -83,21 +83,18 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 
 	paintTitle(p, lang(lng_username_title));
 
+	p.setFont(st::boxTextFont);
 	if (!_copiedTextLink.isEmpty()) {
 		p.setPen(st::usernameDefaultFg);
-		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _copiedTextLink);
 	} else if (!_errorText.isEmpty()) {
 		p.setPen(st::setErrColor);
-		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _errorText);
 	} else if (!_goodText.isEmpty()) {
 		p.setPen(st::setGoodColor);
-		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _goodText);
 	} else {
 		p.setPen(st::usernameDefaultFg);
-		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), lang(lng_username_choose));
 	}
 	p.setPen(st::black);

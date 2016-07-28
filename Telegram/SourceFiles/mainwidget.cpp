@@ -45,9 +45,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/stickersetbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/downloadpathbox.h"
+#include "boxes/confirmphonebox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
+#include "core/qthelp_regex.h"
+#include "core/qthelp_url.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -55,6 +58,8 @@ StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&me
 
 StackItemSection::~StackItemSection() {
 }
+
+#include "boxes/confirmphonebox.h"
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
@@ -3286,51 +3291,50 @@ bool MainWidget::started() {
 
 void MainWidget::openLocalUrl(const QString &url) {
 	QString u(url.trimmed());
-	if (u.startsWith(qstr("tg://resolve"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			QString params = u.mid(m.capturedLength(0));
+	if (u.size() > 8192) u = u.mid(0, 8192);
 
-			QString start, startToken;
-			QRegularExpressionMatch startparam = QRegularExpression(qsl("(^|&)(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)")).match(params);
-			if (startparam.hasMatch()) {
-				start = startparam.captured(2);
-				startToken = startparam.captured(3);
-			}
+	if (!u.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		return;
+	}
 
-			MsgId post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
-			QRegularExpressionMatch postparam = QRegularExpression(qsl("(^|&)post=(\\d+)(&|$)")).match(params);
-			if (postparam.hasMatch()) {
-				post = postparam.captured(2).toInt();
-			}
-
-			openPeerByName(m.captured(1), post, startToken);
+	using namespace qthelp;
+	auto matchOptions = RegExOption::CaseInsensitive;
+	if (auto joinChatMatch = regex_match(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), u, matchOptions)) {
+		joinGroupByHash(joinChatMatch->captured(1));
+	} else if (auto stickerSetMatch = regex_match(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), u, matchOptions)) {
+		stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
+	} else if (auto shareUrlMatch = regex_match(qsl("^tg://msg_url/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto url = params.value(qsl("url"));
+		if (!url.isEmpty()) {
+			shareUrlLayer(url, params.value("text"));
 		}
-	} else if (u.startsWith(qstr("tg://join"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			joinGroupByHash(m.captured(1));
+	} else if (auto confirmPhoneMatch = regex_match(qsl("^tg://confirmphone/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto phone = params.value(qsl("phone"));
+		auto hash = params.value(qsl("hash"));
+		if (!phone.isEmpty() && !hash.isEmpty()) {
+			ConfirmPhoneBox::start(phone, hash);
 		}
-	} else if (u.startsWith(qstr("tg://addstickers"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
-		}
-	} else if (u.startsWith(qstr("tg://msg_url"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://msg_url/?\\?(.+)(#|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			QStringList params = m.captured(1).split('&');
-			QString url, text;
-			for (int32 i = 0, l = params.size(); i < l; ++i) {
-				if (params.at(i).startsWith(qstr("url="), Qt::CaseInsensitive)) {
-					url = myUrlDecode(params.at(i).mid(4));
-				} else if (params.at(i).startsWith(qstr("text="), Qt::CaseInsensitive)) {
-					text = myUrlDecode(params.at(i).mid(5));
+	} else if (auto usernameMatch = regex_match(qsl("^tg://resolve/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto domain = params.value(qsl("domain"));
+		if (auto domainMatch = regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+			auto start = qsl("start");
+			auto startToken = params.value(start);
+			if (startToken.isEmpty()) {
+				start = qsl("startgroup");
+				startToken = params.value(start);
+				if (startToken.isEmpty()) {
+					start = QString();
 				}
 			}
-			if (!url.isEmpty()) {
-				shareUrlLayer(url, text);
+			auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
+			auto postParam = params.value(qsl("post"));
+			if (auto postId = postParam.toInt()) {
+				post = postId;
 			}
+			openPeerByName(domain, post, startToken);
 		}
 	}
 }

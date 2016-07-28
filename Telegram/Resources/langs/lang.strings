@@ -939,6 +939,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_full_name" = "{first_name} {last_name}";
 
+"lng_confirm_phone_link_invalid" = "This link is broken or has expired.";
+"lng_confirm_phone_title" = "Cancel account reset";
+"lng_confirm_phone_about" = "Somebody with access to your phone number {phone} has requested to delete your Telegram account and reset your 2-Step Verification password.\n\nIf this wasn't you, please enter the code we've just sent you via SMS to your number.";
+"lng_confirm_phone_success" = "Success!\n\nThe deletion process was cancelled for your account {phone}. You may close this window now.";
+"lng_confirm_phone_send" = "Send";
+"lng_confirm_phone_enter_code" = "Please enter the code.";
+
 // Not used
 
 "lng_topbar_info" = "Info";

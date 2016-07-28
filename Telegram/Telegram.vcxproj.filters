@@ -1449,6 +1449,21 @@
     <ClCompile Include="GeneratedFiles\styles\style_boxes.cpp">
       <Filter>GeneratedFiles\styles</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\core\qthelp_url.cpp">
+      <Filter>SourceFiles\core</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\confirmphonebox.cpp">
+      <Filter>SourceFiles\boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_confirmphonebox.cpp">
+      <Filter>GeneratedFiles\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_confirmphonebox.cpp">
+      <Filter>GeneratedFiles\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_confirmphonebox.cpp">
+      <Filter>GeneratedFiles\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1732,6 +1747,12 @@
     </ClInclude>
     <ClInclude Include="GeneratedFiles\styles\style_boxes.h">
       <Filter>GeneratedFiles\styles</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\qthelp_regex.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\core\qthelp_url.h">
+      <Filter>SourceFiles\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -2040,6 +2061,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\media\view\media_clip_volume_controller.h">
       <Filter>SourceFiles\media\view</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\confirmphonebox.h">
+      <Filter>SourceFiles\boxes</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

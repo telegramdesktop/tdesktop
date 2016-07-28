@@ -111,7 +111,7 @@ ping_delay_disconnect#f3427b8c ping_id:long disconnect_delay:int = Pong;
 
 destroy_session#e7512126 session_id:long = DestroySessionRes;
 
-#contest.saveDeveloperInfo#9a5f6e95 vk_id:int name:string phone_number:string age:int city:string = Bool;
+contest.saveDeveloperInfo#9a5f6e95 vk_id:int name:string phone_number:string age:int city:string = Bool;
 
 ///////////////////////////////
 ///////// Main application API
@@ -760,6 +760,8 @@ account.resetAuthorization#df77f3bc hash:long = Bool;
 account.getPassword#548a30f5 = account.Password;
 account.getPasswordSettings#bc8d11bb current_password_hash:bytes = account.PasswordSettings;
 account.updatePasswordSettings#fa7c4b86 current_password_hash:bytes new_settings:account.PasswordInputSettings = Bool;
+account.sendConfirmPhoneCode#1516d7bd flags:# allow_flashcall:flags.0?true hash:string current_number:flags.0?Bool = auth.SentCode;
+account.confirmPhone#5f2178c3 phone_code_hash:string phone_code:string = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;

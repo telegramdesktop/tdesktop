@@ -404,11 +404,4 @@ inline bool chIsParagraphSeparator(QChar ch) {
 	return false;
 }
 
-inline QString myUrlEncode(const QString &str) {
-	return QString::fromLatin1(QUrl::toPercentEncoding(str));
-}
-inline QString myUrlDecode(const QString &enc) {
-	return QUrl::fromPercentEncoding(enc.toUtf8());
-}
-
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);

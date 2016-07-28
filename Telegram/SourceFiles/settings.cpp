@@ -237,7 +237,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 				gWorkingDir = dir;
 			}
 		} else if (string("--") == argv[i] && i + 1 < argc) {
-			gStartUrl = fromUtf8Safe(argv[++i]);
+			gStartUrl = fromUtf8Safe(argv[++i]).mid(0, 8192);
 		}
 	}
 }
