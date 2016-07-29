@@ -122,8 +122,8 @@ void Playback::mouseMoveEvent(QMouseEvent *e) {
 void Playback::mousePressEvent(QMouseEvent *e) {
 	_mouseDown = true;
 	_downProgress = snap(e->pos().x() / float64(width()), 0., 1.);
-	emit seekProgress(_downProgress);
 	update();
+	emit seekProgress(_downProgress); // This may destroy Playback.
 }
 
 void Playback::mouseReleaseEvent(QMouseEvent *e) {

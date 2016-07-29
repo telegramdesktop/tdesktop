@@ -59,8 +59,8 @@ void Controller::onSeekProgress(float64 progress) {
 	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
-		emit seekProgress(positionMs);
 		refreshTimeTexts();
+		emit seekProgress(positionMs); // This may destroy Controller.
 	}
 }
 
