@@ -190,7 +190,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Account resetten";
 "lng_signin_sure_reset" = "Let op:\n\nAl je chats, berichten en alle andere data gaan verloren als je verder gaat!\n\nEcht je account resetten?";
 "lng_signin_reset" = "Reset";
-"lng_signin_reset_wait" = "Het account met nummer {phone_number} is nog actief en beveiligd met een wachtwoord, je verzoek tot verwijdering stellen we daarom uit met 1 week.\nJe kunt dit proces ieder moment annuleren.\n\nJe account kan reset worden op:\n{when}";
+"lng_signin_reset_wait" = "Account {phone_number} is actief en beveiligd met een wachtwoord, het verwijderen stellen we daarom 1 week uit.\nJe kunt dit proces ieder moment annuleren.\n\nJe account kan gereset worden over:\n{when}";
 "lng_signin_reset_in_days" = "{count_days:0 dagen|# dag|# dagen} {count_hours:0 uur|# uur|# uur} {count_minutes:0 minuten|# minuut|# minuten}";
 "lng_signin_reset_in_hours" = "{count_hours:0 uur|# uur|# uur} {count_minutes:0 minuten|# minuut|# minuten}";
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minuten|# minuut|# minuten}";

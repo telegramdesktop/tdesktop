@@ -3662,9 +3662,9 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_emoji_category0), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_recent_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
 		} else {
-			it->title = lang(lng_emoji_category0);
+			it->title = lang(lng_recent_stickers);
 		}
 	}
 	auto index = it->stickers.indexOf(sticker);

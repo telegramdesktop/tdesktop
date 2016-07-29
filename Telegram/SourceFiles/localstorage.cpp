@@ -3196,7 +3196,7 @@ namespace Local {
 				setTitle = lang(lng_custom_stickers);
 				setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 			} else if (setId == Stickers::CloudRecentSetId) {
-				setTitle = lang(lng_emoji_category0); // Frequently used
+				setTitle = lang(lng_recent_stickers);
 				setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 			} else if (setId) {
 				if (readingInstalled && outOrder && stickers.version < 9061) {

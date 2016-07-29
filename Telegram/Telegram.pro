@@ -147,6 +147,7 @@ SOURCES += \
 	./SourceFiles/boxes/autolockbox.cpp \
 	./SourceFiles/boxes/backgroundbox.cpp \
 	./SourceFiles/boxes/confirmbox.cpp \
+	./SourceFiles/boxes/confirmphonebox.cpp \
 	./SourceFiles/boxes/connectionbox.cpp \
 	./SourceFiles/boxes/contactsbox.cpp \
 	./SourceFiles/boxes/downloadpathbox.cpp \
@@ -163,6 +164,7 @@ SOURCES += \
 	./SourceFiles/core/click_handler.cpp \
 	./SourceFiles/core/click_handler_types.cpp \
 	./SourceFiles/core/observer.cpp \
+	./SourceFiles/core/qthelp_url.cpp \
 	./SourceFiles/data/data_abstract_structure.cpp \
 	./SourceFiles/data/data_drafts.cpp \
 	./SourceFiles/dialogs/dialogs_indexed_list.cpp \
@@ -318,6 +320,7 @@ HEADERS += \
 	./SourceFiles/boxes/autolockbox.h \
 	./SourceFiles/boxes/backgroundbox.h \
 	./SourceFiles/boxes/confirmbox.h \
+	./SourceFiles/boxes/confirmphonebox.h \
 	./SourceFiles/boxes/connectionbox.h \
 	./SourceFiles/boxes/contactsbox.h \
 	./SourceFiles/boxes/downloadpathbox.h \
@@ -334,6 +337,8 @@ HEADERS += \
 	./SourceFiles/core/click_handler.h \
 	./SourceFiles/core/click_handler_types.h \
 	./SourceFiles/core/observer.h \
+        ./SourceFiles/core/qthelp_regex.h \
+        ./SourceFiles/core/qthelp_url.h \
 	./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
 	./SourceFiles/data/data_abstract_structure.h \

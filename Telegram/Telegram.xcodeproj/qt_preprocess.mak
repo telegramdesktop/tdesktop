@@ -61,6 +61,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -204,6 +205,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -290,6 +292,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -398,6 +401,9 @@ GeneratedFiles/Debug/moc_button.cpp: SourceFiles/ui/button.h
 
 GeneratedFiles/Debug/moc_confirmbox.cpp: SourceFiles/boxes/confirmbox.h
 	$(MOC_FILE) SourceFiles/boxes/confirmbox.h -o GeneratedFiles/Debug/moc_confirmbox.cpp
+
+GeneratedFiles/Debug/moc_confirmphonebox.cpp: SourceFiles/boxes/confirmphonebox.h
+	$(MOC_FILE) SourceFiles/boxes/confirmphonebox.h -o GeneratedFiles/Debug/moc_confirmphonebox.cpp
 
 GeneratedFiles/Debug/moc_connection.cpp: SourceFiles/mtproto/connection.h
 	$(MOC_FILE) SourceFiles/mtproto/connection.h -o GeneratedFiles/Debug/moc_connection.cpp

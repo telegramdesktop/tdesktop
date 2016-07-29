@@ -2150,7 +2150,7 @@ void StickerPanInner::refreshRecentStickers(bool performResize) {
 			}
 		}
 		if (_sets.isEmpty() || _sets.at(0).id != Stickers::RecentSetId) {
-			_sets.push_back(DisplayedSet(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_emoji_category0), recentPack.size() * 2, recentPack));
+			_sets.push_back(DisplayedSet(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_recent_stickers), recentPack.size() * 2, recentPack));
 		} else {
 			_sets[0].pack = recentPack;
 			_sets[0].hovers.resize(recentPack.size() * 2);

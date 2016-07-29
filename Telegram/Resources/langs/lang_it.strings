@@ -190,7 +190,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Ripristina il tuo account";
 "lng_signin_sure_reset" = "Attenzione!\n\nPerderai tutte le chat e i messaggi, insieme a tutti i media e i file condivisi!\n\nVuoi ripristinare il tuo account?";
 "lng_signin_reset" = "Ripristina";
-"lng_signin_reset_wait" = "Dato che l'account {phone_number} è attivo e protetto da una password, lo elimineremo in 1 settimana per motivi di sicurezza. Puoi annullare questo processo in qualsiasi momento.\n\nSarai in grado di ripristinare il tuo account tra:\n{when}";
+"lng_signin_reset_wait" = "Dato che l'account {phone_number} è attivo e protetto da una password, lo elimineremo tra 1 settimana per motivi di sicurezza. Puoi annullare questo processo in qualsiasi momento.\n\nSarai in grado di ripristinare il tuo account tra:\n{when}";
 "lng_signin_reset_in_days" = "{count_days:0 giorni|# giorno|# giorni} {count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
 "lng_signin_reset_in_hours" = "{count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minuti|# minuto|# minuti}";
@@ -590,7 +590,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_about" = "Nei supergruppi:";
 "lng_profile_convert_feature1" = "— I nuovi membri vedono tutta la cronologia";
 "lng_profile_convert_feature2" = "— I messaggi eliminati scompaiono per tutti";
-"lng_profile_convert_feature3" = "— Gli amministratori possono fissare i messaggi";
+"lng_profile_convert_feature3" = "— Gli admin possono fissare i messaggi importanti";
 "lng_profile_convert_feature4" = "— Il creatore può creare un link pubblico per il gruppo";
 "lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Questa azione non può essere annullata";
 "lng_profile_convert_confirm" = "Converti";
@@ -662,7 +662,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_auto_groups" = "Gruppi e canali";
 "lng_media_auto_play" = "Autoriproduzione";
 
-"lng_emoji_category0" = "Utilizzate di frequente";
+"lng_emoji_category0" = "Usate di frequente";
 "lng_emoji_category1" = "Persone";
 "lng_emoji_category2" = "Natura";
 "lng_emoji_category3" = "Cibo e bevande";
@@ -695,8 +695,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_packs" = "Set di sticker";
 "lng_stickers_reorder" = "Clicca e trascina per riordinare i set di sticker";
 "lng_stickers_featured" = "Sticker in primo piano";
-"lng_stickers_clear_recent" = "Elimina";
-"lng_stickers_clear_recent_sure" = "Sicuro di voler eliminare la lista degli sticker usati di recente?";
+"lng_stickers_clear_recent" = "Cancella";
+"lng_stickers_clear_recent_sure" = "Sicuro di voler cancellare la lista degli sticker usati di recente?";
 "lng_stickers_remove" = "Elimina";
 "lng_stickers_return" = "Annulla";
 "lng_stickers_restore" = "Ripristina";

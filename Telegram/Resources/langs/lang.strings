@@ -671,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Objects";
 "lng_emoji_category7" = "Symbols & Flags";
 
+"lng_recent_stickers" = "Frequently used";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -694,7 +695,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_packs" = "Sticker Packs";
 "lng_stickers_reorder" = "Click and drag to reorder sticker packs";
-"lng_stickers_featured" = "Featured Stickers";
+"lng_stickers_featured" = "Trending Stickers";
 "lng_stickers_clear_recent" = "Clear";
 "lng_stickers_clear_recent_sure" = "Are you sure you want to clear your frequently used stickers list?";
 "lng_stickers_remove" = "Delete";
