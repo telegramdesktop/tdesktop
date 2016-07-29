@@ -82,8 +82,10 @@ private:
 
 	mtpRequestId _sendCodeRequestId = 0;
 
-	QString _phone;
-	QString _hash;
+	// _hash from the link for account.sendConfirmPhoneCode call.
+	// _phoneHash from auth.sentCode for account.confirmPhone call.
+	QString _phone, _hash;
+	QString _phoneHash;
 
 	// If we receive the code length, we autosubmit _code field when enough symbols is typed.
 	int _sentCodeLength = 0;

@@ -48,7 +48,7 @@ ConfirmPhoneBox::ConfirmPhoneBox(QWidget *parent, const QString &phone, const QS
 	setParent(parent);
 
 	MTPaccount_SendConfirmPhoneCode::Flags flags = 0;
-	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(flags), MTP_string(hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
+	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(flags), MTP_string(_hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }
 
 void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
@@ -61,6 +61,7 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 	case mtpc_auth_sentCodeTypeCall: _sentCodeLength = resultInner.vtype.c_auth_sentCodeTypeCall().vlength.v; break;
 	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
 	}
+	_phoneHash = qs(resultInner.vphone_code_hash);
 	if (resultInner.has_next_type() && resultInner.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		setCallStatus({ CallState::Waiting, resultInner.has_timeout() ? resultInner.vtimeout.v : 60 });
 	} else {
@@ -129,7 +130,7 @@ void ConfirmPhoneBox::onCallStatusTimer() {
 		if (--_callStatus.timeout <= 0) {
 			_callStatus.state = CallState::Calling;
 			_callTimer.stop();
-			MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(&ConfirmPhoneBox::callDone));
+			MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_phoneHash)), rpcDone(&ConfirmPhoneBox::callDone));
 		}
 	}
 	update();
@@ -157,7 +158,7 @@ void ConfirmPhoneBox::onSendCode() {
 
 	showError(QString());
 
-	_sendCodeRequestId = MTP::send(MTPaccount_ConfirmPhone(MTP_string(_hash), MTP_string(_code->getLastText())), rpcDone(&ConfirmPhoneBox::confirmDone), rpcFail(&ConfirmPhoneBox::confirmFail));
+	_sendCodeRequestId = MTP::send(MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(_code->getLastText())), rpcDone(&ConfirmPhoneBox::confirmDone), rpcFail(&ConfirmPhoneBox::confirmFail));
 }
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
@@ -229,9 +230,9 @@ void ConfirmPhoneBox::onCodeChanged() {
 	_fixing = false;
 
 	showError(QString());
-	//if (strict) {
-	//	onSendCode();
-	//}
+	if (strict) {
+		onSendCode();
+	}
 }
 
 void ConfirmPhoneBox::showError(const QString &error) {
