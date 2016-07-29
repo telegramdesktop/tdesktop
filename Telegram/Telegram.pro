@@ -63,6 +63,8 @@ file_style_basic.target = GeneratedFiles/styles/style_basic.cpp
 file_style_basic.depends = style_target
 file_style_basic_types.target = GeneratedFiles/styles/style_basic_types.cpp
 file_style_basic_types.depends = style_target
+file_style_boxes.target = GeneratedFiles/styles/style_boxes.cpp
+file_style_boxes.depends = style_target
 file_style_dialogs.target = GeneratedFiles/styles/style_dialogs.cpp
 file_style_dialogs.depends = style_target
 file_style_history.target = GeneratedFiles/styles/style_history.cpp
@@ -77,9 +79,9 @@ file_style_widgets.target = GeneratedFiles/styles/style_widgets.cpp
 file_style_widgets.depends = style_target
 
 QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang \
-	file_style_basic file_style_basic_types file_style_dialogs \
-	file_style_history file_style_mediaview file_style_overview \
-	file_style_profile file_style_widgets
+	file_style_basic file_style_basic_types file_style_boxes \
+	file_style_dialogs file_style_history file_style_mediaview \
+	file_style_overview file_style_profile file_style_widgets
 
 PRE_TARGETDEPS += style_target numbers_target lang_target
 
@@ -100,6 +102,7 @@ SOURCES += \
 	./GeneratedFiles/numbers.cpp \
 	./GeneratedFiles/styles/style_basic.cpp \
 	./GeneratedFiles/styles/style_basic_types.cpp \
+	./GeneratedFiles/styles/style_boxes.cpp \
 	./GeneratedFiles/styles/style_dialogs.cpp \
 	./GeneratedFiles/styles/style_history.cpp \
 	./GeneratedFiles/styles/style_mediaview.cpp \
@@ -269,6 +272,7 @@ HEADERS += \
 	./GeneratedFiles/numbers.h \
 	./GeneratedFiles/styles/style_basic.h \
 	./GeneratedFiles/styles/style_basic_types.h \
+	./GeneratedFiles/styles/style_boxes.h \
 	./GeneratedFiles/styles/style_dialogs.h \
 	./GeneratedFiles/styles/style_history.h \
 	./GeneratedFiles/styles/style_mediaview.h \

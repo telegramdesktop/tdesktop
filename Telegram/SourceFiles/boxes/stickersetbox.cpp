@@ -1032,7 +1032,7 @@ void StickersInner::rebuild() {
 	int maxNameWidth = countMaxNameWidth();
 
 	clear();
-	auto &order = ([this]() {
+	auto &order = ([this]() -> const Stickers::Order & {
 		if (_section == Section::Installed) {
 			return Global::StickerSetsOrder();
 		} else if (_section == Section::Featured) {

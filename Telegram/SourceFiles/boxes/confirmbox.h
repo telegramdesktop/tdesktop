@@ -277,8 +277,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll();
-	void hideAll();
+	void showAll() override;
+	void hideAll() override;
 
 private:
 	ChildWidget<FlatLabel> _title, _status;
