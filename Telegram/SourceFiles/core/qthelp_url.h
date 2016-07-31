@@ -20,11 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/basic_types.h"
+namespace qthelp {
 
-#define BETA_VERSION_MACRO (9061001ULL)
+inline QString url_encode(const QString &part) {
+	return QString::fromLatin1(QUrl::toPercentEncoding(part));
+}
 
-constexpr int AppVersion = 9061;
-constexpr str_const AppVersionStr = "0.9.61";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+inline QString url_decode(const QString &encoded) {
+	return QUrl::fromPercentEncoding(encoded.toUtf8());
+}
+
+enum class UrlParamNameTransform {
+	NoTransform,
+	ToLower,
+};
+// Parses a string like "p1=v1&p2=v2&..&pn=vn" to a map.
+QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
+
+} // namespace qthelp

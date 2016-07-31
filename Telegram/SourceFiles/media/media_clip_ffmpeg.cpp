@@ -52,7 +52,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 		if (res == AVERROR_EOF) {
 			clearPacketQueue();
 			if (_mode == Mode::Normal) {
-				return ReadResult::Eof;
+				return ReadResult::EndOfFile;
 			}
 
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {

@@ -141,7 +141,10 @@ private:
 	void reallocate(int newCapacity) {
 		auto newPlainData = operator new[](newCapacity * sizeof(T));
 		for (int i = 0; i < _size; ++i) {
-			*(reinterpret_cast<T*>(newPlainData) + i) = std_::move(*(data() + i));
+			auto oldLocation = data() + i;
+			auto newLocation = reinterpret_cast<T*>(newPlainData) + i;
+			new (newLocation) T(std_::move(*oldLocation));
+			oldLocation->~T();
 		}
 		std::swap(_plaindata, newPlainData);
 		_capacity = newCapacity;

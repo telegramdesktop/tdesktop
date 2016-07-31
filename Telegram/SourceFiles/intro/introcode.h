@@ -29,15 +29,12 @@ class CodeInput final : public FlatInput {
 	Q_OBJECT
 
 public:
-
 	CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph);
 
 signals:
-
 	void codeEntered();
 
 protected:
-
 	void correctValue(const QString &was, QString &now);
 
 };

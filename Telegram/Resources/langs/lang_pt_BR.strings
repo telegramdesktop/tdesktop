@@ -178,7 +178,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_password" = "Sua senha";
 "lng_signin_code" = "Código do e-mail";
 "lng_signin_recover" = "Esqueceu sua senha?";
-"lng_signin_recover_title" = "Resetar senha";
+"lng_signin_recover_title" = "Redefinir senha";
 "lng_signin_hint" = "Dica: {password_hint}";
 "lng_signin_recover_hint" = "Código enviado para {recover_email}";
 "lng_signin_bad_password" = "Você colocou uma senha errada.";
@@ -190,6 +190,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Apagar sua conta";
 "lng_signin_sure_reset" = "Atenção!\n\nVocê perderá todos seus chats e mensagens, juntamente com quaisquer mídias e arquivos!\n\nVocê deseja apagar sua conta?";
 "lng_signin_reset" = "Apagar";
+"lng_signin_reset_wait" = "Uma vez que a conta {phone_number} está ativa e protegida por senha, nós iremos desativá-la em 1 semana, por questões de segurança. Você pode cancelar esse processo a qualquer momento.\n\nVocê poderá restaurar sua conta em:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 dia|# dia|# dias} {count_hours:0 hora|# hora|# horas} {count_minutes:0 minuto|# minuto|# minutos}";
+"lng_signin_reset_in_hours" = "{count_hours:0 hora|# hora|# horas} {count_minutes:0 minuto|# minuto|# minutos}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 minuto|# minuto|# minutos}";
+"lng_signin_reset_cancelled" = "Sua tentativa recente de restaurar essa conta foi cancelada pelo usuário ativo. Tente novamente em 7 dias.";
 
 "lng_signup_title" = "Informação e foto";
 "lng_signup_desc" = "Por favor, insira nome e\ncarregue uma foto.";
@@ -602,6 +607,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Você deseja entrar no canal «{title}»?";
 "lng_group_invite_join" = "Entrar";
 
+"lng_group_invite_members" = "{count:_not_used_|# membro|# membros}, entre eles:";
+
 "lng_group_invite_link" = "Link de convite:";
 "lng_group_invite_create" = "Criar um link de convite";
 "lng_group_invite_about" = "Usuários do Telegram poderão entrar\nem seu grupo clicando no link.";
@@ -680,11 +687,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Adicionar aos Stickers";
 "lng_stickers_share_pack" = "Compartilhar Stickers";
 "lng_stickers_not_found" = "Pacote de sticker não encontrado.";
+"lng_stickers_packs_archived" = "Alguns de seus stickers não usados foram arquivados para dar espaço aos pacotes que você ativou.";
+"lng_stickers_archived" = "Stickers Arquivados";
 "lng_stickers_copied" = "Link copiado para a área de transferência.";
 "lng_stickers_default_set" = "Grandes Mentes";
 "lng_stickers_you_have" = "Gerenciar e reordenar os pacotes de sticker";
 "lng_stickers_packs" = "Pacotes de Sticker";
 "lng_stickers_reorder" = "Clique e arraste para reordenar os pacotes";
+"lng_stickers_featured" = "Stickers em Destaque";
+"lng_stickers_clear_recent" = "Limpar";
+"lng_stickers_clear_recent_sure" = "Você tem certeza que deseja limpar seu histórico de stickers frequentes?";
 "lng_stickers_remove" = "Remover";
 "lng_stickers_return" = "Desfazer";
 "lng_stickers_restore" = "Restaurar";

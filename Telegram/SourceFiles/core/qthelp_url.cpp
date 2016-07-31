@@ -18,13 +18,35 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "core/qthelp_url.h"
 
-#include "core/basic_types.h"
+namespace qthelp {
 
-#define BETA_VERSION_MACRO (9061001ULL)
+QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform) {
+	QMap<QString, QString> result;
 
-constexpr int AppVersion = 9061;
-constexpr str_const AppVersionStr = "0.9.61";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+	auto transformParamName = [transform](const QString &name) {
+		if (transform == UrlParamNameTransform::ToLower) {
+			return name.toLower();
+		}
+		return name;
+	};
+
+	auto paramsList = params.split('&');
+	for_const (auto &param, paramsList) {
+		// Skip params without a name (starting with '=').
+		if (auto separatorPosition = param.indexOf('=')) {
+			auto paramName = param;
+			auto paramValue = QString();
+			if (separatorPosition > 0) {
+				paramName = param.mid(0, separatorPosition);
+				paramValue = url_decode(param.mid(separatorPosition + 1));
+			}
+			result.insert(transformParamName(paramName), paramValue);
+		}
+	}
+	return result;
+}
+
+} // namespace qthelp

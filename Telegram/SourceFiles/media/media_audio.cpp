@@ -1986,7 +1986,7 @@ public:
 
 			int64 samples = 0;
 			auto res = readMore(buffer, samples);
-			if (res == ReadResult::Error) {
+			if (res == ReadResult::Error || res == ReadResult::EndOfFile) {
 				break;
 			}
 			if (buffer.isEmpty()) {

@@ -264,7 +264,7 @@ void Application::readClients() {
 					}
 				} else if (cmd.startsWith(qsl("OPEN:"))) {
 					if (cStartUrl().isEmpty()) {
-						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5));
+						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
 					}
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));

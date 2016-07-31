@@ -2833,7 +2833,9 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	if (id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
+	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
+	if (id < 0 || messageTooOld) return false;
 
 	if (auto msg = toHistoryMessage()) {
 		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) return false;
@@ -2854,7 +2856,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 			auto channel = _history->peer->asChannel();
 			return (channel->amCreator() || (channel->amEditor() && out()));
 		}
-		return out() || (peerToUser(_history->peer->id) == MTP::authedId());
+		return out() || messageToMyself;
 	}
 	return false;
 }
@@ -2869,7 +2871,9 @@ bool HistoryItem::unread() const {
 
 		if (id > 0) {
 			if (id < history()->outboxReadBefore) return false;
-			if (auto channel = history()->peer->asChannel()) {
+			if (auto user = history()->peer->asUser()) {
+				if (user->botInfo) return false;
+			} else if (auto channel = history()->peer->asChannel()) {
 				if (!channel->isMegagroup()) return false;
 			}
 		}
@@ -4079,10 +4083,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		bottom = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
-		QPixmap thumb = loaded ? _data->thumb->pixSingle(ImageRoundRadius::Small, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(ImageRoundRadius::Small, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
+		QPixmap thumb = loaded ? _data->thumb->pixSingle(ImageRoundRadius::Large, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(ImageRoundRadius::Small, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
-			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
+			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
 		}
 
 		if (radial || (!loaded && !_data->loading())) {
@@ -5170,7 +5174,7 @@ int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryM
 }
 
 void SendMessageClickHandler::onClickImpl() const {
-	Ui::showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(peer()->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 }
 
 void AddContactClickHandler::onClickImpl() const {

@@ -1068,7 +1068,7 @@ class Document;
 class DocumentData {
 public:
 	static DocumentData *create(DocumentId id);
-	static DocumentData *create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes);
+	static DocumentData *create(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QVector<MTPDocumentAttribute> &attributes);
 	static DocumentData *create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
@@ -1159,6 +1159,7 @@ public:
 		_data = data;
 	}
 
+	bool setRemoteVersion(int32 version); // Returns true if version has changed.
 	void setRemoteLocation(int32 dc, uint64 access);
 	void setContentUrl(const QString &url);
 	bool hasRemoteLocation() const {
@@ -1196,11 +1197,11 @@ public:
 	int32 md5[8];
 
 	MediaKey mediaKey() const {
-		return ::mediaKey(locationType(), _dc, id);
+		return ::mediaKey(locationType(), _dc, id, _version);
 	}
 
 private:
-	DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
+	DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 
 	friend class Serialize::Document;
 
@@ -1208,9 +1209,10 @@ private:
 		return voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
 	}
 
-	// Two types of location: from MTProto by dc+access or from web by url
+	// Two types of location: from MTProto by dc+access+version or from web by url
 	int32 _dc = 0;
 	uint64 _access = 0;
+	int32 _version = 0;
 	QString _url;
 
 	FileLocation _location;
