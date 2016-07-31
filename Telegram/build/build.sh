@@ -81,6 +81,8 @@ elif [ "$BuildTarget" == "mac32" ]; then
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$BetaVersion" != "0" ]; then
     Error "Can't build macstore beta version!"
+  elif [ "$AlphaChannel" != "0" ]; then
+    Error "Can't build macstore dev channel!"
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
@@ -242,11 +244,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
   echo "Done!"
 
-  echo "Signing the application.."
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+    echo "Signing the application.."
     codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
   elif [ "$BuildTarget" == "macstore" ]; then
+    echo "Signing the application.."
     codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "Telegram/Telegram Desktop.entitlements"
+    echo "Making an installer.."
+    productbuild --sign "3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
   fi
   echo "Done!"
 
@@ -323,8 +328,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     echo "Copying $BinaryName.app and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
-    mkdir "$DeployPath/$BinaryName"
-    cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
+    mkdir "$DeployPath/Telegram"
+    cp -a "$ReleasePath/$BinaryName.app" "$DeployPath/Telegram/"
     if [ "$BetaVersion" != "0" ]; then
       cd "$DeployPath"
       zip -r "$SetupFile" "$BinaryName"
@@ -359,14 +364,15 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   elif [ "$BuildTarget" == "macstore" ]; then
     echo "Copying $BinaryName.app to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
-    cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/"
+    cp -a "$ReleasePath/$BinaryName.app" "$DeployPath/"
     mv "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
     mkdir -p "$DropboxDeployPath"
-    cp -v "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
+    rm -rf "$DropboxDeployPath/$BinaryName.app"
+    cp -a "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
     cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DropboxDeployPath/"
   fi
 fi

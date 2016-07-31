@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Telegram</string>
+	<string>Telegram Desktop</string>
 	<key>CFBundleGetInfoString</key>
 	<string>Telegram Desktop messaging app</string>
 	<key>CFBundleIdentifier</key>
@@ -22,13 +22,17 @@
 			<key>CFBundleURLIconFile</key>
 			<string>AppIcon.icns</string>
 			<key>CFBundleURLName</key>
-			<string>com.tdesktop.Telegram</string>
+			<string>org.telegram.desktop</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>tg</string>
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>$(TDESKTOP_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NOTE</key>

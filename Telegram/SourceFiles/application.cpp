@@ -92,7 +92,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
-	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();
+	h[4] = 0; // use first 4 chars
+	_localServerName = psServerPrefix() + h;
 
 	connect(&_localSocket, SIGNAL(connected()), this, SLOT(socketConnected()));
 	connect(&_localSocket, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));
@@ -114,7 +115,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 		LOG(("Many instance allowed, starting..."));
 		singleInstanceChecked();
 	} else {
-        LOG(("Connecting local socket to %1...").arg(_localServerName));
+		LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
 }
@@ -1042,7 +1043,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 }
 
 void AppClass::checkMapVersion() {
-    if (Local::oldMapVersion() < AppVersion) {
+  if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9057) {

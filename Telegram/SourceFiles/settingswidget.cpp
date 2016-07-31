@@ -468,9 +468,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::setHeaderColor->p);
 	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_general));
 	top += st::setHeaderSkip;
-
+/*
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	top += _autoUpdate.height();
+
 	QString textToDraw;
 	if (cAutoUpdate()) {
 		switch (_updatingState) {
@@ -489,7 +490,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
 	#endif
-
+*/
     if (cPlatform() == dbipWindows) {
         top += _workmodeTray.height() + st::setLittleSkip;
         top += _workmodeWindow.height() + st::setSectionSkip;
@@ -708,10 +709,10 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	top += st::setHeaderSkip;
 	_changeLanguage.move(_left + st::setWidth - _changeLanguage.width(), top - st::setHeaderSkip + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_autoUpdate.move(_left, top);
-	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
-	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
-	top += st::setVersionHeight;
+//	_autoUpdate.move(_left, top);
+//	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
+//	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
+//	top += st::setVersionHeight;
 	#endif
 
     if (cPlatform() == dbipWindows) {
@@ -1075,8 +1076,8 @@ void SettingsInner::showAll() {
 	// general
 	_changeLanguage.show();
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_autoUpdate.show();
-	setUpdatingState(_updatingState, true);
+	_autoUpdate.hide();
+//	setUpdatingState(_updatingState, true);
 	#endif
     if (cPlatform() == dbipWindows) {
         _workmodeTray.show();
@@ -1862,6 +1863,10 @@ void SettingsInner::onAutoDownload() {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void SettingsInner::setUpdatingState(UpdatingState state, bool force) {
+	_checkNow.hide();
+	_restartNow.hide();
+	return;
+
 	if (_updatingState != state || force) {
 		_updatingState = state;
 		if (cAutoUpdate()) {

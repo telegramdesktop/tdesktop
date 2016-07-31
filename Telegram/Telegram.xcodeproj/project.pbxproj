@@ -115,6 +115,7 @@
 		075FEBEC1C82336D0003ECA3 /* shortcuts.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */; };
 		0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D5581ABAD6F900FBFEED /* apiwrap.cpp */; };
 		0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */; };
+		077BA0141C621BC000B9123B /* Breakpad.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 077BA0131C621BC000B9123B /* Breakpad.framework */; };
 		076B1C4D1CBFBF59002C0BC2 /* text_block.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 076B1C491CBFBF59002C0BC2 /* text_block.cpp */; };
 		076B1C4E1CBFBF59002C0BC2 /* text_entity.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 076B1C4B1CBFBF59002C0BC2 /* text_entity.cpp */; };
 		076B1C541CBFC6F2002C0BC2 /* click_handler_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 076B1C501CBFC6F2002C0BC2 /* click_handler_types.cpp */; };
@@ -475,6 +476,7 @@
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
+		0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = "Telegram Desktop.entitlements"; path = "Telegram/Telegram Desktop.entitlements"; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_basic_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_basic_types.cpp; path = GeneratedFiles/Debug/moc_basic_types.cpp; sourceTree = SOURCE_ROOT; };
 		0747FF1B1CC63E7E00096FC3 /* codegen_style.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = codegen_style.xcodeproj; path = build/xcode/codegen_style/codegen_style.xcodeproj; sourceTree = SOURCE_ROOT; };
 		0747FF271CC63E9900096FC3 /* codegen_numbers.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = codegen_numbers.xcodeproj; path = build/xcode/codegen_numbers/codegen_numbers.xcodeproj; sourceTree = SOURCE_ROOT; };
@@ -510,6 +512,7 @@
 		0764D5581ABAD6F900FBFEED /* apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = apiwrap.cpp; path = SourceFiles/apiwrap.cpp; sourceTree = SOURCE_ROOT; };
 		0764D5591ABAD6F900FBFEED /* apiwrap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = apiwrap.h; path = SourceFiles/apiwrap.h; sourceTree = SOURCE_ROOT; };
 		0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_apiwrap.cpp; path = GeneratedFiles/Debug/moc_apiwrap.cpp; sourceTree = SOURCE_ROOT; };
+		077BA0131C621BC000B9123B /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = "$(BREAKPAD_PATH)/client/mac/build/Release/Breakpad.framework"; sourceTree = "<group>"; };
 		076B1C491CBFBF59002C0BC2 /* text_block.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = text_block.cpp; path = SourceFiles/ui/text/text_block.cpp; sourceTree = SOURCE_ROOT; };
 		076B1C4A1CBFBF59002C0BC2 /* text_block.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = text_block.h; path = SourceFiles/ui/text/text_block.h; sourceTree = SOURCE_ROOT; };
 		076B1C4B1CBFBF59002C0BC2 /* text_entity.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = text_entity.cpp; path = SourceFiles/ui/text/text_entity.cpp; sourceTree = SOURCE_ROOT; };
@@ -740,7 +743,7 @@
 		5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flattextarea.cpp; path = SourceFiles/ui/flattextarea.cpp; sourceTree = "<absolute>"; };
 		6011DDB120E1B2D4803E129A /* stdafx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stdafx.h; path = SourceFiles/stdafx.h; sourceTree = "<absolute>"; };
 		61C679D8B4B332026BD34200 /* introphone.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introphone.cpp; path = SourceFiles/intro/introphone.cpp; sourceTree = "<absolute>"; };
-		62807F13DBD204D0716143AD /* Telegram.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Telegram.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		62807F13DBD204D0716143AD /* Telegram Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Telegram Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		63AF8520023B4EA40306CB03 /* moc_session.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_session.cpp; path = GeneratedFiles/Debug/moc_session.cpp; sourceTree = "<absolute>"; };
 		6532A0DC7EFE446967682E83 /* moc_downloadpathbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_downloadpathbox.cpp; path = GeneratedFiles/Debug/moc_downloadpathbox.cpp; sourceTree = "<absolute>"; };
 		6610564B876E47D289A596DB /* confirmbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = confirmbox.cpp; path = SourceFiles/boxes/confirmbox.cpp; sourceTree = "<absolute>"; };
@@ -866,6 +869,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				077BA0141C621BC000B9123B /* Breakpad.framework in Link Binary With Libraries */,
 				0785004D1CCA847400168DBB /* libqtfreetype.a in Link Binary With Libraries */,
 				0752F8751C2C89F40026D0BC /* VideoToolbox.framework in Link Binary With Libraries */,
 				0752F8731C2C89220026D0BC /* VideoDecodeAcceleration.framework in Link Binary With Libraries */,
@@ -1624,6 +1628,9 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				077BA0131C621BC000B9123B /* Breakpad.framework */,
+				071AD90B1C5EA37D008C9E90 /* Breakpad.framework */,
+				071AD9091C5EA2A5008C9E90 /* Breakpad.framework */,
 				0785004C1CCA847400168DBB /* libqtfreetype.a */,
 				0752F8741C2C89F40026D0BC /* VideoToolbox.framework */,
 				0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */,
@@ -1677,6 +1684,7 @@
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
 			children = (
+				0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */,
 				0747FE4F1CC62AE400096FC3 /* codegen */,
 				25B08E2869634E9BCBA333A2 /* GeneratedFiles */,
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
@@ -1693,7 +1701,7 @@
 		FE0A091FDBFB3E9C31B7A1BD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				62807F13DBD204D0716143AD /* Telegram.app */,
+				62807F13DBD204D0716143AD /* Telegram Desktop.app */,
 			);
 			name = Products;
 			sourceTree = "<Group>";
@@ -1711,8 +1719,7 @@
 				D1C883685E82D5676953459A /* Link Binary With Libraries */,
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
-				07489B6B1A28949600348CD9 /* Build Updater */,
-				071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */,
+				071AD90E1C60AA74008C9E90 /* Copy Breakpad framework */,
 			);
 			buildRules = (
 			);
@@ -1724,7 +1731,7 @@
 			name = Telegram;
 			productInstallPath = ../Mac/Debug/;
 			productName = Telegram;
-			productReference = 62807F13DBD204D0716143AD /* Telegram.app */;
+			productReference = 62807F13DBD204D0716143AD /* Telegram Desktop.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -1736,7 +1743,12 @@
 				LastUpgradeCheck = 0700;
 				TargetAttributes = {
 					7CCA95B9FCAD34D929431AD6 = {
-						DevelopmentTeam = 63FLR8MQA9;
+						DevelopmentTeam = 6N38VWS5BX;
+						SystemCapabilities = {
+							com.apple.Sandbox = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -1822,19 +1834,19 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */ = {
+		071AD90E1C60AA74008C9E90 /* Copy Breakpad framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Copy crashpad_handler";
+			name = "Copy Breakpad framework";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"$CRASHPAD_PATH/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && cp -a \"$BREAKPAD_PATH/client/mac/build/Release/Breakpad.framework\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Breakpad.framework\"";
 		};
 		0747FF741CC6408600096FC3 /* Generate styles */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2214,7 +2226,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
@@ -2232,7 +2244,7 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
@@ -2243,6 +2255,7 @@
 		339EE1B2CC4FC24589A0EA95 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BREAKPAD_PATH = ./../../Libraries/breakpad/src;
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++14";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -2262,7 +2275,7 @@
 				DYLIB_CURRENT_VERSION = "$(TDESKTOP_VERSION)";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FFMPEG_PATH = /usr/local;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = "$(BREAKPAD_PATH)/client/mac/build/Release";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2291,8 +2304,7 @@
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
-					"$(CRASHPAD_PATH)",
-					"$(CRASHPAD_PATH)/third_party/mini_chromium/mini_chromium",
+					"$(BREAKPAD_PATH)",
 				);
 				ICONV_PATH = /usr/local;
 				INFOPLIST_FILE = Telegram.plist;
@@ -2320,6 +2332,8 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
+					"-DTDESKTOP_DISABLE_AUTOUPDATE",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2338,6 +2352,8 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
+					"-DTDESKTOP_DISABLE_AUTOUPDATE",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2363,9 +2379,6 @@
 					"$(FFMPEG_PATH)/lib/libavutil.a",
 					"$(ICONV_PATH)/lib/libiconv.a",
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					"$(CRASHPAD_PATH)/out/Release/libbase.a",
-					"$(CRASHPAD_PATH)/out/Release/libcrashpad_client.a",
-					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
 				PATH_FOR_ZLIB = /usr/local;
@@ -2382,6 +2395,7 @@
 		3AA6C32AC930069E80220CF1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BREAKPAD_PATH = ./../../Libraries/breakpad/src;
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++14";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -2402,7 +2416,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				FFMPEG_PATH = /usr/local;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = "$(BREAKPAD_PATH)/client/mac/build/Release";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2431,8 +2445,7 @@
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
-					"$(CRASHPAD_PATH)",
-					"$(CRASHPAD_PATH)/third_party/mini_chromium/mini_chromium",
+					"$(BREAKPAD_PATH)",
 				);
 				ICONV_PATH = /usr/local;
 				INFOPLIST_FILE = Telegram.plist;
@@ -2462,6 +2475,8 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
+					"-DTDESKTOP_DISABLE_AUTOUPDATE",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2480,6 +2495,8 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
+					"-DTDESKTOP_DISABLE_AUTOUPDATE",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2504,9 +2521,6 @@
 					"$(FFMPEG_PATH)/lib/libavutil.a",
 					"$(ICONV_PATH)/lib/libiconv.a",
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					"$(CRASHPAD_PATH)/out/Release/libbase.a",
-					"$(CRASHPAD_PATH)/out/Release/libcrashpad_client.a",
-					"$(CRASHPAD_PATH)/out/Release/libcrashpad_util.a",
 					"-g",
 				);
 				PATH_FOR_ZLIB = /usr/local;
@@ -2524,7 +2538,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LIBRARY_SEARCH_PATHS = (
@@ -2534,9 +2547,9 @@
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
+				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = "";
-				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 			};
 			name = Release;
@@ -2545,7 +2558,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LIBRARY_SEARCH_PATHS = (
@@ -2554,9 +2566,9 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
+				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = _debug;
-				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 			};
 			name = Debug;

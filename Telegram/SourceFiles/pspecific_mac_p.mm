@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 #include "playerwidget.h"
+#include "localstorage.h"
 
 #include "lang.h"
 
@@ -849,6 +850,7 @@ void objc_openFile(const QString &f, bool openwith) {
             alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
             [button setFrame:alwaysRect];
             [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+			[button setHidden:YES];
             NSTextField *goodLabel = [[NSTextField alloc] init];
             [goodLabel setStringValue:QNSString(lng_mac_this_app_can_open(lt_file, objcString(name))).s()];
             [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
@@ -1012,6 +1014,10 @@ bool objc_execUpdater() {
 }
 
 void objc_execTelegram(const QString &crashreport) {
+	NSDictionary *conf = [NSDictionary dictionaryWithObject:[NSArray array] forKey:NSWorkspaceLaunchConfigurationArguments];
+	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:QNSString(cExeDir() + cExeName()).s()] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:conf error:0];
+	return;
+
 	_execUpdater(NO, crashreport);
 }
 
@@ -1050,6 +1056,14 @@ double objc_appkitVersion() {
 	return NSAppKitVersionNumber;
 }
 
+QString objc_documentsPath() {
+  NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+  if (url) {
+    return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/';
+  }
+  return QString();
+}
+
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
@@ -1086,37 +1100,124 @@ QString objc_convertFileUrl(const QString &url) {
 }
 
 QByteArray objc_downloadPathBookmark(const QString &path) {
-	return QByteArray();
+	NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.toUtf8().constData()] isDirectory:YES];
+	if (!url) return QByteArray();
+
+	NSError *error = nil;
+	NSData *data = [url bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
+	return data ? QByteArray::fromNSData(data) : QByteArray();
 }
 
 QByteArray objc_pathBookmark(const QString &path) {
-	return QByteArray();
+	NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.toUtf8().constData()]];
+	if (!url) return QByteArray();
+
+	NSError *error = nil;
+	NSData *data = [url bookmarkDataWithOptions:(NSURLBookmarkCreationWithSecurityScope | NSURLBookmarkCreationSecurityScopeAllowOnlyReadAccess) includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
+	return data ? QByteArray::fromNSData(data) : QByteArray();
 }
 
 void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
+	if (bookmark.isEmpty()) return;
+
+	BOOL isStale = NO;
+	NSError *error = nil;
+	NSURL *url = [NSURL URLByResolvingBookmarkData:bookmark.toNSData() options:NSURLBookmarkResolutionWithSecurityScope relativeToURL:nil bookmarkDataIsStale:&isStale error:&error];
+	if (!url) return;
+
+	if ([url startAccessingSecurityScopedResource]) {
+		if (_downloadPathUrl) {
+			[_downloadPathUrl stopAccessingSecurityScopedResource];
+		}
+		_downloadPathUrl = url;
+
+		cSetDownloadPath(objcString([_downloadPathUrl path]) + '/');
+		if (isStale) {
+			NSData *data = [_downloadPathUrl bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
+			if (data) {
+				cSetDownloadPathBookmark(QByteArray::fromNSData(data));
+				Local::writeUserSettings();
+			}
+		}
+	}
 }
 
-objc_FileBookmark::objc_FileBookmark(const QByteArray &bookmark) {
+namespace {
+	QMutex _bookmarksMutex;
+}
+
+class objc_FileBookmarkData {
+public:
+	objc_FileBookmarkData() : url(nil), counter(0) {
+	}
+	~objc_FileBookmarkData() {
+		if (url) [url release];
+	}
+	NSURL *url;
+	QString name;
+	QByteArray bookmark;
+	int32 counter;
+};
+
+objc_FileBookmark::objc_FileBookmark(const QByteArray &bookmark) : data(0) {
+	if (bookmark.isEmpty()) return;
+
+	BOOL isStale = NO;
+	NSError *error = nil;
+	NSURL *url = [NSURL URLByResolvingBookmarkData:bookmark.toNSData() options:NSURLBookmarkResolutionWithSecurityScope relativeToURL:nil bookmarkDataIsStale:&isStale error:&error];
+	if (!url) return;
+
+	if ([url startAccessingSecurityScopedResource]) {
+		data = new objc_FileBookmarkData();
+		data->url = [url retain];
+		data->name = objcString([url path]);
+		data->bookmark = bookmark;
+		[url stopAccessingSecurityScopedResource];
+	}
 }
 
 bool objc_FileBookmark::valid() const {
-	return true;
+	if (enable()) {
+		disable();
+		return true;
+	}
+	return false;
 }
 
 bool objc_FileBookmark::enable() const {
-	return true;
+	if (!data) return false;
+
+	QMutexLocker lock(&_bookmarksMutex);
+	if (data->counter > 0 || [data->url startAccessingSecurityScopedResource] == YES) {
+		++data->counter;
+		return true;
+	}
+	return false;
 }
 
 void objc_FileBookmark::disable() const {
+	if (!data) return;
+
+	QMutexLocker lock(&_bookmarksMutex);
+	if (data->counter > 0) {
+		--data->counter;
+		if (!data->counter) {
+			[data->url stopAccessingSecurityScopedResource];
+		}
+	}
 }
 
 const QString &objc_FileBookmark::name(const QString &original) const {
-	return original;
+	return (data && !data->name.isEmpty()) ? data->name : original;
 }
 
 QByteArray objc_FileBookmark::bookmark() const {
-	return QByteArray();
+	return data ? data->bookmark : QByteArray();
 }
 
 objc_FileBookmark::~objc_FileBookmark() {
+	if (data && data->counter > 0) {
+		LOG(("Did not disable() bookmark, counter: %1").arg(data->counter));
+		[data->url stopAccessingSecurityScopedResource];
+	}
 }
