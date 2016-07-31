@@ -55,7 +55,7 @@ ReaderImplementation::ReadResult QtGifReaderImplementation::readNextFrame() {
 	if (_reader) _frameDelay = _reader->nextImageDelay();
 	if (_framesLeft < 1) {
 		if (_mode == Mode::Normal) {
-			return ReadResult::Eof;
+			return ReadResult::EndOfFile;
 		} else if (!jumpToStart()) {
 			return ReadResult::Error;
 		}

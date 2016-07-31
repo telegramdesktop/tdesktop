@@ -2159,7 +2159,7 @@ namespace {
 			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(WhiteCorners, st::buttonRadius, st::white);
+		prepareCorners(WhiteCorners, st::dateRadius, st::white);
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);

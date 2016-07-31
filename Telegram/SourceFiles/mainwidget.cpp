@@ -3772,7 +3772,10 @@ int32 MainWidget::dlgsWidth() const {
 MainWidget::~MainWidget() {
 	if (App::main() == this) _history->showHistory(0, 0);
 
-	delete _hider;
+	if (HistoryHider *hider = _hider) {
+		_hider = nullptr;
+		delete hider;
+	}
 	MTP::clearGlobalHandlers();
 
 	if (App::wnd()) App::wnd()->noMain(this);

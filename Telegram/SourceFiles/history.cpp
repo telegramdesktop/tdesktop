@@ -2833,7 +2833,9 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	if (id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
+	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
+	if (id < 0 || messageTooOld) return false;
 
 	if (auto msg = toHistoryMessage()) {
 		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) return false;
@@ -2854,7 +2856,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 			auto channel = _history->peer->asChannel();
 			return (channel->amCreator() || (channel->amEditor() && out()));
 		}
-		return out() || (peerToUser(_history->peer->id) == MTP::authedId());
+		return out() || messageToMyself;
 	}
 	return false;
 }

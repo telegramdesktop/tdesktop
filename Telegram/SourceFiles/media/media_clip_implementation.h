@@ -41,7 +41,7 @@ public:
 	enum class ReadResult {
 		Success,
 		Error,
-		Eof,
+		EndOfFile,
 	};
 	// Read frames till current frame will have presentation time > frameMs, systemMs = getms().
 	virtual ReadResult readFramesTill(int64 frameMs, uint64 systemMs) = 0;

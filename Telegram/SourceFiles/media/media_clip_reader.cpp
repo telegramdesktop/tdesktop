@@ -346,7 +346,7 @@ public:
 		}
 		if (frame() && frame()->original.isNull()) {
 			auto readResult = _implementation->readFramesTill(-1, ms);
-			if (readResult == internal::ReaderImplementation::ReadResult::Eof && _seekPositionMs > 0) {
+			if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile && _seekPositionMs > 0) {
 				// If seek was done to the end: try to read the first frame,
 				// get the frame size and return a black frame with that size.
 
@@ -414,7 +414,7 @@ public:
 	ProcessResult finishProcess(uint64 ms) {
 		auto frameMs = _seekPositionMs + ms - _animationStarted;
 		auto readResult = _implementation->readFramesTill(frameMs, ms);
-		if (readResult == internal::ReaderImplementation::ReadResult::Eof) {
+		if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile) {
 			stop();
 			_state = State::Finished;
 			return ProcessResult::Finished;
