@@ -69,6 +69,7 @@ DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
+DeclareSetting(bool, CloseMainOnEscape); 
 enum LaunchMode {
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,

@@ -131,6 +131,7 @@ public slots:
 	void onAutoStart();
 	void onStartMinimized();
 	void onSendToMenu();
+	void onCloseMainOnEscape();
 
 	void onScaleAuto();
 	void onScaleChange();
@@ -238,7 +239,7 @@ private:
 	#endif
     bool _supportTray; // cSupportTray() value on settings create
 	FlatCheckbox _workmodeTray, _workmodeWindow;
-	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
+	FlatCheckbox _autoStart, _startMinimized, _sendToMenu, _closeMainOnEscape;
 	FlatCheckbox _dpiAutoScale;
 	Slider _dpiSlider;
 	int32 _dpiWidth1, _dpiWidth2, _dpiWidth3, _dpiWidth4;
