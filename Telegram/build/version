@@ -1,6 +1,6 @@
-AppVersion         9061
-AppVersionStrMajor 0.9
-AppVersionStrSmall 0.9.61
-AppVersionStr      0.9.61
+AppVersion         10000
+AppVersionStrMajor 0.10
+AppVersionStrSmall 0.10
+AppVersionStr      0.10.0
 AlphaChannel       0
-BetaVersion        9061001
+BetaVersion        0

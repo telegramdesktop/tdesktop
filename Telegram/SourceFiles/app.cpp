@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #endif
 
 #include "styles/style_overview.h"
+#include "styles/style_mediaview.h"
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
@@ -2169,7 +2170,7 @@ namespace {
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
+		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);

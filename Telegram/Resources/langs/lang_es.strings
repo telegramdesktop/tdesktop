@@ -671,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Objetos";
 "lng_emoji_category7" = "Símbolos y banderas";
 
+"lng_recent_stickers" = "Uso frecuente";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIF y stickers";
 "lng_switch_emoji" = "Emoji";
@@ -933,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Corrección en el visor de fotos, para manejar correctamente el cambio de la resolución de la pantalla\n— Corrección en el reenvío de fotos a través de arrastrar y soltar \n— Varias mejoras de diseño y corrección de otros errores";
+"lng_new_version_text" = "— Stickers destacados. Mira e instala packs de stickers desde la nueva pestaña en Ajustes.\n— Stickers archivados. Ahora, los packs de stickers que no usas, se archivan automáticamente cuando superas el límite de 200.\n— Vista previa de grupos. Mira un grupo antes de unirte a él a través del enlace de invitación. Mira quién está en el grupo antes de unirte.\n— Nuevo reproductor interno de vídeo.\n— Diseño mejorado de chats.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+"lng_confirm_phone_link_invalid" = "El enlace está roto o ha expirado.";
+"lng_confirm_phone_title" = "No restablecer la cuenta";
+"lng_confirm_phone_about" = "Alguien, con acceso a tu número de teléfono {phone}, solicitó eliminar tu cuenta de Telegram y restablecer tu contraseña de la verificación en dos pasos.\n\nSi no eras tú, por favor, inserta el código que enviamos por SMS a tu número.";
+"lng_confirm_phone_success" = "¡Listo!\n\nEl proceso de eliminación de la cuenta {phone} fue cancelado. Puedes cerrar esta ventana ahora.";
+"lng_confirm_phone_send" = "Enviar";
+"lng_confirm_phone_enter_code" = "Por favor, pon el código.";
 
 // Not used
 
