@@ -203,6 +203,33 @@ index 92358ec..50a5130 100644
  }
  
  - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+index 9fd05a6..d90e6b3 100644
+--- a/src/plugins/platforms/cocoa/qcocoaintegration.mm
++++ b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+@@ -402,14 +402,19 @@ void QCocoaIntegration::updateScreens()
+         }
+         siblings << screen;
+     }
++
++// Patch: backport crash fix from Qt 5.6.1
++    // Set virtual siblings list. All screens in mScreens are siblings, because we ignored the
++    // mirrors. Note that some of the screens we update the siblings list for here may be deleted
++    // below, but update anyway to keep the to-be-deleted screens out of the siblings list.
++    foreach (QCocoaScreen* screen, mScreens)
++        screen->setVirtualSiblings(siblings);
++
+     // Now the leftovers in remainingScreens are no longer current, so we can delete them.
+     foreach (QCocoaScreen* screen, remainingScreens) {
+         mScreens.removeOne(screen);
+         delete screen;
+     }
+-    // All screens in mScreens are siblings, because we ignored the mirrors.
+-    foreach (QCocoaScreen* screen, mScreens)
+-        screen->setVirtualSiblings(siblings);
+ }
+ 
+ QCocoaScreen *QCocoaIntegration::screenAtIndex(int index)
 diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 index e46eaff..6464eda 100644
 --- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm

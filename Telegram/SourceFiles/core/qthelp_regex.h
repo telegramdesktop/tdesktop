@@ -52,8 +52,10 @@ enum class RegExOption {
 	InvertedGreediness = QRegularExpression::InvertedGreedinessOption,
 	DontCapture = QRegularExpression::DontCaptureOption,
 	UseUnicodeProperties = QRegularExpression::UseUnicodePropertiesOption,
+#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
 	OptimizeOnFirstUsage = QRegularExpression::OptimizeOnFirstUsageOption,
 	DontAutomaticallyOptimize = QRegularExpression::DontAutomaticallyOptimizeOption,
+#endif // QT_VERSION >= 5.4.0
 };
 Q_DECLARE_FLAGS(RegExOptions, RegExOption);
 Q_DECLARE_OPERATORS_FOR_FLAGS(RegExOptions);
@@ -65,7 +67,7 @@ inline RegularExpressionMatch regex_match(const QString &string, const QString &
 
 inline RegularExpressionMatch regex_match(const QString &string, const QStringRef &subjectRef, RegExOptions options = 0) {
 	auto qtOptions = QRegularExpression::PatternOptions(static_cast<int>(options));
-	return RegularExpressionMatch(QRegularExpression(string, qtOptions).match(subjectRef));
+	return RegularExpressionMatch(QRegularExpression(string, qtOptions).match(subjectRef.toString()));
 }
 
 } // namespace qthelp
