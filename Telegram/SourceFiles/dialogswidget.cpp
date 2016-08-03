@@ -2214,6 +2214,7 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 
 		_searchRequest = 0;
 		onListScroll();
+		update();
 	}
 }
 
