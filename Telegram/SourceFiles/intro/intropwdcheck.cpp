@@ -340,7 +340,28 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	sentRequest = 0;
-	showError(lang(lng_server_error));
+
+	auto type = error.type();
+	if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
+		int seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+		int days = (seconds + 59) / 86400;
+		int hours = ((seconds + 59) % 86400) / 3600;
+		int minutes = ((seconds + 59) % 3600) / 60;
+		QString when;
+		if (days > 0) {
+			when = lng_signin_reset_in_days(lt_count_days, days, lt_count_hours, hours, lt_count_minutes, minutes);
+		} else if (hours > 0) {
+			when = lng_signin_reset_in_hours(lt_count_hours, hours, lt_count_minutes, minutes);
+		} else {
+			when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
+		}
+		Ui::showLayer(new InformBox(lng_signin_reset_wait(lt_phone_number, App::formatPhone(intro()->getPhone()), lt_when, when)));
+	} else if (type == qstr("2FA_RECENT_CONFIRM")) {
+		Ui::showLayer(new InformBox(lang(lng_signin_reset_cancelled)));
+	} else {
+		Ui::hideLayer();
+		showError(lang(lng_server_error));
+	}
 	return true;
 }
 

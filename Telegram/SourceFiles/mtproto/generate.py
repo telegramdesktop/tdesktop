@@ -136,8 +136,10 @@ with open('scheme.tl') as f:
     cleanline = cleanline.replace('?bytes ', '?string ');
     cleanline = cleanline.replace('{', '');
     cleanline = cleanline.replace('}', '');
-    countTypeId = hex(binascii.crc32(binascii.a2b_qp(cleanline)))[2:];
-    countTypeId = '0x' + countTypeId;
+    countTypeId = binascii.crc32(binascii.a2b_qp(cleanline));
+    if (countTypeId < 0):
+      countTypeId += 2 ** 32;
+    countTypeId = '0x' + re.sub(r'^0x|L$', '', hex(countTypeId));
     if (typeid != countTypeId):
       print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
       continue;

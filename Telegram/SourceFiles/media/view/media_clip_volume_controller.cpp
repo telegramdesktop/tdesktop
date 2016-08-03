@@ -40,7 +40,7 @@ void VolumeController::setVolume(float64 volume) {
 void VolumeController::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	int32 top = (height() - st::mediaviewVolumeIcon.height()) / 2;
+	int32 top = st::mediaviewVolumeIconTop;
 	int32 left = (width() - st::mediaviewVolumeIcon.width()) / 2;
 	int32 mid = left + qRound(st::mediaviewVolumeIcon.width() * _volume);
 	int32 right = left + st::mediaviewVolumeIcon.width();

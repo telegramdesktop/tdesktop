@@ -63,6 +63,8 @@ file_style_basic.target = GeneratedFiles/styles/style_basic.cpp
 file_style_basic.depends = style_target
 file_style_basic_types.target = GeneratedFiles/styles/style_basic_types.cpp
 file_style_basic_types.depends = style_target
+file_style_boxes.target = GeneratedFiles/styles/style_boxes.cpp
+file_style_boxes.depends = style_target
 file_style_dialogs.target = GeneratedFiles/styles/style_dialogs.cpp
 file_style_dialogs.depends = style_target
 file_style_history.target = GeneratedFiles/styles/style_history.cpp
@@ -77,9 +79,9 @@ file_style_widgets.target = GeneratedFiles/styles/style_widgets.cpp
 file_style_widgets.depends = style_target
 
 QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang \
-	file_style_basic file_style_basic_types file_style_dialogs \
-	file_style_history file_style_mediaview file_style_overview \
-	file_style_profile file_style_widgets
+	file_style_basic file_style_basic_types file_style_boxes \
+	file_style_dialogs file_style_history file_style_mediaview \
+	file_style_overview file_style_profile file_style_widgets
 
 PRE_TARGETDEPS += style_target numbers_target lang_target
 
@@ -100,6 +102,7 @@ SOURCES += \
 	./GeneratedFiles/numbers.cpp \
 	./GeneratedFiles/styles/style_basic.cpp \
 	./GeneratedFiles/styles/style_basic_types.cpp \
+	./GeneratedFiles/styles/style_boxes.cpp \
 	./GeneratedFiles/styles/style_dialogs.cpp \
 	./GeneratedFiles/styles/style_history.cpp \
 	./GeneratedFiles/styles/style_mediaview.cpp \
@@ -144,6 +147,7 @@ SOURCES += \
 	./SourceFiles/boxes/autolockbox.cpp \
 	./SourceFiles/boxes/backgroundbox.cpp \
 	./SourceFiles/boxes/confirmbox.cpp \
+	./SourceFiles/boxes/confirmphonebox.cpp \
 	./SourceFiles/boxes/connectionbox.cpp \
 	./SourceFiles/boxes/contactsbox.cpp \
 	./SourceFiles/boxes/downloadpathbox.cpp \
@@ -160,6 +164,7 @@ SOURCES += \
 	./SourceFiles/core/click_handler.cpp \
 	./SourceFiles/core/click_handler_types.cpp \
 	./SourceFiles/core/observer.cpp \
+	./SourceFiles/core/qthelp_url.cpp \
 	./SourceFiles/data/data_abstract_structure.cpp \
 	./SourceFiles/data/data_drafts.cpp \
 	./SourceFiles/dialogs/dialogs_indexed_list.cpp \
@@ -269,6 +274,7 @@ HEADERS += \
 	./GeneratedFiles/numbers.h \
 	./GeneratedFiles/styles/style_basic.h \
 	./GeneratedFiles/styles/style_basic_types.h \
+	./GeneratedFiles/styles/style_boxes.h \
 	./GeneratedFiles/styles/style_dialogs.h \
 	./GeneratedFiles/styles/style_history.h \
 	./GeneratedFiles/styles/style_mediaview.h \
@@ -314,6 +320,7 @@ HEADERS += \
 	./SourceFiles/boxes/autolockbox.h \
 	./SourceFiles/boxes/backgroundbox.h \
 	./SourceFiles/boxes/confirmbox.h \
+	./SourceFiles/boxes/confirmphonebox.h \
 	./SourceFiles/boxes/connectionbox.h \
 	./SourceFiles/boxes/contactsbox.h \
 	./SourceFiles/boxes/downloadpathbox.h \
@@ -330,6 +337,8 @@ HEADERS += \
 	./SourceFiles/core/click_handler.h \
 	./SourceFiles/core/click_handler_types.h \
 	./SourceFiles/core/observer.h \
+        ./SourceFiles/core/qthelp_regex.h \
+        ./SourceFiles/core/qthelp_url.h \
 	./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
 	./SourceFiles/data/data_abstract_structure.h \

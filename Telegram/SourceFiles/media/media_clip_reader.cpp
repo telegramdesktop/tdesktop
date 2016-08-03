@@ -110,7 +110,7 @@ Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&
 }
 
 Reader::Frame *Reader::frameToShow(int32 *index) const { // 0 means not ready
-	int32 step = _step.loadAcquire(), i;
+	int step = _step.loadAcquire(), i;
 	if (step == WaitingForDimensionsStep) {
 		if (index) *index = 0;
 		return nullptr;
@@ -205,8 +205,8 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 }
 
 QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	Frame *frame = frameToShow();
-	t_assert(frame != 0);
+	auto frame = frameToShow();
+	t_assert(frame != nullptr);
 
 	if (ms) {
 		frame->displayed.storeRelease(1);

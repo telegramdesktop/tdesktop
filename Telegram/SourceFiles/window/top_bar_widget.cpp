@@ -228,7 +228,7 @@ void TopBarWidget::showAll() {
 		}
 	}
 	if (h && !o && _clearSelection->isHidden()) {
-		if (Adaptive::OneColumn()) {
+		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 			_info->setPeer(h);
 			_info->show();
 		} else {

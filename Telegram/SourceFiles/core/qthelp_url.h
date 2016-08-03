@@ -18,15 +18,23 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+#pragma once
 
-// Legacy styles
-using "basic_types.style";
-using "basic.style";
+namespace qthelp {
 
-using "boxes/boxes.style";
-using "dialogs/dialogs.style";
-using "history/history.style";
-using "overview/overview.style";
-using "profile/profile.style";
-using "media/view/mediaview.style";
-using "ui/widgets/widgets.style";
+inline QString url_encode(const QString &part) {
+	return QString::fromLatin1(QUrl::toPercentEncoding(part));
+}
+
+inline QString url_decode(const QString &encoded) {
+	return QUrl::fromPercentEncoding(encoded.toUtf8());
+}
+
+enum class UrlParamNameTransform {
+	NoTransform,
+	ToLower,
+};
+// Parses a string like "p1=v1&p2=v2&..&pn=vn" to a map.
+QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
+
+} // namespace qthelp

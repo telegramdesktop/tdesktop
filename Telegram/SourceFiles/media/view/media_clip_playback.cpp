@@ -61,6 +61,7 @@ void Playback::updateState(const AudioPlaybackState &playbackState, bool reset) 
 		_position = position;
 		_duration = duration;
 	}
+	update();
 }
 
 void Playback::setFadeOpacity(float64 opacity) {
@@ -87,7 +88,9 @@ void Playback::paintEvent(QPaintEvent *e) {
 	p.setPen(Qt::NoPen);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 
-	auto over = _a_over.current(getms(), _over ? 1. : 0.);
+	auto ms = getms();
+	_a_progress.step(ms);
+	auto over = _a_over.current(ms, _over ? 1. : 0.);
 	int skip = (st::mediaviewSeekSize.width() / 2);
 	int length = (width() - st::mediaviewSeekSize.width());
 	float64 prg = _mouseDown ? _downProgress : a_progress.current();
@@ -104,11 +107,17 @@ void Playback::paintEvent(QPaintEvent *e) {
 		p.setBrush(st::mediaviewPlaybackInactive);
 		p.drawRoundedRect(mid - radius, (height() - st::mediaviewPlaybackWidth) / 2, width() - (mid - radius), st::mediaviewPlaybackWidth, radius, radius);
 	}
-	int x = mid - skip;
-	p.setClipRect(rect());
-	p.setOpacity(_fadeOpacity * (over * st::mediaviewActiveOpacity + (1. - over) * st::mediaviewInactiveOpacity));
-	p.setBrush(st::mediaviewPlaybackActive);
-	p.drawRoundedRect(x, (height() - st::mediaviewSeekSize.height()) / 2, st::mediaviewSeekSize.width(), st::mediaviewSeekSize.height(), st::mediaviewSeekSize.width() / 2, st::mediaviewSeekSize.width() / 2);
+	if (over > 0) {
+		int x = mid - skip;
+		p.setClipRect(rect());
+		p.setOpacity(_fadeOpacity * st::mediaviewActiveOpacity);
+		auto seekButton = QRect(x, (height() - st::mediaviewSeekSize.height()) / 2, st::mediaviewSeekSize.width(), st::mediaviewSeekSize.height());
+		int remove = ((1. - over) * st::mediaviewSeekSize.width()) / 2.;
+		if (remove * 2 < st::mediaviewSeekSize.width()) {
+			p.setBrush(st::mediaviewPlaybackActive);
+			p.drawEllipse(seekButton.marginsRemoved(QMargins(remove, remove, remove, remove)));
+		}
+	}
 }
 
 void Playback::mouseMoveEvent(QMouseEvent *e) {

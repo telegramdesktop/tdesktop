@@ -141,6 +141,11 @@
 		0785004D1CCA847400168DBB /* libqtfreetype.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 0785004C1CCA847400168DBB /* libqtfreetype.a */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
+		079B51411D4935C0002FB6AF /* style_boxes.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 079B513F1D4935C0002FB6AF /* style_boxes.cpp */; };
+		079B51461D4B636C002FB6AF /* qthelp_url.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 079B51441D4B636C002FB6AF /* qthelp_url.cpp */; };
+		079B514A1D4B6398002FB6AF /* boxes.style in Resources */ = {isa = PBXBuildFile; fileRef = 079B51471D4B6398002FB6AF /* boxes.style */; };
+		079B514B1D4B6398002FB6AF /* confirmphonebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 079B51481D4B6398002FB6AF /* confirmphonebox.cpp */; };
+		079B514D1D4B6423002FB6AF /* moc_confirmphonebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 079B514C1D4B6423002FB6AF /* moc_confirmphonebox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */; };
@@ -582,6 +587,15 @@
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
 		078DD0241A48DD9E00DD14CC /* lang_de.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_de.strings; path = Resources/langs/lang_de.strings; sourceTree = SOURCE_ROOT; };
 		078DD0251A48DD9E00DD14CC /* lang_nl.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_nl.strings; path = Resources/langs/lang_nl.strings; sourceTree = SOURCE_ROOT; };
+		079B513F1D4935C0002FB6AF /* style_boxes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = style_boxes.cpp; path = GeneratedFiles/styles/style_boxes.cpp; sourceTree = SOURCE_ROOT; };
+		079B51401D4935C0002FB6AF /* style_boxes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = style_boxes.h; path = GeneratedFiles/styles/style_boxes.h; sourceTree = SOURCE_ROOT; };
+		079B51431D4B636C002FB6AF /* qthelp_regex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = qthelp_regex.h; path = SourceFiles/core/qthelp_regex.h; sourceTree = SOURCE_ROOT; };
+		079B51441D4B636C002FB6AF /* qthelp_url.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qthelp_url.cpp; path = SourceFiles/core/qthelp_url.cpp; sourceTree = SOURCE_ROOT; };
+		079B51451D4B636C002FB6AF /* qthelp_url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = qthelp_url.h; path = SourceFiles/core/qthelp_url.h; sourceTree = SOURCE_ROOT; };
+		079B51471D4B6398002FB6AF /* boxes.style */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = boxes.style; path = SourceFiles/boxes/boxes.style; sourceTree = SOURCE_ROOT; };
+		079B51481D4B6398002FB6AF /* confirmphonebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = confirmphonebox.cpp; path = SourceFiles/boxes/confirmphonebox.cpp; sourceTree = SOURCE_ROOT; };
+		079B51491D4B6398002FB6AF /* confirmphonebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = confirmphonebox.h; path = SourceFiles/boxes/confirmphonebox.h; sourceTree = SOURCE_ROOT; };
+		079B514C1D4B6423002FB6AF /* moc_confirmphonebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_confirmphonebox.cpp; path = GeneratedFiles/Debug/moc_confirmphonebox.cpp; sourceTree = SOURCE_ROOT; };
 		07A190511A723E0A004287AE /* lang_ko.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_ko.strings; path = Resources/langs/lang_ko.strings; sourceTree = SOURCE_ROOT; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
@@ -1092,6 +1106,8 @@
 				0747FF7D1CC6435100096FC3 /* style_basic.h */,
 				0747FF7A1CC6435100096FC3 /* style_basic_types.cpp */,
 				0747FF7B1CC6435100096FC3 /* style_basic_types.h */,
+				079B513F1D4935C0002FB6AF /* style_boxes.cpp */,
+				079B51401D4935C0002FB6AF /* style_boxes.h */,
 				0716C99C1D08251C00797B22 /* style_dialogs.cpp */,
 				0716C99D1D08251C00797B22 /* style_dialogs.h */,
 				0716C99E1D08251C00797B22 /* style_history.cpp */,
@@ -1146,6 +1162,9 @@
 				076B1C531CBFC6F2002C0BC2 /* click_handler.h */,
 				0716C98D1D05954900797B22 /* observer.cpp */,
 				0716C98E1D05954900797B22 /* observer.h */,
+				079B51431D4B636C002FB6AF /* qthelp_regex.h */,
+				079B51441D4B636C002FB6AF /* qthelp_url.cpp */,
+				079B51451D4B636C002FB6AF /* qthelp_url.h */,
 				0716C98F1D05954900797B22 /* vector_of_moveable.h */,
 				07D518D41CD0E27600F5FF59 /* version.h */,
 			);
@@ -1634,6 +1653,7 @@
 				074756181A1372C600CA07F7 /* moc_basic_types.cpp */,
 				46292F489228B60010794CE4 /* moc_button.cpp */,
 				CE7FFE194127BD789A2C877A /* moc_confirmbox.cpp */,
+				079B514C1D4B6423002FB6AF /* moc_confirmphonebox.cpp */,
 				B714EA71A09A832FAA846A0A /* moc_connection.cpp */,
 				077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */,
 				077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */,
@@ -1724,8 +1744,11 @@
 				07DE92A41AA4925B00A18F6F /* autolockbox.h */,
 				078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */,
 				078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */,
+				079B51471D4B6398002FB6AF /* boxes.style */,
 				6610564B876E47D289A596DB /* confirmbox.cpp */,
 				1DEFC0760BB9340529F582F7 /* confirmbox.h */,
+				079B51481D4B6398002FB6AF /* confirmphonebox.cpp */,
+				079B51491D4B6398002FB6AF /* confirmphonebox.h */,
 				51355181C0E6689B0B764543 /* connectionbox.cpp */,
 				8EB83A4D34226609E79A613A /* connectionbox.h */,
 				8C800AAC9549E6E9E7046BED /* contactsbox.cpp */,
@@ -1947,6 +1970,7 @@
 				07E102F81D3E4E8C00BD33B1 /* widgets.style in Resources */,
 				0716C95A1D0589B600797B22 /* overview.style in Resources */,
 				0716C9291D05893900797B22 /* basic_types.style in Resources */,
+				079B514A1D4B6398002FB6AF /* boxes.style in Resources */,
 				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
 				07E102EE1D3E4E3B00BD33B1 /* mediaview.style in Resources */,
 				0716C9A71D08258A00797B22 /* history.style in Resources */,
@@ -2164,6 +2188,7 @@
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
 				07DB67511AD07CB800A51329 /* intropwdcheck.cpp in Compile Sources */,
 				07C8FE0F1CB80890007A8702 /* toast_widget.cpp in Compile Sources */,
+				079B51411D4935C0002FB6AF /* style_boxes.cpp in Compile Sources */,
 				0716C9741D058C8600797B22 /* moc_profile_inner_widget.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
 				07D703BB19B88FB900C4EED2 /* moc_media_audio.cpp in Compile Sources */,
@@ -2198,6 +2223,7 @@
 				07E102D01D3E4B7F00BD33B1 /* media_clip_ffmpeg.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
+				079B51461D4B636C002FB6AF /* qthelp_url.cpp in Compile Sources */,
 				0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */,
 				0716C9AA1D0825A800797B22 /* history_down_button.cpp in Compile Sources */,
 				0716C94A1D0589A700797B22 /* profile_actions_widget.cpp in Compile Sources */,
@@ -2244,6 +2270,7 @@
 				07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */,
 				9A523F51135FD4E2464673A6 /* moc_session.cpp in Compile Sources */,
 				076B1C631CBFCC53002C0BC2 /* moc_top_bar_widget.cpp in Compile Sources */,
+				079B514B1D4B6398002FB6AF /* confirmphonebox.cpp in Compile Sources */,
 				C329997D36D34D568CE16C9A /* moc_animation.cpp in Compile Sources */,
 				0716C9801D058F2400797B22 /* section_widget.cpp in Compile Sources */,
 				B2F5B08BFFBBE7E37D3863BB /* moc_button.cpp in Compile Sources */,
@@ -2290,6 +2317,7 @@
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				077A4AF91CA41C38002188D2 /* connection_http.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
+				079B514D1D4B6423002FB6AF /* moc_confirmphonebox.cpp in Compile Sources */,
 				07E1B1961D12DFD200722BC7 /* main_window.cpp in Compile Sources */,
 				07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */,
 				07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */,
@@ -2530,8 +2558,8 @@
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
-				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.60;
+				TDESKTOP_MAJOR_VERSION = 0.10;
+				TDESKTOP_VERSION = 0.10;
 			};
 			name = Release;
 		};
@@ -2671,8 +2699,8 @@
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
-				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.60;
+				TDESKTOP_MAJOR_VERSION = 0.10;
+				TDESKTOP_VERSION = 0.10;
 			};
 			name = Debug;
 		};

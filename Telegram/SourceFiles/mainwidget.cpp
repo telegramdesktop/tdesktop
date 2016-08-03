@@ -45,9 +45,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/stickersetbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/downloadpathbox.h"
+#include "boxes/confirmphonebox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
+#include "core/qthelp_regex.h"
+#include "core/qthelp_url.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -55,6 +58,8 @@ StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&me
 
 StackItemSection::~StackItemSection() {
 }
+
+#include "boxes/confirmphonebox.h"
 
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
@@ -298,11 +303,6 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 				FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
 				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, msg);
-				if (HistoryMedia *media = msg->getMedia()) {
-					if (media->type() == MediaTypeSticker) {
-						App::main()->incrementSticker(media->getDocument());
-					}
-				}
 				App::historyRegRandom(randomId, newId);
 			}
 			if (forwardFrom != i.value()->history()->peer) {
@@ -1519,8 +1519,8 @@ void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
 	onShareContact(recipient->id, App::self());
 }
 
-void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
-	Ui::showPeerHistory(peerId, showAtMsgId);
+void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
+	Ui::showPeerHistory(peerId, showAtMsgId, way);
 }
 
 void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
@@ -1995,7 +1995,7 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 	_history->updateFieldSubmitSettings();
 }
 
-void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
+void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
 	if (PeerData *peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
@@ -2009,8 +2009,37 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			return;
 		}
 	}
-	if (!back && (!peerId || (_stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId))) {
-		back = true;
+
+	bool back = (way == Ui::ShowWay::Backward || !peerId);
+	bool foundInStack = !peerId;
+	if (foundInStack || (way == Ui::ShowWay::ClearStack)) {
+		for_const (auto &item, _stack) {
+			clearBotStartToken(item->peer);
+		}
+		_stack.clear();
+	} else {
+		for (int i = 0, s = _stack.size(); i < s; ++i) {
+			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer->id == peerId) {
+				foundInStack = true;
+				while (_stack.size() > i) {
+					clearBotStartToken(_stack.back()->peer);
+					_stack.pop_back();
+				}
+				if (!back) {
+					back = true;
+				}
+				break;
+			}
+		}
+	}
+
+	if (back || (way == Ui::ShowWay::ClearStack)) {
+		dlgUpdated();
+		_peerInStack = nullptr;
+		_msgIdInStack = 0;
+		dlgUpdated();
+	} else {
+		saveSectionInStack();
 	}
 
 	PeerData *wasActivePeer = activePeer();
@@ -2022,10 +2051,12 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 	}
 
 	Window::SectionSlideParams animationParams;
-	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)))) {
+	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
 		animationParams = prepareHistoryAnimation(peerId);
 	}
-	if (_history->peer() && _history->peer()->id != peerId) clearBotStartToken(_history->peer());
+	if (_history->peer() && _history->peer()->id != peerId) {
+		clearBotStartToken(_history->peer());
+	}
 	_history->showHistory(peerId, showAtMsgId);
 
 	bool noPeer = (!_history->peer() || !_history->peer()->id), onlyDialogs = noPeer && Adaptive::OneColumn();
@@ -2042,11 +2073,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			_overview->rpcClear();
 			_overview = nullptr;
 		}
-		clearBotStartToken(_peerInStack);
-		dlgUpdated();
-		_peerInStack = 0;
-		_msgIdInStack = 0;
-		_stack.clear();
 	}
 	if (onlyDialogs) {
 		_topBar->hide();
@@ -2090,6 +2116,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		}
 		_dialogs->update();
 	}
+	topBar()->showAll();
 	App::wnd()->getTitle()->updateBackButton();
 }
 
@@ -2146,6 +2173,21 @@ bool MainWidget::mediaTypeSwitch() {
 	return true;
 }
 
+void MainWidget::saveSectionInStack() {
+	if (_overview) {
+		_stack.push_back(std_::make_unique<StackItemOverview>(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
+	} else if (_wideSection) {
+		_stack.push_back(std_::make_unique<StackItemSection>(_wideSection->createMemento()));
+	} else if (_history->peer()) {
+		dlgUpdated();
+		_peerInStack = _history->peer();
+		_msgIdInStack = _history->msgId();
+		dlgUpdated();
+
+		_stack.push_back(std_::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
+	}
+}
+
 void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
 	if (peer->migrateTo()) {
 		peer = peer->migrateTo();
@@ -2166,17 +2208,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		animationParams = prepareOverviewAnimation();
 	}
 	if (!back) {
-		if (_overview) {
-			_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-		} else if (_wideSection) {
-			_stack.push_back(new StackItemSection(_wideSection->createMemento()));
-		} else if (_history->peer()) {
-			dlgUpdated();
-			_peerInStack = _history->peer();
-			_msgIdInStack = _history->msgId();
-			dlgUpdated();
-			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
-		}
+		saveSectionInStack();
 	}
 	if (_overview) {
 		_overview->hide();
@@ -2201,7 +2233,9 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		_overview->fastShow();
 	}
 	_history->animStop();
-	if (back) clearBotStartToken(_history->peer());
+	if (back) {
+		clearBotStartToken(_history->peer());
+	}
 	_history->showHistory(0, 0);
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
@@ -2217,17 +2251,7 @@ void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 		return;
 	}
 
-	if (_overview) {
-		_stack.push_back(new StackItemOverview(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
-	} else if (_wideSection) {
-		_stack.push_back(new StackItemSection(_wideSection->createMemento()));
-	} else if (_history->peer()) {
-		dlgUpdated();
-		_peerInStack = _history->peer();
-		_msgIdInStack = _history->msgId();
-		dlgUpdated();
-		_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, _history->replyReturns()));
-	}
+	saveSectionInStack();
 	showWideSectionAnimated(&memento, false);
 }
 
@@ -2320,6 +2344,10 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	App::wnd()->getTitle()->updateBackButton();
 }
 
+bool MainWidget::stackIsEmpty() const {
+	return _stack.isEmpty();
+}
+
 void MainWidget::showBackFromStack() {
 	if (selectingPeer()) return;
 	if (_stack.isEmpty()) {
@@ -2327,34 +2355,33 @@ void MainWidget::showBackFromStack() {
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
-	StackItem *item = _stack.back();
+	auto item = std_::move(_stack.back());
 	_stack.pop_back();
 	if (auto currentHistoryPeer = _history->peer()) {
 		clearBotStartToken(currentHistoryPeer);
 	}
 	if (item->type() == HistoryStackItem) {
 		dlgUpdated();
-		_peerInStack = 0;
+		_peerInStack = nullptr;
 		_msgIdInStack = 0;
 		for (int32 i = _stack.size(); i > 0;) {
 			if (_stack.at(--i)->type() == HistoryStackItem) {
-				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i))->peer;
-				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i))->msgId;
+				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->peer;
+				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->msgId;
 				dlgUpdated();
 				break;
 			}
 		}
-		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
-		Ui::showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
+		StackItemHistory *histItem = static_cast<StackItemHistory*>(item.get());
+		Ui::showPeerHistory(histItem->peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Backward);
 		_history->setReplyReturns(histItem->peer->id, histItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
-		StackItemSection *sectionItem = static_cast<StackItemSection*>(item);
+		StackItemSection *sectionItem = static_cast<StackItemSection*>(item.get());
 		showWideSectionAnimated(sectionItem->memento(), true);
 	} else if (item->type() == OverviewStackItem) {
-		StackItemOverview *overItem = static_cast<StackItemOverview*>(item);
+		StackItemOverview *overItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
 	}
-	delete item;
 }
 
 void MainWidget::orderWidgets() {
@@ -3251,7 +3278,9 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
-	Local::readStickers();
+	Local::readInstalledStickers();
+	Local::readFeaturedStickers();
+	Local::readRecentStickers();
 	Local::readSavedGifs();
 	_history->start();
 }
@@ -3262,51 +3291,50 @@ bool MainWidget::started() {
 
 void MainWidget::openLocalUrl(const QString &url) {
 	QString u(url.trimmed());
-	if (u.startsWith(qstr("tg://resolve"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			QString params = u.mid(m.capturedLength(0));
+	if (u.size() > 8192) u = u.mid(0, 8192);
 
-			QString start, startToken;
-			QRegularExpressionMatch startparam = QRegularExpression(qsl("(^|&)(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)")).match(params);
-			if (startparam.hasMatch()) {
-				start = startparam.captured(2);
-				startToken = startparam.captured(3);
-			}
+	if (!u.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		return;
+	}
 
-			MsgId post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
-			QRegularExpressionMatch postparam = QRegularExpression(qsl("(^|&)post=(\\d+)(&|$)")).match(params);
-			if (postparam.hasMatch()) {
-				post = postparam.captured(2).toInt();
-			}
-
-			openPeerByName(m.captured(1), post, startToken);
+	using namespace qthelp;
+	auto matchOptions = RegExOption::CaseInsensitive;
+	if (auto joinChatMatch = regex_match(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), u, matchOptions)) {
+		joinGroupByHash(joinChatMatch->captured(1));
+	} else if (auto stickerSetMatch = regex_match(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), u, matchOptions)) {
+		stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
+	} else if (auto shareUrlMatch = regex_match(qsl("^tg://msg_url/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto url = params.value(qsl("url"));
+		if (!url.isEmpty()) {
+			shareUrlLayer(url, params.value("text"));
 		}
-	} else if (u.startsWith(qstr("tg://join"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			joinGroupByHash(m.captured(1));
+	} else if (auto confirmPhoneMatch = regex_match(qsl("^tg://confirmphone/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto phone = params.value(qsl("phone"));
+		auto hash = params.value(qsl("hash"));
+		if (!phone.isEmpty() && !hash.isEmpty()) {
+			ConfirmPhoneBox::start(phone, hash);
 		}
-	} else if (u.startsWith(qstr("tg://addstickers"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
-		}
-	} else if (u.startsWith(qstr("tg://msg_url"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://msg_url/?\\?(.+)(#|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
-		if (m.hasMatch()) {
-			QStringList params = m.captured(1).split('&');
-			QString url, text;
-			for (int32 i = 0, l = params.size(); i < l; ++i) {
-				if (params.at(i).startsWith(qstr("url="), Qt::CaseInsensitive)) {
-					url = myUrlDecode(params.at(i).mid(4));
-				} else if (params.at(i).startsWith(qstr("text="), Qt::CaseInsensitive)) {
-					text = myUrlDecode(params.at(i).mid(5));
+	} else if (auto usernameMatch = regex_match(qsl("^tg://resolve/?\\?(.+)(#|$)"), u, matchOptions)) {
+		auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
+		auto domain = params.value(qsl("domain"));
+		if (auto domainMatch = regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+			auto start = qsl("start");
+			auto startToken = params.value(start);
+			if (startToken.isEmpty()) {
+				start = qsl("startgroup");
+				startToken = params.value(start);
+				if (startToken.isEmpty()) {
+					start = QString();
 				}
 			}
-			if (!url.isEmpty()) {
-				shareUrlLayer(url, text);
+			auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
+			auto postParam = params.value(qsl("post"));
+			if (auto postId = postParam.toInt()) {
+				post = postId;
 			}
+			openPeerByName(domain, post, startToken);
 		}
 	}
 }
@@ -3322,7 +3350,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				Ui::showLayer(new ContactsBox(peer->asUser()));
 			} else if (peer->isUser() && peer->asUser()->botInfo) {
 				// Always open bot chats, even from mention links.
-				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
+				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 			} else {
 				Ui::showPeerProfile(peer);
 			}
@@ -3337,7 +3365,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 					_history->resizeEvent(0);
 				}
 			}
-			Ui::showPeerHistoryAsync(peer->id, msgId);
+			Ui::showPeerHistoryAsync(peer->id, msgId, Ui::ShowWay::Forward);
 		}
 	} else {
 		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(msgId, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
@@ -3357,7 +3385,6 @@ void MainWidget::stickersBox(const MTPInputStickerSet &set) {
 }
 
 void MainWidget::onStickersInstalled(uint64 setId) {
-	emit stickersUpdated();
 	_history->stickersInstalled(setId);
 }
 
@@ -3405,7 +3432,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			Ui::showLayer(new ContactsBox(peer->asUser()));
 		} else if (peer->isUser() && peer->asUser()->botInfo) {
 			// Always open bot chats, even from mention links.
-			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 		} else {
 			Ui::showPeerProfile(peer);
 		}
@@ -3436,11 +3463,21 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
-		const auto &d(invite.c_chatInvite());
-		ConfirmBox *box = new ConfirmBox(((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
+		auto &d(invite.c_chatInvite());
+
+		QVector<UserData*> participants;
+		if (d.has_participants()) {
+			auto &v = d.vparticipants.c_vector().v;
+			participants.reserve(v.size());
+			for_const (auto &user, v) {
+				if (auto feededUser = App::feedUser(user)) {
+					participants.push_back(feededUser);
+				}
+			}
+		}
+		auto box = std_::make_unique<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, d.vparticipants_count.v, participants);
 		_inviteHash = hash;
-		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
-		Ui::showLayer(box);
+		Ui::showLayer(box.release());
 	} break;
 
 	case mtpc_chatInviteAlready: {
@@ -3618,72 +3655,65 @@ void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify,
 
 void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!sticker || !sticker->sticker()) return;
+	if (sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) return;
 
-	RecentStickerPack &recent(cGetRecentStickers());
-	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
-	for (; i != e; ++i) {
+	bool writeRecentStickers = false;
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(Stickers::CloudRecentSetId);
+	if (it == sets.cend()) {
+		if (it == sets.cend()) {
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_recent_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		} else {
+			it->title = lang(lng_recent_stickers);
+		}
+	}
+	auto index = it->stickers.indexOf(sticker);
+	if (index > 0) {
+		it->stickers.removeAt(index);
+	}
+	if (index) {
+		it->stickers.push_front(sticker);
+		writeRecentStickers = true;
+	}
+
+	// Remove that sticker from old recent, now it is in cloud recent stickers.
+	bool writeOldRecent = false;
+	auto &recent = cGetRecentStickers();
+	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
 		if (i->first == sticker) {
-			i->second = recent.begin()->second; // throw to the first place
-			//++i->second;
-			//if (i->second > 0x8000) {
-			//	for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-			//		if (j->second > 1) {
-			//			j->second /= 2;
-			//		} else {
-			//			j->second = 1;
-			//		}
-			//	}
-			//}
-			for (; i != recent.begin(); --i) {
-				if ((i - 1)->second > i->second) {
-					break;
-				}
-				qSwap(*i, *(i - 1));
-			}
+			writeOldRecent = true;
+			recent.erase(i);
 			break;
 		}
 	}
-	if (i == e) {
-		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
-		recent.push_front(qMakePair(sticker, recent.isEmpty() ? 1 : recent.begin()->second));
-		//recent.push_back(qMakePair(sticker, 1));
-		//for (i = recent.end() - 1; i != recent.begin(); --i) {
-		//	if ((i - 1)->second > i->second) {
-		//		break;
-		//	}
-		//	qSwap(*i, *(i - 1));
-		//}
+	while (!recent.isEmpty() && it->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
+		writeOldRecent = true;
+		recent.pop_back();
 	}
 
-	Local::writeUserSettings();
-
-	bool found = false;
-	uint64 setId = 0;
-	QString setName;
-	switch (sticker->sticker()->set.type()) {
-	case mtpc_inputStickerSetID: setId = sticker->sticker()->set.c_inputStickerSetID().vid.v; break;
-	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker()->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
+	if (writeOldRecent) {
+		Local::writeUserSettings();
 	}
-	Stickers::Sets &sets(Global::RefStickerSets());
-	for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
-		if (i->id == Stickers::CustomSetId || i->id == Stickers::DefaultSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
-			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
-				if (i->stickers.at(j) == sticker) {
-					found = true;
-					break;
-				}
+
+	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
+	bool writeInstalledStickers = false;
+	auto custom = sets.find(Stickers::CustomSetId);
+	if (custom != sets.cend()) {
+		int removeIndex = custom->stickers.indexOf(sticker);
+		if (removeIndex >= 0) {
+			custom->stickers.removeAt(removeIndex);
+			if (custom->stickers.isEmpty()) {
+				sets.erase(custom);
 			}
-			if (found) break;
+			writeInstalledStickers = true;
 		}
 	}
-	if (!found) {
-		Stickers::Sets::iterator it = sets.find(Stickers::CustomSetId);
-		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
-		}
-		it->stickers.push_back(sticker);
-		++it->count;
-		Local::writeStickers();
+
+	if (writeInstalledStickers) {
+		Local::writeInstalledStickers();
+	}
+	if (writeRecentStickers) {
+		Local::writeRecentStickers();
 	}
 	_history->updateRecentStickers();
 }
@@ -4628,16 +4658,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
-		const auto &d(update.c_updateNewStickerSet());
+		auto &d = update.c_updateNewStickerSet();
+		bool writeArchived = false;
 		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
-			const auto &set(d.vstickerset.c_messages_stickerSet());
+			auto &set = d.vstickerset.c_messages_stickerSet();
 			if (set.vset.type() == mtpc_stickerSet) {
-				const auto &s(set.vset.c_stickerSet());
+				auto &s = set.vset.c_stickerSet();
 
-				Stickers::Sets &sets(Global::RefStickerSets());
+				auto &sets = Global::RefStickerSets();
 				auto it = sets.find(s.vid.v);
 				if (it == sets.cend()) {
-					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
+					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+				} else {
+					it->flags |= MTPDstickerSet::Flag::f_installed;
+					if (it->flags & MTPDstickerSet::Flag::f_archived) {
+						it->flags &= ~MTPDstickerSet::Flag::f_archived;
+						writeArchived = true;
+					}
 				}
 
 				const auto &v(set.vdocuments.c_vector().v);
@@ -4650,12 +4687,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it->stickers.push_back(doc);
 				}
 				it->emoji.clear();
-				const auto &packs(set.vpacks.c_vector().v);
+				auto &packs = set.vpacks.c_vector().v;
 				for (int32 i = 0, l = packs.size(); i < l; ++i) {
 					if (packs.at(i).type() != mtpc_stickerPack) continue;
-					const auto &pack(packs.at(i).c_stickerPack());
+					auto &pack = packs.at(i).c_stickerPack();
 					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-						const auto &stickers(pack.vdocuments.c_vector().v);
+						auto &stickers = pack.vdocuments.c_vector().v;
 						StickerPack p;
 						p.reserve(stickers.size());
 						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
@@ -4687,16 +4724,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						sets.erase(custom);
 					}
 				}
-				Local::writeStickers();
+				Local::writeInstalledStickers();
+				if (writeArchived) Local::writeArchivedStickers();
 				emit stickersUpdated();
 			}
 		}
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
-		const auto &d(update.c_updateStickerSetsOrder());
-		const auto &order(d.vorder.c_vector().v);
-		const auto &sets(Global::StickerSets());
+		auto &d = update.c_updateStickerSetsOrder();
+		auto &order = d.vorder.c_vector().v;
+		auto &sets = Global::StickerSets();
 		Stickers::Order result;
 		for (int32 i = 0, l = order.size(); i < l; ++i) {
 			if (sets.constFind(order.at(i).v) == sets.cend()) {
@@ -4709,7 +4747,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			App::main()->updateStickers();
 		} else {
 			Global::SetStickerSetsOrder(result);
-			Local::writeStickers();
+			Local::writeInstalledStickers();
 			emit stickersUpdated();
 		}
 	} break;
@@ -4717,6 +4755,24 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSets: {
 		Global::SetLastStickersUpdate(0);
 		App::main()->updateStickers();
+	} break;
+
+	case mtpc_updateRecentStickers: {
+		Global::SetLastStickersUpdate(0);
+		App::main()->updateStickers();
+	} break;
+
+	case mtpc_updateReadFeaturedStickers: {
+		for (auto &set : Global::RefStickerSets()) {
+			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
+				set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			}
+		}
+		if (Global::FeaturedStickerSetsUnreadCount()) {
+			Global::SetFeaturedStickerSetsUnreadCount(0);
+			Local::writeFeaturedStickers();
+			emit stickersUpdated();
+		}
 	} break;
 
 	////// Cloud saved GIFs

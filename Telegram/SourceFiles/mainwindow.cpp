@@ -1072,7 +1072,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		if (obj == Application::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-				cSetStartUrl(url);
+				cSetStartUrl(url.mid(0, 8192));
 				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
 					App::main()->openLocalUrl(cStartUrl());
 					cSetStartUrl(QString());

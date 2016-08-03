@@ -731,7 +731,10 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 	case NotificationReinit: {
 		if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 			if (_gif->state() == State::Error) {
-				_current = QPixmap();
+				stopGif();
+				updateControls();
+				update();
+				break;
 			} else if (_gif->state() == State::Finished) {
 				_videoPositionMs = _videoDurationMs;
 				_videoStopped = true;
@@ -1118,7 +1121,10 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
 	if (!doc || (!doc->isAnimation() && !doc->isVideo()) || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history))))) {
 		_fullScreenVideo = false;
+		_current = QPixmap();
 		stopGif();
+	} else if (gifShown()) {
+		_current = QPixmap();
 	}
 	_doc = doc;
 	_photo = nullptr;
@@ -1127,8 +1133,6 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	if (_autoplayVideoDocument && _doc != _autoplayVideoDocument) {
 		_autoplayVideoDocument = nullptr;
 	}
-
-	_current = QPixmap();
 
 	_caption = Text();
 	if (_doc) {
@@ -1556,7 +1560,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
                     if (_saveMsgOpacity.current() > 0) {
 						p.setOpacity(_saveMsgOpacity.current());
 						App::roundRect(p, _saveMsg, st::medviewSaveMsg, MediaviewSaveCorners);
-						p.drawSprite(_saveMsg.topLeft() + st::medviewSaveMsgCheckPos, st::medviewSaveMsgCheck);
+						st::medviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::medviewSaveMsgCheckPos, width());
 
 						p.setPen(st::white->p);
 						textstyleSet(&st::medviewSaveAsTextStyle);

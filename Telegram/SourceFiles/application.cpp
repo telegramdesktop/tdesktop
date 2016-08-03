@@ -264,7 +264,7 @@ void Application::readClients() {
 					}
 				} else if (cmd.startsWith(qsl("OPEN:"))) {
 					if (cStartUrl().isEmpty()) {
-						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5));
+						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
 					}
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
@@ -1053,7 +1053,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9058) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Alpha version of an embedded video player");
-			} else if (Local::oldMapVersion() < 9056) {
+			} else if (Local::oldMapVersion() < 10000) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
