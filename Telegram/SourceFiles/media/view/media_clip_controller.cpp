@@ -183,17 +183,17 @@ void Controller::grabFinish() {
 
 void Controller::resizeEvent(QResizeEvent *e) {
 	int playTop = (height() - _playPauseResume->height()) / 2;
-	_playPauseResume->moveToLeft(playTop, playTop);
+	_playPauseResume->moveToLeft(st::mediaviewPlayPauseLeft, playTop);
 
 	int fullScreenTop = (height() - _fullScreenToggle->height()) / 2;
-	_fullScreenToggle->moveToRight(fullScreenTop, fullScreenTop);
+	_fullScreenToggle->moveToRight(st::mediaviewPlayPauseLeft, fullScreenTop);
 
-	_volumeController->moveToRight(fullScreenTop + _fullScreenToggle->width() + fullScreenTop, (height() - _volumeController->height()) / 2);
-	_playback->resize(width() - playTop - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - fullScreenTop - _fullScreenToggle->width() - fullScreenTop, _volumeController->height());
-	_playback->moveToLeft(playTop + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
+	_volumeController->moveToRight(st::mediaviewPlayPauseLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
+	_playback->resize(width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewPlayPauseLeft, st::mediaviewSeekSize.height());
+	_playback->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
 
-	_playedAlready->moveToLeft(playTop + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
-	_toPlayLeft->moveToRight(width() - (playTop + _playPauseResume->width() + playTop) - _playback->width(), st::mediaviewPlayProgressTop);
+	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
+	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - _playback->width(), st::mediaviewPlayProgressTop);
 }
 
 void Controller::paintEvent(QPaintEvent *e) {

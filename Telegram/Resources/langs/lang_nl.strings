@@ -671,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Objecten";
 "lng_emoji_category7" = "Symbolen en vlaggen";
 
+"lng_recent_stickers" = "Veelgebruikt";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIF's & stickers";
 "lng_switch_emoji" = "Emoji";
@@ -694,7 +695,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "Beheer en sorteer stickerbundels";
 "lng_stickers_packs" = "Stickerbundels";
 "lng_stickers_reorder" = "Klik en sleep om stickerbundels te herschikken";
-"lng_stickers_featured" = "Uitgelichte stickers";
+"lng_stickers_featured" = "Populaire stickers";
 "lng_stickers_clear_recent" = "Wissen";
 "lng_stickers_clear_recent_sure" = "Lijst met veelgebruikte stickers echt wissen?";
 "lng_stickers_remove" = "Verwijder";
@@ -933,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Probleem met foto-weergave opgelost\n— Probleem met doorsturen via slepen opgelost\n— Diverse designverbeteringen en andere opgeloste problemen";
+"lng_new_version_text" = "— Populaire stickers. Zoek je nieuwe stickerbundels om te installeren? Populaire stickerbundels zijn nu te vinden onder instellingen.\n— Gearchiveerde stickers. Ongebruikte stickers archiveren we automatisch als je over de limiet van 200 stickerbundels gaat.\n— Voorvertoningen van groepen. Bekijk een groep voordat je besluit lid te worden.\n— Nieuwe ingebouwde videospeler.\n— Designverbeteringen voor de chatinterface.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+"lng_confirm_phone_link_invalid" = "Deze link is defect of verlopen.";
+"lng_confirm_phone_title" = "Account reset annuleren";
+"lng_confirm_phone_about" = "Iemand met toegang tot nummer {phone} heeft geprobeerd om je Telegram account te verwijderen en je twee-staps-verificatie wachtwoord te resetten.\n\nAls jij dit niet was, geef dan de code in die we zojuist per SMS hebben gestuurd.";
+"lng_confirm_phone_success" = "De verwijdering van account: {phone} is geannuleerd.\nJe kunt dit venster nu sluiten.";
+"lng_confirm_phone_send" = "Stuur";
+"lng_confirm_phone_enter_code" = "Geef de code in.";
 
 // Not used
 

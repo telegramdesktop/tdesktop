@@ -194,7 +194,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_days" = "{count_days:0 dia|# dia|# dias} {count_hours:0 hora|# hora|# horas} {count_minutes:0 minuto|# minuto|# minutos}";
 "lng_signin_reset_in_hours" = "{count_hours:0 hora|# hora|# horas} {count_minutes:0 minuto|# minuto|# minutos}";
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minuto|# minuto|# minutos}";
-"lng_signin_reset_cancelled" = "Sua tentativa recente de restaurar essa conta foi cancelada pelo usuário ativo. Tente novamente em 7 dias.";
+"lng_signin_reset_cancelled" = "Suas tentativas recentes de restaurar essa conta foram canceladas pelo usuário ativo. Tente novamente em 7 dias.";
 
 "lng_signup_title" = "Informação e foto";
 "lng_signup_desc" = "Por favor, insira nome e\ncarregue uma foto.";
@@ -219,7 +219,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_uploading_photo" = "Carregando foto...";
 
 "lng_username_title" = "Nome de usuário";
-"lng_username_about" = "Você pode escolher um nome de usuário no Telegram.\nAssim, outras pessoas poderão te encontrar\npelo nome de usuário e entrar em contato\nsem precisar saber seu telefone.\n\nVocê pode usar a-z, 0-9 e underline.\nO tamanho mínimo é 5 caracteres.";
+"lng_username_about" = "Você pode escolher um nome de usuário.\nAssim, outras pessoas poderão encontrar\nvocê pelo nome de usuário e entrar em\ncontato sem precisar saber seu telefone.\n\nVocê pode usar a-z, 0-9 e underline.\nO tamanho mínimo é de 5 caracteres.";
 "lng_username_choose" = "Escolha seu nome de usuário";
 "lng_username_invalid" = "Nome de usuário inválido.";
 "lng_username_occupied" = "Nome de usuário ocupado.";
@@ -662,7 +662,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_auto_groups" = "Grupos e canais";
 "lng_media_auto_play" = "Reproduzir automaticamente";
 
-"lng_emoji_category0" = "Frequentemente usado";
+"lng_emoji_category0" = "Usados frequentemente";
 "lng_emoji_category1" = "Pessoas";
 "lng_emoji_category2" = "Natureza";
 "lng_emoji_category3" = "Comidas e Bebidas";
@@ -671,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Objetos";
 "lng_emoji_category7" = "Símbolos e Bandeiras";
 
+"lng_recent_stickers" = "Usados frequentemente";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs e Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -694,7 +695,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "Gerenciar e reordenar os pacotes de sticker";
 "lng_stickers_packs" = "Pacotes de Sticker";
 "lng_stickers_reorder" = "Clique e arraste para reordenar os pacotes";
-"lng_stickers_featured" = "Stickers em Destaque";
+"lng_stickers_featured" = "Stickers Populares";
 "lng_stickers_clear_recent" = "Limpar";
 "lng_stickers_clear_recent_sure" = "Você tem certeza que deseja limpar seu histórico de stickers frequentes?";
 "lng_stickers_remove" = "Remover";
@@ -933,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— O visualizador de fotos agora maneja corretamente a mudança de resolução da tela\n— O bug ao encaminhar fotos arrastando e soltando foi resolvido. \n— Várias melhorias de design e outras resoluções de bugs";
+"lng_new_version_text" = "— Stickers populares. Veja e instale pacotes de stickers em destaque através da nova aba em Configurações.\n— Stickers arquivados. Stickers sem uso agora são arquivados automaticamente quando você chegar ao limite dos 200.\n— Pré-visualização de grupos. Visualize os grupos antes de entrar através do link de convite - veja quem mais está no grupo antes de entrar.\n— Novo reprodutor de vídeo interno.\n— Design melhorado nas conversas.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+"lng_confirm_phone_link_invalid" = "Esse link está quebrado ou expirado.";
+"lng_confirm_phone_title" = "Cancelar exclusão da conta";
+"lng_confirm_phone_about" = "Alguém com acesso ao seu número de telefone {phone} solicitou a exclusão de sua conta do Telegram e redefiniu sua senha de Verificação em Duas Etapas.\n\nSe não foi você, por favor insira o código que te enviamos via SMS.";
+"lng_confirm_phone_success" = "Sucesso!\n\nO processo de exclusão foi cancelado em sua conta {phone}. Você pode fechar essa janela agora.";
+"lng_confirm_phone_send" = "Enviar";
+"lng_confirm_phone_enter_code" = "Por favor, insira o código.";
 
 // Not used
 

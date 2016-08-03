@@ -671,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Oggetti";
 "lng_emoji_category7" = "Simboli e bandiere";
 
+"lng_recent_stickers" = "Usati di frequente";
 "lng_switch_stickers" = "Sticker";
 "lng_switch_stickers_gifs" = "GIF e Sticker";
 "lng_switch_emoji" = "Emoji";
@@ -933,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Il visualizzatore delle foto ora gestisce i cambi di risoluzione dello schermo correttamente\n— Risolto l'inoltro di foto via drag-n-drop\n— Miglioramenti di design e risoluzione di problemi";
+"lng_new_version_text" = "— Sticker in primo piano. Visualizza e installa set di sticker degni di nota dalla nuova scheda nelle Impostazioni.\n— Sticker archiviati. Gli sticker non utilizzati sono ora archiviati automaticamente quando vai oltre il limite dei 200 set.\n— Anteprime dei gruppi. Visualizza l'anteprima dei gruppi prima di unirti tramite link di invito - guarda chi è nel gruppo prima di unirti.\n— Nuovo lettore video interno.\n— Design migliorato per le chat.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+"lng_confirm_phone_link_invalid" = "Questo link non funziona o è scaduto.";
+"lng_confirm_phone_title" = "Annulla ripristino account";
+"lng_confirm_phone_about" = "Qualcuno con accesso al tuo numero di telefono {phone} ha richiesto l'eliminazione del tuo account Telegram e il ripristino della password della verifica in due passaggi.\n\nSe non sei stato tu, per favore inserisci il codice che abbiamo appena inviato come SMS al tuo numero.";
+"lng_confirm_phone_success" = "Fatto!\n\nIl processo di eliminazione per il tuo account {phone} è stato annullato. Puoi chiudere questa finestra ora.";
+"lng_confirm_phone_send" = "Invia";
+"lng_confirm_phone_enter_code" = "Per favore inserisci il codice.";
 
 // Not used
 

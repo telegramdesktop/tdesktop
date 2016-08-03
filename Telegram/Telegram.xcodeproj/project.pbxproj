@@ -2558,8 +2558,8 @@
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
-				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.61;
+				TDESKTOP_MAJOR_VERSION = 0.10;
+				TDESKTOP_VERSION = 0.10;
 			};
 			name = Release;
 		};
@@ -2699,8 +2699,8 @@
 				QT_PATH = "/usr/local/tdesktop/Qt-5.6.0";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
-				TDESKTOP_MAJOR_VERSION = 0.9;
-				TDESKTOP_VERSION = 0.9.61;
+				TDESKTOP_MAJOR_VERSION = 0.10;
+				TDESKTOP_VERSION = 0.10;
 			};
 			name = Debug;
 		};
