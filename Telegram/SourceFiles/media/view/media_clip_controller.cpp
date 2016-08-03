@@ -186,10 +186,10 @@ void Controller::resizeEvent(QResizeEvent *e) {
 	_playPauseResume->moveToLeft(st::mediaviewPlayPauseLeft, playTop);
 
 	int fullScreenTop = (height() - _fullScreenToggle->height()) / 2;
-	_fullScreenToggle->moveToRight(st::mediaviewPlayPauseLeft, fullScreenTop);
+	_fullScreenToggle->moveToRight(st::mediaviewFullScreenLeft, fullScreenTop);
 
-	_volumeController->moveToRight(st::mediaviewPlayPauseLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
-	_playback->resize(width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewPlayPauseLeft, st::mediaviewSeekSize.height());
+	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
+	_playback->resize(width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft, st::mediaviewSeekSize.height());
 	_playback->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
 
 	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
