@@ -5794,7 +5794,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 				Ui::Toast::Show(App::wnd(), toast);
 			}
 		} else if (answerData.has_url()) {
-			HiddenUrlClickHandler(qs(answerData.vurl)).onClick(Qt::LeftButton);
+			UrlClickHandler(qs(answerData.vurl)).onClick(Qt::LeftButton);
 		}
 	}
 }

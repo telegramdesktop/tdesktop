@@ -78,7 +78,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case HistoryMessageReplyMarkup::Button::Url: {
 		auto url = QString::fromUtf8(button->data);
-		HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
+		UrlClickHandler(url).onClick(Qt::LeftButton);
 	} break;
 
 	case HistoryMessageReplyMarkup::Button::RequestLocation: {
