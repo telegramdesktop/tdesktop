@@ -26,7 +26,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 class MainWindow;
-class Settings;
 
 class Slider : public QWidget {
 	Q_OBJECT
@@ -187,7 +186,6 @@ public slots:
 	void onUpdateLocalStorage();
 
 private slots:
-	void onClearStickers();
 	void onSwitchModerateMode();
 
 	void onAskQuestion();

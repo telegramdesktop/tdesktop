@@ -1412,7 +1412,7 @@ public:
 		return _text.isEmpty() && !_media;
 	}
 
-	void clipCallback(ClipReaderNotification notification);
+	void clipCallback(Media::Clip::Notification notification);
 
 	virtual ~HistoryItem();
 
@@ -1656,7 +1656,7 @@ public:
 	virtual DocumentData *getDocument() {
 		return nullptr;
 	}
-	virtual ClipReader *getClipReader() {
+	virtual Media::Clip::Reader *getClipReader() {
 		return nullptr;
 	}
 
@@ -2140,7 +2140,7 @@ public:
 	DocumentData *getDocument() override {
 		return _data;
 	}
-	ClipReader *getClipReader() override {
+	Media::Clip::Reader *getClipReader() override {
 		return gif();
 	}
 
@@ -2189,12 +2189,12 @@ private:
 	int32 _thumbw, _thumbh;
 	Text _caption;
 
-	ClipReader *_gif;
-	ClipReader *gif() {
-		return (_gif == BadClipReader) ? nullptr : _gif;
+	Media::Clip::Reader *_gif;
+	Media::Clip::Reader *gif() {
+		return (_gif == Media::Clip::BadReader) ? nullptr : _gif;
 	}
-	const ClipReader *gif() const {
-		return (_gif == BadClipReader) ? nullptr : _gif;
+	const Media::Clip::Reader *gif() const {
+		return (_gif == Media::Clip::BadReader) ? nullptr : _gif;
 	}
 
 	void setStatusSize(int32 newSize) const;
@@ -2377,7 +2377,7 @@ public:
 	DocumentData *getDocument() override {
 		return _attach ? _attach->getDocument() : 0;
 	}
-	ClipReader *getClipReader() override {
+	Media::Clip::Reader *getClipReader() override {
 		return _attach ? _attach->getClipReader() : 0;
 	}
 	bool playInline(bool autoplay) override {
@@ -2445,8 +2445,6 @@ struct LocationData;
 class LocationManager : public QObject {
 	Q_OBJECT
 public:
-	LocationManager() : manager(0), black(0) {
-	}
 	void init();
 	void reinit();
 	void deinit();
@@ -2464,10 +2462,10 @@ public slots:
 private:
 	void failed(LocationData *data);
 
-	QNetworkAccessManager *manager;
+	QNetworkAccessManager *manager = nullptr;
 	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
 	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *black;
+	ImagePtr *black = nullptr;
 };
 
 class HistoryLocation : public HistoryMedia {

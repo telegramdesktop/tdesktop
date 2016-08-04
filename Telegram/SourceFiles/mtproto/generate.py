@@ -20,6 +20,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
 import glob
 import re
+import binascii
 
 # define some checked flag convertions
 # the key flag type should be a subset of the value flag type
@@ -120,12 +121,53 @@ with open('scheme.tl') as f:
     else:
       Name = name[0:1].upper() + name[1:];
     typeid = nametype.group(2);
+    while (len(typeid) > 0 and typeid[0] == '0'):
+      typeid = typeid[1:];
+    if (len(typeid) == 0):
+      typeid = '0';
+    typeid = '0x' + typeid;
+
+    cleanline = nametype.group(1) + nametype.group(3) + '= ' + nametype.group(4);
+    cleanline = re.sub(r' [a-zA-Z0-9_]+\:flags\.[0-9]+\?true', '', cleanline);
+    cleanline = cleanline.replace('<', ' ').replace('>', ' ').replace('  ', ' ');
+    cleanline = re.sub(r'^ ', '', cleanline);
+    cleanline = re.sub(r' $', '', cleanline);
+    cleanline = cleanline.replace(':bytes ', ':string ');
+    cleanline = cleanline.replace('?bytes ', '?string ');
+    cleanline = cleanline.replace('{', '');
+    cleanline = cleanline.replace('}', '');
+    countTypeId = binascii.crc32(binascii.a2b_qp(cleanline));
+    if (countTypeId < 0):
+      countTypeId += 2 ** 32;
+    countTypeId = '0x' + re.sub(r'^0x|L$', '', hex(countTypeId));
+    if (typeid != countTypeId):
+      print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
+      continue;
+
     params = nametype.group(3);
     restype = nametype.group(4);
     if (restype.find('<') >= 0):
       templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', restype);
       if (templ):
-        restype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
+        vectemplate = templ.group(2);
+        if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
+          restype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+        elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+          restype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+        else:
+          foundmeta = '';
+          for metatype in typesDict:
+            for typedata in typesDict[metatype]:
+              if (typedata[0] == vectemplate):
+                foundmeta = metatype;
+                break;
+            if (len(foundmeta) > 0):
+              break;
+          if (len(foundmeta) > 0):
+            ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
+          else:
+            print('Bad vector param: ' + vectemplate);
+            continue;
       else:
         print('Bad template type: ' + restype);
         continue;
@@ -147,7 +189,7 @@ with open('scheme.tl') as f:
     boxed[resType] = restype;
     boxed[Name] = name;
 
-    enums.append('\tmtpc_' + name + ' = 0x' + typeid);
+    enums.append('\tmtpc_' + name + ' = ' + typeid);
 
     paramsList = params.strip().split(' ');
     prms = {};
@@ -193,7 +235,25 @@ with open('scheme.tl') as f:
           if (ptype.find('<') >= 0):
             templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
             if (templ):
-              ptype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
+              vectemplate = templ.group(2);
+              if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
+                ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+              elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+                ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+              else:
+                foundmeta = '';
+                for metatype in typesDict:
+                  for typedata in typesDict[metatype]:
+                    if (typedata[0] == vectemplate):
+                      foundmeta = metatype;
+                      break;
+                  if (len(foundmeta) > 0):
+                    break;
+                if (len(foundmeta) > 0):
+                  ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
+                else:
+                  print('Bad vector param: ' + vectemplate);
+                  continue;
             else:
               print('Bad template type: ' + ptype);
               continue;
@@ -205,7 +265,25 @@ with open('scheme.tl') as f:
         elif (ptype.find('<') >= 0):
           templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
           if (templ):
-            ptype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
+            vectemplate = templ.group(2);
+            if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
+              ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+            elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+              ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
+            else:
+              foundmeta = '';
+              for metatype in typesDict:
+                for typedata in typesDict[metatype]:
+                  if (typedata[0] == vectemplate):
+                    foundmeta = metatype;
+                    break;
+                if (len(foundmeta) > 0):
+                  break;
+              if (len(foundmeta) > 0):
+                ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
+              else:
+                print('Bad vector param: ' + vectemplate);
+                continue;
           else:
             print('Bad template type: ' + ptype);
             continue;

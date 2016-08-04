@@ -38,7 +38,9 @@ fi
 
 Replace () {
     CheckCommand="grep -ci '$1' Makefile"
+    set +e
     CheckCount=$(eval $CheckCommand)
+    set -e
     if [ "$CheckCount" -gt 0 ]; then
         echo "Requested '$1' to '$2', found - replacing.."
         ReplaceCommand="sed -i'.~' 's/$1/$2/g' Makefile"
@@ -48,9 +50,6 @@ Replace () {
     fi
 }
 
-Replace '\-lssl' "$ArchDirPath\/libssl\.a"
-Replace '\-lcrypto' "$ArchDirPath\/libcrypto\.a"
-Replace '\-lz' "$ArchDirPath\/libz\.a"
 Replace '\-llzma' "$ArchDirPath\/liblzma\.a"
 Replace '\-lXi' "$ArchDirPath\/libXi\.a $ArchDirPath\/libXext\.a"
 Replace '\-lSM' "$ArchDirPath\/libSM\.a"
@@ -58,7 +57,7 @@ Replace '\-lICE' "$ArchDirPath\/libICE\.a"
 Replace '\-lfontconfig' "$ArchDirPath\/libfontconfig\.a $ArchDirPath\/libexpat\.a"
 Replace '\-lfreetype' "$ArchDirPath\/libfreetype\.a"
 Replace '\-lXext' "$ArchDirPath\/libXext\.a"
-Replace '\-lxkbcommon' "$LocalDirPath\/libxkbcommon\.a"
+Replace '\-lz' "$LocalDirPath\/libz\.a"
 Replace '\-lopus' "$LocalDirPath\/libopus\.a"
 Replace '\-lopenal' "$LocalDirPath\/libopenal\.a"
 Replace '\-lavformat' "$LocalDirPath\/libavformat\.a"
@@ -66,4 +65,6 @@ Replace '\-lavcodec' "$LocalDirPath\/libavcodec\.a"
 Replace '\-lswresample' "$LocalDirPath\/libswresample\.a"
 Replace '\-lswscale' "$LocalDirPath\/libswscale\.a"
 Replace '\-lavutil' "$LocalDirPath\/libavutil\.a"
+Replace '\-lva-x11' "$LocalDirPath\/libva-x11\.a"
+Replace '\-lva-drm' "$LocalDirPath\/libva-drm\.a"
 Replace '\-lva' "$LocalDirPath\/libva\.a"

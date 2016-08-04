@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "mainwidget.h"
 #include "localstorage.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _a_state(animation(this, &PlayerWidget::step_state))
@@ -79,7 +79,7 @@ void PlayerWidget::paintEvent(QPaintEvent *e) {
 			p.setOpacity(o * 1. + (1. - o) * st::playerInactiveOpacity);
 			int32 top = _volumeRect.y() + (_volumeRect.height() - st::playerVolume.pxHeight()) / 2;
 			int32 left = _volumeRect.x() + (_volumeRect.width() - st::playerVolume.pxWidth()) / 2;
-			int32 mid = left + qRound(st::playerVolume.pxWidth() * cSongVolume());
+			int32 mid = left + qRound(st::playerVolume.pxWidth() * Global::SongVolume());
 			int32 right = left + st::playerVolume.pxWidth();
 			if (rtl()) {
 				left = width() - left;
@@ -164,29 +164,26 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 		} else if (_over == OverVolume) {
 			_down = OverVolume;
 			_downCoord = pos.x() - _volumeRect.x();
-			cSetSongVolume(snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.));
+			Global::SetSongVolume(snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.));
 			emit audioPlayer()->songVolumeChanged();
 			rtlupdate(_volumeRect);
 		} else if (_over == OverPlayback) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			int64 playingPosition = 0, playingDuration = 0;
-			int32 playingFrequency = 0;
-			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-			if (playing == _song && playingDuration) {
-				if (playingState == AudioPlayerPlaying || playingState == AudioPlayerStarting || playingState == AudioPlayerResuming) {
-					audioPlayer()->pauseresume(OverviewFiles);
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing == _song && playbackState.duration) {
+				if (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerStarting || playbackState.state == AudioPlayerResuming) {
+					audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 				}
 				_down = OverPlayback;
 				_downProgress = snap((pos.x() - _playbackRect.x()) / float64(_playbackRect.width()), 0., 1.);
-				_downDuration = playingDuration;
-				_downFrequency = (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
+				_downDuration = playbackState.duration;
+				_downFrequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
 
 				rtlupdate(_playbackRect);
 				updateDownTime();
 			}
 		} else if (_over == OverFull && _song) {
-			if (HistoryItem *item = App::histItemById(_song.contextId)) {
+			if (HistoryItem *item = App::histItemById(_song.contextId())) {
 				App::main()->showMediaOverview(item->history()->peer, OverviewMusicFiles);
 			}
 		} else if (_over == OverRepeat) {
@@ -271,12 +268,12 @@ void PlayerWidget::updateControls() {
 
 void PlayerWidget::findCurrent() {
 	_index = -1;
-	if (!_history || !_song.contextId.msg) return;
+	if (!_history || !_song.contextId().msg) return;
 
 	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewMusicFiles];
-	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.contextId.channel) {
+	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.contextId().channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
-			if (o->at(i) == _song.contextId.msg) {
+			if (o->at(i) == _song.contextId().msg) {
 				_index = i;
 				break;
 			}
@@ -311,7 +308,7 @@ void PlayerWidget::preloadNext() {
 void PlayerWidget::startPlay(const FullMsgId &msgId) {
 	if (HistoryItem *item = App::histItemById(msgId)) {
 		if (HistoryDocument *doc = static_cast<HistoryDocument*>(item->getMedia())) {
-			audioPlayer()->play(SongMsgId(doc->getDocument(), item->fullId()));
+			audioPlayer()->play(AudioMsgId(doc->getDocument(), item->fullId()));
 			updateState();
 		}
 	}
@@ -328,9 +325,9 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewMusicFiles) {
 		_index = -1;
 		History *history = _msgmigrated ? _migrated : _history;
-		if (history->channelId() == _song.contextId.channel && _song.contextId.msg) {
+		if (history->channelId() == _song.contextId().channel && _song.contextId().msg) {
 			for (int i = 0, l = history->overview[OverviewMusicFiles].size(); i < l; ++i) {
-				if (history->overview[OverviewMusicFiles].at(i) == _song.contextId.msg) {
+				if (history->overview[OverviewMusicFiles].at(i) == _song.contextId().msg) {
 					_index = i;
 					preloadNext();
 					break;
@@ -341,7 +338,7 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	}
 }
 
-bool PlayerWidget::seekingSong(const SongMsgId &song) const {
+bool PlayerWidget::seekingSong(const AudioMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
 
@@ -404,8 +401,8 @@ void PlayerWidget::updateSelected() {
 		int32 delta = (pos.x() - _volumeRect.x()) - _downCoord;
 		float64 startFrom = snap((_downCoord - ((_volumeRect.width() - st::playerVolume.pxWidth()) / 2)) / float64(st::playerVolume.pxWidth()), 0., 1.);
 		float64 add = delta / float64(4 * st::playerVolume.pxWidth()), result = snap(startFrom + add, 0., 1.);
-		if (result != cSongVolume()) {
-			cSetSongVolume(result);
+		if (result != Global::SongVolume()) {
+			Global::SetSongVolume(result);
 			emit audioPlayer()->songVolumeChanged();
 			rtlupdate(_volumeRect);
 		}
@@ -443,13 +440,10 @@ void PlayerWidget::mouseReleaseEvent(QMouseEvent *e) {
 		Local::writeUserSettings();
 	} else if (_down == OverPlayback) {
 		mouseMoveEvent(e);
-		SongMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
-		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-		if (playing == _song && playingDuration) {
-			_downDuration = playingDuration;
+		AudioMsgId playing;
+		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+		if (playing == _song && playbackState.duration) {
+			_downDuration = playbackState.duration;
 			audioPlayer()->seek(qRound(_downProgress * _downDuration));
 
 			_showPause = true;
@@ -467,28 +461,26 @@ void PlayerWidget::mouseReleaseEvent(QMouseEvent *e) {
 void PlayerWidget::playPressed() {
 	if (!_song || isHidden()) return;
 
-	SongMsgId playing;
-	AudioPlayerState playingState = AudioPlayerStopped;
-	audioPlayer()->currentState(&playing, &playingState);
-	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
-		if (playingState == AudioPlayerPausing || playingState == AudioPlayerPaused || playingState == AudioPlayerPausedAtEnd) {
-			audioPlayer()->pauseresume(OverviewFiles);
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	if (playing == _song && !(playbackState.state & AudioPlayerStoppedMask)) {
+		if (playbackState.state == AudioPlayerPausing || playbackState.state == AudioPlayerPaused || playbackState.state == AudioPlayerPausedAtEnd) {
+			audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 		}
 	} else {
 		audioPlayer()->play(_song);
-		if (App::main()) App::main()->documentPlayProgress(_song);
+		if (App::main()) App::main()->audioPlayProgress(_song);
 	}
 }
 
 void PlayerWidget::pausePressed() {
 	if (!_song || isHidden()) return;
 
-	SongMsgId playing;
-	AudioPlayerState playingState = AudioPlayerStopped;
-	audioPlayer()->currentState(&playing, &playingState);
-	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
-		if (playingState == AudioPlayerStarting || playingState == AudioPlayerResuming || playingState == AudioPlayerPlaying || playingState == AudioPlayerFinishing) {
-			audioPlayer()->pauseresume(OverviewFiles);
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	if (playing == _song && !(playbackState.state & AudioPlayerStoppedMask)) {
+		if (playbackState.state == AudioPlayerStarting || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerFinishing) {
+			audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 		}
 	}
 }
@@ -496,14 +488,13 @@ void PlayerWidget::pausePressed() {
 void PlayerWidget::playPausePressed() {
 	if (!_song || isHidden()) return;
 
-	SongMsgId playing;
-	AudioPlayerState playingState = AudioPlayerStopped;
-	audioPlayer()->currentState(&playing, &playingState);
-	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
-		audioPlayer()->pauseresume(OverviewFiles);
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	if (playing == _song && !(playbackState.state & AudioPlayerStoppedMask)) {
+		audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 	} else {
 		audioPlayer()->play(_song);
-		if (App::main()) App::main()->documentPlayProgress(_song);
+		if (App::main()) App::main()->audioPlayProgress(_song);
 	}
 }
 
@@ -540,7 +531,7 @@ void PlayerWidget::nextPressed() {
 void PlayerWidget::stopPressed() {
 	if (!_song || isHidden()) return;
 
-	audioPlayer()->stop(OverviewFiles);
+	audioPlayer()->stop(AudioMsgId::Type::Song);
 }
 
 void PlayerWidget::closePressed() {
@@ -581,19 +572,19 @@ void PlayerWidget::step_progress(float64 ms, bool timer) {
 }
 
 void PlayerWidget::updateState() {
-	updateState(SongMsgId(), AudioPlayerStopped, 0, 0, 0);
+	updateState(AudioMsgId(), AudioPlaybackState());
 }
 
-void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState, int64 playingPosition, int64 playingDuration, int32 playingFrequency) {
+void PlayerWidget::updateState(AudioMsgId playing, AudioPlaybackState playbackState) {
 	if (!playing) {
-		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
 	}
 
 	bool songChanged = false;
 	if (playing && _song != playing) {
 		songChanged = true;
 		_song = playing;
-		if (HistoryItem *item = App::histItemById(_song.contextId)) {
+		if (HistoryItem *item = App::histItemById(_song.contextId())) {
 			_history = item->history();
 			if (_history->peer->migrateFrom()) {
 				_migrated = App::history(_history->peer->migrateFrom()->id);
@@ -609,9 +600,9 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 			_msgmigrated = false;
 			_index = -1;
 		}
-		SongData *song = _song.song->song();
+		auto song = _song.audio()->song();
 		if (song->performer.isEmpty()) {
-			_name.setText(st::linkFont, song->title.isEmpty() ? (_song.song->name.isEmpty() ? qsl("Unknown Track") : _song.song->name) : song->title, _textNameOptions);
+			_name.setText(st::linkFont, song->title.isEmpty() ? (_song.audio()->name.isEmpty() ? qsl("Unknown Track") : _song.audio()->name) : song->title, _textNameOptions);
 		} else {
 			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
@@ -622,33 +613,33 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 
 	qint64 position = 0, duration = 0, display = 0;
 	if (playing == _song) {
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-			display = position = playingPosition;
-			duration = playingDuration;
+		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+			display = position = playbackState.position;
+			duration = playbackState.duration;
 		} else {
-			display = playingDuration;
+			display = playbackState.duration;
 		}
-		display = display / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
+		display = display / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
 	} else if (_song) {
-		display = _song.song->song()->duration;
+		display = _song.audio()->song()->duration;
 	}
-	bool showPause = false, stopped = ((playingState & AudioPlayerStoppedMask) || playingState == AudioPlayerFinishing);
+	bool showPause = false, stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
 	bool wasPlaying = (_duration != 0);
 	if (!stopped) {
-		showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+		showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
 	}
 	QString time;
 	float64 progress = 0.;
 	int32 loaded;
 	float64 loadProgress = 1.;
-	if (duration || !_song || !_song.song || !_song.song->loading()) {
+	if (duration || !_song || !_song.audio() || !_song.audio()->loading()) {
 		time = (_down == OverPlayback) ? _time : formatDurationText(display);
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
-		loaded = duration ? _song.song->size : 0;
+		loaded = duration ? _song.audio()->size : 0;
 	} else {
-		loaded = _song.song->loading() ? _song.song->loadOffset() : 0;
-		time = formatDownloadText(loaded, _song.song->size);
-		loadProgress = snap(float64(loaded) / qMax(_song.song->size, 1), 0., 1.);
+		loaded = _song.audio()->loading() ? _song.audio()->loadOffset() : 0;
+		time = formatDownloadText(loaded, _song.audio()->size);
+		loadProgress = snap(float64(loaded) / qMax(_song.audio()->size, 1), 0., 1.);
 	}
 	if (time != _time || showPause != _showPause) {
 		if (_time != time) {
@@ -686,10 +677,10 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 		_loaded = loaded;
 	}
 
-	if (wasPlaying && playingState == AudioPlayerStoppedAtEnd) {
+	if (wasPlaying && playbackState.state == AudioPlayerStoppedAtEnd) {
 		if (_repeat) {
-			if (_song.song) {
-				audioPlayer()->play(_song);
+			if (_song.audio()) {
+				audioPlayer()->play(_song, OverviewMusicFiles);
 				updateState();
 			}
 		} else {
@@ -698,6 +689,6 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	}
 
 	if (songChanged) {
-		emit playerSongChanged(_song.contextId);
+		emit playerSongChanged(_song.contextId());
 	}
 }

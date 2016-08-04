@@ -38,6 +38,8 @@ void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool o
 enum UnreadBadgeSize {
 	UnreadBadgeInDialogs = 0,
 	UnreadBadgeInHistoryToDown,
+	UnreadBadgeInStickersPanel,
+	UnreadBadgeInStickersBox,
 
 	UnreadBadgeSizesCount
 };

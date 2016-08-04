@@ -656,6 +656,7 @@ signals:
 	void updateStickers();
 
 private:
+	void paintStickerSettingsIcon(Painter &p) const;
 
 	void validateSelectedIcon(bool animated = false);
 

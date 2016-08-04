@@ -736,10 +736,10 @@ void MainWindow::psUpdateCounter() {
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	QIcon iconSmall, iconBig;
-	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
-	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
-	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, false), Qt::ColorOnly));
-	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, false), Qt::ColorOnly));
+	iconSmall.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
+	iconSmall.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
+	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, false)));
+	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, false)));
 	if (trayIcon) {
 		trayIcon->setIcon(iconSmall);
 	}
@@ -753,8 +753,8 @@ void MainWindow::psUpdateCounter() {
 	if (taskbarList.Get()) {
 		if (counter > 0) {
 			QIcon iconOverlay;
-			iconOverlay.addPixmap(QPixmap::fromImage(iconWithCounter(-16, counter, bg, false), Qt::ColorOnly));
-			iconOverlay.addPixmap(QPixmap::fromImage(iconWithCounter(-32, counter, bg, false), Qt::ColorOnly));
+			iconOverlay.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(-16, counter, bg, false)));
+			iconOverlay.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(-32, counter, bg, false)));
 			ps_iconOverlay = createHIconFromQIcon(iconOverlay, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
 		QString description = counter > 0 ? QString("%1 unread messages").arg(counter) : qsl("No unread messages");

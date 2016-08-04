@@ -92,10 +92,10 @@ private:
 		return ~StateFlags(flag);
 	}
 
-	ClipReader *_gif = nullptr;
+	Media::Clip::Reader *_gif = nullptr;
 	ClickHandlerPtr _delete;
 	bool gif() const {
-		return (!_gif || _gif == BadClipReader) ? false : true;
+		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
 	}
 	mutable QPixmap _thumb;
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
@@ -104,7 +104,7 @@ private:
 	bool isRadialAnimation(uint64 ms) const;
 	void step_radial(uint64 ms, bool timer);
 
-	void clipCallback(ClipReaderNotification notification);
+	void clipCallback(Media::Clip::Notification notification);
 
 	struct AnimationData {
 		AnimationData(AnimationCallbacks &&callbacks)

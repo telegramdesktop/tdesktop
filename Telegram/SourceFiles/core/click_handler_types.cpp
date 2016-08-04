@@ -24,6 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "pspecific.h"
 #include "boxes/confirmbox.h"
+#include "core/qthelp_regex.h"
+#include "core/qthelp_url.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -31,23 +33,28 @@ QString UrlClickHandler::copyToClipboardContextItemText() const {
 
 namespace {
 
-QString tryConvertUrlToLocal(const QString &url) {
-	QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-	QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
-	if (telegramMeGroup.hasMatch()) {
-		return qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
-	} else if (telegramMeStickers.hasMatch()) {
-		return qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
-	} else if (telegramMeShareUrl.hasMatch()) {
-		return qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
-	} else if (telegramMeUser.hasMatch()) {
-		QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
-		if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
-			postParam = qsl("&post=") + telegramMeUser.captured(3);
+QString tryConvertUrlToLocal(QString url) {
+	if (url.size() > 8192) url = url.mid(0, 8192);
+
+	using namespace qthelp;
+	auto matchOptions = RegExOption::CaseInsensitive;
+	if (auto telegramMeMatch = regex_match(qsl("https?://telegram\\.me/(.+)$"), url, matchOptions)) {
+		auto query = telegramMeMatch->capturedRef(1);
+		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
+		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {
+			return qsl("tg://msg_url?") + shareUrlMatch->captured(1);
+		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
+			return qsl("tg://confirmphone?") + confirmPhoneMatch->captured(1);
+		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
+			QString params = url.mid(usernameMatch->captured(0).size()), postParam;
+			if (auto postMatch = regex_match(qsl("^/\\d+/?(?:\\?|$)"), usernameMatch->captured(2))) {
+				postParam = qsl("&post=") + usernameMatch->captured(3);
+			}
+			return qsl("tg://resolve/?domain=") + url_encode(usernameMatch->captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
 		}
-		return qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
 	}
 	return url;
 }

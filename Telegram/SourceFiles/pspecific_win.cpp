@@ -585,7 +585,7 @@ namespace {
 			if (!iconindex) { // try to read image
 				QImage img(QString::fromWCharArray(icon));
 				if (!img.isNull()) {
-					return qt_pixmapToWinHBITMAP(QPixmap::fromImage(img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)), /* HBitmapAlpha */ 2);
+					return qt_pixmapToWinHBITMAP(App::pixmapFromImageInPlace(img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)), /* HBitmapAlpha */ 2);
 				}
 			}
 			return 0;

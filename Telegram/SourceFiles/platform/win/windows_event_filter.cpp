@@ -103,7 +103,10 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		}
 	} return false;
 
-	case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;
+	case WM_NCPAINT: {
+		if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false;
+		if (result) *result = 0;
+	} return true;
 
 	case WM_NCCALCSIZE: {
 		WINDOWPLACEMENT wp;
@@ -120,12 +123,13 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				}
 			}
 		}
-		*result = 0;
+		if (result) *result = 0;
 		return true;
 	}
 
 	case WM_NCACTIVATE: {
-		*result = DefWindowProc(hWnd, msg, wParam, -1);
+		auto res = DefWindowProc(hWnd, msg, wParam, -1);
+		if (result) *result = res;
 	} return true;
 
 	case WM_WINDOWPOSCHANGING:
@@ -172,6 +176,8 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	} return false;
 
 	case WM_NCHITTEST: {
+		if (!result) return false;
+
 		POINTS p = MAKEPOINTS(lParam);
 		RECT r;
 		GetWindowRect(hWnd, &r);

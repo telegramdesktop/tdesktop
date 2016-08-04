@@ -22,25 +22,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dropdown.h"
 
+namespace Media {
+namespace Clip {
+class Controller;
+} // namespace Clip
+} // namespace Media
+
+struct AudioPlaybackState;
+
 class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-
 	MediaView();
 
-	void paintEvent(QPaintEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-
-	bool event(QEvent *e) override;
-
-	void hide();
+	void setVisible(bool visible) override;
 
 	void updateOver(QPoint mpos);
 
@@ -71,7 +67,7 @@ public:
 	void activateControls();
 	void onDocClick();
 
-	void clipCallback(ClipReaderNotification notification);
+	void clipCallback(Media::Clip::Notification notification);
 	PeerData *ui_getPeerForMouseAction();
 
 	void clearData();
@@ -83,7 +79,6 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
-
 	void onHideControls(bool force = false);
 	void onDropdownHiding();
 
@@ -108,12 +103,46 @@ public slots:
 
 	void updateImage();
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	bool event(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+private slots:
+	void onVideoPauseResume();
+	void onVideoSeekProgress(int64 positionMs);
+	void onVideoSeekFinished(int64 positionMs);
+	void onVideoVolumeChanged(float64 volume);
+	void onVideoToggleFullScreen();
+	void onVideoPlayProgress(const AudioMsgId &audioId);
+
+private:
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();
 	void loadBack();
+
+	void updateCursor();
+	void setZoomLevel(int newZoom);
+
+	void updateVideoPlaybackState(const AudioPlaybackState &state, bool reset = false);
+	void updateSilentVideoPlaybackState();
+	void restartVideoAtSeekPosition(int64 positionMs);
+
+	void createClipController();
+	void setClipControllerGeometry();
+
+	void initAnimation();
+	void createClipReader();
 
 	// Radial animation interface.
 	float64 radialProgress() const;
@@ -141,6 +170,8 @@ private:
 	void step_state(uint64 ms, bool timer);
 	void step_radial(uint64 ms, bool timer);
 
+	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
@@ -157,6 +188,11 @@ private:
 	QString _dateText;
 	QString _headerText;
 
+	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
+	DocumentData *_autoplayVideoDocument = nullptr;
+	bool _fullScreenVideo = false;
+	int _fullScreenZoomCache = 0;
+
 	Text _caption;
 	QRect _captionRect;
 
@@ -171,8 +207,16 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QPixmap _current;
-	ClipReader *_gif = nullptr;
+	std_::unique_ptr<Media::Clip::Reader> _gif;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
+
+	// Video without audio stream playback information.
+	bool _videoIsSilent = false;
+	bool _videoPaused = false;
+	bool _videoStopped = false;
+	int64 _videoPositionMs = 0;
+	int64 _videoDurationMs = 0;
+	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
 
 	bool fileShown() const;
 	bool gifShown() const;
@@ -227,6 +271,7 @@ private:
 		OverSave,
 		OverMore,
 		OverIcon,
+		OverVideo,
 	};
 	OverState _over = OverNone;
 	OverState _down = OverNone;
@@ -245,6 +290,7 @@ private:
 	uint64 _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
+	bool _mousePressed = false;
 
 	PopupMenu *_menu = nullptr;
 	Dropdown _dropdown;
@@ -272,7 +318,6 @@ private:
 
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control);
-	QColor overColor(const QColor &a, float64 ca, const QColor &b, float64 cb);
+	float64 overLevel(OverState control) const;
 
 };
