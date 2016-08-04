@@ -28,19 +28,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace ShortcutCommands {
 
-typedef void(*Handler)();
+typedef bool(*Handler)();
 
-void lock_telegram() {
+bool lock_telegram() {
 	if (auto w = App::wnd()) {
 		if (App::passcoded()) {
 			w->passcodeWidget()->onSubmit();
+			return true;
 		} else if (cHasPasscode()) {
 			w->setupPasscode(true);
+			return true;
 		}
 	}
+	return false;
 }
 
-void minimize_telegram() {
+bool minimize_telegram() {
 	if (auto w = App::wnd()) {
 		if (cWorkMode() == dbiwmTrayOnly) {
 			w->minimizeToTray();
@@ -48,18 +51,21 @@ void minimize_telegram() {
 			w->setWindowState(Qt::WindowMinimized);
 		}
 	}
+	return true;
 }
 
-void close_telegram() {
+bool close_telegram() {
 	if (!Ui::hideWindowNoQuit()) {
 		if (auto w = App::wnd()) {
 			w->close();
 		}
 	}
+	return true;
 }
 
-void quit_telegram() {
+bool quit_telegram() {
 	App::quit();
+	return true;
 }
 
 //void start_stop_recording() {
@@ -70,58 +76,85 @@ void quit_telegram() {
 
 //}
 
-void media_play() {
-	if (MainWidget *m = App::main()) {
-		m->player()->playPressed();
+bool media_play() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->playPressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void media_pause() {
-	if (MainWidget *m = App::main()) {
-		m->player()->pausePressed();
+bool media_pause() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->pausePressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void media_playpause() {
-	if (MainWidget *m = App::main()) {
-		m->player()->playPausePressed();
+bool media_playpause() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->playPausePressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void media_stop() {
-	if (MainWidget *m = App::main()) {
-		m->player()->stopPressed();
+bool media_stop() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->stopPressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void media_previous() {
-	if (MainWidget *m = App::main()) {
-		m->player()->prevPressed();
+bool media_previous() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->prevPressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void media_next() {
-	if (MainWidget *m = App::main()) {
-		m->player()->nextPressed();
+bool media_next() {
+	if (auto m = App::main()) {
+		if (!m->player()->isHidden()) {
+			m->player()->nextPressed();
+			return true;
+		}
 	}
+	return false;
 }
 
-void search() {
-	if (MainWidget *m = App::main()) {
-		m->cmd_search();
+bool search() {
+	if (auto m = App::main()) {
+		return m->cmd_search();
 	}
+	return false;
 }
 
-void previous_chat() {
-	if (MainWidget *m = App::main()) {
-		m->cmd_previous_chat();
+bool previous_chat() {
+	if (auto m = App::main()) {
+		return m->cmd_previous_chat();
 	}
+	return false;
 }
 
-void next_chat() {
-	if (MainWidget *m = App::main()) {
-		m->cmd_next_chat();
+bool next_chat() {
+	if (auto m = App::main()) {
+		return m->cmd_next_chat();
 	}
+	return false;
 }
 
 // other commands here
@@ -501,8 +534,7 @@ bool launch(int shortcutId) {
 	if (it == DataPtr->handlers.cend()) {
 		return false;
 	}
-	(*it.value())();
-	return true;
+	return (*it.value())();
 }
 
 bool launch(const QString &command) {
@@ -512,8 +544,7 @@ bool launch(const QString &command) {
 	if (it == DataPtr->commands.cend()) {
 		return false;
 	}
-	(*it.value())();
-	return true;
+	return (*it.value())();
 }
 
 void enableMediaShortcuts() {

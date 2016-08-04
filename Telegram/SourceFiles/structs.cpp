@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "apiwrap.h"
 #include "boxes/confirmbox.h"
-#include "audio.h"
+#include "media/media_audio.h"
 #include "localstorage.h"
 
 namespace {
@@ -220,7 +220,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
 			if (_userpic.v() == userDefPhoto(colorIndex).v()) {
-				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+				newPhoto = ImagePtr(App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
 			}
 		} else {
 			newPhoto = userDefPhoto(colorIndex);
@@ -299,12 +299,11 @@ void UserData::setBotInfoVersion(int version) {
 				botInfo->commands.clear();
 				Notify::botCommandsChanged(this);
 			}
-			delete botInfo;
-			botInfo = 0;
+			botInfo = nullptr;
 			Notify::userIsBotChanged(this);
 		}
 	} else if (!botInfo) {
-		botInfo = new BotInfo();
+		botInfo = std_::make_unique<BotInfo>();
 		botInfo->version = version;
 		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
@@ -890,13 +889,13 @@ bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
 		auto it = Global::StickerSets().constFind(set.c_inputStickerSetID().vid.v);
-		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_disabled);
+		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_archived) && (it->flags & MTPDstickerSet::Flag::f_installed);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
 		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::Flag::f_disabled);
+				return !(it->flags & MTPDstickerSet::Flag::f_archived) && (it->flags & MTPDstickerSet::Flag::f_installed);
 			}
 		}
 	} break;
@@ -947,15 +946,15 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	}
 	bool playVoice = data->voice() && audioPlayer();
 	bool playMusic = data->song() && audioPlayer();
+	bool playVideo = data->isVideo() && audioPlayer();
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
+	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
 		if (playVoice) {
 			AudioMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == AudioMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
+			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				AudioMsgId audio(data, msgId);
 				audioPlayer()->play(audio);
@@ -965,16 +964,30 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 				}
 			}
 		} else if (playMusic) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(data, msgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(data, msgId);
+				AudioMsgId song(data, msgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
+		} else if (playVideo) {
+			if (!data->data().isEmpty()) {
+				App::wnd()->showDocument(data, item);
+			} else if (location.accessEnable()) {
+				App::wnd()->showDocument(data, item);
+				location.accessDisable();
+			} else {
+				auto filepath = location.name();
+				if (documentIsValidMediaFile(filepath)) {
+					psOpenFile(filepath);
+				} else {
+					psShowInFolder(filepath);
+				}
+			}
+			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->voice() || data->song() || data->isVideo()) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
@@ -1082,10 +1095,11 @@ VoiceData::~VoiceData() {
 DocumentAdditionalData::~DocumentAdditionalData() {
 }
 
-DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
+DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
 : id(id)
 , _dc(dc)
 , _access(accessHash)
+, _version(version)
 , _url(url) {
 	setattributes(attributes);
 	if (_dc && _access) {
@@ -1094,15 +1108,15 @@ DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, const QSt
 }
 
 DocumentData *DocumentData::create(DocumentId id) {
-	return new DocumentData(id, 0, 0, QString(), QVector<MTPDocumentAttribute>());
+	return new DocumentData(id, 0, 0, 0, QString(), QVector<MTPDocumentAttribute>());
 }
 
-DocumentData *DocumentData::create(DocumentId id, int32 dc, uint64 accessHash, const QVector<MTPDocumentAttribute> &attributes) {
-	return new DocumentData(id, dc, accessHash, QString(), attributes);
+DocumentData *DocumentData::create(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QVector<MTPDocumentAttribute> &attributes) {
+	return new DocumentData(id, dc, accessHash, version, QString(), attributes);
 }
 
 DocumentData *DocumentData::create(DocumentId id, const QString &url, const QVector<MTPDocumentAttribute> &attributes) {
-	return new DocumentData(id, 0, 0, url, attributes);
+	return new DocumentData(id, 0, 0, 0, url, attributes);
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1234,10 +1248,9 @@ void DocumentData::performActionOnLoad() {
 	if (playVoice) {
 		if (loaded()) {
 			AudioMsgId playing;
-			AudioPlayerState state = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &state);
-			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
 				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
 				if (App::main()) App::main()->mediaMarkRead(this);
@@ -1245,15 +1258,14 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playMusic) {
 		if (loaded()) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == SongMsgId(this, _actionOnLoadMsgId) && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewFiles);
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				SongMsgId song(this, _actionOnLoadMsgId);
+				AudioMsgId song(this, _actionOnLoadMsgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->documentPlayProgress(song);
+				if (App::main()) App::main()->audioPlayProgress(song);
 			}
 		}
 	} else if (playAnimation) {
@@ -1385,7 +1397,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		if (!_access && !_url.isEmpty()) {
 			_loader = new webFileLoader(_url, toFile, fromCloud, autoLoading);
 		} else {
-			_loader = new mtpFileLoader(_dc, id, _access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+			_loader = new mtpFileLoader(_dc, id, _access, _version, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		}
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
@@ -1524,6 +1536,22 @@ bool fileIsImage(const QString &name, const QString &mime) {
 void DocumentData::recountIsImage() {
 	if (isAnimation() || isVideo()) return;
 	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
+}
+
+bool DocumentData::setRemoteVersion(int32 version) {
+	if (_version == version) {
+		return false;
+	}
+	_version = version;
+	_location = FileLocation();
+	_data = QByteArray();
+	status = FileReady;
+	if (loading()) {
+		_loader->deleteLater();
+		_loader->stop();
+		_loader = nullptr;
+	}
+	return true;
 }
 
 void DocumentData::setRemoteLocation(int32 dc, uint64 access) {

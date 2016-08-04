@@ -55,13 +55,13 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_animation.cpp\
 	 GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_application.cpp\
-	 GeneratedFiles/Debug/moc_audio.cpp\
 	 GeneratedFiles/Debug/moc_autolockbox.cpp\
 	 GeneratedFiles/Debug/moc_autoupdater.cpp\
 	 GeneratedFiles/Debug/moc_backgroundbox.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -99,6 +99,12 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
+	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -193,13 +199,13 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_animation.cpp\
 	 GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_application.cpp\
-	 GeneratedFiles/Debug/moc_audio.cpp\
 	 GeneratedFiles/Debug/moc_autolockbox.cpp\
 	 GeneratedFiles/Debug/moc_autoupdater.cpp\
 	 GeneratedFiles/Debug/moc_backgroundbox.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -237,6 +243,12 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
+	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -274,13 +286,13 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_animation.cpp\
 	 GeneratedFiles/Debug/moc_apiwrap.cpp\
 	 GeneratedFiles/Debug/moc_application.cpp\
-	 GeneratedFiles/Debug/moc_audio.cpp\
 	 GeneratedFiles/Debug/moc_autolockbox.cpp\
 	 GeneratedFiles/Debug/moc_autoupdater.cpp\
 	 GeneratedFiles/Debug/moc_backgroundbox.cpp\
 	 GeneratedFiles/Debug/moc_basic_types.cpp\
 	 GeneratedFiles/Debug/moc_button.cpp\
 	 GeneratedFiles/Debug/moc_confirmbox.cpp\
+	 GeneratedFiles/Debug/moc_confirmphonebox.cpp\
 	 GeneratedFiles/Debug/moc_connection.cpp\
 	 GeneratedFiles/Debug/moc_connection_abstract.cpp\
 	 GeneratedFiles/Debug/moc_connection_auto.cpp\
@@ -318,6 +330,12 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
+	 GeneratedFiles/Debug/moc_media_audio.cpp\
+	 GeneratedFiles/Debug/moc_media_audio_loaders.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_controller.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_playback.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_reader.cpp\
+	 GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp\
 	 GeneratedFiles/Debug/moc_overviewwidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
@@ -366,9 +384,6 @@ GeneratedFiles/Debug/moc_apiwrap.cpp: SourceFiles/apiwrap.h
 GeneratedFiles/Debug/moc_application.cpp: SourceFiles/application.h
 	$(MOC_FILE) SourceFiles/application.h -o GeneratedFiles/Debug/moc_application.cpp
 
-GeneratedFiles/Debug/moc_audio.cpp: SourceFiles/audio.h
-	$(MOC_FILE) SourceFiles/audio.h -o GeneratedFiles/Debug/moc_audio.cpp
-
 GeneratedFiles/Debug/moc_autolockbox.cpp: SourceFiles/boxes/autolockbox.h
 	$(MOC_FILE) SourceFiles/boxes/autolockbox.h -o GeneratedFiles/Debug/moc_autolockbox.cpp
 
@@ -386,6 +401,9 @@ GeneratedFiles/Debug/moc_button.cpp: SourceFiles/ui/button.h
 
 GeneratedFiles/Debug/moc_confirmbox.cpp: SourceFiles/boxes/confirmbox.h
 	$(MOC_FILE) SourceFiles/boxes/confirmbox.h -o GeneratedFiles/Debug/moc_confirmbox.cpp
+
+GeneratedFiles/Debug/moc_confirmphonebox.cpp: SourceFiles/boxes/confirmphonebox.h
+	$(MOC_FILE) SourceFiles/boxes/confirmphonebox.h -o GeneratedFiles/Debug/moc_confirmphonebox.cpp
 
 GeneratedFiles/Debug/moc_connection.cpp: SourceFiles/mtproto/connection.h
 	$(MOC_FILE) SourceFiles/mtproto/connection.h -o GeneratedFiles/Debug/moc_connection.cpp
@@ -497,6 +515,24 @@ GeneratedFiles/Debug/moc_mainwidget.cpp: SourceFiles/mainwidget.h
 
 GeneratedFiles/Debug/moc_mainwindow.cpp: SourceFiles/mainwindow.h
 	$(MOC_FILE) SourceFiles/mainwindow.h -o GeneratedFiles/Debug/moc_mainwindow.cpp
+
+GeneratedFiles/Debug/moc_media_audio.cpp: SourceFiles/media/media_audio.h
+	$(MOC_FILE) SourceFiles/media/media_audio.h -o GeneratedFiles/Debug/moc_media_audio.cpp
+
+GeneratedFiles/Debug/moc_media_audio_loaders.cpp: SourceFiles/media/media_audio_loaders.h
+	$(MOC_FILE) SourceFiles/media/media_audio_loaders.h -o GeneratedFiles/Debug/moc_media_audio_loaders.cpp
+
+GeneratedFiles/Debug/moc_media_clip_controller.cpp: SourceFiles/media/view/media_clip_controller.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_controller.h -o GeneratedFiles/Debug/moc_media_clip_controller.cpp
+
+GeneratedFiles/Debug/moc_media_clip_playback.cpp: SourceFiles/media/view/media_clip_playback.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_playback.h -o GeneratedFiles/Debug/moc_media_clip_playback.cpp
+
+GeneratedFiles/Debug/moc_media_clip_reader.cpp: SourceFiles/media/media_clip_reader.h
+	$(MOC_FILE) SourceFiles/media/media_clip_reader.h -o GeneratedFiles/Debug/moc_media_clip_reader.cpp
+
+GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp: SourceFiles/media/view/media_clip_volume_controller.h
+	$(MOC_FILE) SourceFiles/media/view/media_clip_volume_controller.h -o GeneratedFiles/Debug/moc_media_clip_volume_controller.cpp
 
 GeneratedFiles/Debug/moc_mediaview.cpp: SourceFiles/mediaview.h
 	$(MOC_FILE) SourceFiles/mediaview.h -o GeneratedFiles/Debug/moc_mediaview.cpp

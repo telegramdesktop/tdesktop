@@ -39,12 +39,12 @@ public:
 	};
 
 	static void writeToStream(QDataStream &stream, DocumentData *document);
-	static DocumentData *readStickerFromStream(QDataStream &stream, const StickerSetInfo &info);
-	static DocumentData *readFromStream(QDataStream &stream);
+	static DocumentData *readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info);
+	static DocumentData *readFromStream(int streamAppVersion, QDataStream &stream);
 	static int sizeInStream(DocumentData *document);
 
 private:
-	static DocumentData *readFromStreamHelper(QDataStream &stream, const StickerSetInfo *info);
+	static DocumentData *readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info);
 
 };
 

@@ -543,7 +543,6 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	}
 	if (!keyboardBotFound) {
 		h->clearLastKeyboard();
-		if (App::main()) App::main()->updateBotKeyboard(h);
 	}
 	int newMembersCount = qMax(d.vcount.v, v.count());
 	if (newMembersCount > peer->membersCount()) {
@@ -924,12 +923,12 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	_stickerSetRequests.remove(setId);
 
 	if (result.type() != mtpc_messages_stickerSet) return;
-	const auto &d(result.c_messages_stickerSet());
+	auto &d(result.c_messages_stickerSet());
 
 	if (d.vset.type() != mtpc_stickerSet) return;
-	const auto &s(d.vset.c_stickerSet());
+	auto &s(d.vset.c_stickerSet());
 
-	Stickers::Sets &sets(Global::RefStickerSets());
+	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
 	if (it == sets.cend()) return;
 
@@ -937,7 +936,9 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
 	it->title = stickerSetTitle(s);
-	it->flags = s.vflags.v;
+	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
+	it->flags = s.vflags.v | clientFlags;
+	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
 	const auto &d_docs(d.vdocuments.c_vector().v);
 	auto custom = sets.find(Stickers::CustomSetId);
@@ -1003,7 +1004,14 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 		Local::writeUserSettings();
 	}
 
-	Local::writeStickers();
+	if (it->flags & MTPDstickerSet::Flag::f_installed) {
+		if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+			Local::writeInstalledStickers();
+		}
+	}
+	if (it->flags & MTPDstickerSet_ClientFlag::f_featured) {
+		Local::writeFeaturedStickers();
+	}
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }

@@ -24,6 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
+#include <openssl/ssl.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -288,10 +293,19 @@ namespace ThirdParty {
 	}
 
 	void finish() {
-		av_lockmgr_register(0);
+		av_lockmgr_register(nullptr);
+
+		CRYPTO_cleanup_all_ex_data();
+		FIPS_mode_set(0);
+		ENGINE_cleanup();
+		CONF_modules_unload(1);
+		ERR_remove_state(0);
+		ERR_free_strings();
+		ERR_remove_thread_state(nullptr);
+		EVP_cleanup();
 
 		delete[] _sslLocks;
-		_sslLocks = 0;
+		_sslLocks = nullptr;
 
 		Platform::ThirdParty::finish();
 	}

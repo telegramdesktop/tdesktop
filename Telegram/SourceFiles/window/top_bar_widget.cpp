@@ -72,7 +72,11 @@ void TopBarWidget::onInfoClicked() {
 }
 
 void TopBarWidget::onSearch() {
-	Shortcuts::launch(qsl("search"));
+	if (auto main = App::main()) {
+		if (auto peer = main->peer()) {
+			main->searchInPeer(peer);
+		}
+	}
 }
 
 void TopBarWidget::enterEvent(QEvent *e) {
@@ -224,7 +228,7 @@ void TopBarWidget::showAll() {
 		}
 	}
 	if (h && !o && _clearSelection->isHidden()) {
-		if (Adaptive::OneColumn()) {
+		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 			_info->setPeer(h);
 			_info->show();
 		} else {
@@ -246,11 +250,11 @@ void TopBarWidget::updateMembersShowArea() {
 		if (_selCount || App::main()->overviewPeer() || !_selPeer) {
 			return false;
 		}
-		if (_selPeer->isChat()) {
-			return true;
+		if (auto chat = _selPeer->asChat()) {
+			return chat->amIn();
 		}
-		if (_selPeer->isMegagroup()) {
-			return (_selPeer->asMegagroup()->membersCount() < Global::ChatSizeMax());
+		if (auto megagroup = _selPeer->asMegagroup()) {
+			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
 		}
 		return false;
 	};

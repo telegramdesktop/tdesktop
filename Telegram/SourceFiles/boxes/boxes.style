@@ -1,0 +1,75 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+confirmInviteTitle: flatLabel(labelDefFlat) {
+	font: font(16px semibold);
+	align: align(center);
+	width: 320px;
+	maxHeight: 24px;
+	textFg: #333333;
+}
+confirmInviteStatus: flatLabel(labelDefFlat) {
+	font: font(boxFontSize);
+	align: align(center);
+	width: 320px;
+	maxHeight: 20px;
+	textFg: windowSubTextFg;
+}
+confirmInviteTitleTop: 106px;
+confirmInvitePhotoSize: 76px;
+confirmInvitePhotoTop: 20px;
+confirmInviteStatusTop: 136px;
+confirmInviteUserHeight: 80px;
+confirmInviteUserPhotoSize: 56px;
+confirmInviteUserPhotoTop: 166px;
+confirmInviteUserName: flatLabel(labelDefFlat) {
+	font: normalFont;
+	align: align(center);
+	width: 66px;
+	maxHeight: 20px;
+}
+confirmInviteUserNameTop: 227px;
+
+stickersAddIcon: icon {
+	{ "stickers_add", #ffffff },
+};
+stickersAddSize: size(30px, 24px);
+
+stickersFeaturedHeight: 32px;
+stickersFeaturedFont: contactsNameFont;
+stickersFeaturedPosition: point(16px, 6px);
+stickersFeaturedBadgeFont: semiboldFont;
+stickersFeaturedBadgeSize: 21px;
+stickersFeaturedPen: contactsNewItemFg;
+stickersFeaturedUnreadBg: msgFileInBg;
+stickersFeaturedUnreadSize: 5px;
+stickersFeaturedUnreadSkip: 5px;
+stickersFeaturedUnreadTop: 7px;
+stickersFeaturedInstalled: icon {
+	{ "mediaview_save_check", #40ace3 }
+};
+
+confirmPhoneAboutLabel: flatLabel(labelDefFlat) {
+	width: 282px;
+}
+confirmPhoneCodeField: InputField(defaultInputField) {
+}

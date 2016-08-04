@@ -349,6 +349,7 @@ void BoxButton::setText(const QString &text) {
 	_fullText = text;
 	_textWidth = _st.font->width(_text);
 	resizeToText();
+	update();
 }
 
 void BoxButton::resizeToText() {

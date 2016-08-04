@@ -1060,8 +1060,17 @@ enum class MTPDstickerSet_ClientFlag : int32 {
 	// sticker set is not yet loaded
 	f_not_loaded = (1 << 30),
 
+	// sticker set is one of featured (should be saved locally)
+	f_featured = (1 << 29),
+
+	// sticker set is an unread featured set
+	f_unread = (1 << 28),
+
+	// special set like recent or custom stickers
+	f_special = (1 << 27),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 30),
+	MIN_FIELD = (1 << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
 

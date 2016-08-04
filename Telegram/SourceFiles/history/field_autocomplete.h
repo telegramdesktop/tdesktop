@@ -37,7 +37,6 @@ class FieldAutocomplete final : public TWidget {
 	Q_OBJECT
 
 public:
-
 	FieldAutocomplete(QWidget *parent);
 
 	void fastHide();
@@ -79,7 +78,6 @@ public:
 	~FieldAutocomplete();
 
 signals:
-
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
@@ -88,14 +86,12 @@ signals:
 	void moderateKeyActivate(int key, bool *outHandled) const;
 
 public slots:
-
 	void hideStart();
 	void hideFinish();
 
 	void showStart();
 
 private:
-
 	void paintEvent(QPaintEvent *e) override;
 
 	void updateFiltered(bool resetScroll = false);
@@ -146,7 +142,6 @@ class FieldAutocompleteInner final : public TWidget {
 	Q_OBJECT
 
 public:
-
 	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows);
 
 	void clearSel(bool hidden = false);
@@ -155,8 +150,9 @@ public:
 
 	void setRecentInlineBotsInRows(int32 bots);
 
-signals:
+	~FieldAutocompleteInner();
 
+signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
@@ -164,13 +160,11 @@ signals:
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 
 public slots:
-
 	void onParentGeometryChanged();
 	void onUpdateSelected(bool force = false);
 	void onPreview();
 
 private:
-
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -199,6 +193,7 @@ private:
 	bool _previewShown;
 
 	QTimer _previewTimer;
+
 };
 
 } // namespace internal

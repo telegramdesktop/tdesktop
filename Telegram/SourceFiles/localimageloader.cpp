@@ -21,9 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "localimageloader.h"
 #include "ui/filedialog.h"
-#include "audio.h"
+#include "media/media_audio.h"
 
 #include "boxes/photosendbox.h"
+#include "media/media_clip_reader.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
@@ -311,7 +312,7 @@ void FileLoadTask::process() {
 				if (!cover.isNull()) { // cover to thumb
 					int32 cw = cover.width(), ch = cover.height();
 					if (cw < 20 * ch && ch < 20 * cw) {
-						QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
+						QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std_::move(cover));
 						{
 							QByteArray thumbFormat = "JPG";
 							int32 thumbQuality = 87;
@@ -330,7 +331,7 @@ void FileLoadTask::process() {
 		}
 		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || animated) {
 			QImage cover;
-			MTPDocumentAttribute animatedAttribute = clipReadAnimatedAttributes(_filepath, _content, cover);
+			MTPDocumentAttribute animatedAttribute = Media::Clip::readAttributes(_filepath, _content, cover);
 			if (animatedAttribute.type() == mtpc_documentAttributeVideo) {
 				int32 cw = cover.width(), ch = cover.height();
 				if (cw < 20 * ch && ch < 20 * cw) {
@@ -338,7 +339,7 @@ void FileLoadTask::process() {
 					attributes.push_back(animatedAttribute);
 					gif = true;
 
-					QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
+					QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std_::move(cover));
 					{
 						QByteArray thumbFormat = "JPG";
 						int32 thumbQuality = 87;
@@ -368,15 +369,15 @@ void FileLoadTask::process() {
 			if (animated) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != PrepareDocument) {
-				QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				QPixmap thumb = (w > 100 || h > 100) ? App::pixmapFromImageInPlace(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
 				photoThumbs.insert('s', thumb);
 				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-				QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				QPixmap medium = (w > 320 || h > 320) ? App::pixmapFromImageInPlace(fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
 				photoThumbs.insert('m', medium);
 				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-				QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				QPixmap full = (w > 1280 || h > 1280) ? App::pixmapFromImageInPlace(fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
 				photoThumbs.insert('y', full);
 				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -396,7 +397,7 @@ void FileLoadTask::process() {
 				thumbname = qsl("thumb.webp");
 			}
 
-			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(fullimage.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage, Qt::ColorOnly);
+			QPixmap full = (w > 90 || h > 90) ? App::pixmapFromImageInPlace(fullimage.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage, Qt::ColorOnly);
 
 			{
 				QBuffer buffer(&thumbdata);
@@ -413,9 +414,9 @@ void FileLoadTask::process() {
 	if (voice) {
 		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
-		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
 	} else {
-		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
 		if (photo.type() == mtpc_photoEmpty) {
 			_type = PrepareDocument;
 		}

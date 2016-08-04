@@ -26,15 +26,10 @@ class PasscodeBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	PasscodeBox(bool turningOff = false);
 	PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
-	void init();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
-public slots:
-
+private slots:
 	void onSave(bool force = false);
 	void onBadOldPasscode();
 	void onOldChanged();
@@ -47,16 +42,17 @@ public slots:
 	void onSubmit();
 
 signals:
-
 	void reloadPassword();
 
 protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void hideAll() override;
+	void showAll() override;
+	void showDone() override;
 
 private:
+	void init();
 
 	void setPasswordDone(const MTPBool &result);
 	bool setPasswordFail(const RPCError &error);

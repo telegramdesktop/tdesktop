@@ -110,7 +110,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		}
 		_thumbx = (width() - _thumbw) / 2;
 
-		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		if (_file->thumb.isNull()) {
@@ -483,7 +483,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		}
 		_thumbx = (width() - _thumbw) / 2;
 
-		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	}
 

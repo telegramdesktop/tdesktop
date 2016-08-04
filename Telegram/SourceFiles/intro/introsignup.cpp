@@ -242,7 +242,7 @@ void IntroSignup::onCheckRequest() {
 
 void IntroSignup::onPhotoReady(const QImage &img) {
 	_photoBig = img;
-	_photoSmall = QPixmap::fromImage(img.scaled(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+	_photoSmall = App::pixmapFromImageInPlace(img.scaled(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 	_photoSmall.setDevicePixelRatio(cRetinaFactor());
 }
 

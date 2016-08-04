@@ -83,22 +83,27 @@ inline void showPeerOverview(const History *history, MediaOverviewType type) {
 	showPeerOverview(history->peer->id, type);
 }
 
-void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
-inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
-	showPeerHistory(peer->id, msgId, back);
+enum class ShowWay {
+	ClearStack,
+	Forward,
+	Backward,
+};
+void showPeerHistory(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
+inline void showPeerHistory(const PeerData *peer, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
+	showPeerHistory(peer->id, msgId, way);
 }
-inline void showPeerHistory(const History *history, MsgId msgId, bool back = false) {
-	showPeerHistory(history->peer->id, msgId, back);
+inline void showPeerHistory(const History *history, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
+	showPeerHistory(history->peer->id, msgId, way);
 }
-inline void showPeerHistoryAtItem(const HistoryItem *item) {
-	showPeerHistory(item->history()->peer->id, item->id);
+inline void showPeerHistoryAtItem(const HistoryItem *item, ShowWay way = ShowWay::ClearStack) {
+	showPeerHistory(item->history()->peer->id, item->id, way);
 }
-void showPeerHistoryAsync(const PeerId &peer, MsgId msgId);
+void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
 inline void showChatsList() {
-	showPeerHistory(PeerId(0), 0);
+	showPeerHistory(PeerId(0), 0, ShowWay::ClearStack);
 }
 inline void showChatsListAsync() {
-	showPeerHistoryAsync(PeerId(0), 0);
+	showPeerHistoryAsync(PeerId(0), 0, ShowWay::ClearStack);
 }
 PeerData *getPeerForMouseAction();
 
@@ -178,10 +183,19 @@ enum Flags {
 namespace Stickers {
 
 static const uint64 DefaultSetId = 0; // for backward compatibility
-static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL, RecentSetId = 0xFFFFFFFFFFFFFFFEULL;
-static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
+static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
+static const uint64 RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
+static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
+static const uint64 CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
 struct Set {
-	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
+	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
+		: id(id)
+		, access(access)
+		, title(title)
+		, shortName(shortName)
+		, count(count)
+		, hash(hash)
+		, flags(flags) {
 	}
 	uint64 id, access;
 	QString title, shortName;
@@ -192,6 +206,15 @@ struct Set {
 };
 using Sets = QMap<uint64, Set>;
 using Order = QList<uint64>;
+
+inline MTPInputStickerSet inputSetId(const Set &set) {
+	if (set.id && set.access) {
+		return MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
+	}
+	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
+}
+
+Set *feedSet(const MTPDstickerSet &set);
 
 } // namespace Stickers
 
@@ -217,6 +240,9 @@ DeclareVar(bool, ScreenIsLocked);
 
 DeclareVar(int32, DebugLoggingFlags);
 
+DeclareVar(float64, SongVolume);
+DeclareVar(float64, VideoVolume);
+
 // config
 DeclareVar(int32, ChatSizeMax);
 DeclareVar(int32, MegagroupSizeMax);
@@ -233,6 +259,7 @@ DeclareVar(int32, PushChatPeriod);
 DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
+DeclareVar(int32, StickersRecentLimit);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
@@ -243,6 +270,11 @@ DeclareRefVar(PendingItemsMap, PendingRepaintItems);
 DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
 DeclareVar(uint64, LastStickersUpdate);
+DeclareVar(uint64, LastRecentStickersUpdate);
+DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
+DeclareVar(int, FeaturedStickerSetsUnreadCount);
+DeclareVar(uint64, LastFeaturedStickersUpdate);
+DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
 DeclareVar(MTP::DcOptions, DcOptions);
 

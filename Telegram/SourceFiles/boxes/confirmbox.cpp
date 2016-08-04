@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "application.h"
 #include "core/click_handler_types.h"
+#include "styles/style_boxes.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -519,4 +520,87 @@ void KickMemberBox::onConfirm() {
 	} else if (auto channel = _chat->asChannel()) {
 		App::api()->kickParticipant(channel, _member);
 	}
+}
+
+ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants) : AbstractBox()
+, _title(this, st::confirmInviteTitle)
+, _status(this, st::confirmInviteStatus)
+, _photo(chatDefPhoto(0))
+, _participants(participants)
+, _join(this, lang(lng_group_invite_join), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	if (_participants.size() > 4) {
+		_participants.resize(4);
+	}
+
+	_title->setText(title);
+	QString status;
+	if (_participants.isEmpty() || _participants.size() >= count) {
+		status = lng_chat_status_members(lt_count, count);
+	} else {
+		status = lng_group_invite_members(lt_count, count);
+	}
+	_status->setText(status);
+	if (photo.type() == mtpc_chatPhoto) {
+		auto &d = photo.c_chatPhoto();
+		auto location = App::imageLocation(160, 160, d.vphoto_small);
+		if (!location.isNull()) {
+			_photo = ImagePtr(location);
+			if (!_photo->loaded()) {
+				connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+				_photo->load();
+			}
+		}
+	}
+
+	int h = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _join->height() + st::boxButtonPadding.bottom();
+	if (!_participants.isEmpty()) {
+		int skip = (width() - 4 * st::confirmInviteUserPhotoSize) / 5;
+		int padding = skip / 2;
+		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
+		int sumWidth = _participants.size() * _userWidth;
+		int left = (width() - sumWidth) / 2;
+		for_const (auto user, _participants) {
+			auto name = new FlatLabel(this, st::confirmInviteUserName);
+			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
+			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);
+			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
+			left += _userWidth;
+		}
+
+		h += st::confirmInviteUserHeight;
+	}
+	setMaxHeight(h);
+
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_join, SIGNAL(clicked()), App::main(), SLOT(onInviteImport()));
+}
+
+void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
+	_title->move((width() - _title->width()) / 2, st::confirmInviteTitleTop);
+	_status->move((width() - _status->width()) / 2, st::confirmInviteStatusTop);
+	_join->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _join->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _join->width() + st::boxButtonPadding.left(), _join->y());
+}
+
+void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
+
+	int sumWidth = _participants.size() * _userWidth;
+	int left = (width() - sumWidth) / 2;
+	for_const (auto user, _participants) {
+		user->paintUserpicLeft(p, st::confirmInviteUserPhotoSize, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width());
+		left += _userWidth;
+	}
+}
+
+void ConfirmInviteBox::showAll() {
+	showChildren();
+}
+
+void ConfirmInviteBox::hideAll() {
+	hideChildren();
 }

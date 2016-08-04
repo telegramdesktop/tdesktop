@@ -337,14 +337,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		layout.beginLayout();
 		layout.createLine();
 
-		bool logCrashString = (rand_value<uchar>() % 4 == 1);
-		if (logCrashString) {
-			SignalHandlers::setCrashAnnotationRef("CrashString", &str);
-		}
 		BlockParser parser(&engine, this, minResizeWidth, _from, part);
-		if (logCrashString) {
-			SignalHandlers::clearCrashAnnotationRef("CrashString");
-		}
 
 		layout.endLayout();
 	}

@@ -153,9 +153,17 @@ namespace Local {
 
 	void cancelTask(TaskId id);
 
-	void writeStickers();
-	void readStickers();
-	int32 countStickersHash(bool checkOfficial = false);
+	void writeInstalledStickers();
+	void writeFeaturedStickers();
+	void writeRecentStickers();
+	void writeArchivedStickers();
+	void readInstalledStickers();
+	void readFeaturedStickers();
+	void readRecentStickers();
+	void readArchivedStickers();
+	int32 countStickersHash(bool checkOutdatedInfo = false);
+	int32 countRecentStickersHash();
+	int32 countFeaturedStickersHash();
 
 	void writeSavedGifs();
 	void readSavedGifs();

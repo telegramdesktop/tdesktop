@@ -447,7 +447,7 @@ void MembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 	t_assert(megagroup->mgInfo != nullptr);
 	if (megagroup->mgInfo->lastParticipants.isEmpty()) return;
 
-	if (!megagroup->amIn()) {
+	if (!megagroup->canViewMembers()) {
 		_list.clear();
 		return;
 	}
@@ -458,7 +458,9 @@ void MembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 	if (_sortByOnline) {
 		_list.clear();
 		_list.reserve(membersList.size());
-		addUser(megagroup, App::self())->onlineForSort = INT_MAX;
+		if (megagroup->amIn()) {
+			addUser(megagroup, App::self())->onlineForSort = INT_MAX;
+		}
 	} else if (membersList.size() >= _list.size()) {
 		if (addUsersToEnd(megagroup)) {
 			return;

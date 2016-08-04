@@ -190,6 +190,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Reset your account";
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
+"lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 days|# day|# days} {count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
+"lng_signin_reset_in_hours" = "{count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 minutes|# minute|# minutes}";
+"lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
 
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
@@ -602,6 +607,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
+"lng_group_invite_members" = "{count:_not_used_|# member|# members}, among them:";
+
 "lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
@@ -664,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "Objects";
 "lng_emoji_category7" = "Symbols & Flags";
 
+"lng_recent_stickers" = "Frequently used";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -680,12 +688,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Add stickers";
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_not_found" = "Sticker pack not found.";
-"lng_stickers_too_many_packs" = "You have too many sticker packs. Please remove some first.";
+"lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
+"lng_stickers_archived" = "Archived Stickers";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_packs" = "Sticker Packs";
 "lng_stickers_reorder" = "Click and drag to reorder sticker packs";
+"lng_stickers_featured" = "Trending Stickers";
+"lng_stickers_clear_recent" = "Clear";
+"lng_stickers_clear_recent_sure" = "Are you sure you want to clear your frequently used stickers list?";
 "lng_stickers_remove" = "Delete";
 "lng_stickers_return" = "Undo";
 "lng_stickers_restore" = "Restore";
@@ -922,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Fixed photo viewer to handle screen resolution change correctly\n— Fixed forwarding photos via drag-n-drop\n— Various design improvements and other bug fixes";
+"lng_new_version_text" = "— Trending stickers. Check out and install noteworthy sticker packs from the new tab in Settings.\n— Archived stickers. Unused stickers are now archived automatically when you go over the 200 limit.\n— Group previews. Preview groups before joining them via invite link – see who else is in the group before joining.\n— New internal video player.\n— Improved design for chats.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
 "lng_full_name" = "{first_name} {last_name}";
+
+"lng_confirm_phone_link_invalid" = "This link is broken or has expired.";
+"lng_confirm_phone_title" = "Cancel account reset";
+"lng_confirm_phone_about" = "Somebody with access to your phone number {phone} has requested to delete your Telegram account and reset your 2-Step Verification password.\n\nIf this wasn't you, please enter the code we've just sent you via SMS to your number.";
+"lng_confirm_phone_success" = "Success!\n\nThe deletion process was cancelled for your account {phone}. You may close this window now.";
+"lng_confirm_phone_send" = "Send";
+"lng_confirm_phone_enter_code" = "Please enter the code.";
 
 // Not used
 

@@ -1868,6 +1868,9 @@ stickersSettings: sprite(140px, 124px, 21px, 22px);
 savedGifsOver: sprite(329px, 286px, 21px, 22px);
 savedGifsActive: sprite(350px, 286px, 21px, 22px);
 
+stickersSettingsUnreadSize: 17px;
+stickersSettingsUnreadPosition: point(4px, 5px);
+
 emojiPanCategories: #f7f7f7;
 
 rbEmoji: flatCheckbox {
@@ -2141,7 +2144,9 @@ mvCaptionRadius: 2px;
 mvCaptionBg: #11111180;
 mvCaptionFont: font(fsize);
 
-medviewSaveMsgCheck: sprite(311px, 309px, 22px, 18px);
+medviewSaveMsgCheck: icon {
+	{ "mediaview_save_check", #ffffff }
+};
 medviewSaveMsgFont: font(16px);
 medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 medviewSaveMsgCheckPos: point(23px, 21px);

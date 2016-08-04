@@ -35,7 +35,7 @@ T *getPointerAndReset(T *&ptr) {
 
 template <typename T>
 T createAndSwap(T &value) {
-	T result;
+	T result = T();
 	std::swap(result, value);
 	return result;
 }

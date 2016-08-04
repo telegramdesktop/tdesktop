@@ -114,6 +114,7 @@ namespace Sandbox {
 	bool isSavingSession();
 
 	void installEventFilter(QObject *filter);
+	void removeEventFilter(QObject *filter);
 
 	void execExternal(const QString &cmd);
 

@@ -108,27 +108,6 @@ public:
 	int32 lastWidth, lastScrollTop;
 };
 
-class StackItems : public QVector<StackItem*> {
-public:
-	bool contains(PeerData *peer) const {
-		for (int32 i = 0, l = size(); i < l; ++i) {
-			if (at(i)->peer == peer) {
-				return true;
-			}
-		}
-		return false;
-	}
-	void clear() {
-		for (int32 i = 0, l = size(); i < l; ++i) {
-			delete at(i);
-		}
-		QVector<StackItem*>::clear();
-	}
-	~StackItems() {
-		clear();
-	}
-};
-
 enum SilentNotifiesStatus {
 	SilentNotifiesDontChange,
 	SilentNotifiesSetSilent,
@@ -224,6 +203,7 @@ public:
 	bool mediaTypeSwitch();
 	void showWideSection(const Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
+	bool stackIsEmpty() const;
 	void showBackFromStack();
 	void orderWidgets();
 	QRect historyRect() const;
@@ -404,7 +384,7 @@ public:
 	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
-	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
+	void ui_showPeerHistory(quint64 peer, qint32 msgId, Ui::ShowWay way);
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_botCommandsChanged(UserData *bot);
@@ -421,9 +401,9 @@ public:
 	void notify_historyMuteUpdated(History *history);
 	void notify_handlePendingHistoryUpdate();
 
-	void cmd_search();
-	void cmd_next_chat();
-	void cmd_previous_chat();
+	bool cmd_search();
+	bool cmd_next_chat();
+	bool cmd_previous_chat();
 
 	~MainWidget();
 
@@ -445,7 +425,6 @@ public slots:
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
-	void documentPlayProgress(const SongMsgId &songId);
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
 
@@ -493,7 +472,7 @@ public slots:
 
 	void onSharePhoneWithBot(PeerData *recipient);
 
-	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
+	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 private slots:
@@ -518,6 +497,8 @@ private:
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
+
+	void saveSectionInStack();
 
 	bool _started = false;
 
@@ -598,7 +579,7 @@ private:
 	ChildWidget<Window::TopBarWidget> _topBar;
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
 	ChildWidget<HistoryHider> _hider = { nullptr };
-	StackItems _stack;
+	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;
 

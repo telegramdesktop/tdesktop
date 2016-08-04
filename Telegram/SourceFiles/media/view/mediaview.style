@@ -1,0 +1,82 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+
+using "basic.style";
+using "ui/widgets/widgets.style";
+
+mediaviewActiveOpacity: 1.;
+mediaviewInactiveOpacity: 0.78;
+mediaviewOverDuration: 150;
+
+mediaviewControllerSize: size(600px, 50px);
+mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
+	font: semiboldFont;
+	textFg: #ffffffc7;
+}
+mediaviewPlayProgressTop: 11px;
+mediaviewPlayButton: IconButton {
+	width: 25px;
+	height: 24px;
+
+	opacity: mediaviewInactiveOpacity;
+	overOpacity: mediaviewActiveOpacity;
+
+	icon: icon {
+		{ "media_play", #ffffff, point(3px, 0px) },
+	};
+	iconPosition: point(3px, 1px);
+	downIconPosition: point(3px, 1px);
+
+	duration: mediaviewOverDuration;
+}
+mediaviewPauseIcon: icon {
+	{ "media_pause", #ffffff, point(1px, 1px) }
+};
+mediaviewPlayPauseLeft: 17px;
+mediaviewFullScreenLeft: 17px;
+mediaviewVolumeLeft: 15px;
+
+mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
+	icon: icon {
+		{ "media_fullscreen_to", #ffffff, point(0px, 0px) },
+	};
+	iconPosition: point(0px, 1px);
+	downIconPosition: point(0px, 1px);
+}
+mediaviewFullScreenOutIcon: icon {
+	{ "media_fullscreen_from", #ffffff, point(0px, 0px) },
+};
+
+mediaviewPlaybackActive: #ffffff;
+mediaviewPlaybackInactive: #474747;
+mediaviewPlaybackWidth: 3px;
+mediaviewPlaybackTop: 28px;
+mediaviewSeekSize: size(11px, 11px);
+
+mediaviewVolumeSize: size(44px, 20px);
+mediaviewVolumeIcon: icon {
+	{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) },
+};
+mediaviewVolumeOnIcon: icon {
+	{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) },
+};
+mediaviewVolumeIconTop: 8px;
+mediaviewControllerRadius: 25px;
