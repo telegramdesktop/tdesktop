@@ -174,7 +174,7 @@ void NotifyWindow::updateNotifyDisplay() {
 			history->peer->loadUserpic(true, true);
 			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
-			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
 		}
 
@@ -234,7 +234,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		}
 	}
 
-	pm = QPixmap::fromImage(img, Qt::ColorOnly);
+	pm = App::pixmapFromImageInPlace(std_::move(img));
 	update();
 }
 
@@ -246,7 +246,7 @@ void NotifyWindow::updatePeerPhoto() {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
 		}
 		peerPhoto = ImagePtr();
-		pm = QPixmap::fromImage(img, Qt::ColorOnly);
+		pm = App::pixmapFromImageInPlace(std_::move(img));
 		update();
 	}
 }
@@ -1072,7 +1072,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		if (obj == Application::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-				cSetStartUrl(url);
+				cSetStartUrl(url.mid(0, 8192));
 				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
 					App::main()->openLocalUrl(cStartUrl());
 					cSetStartUrl(QString());
@@ -1882,7 +1882,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 		placeSmallCounter(img, size, count, bg, QPoint(), st::counterColor);
 	} else {
 		QPainter p(&img);
-		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false), Qt::ColorOnly));
+		p.drawPixmap(size / 2, size / 2, App::pixmapFromImageInPlace(iconWithCounter(-size / 2, count, bg, false)));
 	}
 	return img;
 }
@@ -1952,7 +1952,7 @@ PreLaunchWindow *PreLaunchWindowInstance = 0;
 PreLaunchWindow::PreLaunchWindow(QString title) : TWidget(0) {
 	Fonts::start();
 
-	QIcon icon(QPixmap::fromImage(QImage(cPlatform() == dbipMac ? qsl(":/gui/art/iconbig256.png") : qsl(":/gui/art/icon256.png")), Qt::ColorOnly));
+	QIcon icon(App::pixmapFromImageInPlace(QImage(cPlatform() == dbipMac ? qsl(":/gui/art/iconbig256.png") : qsl(":/gui/art/icon256.png"))));
 	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
 		icon = QIcon::fromTheme("telegram", icon);
 	}

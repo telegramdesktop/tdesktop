@@ -148,8 +148,6 @@ bool gDialogsReceived = false;
 
 int gOtherOnline = 0;
 
-float64 gSongVolume = 0.9;
-
 SavedPeers gSavedPeers;
 SavedPeersByTime gSavedPeersByTime;
 
@@ -239,7 +237,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 				gWorkingDir = dir;
 			}
 		} else if (string("--") == argv[i] && i + 1 < argc) {
-			gStartUrl = fromUtf8Safe(argv[++i]);
+			gStartUrl = fromUtf8Safe(argv[++i]).mid(0, 8192);
 		}
 	}
 }

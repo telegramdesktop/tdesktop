@@ -53,7 +53,7 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 	_inner->setGeometry(rect());
 	_scroll->setGeometry(rect());
 
-	_scroll->setWidget(_inner);
+	_scroll->setOwnedWidget(_inner);
 	_scroll->show();
 	_inner->show();
 
@@ -153,15 +153,15 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	StickerPack srows;
 	if (_emoji) {
 		QMap<uint64, uint64> setsToRequest;
-		Stickers::Sets &sets(Global::RefStickerSets());
-		const Stickers::Order &order(Global::StickerSetsOrder());
+		auto &sets = Global::RefStickerSets();
+		auto &order = Global::StickerSetsOrder();
 		for (int i = 0, l = order.size(); i < l; ++i) {
 			auto it = sets.find(order.at(i));
 			if (it != sets.cend()) {
 				if (it->emoji.isEmpty()) {
 					setsToRequest.insert(it->id, it->access);
 					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
-				} else if (!(it->flags & MTPDstickerSet::Flag::f_disabled)) {
+				} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
 					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
 					if (i != it->emoji.cend()) {
 						srows += *i;
@@ -196,14 +196,14 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 			return true;
 		};
-		auto filterNotPassedByName = [this](UserData *user) -> bool {
+		auto filterNotPassedByName = [this, &filterNotPassedByUsername](UserData *user) -> bool {
 			for_const (auto &namePart, user->names) {
 				if (namePart.startsWith(_filter, Qt::CaseInsensitive)) {
 					bool exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
 					return exactUsername;
 				}
 			}
-			return true;
+			return filterNotPassedByUsername(user);
 		};
 
 		bool listAllSuggestions = _filter.isEmpty();
@@ -944,6 +944,9 @@ void FieldAutocompleteInner::onPreview() {
 		Ui::showMediaPreview(_srows->at(_down));
 		_previewShown = true;
 	}
+}
+
+FieldAutocompleteInner::~FieldAutocompleteInner() {
 }
 
 } // namespace internal

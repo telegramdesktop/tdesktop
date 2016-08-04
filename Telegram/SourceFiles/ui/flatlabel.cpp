@@ -32,7 +32,7 @@ namespace {
 		Qt::LayoutDirectionAuto, // dir
 	};
 	TextParseOptions _labelMarkedOptions = {
-		TextParseMultiline | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands, // flags
+		TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir

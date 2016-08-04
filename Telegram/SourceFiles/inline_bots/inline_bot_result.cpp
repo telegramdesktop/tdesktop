@@ -352,7 +352,7 @@ void Result::createDocument() {
 		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTPbytes()));
 	}
 
-	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(0), MTP_photoSizeEmpty(MTP_string("")), MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(0), MTP_photoSizeEmpty(MTP_string("")), MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
 
 	_document = App::feedDocument(document);
 	_document->setContentUrl(_content_url);

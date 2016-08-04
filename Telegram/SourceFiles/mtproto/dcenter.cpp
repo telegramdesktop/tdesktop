@@ -170,6 +170,7 @@ namespace {
 		Global::SetPushChatLimit(data.vpush_chat_limit.v); // ?
 		Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
 		Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
+		Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 
 		configLoadedOnce = true;
 		Local::writeSettings();

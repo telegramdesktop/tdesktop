@@ -135,12 +135,12 @@ private:
 	Animation _a_shown;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
-	ClipReader *_gif = nullptr;
+	Media::Clip::Reader *_gif = nullptr;
 	bool gif() const {
-		return (!_gif || _gif == BadClipReader) ? false : true;
+		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
 	}
 
-	void clipCallback(ClipReaderNotification notification);
+	void clipCallback(Media::Clip::Notification notification);
 
 	enum CacheStatus {
 		CacheNotLoaded,

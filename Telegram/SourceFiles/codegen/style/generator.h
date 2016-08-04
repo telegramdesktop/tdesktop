@@ -47,6 +47,7 @@ private:
 	QString valueAssignmentCode(structure::Value value) const;
 
 	bool writeHeaderStyleNamespace();
+	bool writeStructsForwardDeclarations();
 	bool writeStructsDefinitions();
 	bool writeRefsDeclarations();
 

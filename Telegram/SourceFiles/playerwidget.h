@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "audio.h"
+#include "media/media_audio.h"
 
 class PlayerWidget : public TWidget {
 	Q_OBJECT
@@ -47,13 +47,13 @@ public:
 	void step_progress(float64 ms, bool timer);
 	void step_state(uint64 ms, bool timer);
 
-	void updateState(SongMsgId playing, AudioPlayerState playingState, int64 playingPosition, int64 playingDuration, int32 playingFrequency);
+	void updateState(AudioMsgId playing, AudioPlaybackState playbackState);
 	void updateState();
 	void clearSelection();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 
-	bool seekingSong(const SongMsgId &song) const;
+	bool seekingSong(const AudioMsgId &song) const;
 
 	void openPlayer();
 	bool isOpened() const;
@@ -115,7 +115,7 @@ private:
 	StateAnimations _stateAnimations;
 	Animation _a_state;
 
-	SongMsgId _song;
+	AudioMsgId _song;
 	bool _msgmigrated = false;
 	int32 _index = -1;
 	History *_migrated = nullptr;

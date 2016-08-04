@@ -291,8 +291,6 @@ DeclareSetting(bool, DialogsReceived);
 
 DeclareSetting(int, OtherOnline);
 
-DeclareSetting(float64, SongVolume);
-
 class PeerData;
 typedef QMap<PeerData*, QDateTime> SavedPeers;
 typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;

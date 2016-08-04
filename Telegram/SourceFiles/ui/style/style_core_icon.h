@@ -131,5 +131,7 @@ private:
 
 };
 
+void destroyIcons();
+
 } // namespace internal
 } // namespace style

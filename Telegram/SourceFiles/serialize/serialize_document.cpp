@@ -37,6 +37,7 @@ namespace Serialize {
 
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
+	stream << qint32(document->_version);
 	stream << document->name << document->mime << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
@@ -61,11 +62,16 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	}
 }
 
-DocumentData *Document::readFromStreamHelper(QDataStream &stream, const StickerSetInfo *info) {
+DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
 	quint64 id, access;
 	QString name, mime;
-	qint32 date, dc, size, width, height, type;
+	qint32 date, dc, size, width, height, type, version;
 	stream >> id >> access >> date;
+	if (streamAppVersion >= 9061) {
+		stream >> version;
+	} else {
+		version = 0;
+	}
 	stream >> name >> mime >> dc >> size;
 	stream >> width >> height;
 	stream >> type;
@@ -87,7 +93,7 @@ DocumentData *Document::readFromStreamHelper(QDataStream &stream, const StickerS
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
 		} else if (info) {
-			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CustomSetId) {
+			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CloudRecentSetId || info->setId == Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 
@@ -122,22 +128,22 @@ DocumentData *Document::readFromStreamHelper(QDataStream &stream, const StickerS
 	if (!dc && !access) {
 		return nullptr;
 	}
-	return App::documentSet(id, nullptr, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
+	return App::documentSet(id, nullptr, access, version, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
 }
 
-DocumentData *Document::readStickerFromStream(QDataStream &stream, const StickerSetInfo &info) {
-	return readFromStreamHelper(stream, &info);
+DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
+	return readFromStreamHelper(streamAppVersion, stream, &info);
 }
 
-DocumentData *Document::readFromStream(QDataStream &stream) {
-	return readFromStreamHelper(stream, nullptr);
+DocumentData *Document::readFromStream(int streamAppVersion, QDataStream &stream) {
+	return readFromStreamHelper(streamAppVersion, stream, nullptr);
 }
 
 int Document::sizeInStream(DocumentData *document) {
 	int result = 0;
 
-	// id + access + date
-	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32);
+	// id + access + date + version
+	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32);
 	// + namelen + name + mimelen + mime + dc + size
 	result += stringSize(document->name) + stringSize(document->mime) + sizeof(qint32) + sizeof(qint32);
 	// + width + height

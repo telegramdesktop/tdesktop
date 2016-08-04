@@ -94,6 +94,9 @@ public:
 		return !fullpath_.isEmpty();
 	}
 
+	const Struct *findStructInModule(const FullName &name, const Module &module) const;
+	const Variable *findVariableInModule(const FullName &name, const Module &module) const;
+
 private:
 	QString fullpath_;
 	std::vector<std::unique_ptr<Module>> included_;
@@ -101,9 +104,6 @@ private:
 	QList<Variable> variables_;
 	QMap<QString, int> structsByName_;
 	QMap<QString, int> variablesByName_;
-
-	const Struct *findStructInModule(const FullName &name, const Module &module) const;
-	const Variable *findVariableInModule(const FullName &name, const Module &module) const;
 
 };
 

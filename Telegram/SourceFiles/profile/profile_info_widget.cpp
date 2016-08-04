@@ -140,7 +140,7 @@ void InfoWidget::refreshAbout() {
 	};
 
 	_about.destroy();
-	auto aboutText = getAboutText();
+	auto aboutText = textClean(getAboutText());
 	if (!aboutText.isEmpty()) {
 		_about = new FlatLabel(this, st::profileBlockTextPart);
 		_about->show();

@@ -190,6 +190,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "계정 초기화";
 "lng_signin_sure_reset" = "경고!\n\n계정 초기화 진행시 모든 대화,\n메시지 및 공유받은 미디어와 파일이 삭제가 됩니다.\n\n계정 초기화를 진행하시겠습니까?";
 "lng_signin_reset" = "초기화";
+"lng_signin_reset_wait" = "{phone_number} 계정이 사용중이고 비밀번호 설정이 되어져 있어, 보안을 위하여 1주일 이후에 삭제가 될 예정입니다. 이 설정은 언제든지 취소 할 수 있습니다.\n\n계정은 다음시간 이후에 초기화가 됩니다:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 일|# 일|# 일} {count_hours:0 시간|# 시간|# 시간} {count_minutes:0 분|# 분|# 분}";
+"lng_signin_reset_in_hours" = "{count_hours:0 시간|# 시간|# 시간} {count_minutes:0 분|# 분|# 분}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 분|# 분|# 분}";
+"lng_signin_reset_cancelled" = "현재 사용중인 사용자가 요청하신 계정 초기화를 취소 하였습니다.\n7일 이후에 다시 시도해주세요.";
 
 "lng_signup_title" = "개인정보 및 사진";
 "lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
@@ -442,8 +447,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_delete_and_exit" = "나가기";
 "lng_profile_kick" = "삭제";
 "lng_profile_admin" = "관리자";
-"lng_profile_sure_kick" = "{user}를 추방하시겠습니까?";
-"lng_profile_sure_kick_channel" = "{user}를 추방하시겠습니까?";
+"lng_profile_sure_kick" = "{user}를 내보내시겠습니까?";
+"lng_profile_sure_kick_channel" = "{user}를 내보내시겠습니까?";
 "lng_profile_sure_kick_admin" = "{user}를 관리자에서 제외 하시겠습니까?";
 "lng_profile_loading" = "로드중..";
 "lng_profile_shared_media" = "공유된 미디어";
@@ -544,7 +549,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_you_joined" = "채널에 입장하였습니다.";
 "lng_action_add_you_group" = "{from}님께서 그룹에 초대해주셨습니다.";
 "lng_action_you_joined_group" = "그룹방에 참여하였습니다.";
-"lng_action_kick_user" = "{from} 님께서 {user} 님을 추방하셨습니다.";
+"lng_action_kick_user" = "{from} 님께서 {user} 님을 내보내셨습니다.";
 "lng_action_user_left" = "{from} 님이 그룹을 나가셨습니다.";
 "lng_action_user_joined" = "{from} 님이 그룹에 들어오셨습니다.";
 "lng_action_user_joined_by_link" = "초대링크를 타고 {from} 님이 그룹에 참여하였습니다.";
@@ -601,6 +606,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join" = "«{title}» 그룹방에 참여하시겠습니까?";
 "lng_group_invite_want_join_channel" = "«{title}» 채널에 참여하시겠습니까?";
 "lng_group_invite_join" = "참여";
+
+"lng_group_invite_members" = "{count:_not_used_|# 회원|# 회원}, 참여자 현황:";
 
 "lng_group_invite_link" = "초대링크: ";
 "lng_group_invite_create" = "초대링크 생성";
@@ -664,6 +671,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_emoji_category6" = "물건";
 "lng_emoji_category7" = "심볼 및 국기";
 
+"lng_recent_stickers" = "자주 사용";
 "lng_switch_stickers" = "스티커";
 "lng_switch_stickers_gifs" = "GIF & 스티커";
 "lng_switch_emoji" = "이모티콘";
@@ -680,11 +688,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "스티커 추가";
 "lng_stickers_share_pack" = "스티커 공유";
 "lng_stickers_not_found" = "스티커 팩을 찾을 수 없습니다.";
+"lng_stickers_packs_archived" = "활성화된 스티커를 사용할 수 있는 공간이 필요하여 미사용 스티커중 일부는 보관되어집니다.";
+"lng_stickers_archived" = "보관된 스티커";
 "lng_stickers_copied" = "클립보드에 스티커 팩 링크가 복사 되었습니다.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "스티커팩 관리 및 변경";
 "lng_stickers_packs" = "스티커팩";
 "lng_stickers_reorder" = "클릭과 드래그를 통하여 스태커 팩을 변경하세요";
+"lng_stickers_featured" = "인기 스티커";
+"lng_stickers_clear_recent" = "초기화";
+"lng_stickers_clear_recent_sure" = "자주 사용하는 스티커 리스트를 초기화 하겠습니까?";
 "lng_stickers_remove" = "삭제";
 "lng_stickers_return" = "실행취소";
 "lng_stickers_restore" = "복구";
@@ -921,11 +934,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 해상도 변경에 따라 사진 뷰어가 정상적으로 표시되도록 수정\n— 드래그앤드롭으로 사진 전송 수정\n— 디자인 및 버그 수정";
+"lng_new_version_text" = "— 인기스티커. 설정내 새로운 탭으로 인기있는 스티커를 확인하고 설치\n— 보관스티커. 스티커 개수가 200개 이상일 경우 미사용 스티커는 보관으로 자동이관\n— 그룹방 미리보기. 초대링크로 입장하기전에 미리보기 - 그룹방 참여인원 확인가능\n— 새로운 내부 비디오 플레이어\n— 대화 디자인 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
 "lng_full_name" = "{last_name} {first_name}";
+
+"lng_confirm_phone_link_invalid" = "링크가 깨졌거나 폐기되었습니다.";
+"lng_confirm_phone_title" = "계정 초기화 취소";
+"lng_confirm_phone_about" = "{phone} 번호에 접근이 가능한 누군가가 해당 계정 및 2단계 비밀번호 초기화를 요청하였습니다.\n\n만약 본인이 아니실 경우 방금 보내드린 코드를 본인 번호에 SMS로 전송해주세요.";
+"lng_confirm_phone_success" = "성공!\n\n{phone} 계정에 대한 삭제 프로세스가 취소 되었습니다. 이창을 당으셔도 됩니다.";
+"lng_confirm_phone_send" = "보내기";
+"lng_confirm_phone_enter_code" = "코드를 입력해주세요";
 
 // Not used
 

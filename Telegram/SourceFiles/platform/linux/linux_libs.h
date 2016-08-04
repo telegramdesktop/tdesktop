@@ -227,7 +227,7 @@ inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
 }
 
-typedef gboolean (*f_g_type_check_instance_is_a)(GTypeInstance *instance, GType iface_type) G_GNUC_PURE;
+typedef gboolean (*f_g_type_check_instance_is_a)(GTypeInstance *instance, GType iface_type);
 extern f_g_type_check_instance_is_a g_type_check_instance_is_a;
 
 template <typename Object>
