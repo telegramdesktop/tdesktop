@@ -244,6 +244,14 @@ QString filedialogNextFilename(const QString &name, const QString &cur, const QS
 	return result;
 }
 
+QString filedialogAllFilesFilter() {
+#ifdef Q_OS_WIN
+	return qsl("All files (*.*)");
+#else // Q_OS_WIN
+	return qsl("All files (*)");
+#endif // Q_OS_WIN
+}
+
 namespace FileDialog {
 namespace {
 

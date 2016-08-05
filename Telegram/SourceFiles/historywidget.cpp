@@ -1334,7 +1334,8 @@ void HistoryInner::saveContextImage() {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QString file;
-	if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
+	auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
+	if (filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
 		if (!file.isEmpty()) {
 			photo->full->pix().toImage().save(file, "JPG");
 		}
@@ -5574,7 +5575,7 @@ void HistoryWidget::onPhotoSelect() {
 
 	QStringList photoExtensions(cPhotoExtensions());
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 	QStringList files;
 	QByteArray content;
@@ -5602,7 +5603,7 @@ void HistoryWidget::onDocumentSelect() {
 
 	QStringList photoExtensions(cPhotoExtensions());
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("All files (*.*);;Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")"));
+	QString filter(filedialogAllFilesFilter() + qsl(";;Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")"));
 
 	QStringList files;
 	QByteArray content;

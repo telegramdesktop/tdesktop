@@ -66,7 +66,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (QRect(_phLeft, _phTop, st::introPhotoSize, st::introPhotoSize).contains(e->pos())) {
 		QStringList imgExtensions(cImgExtensions());
-		QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+		QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 		QImage img;
 		QString file;
