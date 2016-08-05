@@ -94,7 +94,7 @@ echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
 echo Dumping debug symbols..
-call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\binaries\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
+call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"

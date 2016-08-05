@@ -399,6 +399,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		// profile
 		top += st::setTop;
 
+		p.setPen(st::windowTextFg);
 		_nameText.drawElided(p, _uploadPhoto.x() + st::setNameLeft, top + st::setNameTop, _uploadPhoto.width() - st::setNameLeft);
 		if (!_cancelPhoto.isHidden()) {
 			p.setFont(st::linkFont->f);
@@ -1230,7 +1231,7 @@ void SettingsInner::onUpdatePhoto() {
 	saveError();
 
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 	QImage img;
 	QString file;
@@ -1641,7 +1642,7 @@ void SettingsInner::onBackFromGallery() {
 
 void SettingsInner::onBackFromFile() {
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 	QImage img;
 	QString file;

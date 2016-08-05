@@ -568,7 +568,7 @@ void GroupInfoBox::updateMaxHeight() {
 
 void GroupInfoBox::onPhoto() {
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 	QImage img;
 	QString file;

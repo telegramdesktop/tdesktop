@@ -476,7 +476,7 @@ void CoverWidget::onShareContact() {
 
 void CoverWidget::onSetPhoto() {
 	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
 	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
 }

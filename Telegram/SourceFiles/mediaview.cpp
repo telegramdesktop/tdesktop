@@ -667,7 +667,7 @@ void MediaView::onSaveAs() {
 			if (pattern.isEmpty()) {
 				filter = QString();
 			} else {
-				filter = mimeType.filterString() + qsl(";;All files (*.*)");
+				filter = mimeType.filterString() + qsl(";;") + filedialogAllFilesFilter();
 			}
 
 			psBringToBack(this);
@@ -698,7 +698,8 @@ void MediaView::onSaveAs() {
 		if (!_photo || !_photo->loaded()) return;
 
 		psBringToBack(this);
-		bool gotName = filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")));
+		auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
+		bool gotName = filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")));
 		psShowOverAll(this);
 		if (gotName) {
 			if (!file.isEmpty()) {
