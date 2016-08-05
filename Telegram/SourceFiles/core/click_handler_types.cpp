@@ -49,7 +49,7 @@ QString tryConvertUrlToLocal(QString url) {
 		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
 			return qsl("tg://confirmphone?") + confirmPhoneMatch->captured(1);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
-			QString params = url.mid(usernameMatch->captured(0).size()), postParam;
+			QString params = query.mid(usernameMatch->captured(0).size()).toString(), postParam;
 			if (auto postMatch = regex_match(qsl("^/\\d+/?(?:\\?|$)"), usernameMatch->captured(2))) {
 				postParam = qsl("&post=") + usernameMatch->captured(3);
 			}
