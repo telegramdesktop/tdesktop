@@ -665,7 +665,7 @@ scrollDef: flatScroll {
 	hiding: 1000;
 }
 
-msgRadius: 16px;
+msgRadius: 3px;
 dateRadius: 10px;
 buttonRadius: 3px;
 
