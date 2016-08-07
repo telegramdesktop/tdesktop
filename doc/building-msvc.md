@@ -253,8 +253,8 @@ and run
 #### Build
 
 * Open in VS2015 **D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln**
-* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations
-* Change "Treat Warnings As Errors" to "No" in all projects & configurations
+* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>Language)
+* Change "Treat Warnings As Errors" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>General)
 * Build Debug configuration
 * Build Release configuration
 
