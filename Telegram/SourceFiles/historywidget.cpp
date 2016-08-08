@@ -5518,6 +5518,11 @@ void HistoryWidget::doneShow() {
 }
 
 void HistoryWidget::updateAdaptiveLayout() {
+	if (_history) {
+		_history->setPendingResize();
+	}
+
+	updateListSize(false, false, {ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0});
 	update();
 }
 

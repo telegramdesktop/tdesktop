@@ -143,11 +143,7 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 
 void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
 	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Adaptive::Wide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+	w = w - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
 	left += (w - dateTextWidth - st::msgServicePadding.left() - st::msgServicePadding.right()) / 2;
 	int height = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
