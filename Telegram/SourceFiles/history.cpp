@@ -3297,7 +3297,7 @@ void HistoryPhoto::initDimensions() {
 	if (!tw || !th) {
 		tw = th = 1;
 	}
-	if (tw > st::maxMediaSize) {
+	if (!Adaptive::Wide() && tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
@@ -3330,7 +3330,7 @@ int HistoryPhoto::resizeGetHeight(int width) {
 	bool bubble = _parent->hasBubble();
 
 	int tw = convertScale(_data->full->width()), th = convertScale(_data->full->height());
-	if (tw > st::maxMediaSize) {
+	if (!Adaptive::Wide() && tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
