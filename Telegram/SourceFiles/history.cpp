@@ -2623,13 +2623,6 @@ void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
 	p.setFont(st::unreadBarFont);
 	p.setPen(st::unreadBarColor);
 
-	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Adaptive::Wide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	w = maxwidth;
-
 	p.drawText((w - _width) / 2, y + marginTop() + (st::unreadBarHeight - 2 * st::lineWidth - st::unreadBarFont->height) / 2 + st::unreadBarFont->ascent, _text);
 }
 
@@ -3304,7 +3297,11 @@ void HistoryPhoto::initDimensions() {
 	if (!tw || !th) {
 		tw = th = 1;
 	}
-	if (tw > st::maxMediaSize) {
+	if (Adaptive::Wide() && th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
+	else if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
@@ -3337,7 +3334,12 @@ int HistoryPhoto::resizeGetHeight(int width) {
 	bool bubble = _parent->hasBubble();
 
 	int tw = convertScale(_data->full->width()), th = convertScale(_data->full->height());
-	if (tw > st::maxMediaSize) {
+	if (Adaptive::Wide() && th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
+	else if (tw > st::maxMediaSize)
+	{
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
@@ -4017,7 +4019,12 @@ void HistoryDocument::initDimensions() {
 
 	if (auto named = Get<HistoryDocumentNamed>()) {
 		_maxw = qMax(tleft + named->_namew + tright, _maxw);
-		_maxw = qMin(_maxw, int(st::msgMaxWidth));
+
+		if (Adaptive::Wide() && captioned) {
+			_maxw = qMax(captioned->_caption.maxWidth(), _maxw);
+		} else {
+			_maxw = qMin(_maxw, int(st::msgMaxWidth));
+		}
 	}
 
 	if (thumbed) {
@@ -6996,7 +7003,11 @@ void HistoryMessage::initDimensions() {
 }
 
 void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
-	int32 maxwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width;
+	int32 maxwidth = _maxw, hwidth = _history->width;
+	if (!Adaptive::Wide()) {
+		maxwidth = qMin(int(st::msgMaxWidth), maxwidth);
+	}
+
 	if (_media && _media->currentWidth() < maxwidth) {
 		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
 	}
@@ -7580,7 +7591,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 	width -= st::msgMargin.left() + st::msgMargin.right();
 	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		width = st::msgPadding.left() + st::msgPadding.right() + 1;
-	} else if (width > st::msgMaxWidth) {
+	} else if (width > st::msgMaxWidth && !Adaptive::Wide()) {
 		width = st::msgMaxWidth;
 	}
 	if (drawBubble()) {
@@ -8130,11 +8141,7 @@ void HistoryService::initDimensions() {
 
 void HistoryService::countPositionAndSize(int32 &left, int32 &width) const {
 	left = st::msgServiceMargin.left();
-	int32 maxwidth = _history->width;
-	if (Adaptive::Wide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	width = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+	width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 }
 
 TextWithEntities HistoryService::selectedText(TextSelection selection) const {
@@ -8201,9 +8208,6 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 		_textHeight = 0;
 	} else {
 		int32 maxwidth = _history->width;
-		if (Adaptive::Wide()) {
-			maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-		}
 		if (width > maxwidth) width = maxwidth;
 		width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 		if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;

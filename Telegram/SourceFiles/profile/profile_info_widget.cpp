@@ -72,7 +72,10 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 		int availableWidth = newWidth - left - st::profileBlockMarginRight;
 		int maxWidth = st::msgMaxWidth;
 		accumulate_min(textWidth, availableWidth);
-		accumulate_min(textWidth, st::msgMaxWidth);
+		if (!Adaptive::Wide()) {
+			accumulate_min(textWidth, st::msgMaxWidth);
+		}
+
 		_about->resizeToWidth(textWidth + marginLeft + marginRight);
 		_about->moveToLeft(left - marginLeft, newHeight - st::profileBlockTextPart.margin.top());
 		newHeight += _about->height();
