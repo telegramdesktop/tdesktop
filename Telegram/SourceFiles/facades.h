@@ -127,7 +127,7 @@ void botCommandsChanged(UserData *user);
 void inlineBotRequesting(bool requesting);
 void replyMarkupUpdated(const HistoryItem *item);
 void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
-bool switchInlineBotButtonReceived(const QString &query);
+bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot = nullptr, MsgId samePeerReplyTo = 0);
 
 void migrateUpdated(PeerData *peer);
 

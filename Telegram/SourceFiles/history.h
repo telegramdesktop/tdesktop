@@ -821,6 +821,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 			RequestPhone,
 			RequestLocation,
 			SwitchInline,
+			SwitchInlineSame,
 		};
 		Type type;
 		QString text;
