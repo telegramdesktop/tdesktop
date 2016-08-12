@@ -453,7 +453,10 @@ void ApiWrap::gotUser(PeerData *peer, const MTPVector<MTPUser> &result) {
 }
 
 void ApiWrap::gotChats(const MTPmessages_Chats &result) {
-	App::feedChats(result.c_messages_chats().vchats);
+	if (result.type() == mtpc_messages_chats) {
+		auto &d = result.c_messages_chats();
+		App::feedChats(d.vchats);
+	}
 }
 
 void ApiWrap::gotUsers(const MTPVector<MTPUser> &result) {

@@ -599,8 +599,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
 
-"lng_channels_too_much_public_existing" = "Sorry, you have created too many public channels already. Please delete one first.";
-"lng_channels_too_much_public" = "Sorry, you have created too many public channels.\n\nYou can either create a private channel\nor delete one of your public channels first.";
+"lng_channels_too_much_public_about" = "Sorry, you have reserved too many public usernames. You can revoke the link from one of your older groups or channels.";
+"lng_channels_too_much_public_revoke_confirm_group" = "Are you sure you want to revoke the link {link}?\n\nThe group «{group}» will become private.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "Are you sure you want to revoke the link {link}?\n\nThe channel «{group}» will become private.";
+"lng_channels_too_much_public_revoke" = "Revoke";
 
 "lng_group_invite_bad_link" = "This invite link is broken or has expired.";
 "lng_group_invite_want_join" = "Do you want to join the group «{title}»?";

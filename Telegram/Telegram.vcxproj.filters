@@ -1754,6 +1754,9 @@
     <ClInclude Include="SourceFiles\core\qthelp_url.h">
       <Filter>SourceFiles\core</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\core\lambda_wrap.h">
+      <Filter>SourceFiles\core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\application.h">

@@ -155,6 +155,8 @@ inputMediaUploadedThumbDocument#ad613491 file:InputFile thumb:InputFile mime_typ
 inputMediaDocument#1a77f29c id:InputDocument caption:string = InputMedia;
 inputMediaVenue#2827a81a geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputMedia;
 inputMediaGifExternal#4843b0fd url:string q:string = InputMedia;
+inputMediaPhotoExternal#b55f4f18 url:string caption:string = InputMedia;
+inputMediaDocumentExternal#e5e9607c url:string caption:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#94254732 file:InputFile crop:InputPhotoCrop = InputChatPhoto;
@@ -268,7 +270,7 @@ auth.checkedPhone#811ea28e phone_registered:Bool = auth.CheckedPhone;
 
 auth.sentCode#5e002502 flags:# phone_registered:flags.0?true type:auth.SentCodeType phone_code_hash:string next_type:flags.1?auth.CodeType timeout:flags.2?int = auth.SentCode;
 
-auth.authorization#ff036af1 user:User = auth.Authorization;
+auth.authorization#cd050916 flags:# tmp_sessions:flags.0?int user:User = auth.Authorization;
 
 auth.exportedAuthorization#df969c2d id:int bytes:bytes = auth.ExportedAuthorization;
 
@@ -394,6 +396,8 @@ updateReadChannelOutbox#25d6c9c7 channel_id:int max_id:int = Update;
 updateDraftMessage#ee2bb969 peer:Peer draft:DraftMessage = Update;
 updateReadFeaturedStickers#571d2742 = Update;
 updateRecentStickers#9a422c20 = Update;
+updateConfig#a229dd06 = Update;
+updatePtsChanged#3354678f = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -418,7 +422,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true id:int ip_address:string port:int = DcOption;
 
-config#f401a4bf date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int disabled_features:Vector<DisabledFeature> = Config;
+config#9a6b2e2a flags:# date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int tmp_sessions:flags.0?int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -568,7 +572,7 @@ keyboardButtonUrl#258aff05 text:string url:string = KeyboardButton;
 keyboardButtonCallback#683a5e46 text:string data:bytes = KeyboardButton;
 keyboardButtonRequestPhone#b16a6c29 text:string = KeyboardButton;
 keyboardButtonRequestGeoLocation#fc796b3f text:string = KeyboardButton;
-keyboardButtonSwitchInline#ea1b7a14 text:string query:string = KeyboardButton;
+keyboardButtonSwitchInline#568a748 flags:# same_peer:flags.0?true text:string query:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
@@ -672,7 +676,7 @@ auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
 auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 
-messages.botCallbackAnswer#b10df1fb flags:# alert:flags.1?true message:flags.0?string url:flags.2?string = messages.BotCallbackAnswer;
+messages.botCallbackAnswer#b10df1fb flags:# alert:flags.1?true has_url:flags.3?true message:flags.0?string url:flags.2?string = messages.BotCallbackAnswer;
 
 messages.messageEditData#26b5dde6 flags:# caption:flags.0?true = messages.MessageEditData;
 
@@ -804,7 +808,6 @@ messages.addChatUser#f9a0aa09 chat_id:int user_id:InputUser fwd_limit:int = Upda
 messages.deleteChatUser#e0611f16 chat_id:int user_id:InputUser = Updates;
 messages.createChat#9cb126e users:Vector<InputUser> title:string = Updates;
 messages.forwardMessage#33963bf9 peer:InputPeer id:int random_id:long = Updates;
-messages.sendBroadcast#bf73f4da contacts:Vector<InputUser> random_id:Vector<long> message:string media:InputMedia = Updates;
 messages.getDhConfig#26cf8950 version:int random_length:int = messages.DhConfig;
 messages.requestEncryption#f64daf43 user_id:InputUser random_id:int g_a:bytes = EncryptedChat;
 messages.acceptEncryption#3dbc0415 peer:InputEncryptedChat g_b:bytes key_fingerprint:long = EncryptedChat;
@@ -903,5 +906,6 @@ channels.toggleInvites#49609307 channel:InputChannel enabled:Bool = Updates;
 channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessageLink;
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;
+channels.getAdminedPublicChannels#8d8d82d7 = messages.Chats;
 
-// LAYER 54
+// LAYER 55

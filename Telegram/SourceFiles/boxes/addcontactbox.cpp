@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "styles/style_boxes.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
 , _save(this, lang(lng_add_contact), st::defaultBoxButton)
@@ -611,9 +612,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 , _linkOver(false)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton)
-, _tooMuchUsernames(false)
-, _saveRequestId(0)
-, _checkRequestId(0)
 , a_goodOpacity(0, 0)
 , _a_goodFade(animation(this, &SetupChannelBox::step_goodFade)) {
 	setMouseTracking(true);
@@ -747,7 +745,6 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
-	mouseMoveEvent(e);
 	if (_linkOver) {
 		Application::clipboard()->setText(_channel->inviteLink());
 		_goodTextLink = lang(lng_create_channel_link_copied);
@@ -863,7 +860,12 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
 		if (_tooMuchUsernames) {
 			_private.setChecked(true);
-			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public)), KeepOtherLayers);
+			Ui::showLayer(new RevokePublicLinkBox([this, weak_this = weakThis()]() {
+				if (!weak_this) return;
+				_tooMuchUsernames = false;
+				_public.setChecked(true);
+				onCheck();
+			}), KeepOtherLayers);
 			return;
 		}
 		_link.show();
@@ -930,7 +932,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 		return true;
 	} else if (err == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
-			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
+			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -951,6 +953,13 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 	return true;
 }
 
+void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
+	onClose();
+	Ui::showLayer(new RevokePublicLinkBox([channel = _channel, existing = _existing]() {
+		Ui::showLayer(new SetupChannelBox(channel, existing), KeepOtherLayers);
+	}), KeepOtherLayers);
+}
+
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
@@ -961,7 +970,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 		return true;
 	} else if (err == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
-			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
+			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -1382,3 +1391,157 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 	onClose();
 }
 
+RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCallback) : AbstractBox()
+, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+, _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
+, _aboutRevoke(this, lang(lng_channels_too_much_public_about), FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _revokeCallback(std::move(revokeCallback)) {
+	setMouseTracking(true);
+
+	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
+
+	updateMaxHeight();
+
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	prepare();
+}
+
+void RevokePublicLinkBox::updateMaxHeight() {
+	_rowsTop = st::boxPadding.top() + _aboutRevoke->height() + st::boxPadding.top();
+	setMaxHeight(_rowsTop + (5 * _rowHeight) + st::boxButtonPadding.top() + _cancel->height() + st::boxButtonPadding.bottom());
+}
+
+void RevokePublicLinkBox::mouseMoveEvent(QMouseEvent *e) {
+	updateSelected();
+}
+
+void RevokePublicLinkBox::updateSelected() {
+	auto point = mapFromGlobal(QCursor::pos());
+	PeerData *selected = nullptr;
+	auto top = _rowsTop;
+	for_const (auto &row, _rows) {
+		auto revokeLink = rtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - _revokeWidth, top + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _revokeWidth, st::normalFont->height, width());
+		if (revokeLink.contains(point)) {
+			selected = row.peer;
+			break;
+		}
+		top += _rowHeight;
+	}
+	if (selected != _selected) {
+		_selected = selected;
+		setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
+		update();
+	}
+}
+
+void RevokePublicLinkBox::mousePressEvent(QMouseEvent *e) {
+	if (_pressed != _selected) {
+		_pressed = _selected;
+		update();
+	}
+}
+
+void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
+	auto pressed = createAndSwap(_pressed);
+	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
+	if (pressed == _selected) {
+		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
+		auto text = text_method(lt_link, qsl("telegram.me/") + pressed->userName(), lt_group, pressed->name);
+		weakRevokeConfirmBox = new ConfirmBox(text, lang(lng_channels_too_much_public_revoke));
+		weakRevokeConfirmBox->setConfirmedCallback([this, weak_this = weakThis(), pressed]() {
+			if (!weak_this) return;
+			if (_revokeRequestId) return;
+			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
+		});
+		Ui::showLayer(weakRevokeConfirmBox, KeepOtherLayers);
+	}
+}
+
+void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	p.translate(0, _rowsTop);
+	for_const (auto &row, _rows) {
+		paintChat(p, row, (row.peer == _selected), (row.peer == _pressed));
+		p.translate(0, _rowHeight);
+	}
+}
+
+void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
+	_aboutRevoke->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	_cancel->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _cancel->height());
+}
+
+void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const {
+	auto peer = row.peer;
+	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+
+	p.setPen(st::black);
+
+	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
+	int32 namew = width() - namex - st::contactsPadding.right() - (_revokeWidth + st::contactsCheckPosition.x() * 2);
+	if (peer->isVerified()) {
+		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
+		p.drawSpriteLeft(namex + qMin(row.name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
+	}
+	row.name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
+
+	p.setFont(selected ? st::linkOverFont : st::linkFont);
+	p.setPen(pressed ? st::btnDefLink.downColor : st::btnDefLink.color->p);
+	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(lng_channels_too_much_public_revoke), _revokeWidth);
+
+	p.setPen(st::contactsStatusFg);
+	textstyleSet(&st::revokePublicLinkStatusStyle);
+	row.status.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsStatusTop, namew, width());
+	textstyleRestore();
+}
+
+void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
+	if (result.type() == mtpc_messages_chats) {
+		auto &chats = result.c_messages_chats().vchats;
+		for_const (auto &chat, chats.c_vector().v) {
+			if (auto peer = App::feedChat(chat)) {
+				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
+
+				ChatRow row;
+				row.peer = peer;
+				row.name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+				textstyleSet(&st::revokePublicLinkStatusStyle);
+				row.status.setText(st::normalFont, qsl("telegram.me/") + textcmdLink(1, peer->userName()), _textDlgOptions);
+				textstyleRestore();
+				_rows.push_back(std_::move(row));
+			}
+		}
+	}
+	update();
+}
+
+bool RevokePublicLinkBox::getPublicFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+
+	return true;
+}
+
+void RevokePublicLinkBox::revokeLinkDone(const MTPBool &result) {
+	if (weakRevokeConfirmBox) {
+		weakRevokeConfirmBox->onClose();
+	}
+	onClose();
+	if (_revokeCallback) {
+		_revokeCallback();
+	}
+}
+
+bool RevokePublicLinkBox::revokeLinkFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+
+	return true;
+}

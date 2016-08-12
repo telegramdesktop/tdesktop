@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 #include "ui/flatlabel.h"
+#include "core/lambda_wrap.h"
 
 class InformBox;
 class ConfirmBox : public AbstractBox, public ClickHandlerHost {
@@ -39,25 +40,30 @@ public:
 	void leaveEvent(QEvent *e);
 	void updateLink();
 
+	// You can use this instead of connecting to "confirmed()" signal.
+	void setConfirmedCallback(base::lambda_wrap<void()> &&callback) {
+		_confirmedCallback = std_::move(callback);
+	}
+
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
 
 public slots:
-
 	void onCancel();
 
 signals:
-
 	void confirmed();
 	void cancelled();
 	void cancelPressed();
 
 protected:
-
 	void closePressed();
 	void hideAll();
 	void showAll();
+
+private slots:
+	void onConfirmPressed();
 
 private:
 
@@ -65,6 +71,7 @@ private:
 	friend class InformBox;
 
 	void init(const QString &text);
+	void onTextUpdated();
 
 	bool _informative;
 
@@ -76,6 +83,9 @@ private:
 	QPoint _lastMousePos;
 
 	BoxButton _confirm, _cancel;
+
+	base::lambda_unique<void()> _confirmedCallback;
+
 };
 
 class InformBox : public ConfirmBox {

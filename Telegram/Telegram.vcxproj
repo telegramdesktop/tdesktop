@@ -1581,6 +1581,7 @@
     </CustomBuild>
     <ClInclude Include="SourceFiles\core\click_handler.h" />
     <ClInclude Include="SourceFiles\core\click_handler_types.h" />
+    <ClInclude Include="SourceFiles\core\lambda_wrap.h" />
     <ClInclude Include="SourceFiles\core\observer.h" />
     <ClInclude Include="SourceFiles\core\qthelp_regex.h" />
     <ClInclude Include="SourceFiles\core\qthelp_url.h" />
