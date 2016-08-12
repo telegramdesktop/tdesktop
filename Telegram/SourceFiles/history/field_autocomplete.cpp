@@ -677,32 +677,19 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				user->loadUserpic();
 				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
 
-				int32 addleft = 0, widthleft = mentionwidth;
-				QString first = filterIsEmpty ? QString() : ('/' + toHighlight.mid(0, filterSize));
-				QString second = filterIsEmpty ? ('/' + toHighlight) : toHighlight.mid(filterSize);
-				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
-				if (widthleft < firstwidth + secondwidth) {
-					if (widthleft < firstwidth + st::mentionFont->elidew) {
-						first = st::mentionFont->elided(first + second, widthleft);
-						second = QString();
-					} else {
-						second = st::mentionFont->elided(second, widthleft - firstwidth);
-					}
-				}
-				p.setFont(st::mentionFont->f);
-				if (!first.isEmpty()) {
-					p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-					p.drawText(mentionleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
-				}
-				if (!second.isEmpty()) {
-					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-					p.drawText(mentionleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
-				}
-				addleft += firstwidth + secondwidth + st::mentionPadding.left();
-				widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
+				auto commandText = '/' + toHighlight;
+
+				p.setPen(st::windowTextFg);
+				p.setFont(st::semiboldFont);
+				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop + st::semiboldFont->ascent, commandText);
+
+				auto commandTextWidth = st::semiboldFont->width(commandText);
+				auto addleft = commandTextWidth + st::mentionPadding.left();
+				auto widthleft = mentionwidth - addleft;
+
 				if (widthleft > st::mentionFont->elidew && !command->descriptionText().isEmpty()) {
 					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-					command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft, 1, style::al_right);
+					command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft);
 				}
 			}
 		}
