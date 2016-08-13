@@ -37,12 +37,15 @@
             'HAVE_STDINT_H',
             'ZLIB_WINAPI',
             '_SCL_SECURE_NO_WARNINGS',
+            '_USING_V110_SDK71_',
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },
         'VCLinkerTool': {
           'SubSystem': '<(win_subsystem)',
+          'MinimumRequiredVersion': '5.01',
           'ImageHasSafeExceptionHandlers': 'false',   # Disable /SAFESEH
+          'ImportLibrary': '<(PRODUCT_DIR)/<(_target_name).lib',
         },
       },
       'libraries': [
@@ -61,8 +64,6 @@
         'uuid',
         'odbc32',
         'odbccp32',
-#        'glu32',
-#        'opengl32',
         'Shlwapi',
         'Iphlpapi',
         'Gdiplus',
@@ -74,40 +75,30 @@
           'msvs_settings': {
             'VCCLCompilerTool': {
               'Optimization': '0',                # Disabled (/Od)
-              'PreprocessorDefinitions': [
-              ],
               'RuntimeLibrary': '1',              # Multi-threaded Debug (/MTd)
             },
             'VCLinkerTool': {
               'GenerateDebugInformation': 'true', # true (/DEBUG)
+              'IgnoreDefaultLibraryNames': 'LIBCMT',
               'LinkIncremental': '2',             # Yes (/INCREMENTAL)
-              'AdditionalDependencies': [
-                'msvcrtd.lib',
-              ],
-              'AdditionalOptions': [
-                '/NODEFAULTLIB:LIBCMTD'
-              ],
             },
           },
         },
         'Release': {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'Optimization': '2',                # Maximize Speed (/O2)
-              'PreprocessorDefinitions': [
-              ],
-              'FavorSizeOrSpeed': '1',            # Favor fast code (/Ot)
-              'RuntimeLibrary': '0',              # Multi-threaded (/MT)
-              'EnableEnhancedInstructionSet': '2',# Streaming SIMD Extensions 2 (/arch:SSE2)
+              'Optimization': '2',                 # Maximize Speed (/O2)
+              'InlineFunctionExpansion': '2',      # Any suitable (/Ob2)
+              'EnableIntrinsicFunctions': 'true',  # Yes (/Oi)
+              'FavorSizeOrSpeed': '1',             # Favor fast code (/Ot)
+              'RuntimeLibrary': '0',               # Multi-threaded (/MT)
+              'EnableEnhancedInstructionSet': '2', # Streaming SIMD Extensions 2 (/arch:SSE2)
+              'WholeProgramOptimization': 'true',  # /GL
             },
             'VCLinkerTool': {
-              'GenerateDebugInformation': 'true', # /DEBUG
-              'AdditionalDependencies': [
-                'msvcrt.lib',
-              ],
-              'AdditionalOptions': [
-                '/NODEFAULTLIB:LIBCMT'
-              ],
+              'GenerateDebugInformation': 'true',  # /DEBUG
+              'OptimizeReferences': '2',
+              'LinkTimeCodeGeneration': '1',       # /LTCG
             },
           },
         },

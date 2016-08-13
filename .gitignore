@@ -1,6 +1,8 @@
 /out/
+/Debug/
+/Release/
+/Deploy/
 /Telegram/build/target
-/Telegram/build/msvs/
 /Telegram/GeneratedFiles/
 /Telegram/SourceFiles/art/grid.png
 /Telegram/SourceFiles/art/grid_125x.png
@@ -15,7 +17,7 @@
 /Telegram/Resources/art/sprite_125x.png
 /Telegram/Resources/art/sprite_150x.png
 /Telegram/*.user
-*.vcxproj.user
+*.vcxproj*
 *.suo
 *.sdf
 *.opensdf
