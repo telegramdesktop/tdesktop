@@ -7564,6 +7564,11 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			if (_membersDropdown) {
 				_membersDropdown->raise();
 			}
+			_attachType.raise();
+			_emojiPan.raise();
+			_attachDragDocument.raise();
+			_attachDragPhoto.raise();
+
 			updatePinnedBar();
 			result = true;
 
