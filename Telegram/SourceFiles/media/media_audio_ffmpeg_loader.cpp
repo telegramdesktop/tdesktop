@@ -275,9 +275,11 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readMore(QByteArray &result, int64 &
 
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 			LOG(("Audio Error: Unable to avcodec_send_packet() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			if (res == AVERROR_INVALIDDATA) {
-				return ReadResult::NotYet; // try to skip bad packet
-			}
+			// There is a sample voice message where skipping such packet
+			// results in a crash (read_access to nullptr) in swr_convert().
+			//if (res == AVERROR_INVALIDDATA) {
+			//	return ReadResult::NotYet; // try to skip bad packet
+			//}
 			return ReadResult::Error;
 		}
 	}
