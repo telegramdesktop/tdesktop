@@ -6949,7 +6949,7 @@ void HistoryMessage::initDimensions() {
 		if (_text.isEmpty()) {
 			_minh = 0;
 		} else {
-			_minh = st::msgPadding.top() + qMax(_text.minHeight(), st::msgMinTextHeight) + st::msgPadding.bottom();
+			_minh = st::msgPadding.top() + _text.minHeight() + st::msgPadding.bottom();
 		}
 		if (_media && _media->isDisplayed()) {
 			int32 maxw = _media->maxWidth();
@@ -7609,7 +7609,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 				if (textWidth != _textWidth) {
 					textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
 					_textWidth = textWidth;
-					_textHeight = qMax(_text.countHeight(textWidth), st::msgMinTextHeight);
+					_textHeight = _text.countHeight(textWidth);
 					textstyleRestore();
 				}
 				_height = st::msgPadding.top() + _textHeight + st::msgPadding.bottom();
@@ -8217,7 +8217,7 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 		width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 		if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
 
-		int32 nwidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 0);
+		int32 nwidth = qMax(width - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
 		if (nwidth != _textWidth) {
 			_textWidth = nwidth;
 			textstyleSet(&st::serviceTextStyle);

@@ -45,7 +45,3 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
-
-historyServiceMsgRadius: 12px;
-historyServiceMsgInvertedRadius: 6px;
-historyServiceMsgInvertedShrink: 4px;

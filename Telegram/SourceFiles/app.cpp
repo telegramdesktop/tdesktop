@@ -2127,6 +2127,14 @@ namespace {
 		}
 	}
 
+	int msgRadius() {
+		static int MsgRadius = ([]() {
+			auto minMsgHeight = (st::msgPadding.top() + st::msgFont->height + st::msgPadding.bottom());
+			return minMsgHeight / 2;
+		})();
+		return MsgRadius;
+	}
+
 	void initMedia() {
 		audioInit();
 
@@ -2150,7 +2158,7 @@ namespace {
 		}
 
 		QImage mask[4];
-		prepareCorners(LargeMaskCorners, st::msgRadius, st::white, nullptr, mask);
+		prepareCorners(LargeMaskCorners, msgRadius(), st::white, nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
@@ -2164,12 +2172,12 @@ namespace {
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
-		prepareCorners(SelectedOverlayLargeCorners, st::msgRadius, st::msgSelectOverlay);
+		prepareCorners(SelectedOverlayLargeCorners, msgRadius(), st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
-		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
-		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
+		prepareCorners(InShadowCorners, msgRadius(), st::msgInShadow);
+		prepareCorners(InSelectedShadowCorners, msgRadius(), st::msgInShadowSelected);
+		prepareCorners(ForwardCorners, msgRadius(), st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
@@ -2183,10 +2191,10 @@ namespace {
 		prepareCorners(DocRedCorners, st::buttonRadius, st::msgFileRedColor);
 		prepareCorners(DocYellowCorners, st::buttonRadius, st::msgFileYellowColor);
 
-		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
-		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
+		prepareCorners(MessageInCorners, msgRadius(), st::msgInBg, &st::msgInShadow);
+		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
+		prepareCorners(MessageOutCorners, msgRadius(), st::msgOutBg, &st::msgOutShadow);
+		prepareCorners(MessageOutSelectedCorners, msgRadius(), st::msgOutBgSelected, &st::msgOutShadowSelected);
 	}
 
 	void clearHistories() {
@@ -2653,7 +2661,7 @@ namespace {
 			QImage images[4];
 			switch (radius) {
 			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images); break;
-			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::msgRadius, bg, nullptr, images); break;
+			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, msgRadius(), bg, nullptr, images); break;
 			default: p.fillRect(x, y, w, h, bg); return;
 			}
 

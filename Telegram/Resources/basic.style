@@ -665,7 +665,6 @@ scrollDef: flatScroll {
 	hiding: 1000;
 }
 
-msgRadius: 16px;
 dateRadius: 10px;
 buttonRadius: 3px;
 
@@ -1049,7 +1048,6 @@ msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
 msgMinWidth: 190px;
-msgMinTextHeight: 18px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
