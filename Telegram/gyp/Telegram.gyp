@@ -24,18 +24,33 @@
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
+      'style_files': [
+        '<(res_loc)/basic.style',
+        '<(res_loc)/basic_types.style',
+        '<(src_loc)/boxes/boxes.style',
+        '<(src_loc)/dialogs/dialogs.style',
+        '<(src_loc)/history/history.style',
+        '<(src_loc)/media/view/mediaview.style',
+        '<(src_loc)/overview/overview.style',
+        '<(src_loc)/profile/profile.style',
+        '<(src_loc)/ui/widgets/widgets.style',
+      ],
+      'qrc_files': [
+        '<(res_loc)/telegram.qrc',
+        '<(res_loc)/telegram_emojis.qrc',
+      ],
     },
     'includes': [
       'common_executable.gypi',
       'qt.gypi',
+      'codegen_rules.gypi',
     ],
 
     'dependencies': [
       'codegen.gyp:codegen_style',
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:MetaLang',
-#      'utils.gyp:Packer',
-#      'utils.gyp:Updater',
+      'utils.gyp:Updater',
     ],
 
     'defines': [
@@ -52,26 +67,13 @@
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',
       '../ThirdParty/minizip',
-      '<(libs_loc)/openssl/Release/include',
-      '<(libs_loc)/openssl_debug/Debug/include',
     ],
     'library_dirs': [
       '<(libs_loc)/ffmpeg',
     ],
     'sources': [
-      '<(res_loc)/telegram.qrc',
-      '<(res_loc)/telegram_emojis.qrc',
-      '<(res_loc)/telegram_wnd.qrc',
-      '<(res_loc)/telegram_mac.qrc',
-      '<(res_loc)/basic.style',
-      '<(res_loc)/basic_types.style',
-      '<(src_loc)/boxes/boxes.style',
-      '<(src_loc)/dialogs/dialogs.style',
-      '<(src_loc)/history/history.style',
-      '<(src_loc)/media/view/mediaview.style',
-      '<(src_loc)/overview/overview.style',
-      '<(src_loc)/profile/profile.style',
-      '<(src_loc)/ui/widgets/widgets.style',
+      '<@(qrc_files)',
+      '<@(style_files)',
       '<(src_loc)/main.cpp',
       '<(src_loc)/stdafx.cpp',
       '<(src_loc)/stdafx.h',
@@ -283,6 +285,8 @@
       '<(src_loc)/platform/linux/file_dialog_linux.h',
       '<(src_loc)/platform/linux/main_window_linux.cpp',
       '<(src_loc)/platform/linux/main_window_linux.h',
+      '<(src_loc)/platform/mac/main_window_mac.mm',
+      '<(src_loc)/platform/mac/main_window_mac.h',
       '<(src_loc)/platform/win/main_window_win.cpp',
       '<(src_loc)/platform/win/main_window_win.h',
       '<(src_loc)/platform/win/windows_app_user_model_id.cpp',
@@ -404,6 +408,9 @@
     ],
     'configurations': {
       'Debug': {
+        'include_dirs': [
+          '<(libs_loc)/openssl_debug/Debug/include',
+        ],
         'library_dirs': [
           '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
           '<(libs_loc)/libexif-0.6.20/win32/Debug',
@@ -415,6 +422,16 @@
         ],
       },
       'Release': {
+        'conditions': [
+          ['"<(official_build_target)" != ""', {
+            'defines': [
+              'CUSTOM_API_ID',
+            ],
+          }],
+        ],
+        'include_dirs': [
+          '<(libs_loc)/openssl/Release/include',
+        ],
         'library_dirs': [
           '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
           '<(libs_loc)/libexif-0.6.20/win32/Release',
@@ -450,59 +467,39 @@
       'lib\exception_handler',
       'lib\crash_generation_client',
     ],
-    'actions': [{
-      'action_name': 'codegen_lang',
-      'inputs': [
-        '<(PRODUCT_DIR)/MetaLang.exe',
-        '<(res_loc)/langs/lang.strings',
-      ],
-      'outputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/lang_auto.cpp',
-        '<(SHARED_INTERMEDIATE_DIR)/lang_auto.h',
-      ],
-      'action': [
-        '<(PRODUCT_DIR)/MetaLang.exe',
-        '-lang_in', '<(res_loc)/langs/lang.strings',
-        '-lang_out', '<(SHARED_INTERMEDIATE_DIR)/lang_auto',
-      ],
-      'message': 'codegen_lang-ing lang.strings..',
-      'process_outputs_as_sources': 1,
-    }, {
-      'action_name': 'codegen_numbers',
-      'inputs': [
-        '<(PRODUCT_DIR)/codegen_numbers.exe',
-        '<(res_loc)/numbers.txt',
-      ],
-      'outputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/numbers.cpp',
-        '<(SHARED_INTERMEDIATE_DIR)/numbers.h',
-      ],
-      'action': [
-        '<(PRODUCT_DIR)/codegen_numbers.exe',
-        '-o<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/numbers.txt',
-      ],
-      'message': 'codegen_numbers-ing numbers.txt..',
-      'process_outputs_as_sources': 1,
-    }],
-    'rules': [{
-      'rule_name': 'gen_style',
-      'extension': 'style',
-      'inputs': [
-        '<(PRODUCT_DIR)/codegen_style.exe',
-      ],
-      'outputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/styles/style_<(RULE_INPUT_ROOT).h',
-        '<(SHARED_INTERMEDIATE_DIR)/styles/style_<(RULE_INPUT_ROOT).cpp',
-      ],
-      'action': [
-        '<(PRODUCT_DIR)/codegen_style.exe',
-        '-I<(res_loc)', '-I<(src_loc)',
-        '-o<(SHARED_INTERMEDIATE_DIR)/styles', '<(RULE_INPUT_PATH)',
-      ],
-      'message': 'codegen_style-ing <(RULE_INPUT_ROOT).style..',
-      'process_outputs_as_sources': 1,
-    }],
     'conditions': [
+      [ '"<(official_build_target)" != ""', {
+        'dependencies': [
+          'utils.gyp:Packer',
+        ],
+      }],
+      [ 'build_linux', {
+        'variables': {
+          'qrc_files': [
+            '<(res_loc)/telegram_linux.qrc',
+          ],
+        }
+      }],
+      [ 'build_mac', {
+        'variables': {
+          'qrc_files': [
+            '<(res_loc)/telegram_mac.qrc',
+          ],
+        }
+      }],
+      [ 'build_win', {
+        'msvs_precompiled_source': '<(src_loc)/stdafx.cpp',
+        'msvs_precompiled_header': '<(src_loc)/stdafx.h',
+        'msbuild_toolset': 'v140_xp',     #Windows7.1SDK
+        'sources': [
+          '<(res_loc)/winrc/Telegram.rc',
+        ],
+        'variables': {
+          'qrc_files': [
+            '<(res_loc)/telegram_wnd.qrc',
+          ],
+        }
+      }],
       [ '"<(build_linux)" != "1"', {
         'sources!': [
           '<(src_loc)/platform/linux/linux_gdk_helper.cpp',
@@ -517,7 +514,8 @@
       }],
       [ '"<(build_mac)" != "1"', {
         'sources!': [
-          '<(res_loc)/telegram_mac.qrc',
+          '<(src_loc)/platform/mac/main_window_mac.mm',
+          '<(src_loc)/platform/mac/main_window_mac.h',
         ],
       }],
       [ '"<(build_win)" != "1"', {
@@ -532,15 +530,6 @@
           '<(src_loc)/platform/win/windows_event_filter.h',
           '<(src_loc)/platform/win/windows_toasts.cpp',
           '<(src_loc)/platform/win/windows_toasts.h',
-          '<(res_loc)/telegram_wnd.qrc',
-        ],
-      }],
-      [ 'build_win', {
-        'msvs_precompiled_source': '<(src_loc)/stdafx.cpp',
-        'msvs_precompiled_header': '<(src_loc)/stdafx.h',
-        'msbuild_toolset': 'v140_xp',     #Windows7.1SDK
-        'sources': [
-          '<(res_loc)/winrc/Telegram.rc',
         ],
       }],
     ],

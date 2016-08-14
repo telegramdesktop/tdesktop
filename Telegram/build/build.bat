@@ -40,7 +40,7 @@ set "SolutionPath=%HomePath%\.."
 set "UpdateFile=tupdate%AppVersion%"
 set "SetupFile=tsetup.%AppVersionStrFull%.exe"
 set "PortableFile=tportable.%AppVersionStrFull%.zip"
-set "ReleasePath=%HomePath%\..\Win32\Deploy"
+set "ReleasePath=%HomePath%\..\out\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
 set "BinaryName=Telegram"
@@ -80,18 +80,11 @@ if %BetaVersion% neq 0 (
 )
 
 cd "%HomePath%"
-"..\Win32\codegen\Deploy\codegen_style.exe" "-I.\Resources" "-I.\SourceFiles" "-o.\GeneratedFiles\styles" all_files.style --rebuild
-
-cd "%ResourcesPath%"
-if "%1" == "fast" (
-  echo Skipping touching of telegram.qrc...
-) else (
-  copy telegram.qrc /B+,,/Y
-)
+call gyp\refresh.bat
 if %errorlevel% neq 0 goto error
 
 cd "%SolutionPath%"
-MSBuild Telegram.sln /property:Configuration=Deploy
+call ninja -C out/Release Telegram
 if %errorlevel% neq 0 goto error
 
 echo .
@@ -112,8 +105,9 @@ call "%SignPath%" "Updater.exe"
 if %errorlevel% neq 0 goto error
 
 if %BetaVersion% equ 0 (
-  iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "%FullScriptPath%setup.iss"
+  iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
   if %errorlevel% neq 0 goto error
+  if not exist "tsetup.%AppVersionStrFull%.exe" goto error
 
   call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
   if %errorlevel% neq 0 goto error

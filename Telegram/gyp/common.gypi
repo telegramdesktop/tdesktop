@@ -63,6 +63,8 @@
     'ld_lib_postfix': '<(ld_lib_postfix)',
 
     'library%': 'static_library',
+
+    'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
   },
 
   'configurations': {

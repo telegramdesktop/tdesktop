@@ -65,36 +65,40 @@ int Processor::launch() {
 }
 
 bool Processor::write(const structure::Module &module) const {
-	QDir dir(options_.outputPath);
-	if (!dir.mkpath(".")) {
-		common::logError(kErrorCantWritePath, "Command Line") << "can not open path for writing: " << dir.absolutePath().toStdString();
-		return false;
+	bool forceReGenerate = false;
+	bool onlyStyles = options_.skipSprites;
+	bool onlySprites = options_.skipStyles;
+	if (!onlyStyles) {
+		SpriteGenerator spriteGenerator(module, forceReGenerate);
+		if (!spriteGenerator.writeSprites()) {
+			return false;
+		}
 	}
+	if (!onlySprites) {
+		QDir dir(options_.outputPath);
+		if (!dir.mkpath(".")) {
+			common::logError(kErrorCantWritePath, "Command Line") << "can not open path for writing: " << dir.absolutePath().toStdString();
+			return false;
+		}
 
-	QFileInfo srcFile(module.filepath());
-	QString dstFilePath = dir.absolutePath() + '/' + destFileBaseName(module);
+		QFileInfo srcFile(module.filepath());
+		QString dstFilePath = dir.absolutePath() + '/' + destFileBaseName(module);
 
-	bool forceReGenerate = false;// !options_.rebuildDependencies;
-	common::ProjectInfo project = {
-		"codegen_style",
-		srcFile.fileName(),
-		"stdafx.h",
-		forceReGenerate
-	};
+		common::ProjectInfo project = {
+			"codegen_style",
+			srcFile.fileName(),
+			"stdafx.h",
+			forceReGenerate
+		};
 
-	SpriteGenerator spriteGenerator(module, forceReGenerate);
-	if (!spriteGenerator.writeSprites()) {
-		return false;
+		Generator generator(module, dstFilePath, project);
+		if (!generator.writeHeader()) {
+			return false;
+		}
+		if (!generator.writeSource()) {
+			return false;
+		}
 	}
-
-	Generator generator(module, dstFilePath, project);
-	if (!generator.writeHeader()) {
-		return false;
-	}
-	if (!generator.writeSource()) {
-		return false;
-	}
-
 	return true;
 }
 

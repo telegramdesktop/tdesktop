@@ -1,4 +1,4 @@
-/*
+'''
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
@@ -16,27 +16,21 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
-*/
-#pragma once
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+'''
+import sys
+import os
+import re
 
-#include <QtCore/QString>
-#include <QtCore/QStringList>
+my_path = os.path.dirname(os.path.realpath(__file__)).replace('\\', '/')
 
-namespace codegen {
-namespace style {
-
-struct Options {
-	QStringList includePaths = { "." };
-	QString outputPath = ".";
-	QString inputPath;
-	bool rebuildDependencies = false;
-	bool skipStyles = false;
-	bool skipSprites = false;
-};
-
-// Parsing failed if inputPath is empty in the result.
-Options parseOptions();
-
-} // namespace style
-} // namespace codegen
+if len(sys.argv) > 1 and sys.argv[1] == '--read-target':
+  target_path = my_path + '/../build/target'
+  if os.path.isfile(target_path):
+    with open(target_path) as f:
+      for line in f:
+        cleanline = re.sub(r'^\s*|\s*$', '', line);
+        if cleanline != '':
+          print(cleanline);
+else:
+  print('This is a helper script, it should not be called directly.')

@@ -6,6 +6,13 @@ set "FullExecPath=%cd%"
 set "Silence=>nul"
 if "%1" == "-v" set "Silence="
 
+rem strangely linking of Release Telegram build complains about the absence of lib.pdb
+if exist "%FullScriptPath%..\..\..\Libraries\openssl\tmp32\lib.pdb" (
+  if not exist "%FullScriptPath%..\..\..\Libraries\openssl\Release\lib\lib.pdb" (
+    xcopy "%FullScriptPath%..\..\..\Libraries\openssl\tmp32\lib.pdb" "%FullScriptPath%..\..\..\Libraries\openssl\Release\lib\" %Silence%
+  )
+)
+
 cd "%FullScriptPath%"
 call gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=ninja
 if %errorlevel% neq 0 goto error

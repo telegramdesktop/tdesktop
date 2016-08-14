@@ -137,6 +137,9 @@
   }, {
     'rule_name': 'qt_rcc',
     'extension': 'qrc',
+    'inputs': [
+      '<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
+    ],
     'outputs': [
       '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/qrc/qrc_<(RULE_INPUT_ROOT).cpp',
     ],
