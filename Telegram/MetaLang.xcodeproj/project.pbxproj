@@ -11,8 +11,8 @@
 			isa = PBXAggregateTarget;
 			buildConfigurationList = 6CC3B5D2136C7CD6A5CF5A59 /* Build configuration list for PBXNativeTarget "MetaLang" */;
 			buildPhases = (
-				7EF0942E79C014DCEC8976BC /* Qt Preprocessors */,
 				07C3AF44194CCD360016CFF1 /* ShellScript */,
+				7EF0942E79C014DCEC8976BC /* Qt Preprocessors */,
 			);
 			dependencies = (
 			);
@@ -22,8 +22,8 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		07D7954A1B5544B200DE9598 /* qtpcre in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07D795491B5544B200DE9598 /* qtpcre */; };
 		0785004D1CCA847400168DBB /* libqtfreetype.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 0785004C1CCA847400168DBB /* libqtfreetype.a */; };
+		07D7954A1B5544B200DE9598 /* qtpcre in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07D795491B5544B200DE9598 /* qtpcre */; };
 		0E4EEB1BFC9FA7662AD934C6 /* moc_genlang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 680437016D61255E7F889A94 /* moc_genlang.cpp */; settings = {ATTRIBUTES = (); }; };
 		1A681B886F50EE30FBE62B4B /* Qt5PrintSupport in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DBF506D10449BFABD45B82DA /* Qt5PrintSupport */; };
 		1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */; };
@@ -64,8 +64,8 @@
 
 /* Begin PBXFileReference section */
 		04391BE7A8B9D811E255100A /* Qt5Gui */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Gui; path = "$(QT_PATH)/lib/libQt5Gui$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
-		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "$(QT_PATH)/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		0785004C1CCA847400168DBB /* libqtfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqtfreetype.a; path = "$(QT_PATH)/lib/libqtfreetype$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
+		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "$(QT_PATH)/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		31120EDB269DFF13E1D49847 /* qicns */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qicns; path = "$(QT_PATH)/plugins/imageformats/libqicns$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "$(QT_PATH)/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		4D765E1B1EA6C757220C63E7 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = /System/Library/Frameworks/CoreFoundation.framework; sourceTree = "<absolute>"; };
