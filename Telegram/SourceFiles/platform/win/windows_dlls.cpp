@@ -72,11 +72,11 @@ void start() {
 	load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
 	load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
 
+	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
+	load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
+
 	auto version = QSysInfo::windowsVersion();
 	if (version >= QSysInfo::WV_VISTA) {
-		LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
-		load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
-
 		LibWtsApi32 = LoadLibrary(L"WTSAPI32.DLL");
 		load(LibWtsApi32, "WTSRegisterSessionNotification", WTSRegisterSessionNotification);
 		load(LibWtsApi32, "WTSUnRegisterSessionNotification", WTSUnRegisterSessionNotification);
