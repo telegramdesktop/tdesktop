@@ -23,6 +23,7 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'res_loc': '../Resources',
     },
     'includes': [
       'common_executable.gypi',
@@ -38,7 +39,7 @@
       '<(src_loc)/_other/updater_osx.m',
     ],
     'conditions': [
-      [ '<(build_win)', {
+      [ 'build_win', {
         'sources': [
           '<(res_loc)/winrc/Updater.rc',
         ],
