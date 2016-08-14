@@ -244,7 +244,6 @@ and run
     ..\depot_tools\gclient sync
     xcopy src\src\* src /s /i
 
-
 #### Build
 
 * Open in VS2015 **D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln**
@@ -255,10 +254,33 @@ and run
 
 ## Building Telegram Desktop
 
+#### Setup GYP/Ninja and generate VS solution
+
+* Download [Ninja binaries](https://github.com/ninja-build/ninja/releases/download/v1.7.1/ninja-win.zip) and unpack them to **D:\\TBuild\\Libraries\\ninja** to have **D:\\TBuild\\Libraries\\ninja\\ninja.exe**
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
+
+There go to Libraries directory
+
+    D:
+    cd TBuild\Libraries
+
+and run
+
+    git clone https://chromium.googlesource.com/external/gyp
+    SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
+    cd ..\tdesktop\Telegram
+    gyp\refresh.bat
+
+#### Configure VS
+
 * Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add
   * Version name: **Qt 5.6.0 Win32**
   * Path: **D:\TBuild\Libraries\qt5_6_0\qtbase**
 * Default Qt/Win version: **Qt 5.6.0 Win32** – **OK** - You may need to restart Visual Studio for this to take effect.
+
+#### Build the project
+
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
-* Build \ Build Solution (Debug and Release configurations)
+* Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
+* The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)

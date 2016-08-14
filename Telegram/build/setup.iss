@@ -19,7 +19,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir={#SourcePath}..\..\Win32\Deploy
+OutputDir={#ReleasePath}
 OutputBaseFilename=tsetup.{#MyAppVersionFull}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayIcon={app}\Telegram.exe
@@ -45,8 +45,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "{#SourcePath}..\..\Win32\Deploy\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourcePath}..\..\Win32\Deploy\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

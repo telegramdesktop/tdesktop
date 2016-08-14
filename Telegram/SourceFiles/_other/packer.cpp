@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "packer.h"
 
-#include <QtPlugin>
+#include <QtCore/QtPlugin>
 
 #ifdef Q_OS_MAC
 Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)

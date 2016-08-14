@@ -47,6 +47,14 @@ Options parseOptions() {
 		if (arg == "--rebuild") {
 			result.rebuildDependencies = true;
 
+		// Skip generating style modules
+		} else if (arg == "--skip-styles") {
+			result.skipStyles = true;
+
+		// Skip generating sprite_125x.png and sprite_150x.png
+		} else if (arg == "--skip-sprites") {
+			result.skipSprites = true;
+
 		// Include paths
 		} else if (arg == "-I") {
 			if (++i == count) {
