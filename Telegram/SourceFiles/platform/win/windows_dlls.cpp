@@ -24,6 +24,23 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Dlls {
 
+f_SetDllDirectory SetDllDirectory;
+
+HINSTANCE LibKernel32;
+
+void init() {
+	static bool inited = false;
+	if (inited) return;
+	inited = true;
+
+	LibKernel32 = LoadLibrary(L"KERNEL32.DLL");
+	load(LibKernel32, "SetDllDirectoryW", SetDllDirectory);
+	if (SetDllDirectory) {
+		// Remove the current directory from the DLL search order.
+		SetDllDirectory(L"");
+	}
+}
+
 f_SetWindowTheme SetWindowTheme;
 f_OpenAs_RunDLL OpenAs_RunDLL;
 f_SHOpenWithDialog SHOpenWithDialog;
@@ -45,8 +62,7 @@ HINSTANCE LibPropSys;
 HINSTANCE LibComBase;
 
 void start() {
-	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
-	load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
+	init();
 
 	LibShell32 = LoadLibrary(L"SHELL32.DLL");
 	load(LibShell32, "SHAssocEnumHandlers", SHAssocEnumHandlers);
@@ -56,17 +72,25 @@ void start() {
 	load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
 	load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
 
-	LibWtsApi32 = LoadLibrary(L"WTSAPI32.DLL");
-	load(LibWtsApi32, "WTSRegisterSessionNotification", WTSRegisterSessionNotification);
-	load(LibWtsApi32, "WTSUnRegisterSessionNotification", WTSUnRegisterSessionNotification);
+	auto version = QSysInfo::windowsVersion();
+	if (version >= QSysInfo::WV_VISTA) {
+		LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
+		load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
 
-	LibPropSys = LoadLibrary(L"PROPSYS.DLL");
-	load(LibPropSys, "PropVariantToString", PropVariantToString);
+		LibWtsApi32 = LoadLibrary(L"WTSAPI32.DLL");
+		load(LibWtsApi32, "WTSRegisterSessionNotification", WTSRegisterSessionNotification);
+		load(LibWtsApi32, "WTSUnRegisterSessionNotification", WTSUnRegisterSessionNotification);
 
-	LibComBase = LoadLibrary(L"COMBASE.DLL");
-	load(LibComBase, "RoGetActivationFactory", RoGetActivationFactory);
-	load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
-	load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
+		LibPropSys = LoadLibrary(L"PROPSYS.DLL");
+		load(LibPropSys, "PropVariantToString", PropVariantToString);
+
+		if (version >= QSysInfo::WV_WINDOWS8) {
+			LibComBase = LoadLibrary(L"COMBASE.DLL");
+			load(LibComBase, "RoGetActivationFactory", RoGetActivationFactory);
+			load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
+			load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
+		}
+	}
 }
 
 } // namespace Dlls

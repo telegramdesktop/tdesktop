@@ -27,6 +27,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Dlls {
 
+void init();
+
+// KERNEL32.DLL
+typedef BOOL (FAR STDAPICALLTYPE *f_SetDllDirectory)(LPCWSTR lpPathName);
+extern f_SetDllDirectory SetDllDirectory;
+
 void start();
 
 template <typename Function>

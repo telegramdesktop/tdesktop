@@ -737,6 +737,7 @@ void psShowInFolder(const QString &name) {
 namespace Platform {
 
 void start() {
+	Dlls::init();
 }
 
 void finish() {
