@@ -1345,24 +1345,8 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 	}
 
-	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
-		int32 mask = 0;
-		for (int32 i = 0; i < OverviewCount; ++i) {
-			if (overviewCountData[i] == 0) continue; // all loaded
-			if (!overview[i].isEmpty() || !overviewIds[i].isEmpty()) {
-				overview[i].clear();
-				overviewIds[i].clear();
-				mask |= (1 << i);
-			}
-		}
-		for_const (HistoryBlock *block, blocks) {
-			for_const (HistoryItem *item, block->items) {
-				mask |= item->addToOverview(AddToOverviewBack);
-			}
-		}
-		for (int32 t = 0; t < OverviewCount; ++t) {
-			if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
-		}
+	if (!wasLoadedAtBottom) {
+		checkAddAllToOverview();
 	}
 
 	if (isChannel()) asChannelHistory()->checkJoinedMessage();
@@ -1373,9 +1357,34 @@ void History::checkLastMsg() {
 	if (lastMsg) {
 		if (!newLoaded && !lastMsg->detached()) {
 			newLoaded = true;
+			checkAddAllToOverview();
 		}
 	} else if (newLoaded) {
 		setLastMessage(lastImportantMessage());
+	}
+}
+
+void History::checkAddAllToOverview() {
+	if (!loadedAtBottom()) {
+		return;
+	}
+
+	int32 mask = 0;
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		if (overviewCountData[i] == 0) continue; // all loaded
+		if (!overview[i].isEmpty() || !overviewIds[i].isEmpty()) {
+			overview[i].clear();
+			overviewIds[i].clear();
+			mask |= (1 << i);
+		}
+	}
+	for_const (HistoryBlock *block, blocks) {
+		for_const (HistoryItem *item, block->items) {
+			mask |= item->addToOverview(AddToOverviewBack);
+		}
+	}
+	for (int32 t = 0; t < OverviewCount; ++t) {
+		if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
 	}
 }
 

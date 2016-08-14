@@ -494,6 +494,9 @@ private:
 	// After adding a new history slice check the lastMsg and newLoaded.
 	void checkLastMsg();
 
+	// Add all items to the media overview if we were not loaded at bottom and now are.
+	void checkAddAllToOverview();
+
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),
 		f_pending_resize            = (1 << 1),
