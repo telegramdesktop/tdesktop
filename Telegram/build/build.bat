@@ -177,29 +177,18 @@ echo .
 set "FinalReleasePath=Z:\TBuild\tother\tsetup"
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
-echo 1
 if not exist "%DeployPath%\%UpdateFile%" goto error
-echo 2
 if not exist "%DeployPath%\%PortableFile%" goto error
-echo 3
 if %BetaVersion% equ 0 (
   if not exist "%DeployPath%\%SetupFile%" goto error
 )
-echo 4
 if not exist "%DeployPath%\%BinaryName%.pdb" goto error
-echo 5
 if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
-echo 6
 if not exist "%DeployPath%\Updater.exe" goto error
-echo 7
 if not exist "%DeployPath%\Updater.pdb" goto error
-echo 8
 if not exist "%DeployPath%\Updater.exe.pdb" goto error
-echo 9
 if not exist "%FinalReleasePath%\%AppVersionStrMajor%" mkdir "%FinalReleasePath%\%AppVersionStrMajor%"
-echo 10
 if not exist "%FinalDeployPath%" mkdir "%FinalDeployPath%"
-echo 11
 
 xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\"
 xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\"

@@ -91,7 +91,7 @@ private:
 	bool _hadFrame = false;
 	bool _frameRead = false;
 
-	int _audioStreamId = 0;
+	int _audioStreamId = -1;
 	uint64 _playId = 0;
 	int64 _lastReadVideoMs = 0;
 	int64 _lastReadAudioMs = 0;

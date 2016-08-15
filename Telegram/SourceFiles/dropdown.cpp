@@ -1725,7 +1725,6 @@ void StickerPanInner::refreshSavedGifs() {
 void StickerPanInner::inlineBotChanged() {
 	_setGifCommand = false;
 	refreshInlineRows(nullptr, nullptr, true);
-	deleteUnusedInlineLayouts();
 }
 
 void StickerPanInner::clearInlineRows(bool resultsDeleted) {
@@ -1942,6 +1941,7 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 	if (clearResults()) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
+			deleteUnusedInlineLayouts();
 		}
 		emit emptyInlineRows();
 		return 0;
