@@ -717,7 +717,7 @@ public:
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
-	bool notify_switchInlineBotButtonReceived(const QString &query);
+	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);

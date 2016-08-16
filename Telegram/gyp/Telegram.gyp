@@ -182,6 +182,7 @@
       '<(src_loc)/core/click_handler.h',
       '<(src_loc)/core/click_handler_types.cpp',
       '<(src_loc)/core/click_handler_types.h',
+      '<(src_loc)/core/lambda_wrap.h',
       '<(src_loc)/core/observer.cpp',
       '<(src_loc)/core/observer.h',
       '<(src_loc)/core/qthelp_url.cpp',

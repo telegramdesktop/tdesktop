@@ -21,6 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "abstractbox.h"
+#include "core/lambda_wrap.h"
+
+class FlatLabel;
+class ConfirmBox;
 
 class AddContactBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
@@ -180,6 +184,8 @@ private:
 
 	void updateMaxHeight();
 
+	void showRevokePublicLinkBoxForEdit();
+
 	ChannelData *_channel;
 	bool _existing;
 
@@ -191,9 +197,10 @@ private:
 	bool _linkOver;
 	BoxButton _save, _skip;
 
-	bool _tooMuchUsernames;
+	bool _tooMuchUsernames = false;
 
-	mtpRequestId _saveRequestId, _checkRequestId;
+	mtpRequestId _saveRequestId = 0;
+	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	QString _goodTextLink;
@@ -284,5 +291,52 @@ private:
 
 	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId, _saveSignRequestId;
 	QString _sentTitle, _sentDescription;
+
+};
+
+class RevokePublicLinkBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+	RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCallback);
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	void updateMaxHeight();
+	void updateSelected();
+
+	struct ChatRow {
+		PeerData *peer;
+		Text name, status;
+	};
+	void paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const;
+
+	void getPublicDone(const MTPmessages_Chats &result);
+	bool getPublicFail(const RPCError &error);
+
+	void revokeLinkDone(const MTPBool &result);
+	bool revokeLinkFail(const RPCError &error);
+
+	PeerData *_selected = nullptr;
+	PeerData *_pressed = nullptr;
+
+	QVector<ChatRow> _rows;
+
+	int _rowsTop = 0;
+	int _rowHeight = 0;
+	int _revokeWidth = 0;
+
+	ChildWidget<FlatLabel> _aboutRevoke;
+	ChildWidget<BoxButton> _cancel;
+
+	base::lambda_unique<void()> _revokeCallback;
+	mtpRequestId _revokeRequestId = 0;
+	QPointer<ConfirmBox> weakRevokeConfirmBox;
 
 };

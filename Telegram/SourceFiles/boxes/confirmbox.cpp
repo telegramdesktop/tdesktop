@@ -55,21 +55,32 @@ ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style
 void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 
+	connect(&_confirm, SIGNAL(clicked()), this, SLOT(onConfirmPressed()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
+	if (_informative) {
+		_cancel.hide();
+		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
+	}
+	onTextUpdated();
+
+	prepare();
+}
+
+void ConfirmBox::onConfirmPressed() {
+	if (_confirmedCallback) {
+		_confirmedCallback();
+	}
+	emit confirmed();
+}
+
+void ConfirmBox::onTextUpdated() {
 	textstyleSet(&st::boxTextStyle);
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
-	connect(&_confirm, SIGNAL(clicked()), this, SIGNAL(confirmed()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
-	if (_informative) {
-		_cancel.hide();
-		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
-	}
 	setMouseTracking(_text.hasLinks());
-
-	prepare();
 }
 
 void ConfirmBox::onCancel() {
@@ -141,7 +152,7 @@ void ConfirmBox::showAll() {
 
 void ConfirmBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		emit confirmed();
+		onConfirmPressed();
 	} else {
 		AbstractBox::keyPressEvent(e);
 	}

@@ -444,8 +444,8 @@ void MainWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyb
 	_history->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
 }
 
-bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query) {
-	return _history->notify_switchInlineBotButtonReceived(query);
+bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
+	return _history->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
 }
 
 void MainWidget::notify_userIsBotChanged(UserData *bot) {
