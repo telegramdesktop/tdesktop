@@ -48,14 +48,6 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 	setAcceptDrops(true);
 }
 
-void AboutBox::hideAll() {
-	_version.hide();
-	_text1.hide();
-	_text2.hide();
-	_text3.hide();
-	_done.hide();
-}
-
 void AboutBox::showAll() {
 	_version.show();
 	_text1.show();

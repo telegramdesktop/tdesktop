@@ -86,7 +86,7 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
 	ClickHandler::pressed();
-	return LayeredWidget::mousePressEvent(e);
+	return LayerWidget::mousePressEvent(e);
 }
 
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
@@ -128,11 +128,6 @@ void ConfirmBox::updateHover() {
 
 void ConfirmBox::closePressed() {
 	emit cancelled();
-}
-
-void ConfirmBox::hideAll() {
-	_confirm.hide();
-	_cancel.hide();
 }
 
 void ConfirmBox::showAll() {
@@ -246,10 +241,6 @@ void MaxInviteBox::step_good(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void MaxInviteBox::hideAll() {
-	_close.hide();
-}
-
 void MaxInviteBox::showAll() {
 	_close.show();
 }
@@ -342,11 +333,6 @@ bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
 	return true;
 }
 
-void ConvertToSupergroupBox::hideAll() {
-	_convert.hide();
-	_cancel.hide();
-}
-
 void ConvertToSupergroupBox::showAll() {
 	_convert.show();
 	_cancel.show();
@@ -415,13 +401,6 @@ void PinMessageBox::showAll() {
 	_notify.show();
 	_pin.show();
 	_cancel.show();
-}
-
-void PinMessageBox::hideAll() {
-	_text.hide();
-	_notify.hide();
-	_pin.hide();
-	_cancel.hide();
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
@@ -495,15 +474,6 @@ void RichDeleteMessageBox::showAll() {
 	_deleteAll.show();
 	_delete.show();
 	_cancel.show();
-}
-
-void RichDeleteMessageBox::hideAll() {
-	_text.hide();
-	_banUser.hide();
-	_reportSpam.hide();
-	_deleteAll.hide();
-	_delete.hide();
-	_cancel.hide();
 }
 
 KickMemberBox::KickMemberBox(PeerData *chat, UserData *member)
@@ -599,8 +569,4 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 
 void ConfirmInviteBox::showAll() {
 	showChildren();
-}
-
-void ConfirmInviteBox::hideAll() {
-	hideChildren();
 }

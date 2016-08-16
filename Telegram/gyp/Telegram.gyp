@@ -33,6 +33,7 @@
         '<(src_loc)/media/view/mediaview.style',
         '<(src_loc)/overview/overview.style',
         '<(src_loc)/profile/profile.style',
+        '<(src_loc)/settings/settings.style',
         '<(src_loc)/ui/widgets/widgets.style',
       ],
       'qrc_files': [
@@ -329,6 +330,8 @@
       '<(src_loc)/serialize/serialize_common.h',
       '<(src_loc)/serialize/serialize_document.cpp',
       '<(src_loc)/serialize/serialize_document.h',
+      '<(src_loc)/settings/settings_widget.cpp',
+      '<(src_loc)/settings/settings_widget.h',
       '<(src_loc)/ui/buttons/history_down_button.cpp',
       '<(src_loc)/ui/buttons/history_down_button.h',
       '<(src_loc)/ui/buttons/icon_button.cpp',

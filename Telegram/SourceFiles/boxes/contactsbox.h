@@ -40,24 +40,15 @@ class ContactsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 private:
-
 	struct ContactData;
 
 public:
-
 	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
 	ContactsInner(ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already);
 	ContactsInner(ChatData *chat, MembersFilter membersFilter);
 	ContactsInner(UserData *bot);
 	void init();
 	void initList();
-
-	void paintEvent(QPaintEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
@@ -97,7 +88,6 @@ public:
 	~ContactsInner();
 
 signals:
-
 	void mustScrollTo(int ymin, int ymax);
 	void selectAllQuery();
 	void searchByUsername();
@@ -106,7 +96,6 @@ signals:
 	void addRequested();
 
 public slots:
-
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 	void updateSel();
@@ -119,8 +108,15 @@ public slots:
 
 	void onAllAdminsChanged();
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	void updateSelectedRow();
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
@@ -193,29 +189,17 @@ class ContactsBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	ContactsBox();
 	ContactsBox(const QString &name, const QImage &photo); // group creation
 	ContactsBox(ChannelData *channel); // channel setup
 	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
 	ContactsBox(ChatData *chat, MembersFilter filter);
 	ContactsBox(UserData *bot);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void closePressed();
-
-	void setInnerFocus() {
-		_filter.setFocus();
-	}
 
 signals:
-
 	void adminAdded();
 
 public slots:
-
 	void onFilterUpdate();
 	void onFilterCancel();
 	void onChosenChanged();
@@ -231,13 +215,15 @@ public slots:
 	void onNeedSearchByUsername();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void closePressed() override;
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void init();
 
 	ContactsInner _inner;
@@ -280,25 +266,17 @@ private:
 
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);
+
 };
 
 class MembersInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 private:
-
 	struct MemberData;
 
 public:
-
 	MembersInner(ChannelData *channel, MembersFilter filter);
-
-	void paintEvent(QPaintEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
 
 	void paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown);
 
@@ -323,13 +301,11 @@ public:
 	~MembersInner();
 
 signals:
-
 	void mustScrollTo(int ymin, int ymax);
 	void addRequested();
 	void loaded();
 
 public slots:
-
 	void load();
 
 	void updateSel();
@@ -338,8 +314,15 @@ public slots:
 	void onKickConfirm();
 	void onKickBoxDestroyed(QObject *obj);
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
+private:
 	void updateSelectedRow();
 	MemberData *data(int32 index);
 
@@ -409,32 +392,24 @@ class MembersBox : public ItemListBox {
 	Q_OBJECT
 
 public:
-
 	MembersBox(ChannelData *channel, MembersFilter filter);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		setFocus();
-	}
 
 public slots:
-
 	void onScroll();
 
 	void onAdd();
 	void onAdminAdded();
 
 protected:
-
-	void showDone();
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
-
 	MembersInner _inner;
 
 	ContactsBox *_addBox;
 
 	SingleTimer _loadTimer;
+
 };

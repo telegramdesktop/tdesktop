@@ -398,15 +398,6 @@ void StickerSetBox::onScroll() {
 	_inner.setScrollBottom(_scroll.scrollTop() + _scroll.height());
 }
 
-void StickerSetBox::hideAll() {
-	ScrollableBox::hideAll();
-	_shadow.hide();
-	_cancel.hide();
-	_add.hide();
-	_share.hide();
-	_done.hide();
-}
-
 void StickerSetBox::showAll() {
 	ScrollableBox::showAll();
 	int32 cnt = _inner.notInstalled();
@@ -1674,20 +1665,6 @@ void StickersBox::onSave() {
 	} else {
 		MTP::sendAnything();
 	}
-}
-
-void StickersBox::hideAll() {
-	if (_topShadow) {
-		_topShadow->hide();
-	}
-	if (_save) {
-		_save->hide();
-	}
-	if (_cancel) {
-		_cancel->hide();
-		_bottomShadow->hide();
-	}
-	ItemListBox::hideAll();
 }
 
 void StickersBox::showAll() {

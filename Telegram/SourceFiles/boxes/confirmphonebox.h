@@ -40,13 +40,10 @@ private slots:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void hideAll() override {
-		hideChildren();
-	}
 	void showAll() override {
 		showChildren();
 	}
-	void showDone() override {
+	void doSetInnerFocus() override {
 		_code->setFocus();
 	}
 

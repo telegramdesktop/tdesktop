@@ -65,13 +65,6 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	prepare();
 }
 
-void LanguageBox::hideAll() {
-	_close.hide();
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
-		_langs[i]->hide();
-	}
-}
-
 void LanguageBox::showAll() {
 	_close.show();
 	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
@@ -123,7 +116,7 @@ void LanguageBox::onChange() {
 					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
 			ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
 			connect(box, SIGNAL(confirmed()), this, SLOT(onSave()));
-			connect(box, SIGNAL(closed()), this, SLOT(onRestore()));
+			connect(box, SIGNAL(cancelled()), this, SLOT(onRestore()));
 			Ui::showLayer(box, KeepOtherLayers);
 		}
 	}
@@ -146,11 +139,5 @@ void LanguageBox::onSave() {
 			cSetRestartingToSettings(true);
 			App::quit();
 		}
-	}
-}
-
-LanguageBox::~LanguageBox() {
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
-		delete _langs[i];
 	}
 }

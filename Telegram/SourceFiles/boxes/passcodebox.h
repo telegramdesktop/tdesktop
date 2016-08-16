@@ -47,9 +47,8 @@ signals:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void hideAll() override;
 	void showAll() override;
-	void showDone() override;
+	void doSetInnerFocus() override;
 
 private:
 	void init();
@@ -68,7 +67,7 @@ private:
 	mtpRequestId _setRequest;
 
 	QByteArray _newSalt, _curSalt;
-	bool _hasRecovery, _skipEmailWarning;
+	bool _hasRecovery, _skipEmailWarning = false;
 
 	int32 _aboutHeight;
 
@@ -81,35 +80,31 @@ private:
 	LinkButton _recover;
 
 	QString _oldError, _newError, _emailError;
+
 };
 
 class RecoverBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	RecoverBox(const QString &pattern);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onSubmit();
 	void onCodeChanged();
 
 signals:
-
 	void reloadPassword();
 	void recoveryExpired();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
@@ -121,4 +116,5 @@ private:
 	InputField _recoverCode;
 
 	QString _error;
+
 };

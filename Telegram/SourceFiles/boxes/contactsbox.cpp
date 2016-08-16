@@ -1439,16 +1439,6 @@ bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
 	return true;
 }
 
-void ContactsBox::hideAll() {
-	_filter.hide();
-	_filterCancel.hide();
-	_next.hide();
-	_cancel.hide();
-	_topShadow.hide();
-	if (_bottomShadow) _bottomShadow->hide();
-	ItemListBox::hideAll();
-}
-
 void ContactsBox::showAll() {
 	_filter.show();
 	if (_filter.getLastText().isEmpty()) {
@@ -1474,7 +1464,7 @@ void ContactsBox::showAll() {
 	ItemListBox::showAll();
 }
 
-void ContactsBox::showDone() {
+void ContactsBox::doSetInnerFocus() {
 	_filter.setFocus();
 }
 
@@ -1725,7 +1715,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 	_saveRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
-		emit closed();
+		onClose();
 		return true;
 	} else if (error.type() == "USERS_TOO_FEW") {
 		_filter.setFocus();
@@ -2316,9 +2306,4 @@ void MembersBox::onAdminAdded() {
 	_addBox->onClose();
 	_addBox = 0;
 	_loadTimer.start(ReloadChannelMembersTimeout);
-}
-
-void MembersBox::showDone() {
-	_inner.clearSel();
-	setFocus();
 }

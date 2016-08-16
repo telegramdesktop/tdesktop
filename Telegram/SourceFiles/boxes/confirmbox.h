@@ -28,39 +28,35 @@ class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-
 	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::RoundButton &cancelStyle = st::cancelBoxButton);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
+
 	void updateLink();
 
 	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
-
 	void onCancel();
 
 signals:
-
 	void confirmed();
 	void cancelled();
 	void cancelPressed();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
-	void closePressed();
-	void hideAll();
-	void showAll();
+	void closePressed() override;
+	void showAll() override;
 
 private:
-
 	ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, bool informative);
 	friend class InformBox;
 
@@ -76,12 +72,14 @@ private:
 	QPoint _lastMousePos;
 
 	BoxButton _confirm, _cancel;
+
 };
 
 class InformBox : public ConfirmBox {
 public:
 	InformBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
 	}
+
 };
 
 class SharePhoneConfirmBox : public ConfirmBox {
@@ -105,15 +103,12 @@ class ConfirmLinkBox : public ConfirmBox {
 	Q_OBJECT
 
 public:
-
 	ConfirmLinkBox(const QString &url);
 
 public slots:
-
 	void onOpenLink();
 
 private:
-
 	QString _url;
 
 };
@@ -122,21 +117,18 @@ class MaxInviteBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	MaxInviteBox(const QString &link);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void step_good(float64 ms, bool timer);
 
@@ -153,29 +145,26 @@ private:
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
 	Animation _a_good;
+
 };
 
 class ConvertToSupergroupBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	ConvertToSupergroupBox(ChatData *chat);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onConvert();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	void convertDone(const MTPUpdates &updates);
 	bool convertFail(const RPCError &error);
 
@@ -184,28 +173,24 @@ private:
 	int32 _textWidth, _textHeight;
 
 	BoxButton _convert, _cancel;
+
 };
 
 class PinMessageBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	PinMessageBox(ChannelData *channel, MsgId msgId);
 
-	void resizeEvent(QResizeEvent *e);
-
 public slots:
-
 	void onPin();
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll();
-	void hideAll();
+	void showAll() override;
 
 private:
-
 	void pinDone(const MTPUpdates &updates);
 	bool pinFail(const RPCError &error);
 
@@ -225,22 +210,17 @@ class RichDeleteMessageBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId);
 
-	void resizeEvent(QResizeEvent *e);
-
 public slots:
-
 	void onDelete();
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll();
-	void hideAll();
+	void showAll() override;
 
 private:
-
 	ChannelData *_channel;
 	UserData *_from;
 	MsgId _msgId;
@@ -278,7 +258,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void showAll() override;
-	void hideAll() override;
 
 private:
 	ChildWidget<FlatLabel> _title, _status;

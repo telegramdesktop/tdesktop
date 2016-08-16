@@ -26,34 +26,29 @@ class PhotoCropBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	PhotoCropBox(const QImage &img, const PeerId &peer);
 	PhotoCropBox(const QImage &img, PeerData *peer);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
 	int32 mouseState(QPoint p);
 
 public slots:
-
 	void onSend();
 	void onReady(const QImage &tosend);
 
 signals:
-
 	void ready(const QImage &tosend);
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	void init(const QImage &img, PeerData *peer);
 
 	QString _title;

@@ -84,15 +84,6 @@ void AddContactBox::initBox() {
 	prepare();
 }
 
-void AddContactBox::hideAll() {
-	_first.hide();
-	_last.hide();
-	_phone.hide();
-	_save.hide();
-	_cancel.hide();
-	_retry.hide();
-}
-
 void AddContactBox::showAll() {
 	_first.show();
 	_last.show();
@@ -101,7 +92,7 @@ void AddContactBox::showAll() {
 	_cancel.show();
 }
 
-void AddContactBox::showDone() {
+void AddContactBox::doSetInnerFocus() {
 	if ((_first.getLastText().isEmpty() && _last.getLastText().isEmpty()) || !_phone.isEnabled()) {
 		(_invertOrder ? _last : _first).setFocus();
 	} else {
@@ -203,7 +194,7 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
 		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
-		emit closed();
+		onClose();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
 		_first.setFocus();
@@ -243,9 +234,9 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 }
 
 void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
-	const auto &d(res.c_contacts_importedContacts());
+	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
-	emit closed();
+	onClose();
 }
 
 void AddContactBox::onRetry() {
@@ -282,22 +273,11 @@ _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	prepare();
 }
 
-void NewGroupBox::hideAll() {
-	_group.hide();
-	_channel.hide();
-	_cancel.hide();
-	_next.hide();
-}
-
 void NewGroupBox::showAll() {
 	_group.show();
 	_channel.show();
 	_cancel.show();
 	_next.show();
-}
-
-void NewGroupBox::showDone() {
-	setFocus();
 }
 
 void NewGroupBox::keyPressEvent(QKeyEvent *e) {
@@ -364,13 +344,6 @@ _creationRequestId(0), _createdChannel(0) {
 	prepare();
 }
 
-void GroupInfoBox::hideAll() {
-	_title.hide();
-	_description.hide();
-	_cancel.hide();
-	_next.hide();
-}
-
 void GroupInfoBox::showAll() {
 	_title.show();
 	if (_creating == CreatingGroupChannel) {
@@ -382,7 +355,7 @@ void GroupInfoBox::showAll() {
 	_next.show();
 }
 
-void GroupInfoBox::showDone() {
+void GroupInfoBox::doSetInnerFocus() {
 	_title.setFocus();
 }
 
@@ -637,14 +610,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 	prepare();
 }
 
-void SetupChannelBox::hideAll() {
-	_public.hide();
-	_private.hide();
-	_link.hide();
-	_save.hide();
-	_skip.hide();
-}
-
 void SetupChannelBox::showAll() {
 	_public.show();
 	_private.show();
@@ -657,8 +622,12 @@ void SetupChannelBox::showAll() {
 	_skip.show();
 }
 
-void SetupChannelBox::showDone() {
-	_link.setFocus();
+void SetupChannelBox::doSetInnerFocus() {
+	if (_link.isHidden()) {
+		setFocus();
+	} else {
+		_link.setFocus();
+	}
 }
 
 void SetupChannelBox::updateMaxHeight() {
@@ -1007,13 +976,6 @@ _requestId(0) {
 	prepare();
 }
 
-void EditNameTitleBox::hideAll() {
-	_first.hide();
-	_last.hide();
-	_save.hide();
-	_cancel.hide();
-}
-
 void EditNameTitleBox::showAll() {
 	_first.show();
 	if (_peer->isChat()) {
@@ -1025,7 +987,7 @@ void EditNameTitleBox::showAll() {
 	_cancel.show();
 }
 
-void EditNameTitleBox::showDone() {
+void EditNameTitleBox::doSetInnerFocus() {
 	(_invertOrder ? _last : _first).setFocus();
 }
 
@@ -1105,7 +1067,7 @@ void EditNameTitleBox::onSave() {
 
 void EditNameTitleBox::onSaveSelfDone(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-	emit closed();
+	onClose();
 }
 
 bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
@@ -1115,7 +1077,7 @@ bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 	QString first = textOneLine(_first.getLastText().trimmed()), last = textOneLine(_last.getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
 		App::self()->setName(first, last, QString(), textOneLine(App::self()->username));
-		emit closed();
+		onClose();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
 		_first.setFocus();
@@ -1139,7 +1101,7 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 		if (auto chatData = _peer->asChat()) {
 			chatData->setName(_sentName);
 		}
-		emit closed();
+		onClose();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {
 		_first.setFocus();
@@ -1152,7 +1114,7 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 
 void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
-	emit closed();
+	onClose();
 }
 
 EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
@@ -1188,15 +1150,6 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 	prepare();
 }
 
-void EditChannelBox::hideAll() {
-	_title.hide();
-	_description.hide();
-	_sign.hide();
-	_save.hide();
-	_cancel.hide();
-	_publicLink.hide();
-}
-
 void EditChannelBox::showAll() {
 	_title.show();
 	_description.show();
@@ -1214,7 +1167,7 @@ void EditChannelBox::showAll() {
 	}
 }
 
-void EditChannelBox::showDone() {
+void EditChannelBox::doSetInnerFocus() {
 	_title.setFocus();
 }
 

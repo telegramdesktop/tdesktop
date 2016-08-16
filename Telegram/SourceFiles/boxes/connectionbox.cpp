@@ -54,21 +54,6 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
 	prepare();
 }
 
-void ConnectionBox::hideAll() {
-	_autoRadio.hide();
-	_httpProxyRadio.hide();
-	_tcpProxyRadio.hide();
-	_tryIPv6.hide();
-
-	_hostInput.hide();
-	_portInput.hide();
-	_userInput.hide();
-	_passwordInput.hide();
-
-	_save.hide();
-	_cancel.hide();
-}
-
 void ConnectionBox::showAll() {
 	_autoRadio.show();
 	_httpProxyRadio.show();
@@ -96,7 +81,7 @@ void ConnectionBox::showAll() {
 	resizeEvent(0);
 }
 
-void ConnectionBox::showDone() {
+void ConnectionBox::doSetInnerFocus() {
 	if (!_hostInput.isHidden()) {
 		_hostInput.setFocus();
 	}
@@ -218,7 +203,7 @@ void ConnectionBox::onSave() {
 		MTP::restart();
 		reinitImageLinkManager();
 		reinitWebLoadManager();
-		emit closed();
+		onClose();
 	}
 }
 
@@ -240,19 +225,6 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
-}
-
-void AutoDownloadBox::hideAll() {
-	_photoPrivate.hide();
-	_photoGroups.hide();
-	_audioPrivate.hide();
-	_audioGroups.hide();
-	_gifPrivate.hide();
-	_gifGroups.hide();
-	_gifPlay.hide();
-
-	_save.hide();
-	_cancel.hide();
 }
 
 void AutoDownloadBox::showAll() {

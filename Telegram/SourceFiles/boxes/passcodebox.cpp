@@ -116,18 +116,6 @@ void PasscodeBox::init() {
 	connect(&_recover, SIGNAL(clicked()), this, SLOT(onRecoverByEmail()));
 }
 
-void PasscodeBox::hideAll() {
-	_oldPasscode.hide();
-	_newPasscode.hide();
-	_reenterPasscode.hide();
-	_passwordHint.hide();
-	_recoverEmail.hide();
-	_recover.hide();
-	_saveButton.hide();
-	_cancelButton.hide();
-	AbstractBox::hideAll();
-}
-
 void PasscodeBox::showAll() {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : cHasPasscode();
 	if (_turningOff) {
@@ -265,7 +253,7 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	AbstractBox::resizeEvent(e);
 }
 
-void PasscodeBox::showDone() {
+void PasscodeBox::doSetInnerFocus() {
 	if (_skipEmailWarning && !_recoverEmail.isHidden()) {
 		_recoverEmail.setFocus();
 	} else if (_oldPasscode.isHidden()) {
@@ -273,7 +261,6 @@ void PasscodeBox::showDone() {
 	} else {
 		_oldPasscode.setFocus();
 	}
-	_skipEmailWarning = false;
 }
 
 void PasscodeBox::setPasswordDone(const MTPBool &result) {
@@ -419,7 +406,7 @@ void PasscodeBox::onSave(bool force) {
 		Local::setPasscode(pwd.toUtf8());
 		App::wnd()->checkAutoLock();
 		App::wnd()->getTitle()->showUpdateBtn();
-		emit closed();
+		onClose();
 	}
 }
 
@@ -523,13 +510,6 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth)
 	prepare();
 }
 
-void RecoverBox::hideAll() {
-	_recoverCode.hide();
-	_saveButton.hide();
-	_cancelButton.hide();
-	AbstractBox::hideAll();
-}
-
 void RecoverBox::showAll() {
 	_recoverCode.show();
 	_saveButton.show();
@@ -564,7 +544,7 @@ void RecoverBox::resizeEvent(QResizeEvent *e) {
 	AbstractBox::resizeEvent(e);
 }
 
-void RecoverBox::showDone() {
+void RecoverBox::doSetInnerFocus() {
 	_recoverCode.setFocus();
 }
 

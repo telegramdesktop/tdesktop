@@ -42,8 +42,6 @@ typedef QHash<Media::Clip::Reader*, HistoryItem*> GifItems;
 typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
-class LayeredWidget;
-
 namespace App {
 	AppClass *app();
 	MainWindow *wnd();

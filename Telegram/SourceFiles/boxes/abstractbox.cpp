@@ -73,28 +73,25 @@ void BlueTitleClose::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(int32 w) : LayeredWidget()
+AbstractBox::AbstractBox(int32 w) : LayerWidget()
 , _maxHeight(0)
-, _hiding(false)
 , _closed(false)
-, a_opacity(0, 1)
 , _blueTitle(false)
 , _blueClose(0)
 , _blueShadow(0) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(w, 0);
 }
 
 void AbstractBox::prepare() {
 	showAll();
-	_cache = myGrab(this);
-	hideAll();
 }
 
 void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		onClose();
 	} else {
-		LayeredWidget::keyPressEvent(e);
+		LayerWidget::keyPressEvent(e);
 	}
 }
 
@@ -115,17 +112,8 @@ void AbstractBox::parentResized() {
 }
 
 bool AbstractBox::paint(QPainter &p) {
-	bool result = true;
-	if (_cache.isNull()) {
-		result = (_hiding && a_opacity.current() < 0.01);
-
-		// fill bg
-		p.fillRect(rect(), st::boxBg->b);
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
-	return result;
+	p.fillRect(rect(), st::boxBg);
+	return false;
 }
 
 void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
@@ -151,21 +139,6 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &ad
 void AbstractBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	if (paint(p)) return;
-}
-
-void AbstractBox::showStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		setAttribute(Qt::WA_OpaquePaintEvent);
-		if (!_hiding) {
-			showAll();
-			showDone();
-		}
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	update();
 }
 
 void AbstractBox::setMaxHeight(int32 maxHeight) {
@@ -200,17 +173,7 @@ void AbstractBox::onClose() {
 		_closed = true;
 		closePressed();
 	}
-	emit closed();
-}
-
-void AbstractBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this);
-		hideAll();
-	}
-	a_opacity.start(0);
-	setAttribute(Qt::WA_OpaquePaintEvent, false);
+	emit closed(this);
 }
 
 void AbstractBox::setBlueTitle(bool blue) {
@@ -246,11 +209,6 @@ void ScrollableBox::init(QWidget *inner, int32 bottomSkip, int32 topSkip) {
 	_scroll.setWidget(_innerPtr);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	ScrollableBox::resizeEvent(0);
-}
-
-void ScrollableBox::hideAll() {
-	_scroll.hide();
-	AbstractBox::hideAll();
 }
 
 void ScrollableBox::showAll() {

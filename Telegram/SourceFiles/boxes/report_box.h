@@ -40,10 +40,7 @@ protected:
 	void showAll() override {
 		showChildren();
 	}
-	void hideAll() override {
-		hideChildren();
-	}
-	void setInnerFocus() override;
+	void doSetInnerFocus() override;
 
 private:
 	void updateMaxHeight();

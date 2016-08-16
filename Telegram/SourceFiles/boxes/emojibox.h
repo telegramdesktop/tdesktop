@@ -26,13 +26,13 @@ class EmojiBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	EmojiBox();
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
+
+protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
-
 	void fillBlocks();
 
 	int32 _esize;
@@ -47,4 +47,5 @@ private:
 	typedef QVector<Block> BlockRow;
 	typedef QVector<BlockRow> Blocks;
 	Blocks _blocks;
+
 };

@@ -2760,7 +2760,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			toText.drawElided(p, box.left() + st::boxPadding.left(), box.top() + st::boxPadding.top(), toTextWidth + 2);
 		} else {
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
-			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
+			App::roundRect(p, (width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
 			p.setPen(st::white->p);
 			p.drawText(box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
@@ -2849,7 +2849,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 		_send.hide();
 		_cancel.hide();
 	}
-	box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
+	box = QRect((width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h);
 	_send.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right(), box.y() + h - st::boxButtonPadding.bottom() - _send.height());
 	_cancel.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
 }
@@ -7742,7 +7742,7 @@ void HistoryWidget::onReplyToMessage() {
 			onReplyToMessage();
 			App::contextItem(to);
 		} else {
-			LayeredWidget *box = 0;
+			LayerWidget *box = nullptr;
 			if (to->type() != HistoryItemMsg || to->serviceMsg()) {
 				box = new InformBox(lang(lng_reply_cant));
 			} else {

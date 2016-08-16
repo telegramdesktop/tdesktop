@@ -26,30 +26,22 @@ class AddContactBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	AddContactBox(QString fname = QString(), QString lname = QString(), QString phone = QString());
 	AddContactBox(UserData *user);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		_first.setFocus();
-	}
 
 public slots:
-
 	void onSubmit();
 	void onSave();
 	void onRetry();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
 	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
@@ -76,24 +68,19 @@ class NewGroupBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	NewGroupBox();
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onNext();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
 
 private:
-
 	Radiobutton _group, _channel;
 	int32 _aboutGroupWidth, _aboutGroupHeight;
 	Text _aboutGroup, _aboutChannel;
@@ -105,20 +92,9 @@ class GroupInfoBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	void setInnerFocus() {
-		_title.setFocus();
-	}
 
 public slots:
-
 	void onPhoto();
 	void onPhotoReady(const QImage &img);
 
@@ -127,13 +103,16 @@ public slots:
 	void onDescriptionResized();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void step_photoOver(float64 ms, bool timer);
 
 	QRect photoRect() const;
@@ -160,33 +139,16 @@ private:
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);
 	void exportDone(const MTPExportedChatInvite &result);
+
 };
 
 class SetupChannelBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	SetupChannelBox(ChannelData *channel, bool existing = false);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	void closePressed();
-
-	void setInnerFocus() {
-		if (_link.isHidden()) {
-			setFocus();
-		} else {
-			_link.setFocus();
-		}
-	}
 
 public slots:
-
 	void onSave();
 	void onChange();
 	void onCheck();
@@ -194,13 +156,18 @@ public slots:
 	void onPrivacyChange();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void closePressed() override;
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void step_goodFade(float64 ms, bool timer);
 
@@ -234,34 +201,27 @@ private:
 	Animation _a_goodFade;
 
 	QTimer _checkTimer;
+
 };
 
 class EditNameTitleBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	EditNameTitleBox(PeerData *peer);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		_first.setFocus();
-	}
 
 public slots:
-
 	void onSave();
 	void onSubmit();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void onSaveSelfDone(const MTPUser &user);
 	bool onSaveSelfFail(const RPCError &error);
 
@@ -278,26 +238,16 @@ private:
 
 	mtpRequestId _requestId;
 	QString _sentName;
+
 };
 
 class EditChannelBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	EditChannelBox(ChannelData *channel);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		if (!_description.hasFocus()) {
-			_title.setFocus();
-		}
-	}
 
 public slots:
-
 	void peerUpdated(PeerData *peer);
 
 	void onSave();
@@ -305,13 +255,14 @@ public slots:
 	void onPublicLink();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void updateMaxHeight();
 
 	void onSaveTitleDone(const MTPUpdates &updates);
@@ -333,4 +284,5 @@ private:
 
 	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId, _saveSignRequestId;
 	QString _sentTitle, _sentDescription;
+
 };

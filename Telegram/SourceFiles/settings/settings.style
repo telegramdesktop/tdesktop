@@ -18,26 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+using "basic.style";
+using "basic_types.style";
 
-#include "abstractbox.h"
-
-class AutoLockBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-	AutoLockBox();
-
-public slots:
-	void onChange();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void showAll() override;
-
-private:
-	QVector<Radiobutton*> _options;
-	BoxButton _close;
-
-};

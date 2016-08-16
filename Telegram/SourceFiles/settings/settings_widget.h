@@ -20,24 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+namespace Settings {
 
-class AutoLockBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-	AutoLockBox();
-
-public slots:
-	void onChange();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void showAll() override;
-
-private:
-	QVector<Radiobutton*> _options;
-	BoxButton _close;
-
-};
+} // namespace Settings

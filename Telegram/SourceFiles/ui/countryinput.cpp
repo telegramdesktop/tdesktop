@@ -192,9 +192,6 @@ void CountryInput::setText(const QString &newText) {
 	_text = _st.font->elided(newText, width() - _st.textMrg.left() - _st.textMrg.right());
 }
 
-CountryInput::~CountryInput() {
-}
-
 CountrySelectInner::CountrySelectInner() : TWidget()
 , _rowHeight(st::countryRowHeight)
 , _sel(0)
@@ -483,13 +480,6 @@ void CountrySelectBox::resizeEvent(QResizeEvent *e) {
 	_topShadow.setGeometry(0, st::boxTitleHeight + _filter.height(), width(), st::lineWidth);
 }
 
-void CountrySelectBox::hideAll() {
-	_filter.hide();
-	_filterCancel.hide();
-	_topShadow.hide();
-	ItemListBox::hideAll();
-}
-
 void CountrySelectBox::showAll() {
 	_filter.show();
 	if (_filter.getLastText().isEmpty()) {
@@ -515,6 +505,6 @@ void CountrySelectBox::onFilterUpdate() {
 	_inner.updateFilter(_filter.getLastText());
 }
 
-void CountrySelectBox::showDone() {
+void CountrySelectBox::doSetInnerFocus() {
 	_filter.setFocus();
 }

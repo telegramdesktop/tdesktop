@@ -55,15 +55,6 @@ _about(st::boxWidth - st::usernamePadding.left()) {
 	prepare();
 }
 
-void UsernameBox::hideAll() {
-	_username.hide();
-	_save.hide();
-	_cancel.hide();
-	_link.hide();
-
-	AbstractBox::hideAll();
-}
-
 void UsernameBox::showAll() {
 	_username.show();
 	_save.show();
@@ -73,7 +64,7 @@ void UsernameBox::showAll() {
 	AbstractBox::showAll();
 }
 
-void UsernameBox::showDone() {
+void UsernameBox::doSetInnerFocus() {
 	_username.setFocus();
 }
 
@@ -195,7 +186,7 @@ void UsernameBox::onLinkClick() {
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-	emit closed();
+	onClose();
 }
 
 bool UsernameBox::onUpdateFail(const RPCError &error) {
@@ -205,7 +196,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
 		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
-		emit closed();
+		onClose();
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
 		_username.setFocus();

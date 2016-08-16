@@ -22,24 +22,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/boxshadow.h"
 
-class LayeredWidget : public TWidget {
+class LayerWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
-	virtual void showStep(float64 ms) {
-	}
 	virtual void parentResized() = 0;
-	virtual void startHide() {
+	virtual void showDone() {
 	}
-
-	virtual void setInnerFocus() {
-		setFocus();
-	}
-
-	virtual void resizeEvent(QResizeEvent *e) {
-		emit resized();
-	}
+	void setInnerFocus();
 
 	void mousePressEvent(QMouseEvent *e) {
 		e->accept();
@@ -50,60 +40,91 @@ public:
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-signals:
+protected:
+	void resizeEvent(QResizeEvent *e) override {
+		emit resized();
+	}
+	virtual void doSetInnerFocus() {
+		setFocus();
+	}
 
-	void closed();
+signals:
+	void closed(LayerWidget *layer);
 	void resized();
 
 };
 
-class BackgroundWidget : public TWidget {
+class LayerStackWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
-	BackgroundWidget(QWidget *parent, LayeredWidget *w);
+	LayerStackWidget(QWidget *parent);
 
 	void showFast();
 
-	void paintEvent(QPaintEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
 	void updateAdaptiveLayout();
 
-	void replaceInner(LayeredWidget *n);
-	void showLayerLast(LayeredWidget *n);
-
-	void step_background(float64 ms, bool timer);
+	void showLayer(LayerWidget *l);
+	void showSpecialLayer(LayerWidget *l);
+	void appendLayer(LayerWidget *l);
+	void prependLayer(LayerWidget *l);
 
 	bool canSetFocus() const;
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	~BackgroundWidget();
-
-public slots:
-
 	void onClose();
-	bool onInnerClose();
-	void boxDestroyed(QObject *obj);
+
+	~LayerStackWidget();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
+	void onLayerDestroyed(QObject *obj);
+	void onLayerClosed(LayerWidget *l);
+	void onLayerResized();
 
 private:
+	void clearLayers();
+	void initChildLayer(LayerWidget *l);
+	void activateLayer(LayerWidget *l);
+	void updateLayerBox();
+	void fixOrder();
 
+	void startShow();
 	void startHide();
+	void startAnimation(float64 toOpacity);
 
-	LayeredWidget *w;
-	typedef QList<LayeredWidget*> HiddenLayers;
-	HiddenLayers _hidden;
-	anim::fvalue a_bg;
+	void step_background(float64 ms, bool timer);
+
+	LayerWidget *layer() {
+		return _layers.empty() ? nullptr : _layers.back();
+	}
+	const LayerWidget *layer() const {
+		return const_cast<LayerStackWidget*>(this)->layer();
+	}
+
+	using Layers = QList<LayerWidget*>;
+	Layers _layers;
+
+	ChildWidget<LayerWidget> _specialLayer = { nullptr };
+
+	class BackgroundWidget;
+	ChildWidget<BackgroundWidget> _background;
+
+	anim::fvalue a_bg, a_layer;
 	Animation _a_background;
 
-	bool hiding;
+	QPixmap _layerCache;
+	QRect _layerCacheBox;
 
-	BoxShadow shadow;
+	bool _hiding = false;
+
 };
 
 class MediaPreviewWidget : public TWidget {

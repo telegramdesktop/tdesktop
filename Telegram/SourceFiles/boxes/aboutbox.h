@@ -27,29 +27,25 @@ class AboutBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	AboutBox();
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-
-	void dragEnterEvent(QDragEnterEvent *e);
-	void dropEvent(QDropEvent *e);
 
 public slots:
-
 	void onVersion();
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void dragEnterEvent(QDragEnterEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	LinkButton _version;
 	FlatLabel _text1, _text2, _text3;
 	BoxButton _done;
+
 };
 
 QString telegramFaqLink();

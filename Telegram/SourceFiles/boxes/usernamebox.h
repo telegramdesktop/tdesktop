@@ -26,28 +26,24 @@ class UsernameBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	UsernameBox();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onSave();
-	
+
 	void onCheck();
 	void onChanged();
 
 	void onLinkClick();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void onUpdateDone(const MTPUser &result);
 	bool onUpdateFail(const RPCError &error);
 
@@ -66,4 +62,5 @@ private:
 
 	Text _about;
 	QTimer _checkTimer;
+
 };

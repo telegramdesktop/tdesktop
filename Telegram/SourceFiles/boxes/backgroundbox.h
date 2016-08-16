@@ -26,23 +26,19 @@ class BackgroundInner : public QWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	BackgroundInner();
 
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	~BackgroundInner();
-
 signals:
-
 	void backgroundChosen(int index);
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
 	void updateWallpapers();
 
@@ -55,16 +51,15 @@ class BackgroundBox : public ItemListBox {
 	Q_OBJECT
 
 public:
-
 	BackgroundBox();
-	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void onBackgroundChosen(int index);
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
+private:
 	BackgroundInner _inner;
 
 };

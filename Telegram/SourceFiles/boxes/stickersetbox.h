@@ -90,11 +90,7 @@ class StickerSetBox : public ScrollableBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	StickerSetBox(const MTPInputStickerSet &set);
-
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
 	void onStickersUpdated();
@@ -111,8 +107,10 @@ signals:
 	void installed(uint64 id);
 
 protected:
-	void hideAll();
-	void showAll();
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void showAll() override;
 
 private:
 	StickerSetInner _inner;
@@ -139,11 +137,6 @@ public:
 	StickersBox(Section section = Section::Installed);
 	StickersBox(const Stickers::Order &archivedIds);
 
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-
-	void closePressed();
-
 	~StickersBox();
 
 public slots:
@@ -159,8 +152,11 @@ private slots:
 	void onScroll();
 
 protected:
-	void hideAll();
-	void showAll();
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+	void closePressed() override;
+	void showAll() override;
 
 private:
 	void setup();

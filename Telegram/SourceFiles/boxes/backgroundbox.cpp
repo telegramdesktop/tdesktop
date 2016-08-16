@@ -172,9 +172,6 @@ void BackgroundInner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-BackgroundInner::~BackgroundInner() {
-}
-
 void BackgroundInner::resizeEvent(QResizeEvent *e) {
 }
 
@@ -201,5 +198,5 @@ void BackgroundBox::onBackgroundChosen(int index) {
 		if (App::main()) App::main()->setChatBackground(paper);
 		if (App::settings()) App::settings()->needBackgroundUpdate(!paper.id);
 	}
-	emit closed();
+	onClose();
 }

@@ -535,7 +535,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 		_hider = nullptr;
 		if (Adaptive::OneColumn()) {
 			if (_forwardConfirm) {
-				_forwardConfirm->startHide();
+				_forwardConfirm->onClose();
 				_forwardConfirm = 0;
 			}
 			onHistoryShown(_history->history(), _history->msgId());
@@ -589,9 +589,11 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 		} else {
 			_history->hide();
 		}
-		_dialogs->show();
-		resizeEvent(0);
-		_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
+		if (_dialogs->isHidden()) {
+			_dialogs->show();
+			resizeEvent(0);
+			_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
+		}
 		App::wnd()->getTitle()->updateBackButton();
 	} else {
 		_hider->show();
@@ -693,7 +695,7 @@ void MainWidget::offerPeer(PeerId peer) {
 void MainWidget::onForwardCancel(QObject *obj) {
 	if (!obj || obj == _forwardConfirm) {
 		if (_forwardConfirm) {
-			if (!obj) _forwardConfirm->startHide();
+			if (!obj) _forwardConfirm->onClose();
 			_forwardConfirm = 0;
 		}
 		if (_hider) _hider->offerPeer(0);
@@ -1510,7 +1512,7 @@ void MainWidget::onDownloadPathSettings() {
 	cSetDownloadPathBookmark(QByteArray());
 	DownloadPathBox *box = new DownloadPathBox();
 	if (App::wnd() && App::wnd()->settingsWidget()) {
-		connect(box, SIGNAL(closed()), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
+		connect(box, SIGNAL(closed(LayerWidget*)), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
 	}
 	Ui::showLayer(box);
 }
@@ -2597,12 +2599,14 @@ void MainWidget::showAll() {
 			_dialogs->show();
 			_history->hide();
 		}
-		if (_wideSection) {
-			_topBar->hide();
-			_dialogs->hide();
-		} else if (!selectingPeer() && (_overview || _history->peer())) {
-			_topBar->show();
-			_dialogs->hide();
+		if (!selectingPeer()) {
+			if (_wideSection) {
+				_topBar->hide();
+				_dialogs->hide();
+			} else if (_overview || _history->peer()) {
+				_topBar->show();
+				_dialogs->hide();
+			}
 		}
 	} else {
 		_sideShadow.show();

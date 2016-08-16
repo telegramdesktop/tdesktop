@@ -37,24 +37,20 @@ class SessionsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	SessionsInner(SessionsList *list, SessionData *current);
-
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	void listUpdated();
 
-	~SessionsInner();
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 signals:
-
 	void oneTerminated();
 	void allTerminated();
 	void terminateAll();
 
 public slots:
-
 	void onTerminate();
 	void onTerminateSure();
 	void onTerminateAll();
@@ -62,7 +58,6 @@ public slots:
 	void onNoTerminateBox(QObject *obj);
 
 private:
-	
 	void terminateDone(uint64 hash, const MTPBool &result);
 	bool terminateFail(uint64 hash, const RPCError &error);
 
@@ -85,13 +80,9 @@ class SessionsBox : public ScrollableBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	SessionsBox();
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void onOneTerminated();
 	void onAllTerminated();
 	void onTerminateAll();
@@ -99,12 +90,12 @@ public slots:
 	void onNewAuthorization();
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	void gotAuthorizations(const MTPaccount_Authorizations &result);
 
 	bool _loading;

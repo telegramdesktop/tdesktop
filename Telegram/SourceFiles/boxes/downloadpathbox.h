@@ -26,24 +26,20 @@ class DownloadPathBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	DownloadPathBox();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onChange();
 	void onEditPath();
 	void onSave();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	void setPathText(const QString &text);
 
 	QString _path;
@@ -52,4 +48,5 @@ private:
 	Radiobutton _default, _temp, _dir;
 	LinkButton _pathLink;
 	BoxButton _save, _cancel;
+
 };

@@ -220,12 +220,6 @@ void SessionsInner::listUpdated() {
 	update();
 }
 
-SessionsInner::~SessionsInner() {
-	for (int32 i = 0, l = _terminateButtons.size(); i < l; ++i) {
-		delete _terminateButtons[i];
-	}
-}
-
 SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 , _loading(true)
 , _inner(&_list, &_current)
@@ -253,11 +247,6 @@ void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _done.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
-}
-
-void SessionsBox::hideAll() {
-	_done.hide();
-	ScrollableBox::hideAll();
 }
 
 void SessionsBox::showAll() {

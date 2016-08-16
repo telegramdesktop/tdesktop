@@ -508,7 +508,7 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 	}
 
 	auto box = new PhotoCropBox(img, _peer);
-	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onPhotoUploadStatusChanged()));
 	Ui::showLayer(box);
 }
 

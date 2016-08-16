@@ -31,11 +31,11 @@ class PasscodeWidget;
 class IntroWidget;
 class MainWidget;
 class SettingsWidget;
-class BackgroundWidget;
-class LayeredWidget;
+class LayerStackWidget;
+class LayerWidget;
 namespace Local {
-	class ClearManager;
-}
+class ClearManager;
+} // namespace Local
 
 class ConnectingWidget : public QWidget {
 	Q_OBJECT
@@ -192,8 +192,8 @@ public:
 	void noIntro(IntroWidget *was);
 	void noSettings(SettingsWidget *was);
 	void noMain(MainWidget *was);
-	void noBox(BackgroundWidget *was);
-	void layerFinishedHide(BackgroundWidget *was);
+	void noLayerStack(LayerStackWidget *was);
+	void layerFinishedHide(LayerStackWidget *was);
 
 	void fixOrder();
 
@@ -240,7 +240,7 @@ public:
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
 
-	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
+	void ui_showLayer(LayerWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
 	void ui_showMediaPreview(DocumentData *document);
@@ -317,7 +317,7 @@ private:
 	IntroWidget *intro = nullptr;
 	MainWidget *main = nullptr;
 	SettingsWidget *settings = nullptr;
-	BackgroundWidget *layerBg = nullptr;
+	ChildWidget<LayerStackWidget> layerBg = { nullptr };
 	std_::unique_ptr<MediaPreviewWidget> _mediaPreview;
 
 	QTimer _isActiveTimer;

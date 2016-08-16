@@ -26,25 +26,21 @@ class LanguageBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	LanguageBox();
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-	~LanguageBox();
 
 public slots:
-
 	void onChange();
 	void onRestore();
 	void onSave();
 
 protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	QVector<Radiobutton*> _langs;
 	BoxButton _close;
+
 };

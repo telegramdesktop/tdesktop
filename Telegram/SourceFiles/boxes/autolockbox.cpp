@@ -53,13 +53,6 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	prepare();
 }
 
-void AutoLockBox::hideAll() {
-	_close.hide();
-	for (int32 i = 0, l = _options.size(); i < l; ++i) {
-		_options[i]->hide();
-	}
-}
-
 void AutoLockBox::showAll() {
 	_close.show();
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
@@ -86,10 +79,4 @@ void AutoLockBox::onChange() {
 	}
 	App::wnd()->checkAutoLock();
 	onClose();
-}
-
-AutoLockBox::~AutoLockBox() {
-	for (int32 i = 0, l = _options.size(); i < l; ++i) {
-		delete _options[i];
-	}
 }

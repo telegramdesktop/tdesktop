@@ -799,28 +799,21 @@ void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void MainWindow::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
+void MainWindow::ui_showLayer(LayerWidget *box, ShowLayerOptions options) {
 	if (box) {
-		bool fast = (options.testFlag(ForceFastShowLayer)) || Ui::isLayerShown();
-		if (layerBg) {
-			if (options.testFlag(KeepOtherLayers)) {
-				if (options.testFlag(ShowAfterOtherLayers)) {
-					layerBg->showLayerLast(box);
-					return;
-				} else {
-					layerBg->replaceInner(box);
-					return;
-				}
-			} else {
-				layerBg->onClose();
-				layerBg->hide();
-				layerBg->deleteLater();
-				layerBg = 0;
-			}
+		if (!layerBg) {
+			layerBg = new LayerStackWidget(this);
 		}
-
-		layerBg = new BackgroundWidget(this, box);
-		if (fast) {
+		if (options.testFlag(KeepOtherLayers)) {
+			if (options.testFlag(ShowAfterOtherLayers)) {
+				layerBg->prependLayer(box);
+			} else {
+				layerBg->appendLayer(box);
+			}
+		} else {
+			layerBg->showLayer(box);
+		}
+		if (options.testFlag(ForceFastShowLayer)) {
 			layerBg->showFast();
 		}
 	} else {
@@ -829,7 +822,7 @@ void MainWindow::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 			if (options.testFlag(ForceFastShowLayer)) {
 				layerBg->hide();
 				layerBg->deleteLater();
-				layerBg = 0;
+				layerBg = nullptr;
 			}
 		}
 		hideMediaview();
@@ -922,7 +915,7 @@ void MainWindow::layerHidden() {
 		layerBg->hide();
 		layerBg->deleteLater();
 	}
-	layerBg = 0;
+	layerBg = nullptr;
 	hideMediaview();
 	setInnerFocus();
 }
@@ -1238,13 +1231,13 @@ void MainWindow::noMain(MainWidget *was) {
 	}
 }
 
-void MainWindow::noBox(BackgroundWidget *was) {
+void MainWindow::noLayerStack(LayerStackWidget *was) {
 	if (was == layerBg) {
-		layerBg = 0;
+		layerBg = nullptr;
 	}
 }
 
-void MainWindow::layerFinishedHide(BackgroundWidget *was) {
+void MainWindow::layerFinishedHide(LayerStackWidget *was) {
 	if (was == layerBg) {
 		QTimer::singleShot(0, this, SLOT(layerHidden()));
 	}

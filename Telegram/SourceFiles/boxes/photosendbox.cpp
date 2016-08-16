@@ -304,13 +304,6 @@ void PhotoSendBox::closePressed() {
 	}
 }
 
-void PhotoSendBox::hideAll() {
-	_send.hide();
-	_cancel.hide();
-	_caption.hide();
-	_compressed.hide();
-}
-
 void PhotoSendBox::showAll() {
 	_send.show();
 	_cancel.show();
@@ -325,8 +318,12 @@ void PhotoSendBox::showAll() {
 	}
 }
 
-void PhotoSendBox::showDone() {
-	setInnerFocus();
+void PhotoSendBox::doSetInnerFocus() {
+	if (_caption.isHidden()) {
+		setFocus();
+	} else {
+		_caption.setFocus();
+	}
 }
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {
@@ -622,20 +619,14 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	_field->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
 }
 
-void EditCaptionBox::hideAll() {
-	_save.hide();
-	_cancel.hide();
-	_field->hide();
-}
-
 void EditCaptionBox::showAll() {
 	_save.show();
 	_cancel.show();
 	_field->show();
 }
 
-void EditCaptionBox::showDone() {
-	setInnerFocus();
+void EditCaptionBox::doSetInnerFocus() {
+	_field->setFocus();
 }
 
 void EditCaptionBox::onSave(bool ctrlShiftEnter) {

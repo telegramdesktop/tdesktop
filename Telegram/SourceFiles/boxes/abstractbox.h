@@ -47,27 +47,26 @@ private:
 
 };
 
-class AbstractBox : public LayeredWidget {
+class AbstractBox : public LayerWidget {
 	Q_OBJECT
 
 public:
-
 	AbstractBox(int32 w = st::boxWideWidth);
-	void parentResized();
-	void showStep(float64 ms);
-	void keyPressEvent(QKeyEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void startHide();
+	void parentResized() override;
+	void showDone() override {
+		showAll();
+	}
 
 	void setBlueTitle(bool blue);
 	void raiseShadow();
 
 public slots:
-
 	void onClose();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 	void prepare();
 	bool paint(QPainter &p);
@@ -77,31 +76,21 @@ protected:
 
 	virtual void closePressed() {
 	}
-	virtual void hideAll() {
-		if (_blueClose) _blueClose->hide();
-		if (_blueShadow) _blueShadow->hide();
-	}
 	virtual void showAll() {
 		if (_blueClose) _blueClose->show();
 		if (_blueShadow) _blueShadow->show();
 	}
-	virtual void showDone() {
-		setFocus();
-	}
 
 private:
-
 	int32 _maxHeight;
 	int32 countHeight() const;
 
-	bool _hiding, _closed;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
+	bool _closed;
 
 	bool _blueTitle;
 	BlueTitleClose *_blueClose;
 	BlueTitleShadow *_blueShadow;
+
 };
 
 class ScrollableBoxShadow : public PlainShadow {
@@ -112,21 +101,17 @@ public:
 
 class ScrollableBox : public AbstractBox {
 public:
-
 	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 	void resizeEvent(QResizeEvent *e);
 
 protected:
-
 	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);
 
-	virtual void hideAll();
-	virtual void showAll();
+	void showAll() override;
 
 	ScrollArea _scroll;
 
 private:
-
 	QWidget *_innerPtr;
 	int32 _topSkip, _bottomSkip;
 
@@ -134,7 +119,6 @@ private:
 
 class ItemListBox : public ScrollableBox {
 public:
-
 	ItemListBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 
 };

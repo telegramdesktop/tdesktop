@@ -27,36 +27,24 @@ class PhotoSendBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	PhotoSendBox(const FileLoadResultPtr &file);
 	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		if (_caption.isHidden()) {
-			setFocus();
-		} else {
-			_caption.setFocus();
-		}
-	}
 
 public slots:
-
 	void onCompressedChange();
 	void onCaptionResized();
 	void onSend(bool ctrlShiftEnter = false);
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void closePressed();
-	void hideAll();
-	void showAll();
-	void showDone();
+	void closePressed() override;
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void updateBoxSize();
 
 	FileLoadResultPtr _file;
@@ -87,30 +75,22 @@ class EditCaptionBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	EditCaptionBox(HistoryItem *msg);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	bool captionFound() const;
 
-	void setInnerFocus() {
-		_field->setFocus();
-	}
-
 public slots:
-
 	void onCaptionResized();
 	void onSave(bool ctrlShiftEnter = false);
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	void updateBoxSize();
 
 	void saveDone(const MTPUpdates &updates);

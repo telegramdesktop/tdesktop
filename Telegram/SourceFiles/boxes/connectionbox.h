@@ -26,25 +26,21 @@ class ConnectionBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	ConnectionBox();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onChange();
 	void onSubmit();
 	void onSave();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
-	void showDone();
+	void showAll() override;
+	void doSetInnerFocus() override;
 
 private:
-
 	InputField _hostInput;
 	PortInput _portInput;
 	InputField _userInput;
@@ -53,28 +49,25 @@ private:
 	Checkbox _tryIPv6;
 
 	BoxButton _save, _cancel;
+
 };
 
 class AutoDownloadBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-
 	AutoDownloadBox();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
-
 	void onSave();
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void hideAll();
-	void showAll();
+	void showAll() override;
 
 private:
-
 	Checkbox _photoPrivate, _photoGroups;
 	Checkbox _audioPrivate, _audioGroups;
 	Checkbox _gifPrivate, _gifGroups, _gifPlay;
@@ -82,4 +75,5 @@ private:
 	int32 _sectionHeight;
 
 	BoxButton _save, _cancel;
+
 };

@@ -194,7 +194,7 @@ void hideMediaPreview() {
 	}
 }
 
-void showLayer(LayeredWidget *box, ShowLayerOptions options) {
+void showLayer(LayerWidget *box, ShowLayerOptions options) {
 	if (auto w = App::wnd()) {
 		w->ui_showLayer(box, options);
 	} else {

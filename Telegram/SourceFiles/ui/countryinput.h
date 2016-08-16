@@ -34,28 +34,23 @@ class CountryInput : public QWidget {
 	Q_OBJECT
 
 public:
-
 	CountryInput(QWidget *parent, const style::countryInput &st);
 
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-
-	~CountryInput();
-
 public slots:
-
 	void onChooseCode(const QString &code);
 	bool onChooseCountry(const QString &country);
 
 signals:
-
 	void codeChanged(const QString &code);
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
+private:
 	void setText(const QString &newText);
 
 	QPixmap _arrow;
@@ -72,13 +67,7 @@ class CountrySelectInner : public TWidget {
 	Q_OBJECT
 
 public:
-
 	CountrySelectInner();
-	void paintEvent(QPaintEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
 
 	void updateFilter(QString filter = QString());
 
@@ -86,20 +75,24 @@ public:
 	void selectSkipPage(int32 h, int32 dir);
 
 	void chooseCountry();
-	
+
 	void refresh();
 
 signals:
-
 	void countryChosen(const QString &iso);
 	void mustScrollTo(int ymin, int ymax);
 
 public slots:
-
 	void updateSel();
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
 
+private:
 	void updateSelectedRow();
 
 	int32 _rowHeight;
@@ -109,43 +102,36 @@ private:
 	bool _mouseSel;
 
 	QPoint _lastMousePos;
+
 };
 
 class CountrySelectBox : public ItemListBox {
 	Q_OBJECT
 
 public:
-
 	CountrySelectBox();
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void setInnerFocus() {
-		_filter.setFocus();
-	}
 
 signals:
-
 	void countryChosen(const QString &iso);
 
 public slots:
-
 	void onFilterUpdate();
 	void onFilterCancel();
 	void onSubmit();
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void showDone();
-	void hideAll();
-	void showAll();
+	void doSetInnerFocus() override;
+	void showAll() override;
 
 private:
-
 	CountrySelectInner _inner;
 	InputField _filter;
 	IconedButton _filterCancel;
 
 	ScrollableBoxShadow _topShadow;
+
 };

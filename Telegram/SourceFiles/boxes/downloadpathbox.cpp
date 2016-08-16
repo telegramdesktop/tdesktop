@@ -51,17 +51,6 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 	prepare();
 }
 
-void DownloadPathBox::hideAll() {
-	_default.hide();
-	_temp.hide();
-	_dir.hide();
-
-	_pathLink.hide();
-
-	_save.hide();
-	_cancel.hide();
-}
-
 void DownloadPathBox::showAll() {
 	_default.show();
 	_temp.show();
@@ -79,7 +68,7 @@ void DownloadPathBox::showAll() {
 	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _default.height() + st::boxOptionListPadding.top() + _temp.height() + st::boxOptionListPadding.top() + _dir.height();
 	if (_dir.checked()) h += st::downloadPathSkip + _pathLink.height();
 	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
-	
+
 	setMaxHeight(h);
 }
 
@@ -143,7 +132,7 @@ void DownloadPathBox::onSave() {
 	cSetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
 	cSetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
-	emit closed();
+	onClose();
 }
 
 void DownloadPathBox::setPathText(const QString &text) {

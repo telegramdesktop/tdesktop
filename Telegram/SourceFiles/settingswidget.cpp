@@ -1253,7 +1253,7 @@ void SettingsInner::onUpdatePhoto() {
 		return;
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, self());
-	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onPhotoUpdateStart()));
 	Ui::showLayer(box);
 }
 
@@ -1374,13 +1374,13 @@ void SettingsInner::onRestartNow() {
 
 void SettingsInner::onPasscode() {
 	PasscodeBox *box = new PasscodeBox();
-	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(passcodeChanged()));
 	Ui::showLayer(box);
 }
 
 void SettingsInner::onPasscodeOff() {
 	PasscodeBox *box = new PasscodeBox(true);
-	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(passcodeChanged()));
 	Ui::showLayer(box);
 }
 
@@ -1413,21 +1413,21 @@ void SettingsInner::onReloadPassword(Qt::ApplicationState state) {
 
 void SettingsInner::onAutoLock() {
 	AutoLockBox *box = new AutoLockBox();
-	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(passcodeChanged()));
 	Ui::showLayer(box);
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
-	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
 	Ui::showLayer(box);
 }
 #endif
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();
-	connect(box, SIGNAL(closed()), this, SLOT(usernameChanged()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(usernameChanged()));
 	Ui::showLayer(box);
 }
 
@@ -1775,7 +1775,7 @@ void SettingsInner::onDontAskDownloadPath() {
 
 void SettingsInner::onDownloadPathEdit() {
 	DownloadPathBox *box = new DownloadPathBox();
-	connect(box, SIGNAL(closed()), this, SLOT(onDownloadPathEdited()));
+	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onDownloadPathEdited()));
 	Ui::showLayer(box);
 }
 

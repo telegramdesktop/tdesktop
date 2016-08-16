@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class LayeredWidget;
+class LayerWidget;
 
 namespace App {
 
@@ -56,7 +56,7 @@ void showMediaPreview(DocumentData *document);
 void showMediaPreview(PhotoData *photo);
 void hideMediaPreview();
 
-void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
+void showLayer(LayerWidget *box, ShowLayerOptions options = CloseOtherLayers);
 void hideLayer(bool fast = false);
 bool isLayerShown();
 bool isMediaViewShown();

@@ -80,7 +80,7 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) return LayeredWidget::mousePressEvent(e);
+	if (e->button() != Qt::LeftButton) return LayerWidget::mousePressEvent(e);
 
 	_downState = mouseState(e->pos());
 	_fromposx = e->pos().x();
@@ -89,7 +89,7 @@ void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
 	_fromcropy = _cropy;
 	_fromcropw = _cropw;
 
-	return LayeredWidget::mousePressEvent(e);
+	return LayerWidget::mousePressEvent(e);
 }
 
 int32 PhotoCropBox::mouseState(QPoint p) {
@@ -299,11 +299,6 @@ void PhotoCropBox::onSend() {
 
 void PhotoCropBox::onReady(const QImage &tosend) {
 	App::app()->uploadProfilePhoto(tosend, _peerId);
-}
-
-void PhotoCropBox::hideAll() {
-	_done.hide();
-	_cancel.hide();
 }
 
 void PhotoCropBox::showAll() {

@@ -433,7 +433,6 @@ class HistoryHider : public TWidget {
 	Q_OBJECT
 
 public:
-
 	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
@@ -442,11 +441,6 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 	bool withConfirm() const;
-
-	void paintEvent(QPaintEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	bool offerPeer(PeerId peer);
 	QString offeredText() const;
@@ -460,17 +454,20 @@ public:
 
 	~HistoryHider();
 
-public slots:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+public slots:
 	void startHide();
 	void forward();
 
 signals:
-
 	void forwarded();
 
 private:
-
 	void init();
 	MainWidget *parent();
 
