@@ -91,6 +91,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		Ui::showLayer(box);
 	} break;
 
+	case HistoryMessageReplyMarkup::Button::SwitchInlineSame:
 	case HistoryMessageReplyMarkup::Button::SwitchInline: {
 		if (auto m = App::main()) {
 			auto getMessageBot = [msg]() -> UserData* {
@@ -104,8 +105,12 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 				return nullptr;
 			};
 			if (auto bot = getMessageBot()) {
-				auto tryFastSwitch = [bot, &button]() -> bool {
-					if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
+				auto tryFastSwitch = [bot, &button, msgId = msg->id]() -> bool {
+					auto samePeer = (button->type == HistoryMessageReplyMarkup::Button::SwitchInlineSame);
+					if (samePeer) {
+						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data), bot, msgId);
+						return true;
+					} else if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
 						if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
 							return true;
 						}
@@ -332,9 +337,9 @@ void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKey
 	}
 }
 
-bool switchInlineBotButtonReceived(const QString &query) {
-	if (MainWidget *m = App::main()) {
-		return m->notify_switchInlineBotButtonReceived(query);
+bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
+	if (auto m = App::main()) {
+		return m->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
 	}
 	return false;
 }

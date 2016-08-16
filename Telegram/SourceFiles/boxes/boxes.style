@@ -73,3 +73,15 @@ confirmPhoneAboutLabel: flatLabel(labelDefFlat) {
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
+
+revokePublicLinkStatusStyle: textStyle(defaultTextStyle) {
+	linkFg: contactsStatusFgOnline;
+	linkFgDown: contactsStatusFgOnline;
+	linkFlagsOver: font(fsize);
+}
+aboutRevokePublicLabel: flatLabel(labelDefFlat) {
+	font: normalFont;
+	align: align(topleft);
+	width: 320px;
+	textFg: windowTextFg;
+}

@@ -116,7 +116,15 @@
     'action': [
       '<(PRODUCT_DIR)/codegen_style.exe',
       '-I<(res_loc)', '-I<(src_loc)', '--skip-sprites',
-      '-o<(SHARED_INTERMEDIATE_DIR)/styles', '<(RULE_INPUT_PATH)',
+      '-o<(SHARED_INTERMEDIATE_DIR)/styles',
+
+      # GYP/Ninja bug workaround: if we specify just <(RULE_INPUT_PATH)
+      # the <(RULE_INPUT_ROOT) variables won't be available in Ninja,
+      # and the 'message' will be just 'codegen_style-ing .style..'
+      # Looks like the using the <(RULE_INPUT_ROOT) here "exports" it
+      # for using in the 'message' field.
+
+      '<(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
     ],
     'message': 'codegen_style-ing <(RULE_INPUT_ROOT).style..',
     'process_outputs_as_sources': 1,

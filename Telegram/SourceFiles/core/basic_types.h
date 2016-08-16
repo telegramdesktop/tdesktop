@@ -324,6 +324,49 @@ inline constexpr typename remove_reference<T>::type &&move(T &&value) noexcept {
 }
 
 template <typename T>
+struct remove_const {
+	using type = T;
+};
+
+template <typename T>
+struct remove_const<const T> {
+	using type = T;
+};
+
+template <typename T>
+struct remove_volatile {
+	using type = T;
+};
+
+template <typename T>
+struct remove_volatile<volatile T> {
+	using type = T;
+};
+
+template <typename T>
+using decay_simple_t = typename remove_const<typename remove_volatile<typename remove_reference<T>::type>::type>::type;
+
+template <typename T1, typename T2>
+struct is_same : false_type {
+};
+
+template <typename T>
+struct is_same<T, T> : true_type {
+};
+
+template <bool,	typename T = void>
+struct enable_if {
+};
+
+template <typename T>
+struct enable_if<true, T> {
+	using type = T;
+};
+
+template <bool Test, typename T = void>
+using enable_if_t = typename enable_if<Test, T>::type;
+
+template <typename T>
 struct add_const {
 	using type = const T;
 };

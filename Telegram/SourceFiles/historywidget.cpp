@@ -3570,8 +3570,17 @@ void HistoryWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldK
 	}
 }
 
-bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
-	if (UserData *bot = _peer ? _peer->asUser() : nullptr) {
+bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
+	if (samePeerBot) {
+		if (_history) {
+			TextWithTags textWithTags = { '@' + samePeerBot->username + ' ' + query, TextWithTags::Tags() };
+			MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
+			auto replyTo = _history->peer->isUser() ? 0 : samePeerReplyTo;
+			_history->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, replyTo, cursor, false));
+			applyDraft();
+			return true;
+		}
+	} else if (auto bot = _peer ? _peer->asUser() : nullptr) {
 		PeerId toPeerId = bot->botInfo ? bot->botInfo->inlineReturnPeerId : 0;
 		if (!toPeerId) {
 			return false;
