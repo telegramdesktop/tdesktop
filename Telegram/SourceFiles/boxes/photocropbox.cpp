@@ -258,6 +258,7 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 void PhotoCropBox::resizeEvent(QResizeEvent *e) {
 	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _done.width() + st::boxButtonPadding.left(), _done.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void PhotoCropBox::onSend() {

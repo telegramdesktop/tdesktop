@@ -709,9 +709,8 @@ void ContactsInner::chooseParticipant() {
 				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
 				Ui::showLayer(box, KeepOtherLayers);
 			} else {
-				App::wnd()->hideSettings(true);
+				Ui::hideSettingsAndLayer(true);
 				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
-				Ui::hideLayer();
 			}
 		}
 	}

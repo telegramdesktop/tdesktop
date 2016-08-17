@@ -18,35 +18,37 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-using "basic.style";
-using "basic_types.style";
+#include "stdafx.h"
+#include "settings/settings_fixed_bar.h"
 
-settingsMaxWidth: 520px;
-settingsMaxPadding: 48px;
-settingsMinPadding: 32px;
-settingsMargin: 48px;
+#include "styles/style_settings.h"
+#include "ui/buttons/icon_button.h"
+#include "mainwindow.h"
+#include "lang.h"
 
-settingsFixedBarHeight: 52px;
-settingsFixedBarFont: font(14px semibold);
-settingsFixedBarFg: windowTextFg;
-settingsFixedBarTextLeft: 20px;
-settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: IconButton {
-	width: settingsFixedBarHeight;
-	height: settingsFixedBarHeight;
+namespace Settings {
 
-	opacity: 0.31;
-	overOpacity: 0.5;
-
-	icon: icon {
-		{ "settings_close", #000000, point(0px, 0px) },
-	};
-	iconPosition: point(20px, 20px);
-	downIconPosition: point(20px, 20px);
-
-	duration: 200;
+FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
+, _close(this, st::settingsFixedBarClose) {
+	_close->setClickedCallback([]() {
+		Ui::hideSettingsAndLayer();
+	});
 }
-settingsFixedBarShadowBg1: #00000021;
-settingsFixedBarShadowBg2: #0000000b;
 
-settingsPhotoLeft: -8px;
+void FixedBar::resizeToWidth(int newWidth) {
+	resize(newWidth, st::settingsFixedBarHeight);
+}
+
+void FixedBar::resizeEvent(QResizeEvent *e) {
+	_close->moveToRight(0, 0);
+}
+
+void FixedBar::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.setFont(st::settingsFixedBarFont);
+	p.setPen(st::windowTextFg);
+	p.drawTextLeft(st::settingsFixedBarTextLeft, st::settingsFixedBarTextTop, width(), lang(lng_menu_settings));
+}
+
+} // namespace Settings

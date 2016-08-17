@@ -18,35 +18,33 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-using "basic.style";
-using "basic_types.style";
+#pragma once
 
-settingsMaxWidth: 520px;
-settingsMaxPadding: 48px;
-settingsMinPadding: 32px;
-settingsMargin: 48px;
+namespace Settings {
 
-settingsFixedBarHeight: 52px;
-settingsFixedBarFont: font(14px semibold);
-settingsFixedBarFg: windowTextFg;
-settingsFixedBarTextLeft: 20px;
-settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: IconButton {
-	width: settingsFixedBarHeight;
-	height: settingsFixedBarHeight;
+class CoverWidget;
+class BlockWidget;
 
-	opacity: 0.31;
-	overOpacity: 0.5;
+class InnerWidget : public TWidget {
+public:
+	InnerWidget(QWidget *parent);
 
-	icon: icon {
-		{ "settings_close", #000000, point(0px, 0px) },
-	};
-	iconPosition: point(20px, 20px);
-	downIconPosition: point(20px, 20px);
+	// Count new height for width=newWidth and resize to it.
+	void resizeToWidth(int newWidth, int contentLeft);
 
-	duration: 200;
-}
-settingsFixedBarShadowBg1: #00000021;
-settingsFixedBarShadowBg2: #0000000b;
+	// Updates the area that is visible inside the scroll container.
+	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
-settingsPhotoLeft: -8px;
+private:
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth, int contentLeft);
+
+	ChildWidget<CoverWidget> _cover = { nullptr };
+	QList<BlockWidget*> _blocks;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+
+};
+
+} // namespace Settings

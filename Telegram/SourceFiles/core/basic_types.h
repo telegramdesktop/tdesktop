@@ -885,7 +885,8 @@ enum ShowLayerOption {
 	AnimatedShowLayer         = 0x00,
 	ForceFastShowLayer        = 0x04,
 };
-typedef QFlags<ShowLayerOption> ShowLayerOptions;
+Q_DECLARE_FLAGS(ShowLayerOptions, ShowLayerOption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(ShowLayerOptions);
 
 static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);

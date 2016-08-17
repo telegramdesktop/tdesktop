@@ -208,7 +208,11 @@ void showLayer(LayerWidget *box, ShowLayerOptions options) {
 }
 
 void hideLayer(bool fast) {
-	if (auto w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+	if (auto w = App::wnd()) w->ui_showLayer(0, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+}
+
+void hideSettingsAndLayer(bool fast) {
+	if (auto w = App::wnd()) w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
 }
 
 bool isLayerShown() {

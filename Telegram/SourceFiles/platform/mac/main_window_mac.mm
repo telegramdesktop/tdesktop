@@ -53,7 +53,6 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 		App::wnd()->setInnerFocus();
 		App::wnd()->notifyClear();
 	} else {
-		App::wnd()->hideSettings();
 		bool tomsg = !history->peer->isUser() && (msgid > 0);
 		if (tomsg) {
 			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));

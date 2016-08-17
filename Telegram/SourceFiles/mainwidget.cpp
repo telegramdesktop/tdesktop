@@ -1510,11 +1510,7 @@ void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *ret
 void MainWidget::onDownloadPathSettings() {
 	cSetDownloadPath(QString());
 	cSetDownloadPathBookmark(QByteArray());
-	DownloadPathBox *box = new DownloadPathBox();
-	if (App::wnd() && App::wnd()->settingsWidget()) {
-		connect(box, SIGNAL(closed(LayerWidget*)), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
-	}
-	Ui::showLayer(box);
+	Ui::showLayer(new DownloadPathBox());
 }
 
 void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
@@ -1686,8 +1682,7 @@ void MainWidget::onParentResize(const QSize &newSize) {
 
 void MainWidget::updateOnlineDisplay() {
 	if (this != App::main()) return;
-	_history->updateOnlineDisplay(_history->x(), width() - _history->x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
-	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
+	_history->updateOnlineDisplay();
 }
 
 void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
@@ -2046,7 +2041,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 
 	PeerData *wasActivePeer = activePeer();
 
-	Ui::hideLayer();
+	Ui::hideSettingsAndLayer();
 	if (_hider) {
 		_hider->startHide();
 		_hider = nullptr;
@@ -2195,7 +2190,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		peer = peer->migrateTo();
 	}
 
-	App::wnd()->hideSettings();
+	Ui::hideSettingsAndLayer();
 	if (_overview && _overview->peer() == peer) {
 		if (_overview->type() != type) {
 			_overview->switchType(type);
@@ -2248,7 +2243,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 }
 
 void MainWidget::showWideSection(const Window::SectionMemento &memento) {
-	App::wnd()->hideSettings();
+	Ui::hideSettingsAndLayer();
 	if (_wideSection && _wideSection->showInternal(&memento)) {
 		return;
 	}

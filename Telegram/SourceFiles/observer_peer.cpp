@@ -53,6 +53,7 @@ ObservedEventRegistrator<PeerUpdate::Flags, PeerUpdateHandler> creator(StartCall
 namespace internal {
 
 ConnectionId plainRegisterPeerObserver(PeerUpdate::Flags events, PeerUpdateHandler &&handler) {
+	constexpr auto tmp = sizeof(PeerUpdate);
 	return creator.registerObserver(events, std_::forward<PeerUpdateHandler>(handler));
 }
 

@@ -20,53 +20,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "core/lambda_wrap.h"
+namespace Ui {
+class IconButton;
+} // namespace Ui
 
-class BackgroundInner : public QWidget, public RPCSender {
-	Q_OBJECT
+namespace Settings {
 
+class FixedBar : public TWidget {
 public:
-	BackgroundInner();
+	FixedBar(QWidget *parent);
 
-signals:
-	void backgroundChosen(int index);
+	void resizeToWidth(int newWidth);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
-	void updateWallpapers();
-
-	int32 _bgCount, _rows;
-	int32 _over, _overDown;
-
-};
-
-class BackgroundBox : public ItemListBox {
-	Q_OBJECT
-
-public:
-	BackgroundBox();
-
-	// When background is chosen this callback is called with "bool isTiled" arg.
-	void setUpdateCallback(base::lambda_unique<void(bool)> &&updateCallback) {
-		_updateCallback = std::move(updateCallback);
-	}
-
-public slots:
-	void onBackgroundChosen(int index);
-
-protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	BackgroundInner _inner;
-	base::lambda_unique<void(bool)> _updateCallback;
+	ChildWidget<Ui::IconButton> _close;
 
 };
+
+} // namespace Settings

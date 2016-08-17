@@ -30,12 +30,14 @@ class TitleWidget;
 class PasscodeWidget;
 class IntroWidget;
 class MainWidget;
-class SettingsWidget;
 class LayerStackWidget;
 class LayerWidget;
 namespace Local {
 class ClearManager;
 } // namespace Local
+namespace Settings {
+class Widget;
+} // namespace Settings
 
 class ConnectingWidget : public QWidget {
 	Q_OBJECT
@@ -150,7 +152,6 @@ public:
 
 	void resizeEvent(QResizeEvent *e);
 	void updateAdaptiveLayout();
-	bool needBackButton();
 
 	void setupPasscode(bool anim);
 	void clearPasscode();
@@ -173,7 +174,6 @@ public:
 
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
-	SettingsWidget *settingsWidget();
 	PasscodeWidget *passcodeWidget();
 
 	void showConnecting(const QString &text, const QString &reconnect = QString());
@@ -190,7 +190,6 @@ public:
 	void activate();
 
 	void noIntro(IntroWidget *was);
-	void noSettings(SettingsWidget *was);
 	void noMain(MainWidget *was);
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
@@ -241,6 +240,7 @@ public:
 	}
 
 	void ui_showLayer(LayerWidget *box, ShowLayerOptions options);
+	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
 	void ui_showMediaPreview(DocumentData *document);
@@ -256,7 +256,6 @@ public slots:
 	void checkAutoLock();
 
 	void showSettings();
-	void hideSettings(bool fast = false);
 	void layerHidden();
 	void setInnerFocus();
 	void updateTitleStatus();
@@ -298,6 +297,7 @@ signals:
 
 private slots:
 	void onStateChanged(Qt::WindowState state);
+	void onSettingsDestroyed(QObject *was);
 
 private:
 
@@ -316,7 +316,7 @@ private:
 	PasscodeWidget *_passcode = nullptr;
 	IntroWidget *intro = nullptr;
 	MainWidget *main = nullptr;
-	SettingsWidget *settings = nullptr;
+	ChildWidget<Settings::Widget> settings = { nullptr };
 	ChildWidget<LayerStackWidget> layerBg = { nullptr };
 	std_::unique_ptr<MediaPreviewWidget> _mediaPreview;
 

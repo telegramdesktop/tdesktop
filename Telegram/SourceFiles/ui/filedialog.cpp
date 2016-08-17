@@ -373,7 +373,7 @@ bool processQuery() {
 	} break;
 	}
 
-	// No one know what happened during filedialogGet*() call in the event loop.
+	// No one knows what happened during filedialogGet*() call in the event loop.
 	if (!creator.started() || !Global::started()) return false;
 
 	creator.notify(update);

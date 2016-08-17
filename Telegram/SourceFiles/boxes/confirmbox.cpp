@@ -172,6 +172,7 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 void ConfirmBox::resizeEvent(QResizeEvent *e) {
 	_confirm.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _confirm.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y());
+	AbstractBox::resizeEvent(e);
 }
 
 SharePhoneConfirmBox::SharePhoneConfirmBox(PeerData *recipient)
@@ -281,6 +282,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
 	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
 	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
+	AbstractBox::resizeEvent(e);
 }
 
 ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st::boxWideWidth)
@@ -374,6 +376,7 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
 	_convert.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _convert.width() + st::boxButtonPadding.left(), _convert.y());
+	AbstractBox::resizeEvent(e);
 }
 
 PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st::boxWidth)
@@ -395,6 +398,7 @@ void PinMessageBox::resizeEvent(QResizeEvent *e) {
 	_notify.moveToLeft(st::boxPadding.left(), _text.y() + _text.height() + st::boxMediumSkip);
 	_pin.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _pin.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _pin.width() + st::boxButtonPadding.left(), _pin.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void PinMessageBox::onPin() {
@@ -453,6 +457,7 @@ void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
 	_deleteAll.moveToLeft(st::boxPadding.left(), _reportSpam.y() + _reportSpam.height() + st::boxLittleSkip);
 	_delete.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _delete.width() + st::boxButtonPadding.left(), _delete.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void RichDeleteMessageBox::onDelete() {
@@ -562,6 +567,7 @@ void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
 	_status->move((width() - _status->width()) / 2, st::confirmInviteStatusTop);
 	_join->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _join->height());
 	_cancel->moveToRight(st::boxButtonPadding.right() + _join->width() + st::boxButtonPadding.left(), _join->y());
+	AbstractBox::resizeEvent(e);
 }
 
 void ConfirmInviteBox::paintEvent(QPaintEvent *e) {

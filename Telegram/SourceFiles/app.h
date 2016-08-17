@@ -46,7 +46,6 @@ namespace App {
 	AppClass *app();
 	MainWindow *wnd();
 	MainWidget *main();
-	SettingsWidget *settings();
 	bool passcoded();
 	FileUploader *uploader();
 	ApiWrap *api();

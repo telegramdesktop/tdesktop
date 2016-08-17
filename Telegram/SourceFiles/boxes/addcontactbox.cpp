@@ -135,6 +135,7 @@ void AddContactBox::resizeEvent(QResizeEvent *e) {
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_retry.moveToRight(st::boxButtonPadding.right(), _save.y());
 	_cancel.moveToRight(st::boxButtonPadding.right() + (_retry.isHidden() ? _save.width() : _retry.width()) + st::boxButtonPadding.left(), _save.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void AddContactBox::onSubmit() {
@@ -308,6 +309,7 @@ void NewGroupBox::resizeEvent(QResizeEvent *e) {
 
 	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void NewGroupBox::onNext() {
@@ -400,6 +402,7 @@ void GroupInfoBox::resizeEvent(QResizeEvent *e) {
 
 	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void GroupInfoBox::mouseMoveEvent(QMouseEvent *e) {
@@ -707,6 +710,7 @@ void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_skip.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
@@ -1045,6 +1049,7 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void EditNameTitleBox::onSave() {
@@ -1238,6 +1243,7 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void EditChannelBox::onSave() {
@@ -1427,6 +1433,7 @@ void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
 void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
 	_aboutRevoke->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 	_cancel->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _cancel->height());
+	AbstractBox::resizeEvent(e);
 }
 
 void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const {

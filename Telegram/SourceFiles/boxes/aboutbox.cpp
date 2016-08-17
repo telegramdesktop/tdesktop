@@ -62,6 +62,7 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 	_text2.moveToLeft(st::boxPadding.left(), _text1.y() + _text1.height() + st::aboutSkip);
 	_text3.moveToLeft(st::boxPadding.left(), _text2.y() + _text2.height() + st::aboutSkip);
 	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+	AbstractBox::resizeEvent(e);
 }
 
 void AboutBox::onVersion() {

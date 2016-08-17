@@ -196,7 +196,9 @@ void BackgroundBox::onBackgroundChosen(int index) {
 	if (index >= 0 && index < App::cServerBackgrounds().size()) {
 		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
 		if (App::main()) App::main()->setChatBackground(paper);
-		if (App::settings()) App::settings()->needBackgroundUpdate(!paper.id);
+		if (_updateCallback) {
+			_updateCallback(!paper.id);
+		}
 	}
 	onClose();
 }

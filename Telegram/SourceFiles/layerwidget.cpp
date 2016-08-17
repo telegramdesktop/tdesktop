@@ -107,6 +107,16 @@ void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
 	onClose();
 }
 
+void LayerStackWidget::onCloseLayers() {
+	if (_specialLayer) {
+		clearLayers();
+		fixOrder();
+		if (App::wnd()) App::wnd()->setInnerFocus();
+	} else {
+		onClose();
+	}
+}
+
 void LayerStackWidget::onClose() {
 	startHide();
 }

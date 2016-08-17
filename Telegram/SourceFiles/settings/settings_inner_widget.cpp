@@ -18,33 +18,43 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
-
-#include "layerwidget.h"
+#include "stdafx.h"
+#include "settings/settings_inner_widget.h"
 
 namespace Settings {
 
-class InnerWidget;
-class FixedBar;
+InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
+{
+}
 
-class Widget : public LayerWidget {
-public:
-	Widget();
+void InnerWidget::resizeToWidth(int newWidth, int contentLeft) {
+	int newHeight = resizeGetHeight(newWidth, contentLeft);
+	resize(newWidth, newHeight);
+}
 
-	void parentResized() override;
+int InnerWidget::resizeGetHeight(int newWidth, int contentLeft) {
+	int result = 0;
+	//if (_cover) {
+	//	result += _cover->height();
+	//}
+	//for_const (auto blockData, _blocks) {
+	//	if (blockData->isHidden()) {
+	//		continue;
+	//	}
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	//	result += blockData->height();
+	//}
+	return result;
+}
 
-private:
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
 
-	int _contentLeft = 0;
-
-};
+	//for_const (auto blockData, _blocks) {
+	//	int blockY = blockData->y();
+	//	blockData->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
+	//}
+}
 
 } // namespace Settings

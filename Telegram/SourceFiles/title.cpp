@@ -52,7 +52,6 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 , wnd(window)
 , hideLevel(0)
 , hider(0)
-, _back(this, st::titleBackButton, lang(lng_menu_back))
 , _cancel(this, lang(lng_cancel), st::titleTextButton)
 , _settings(this, lang(lng_menu_settings), st::titleTextButton)
 , _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
@@ -64,14 +63,12 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 , _restore(this, window)
 , _close(this, window)
 , _a_update(animation(this, &TitleWidget::step_update))
-, lastMaximized(!(window->windowState() & Qt::WindowMaximized))
-{
+, lastMaximized(!(window->windowState() & Qt::WindowMaximized)) {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_lock.hide();
 	_update.hide();
     _cancel.hide();
-    _back.hide();
 	if (
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		Sandbox::updatingState() == Application::UpdatingReady ||
@@ -82,7 +79,6 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 	}
 	onWindowStateChanged();
 
-	connect(&_back, SIGNAL(clicked()), window, SLOT(hideSettings()));
 	connect(&_cancel, SIGNAL(clicked()), this, SIGNAL(hiderClicked()));
 	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
@@ -193,9 +189,7 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	}
 
 	_settings.move(st::titleMenuOffset, 0);
-	_back.move(st::titleMenuOffset, 0);
-	_back.resize((_minimize.isHidden() ? (_update.isHidden() ? width() : _update.x()) : _minimize.x()) - st::titleMenuOffset, _back.height());
-	if (MTP::authedId() && _back.isHidden() && _cancel.isHidden() && !App::passcoded()) {
+	if (MTP::authedId() && _cancel.isHidden() && !App::passcoded()) {
 		if (_contacts.isHidden()) _contacts.show();
 		_contacts.move(_settings.x() + _settings.width(), 0);
 		_about.move(_contacts.x() + _contacts.width(), 0);
@@ -210,7 +204,6 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 void TitleWidget::updateBackButton() {
 	if (App::passcoded()) {
 		if (!_cancel.isHidden()) _cancel.hide();
-		if (!_back.isHidden()) _back.hide();
 		if (!_settings.isHidden()) _settings.hide();
 		if (!_contacts.isHidden()) _contacts.hide();
 		if (!_about.isHidden()) _about.hide();
@@ -219,7 +212,6 @@ void TitleWidget::updateBackButton() {
 		_lock.setSysBtnStyle(st::sysLock);
 		if (Adaptive::OneColumn() && App::main() && App::main()->selectingPeer()) {
 			_cancel.show();
-			if (!_back.isHidden()) _back.hide();
 			if (!_settings.isHidden()) _settings.hide();
 			if (!_contacts.isHidden()) _contacts.hide();
 			if (!_about.isHidden()) _about.hide();
@@ -227,19 +219,10 @@ void TitleWidget::updateBackButton() {
 			if (!_cancel.isHidden()) _cancel.hide();
 			bool authed = (MTP::authedId() > 0);
 			if (Adaptive::OneColumn()) {
-				if (App::wnd()->needBackButton()) {
-					if (_back.isHidden()) _back.show();
-					if (!_settings.isHidden()) _settings.hide();
-					if (!_contacts.isHidden()) _contacts.hide();
-					if (!_about.isHidden()) _about.hide();
-				} else {
-					if (!_back.isHidden()) _back.hide();
-					if (_settings.isHidden()) _settings.show();
-					if (authed && _contacts.isHidden()) _contacts.show();
-					if (_about.isHidden()) _about.show();
-				}
+				if (_settings.isHidden()) _settings.show();
+				if (authed && _contacts.isHidden()) _contacts.show();
+				if (_about.isHidden()) _about.show();
 			} else {
-				if (!_back.isHidden()) _back.hide();
 				if (_settings.isHidden()) _settings.show();
 				if (authed && _contacts.isHidden()) _contacts.show();
 				if (_about.isHidden()) _about.show();
@@ -393,7 +376,6 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 		return HitTestSysButton;
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
 		if (false
-			|| (!_back.isHidden() && _back.geometry().contains(x, y))
 			|| (!_cancel.isHidden() && _cancel.geometry().contains(x, y))
 			|| (!_settings.isHidden() && _settings.geometry().contains(x, y))
 			|| (!_contacts.isHidden() && _contacts.geometry().contains(x, y))

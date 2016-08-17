@@ -208,6 +208,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
 	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
+	registerDownloadPathObserver(this, &SettingsInner::notifyDownloadPathUpdated);
 
 	App::clearMousedItems();
 
@@ -365,6 +366,19 @@ void SettingsInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 			usernameChanged();
 		}
 	}
+}
+
+void SettingsInner::notifyDownloadPathUpdated(const DownloadPathUpdate &update) {
+	QString path;
+	if (cDownloadPath().isEmpty()) {
+		path = lang(lng_download_path_default);
+	} else if (cDownloadPath() == qsl("tmp")) {
+		path = lang(lng_download_path_temp);
+	} else {
+		path = st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth);
+	}
+	_downloadPathEdit.setText(path);
+	showAll();
 }
 
 void SettingsInner::peerUpdated(PeerData *data) {
@@ -1208,10 +1222,9 @@ void SettingsInner::supportGot(const MTPhelp_Support &support) {
 	if (!App::main()) return;
 
 	if (support.type() == mtpc_help_support) {
-		const auto &d(support.c_help_support());
+		auto &d = support.c_help_support();
 		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 		Ui::showPeerHistory(u, ShowAtUnreadMsgId);
-		App::wnd()->hideSettings();
 	}
 }
 
@@ -1637,6 +1650,10 @@ void SettingsInner::onCtrlEnterSend() {
 
 void SettingsInner::onBackFromGallery() {
 	BackgroundBox *box = new BackgroundBox();
+	box->setUpdateCallback([this, weak_this = weakThis()](bool tile) {
+		if (!weak_this) return;
+		needBackgroundUpdate(tile);
+	});
 	Ui::showLayer(box);
 }
 
@@ -1774,22 +1791,7 @@ void SettingsInner::onDontAskDownloadPath() {
 }
 
 void SettingsInner::onDownloadPathEdit() {
-	DownloadPathBox *box = new DownloadPathBox();
-	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onDownloadPathEdited()));
-	Ui::showLayer(box);
-}
-
-void SettingsInner::onDownloadPathEdited() {
-	QString path;
-	if (cDownloadPath().isEmpty()) {
-		path = lang(lng_download_path_default);
-	} else if (cDownloadPath() == qsl("tmp")) {
-		path = lang(lng_download_path_temp);
-	} else {
-		path = st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth);
-	}
-	_downloadPathEdit.setText(path);
-	showAll();
+	Ui::showLayer(new DownloadPathBox());
 }
 
 void SettingsInner::onDownloadPathClear() {
@@ -2063,5 +2065,4 @@ void SettingsWidget::needBackgroundUpdate(bool tile) {
 }
 
 SettingsWidget::~SettingsWidget() {
-	if (App::wnd()) App::wnd()->noSettings(this);
 }

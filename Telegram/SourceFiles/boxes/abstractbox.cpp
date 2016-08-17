@@ -103,6 +103,7 @@ void AbstractBox::resizeEvent(QResizeEvent *e) {
 		_blueShadow->moveToLeft(0, st::boxTitleHeight);
 		_blueShadow->resize(width(), st::boxBlueShadow.pxHeight());
 	}
+	LayerWidget::resizeEvent(e);
 }
 
 void AbstractBox::parentResized() {

@@ -170,13 +170,6 @@ namespace App {
 		return nullptr;
 	}
 
-	SettingsWidget *settings() {
-		if (auto w = wnd()) {
-			return w->settingsWidget();
-		}
-		return nullptr;
-	}
-
 	bool passcoded() {
 		if (auto w = wnd()) {
 			return w->passcodeWidget();

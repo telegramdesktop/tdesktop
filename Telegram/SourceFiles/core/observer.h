@@ -81,7 +81,7 @@ template <typename Flags, typename Handler>
 class ObservedEventRegistrator : public internal::BaseObservedEventRegistrator {
 public:
 	ObservedEventRegistrator(StartObservedEventCallback startCallback,
-		FinishObservedEventCallback finishCallback) : internal::BaseObservedEventRegistrator(reinterpret_cast<void*>(this),
+		FinishObservedEventCallback finishCallback) : internal::BaseObservedEventRegistrator(static_cast<void*>(this),
 			ObservedEventRegistrator<Flags, Handler>::start,
 			ObservedEventRegistrator<Flags, Handler>::finish,
 			ObservedEventRegistrator<Flags, Handler>::unregister)
@@ -113,21 +113,21 @@ public:
 private:
 	using Self = ObservedEventRegistrator<Flags, Handler>;
 	static void start(void *vthat) {
-		Self *that = reinterpret_cast<Self*>(vthat);
+		Self *that = static_cast<Self*>(vthat);
 
 		t_assert(!that->started());
 		if (that->_startCallback) that->_startCallback();
 		that->_list = new internal::ObserversList<Flags, Handler>();
 	}
 	static void finish(void *vthat) {
-		Self *that = reinterpret_cast<Self*>(vthat);
+		Self *that = static_cast<Self*>(vthat);
 
 		if (that->_finishCallback) that->_finishCallback();
 		delete that->_list;
 		that->_list = nullptr;
 	}
 	static void unregister(void *vthat, int connectionIndex) {
-		Self *that = reinterpret_cast<Self*>(vthat);
+		Self *that = static_cast<Self*>(vthat);
 
 		t_assert(that->started());
 

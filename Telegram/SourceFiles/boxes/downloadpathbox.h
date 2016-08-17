@@ -21,6 +21,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "abstractbox.h"
+#include "core/observer.h"
+
+// Just a notification that cDownloadPath() has changed.
+struct DownloadPathUpdate {
+};
+
+namespace internal {
+using DownloadPathUpdateHandler = Function<void, const DownloadPathUpdate&>;
+Notify::ConnectionId plainRegisterObserver(DownloadPathUpdateHandler &&handler);
+} // namespace internal
+
+template <typename ObserverType>
+void registerDownloadPathObserver(ObserverType *observer, void (ObserverType::*handler)(const DownloadPathUpdate &)) {
+	auto connection = internal::plainRegisterObserver(func(observer, handler));
+	Notify::observerRegistered(observer, connection);
+}
 
 class DownloadPathBox : public AbstractBox {
 	Q_OBJECT

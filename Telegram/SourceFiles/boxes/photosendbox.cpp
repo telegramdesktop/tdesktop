@@ -292,6 +292,7 @@ void PhotoSendBox::resizeEvent(QResizeEvent *e) {
 	_caption.resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _caption.height());
 	_caption.moveToLeft(st::boxPhotoPadding.left(), _send.y() - st::boxButtonPadding.top() - _caption.height());
 	_compressed.moveToLeft(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top());
+	AbstractBox::resizeEvent(e);
 }
 
 void PhotoSendBox::closePressed() {
@@ -617,6 +618,7 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 	_field->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _field->height());
 	_field->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
+	AbstractBox::resizeEvent(e);
 }
 
 void EditCaptionBox::showAll() {

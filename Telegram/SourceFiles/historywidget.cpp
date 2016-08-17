@@ -6318,7 +6318,7 @@ void HistoryWidget::topBarClick() {
 	}
 }
 
-void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
+void HistoryWidget::updateOnlineDisplay() {
 	if (!_history) return;
 
 	QString text;

@@ -589,7 +589,7 @@ public:
 	void cancelShareContact();
 
 	void updateControlsVisibility();
-	void updateOnlineDisplay(int32 x, int32 w);
+	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 
 	void onShareContact(const PeerId &peer, UserData *contact);

@@ -58,6 +58,7 @@ void hideMediaPreview();
 
 void showLayer(LayerWidget *box, ShowLayerOptions options = CloseOtherLayers);
 void hideLayer(bool fast = false);
+void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();
 bool isMediaViewShown();
 bool isInlineItemBeingChosen();

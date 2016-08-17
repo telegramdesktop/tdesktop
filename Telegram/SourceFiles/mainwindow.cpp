@@ -41,6 +41,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mediaview.h"
 #include "localstorage.h"
 #include "apiwrap.h"
+#include "settings/settings_widget.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
@@ -299,7 +300,6 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
-			App::wnd()->hideSettings();
 			Ui::showPeerHistory(peer, msgId);
 		}
 		e->ignore();
@@ -486,13 +486,6 @@ void MainWindow::clearWidgets() {
 		_passcode->deleteLater();
 		_passcode = 0;
 	}
-	if (settings) {
-		settings->stop_show();
-		settings->hide();
-		settings->deleteLater();
-		settings->rpcClear();
-		settings = 0;
-	}
 	if (main) {
 		delete main;
 		main = nullptr;
@@ -537,8 +530,6 @@ void MainWindow::clearPasscode() {
 	_passcode = 0;
 	if (intro) {
 		intro->animShow(bg, true);
-	} else if (settings) {
-		settings->animShow(bg, true);
 	} else {
 		main->animShow(bg, true);
 	}
@@ -558,7 +549,9 @@ void MainWindow::setupPasscode(bool anim) {
 	_passcode = new PasscodeWidget(this);
 	_passcode->move(0, st::titleHeight);
 	if (main) main->hide();
-	if (settings) settings->hide();
+	if (settings) {
+		settings->deleteLater();
+	}
 	if (intro) intro->hide();
 	if (anim) {
 		_passcode->animShow(bg);
@@ -684,63 +677,29 @@ void MainWindow::showSettings() {
 
 	if (isHidden()) showFromTray();
 
-	Ui::hideLayer();
 	if (settings) {
-		return hideSettings();
+		Ui::hideSettingsAndLayer();
+		return;
 	}
-	QPixmap bg = grabInner();
 
-	if (intro) {
-		intro->stop_show();
-		intro->hide();
-	} else if (main) {
-		main->animStop_show();
-		main->hide();
+	if (!layerBg) {
+		layerBg = new LayerStackWidget(this);
 	}
-	settings = new SettingsWidget(this);
-	settings->animShow(bg);
-	title->updateBackButton();
-
-	fixOrder();
+	settings = new Settings::Widget();
+	connect(settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
+	layerBg->showSpecialLayer(settings);
 }
 
-void MainWindow::hideSettings(bool fast) {
-	if (!settings || _passcode) return;
-
-	if (fast) {
-		settings->stop_show();
-		settings->hide();
-		settings->deleteLater();
-		settings->rpcClear();
-		settings = 0;
-		if (intro) {
-			intro->show();
-		} else {
-			main->show();
-		}
-	} else {
-		QPixmap bg = grabInner();
-
-		settings->stop_show();
-		settings->hide();
-		settings->deleteLater();
-		settings->rpcClear();
-		settings = 0;
-		if (intro) {
-			intro->animShow(bg, true);
-		} else {
-			main->animShow(bg, true);
-		}
+void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
+	if (layerBg) {
+		layerBg->onClose();
 	}
-	title->updateBackButton();
-
-	fixOrder();
 }
 
 void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 	if (dc == MTP::maindc()) {
 		updateTitleStatus();
-		if (settings) settings->updateConnectionType();
+//		if (settings) settings->updateConnectionType(); TODO
 	}
 }
 
@@ -764,10 +723,6 @@ IntroWidget *MainWindow::introWidget() {
 
 MainWidget *MainWindow::mainWidget() {
 	return main;
-}
-
-SettingsWidget *MainWindow::settingsWidget() {
-	return settings;
 }
 
 PasscodeWidget *MainWindow::passcodeWidget() {
@@ -818,11 +773,15 @@ void MainWindow::ui_showLayer(LayerWidget *box, ShowLayerOptions options) {
 		}
 	} else {
 		if (layerBg) {
-			layerBg->onClose();
-			if (options.testFlag(ForceFastShowLayer)) {
-				layerBg->hide();
-				layerBg->deleteLater();
-				layerBg = nullptr;
+			if (settings) {
+				layerBg->onCloseLayers();
+			} else {
+				layerBg->onClose();
+				if (options.testFlag(ForceFastShowLayer)) {
+					layerBg->hide();
+					layerBg->deleteLater();
+					layerBg = nullptr;
+				}
 			}
 		}
 		hideMediaview();
@@ -1218,9 +1177,9 @@ void MainWindow::noIntro(IntroWidget *was) {
 	}
 }
 
-void MainWindow::noSettings(SettingsWidget *was) {
+void MainWindow::onSettingsDestroyed(QObject *was) {
 	if (was == settings) {
-		settings = 0;
+		settings = nullptr;
 	}
 	checkHistoryActivation();
 }
@@ -1281,7 +1240,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 	}
 	cSetDesktopNotify(!cDesktopNotify());
 	if (settings) {
-		settings->updateDisplayNotify();
+//		settings->updateDisplayNotify(); TODO
 	} else {
 		if (!cDesktopNotify()) {
 			notifyClear();
@@ -1330,13 +1289,8 @@ void MainWindow::resizeEvent(QResizeEvent *e) {
 void MainWindow::updateAdaptiveLayout() {
 	title->updateAdaptiveLayout();
 	if (main) main->updateAdaptiveLayout();
-	if (settings) settings->updateAdaptiveLayout();
 	if (intro) intro->updateAdaptiveLayout();
 	if (layerBg) layerBg->updateAdaptiveLayout();
-}
-
-bool MainWindow::needBackButton() {
-	return !!settings;
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {
@@ -1883,13 +1837,9 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
 	hideMediaview();
-	if (settings) {
-		hideSettings();
-	} else {
-		Ui::hideLayer();
-		if (main) {
-			main->activate();
-		}
+	Ui::hideSettingsAndLayer();
+	if (main) {
+		main->activate();
 	}
 }
 

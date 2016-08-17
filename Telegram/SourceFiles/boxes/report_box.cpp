@@ -66,6 +66,7 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 
 	_report->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _report->height());
 	_cancel->moveToRight(st::boxButtonPadding.right() + _report->width() + st::boxButtonPadding.left(), _report->y());
+	AbstractBox::resizeEvent(e);
 }
 
 void ReportBox::onChange() {

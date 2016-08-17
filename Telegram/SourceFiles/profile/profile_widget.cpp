@@ -105,8 +105,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	QSize scrollSize(width(), height() - _fixedBar->height());
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
-//		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
-		_inner->resizeToWidth(scrollSize.width(), _scroll->height() * 2); // testing
+		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 	}
 	_fixedBar->setHideShareContactButton(_inner->shareContactButtonShown());
 

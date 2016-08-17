@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <QtWidgets/QWidget>
 #include "ui/twidget.h"
+#include "core/lambda_wrap.h"
 
 typedef enum {
 	ButtonByUser  = 0x00, // by clearState() call
@@ -42,16 +43,9 @@ public:
 		StateDisabled = 0x04,
 	};
 
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-
 	Qt::KeyboardModifiers clickModifiers() const {
 		return _modifiers;
 	}
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
 
 	void clearState();
 	int getState() const;
@@ -64,8 +58,18 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-signals:
+	void setClickedCallback(base::lambda_unique<void()> &&callback) {
+		_clickedCallback = std_::move(callback);
+	}
 
+protected:
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+
+signals:
 	void clicked();
 	void stateChanged(int oldState, ButtonStateChangeSource source);
 
@@ -76,5 +80,7 @@ protected:
 	Qt::KeyboardModifiers _modifiers;
 	int _state;
 	bool _acceptBoth;
+
+	base::lambda_unique<void()> _clickedCallback;
 
 };

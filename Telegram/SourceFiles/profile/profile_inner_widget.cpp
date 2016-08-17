@@ -84,7 +84,7 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 		decreaseAdditionalHeight(notDisplayedAtBottom);
 	}
 
-	for_const (auto blockData, _blocks) {
+	for_const (auto &blockData, _blocks) {
 		int blockY = blockData.block->y();
 		blockData.block->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
 	}

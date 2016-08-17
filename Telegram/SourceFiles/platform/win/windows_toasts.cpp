@@ -331,7 +331,6 @@ public:
 				App::wnd()->setInnerFocus();
 				App::wnd()->notifyClear();
 			} else {
-				App::wnd()->hideSettings();
 				bool tomsg = !history->peer->isUser() && (_msgId > 0);
 				if (tomsg) {
 					HistoryItem *item = App::histItemById(peerToChannel(_peerId), _msgId);

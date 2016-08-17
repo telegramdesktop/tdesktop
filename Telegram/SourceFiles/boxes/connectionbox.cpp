@@ -121,6 +121,8 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+
+	AbstractBox::resizeEvent(e);
 }
 
 void ConnectionBox::onChange() {
@@ -264,6 +266,8 @@ void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+
+	AbstractBox::resizeEvent(e);
 }
 
 void AutoDownloadBox::onSave() {

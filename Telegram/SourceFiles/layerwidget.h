@@ -31,16 +31,15 @@ public:
 	}
 	void setInnerFocus();
 
-	void mousePressEvent(QMouseEvent *e) {
-		e->accept();
-	}
-
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
 protected:
+	void mousePressEvent(QMouseEvent *e) override {
+		e->accept();
+	}
 	void resizeEvent(QResizeEvent *e) override {
 		emit resized();
 	}
@@ -74,6 +73,7 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
+	void onCloseLayers();
 	void onClose();
 
 	~LayerStackWidget();

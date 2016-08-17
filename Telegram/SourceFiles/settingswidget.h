@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatcheckbox.h"
 #include "sysbuttons.h"
 #include "core/observer.h"
+#include "boxes/downloadpathbox.h"
 
 class MainWindow;
 
@@ -151,7 +152,6 @@ public slots:
 
 	void onDontAskDownloadPath();
 	void onDownloadPathEdit();
-	void onDownloadPathEdited();
 	void onDownloadPathClear();
 	void onDownloadPathClearSure();
 	void onTempDirCleared(int task);
@@ -194,6 +194,7 @@ private slots:
 
 private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void notifyDownloadPathUpdated(const DownloadPathUpdate &update);
 
 	void saveError(const QString &str = QString());
 

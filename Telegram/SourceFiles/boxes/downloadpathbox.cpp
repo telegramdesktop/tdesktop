@@ -27,6 +27,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "pspecific.h"
 
+namespace internal {
+namespace {
+
+void StartCallback() {
+}
+
+void FinishCallback() {
+}
+
+Notify::SimpleObservedEventRegistrator<DownloadPathUpdateHandler> creator(StartCallback, FinishCallback);
+
+} // namespace
+
+Notify::ConnectionId plainRegisterObserver(DownloadPathUpdateHandler &&handler) {
+	return creator.registerObserver(std_::forward<DownloadPathUpdateHandler>(handler));
+}
+
+} // namespace interanl
+
 DownloadPathBox::DownloadPathBox() : AbstractBox()
 , _path(cDownloadPath())
 , _pathBookmark(cDownloadPathBookmark())
@@ -90,6 +109,7 @@ void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	AbstractBox::resizeEvent(e);
 }
 
 void DownloadPathBox::onChange() {
@@ -132,6 +152,7 @@ void DownloadPathBox::onSave() {
 	cSetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
 	cSetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
+	internal::creator.notify(DownloadPathUpdate());
 	onClose();
 }
 
