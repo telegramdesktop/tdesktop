@@ -113,3 +113,62 @@ void observerRegisteredDefault(Observer *observer, ConnectionId connection) {
 
 } // namespace internal
 } // namespace Notify
+
+namespace base {
+namespace internal {
+namespace {
+
+bool CantUseObservables = false;
+
+struct ObservableListWrap {
+	~ObservableListWrap() {
+		CantUseObservables = true;
+	}
+	OrderedSet<ObservableCallHandlers*> list;
+};
+
+ObservableListWrap &PendingObservables() {
+	static ObservableListWrap result;
+	return result;
+}
+
+ObservableListWrap &ActiveObservables() {
+	static ObservableListWrap result;
+	return result;
+}
+
+} // namespace
+
+void RegisterPendingObservable(ObservableCallHandlers *handlers) {
+	if (CantUseObservables) return;
+	PendingObservables().list.insert(handlers);
+	Global::RefHandleObservables().call();
+}
+
+void UnregisterActiveObservable(ObservableCallHandlers *handlers) {
+	if (CantUseObservables) return;
+	ActiveObservables().list.remove(handlers);
+}
+
+void UnregisterObservable(ObservableCallHandlers *handlers) {
+	if (CantUseObservables) return;
+	PendingObservables().list.remove(handlers);
+	ActiveObservables().list.remove(handlers);
+}
+
+} // namespace internal
+
+void HandleObservables() {
+	if (internal::CantUseObservables) return;
+	auto &active = internal::ActiveObservables().list;
+	qSwap(active, internal::PendingObservables().list);
+	while (!active.empty()) {
+		auto first = *active.begin();
+		(*first)();
+		if (!active.empty() && *active.begin() == first) {
+			active.erase(active.begin());
+		}
+	}
+}
+
+} // namespace base

@@ -205,6 +205,7 @@ public slots:
 	void call_handleUnreadCounterUpdate();
 	void call_handleFileDialogQueue();
 	void call_handleDelayedPeerUpdates();
+	void call_handleObservables();
 
 private:
 

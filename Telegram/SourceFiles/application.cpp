@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "core/observer.h"
 #include "observer_peer.h"
+#include "core/observer.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -920,6 +921,10 @@ void AppClass::call_handleFileDialogQueue() {
 
 void AppClass::call_handleDelayedPeerUpdates() {
 	Notify::peerUpdatedSendDelayed();
+}
+
+void AppClass::call_handleObservables() {
+	base::HandleObservables();
 }
 
 void AppClass::killDownloadSessions() {

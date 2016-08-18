@@ -275,16 +275,16 @@ public:
 	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _member(member) {
 	}
 	void call() {
-		if (!_pending.loadAcquire()) {
-			_pending.storeRelease(1);
+		if (_pending.testAndSetOrdered(0, 1)) {
 			QMetaObject::invokeMethod(this, "makeDelayedCall", Qt::QueuedConnection);
 		}
 	}
 
 private slots:
 	void makeDelayedCall() {
-		_pending.storeRelease(0);
-		QMetaObject::invokeMethod(parent(), _member);
+		if (_pending.testAndSetOrdered(1, 0)) {
+			QMetaObject::invokeMethod(parent(), _member);
+		}
 	}
 
 private:

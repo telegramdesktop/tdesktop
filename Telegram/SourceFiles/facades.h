@@ -230,6 +230,7 @@ DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
 DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
 DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
+DeclareRefVar(SingleDelayedCall, HandleObservables);
 
 DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);

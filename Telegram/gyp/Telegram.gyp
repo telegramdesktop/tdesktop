@@ -187,6 +187,7 @@
       '<(src_loc)/core/observer.h',
       '<(src_loc)/core/qthelp_url.cpp',
       '<(src_loc)/core/qthelp_url.h',
+      '<(src_loc)/core/vector_of_moveable.h',
       '<(src_loc)/data/data_abstract_structure.cpp',
       '<(src_loc)/data/data_abstract_structure.h',
       '<(src_loc)/data/data_drafts.cpp',

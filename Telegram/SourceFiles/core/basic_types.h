@@ -33,13 +33,6 @@ T *getPointerAndReset(T *&ptr) {
 	return result;
 }
 
-template <typename T>
-T createAndSwap(T &value) {
-	T result = T();
-	std::swap(result, value);
-	return result;
-}
-
 struct NullType {
 };
 
@@ -490,6 +483,13 @@ struct is_base_of {
 };
 
 } // namespace std_
+
+template <typename T>
+T createAndSwap(T &value) {
+	T result = T();
+	std::swap(result, value);
+	return std_::move(result);
+}
 
 #include "logs.h"
 
