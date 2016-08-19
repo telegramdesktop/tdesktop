@@ -49,4 +49,55 @@ settingsFixedBarClose: IconButton {
 settingsFixedBarShadowBg1: #00000021;
 settingsFixedBarShadowBg2: #0000000b;
 
+settingsMarginTop: 34px;
+settingsPhotoSize: 112px;
 settingsPhotoLeft: -8px;
+settingsPhotoDuration: 500;
+settingsNameLeft: 26px;
+settingsNameTop: 9px;
+settingsNameLabel: flatLabel(labelDefFlat) {
+	margin: margins(10px, 5px, 10px, 5px);
+	font: font(16px semibold);
+	width: 160px;
+	maxHeight: 24px;
+	textFg: #333333;
+}
+settingsNameTextStyle: textStyle(defaultTextStyle) {
+}
+settingsStatusLeft: 27px;
+settingsStatusTop: 35px;
+settingsStatusFont: normalFont;
+settingsStatusFg: windowSubTextFg;
+settingsStatusFgActive: windowActiveTextFg;
+settingsMarginBottom: 35px;
+
+settingsButtonLeft: 27px;
+settingsButtonTop: 75px;
+settingsButtonSkip: 10px;
+settingsPrimaryButton: RoundButton(defaultActiveButton) {
+}
+settingsSecondaryButton: RoundButton(settingsPrimaryButton) {
+	textFg: semiboldButtonBlueText;
+	textFgOver: semiboldButtonBlueText;
+	textBg: #ffffff;
+	textBgOver: #f2f7fa;
+}
+
+settingsBlocksTop: 7px;
+settingsBlocksBottom: 20px;
+settingsBlockMarginTop: 14px;
+settingsBlockMarginBottom: 7px;
+settingsBlockTitleHeight: 24px;
+settingsBlockTitleFont: font(14px semibold);
+settingsBlockTitleFg: #333333;
+settingsBlockTitleTop: 0px;
+settingsBlockLabel: flatLabel(labelDefFlat) {
+	textFg: windowSubTextFg;
+}
+settingsBlockOneLineTextPart: flatLabel(labelDefFlat) {
+	width: 0px; // No need to set minWidth in one-line text.
+	margin: margins(5px, 5px, 5px, 5px);
+	maxHeight: 20px;
+}
+settingsBlockOneLineSkip: 9px;
+settingsBlockOneLineWidthMax: 240px;

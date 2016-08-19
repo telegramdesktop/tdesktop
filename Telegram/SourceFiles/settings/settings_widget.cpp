@@ -41,6 +41,7 @@ Widget::Widget() : LayerWidget()
 	_fixedBar->move(0, 0);
 	_fixedBarShadow1->move(0, _fixedBar->y() + st::settingsFixedBarHeight);
 	_fixedBarShadow2->move(0, _fixedBarShadow1->y() + st::lineWidth);
+	_scroll->move(0, st::settingsFixedBarHeight);
 }
 
 void Widget::parentResized() {
@@ -82,6 +83,10 @@ void Widget::parentResized() {
 
 	setGeometry((App::wnd()->width() - newWidth) / 2, (App::wnd()->height() - newHeight) / 2, newWidth, newHeight);
 	update();
+}
+
+void Widget::showDone() {
+	_inner->showFinished();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {

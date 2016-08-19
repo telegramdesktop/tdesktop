@@ -35,12 +35,18 @@ public:
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
+	void showFinished();
+
 private:
+	void refreshBlocks();
+
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth, int contentLeft);
 
 	ChildWidget<CoverWidget> _cover = { nullptr };
 	QList<BlockWidget*> _blocks;
+
+	UserData *_self = nullptr;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

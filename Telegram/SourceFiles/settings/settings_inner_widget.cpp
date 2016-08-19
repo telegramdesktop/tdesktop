@@ -21,10 +21,51 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settings/settings_inner_widget.h"
 
+#include "styles/style_settings.h"
+#include "settings/settings_cover.h"
+#include "settings/settings_block_widget.h"
+#include "settings/settings_info_widget.h"
+#include "settings/settings_notifications_widget.h"
+#include "settings/settings_general_widget.h"
+#include "settings/settings_chat_settings_widget.h"
+#include "settings/settings_scale_widget.h"
+#include "settings/settings_background_widget.h"
+#include "settings/settings_privacy_widget.h"
+#include "settings/settings_advanced_widget.h"
+
 namespace Settings {
 
 InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
-{
+, _self(App::self()) {
+	if (_self) {
+		_cover = new CoverWidget(this, _self);
+	}
+	refreshBlocks();
+}
+
+void InnerWidget::refreshBlocks() {
+	for_const (auto block, _blocks) {
+		block->deleteLater();
+	}
+	_blocks.clear();
+	if (_self) {
+		_blocks.push_back(new Settings::InfoWidget(this, _self));
+		_blocks.push_back(new Settings::NotificationsWidget(this, _self));
+	}
+	_blocks.push_back(new Settings::GeneralWidget(this, _self));
+	_blocks.push_back(new Settings::ScaleWidget(this, _self));
+	if (_self) {
+		_blocks.push_back(new Settings::ChatSettingsWidget(this, _self));
+		_blocks.push_back(new Settings::BackgroundWidget(this, _self));
+		_blocks.push_back(new Settings::PrivacyWidget(this, _self));
+	}
+	_blocks.push_back(new Settings::AdvancedWidget(this, _self));
+}
+
+void InnerWidget::showFinished() {
+	if (_cover) {
+		_cover->showFinished();
+	}
 }
 
 void InnerWidget::resizeToWidth(int newWidth, int contentLeft) {
@@ -34,16 +75,22 @@ void InnerWidget::resizeToWidth(int newWidth, int contentLeft) {
 
 int InnerWidget::resizeGetHeight(int newWidth, int contentLeft) {
 	int result = 0;
-	//if (_cover) {
-	//	result += _cover->height();
-	//}
-	//for_const (auto blockData, _blocks) {
-	//	if (blockData->isHidden()) {
-	//		continue;
-	//	}
+	if (_cover) {
+		_cover->setContentLeft(contentLeft);
+		_cover->resizeToWidth(newWidth);
+		result += _cover->height();
+	}
+	result += st::settingsBlocksTop;
+	for_const (auto block, _blocks) {
+		if (block->isHidden()) {
+			continue;
+		}
 
-	//	result += blockData->height();
-	//}
+		block->moveToLeft(0, result);
+		block->setContentLeft(contentLeft);
+		block->resizeToWidth(newWidth);
+		result += block->height();
+	}
 	return result;
 }
 
@@ -51,10 +98,10 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
-	//for_const (auto blockData, _blocks) {
-	//	int blockY = blockData->y();
-	//	blockData->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
-	//}
+	for_const (auto block, _blocks) {
+		int blockY = block->y();
+		block->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
+	}
 }
 
 } // namespace Settings

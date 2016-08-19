@@ -23,6 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "ui/filedialog.h"
 
+#include "settings/settings_block_widget.h"
+
 class FlatLabel;
 class LinkButton;
 
@@ -35,88 +37,60 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Profile {
-
-class BackButton;
 class UserpicButton;
 class CoverDropArea;
+} // namespace Profile
 
-class CoverWidget final : public TWidget, public Notify::Observer {
+namespace Settings {
+
+class CoverWidget final : public BlockWidget {
 	Q_OBJECT
 
 public:
-	CoverWidget(QWidget *parent, PeerData *peer);
-
-	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth);
+	CoverWidget(QWidget *parent, UserData *self);
 
 	void showFinished();
-
-	// Profile fixed top bar should use this flag to decide
-	// if it shows "Share contact" button or not.
-	// It should show it only if it is hidden in the cover.
-	bool shareContactButtonShown() const;
-
-public slots:
-	void onOnlineCountUpdated(int onlineCount);
 
 private slots:
 	void onPhotoShow();
 	void onPhotoUploadStatusChanged(PeerId peerId = 0);
 	void onCancelPhotoUpload();
 
-	void onSendMessage();
-	void onShareContact();
 	void onSetPhoto();
-	void onAddMember();
-	void onAddBotToGroup();
-	void onJoin();
-	void onViewChannel();
+	void onEditName();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dragLeaveEvent(QDragLeaveEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
+
+	void paintContents(Painter &p) override;
+
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
 
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	// Counts userpic button left offset for a new widget width.
-	int countPhotoLeft(int newWidth) const;
 	PhotoData *validatePhoto() const;
 
 	void refreshNameGeometry(int newWidth);
-	void moveAndToggleButtons(int newWidth);
 	void refreshNameText();
 	void refreshStatusText();
 
-	void refreshButtons();
-	void setUserButtons();
-	void setChatButtons();
-	void setMegagroupButtons();
-	void setChannelButtons();
-
-	void clearButtons();
-	void addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle = nullptr);
-
 	void paintDivider(Painter &p);
 
-	bool canEditPhoto() const;
 	void showSetPhotoBox(const QImage &img);
 	void resizeDropArea();
-	void dropAreaHidden(CoverDropArea *dropArea);
+	void dropAreaHidden(Profile::CoverDropArea *dropArea);
 	bool mimeDataHasImage(const QMimeData *mimeData) const;
 
-	PeerData *_peer;
-	UserData *_peerUser;
-	ChatData *_peerChat;
-	ChannelData *_peerChannel;
-	ChannelData *_peerMegagroup;
+	UserData *_self;
 
-	ChildWidget<UserpicButton> _userpicButton;
-	ChildWidget<CoverDropArea> _dropArea = { nullptr };
+	ChildWidget<Profile::UserpicButton> _userpicButton;
+	ChildWidget<Profile::CoverDropArea> _dropArea = { nullptr };
 
 	ChildWidget<FlatLabel> _name;
 	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
@@ -125,19 +99,13 @@ private:
 	QString _statusText;
 	bool _statusTextIsOnline = false;
 
-	struct Button {
-		Ui::RoundButton *widget;
-		Ui::RoundButton *replacement;
-	};
-	QList<Button> _buttons;
+	ChildWidget<Ui::RoundButton> _setPhoto;
+	ChildWidget<Ui::RoundButton> _editName;
 
-	int _photoLeft = 0; // Caching countPhotoLeft() result.
 	int _dividerTop = 0;
-
-	int _onlineCount = 0;
 
 	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 
-} // namespace Profile
+} // namespace Settings

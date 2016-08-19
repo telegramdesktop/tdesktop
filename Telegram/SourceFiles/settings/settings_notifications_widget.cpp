@@ -18,34 +18,26 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "settings/settings_notifications_widget.h"
 
-#include "layerwidget.h"
+#include "styles/style_settings.h"
+#include "lang.h"
 
 namespace Settings {
 
-class InnerWidget;
-class FixedBar;
+NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
+	refreshControls();
+}
 
-class Widget : public LayerWidget {
-public:
-	Widget();
+void NotificationsWidget::refreshControls() {
+}
 
-	void parentResized() override;
-	void showDone() override;
+int NotificationsWidget::resizeGetHeight(int newWidth) {
+	int newHeight = contentTop();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
-
-	int _contentLeft = 0;
-
-};
+	newHeight += st::settingsBlockMarginBottom;
+	return newHeight;
+}
 
 } // namespace Settings

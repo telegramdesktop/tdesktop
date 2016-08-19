@@ -41,8 +41,9 @@ public:
 	, _shadow(st::boxShadow) {
 	}
 
-	void setLayerBox(const QRect &box) {
+	void setLayerBox(const QRect &box, const QRect &hiddenSpecialBox) {
 		_box = box;
+		_hiddenSpecialBox = hiddenSpecialBox;
 		update();
 	}
 	void setOpacity(float64 opacity) {
@@ -64,11 +65,15 @@ protected:
 			p.setClipRegion(clip);
 			p.setOpacity(_opacity);
 			_shadow.paint(p, _box, st::boxShadowShift);
+			if (!_hiddenSpecialBox.isNull()) {
+				p.setClipRegion(QRegion(rect()) - _hiddenSpecialBox);
+				_shadow.paint(p, _hiddenSpecialBox, st::boxShadowShift);
+			}
 		}
 	}
 
 private:
-	QRect _box;
+	QRect _box, _hiddenSpecialBox;
 	float64 _opacity = 0.;
 
 	BoxShadow _shadow;
@@ -93,6 +98,9 @@ void LayerStackWidget::paintEvent(QPaintEvent *e) {
 		Painter p(this);
 		p.setClipRect(rect());
 		p.setOpacity(a_layer.current());
+		if (!_hiddenSpecialLayerCache.isNull()) {
+			p.drawPixmap(_hiddenSpecialLayerCacheBox.topLeft(), _hiddenSpecialLayerCache);
+		}
 		p.drawPixmap(_layerCacheBox.topLeft(), _layerCache);
 	}
 }
@@ -104,7 +112,11 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	onClose();
+	if (layer()) {
+		onCloseLayers();
+	} else {
+		onClose();
+	}
 }
 
 void LayerStackWidget::onCloseLayers() {
@@ -144,6 +156,7 @@ void LayerStackWidget::onLayerClosed(LayerWidget *l) {
 		fixOrder();
 		if (App::wnd()) App::wnd()->setInnerFocus();
 		updateLayerBox();
+		sendFakeMouseEvent();
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
 			if (l == *i) {
@@ -169,7 +182,15 @@ void LayerStackWidget::updateLayerBox() {
 		}
 		return QRect();
 	};
-	_background->setLayerBox(getLayerBox());
+	auto getSpecialLayerBox = [this]() {
+		if (!_layerCache.isNull()) {
+			return _hiddenSpecialLayerCacheBox;
+		} else if (auto l = layer()) {
+			return _specialLayer ? _specialLayer->geometry() : QRect();
+		}
+		return QRect();
+	};
+	_background->setLayerBox(getLayerBox(), getSpecialLayerBox());
 	update();
 }
 
@@ -202,6 +223,10 @@ void LayerStackWidget::startAnimation(float64 toOpacity) {
 		if (auto cacheLayer = layer() ? layer() : _specialLayer) {
 			_layerCache = myGrab(cacheLayer);
 			_layerCacheBox = cacheLayer->geometry();
+			if (layer() && _specialLayer) {
+				_hiddenSpecialLayerCache = myGrab(_specialLayer);
+				_hiddenSpecialLayerCacheBox = _specialLayer->geometry();
+			}
 		}
 	}
 	if (_specialLayer) {
@@ -294,6 +319,8 @@ void LayerStackWidget::clearLayers() {
 		oldLayer->deleteLater();
 	}
 	_layers.clear();
+	updateLayerBox();
+	sendFakeMouseEvent();
 }
 
 void LayerStackWidget::initChildLayer(LayerWidget *l) {
@@ -315,6 +342,7 @@ void LayerStackWidget::activateLayer(LayerWidget *l) {
 		updateLayerBox();
 	}
 	fixOrder();
+	sendFakeMouseEvent();
 }
 
 void LayerStackWidget::fixOrder() {
@@ -326,13 +354,17 @@ void LayerStackWidget::fixOrder() {
 	}
 }
 
+void LayerStackWidget::sendFakeMouseEvent() {
+	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+}
+
 void LayerStackWidget::step_background(float64 ms, bool timer) {
 	float64 dt = ms / (_hiding ? st::layerHideDuration : st::layerSlideDuration);
 	if (dt >= 1) {
 		a_bg.finish();
 		a_layer.finish();
 		_a_background.stop();
-		_layerCache = QPixmap();
+		_layerCache = _hiddenSpecialLayerCache = QPixmap();
 		if (_hiding) {
 			App::wnd()->layerFinishedHide(this);
 		} else {

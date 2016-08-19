@@ -217,6 +217,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_upload" = "Set Profile Photo";
 "lng_settings_crop_profile" = "Select a square area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo...";
+"lng_settings_edit" = "Edit";
+
+"lng_settings_drop_area_subtitle" = "to set it as your photo";
 
 "lng_username_title" = "Username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
@@ -231,7 +234,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
 
-"lng_settings_section_contact_info" = "Contact info";
+"lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Phone number:";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Choose username";
@@ -264,10 +267,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
 "lng_settings_add_sendto" = "Place Telegram in «Send to» menu";
-"lng_settings_scale_label" = "Interface scale";
+"lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
-"lng_settings_section_chat" = "Chat options";
+"lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_emoji_list" = "Supported emoji";
@@ -301,7 +304,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_cleared" = "Cleared!";
 "lng_download_path_clear_failed" = "Clear failed :(";
 
-"lng_settings_section_cache" = "Local storage";
+"lng_settings_section_privacy" = "Privacy and Security";
+
 "lng_settings_no_data_cached" = "No cached data found!";
 "lng_settings_images_cached" = "{count:_not_used_|# image|# images}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# voice message|# voice messages}, {size}";

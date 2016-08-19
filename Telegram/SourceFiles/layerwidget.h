@@ -95,6 +95,7 @@ private:
 	void activateLayer(LayerWidget *l);
 	void updateLayerBox();
 	void fixOrder();
+	void sendFakeMouseEvent();
 
 	void startShow();
 	void startHide();
@@ -122,6 +123,8 @@ private:
 
 	QPixmap _layerCache;
 	QRect _layerCacheBox;
+	QPixmap _hiddenSpecialLayerCache;
+	QRect _hiddenSpecialLayerCacheBox;
 
 	bool _hiding = false;
 

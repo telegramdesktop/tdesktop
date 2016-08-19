@@ -20,31 +20,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "settings/settings_block_widget.h"
 
 namespace Settings {
 
-class InnerWidget;
-class FixedBar;
-
-class Widget : public LayerWidget {
+class ChatSettingsWidget : public BlockWidget {
 public:
-	Widget();
-
-	void parentResized() override;
-	void showDone() override;
+	ChatSettingsWidget(QWidget *parent, UserData *self);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
 
 private:
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
-
-	int _contentLeft = 0;
+	void refreshControls();
 
 };
 

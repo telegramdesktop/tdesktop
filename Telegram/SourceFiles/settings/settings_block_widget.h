@@ -20,31 +20,51 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "core/observer.h"
 
 namespace Settings {
 
-class InnerWidget;
-class FixedBar;
+class BlockWidget : public ScrolledWidget, public Notify::Observer, public base::Subscriber {
+	Q_OBJECT
 
-class Widget : public LayerWidget {
 public:
-	Widget();
+	BlockWidget(QWidget *parent, UserData *self, const QString &title);
 
-	void parentResized() override;
-	void showDone() override;
+	void setContentLeft(int contentLeft);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	virtual void paintContents(Painter &p) {
+	}
+
+	// Where does the block content start (after the title).
+	int contentLeft() const {
+		return _contentLeft;
+	}
+	int contentTop() const;
+
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override = 0;
+
+	void contentSizeUpdated() {
+		resizeToWidth(width());
+		emit heightUpdated();
+	}
+
+	UserData *self() const {
+		return _self;
+	}
+
+	bool emptyTitle() const {
+		return _title.isEmpty();
+	}
 
 private:
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+	void paintTitle(Painter &p);
 
 	int _contentLeft = 0;
+	UserData *_self;
+	QString _title;
 
 };
 

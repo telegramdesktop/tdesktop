@@ -18,34 +18,40 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "settings/settings_block_widget.h"
 
-#include "layerwidget.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 
-class InnerWidget;
-class FixedBar;
+BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : ScrolledWidget(parent)
+, _self(self)
+, _title(title) {
+}
 
-class Widget : public LayerWidget {
-public:
-	Widget();
+void BlockWidget::setContentLeft(int contentLeft) {
+	_contentLeft = contentLeft;
+}
 
-	void parentResized() override;
-	void showDone() override;
+int BlockWidget::contentTop() const {
+	return emptyTitle() ? 0 : (st::settingsBlockMarginTop + st::settingsBlockTitleHeight);
+}
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+void BlockWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
 
-private:
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+	paintTitle(p);
+	paintContents(p);
+}
 
-	int _contentLeft = 0;
+void BlockWidget::paintTitle(Painter &p) {
+	if (emptyTitle()) return;
 
-};
+	p.setFont(st::settingsBlockTitleFont);
+	p.setPen(st::settingsBlockTitleFg);
+	int titleTop = st::settingsBlockMarginTop + st::settingsBlockTitleTop;
+	p.drawTextLeft(contentLeft(), titleTop, width(), _title);
+}
 
 } // namespace Settings

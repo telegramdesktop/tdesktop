@@ -159,9 +159,9 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 // for each text button. But currently we use only one, so it is done easily:
 // There can be primary + secondary + icon buttons. If primary + secondary fit,
 // then icon is hidden, otherwise secondary is hidden and icon is shown.
-void CoverWidget::moveAndToggleButtons(int newWiddth) {
+void CoverWidget::moveAndToggleButtons(int newWidth) {
 	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::profileButtonLeft;
-	int buttonsRight = newWiddth - st::profileButtonSkip;
+	int buttonsRight = newWidth - st::profileButtonSkip;
 	for (int i = 0, count = _buttons.size(); i < count; ++i) {
 		auto &button = _buttons.at(i);
 		button.widget->moveToLeft(buttonLeft, st::profileButtonTop);
@@ -315,9 +315,10 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 }
 
 void CoverWidget::paintDivider(Painter &p) {
-	st::profileDividerLeft.paint(p, QPoint(st::lineWidth, _dividerTop), width());
+	auto dividerLeft = (Adaptive::OneColumn() ? 0 : st::lineWidth);
+	st::profileDividerLeft.paint(p, QPoint(dividerLeft, _dividerTop), width());
 
-	int toFillLeft = st::lineWidth + st::profileDividerLeft.width();
+	int toFillLeft = dividerLeft + st::profileDividerLeft.width();
 	QRect toFill = rtlrect(toFillLeft, _dividerTop, width() - toFillLeft, st::profileDividerFill.height(), width());
 	st::profileDividerFill.fill(p, toFill);
 }
@@ -346,6 +347,7 @@ void CoverWidget::refreshStatusText() {
 	if (auto app = App::app()) {
 		if (app->isPhotoUpdating(_peer->id)) {
 			_statusText = lang(lng_settings_uploading_photo);
+			_statusTextIsOnline = false;
 			if (!_cancelPhotoUpload) {
 				_cancelPhotoUpload = new LinkButton(this, lang(lng_cancel), st::btnDefLink);
 				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));

@@ -450,7 +450,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		// contact info
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_contact_info));
+//		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_contact_info));
 		top += st::setHeaderSkip;
 
 		p.setFont(st::linkFont->f);
@@ -520,7 +520,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
     if (!cRetina()) {
         p.setFont(st::setHeaderFont->f);
         p.setPen(st::setHeaderColor->p);
-        p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
+//        p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
         top += st::setHeaderSkip;
         top += _dpiAutoScale.height() + st::setLittleSkip;
 
@@ -547,7 +547,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		// chat options
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_chat));
+//		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_chat));
 		top += st::setHeaderSkip;
 
 		top += _replaceEmojis.height() + st::setLittleSkip;
@@ -581,7 +581,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		// local storage
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_cache));
+//		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_cache));
 
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
