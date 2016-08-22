@@ -25,15 +25,30 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 class NotificationsWidget : public BlockWidget {
+	Q_OBJECT
+
 public:
 	NotificationsWidget(QWidget *parent, UserData *self);
 
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
+private slots:
+	void onDesktopNotifications();
+	void onShowSenderName();
+	void onShowMessagePreview();
+#ifdef Q_OS_WIN
+	void onWindowsNative();
+#endif // Q_OS_WIN
+	void onPlaySound();
+	void onIncludeMuted();
 
 private:
-	void refreshControls();
+	void createControls();
+
+	ChildWidget<Checkbox> _desktopNotifications = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _showSenderName = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _showMessagePreview = { nullptr };
+	ChildWidget<Checkbox> _windowsNative = { nullptr };
+	ChildWidget<Checkbox> _playSound = { nullptr };
+	ChildWidget<Checkbox> _includeMuted = { nullptr };
 
 };
 

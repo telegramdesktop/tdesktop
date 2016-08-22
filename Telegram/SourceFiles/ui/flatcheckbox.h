@@ -98,7 +98,10 @@ public:
 
 	void finishAnimations();
 
-	void paintEvent(QPaintEvent *e);
+	int naturalWidth() const override;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
 public slots:
 	void onClicked();

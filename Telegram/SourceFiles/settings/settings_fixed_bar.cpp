@@ -35,8 +35,8 @@ FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
 	});
 }
 
-void FixedBar::resizeToWidth(int newWidth) {
-	resize(newWidth, st::settingsFixedBarHeight);
+int FixedBar::resizeGetHeight(int newWidth) {
+	return st::settingsFixedBarHeight;
 }
 
 void FixedBar::resizeEvent(QResizeEvent *e) {

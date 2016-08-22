@@ -111,7 +111,7 @@ int CoverWidget::countPhotoLeft(int newWidth) const {
 	return qMin(result, st::profilePhotoLeftMax);
 }
 
-void CoverWidget::resizeToWidth(int newWidth) {
+int CoverWidget::resizeGetHeight(int newWidth) {
 	int newHeight = 0;
 
 	newHeight += st::profileMarginTop;
@@ -137,9 +137,8 @@ void CoverWidget::resizeToWidth(int newWidth) {
 
 	newHeight += st::profileBlocksTop;
 
-	resizeDropArea();
-	resize(newWidth, newHeight);
-	update();
+	resizeDropArea(newWidth);
+	return newHeight;
 }
 
 void CoverWidget::refreshNameGeometry(int newWidth) {
@@ -210,9 +209,9 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	paintDivider(p);
 }
 
-void CoverWidget::resizeDropArea() {
+void CoverWidget::resizeDropArea(int newWidth) {
 	if (_dropArea) {
-		_dropArea->setGeometry(0, 0, width(), _dividerTop);
+		_dropArea->setGeometry(0, 0, newWidth, _dividerTop);
 	}
 }
 
@@ -277,7 +276,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 			subtitle = lang(lng_profile_drop_area_subtitle_channel);
 		}
 		_dropArea = new CoverDropArea(this, title, subtitle);
-		resizeDropArea();
+		resizeDropArea(width());
 	}
 	_dropArea->showAnimated();
 	e->setDropAction(Qt::CopyAction);

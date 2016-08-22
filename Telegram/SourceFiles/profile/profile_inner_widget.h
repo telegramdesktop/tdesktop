@@ -35,8 +35,10 @@ public:
 		return _peer;
 	}
 
-	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth, int minHeight);
+	void resizeToWidth(int newWidth, int minHeight) {
+		_minHeight = minHeight;
+		return TWidget::resizeToWidth(newWidth);
+	}
 
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
@@ -58,11 +60,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
+
 private:
 	void createBlocks();
-
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth);
 
 	// Counts the natural widget height after resizing of child widgets.
 	int countHeight() const;
@@ -92,6 +94,7 @@ private:
 	// Height that we added to the natural height so that it is allowed
 	// to scroll down to the desired position.
 	int _addedHeight = 0;
+	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 

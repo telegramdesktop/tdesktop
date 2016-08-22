@@ -73,6 +73,7 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
+	void onCloseCurrent();
 	void onCloseLayers();
 	void onClose();
 

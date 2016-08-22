@@ -22,18 +22,58 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
+class FlatLabel;
+
 namespace Settings {
 
-class ChatSettingsWidget : public BlockWidget {
+class LabeledLink : public TWidget {
 public:
-	ChatSettingsWidget(QWidget *parent, UserData *self);
+	LabeledLink(QWidget *parent, const QString &label, const QString &text);
+
+	void setLink(const QString &text);
+
+	LinkButton *link() {
+		return _link;
+	}
+
+	int naturalWidth() const override;
 
 protected:
-	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void refreshControls();
+	ChildWidget<FlatLabel> _label;
+	ChildWidget<LinkButton> _link;
+
+};
+
+class ChatSettingsWidget : public BlockWidget {
+	Q_OBJECT
+
+public:
+	ChatSettingsWidget(QWidget *parent, UserData *self);
+
+private slots:
+	void onReplaceEmoji();
+	void onViewList();
+	void onDontAskDownloadPath();
+	void onDownloadPath();
+	void onSendByEnter();
+	void onSendByCtrlEnter();
+	void onAutomaticMediaDownloadSettings();
+	void onManageStickerSets();
+
+private:
+	void createControls();
+
+	ChildWidget<Checkbox> _replaceEmoji = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _viewList = { nullptr };
+	ChildWidget<Checkbox> _dontAskDownloadPath = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<LabeledLink>> _downloadPath = { nullptr };
+	ChildWidget<Radiobutton> _sendByEnter = { nullptr };
+	ChildWidget<Radiobutton> _sendByCtrlEnter = { nullptr };
+	ChildWidget<LinkButton> _automaticMediaDownloadSettings = { nullptr };
+	ChildWidget<LinkButton> _manageStickerSets = { nullptr };
 
 };
 

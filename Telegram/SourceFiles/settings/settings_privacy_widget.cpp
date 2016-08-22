@@ -31,13 +31,25 @@ PrivacyWidget::PrivacyWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 }
 
 void PrivacyWidget::refreshControls() {
+	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
+	style::margins marginSkip(0, 0, 0, st::settingsSkip);
+	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
+
+	addChildRow(_editPasscode, marginSmall, lang(lng_passcode_turn_on), SLOT(onEditPasscode()));
+	addChildRow(_editPassword, marginSmall, lang(lng_cloud_password_set), SLOT(onEditPassword()));
+	addChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
 }
 
-int PrivacyWidget::resizeGetHeight(int newWidth) {
-	int newHeight = contentTop();
+void PrivacyWidget::onEditPasscode() {
 
-	newHeight += st::settingsBlockMarginBottom;
-	return newHeight;
+}
+
+void PrivacyWidget::onEditPassword() {
+
+}
+
+void PrivacyWidget::onShowSessions() {
+
 }
 
 } // namespace Settings

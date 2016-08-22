@@ -32,3 +32,5 @@ defaultLabelSimple: LabelSimple {
 	maxWidth: 0px;
 	textFg: windowTextFg;
 }
+
+widgetSlideDuration: 200;

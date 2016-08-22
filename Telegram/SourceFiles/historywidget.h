@@ -354,7 +354,6 @@ class BotKeyboard : public TWidget, public AbstractTooltipShower, public ClickHa
 	Q_OBJECT
 
 public:
-
 	BotKeyboard();
 
 	void paintEvent(QPaintEvent *e) override;
@@ -373,7 +372,10 @@ public:
 	bool forceReply() const;
 
 	void step_selected(uint64 ms, bool timer);
-	void resizeToWidth(int newWidth, int maxOuterHeight);
+	void resizeToWidth(int newWidth, int maxOuterHeight) {
+		_maxOuterHeight = maxOuterHeight;
+		return TWidget::resizeToWidth(newWidth);
+	}
 
 	bool maximizeSize() const;
 	bool singleUse() const;
@@ -389,6 +391,9 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+protected:
+	int resizeGetHeight(int newWidth) override;
 
 private:
 	void updateSelected();

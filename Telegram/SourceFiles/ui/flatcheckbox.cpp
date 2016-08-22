@@ -310,6 +310,10 @@ void Checkbox::step_checked(float64 ms, bool timer) {
 	if (timer) update(_checkRect);
 }
 
+int Checkbox::naturalWidth() const {
+	return _st.textPosition.x() + _st.font->width(_fullText);
+}
+
 void Checkbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 

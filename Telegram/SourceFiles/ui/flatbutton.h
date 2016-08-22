@@ -66,23 +66,24 @@ class LinkButton : public Button {
 	Q_OBJECT
 
 public:
-
 	LinkButton(QWidget *parent, const QString &text, const style::linkButton &st = st::btnDefLink);
 
-	void paintEvent(QPaintEvent *e);
+	int naturalWidth() const override;
 
 	void setText(const QString &text);
 
 	~LinkButton();
 
-public slots:
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
+public slots:
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 private:
-
 	QString _text;
 	style::linkButton _st;
+
 };
 
 class IconedButton : public Button {

@@ -60,6 +60,9 @@ void InnerWidget::refreshBlocks() {
 		_blocks.push_back(new Settings::PrivacyWidget(this, _self));
 	}
 	_blocks.push_back(new Settings::AdvancedWidget(this, _self));
+	for_const (auto block, _blocks) {
+		connect(block, SIGNAL(heightUpdated()), this, SLOT(onBlockHeightUpdated()));
+	}
 }
 
 void InnerWidget::showFinished() {
@@ -68,30 +71,38 @@ void InnerWidget::showFinished() {
 	}
 }
 
-void InnerWidget::resizeToWidth(int newWidth, int contentLeft) {
-	int newHeight = resizeGetHeight(newWidth, contentLeft);
-	resize(newWidth, newHeight);
+int InnerWidget::resizeGetHeight(int newWidth) {
+	if (_cover) {
+		_cover->setContentLeft(_contentLeft);
+		_cover->resizeToWidth(newWidth);
+	}
+	for_const (auto block, _blocks) {
+		block->setContentLeft(_contentLeft);
+		block->resizeToWidth(newWidth);
+	}
+
+	int result = refreshBlocksPositions();
+	return result;
 }
 
-int InnerWidget::resizeGetHeight(int newWidth, int contentLeft) {
-	int result = 0;
-	if (_cover) {
-		_cover->setContentLeft(contentLeft);
-		_cover->resizeToWidth(newWidth);
-		result += _cover->height();
-	}
-	result += st::settingsBlocksTop;
+int InnerWidget::refreshBlocksPositions() {
+	int result = (_cover ? _cover->height() : 0) + st::settingsBlocksTop;
 	for_const (auto block, _blocks) {
 		if (block->isHidden()) {
 			continue;
 		}
 
 		block->moveToLeft(0, result);
-		block->setContentLeft(contentLeft);
-		block->resizeToWidth(newWidth);
 		result += block->height();
 	}
 	return result;
+}
+
+void InnerWidget::onBlockHeightUpdated() {
+	int newHeight = refreshBlocksPositions();
+	if (newHeight != height()) {
+		resize(width(), newHeight);
+	}
 }
 
 void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {

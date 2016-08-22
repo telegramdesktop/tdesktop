@@ -23,21 +23,76 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_settings.h"
 #include "lang.h"
+#include "boxes/connectionbox.h"
+#include "boxes/confirmbox.h"
+#include "boxes/aboutbox.h"
+#include "mainwindow.h"
 
 namespace Settings {
 
-AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_advanced)) {
-	refreshControls();
+AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_advanced_settings)) {
+	createControls();
 }
 
-void AdvancedWidget::refreshControls() {
+void AdvancedWidget::createControls() {
+	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
+	style::margins marginLarge(0, 0, 0, st::settingsLargeSkip);
+
+	if (self()) {
+		addChildRow(_manageLocalStorage, marginSmall, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
+	}
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting));
+	connect(_connectionType->link(), SIGNAL(clicked()), this, SLOT(onConnectionType()));
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+	if (self()) {
+		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
+	}
+	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
+	if (self()) {
+		addChildRow(_logOut, marginSmall, lang(lng_settings_logout), SLOT(onLogOut()));
+	}
 }
 
-int AdvancedWidget::resizeGetHeight(int newWidth) {
-	int newHeight = contentTop();
+void AdvancedWidget::onManageLocalStorage() {
 
-	newHeight += st::settingsBlockMarginBottom;
-	return newHeight;
 }
+
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+void AdvancedWidget::onConnectionType() {
+	Ui::showLayer(new ConnectionBox());
+}
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+
+void AdvancedWidget::onAskQuestion() {
+	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
+	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
+	Ui::showLayer(box);
+}
+
+void AdvancedWidget::onAskQuestionSure() {
+	if (_supportGetRequest) return;
+	_supportGetRequest = MTP::send(MTPhelp_GetSupport(), rpcDone(&AdvancedWidget::supportGot));
+}
+
+void AdvancedWidget::supportGot(const MTPhelp_Support &support) {
+	if (!App::main()) return;
+
+	if (support.type() == mtpc_help_support) {
+		if (auto user = App::feedUsers(MTP_vector<MTPUser>(1, support.c_help_support().vuser))) {
+			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+		}
+	}
+}
+
+void AdvancedWidget::onTelegramFAQ() {
+	QDesktopServices::openUrl(telegramFaqLink());
+}
+
+void AdvancedWidget::onLogOut() {
+	App::wnd()->onLogout();
+}
+
 
 } // namespace Settings

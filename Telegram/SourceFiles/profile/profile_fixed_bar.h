@@ -40,8 +40,6 @@ class FixedBar final : public TWidget, public Notify::Observer {
 public:
 	FixedBar(QWidget *parent, PeerData *peer);
 
-	void resizeToWidth(int newWidth);
-
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
 	void setAnimatingMode(bool enabled);
@@ -51,6 +49,7 @@ public:
 
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
+	int resizeGetHeight(int newWidth) override;
 
 public slots:
 	void onBack();

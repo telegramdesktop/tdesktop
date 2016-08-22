@@ -26,27 +26,41 @@ class CoverWidget;
 class BlockWidget;
 
 class InnerWidget : public TWidget {
+	Q_OBJECT
+
 public:
 	InnerWidget(QWidget *parent);
 
 	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth, int contentLeft);
+	void resizeToWidth(int newWidth, int contentLeft) {
+		_contentLeft = contentLeft;
+		return TWidget::resizeToWidth(newWidth);
+	}
 
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom);
 
 	void showFinished();
 
+private slots:
+	void onBlockHeightUpdated();
+
+protected:
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
+
 private:
 	void refreshBlocks();
 
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth, int contentLeft);
+	// Returns the new height value.
+	int refreshBlocksPositions();
 
 	ChildWidget<CoverWidget> _cover = { nullptr };
 	QList<BlockWidget*> _blocks;
 
 	UserData *_self = nullptr;
+
+	int _contentLeft = 0;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

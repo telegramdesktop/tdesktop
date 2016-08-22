@@ -42,13 +42,13 @@ void LeftOutlineButton::setText(const QString &text) {
 	update();
 }
 
-void LeftOutlineButton::resizeToWidth(int newWidth) {
+int LeftOutlineButton::resizeGetHeight(int newWidth) {
 	int availableWidth = qMax(newWidth - _st.padding.left() - _st.padding.right(), 1);
 	if ((availableWidth < _fullTextWidth) || (_textWidth < availableWidth)) {
 		_text = _st.font->elided(_fullText, availableWidth);
 		_textWidth = _st.font->width(_text);
 	}
-	resize(newWidth, _st.padding.top() + _st.font->height + _st.padding.bottom());
+	return _st.padding.top() + _st.font->height + _st.padding.bottom();
 }
 
 void LeftOutlineButton::paintEvent(QPaintEvent *e) {

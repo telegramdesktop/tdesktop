@@ -37,11 +37,10 @@ public:
 		setCursor(style::cur_pointer);
 	}
 
-	void resizeToWidth(int newWidth) {
-		resize(newWidth, st::profileTopBarHeight);
-	}
-
 protected:
+	int resizeGetHeight(int newWidth) override {
+		return st::profileTopBarHeight;
+	}
 	void paintEvent(QPaintEvent *e) override {
 		Painter p(this);
 
@@ -224,7 +223,7 @@ void FixedBar::onLeaveGroupSure() {
 	App::main()->deleteAndExit(_peerChat);
 }
 
-void FixedBar::resizeToWidth(int newWidth) {
+int FixedBar::resizeGetHeight(int newWidth) {
 	int newHeight = 0;
 
 	int buttonLeft = newWidth;
@@ -238,7 +237,7 @@ void FixedBar::resizeToWidth(int newWidth) {
 	_backButton->moveToLeft(0, 0);
 	newHeight += _backButton->height();
 
-	resize(newWidth, newHeight);
+	return newHeight;
 }
 
 void FixedBar::setAnimatingMode(bool enabled) {

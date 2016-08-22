@@ -394,6 +394,7 @@
       '<(src_loc)/ui/toast/toast_widget.h',
       '<(src_loc)/ui/widgets/label_simple.cpp',
       '<(src_loc)/ui/widgets/label_simple.h',
+      '<(src_loc)/ui/widgets/widget_slide_wrap.h',
       '<(src_loc)/ui/animation.cpp',
       '<(src_loc)/ui/animation.h',
       '<(src_loc)/ui/boxshadow.cpp',

@@ -127,6 +127,10 @@ LinkButton::LinkButton(QWidget *parent, const QString &text, const style::linkBu
 	setCursor(style::cur_pointer);
 }
 
+int LinkButton::naturalWidth() const {
+	return _st.font->width(_text);
+}
+
 void LinkButton::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setFont(((_state & StateOver) ? _st.overFont : _st.font)->f);

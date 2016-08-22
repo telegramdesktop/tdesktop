@@ -2557,9 +2557,7 @@ bool BotKeyboard::forceReply() const {
 	return _forceReply;
 }
 
-void BotKeyboard::resizeToWidth(int newWidth, int maxOuterHeight) {
-	_maxOuterHeight = maxOuterHeight;
-
+int BotKeyboard::resizeGetHeight(int newWidth) {
 	updateStyle(newWidth);
 	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
 	if (_maximizeSize) {
@@ -2570,10 +2568,7 @@ void BotKeyboard::resizeToWidth(int newWidth, int maxOuterHeight) {
 		int implHeight = _height - (st::botKbScroll.deltat + st::botKbScroll.deltab);
 		_impl->resize(implWidth, implHeight);
 	}
-	QSize newSize(newWidth, _height);
-	if (newSize != size()) {
-		resize(newSize);
-	}
+	return _height;
 }
 
 bool BotKeyboard::maximizeSize() const {

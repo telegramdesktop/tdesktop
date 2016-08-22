@@ -253,7 +253,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
-"lng_settings_auto_update" = "Update automatically";
+"lng_settings_update_automatically" = "Update automatically (ver. {version})";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";
 "lng_settings_update_checking" = "Checking for updates...";
@@ -314,7 +314,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_local_storage_cleared" = "Cleared!";
 "lng_local_storage_clear_failed" = "Clear failed :(";
 
-"lng_settings_section_advanced" = "Advanced";
+"lng_settings_section_advanced_settings" = "Advanced Settings";
 
 "lng_passcode_remove_button" = "Remove";
 
@@ -388,6 +388,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
 "lng_settings_reset_button" = "Terminate";
 "lng_settings_reset_done" = "Other sessions terminated";
+"lng_settings_manage_local_storage" = "Manage local storage";
 "lng_settings_ask_question" = "Ask a Question";
 "lng_settings_ask_sure" = "Please note that Telegram Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
 "lng_settings_faq_button" = "Go to FAQ";

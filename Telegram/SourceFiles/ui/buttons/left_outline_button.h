@@ -28,13 +28,14 @@ class LeftOutlineButton : public Button {
 public:
 	LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st = st::defaultLeftOutlineButton);
 
-	void resizeToWidth(int newWidth);
 	void setText(const QString &text);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+
+	int resizeGetHeight(int newWidth) override;
 
 private:
 	QString _text, _fullText;

@@ -34,30 +34,51 @@ class InfoWidget : public BlockWidget {
 public:
 	InfoWidget(QWidget *parent, UserData *self);
 
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
-
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
+	bool usernameClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
+
+	void createControls();
 	void refreshControls();
 	void refreshMobileNumber();
 	void refreshUsername();
 	void refreshLink();
 
-	// labelWidget may be nullptr.
-	void setLabeledText(ChildWidget<FlatLabel> *labelWidget, const QString &label,
-		ChildWidget<FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
+	class LabeledWidget : public TWidget {
+	public:
+		LabeledWidget(QWidget *parent);
 
-	ChildWidget<FlatLabel> _mobileNumberLabel = { nullptr };
-	ChildWidget<FlatLabel> _mobileNumber = { nullptr };
-	ChildWidget<FlatLabel> _usernameLabel = { nullptr };
-	ChildWidget<FlatLabel> _username = { nullptr };
-	ChildWidget<FlatLabel> _linkLabel = { nullptr };
-	ChildWidget<FlatLabel> _link = { nullptr };
-	ChildWidget<FlatLabel> _linkShort = { nullptr };
+		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+
+		FlatLabel *textLabel() {
+			return _text;
+		}
+		FlatLabel *shortTextLabel() {
+			return _shortText;
+		}
+
+		int naturalWidth() const override;
+
+	protected:
+		int resizeGetHeight(int newWidth) override;
+
+	private:
+		void setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
+
+		ChildWidget<FlatLabel> _label = { nullptr };
+		ChildWidget<FlatLabel> _text = { nullptr };
+		ChildWidget<FlatLabel> _shortText = { nullptr };
+
+	};
+
+	using LabeledWrap = Ui::WidgetSlideWrap<LabeledWidget>;
+	void setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+
+	ChildWidget<LabeledWrap> _mobileNumber = { nullptr };
+	ChildWidget<LabeledWrap> _username = { nullptr };
+	ChildWidget<LabeledWrap> _link = { nullptr };
 
 };
 

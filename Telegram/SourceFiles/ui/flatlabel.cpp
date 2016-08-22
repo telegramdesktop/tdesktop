@@ -112,11 +112,13 @@ void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
 	_breakEverywhere = breakEverywhere;
 }
 
-void FlatLabel::resizeToWidth(int32 width) {
+int FlatLabel::resizeGetHeight(int newWidth) {
+	_allowedWidth = newWidth;
 	textstyleSet(&_tst);
-	_allowedWidth = width;
-	refreshSize();
+	int textWidth = countTextWidth();
+	int textHeight = countTextHeight(textWidth);
 	textstyleRestore();
+	return _st.margin.top() + textHeight + _st.margin.bottom();
 }
 
 int FlatLabel::naturalWidth() const {

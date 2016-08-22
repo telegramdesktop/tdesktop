@@ -206,7 +206,19 @@ public:
 		return QPointer<const TWidget>(this);
 	}
 
-	virtual ~TWidget() {
+	// Get the size of the widget as it should be.
+	// Negative return value means no default width.
+	virtual int naturalWidth() const {
+		return -1;
+	}
+
+	// Count new height for width=newWidth and resize to it.
+	void resizeToWidth(int newWidth) {
+		auto newSize = QSize(newWidth, resizeGetHeight(newWidth));
+		if (newSize != size()) {
+			resize(newSize);
+			update();
+		}
 	}
 
 protected:
@@ -215,6 +227,11 @@ protected:
 	}
 	void leaveEventHook(QEvent *e) {
 		return QWidget::leaveEvent(e);
+	}
+
+	// Resizes content and counts natural widget height for the desired width.
+	virtual int resizeGetHeight(int newWidth) {
+		return height();
 	}
 
 };

@@ -107,11 +107,15 @@ void LayerStackWidget::paintEvent(QPaintEvent *e) {
 
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		onClose();
+		onCloseCurrent();
 	}
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
+	onCloseCurrent();
+}
+
+void LayerStackWidget::onCloseCurrent() {
 	if (layer()) {
 		onCloseLayers();
 	} else {

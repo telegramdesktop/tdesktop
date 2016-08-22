@@ -25,15 +25,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 class PrivacyWidget : public BlockWidget {
+	Q_OBJECT
+
 public:
 	PrivacyWidget(QWidget *parent, UserData *self);
 
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
+private slots:
+	void onEditPasscode();
+	void onEditPassword();
+	void onShowSessions();
 
 private:
 	void refreshControls();
+
+	ChildWidget<LinkButton> _editPasscode = { nullptr };
+	ChildWidget<LinkButton> _editPassword = { nullptr };
+	ChildWidget<LinkButton> _showAllSessions = { nullptr };
 
 };
 

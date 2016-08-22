@@ -137,7 +137,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 // general
 , _changeLanguage(this, lang(lng_settings_change_lang))
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate())
+, _autoUpdate(this, QString(), cAutoUpdate())
 , _checkNow(this, lang(lng_settings_check_now))
 , _restartNow(this, lang(lng_settings_update_now))
 #endif
@@ -672,7 +672,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	// advanced
 	p.setFont(st::setHeaderFont->f);
 	p.setPen(st::setHeaderColor->p);
-	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_advanced));
+	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_advanced_settings));
 	top += st::setHeaderSkip;
 
 	p.setFont(st::linkFont->f);

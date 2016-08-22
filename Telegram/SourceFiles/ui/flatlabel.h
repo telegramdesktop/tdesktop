@@ -43,8 +43,7 @@ public:
 	void setExpandLinksMode(ExpandLinksMode mode);
 	void setBreakEverywhere(bool breakEverywhere);
 
-	void resizeToWidth(int32 width);
-	int naturalWidth() const;
+	int naturalWidth() const override;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
@@ -69,6 +68,8 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 	bool event(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
+
+	int resizeGetHeight(int newWidth) override;
 
 private slots:
 	void onCopySelectedText();
