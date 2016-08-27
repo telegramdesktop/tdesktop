@@ -118,7 +118,8 @@ public:
 	}
 
 	int naturalWidth() const override {
-		return _padding.top() + _entity->naturalWidth() + _padding.bottom();
+		auto inner = _entity->naturalWidth();
+		return (inner < 0) ? inner : (_padding.left() + inner + _padding.right());
 	}
 
 protected:

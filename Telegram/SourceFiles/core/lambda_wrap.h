@@ -326,7 +326,7 @@ public:
 	}
 	lambda_wrap &operator=(const lambda_wrap &other) {
 		auto temp = other;
-		other.swap(*this);
+		temp.swap(*this);
 		return *this;
 	}
 

@@ -24,6 +24,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
+class LocalPasscodeState : public TWidget {
+};
+
+class CloudPasswordState : public TWidget {
+};
+
 class PrivacyWidget : public BlockWidget {
 	Q_OBJECT
 
@@ -38,6 +44,9 @@ private slots:
 private:
 	void refreshControls();
 
+	//ChildWidget<LocalPasscodeState> _localPasscodeState = { nullptr };
+	//ChildWidget<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
+	//ChildWidget<CloudPasswordState> _cloudPasswordState = { nullptr };
 	ChildWidget<LinkButton> _editPasscode = { nullptr };
 	ChildWidget<LinkButton> _editPassword = { nullptr };
 	ChildWidget<LinkButton> _showAllSessions = { nullptr };

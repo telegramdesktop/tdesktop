@@ -316,6 +316,8 @@ DeclareVar(bool, TryIPv6);
 DeclareVar(ProxyData, ConnectionProxy);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
+DeclareRefVar(base::Observable<void>, ChooseCustomLang);
+
 } // namespace Global
 
 namespace Adaptive {
@@ -339,7 +341,7 @@ inline bool Wide() {
 namespace DebugLogging {
 
 inline bool FileLoader() {
-	return (Global::DebugLoggingFlags() | FileLoaderFlag) != 0;
+	return (Global::DebugLoggingFlags() & FileLoaderFlag) != 0;
 }
 
 } // namespace DebugLogging

@@ -29,10 +29,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "pspecific.h"
 #include "mainwindow.h"
+#include "application.h"
 #include "boxes/languagebox.h"
 #include "boxes/confirmbox.h"
 #include "ui/filedialog.h"
 #include "langloaderplain.h"
+#include "autoupdater.h"
 
 namespace Settings {
 namespace {
@@ -50,9 +52,125 @@ QString currentVersion() {
 
 } // namespace
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
+, _check(this, lang(lng_settings_check_now))
+, _restart(this, lang(lng_settings_update_now)) {
+	connect(_check, SIGNAL(clicked()), this, SLOT(onCheck()));
+	connect(_restart, SIGNAL(clicked()), this, SIGNAL(restart()));
+
+	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onChecking()));
+	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onLatest()));
+	Sandbox::connect(SIGNAL(updateProgress(qint64, qint64)), this, SLOT(onDownloading(qint64, qint64)));
+	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onFailed()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onReady()));
+
+	switch (Sandbox::updatingState()) {
+	case Application::UpdatingDownload:
+		setState(State::Download, true);
+		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
+	break;
+	case Application::UpdatingReady: setState(State::Ready, true); break;
+	default: setState(State::None, true); break;
+	}
+}
+
+int UpdateStateRow::resizeGetHeight(int newWidth) {
+	auto labelWidth = [](const QString &label) {
+		return st::linkFont->width(label) + st::linkFont->spacew;
+	};
+	auto checkLeft = (_state == State::Latest) ? labelWidth(lang(lng_settings_latest_installed)) : 0;
+	auto restartLeft = labelWidth(lang(lng_settings_update_ready));
+
+	_check->resizeToWidth(qMin(newWidth, _check->naturalWidth()));
+	_check->moveToLeft(checkLeft, 0);
+
+	_restart->resizeToWidth(qMin(newWidth, _restart->naturalWidth()));
+	_restart->moveToLeft(restartLeft, 0);
+
+	return _check->height();
+}
+
+void UpdateStateRow::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	auto text = ([this]() -> QString {
+		switch (_state) {
+		case State::Check: return lang(lng_settings_update_checking);
+		case State::Latest: return lang(lng_settings_latest_installed);
+		case State::Download: return _downloadText;
+		case State::Ready: return lang(lng_settings_update_ready);
+		case State::Fail: return lang(lng_settings_update_fail);
+		default: return QString();
+		}
+	})();
+	p.setFont(st::linkFont);
+	p.setPen(st::settingsUpdateFg);
+	p.drawTextLeft(0, 0, width(), text);
+}
+
+void UpdateStateRow::onCheck() {
+	if (!cAutoUpdate()) return;
+
+	cSetLastUpdateCheck(0);
+	Sandbox::startUpdateCheck();
+}
+
+void UpdateStateRow::setState(State state, bool force) {
+	if (_state != state || force) {
+		_state = state;
+		switch (state) {
+		case State::None:
+		case State::Latest: _check->show(); _restart->hide(); break;
+		case State::Ready: _check->hide(); _restart->show(); break;
+		case State::Check:
+		case State::Download:
+		case State::Fail: _check->hide(); _restart->hide(); break;
+		}
+		resizeToWidth(width());
+		sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+		update();
+	}
+}
+
+void UpdateStateRow::setDownloadProgress(qint64 ready, qint64 total) {
+	auto readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
+	auto readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
+	auto totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
+	auto result = lng_settings_downloading(lt_ready, readyStr, lt_total, totalStr);
+	if (_downloadText != result) {
+		_downloadText = result;
+		update();
+	}
+}
+
+void UpdateStateRow::onChecking() {
+	setState(State::Check);
+}
+
+void UpdateStateRow::onLatest() {
+	setState(State::Latest);
+}
+
+void UpdateStateRow::onDownloading(qint64 ready, qint64 total) {
+	setState(State::Download);
+	setDownloadProgress(ready, total);
+}
+
+void UpdateStateRow::onReady() {
+	setState(State::Ready);
+}
+
+void UpdateStateRow::onFailed() {
+	setState(State::Fail);
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang)) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
+	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
+	FileDialog::registerObserver(this, &GeneralWidget::notifyFileQueryUpdated);
 	refreshControls();
 }
 
@@ -70,7 +188,8 @@ void GeneralWidget::refreshControls() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersion()), SLOT(onUpdateAutomatically()), cAutoUpdate());
 	style::margins marginLink(st::defaultCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
-	addChildRow(_checkForUpdates, marginLink, lang(lng_settings_check_now), SLOT(onCheckForUpdates()));
+	addChildRow(_updateRow, marginLink, slidedPadding);
+	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
@@ -132,17 +251,36 @@ void GeneralWidget::onSaveTestLanguage() {
 	cSetLangFile(_testLanguage);
 	cSetLang(languageTest);
 	Local::writeSettings();
+	onRestart();
+}
+
+void GeneralWidget::onRestart() {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	checkReadyUpdate();
+	if (_updateRow->entity()->isUpdateReady()) {
+		cSetRestartingUpdate(true);
+	} else {
+		cSetRestarting(true);
+		cSetRestartingToSettings(true);
+	}
+#else
 	cSetRestarting(true);
+	cSetRestartingToSettings(true);
+#endif
 	App::quit();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void GeneralWidget::onUpdateAutomatically() {
-
-}
-
-void GeneralWidget::onCheckForUpdates() {
-
+	cSetAutoUpdate(_updateAutomatically->checked());
+	Local::writeSettings();
+	if (cAutoUpdate()) {
+		_updateRow->slideDown();
+		Sandbox::startUpdateCheck();
+	} else {
+		_updateRow->slideUp();
+		Sandbox::stopUpdate();
+	}
 }
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 

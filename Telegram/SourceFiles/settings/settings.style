@@ -136,3 +136,5 @@ settingsSliderLabelFg: #1485c2;
 settingsSliderDuration: 200;
 
 settingsBackgroundSize: 120px;
+
+settingsUpdateFg: #999999;

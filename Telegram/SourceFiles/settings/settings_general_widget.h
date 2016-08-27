@@ -33,6 +33,55 @@ class WidgetSlideWrap;
 
 namespace Settings {
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+class UpdateStateRow : public TWidget {
+	Q_OBJECT
+
+public:
+	UpdateStateRow(QWidget *parent);
+
+	bool isUpdateReady() const {
+		return (_state == State::Ready);
+	}
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
+
+signals:
+	void restart();
+
+private slots:
+	void onCheck();
+
+	void onChecking();
+	void onLatest();
+	void onDownloading(qint64 ready, qint64 total);
+	void onReady();
+	void onFailed();
+
+private:
+	enum class State {
+		None,
+		Check,
+		Latest,
+		Download,
+		Fail,
+		Ready
+	};
+	void setState(State state, bool force = false);
+	void setDownloadProgress(qint64 ready, qint64 total);
+
+	ChildWidget<LinkButton> _check;
+	ChildWidget<LinkButton> _restart;
+
+	State _state = State::None;
+	QString _downloadText;
+
+};
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
 class GeneralWidget : public BlockWidget {
 	Q_OBJECT
 
@@ -48,7 +97,6 @@ private slots:
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateAutomatically();
-	void onCheckForUpdates();
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	void onEnableTrayIcon();
@@ -57,6 +105,8 @@ private slots:
 	void onAutoStart();
 	void onStartMinimized();
 	void onAddInSendTo();
+
+	void onRestart();
 
 private:
 	void refreshControls();
@@ -67,7 +117,7 @@ private:
 	ChildWidget<LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	ChildWidget<Checkbox> _updateAutomatically = { nullptr };
-	ChildWidget<LinkButton> _checkForUpdates = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 	ChildWidget<Checkbox> _enableTrayIcon = { nullptr };
 	ChildWidget<Checkbox> _enableTaskbarIcon = { nullptr };

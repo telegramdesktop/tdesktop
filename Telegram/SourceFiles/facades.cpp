@@ -650,6 +650,9 @@ struct Data {
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
 	ProxyData ConnectionProxy;
 	base::Observable<void> ConnectionTypeChanged;
+
+	base::Observable<void> ChooseCustomLang;
+
 };
 
 } // namespace internal
@@ -751,5 +754,7 @@ DefineVar(Global, DBIConnectionType, ConnectionType);
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, ProxyData, ConnectionProxy);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
+
+DefineRefVar(Global, base::Observable<void>, ChooseCustomLang);
 
 } // namespace Global

@@ -26,8 +26,94 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "ui/scrollarea.h"
 #include "mainwindow.h"
+#include "localstorage.h"
+#include "boxes/confirmbox.h"
+#include "application.h"
 
 namespace Settings {
+namespace {
+
+QString SecretText;
+QMap<QString, base::lambda_wrap<void()>> Codes;
+
+void fillCodes() {
+	Codes.insert(qsl("debugmode"), []() {
+		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
+		ConfirmBox *box = new ConfirmBox(text);
+		box->connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
+		Ui::showLayer(box);
+	});
+	Codes.insert(qsl("testmode"), []() {
+		QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
+		ConfirmBox *box = new ConfirmBox(text);
+		box->connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
+		Ui::showLayer(box);
+	});
+	Codes.insert(qsl("loadlang"), []() {
+		Global::RefChooseCustomLang().notify();
+	});
+	Codes.insert(qsl("debugfiles"), []() {
+		if (!cDebug()) return;
+		if (DebugLogging::FileLoader()) {
+			Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
+		} else {
+			Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
+		}
+		Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
+	});
+	Codes.insert(qsl("crashplease"), []() {
+		t_assert(!"Crashed in Settings!");
+	});
+	Codes.insert(qsl("workmode"), []() {
+		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
+		auto box = std_::make_unique<ConfirmBox>(text);
+		box->connect(box.get(), SIGNAL(confirmed()), App::app(), SLOT(onSwitchWorkMode()));
+		Ui::showLayer(box.release());
+	});
+	Codes.insert(qsl("moderate"), []() {
+		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
+		auto box = std_::make_unique<ConfirmBox>(text);
+		box->setConfirmedCallback([]() {
+			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
+			Local::writeUserSettings();
+			Ui::hideLayer();
+		});
+		Ui::showLayer(box.release());
+	});
+}
+
+void codesFeedString(const QString &text) {
+	if (Codes.isEmpty()) fillCodes();
+
+	SecretText += text.toLower();
+	int size = SecretText.size(), from = 0;
+	while (size > from) {
+		auto piece = SecretText.midRef(from);
+		auto found = false;
+		for (auto i = Codes.cbegin(), e = Codes.cend(); i != e; ++i) {
+			if (piece == i.key()) {
+				(*i)();
+				from = size;
+				found = true;
+				break;
+			}
+		}
+		if (found) break;
+
+		for (auto i = Codes.cbegin(), e = Codes.cend(); i != e; ++i) {
+			if (i.key().startsWith(piece)) {
+				found = true;
+				break;
+			}
+		}
+		if (found) break;
+
+		++from;
+	}
+	SecretText = (size > from) ? SecretText.mid(from) : QString();
+}
+
+} // namespace
 
 Widget::Widget() : LayerWidget()
 , _scroll(this, st::setScroll)
@@ -125,6 +211,11 @@ void Widget::resizeEvent(QResizeEvent *e) {
 		int scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	}
+}
+
+void Widget::keyPressEvent(QKeyEvent *e) {
+	codesFeedString(e->text());
+	return LayerWidget::keyPressEvent(e);
 }
 
 } // namespace Settings

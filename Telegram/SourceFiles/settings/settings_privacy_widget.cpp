@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_settings.h"
 #include "lang.h"
+#include "boxes/sessionsbox.h"
 
 namespace Settings {
 
@@ -49,7 +50,7 @@ void PrivacyWidget::onEditPassword() {
 }
 
 void PrivacyWidget::onShowSessions() {
-
+	Ui::showLayer(new SessionsBox());
 }
 
 } // namespace Settings
