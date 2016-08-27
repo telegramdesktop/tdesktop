@@ -21,6 +21,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 class LayerWidget;
+namespace base {
+template <typename Type>
+class Observable;
+} // namespace base
+namespace InlineBots {
+namespace Layout {
+class ItemBase;
+} // namespace Layout
+} // namespace InlineBots
+
 
 namespace App {
 
@@ -41,14 +51,6 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 void logOutDelayed();
 
 } // namespace App
-
-namespace InlineBots {
-namespace Layout {
-
-class ItemBase;
-
-} // namespace Layout
-} // namespace InlineBots
 
 namespace Ui {
 
@@ -142,6 +144,14 @@ void historyMuteUpdated(History *history);
 void handlePendingHistoryUpdate();
 void unreadCounterUpdated();
 
+enum class ChangeType {
+	SoundEnabled,
+	IncludeMuted,
+	DesktopEnabled,
+	ViewParams,
+	UseNative,
+};
+
 } // namespace Notify
 
 #define DeclareReadOnlyVar(Type, Name) const Type &Name();
@@ -163,7 +173,7 @@ uint64 UserTag();
 DeclareReadOnlyVar(QString, LangSystemISO);
 DeclareReadOnlyVar(int32, LangSystem);
 DeclareVar(QByteArray, LastCrashDump);
-DeclareVar(ConnectionProxy, PreLaunchProxy);
+DeclareVar(ProxyData, PreLaunchProxy);
 
 } // namespace Sandbox
 
@@ -234,6 +244,8 @@ DeclareRefVar(SingleDelayedCall, HandleObservables);
 
 DeclareVar(Adaptive::Layout, AdaptiveLayout);
 DeclareVar(bool, AdaptiveForWide);
+DeclareRefVar(base::Observable<void>, AdaptiveChanged);
+
 DeclareVar(bool, DialogsModeEnabled);
 DeclareVar(Dialogs::Mode, DialogsMode);
 DeclareVar(bool, ModerateModeEnabled);
@@ -283,9 +295,34 @@ DeclareVar(MTP::DcOptions, DcOptions);
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);
 
+DeclareRefVar(base::Observable<void>, SelfChanged);
+
+DeclareVar(bool, AskDownloadPath);
+DeclareVar(QString, DownloadPath);
+DeclareVar(QByteArray, DownloadPathBookmark);
+DeclareRefVar(base::Observable<void>, DownloadPathChanged);
+
+DeclareVar(bool, SoundNotify);
+DeclareVar(bool, DesktopNotify);
+DeclareVar(bool, RestoreSoundNotifyFromTray);
+DeclareVar(bool, IncludeMuted);
+DeclareVar(DBINotifyView, NotifyView);
+DeclareVar(bool, WindowsNotifications);
+DeclareVar(bool, CustomNotifies);
+DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
+
+DeclareVar(DBIConnectionType, ConnectionType);
+DeclareVar(bool, TryIPv6);
+DeclareVar(ProxyData, ConnectionProxy);
+DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
+
 } // namespace Global
 
 namespace Adaptive {
+
+inline base::Observable<void> &Changed() {
+	return Global::RefAdaptiveChanged();
+}
 
 inline bool OneColumn() {
 	return Global::AdaptiveLayout() == OneColumnLayout;

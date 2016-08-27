@@ -20,6 +20,16 @@
 {
   'conditions': [
     [ 'build_win', {
+      'defines': [
+        'WIN32',
+        '_WINDOWS',
+        '_UNICODE',
+        'UNICODE',
+        'HAVE_STDINT_H',
+        'ZLIB_WINAPI',
+        '_SCL_SECURE_NO_WARNINGS',
+        '_USING_V110_SDK71_',
+      ],
       'msvs_cygwin_shell': 0,
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -28,16 +38,6 @@
           'AdditionalOptions': [
             '/MP',   # Enable multi process build.
             '/EHsc', # Catch C++ exceptions only, extern C functions never throw a C++ exception.
-          ],
-          'PreprocessorDefinitions': [
-            'WIN32',
-            '_WINDOWS',
-            '_UNICODE',
-            'UNICODE',
-            'HAVE_STDINT_H',
-            'ZLIB_WINAPI',
-            '_SCL_SECURE_NO_WARNINGS',
-            '_USING_V110_SDK71_',
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },

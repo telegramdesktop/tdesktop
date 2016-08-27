@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "layerwidget.h"
 #include "lang.h"
+#include "core/observer.h"
 
 Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
@@ -407,7 +408,7 @@ struct Data {
 	int32 LangSystem = languageDefault;
 
 	QByteArray LastCrashDump;
-	ConnectionProxy PreLaunchProxy;
+	ProxyData PreLaunchProxy;
 };
 
 } // namespace internal
@@ -525,7 +526,7 @@ uint64 UserTag() {
 DefineReadOnlyVar(Sandbox, QString, LangSystemISO);
 DefineReadOnlyVar(Sandbox, int32, LangSystem);
 DefineVar(Sandbox, QByteArray, LastCrashDump);
-DefineVar(Sandbox, ConnectionProxy, PreLaunchProxy);
+DefineVar(Sandbox, ProxyData, PreLaunchProxy);
 
 } // namespace Sandbox
 
@@ -581,6 +582,8 @@ struct Data {
 
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
+	base::Observable<void> AdaptiveChanged;
+
 	bool DialogsModeEnabled = false;
 	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
 	bool ModerateModeEnabled = false;
@@ -626,6 +629,27 @@ struct Data {
 	MTP::DcOptions DcOptions;
 
 	CircleMasksMap CircleMasks;
+
+	base::Observable<void> SelfChanged;
+
+	bool AskDownloadPath = false;
+	QString DownloadPath;
+	QByteArray DownloadPathBookmark;
+	base::Observable<void> DownloadPathChanged;
+
+	bool SoundNotify = true;
+	bool DesktopNotify = true;
+	bool RestoreSoundNotifyFromTray = false;
+	bool IncludeMuted = true;
+	DBINotifyView NotifyView = dbinvShowPreview;
+	bool WindowsNotifications = true;
+	bool CustomNotifies = (cPlatform() == dbipMac) ? false : true;
+	base::Observable<Notify::ChangeType> NotifySettingsChanged;
+
+	DBIConnectionType ConnectionType = dbictAuto;
+	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
+	ProxyData ConnectionProxy;
+	base::Observable<void> ConnectionTypeChanged;
 };
 
 } // namespace internal
@@ -659,6 +683,8 @@ DefineRefVar(Global, SingleDelayedCall, HandleObservables);
 
 DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 DefineVar(Global, bool, AdaptiveForWide);
+DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
+
 DefineVar(Global, bool, DialogsModeEnabled);
 DefineVar(Global, Dialogs::Mode, DialogsMode);
 DefineVar(Global, bool, ModerateModeEnabled);
@@ -704,5 +730,26 @@ DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 DefineVar(Global, MTP::DcOptions, DcOptions);
 
 DefineRefVar(Global, CircleMasksMap, CircleMasks);
+
+DefineRefVar(Global, base::Observable<void>, SelfChanged);
+
+DefineVar(Global, bool, AskDownloadPath);
+DefineVar(Global, QString, DownloadPath);
+DefineVar(Global, QByteArray, DownloadPathBookmark);
+DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
+
+DefineVar(Global, bool, SoundNotify);
+DefineVar(Global, bool, DesktopNotify);
+DefineVar(Global, bool, RestoreSoundNotifyFromTray);
+DefineVar(Global, bool, IncludeMuted);
+DefineVar(Global, DBINotifyView, NotifyView);
+DefineVar(Global, bool, WindowsNotifications);
+DefineVar(Global, bool, CustomNotifies);
+DefineRefVar(Global, base::Observable<Notify::ChangeType>, NotifySettingsChanged);
+
+DefineVar(Global, DBIConnectionType, ConnectionType);
+DefineVar(Global, bool, TryIPv6);
+DefineVar(Global, ProxyData, ConnectionProxy);
+DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
 } // namespace Global

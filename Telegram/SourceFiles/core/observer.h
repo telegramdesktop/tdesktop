@@ -331,12 +331,10 @@ public:
 	using Handler = typename CommonObservableData<EventType>::Handler;
 
 	Subscription subscribe(Handler &&handler) {
-		if (_data) {
-			_data->append(std_::forward<Handler>(handler));
-		} else {
-			_data = MakeShared<ObservableData<EventType>>(this, std_::forward<Handler>(handler));
+		if (!_data) {
+			_data = MakeShared<ObservableData<EventType>>(this);
 		}
-		return _data->last();
+		return _data->append(std_::forward<Handler>(handler));
 	}
 
 private:
@@ -352,9 +350,9 @@ private:
 template <typename EventType>
 class Observable : public internal::CommonObservable<EventType> {
 public:
-	void notify(EventType &&event) {
+	void notify(EventType &&event, bool sync = false) {
 		if (_data) {
-			_data->notify(std_::move(event));
+			_data->notify(std_::move(event), sync);
 		}
 	}
 
@@ -367,20 +365,18 @@ class CommonObservableData : public BaseObservableData {
 public:
 	using Handler = SubscriptionHandler<EventType>;
 
-	CommonObservableData(CommonObservable<EventType> *observable, Handler &&handler) : _observable(observable)
-		, _begin(new Node(observable->_data, std_::forward<Handler>(handler)))
-		, _end(_begin) {
+	CommonObservableData(CommonObservable<EventType> *observable) : _observable(observable) {
 	}
 
-	void append(Handler &&handler) {
+	Subscription append(Handler &&handler) {
 		auto node = new Node(_observable->_data, std_::forward<Handler>(handler));
-
-		_end->next = node;
-		node->prev = _end;
-		_end = node;
-	}
-
-	Subscription last() {
+		if (_begin) {
+			_end->next = node;
+			node->prev = _end;
+			_end = node;
+		} else {
+			_begin = _end = node;
+		}
 		return { _end, &CommonObservableData::destroyNode };
 	}
 
@@ -435,15 +431,15 @@ private:
 			}
 		} while (_current);
 
-		if (!_begin) {
+		if (empty()) {
 			_observable->_data.reset();
 		}
 	}
 
 	CommonObservable<EventType> *_observable = nullptr;
-	Node *_begin;
+	Node *_begin = nullptr;
 	Node *_current = nullptr;
-	Node *_end;
+	Node *_end = nullptr;
 	ObservableCallHandlers _callHandlers;
 
 	friend class ObservableData<EventType>;
@@ -455,16 +451,24 @@ class ObservableData : public CommonObservableData<EventType> {
 public:
 	using CommonObservableData<EventType>::CommonObservableData;
 
-	void notify(EventType &&event) {
-		if (!_callHandlers) {
-			_callHandlers = [this]() {
-				callHandlers();
-			};
+	void notify(EventType &&event, bool sync) {
+		if (_handling) {
+			sync = false;
 		}
-		if (_events.empty()) {
-			RegisterPendingObservable(&_callHandlers);
+		if (sync) {
+			_events.push_back(std_::move(event));
+			callHandlers();
+		} else {
+			if (!_callHandlers) {
+				_callHandlers = [this]() {
+					callHandlers();
+				};
+			}
+			if (_events.empty()) {
+				RegisterPendingObservable(&_callHandlers);
+			}
+			_events.push_back(std_::move(event));
 		}
-		_events.push_back(std_::move(event));
 	}
 
 	~ObservableData() {
@@ -473,16 +477,19 @@ public:
 
 private:
 	void callHandlers() {
+		_handling = true;
 		auto events = createAndSwap(_events);
 		for (auto &event : events) {
 			notifyEnumerate([this, &event]() {
 				_current->handler(event);
 			});
 		}
+		_handling = false;
 		UnregisterActiveObservable(&_callHandlers);
 	}
 
 	std_::vector_of_moveable<EventType> _events;
+	bool _handling = false;
 
 };
 
@@ -491,16 +498,24 @@ class ObservableData<void> : public CommonObservableData<void> {
 public:
 	using CommonObservableData<void>::CommonObservableData;
 
-	void notify() {
-		if (!_callHandlers) {
-			_callHandlers = [this]() {
-				callHandlers();
-			};
+	void notify(bool sync) {
+		if (_handling) {
+			sync = false;
 		}
-		if (!_eventsCount) {
-			RegisterPendingObservable(&_callHandlers);
+		if (sync) {
+			++_eventsCount;
+			callHandlers();
+		} else {
+			if (!_callHandlers) {
+				_callHandlers = [this]() {
+					callHandlers();
+				};
+			}
+			if (!_eventsCount) {
+				RegisterPendingObservable(&_callHandlers);
+			}
+			++_eventsCount;
 		}
-		++_eventsCount;
 	}
 
 	~ObservableData() {
@@ -509,16 +524,19 @@ public:
 
 private:
 	void callHandlers() {
+		_handling = true;
 		auto eventsCount = createAndSwap(_eventsCount);
 		for (int i = 0; i != eventsCount; ++i) {
 			notifyEnumerate([this]() {
 				_current->handler();
 			});
 		}
+		_handling = false;
 		UnregisterActiveObservable(&_callHandlers);
 	}
 
 	int _eventsCount = 0;
+	bool _handling = false;
 
 };
 
@@ -527,9 +545,9 @@ private:
 template <>
 class Observable<void> : public internal::CommonObservable<void> {
 public:
-	void notify() {
+	void notify(bool sync = false) {
 		if (_data) {
-			_data->notify();
+			_data->notify(sync);
 		}
 	}
 
@@ -551,6 +569,13 @@ protected:
 	void unsubscribe(int index) {
 		t_assert(index >= 0 && index < _subscriptions.size());
 		_subscriptions[index].destroy();
+	}
+
+	~Subscriber() {
+		auto subscriptions = createAndSwap(_subscriptions);
+		for (auto &subscription : subscriptions) {
+			subscription.destroy();
+		}
 	}
 
 private:

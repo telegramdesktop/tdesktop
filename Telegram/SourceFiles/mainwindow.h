@@ -126,7 +126,7 @@ typedef QList<NotifyWindow*> NotifyWindows;
 
 class MediaPreviewWidget;
 
-class MainWindow : public Platform::MainWindow {
+class MainWindow : public Platform::MainWindow, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -151,7 +151,6 @@ public:
 	void paintEvent(QPaintEvent *e);
 
 	void resizeEvent(QResizeEvent *e);
-	void updateAdaptiveLayout();
 
 	void setupPasscode(bool anim);
 	void clearPasscode();

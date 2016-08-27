@@ -78,9 +78,9 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 }
 
 AbstractConnection *AbstractConnection::create(QThread *thread) {
-	if (cConnectionType() == dbictHttpProxy) {
+	if (Global::ConnectionType() == dbictHttpProxy) {
 		return new HTTPConnection(thread);
-	} else if (cConnectionType() == dbictTcpProxy) {
+	} else if (Global::ConnectionType() == dbictTcpProxy) {
 		return new TCPConnection(thread);
 	}
 	return new AutoConnection(thread);

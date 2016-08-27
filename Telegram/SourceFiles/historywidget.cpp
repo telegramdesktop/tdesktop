@@ -45,6 +45,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
+#include "window/chat_background.h"
 #include "observer_peer.h"
 #include "playerwidget.h"
 
@@ -361,7 +362,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 	} else if (noHistoryDisplayed) {
 		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, *cChatDogImage());
+		p.drawPixmap(dogPos, Window::chatBackground()->dog());
 	}
 	if (!noHistoryDisplayed) {
 		adjustCurrent(r.top());
@@ -3149,6 +3150,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
 
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
+
+	subscribe(Adaptive::Changed(), [this]() { update(); });
 }
 
 void HistoryWidget::start() {
@@ -5519,10 +5522,6 @@ void HistoryWidget::doneShow() {
 		App::wnd()->checkHistoryActivation();
 		App::wnd()->setInnerFocus();
 	}
-}
-
-void HistoryWidget::updateAdaptiveLayout() {
-	update();
 }
 
 void HistoryWidget::animStop() {
@@ -8692,8 +8691,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
-		const QPixmap &pix(*cChatBackground());
-		if (cTileBackground()) {
+		auto &pix = Window::chatBackground()->image();
+		if (Window::chatBackground()->tile()) {
 			int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
 			float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
 			int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);
@@ -8731,7 +8730,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		if (_scroll.isHidden()) {
 			p.setClipRect(_scroll.geometry());
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
-			p.drawPixmap(dogPos, *cChatDogImage());
+			p.drawPixmap(dogPos, Window::chatBackground()->dog());
 		}
 	} else {
 		style::font font(st::msgServiceFont);

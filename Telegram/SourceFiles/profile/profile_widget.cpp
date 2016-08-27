@@ -41,6 +41,7 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 	_fixedBarShadow->setMode(ToggleableShadow::Mode::HiddenFast);
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
+	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
 	_scroll->setOwnedWidget(_inner);
 	_scroll->move(0, _fixedBar->height());

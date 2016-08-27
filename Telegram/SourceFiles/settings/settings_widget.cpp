@@ -42,6 +42,8 @@ Widget::Widget() : LayerWidget()
 	_fixedBarShadow1->move(0, _fixedBar->y() + st::settingsFixedBarHeight);
 	_fixedBarShadow2->move(0, _fixedBarShadow1->y() + st::lineWidth);
 	_scroll->move(0, st::settingsFixedBarHeight);
+
+	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
 }
 
 void Widget::parentResized() {
@@ -70,6 +72,17 @@ void Widget::parentResized() {
 	// resize it here, not in the resizeEvent() handler.
 	_inner->resizeToWidth(newWidth, newContentLeft);
 
+	resizeUsingInnerHeight(newWidth, newContentLeft);
+}
+
+void Widget::onInnerHeightUpdated() {
+	resizeUsingInnerHeight(width(), _contentLeft);
+}
+
+void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
+	if (!App::wnd()) return;
+
+	int windowWidth = App::wnd()->width();
 	int windowHeight = App::wnd()->height();
 	int maxHeight = st::settingsFixedBarHeight + _inner->height();
 	int newHeight = maxHeight;

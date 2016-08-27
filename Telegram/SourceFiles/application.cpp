@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "observer_peer.h"
 #include "core/observer.h"
+#include "window/chat_background.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -1090,11 +1091,7 @@ AppClass::~AppClass() {
 	deleteAndMark(_uploader);
 	deleteAndMark(_translator);
 
-	delete cChatBackground();
-	cSetChatBackground(0);
-
-	delete cChatDogImage();
-	cSetChatDogImage(0);
+	Window::chatBackground()->reset();
 
 	style::stopManager();
 

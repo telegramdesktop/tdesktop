@@ -32,7 +32,7 @@ struct SectionSlideParams {
 	bool withTopBarShadow = false;
 };
 
-class SectionWidget : public TWidget {
+class SectionWidget : public TWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -69,9 +69,6 @@ public:
 
 	virtual void setInnerFocus() {
 		setFocus();
-	}
-
-	virtual void updateAdaptiveLayout() {
 	}
 
 protected:

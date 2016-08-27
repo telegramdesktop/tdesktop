@@ -32,14 +32,24 @@ namespace Settings {
 
 NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
 	createControls();
+
+	subscribe(Global::RefNotifySettingsChanged(), [this](const Notify::ChangeType &type) {
+		if (type == Notify::ChangeType::DesktopEnabled) {
+			desktopEnabledUpdated();
+		} else if (type == Notify::ChangeType::ViewParams) {
+			viewParamUpdated();
+		} else if (type == Notify::ChangeType::SoundEnabled) {
+			_playSound->setChecked(Global::SoundNotify());
+		}
+	});
 }
 
 void NotificationsWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
-	addChildRow(_desktopNotifications, margin, lang(lng_settings_desktop_notify), SLOT(onDesktopNotifications()), cDesktopNotify());
-	addChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), SLOT(onShowSenderName()), cNotifyView() <= dbinvShowName);
-	addChildRow(_showMessagePreview, margin, slidedPadding, lang(lng_settings_show_preview), SLOT(onShowMessagePreview()), cNotifyView() <= dbinvShowPreview);
+	addChildRow(_desktopNotifications, margin, lang(lng_settings_desktop_notify), SLOT(onDesktopNotifications()), Global::DesktopNotify());
+	addChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), SLOT(onShowSenderName()), Global::NotifyView() <= dbinvShowName);
+	addChildRow(_showMessagePreview, margin, slidedPadding, lang(lng_settings_show_preview), SLOT(onShowMessagePreview()), Global::NotifyView() <= dbinvShowPreview);
 	if (!_showSenderName->entity()->checked()) {
 		_showMessagePreview->hideFast();
 	}
@@ -49,79 +59,105 @@ void NotificationsWidget::createControls() {
 	}
 #ifdef Q_OS_WIN
 	if (App::wnd()->psHasNativeNotifications()) {
-		addChildRow(_windowsNative, margin, lang(lng_settings_use_windows), SLOT(onWindowsNative()), cWindowsNotifications());
+		addChildRow(_windowsNative, margin, lang(lng_settings_use_windows), SLOT(onWindowsNative()), Global::WindowsNotifications());
 	}
 #endif // Q_OS_WIN
-	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), cSoundNotify());
-	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), cIncludeMuted());
+	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
+	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
 }
 
 void NotificationsWidget::onDesktopNotifications() {
-	cSetDesktopNotify(_desktopNotifications->checked());
+	if (Global::DesktopNotify() == _desktopNotifications->checked()) {
+		return;
+	}
+	Global::SetDesktopNotify(_desktopNotifications->checked());
 	Local::writeUserSettings();
-	if (App::wnd()) App::wnd()->updateTrayMenu();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+}
 
-	if (_desktopNotifications->checked()) {
+void NotificationsWidget::desktopEnabledUpdated() {
+	_desktopNotifications->setChecked(Global::DesktopNotify());
+	if (Global::DesktopNotify()) {
 		_showSenderName->slideDown();
 		if (_showSenderName->entity()->checked()) {
 			_showMessagePreview->slideDown();
 		}
 	} else {
-		App::wnd()->notifyClear();
 		_showSenderName->slideUp();
 		_showMessagePreview->slideUp();
 	}
 }
 
 void NotificationsWidget::onShowSenderName() {
+	auto viewParam = ([this]() {
+		if (!_showSenderName->entity()->checked()) {
+			return dbinvShowNothing;
+		} else if (!_showMessagePreview->entity()->checked()) {
+			return dbinvShowName;
+		}
+		return dbinvShowPreview;
+	})();
+	if (viewParam == Global::NotifyView()) {
+		return;
+	}
+	Global::SetNotifyView(viewParam);
+	Local::writeUserSettings();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+}
+
+void NotificationsWidget::onShowMessagePreview() {
+	auto viewParam = ([this]() {
+		if (_showMessagePreview->entity()->checked()) {
+			return dbinvShowPreview;
+		} else if (_showSenderName->entity()->checked()) {
+			return dbinvShowName;
+		}
+		return dbinvShowNothing;
+	})();
+	if (viewParam == Global::NotifyView()) {
+		return;
+	}
+
+	Global::SetNotifyView(viewParam);
+	Local::writeUserSettings();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+}
+
+void NotificationsWidget::viewParamUpdated() {
 	if (_showSenderName->entity()->checked()) {
 		_showMessagePreview->slideDown();
 	} else {
 		_showMessagePreview->slideUp();
 	}
-
-	if (!_showSenderName->entity()->checked()) {
-		cSetNotifyView(dbinvShowNothing);
-	} else if (!_showMessagePreview->entity()->checked()) {
-		cSetNotifyView(dbinvShowName);
-	} else {
-		cSetNotifyView(dbinvShowPreview);
-	}
-	Local::writeUserSettings();
-	App::wnd()->notifyUpdateAll();
 }
 
-void NotificationsWidget::onShowMessagePreview() {
-	if (_showMessagePreview->entity()->checked()) {
-		cSetNotifyView(dbinvShowPreview);
-	} else if (_showSenderName->entity()->checked()) {
-		cSetNotifyView(dbinvShowName);
-	} else {
-		cSetNotifyView(dbinvShowNothing);
-	}
-	Local::writeUserSettings();
-	App::wnd()->notifyUpdateAll();
-}
-
-#ifdef Q_OS_WIN
 void NotificationsWidget::onWindowsNative() {
-	if (cPlatform() != dbipWindows) return;
-	cSetWindowsNotifications(!cWindowsNotifications());
-	App::wnd()->notifyClearFast();
-	cSetCustomNotifies(!cWindowsNotifications());
+#ifdef Q_OS_WIN
+	if (Global::WindowsNotifications() == _windowsNative->checked()) {
+		return;
+	}
+
+	Global::SetWindowsNotifications(_windowsNative->checked());
+	Global::SetCustomNotifies(!Global::WindowsNotifications());
 	Local::writeUserSettings();
-}
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::UseNative);
 #endif // Q_OS_WIN
+}
 
 void NotificationsWidget::onPlaySound() {
-	cSetSoundNotify(_playSound->checked());
+	if (_playSound->checked() == Global::SoundNotify()) {
+		return;
+	}
+
+	Global::SetSoundNotify(_playSound->checked());
 	Local::writeUserSettings();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
 }
 
 void NotificationsWidget::onIncludeMuted() {
-	cSetIncludeMuted(_includeMuted->checked());
-	Notify::unreadCounterUpdated();
+	Global::SetIncludeMuted(_includeMuted->checked());
 	Local::writeUserSettings();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::IncludeMuted);
 }
 
 } // namespace Settings

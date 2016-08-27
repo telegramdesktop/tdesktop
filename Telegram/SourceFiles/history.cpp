@@ -699,6 +699,14 @@ HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type
 	return result;
 }
 
+int Histories::unreadBadge() const {
+	return _unreadFull - (Global::IncludeMuted() ? 0 : _unreadMuted);
+}
+
+bool Histories::unreadOnlyMuted() const {
+	return Global::IncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	MsgId msgId = 0;
 	switch (msg.type()) {
@@ -1492,7 +1500,7 @@ void History::setUnreadCount(int newUnreadCount) {
 		}
 		if (inChatList(Dialogs::Mode::All)) {
 			App::histories().unreadIncrement(newUnreadCount - _unreadCount, mute());
-			if (!mute() || cIncludeMuted()) {
+			if (!mute() || Global::IncludeMuted()) {
 				Notify::unreadCounterUpdated();
 			}
 		}

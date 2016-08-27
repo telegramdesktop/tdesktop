@@ -32,6 +32,11 @@ namespace Settings {
 
 AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_advanced_settings)) {
 	createControls();
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	subscribe(Global::RefConnectionTypeChanged(), [this]() {
+		connectionTypeUpdated();
+	});
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 void AdvancedWidget::createControls() {
@@ -43,6 +48,7 @@ void AdvancedWidget::createControls() {
 	}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting));
+	connectionTypeUpdated();
 	connect(_connectionType->link(), SIGNAL(clicked()), this, SLOT(onConnectionType()));
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 	if (self()) {
@@ -59,6 +65,23 @@ void AdvancedWidget::onManageLocalStorage() {
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+void AdvancedWidget::connectionTypeUpdated() {
+	QString connection;
+	switch (Global::ConnectionType()) {
+	case dbictAuto: {
+		QString transport = MTP::dctransport();
+		connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
+	} break;
+	case dbictHttpProxy:
+	case dbictTcpProxy: {
+		QString transport = MTP::dctransport();
+		connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
+	} break;
+	}
+	_connectionType->link()->setText(connection);
+	resizeToWidth(width());
+}
+
 void AdvancedWidget::onConnectionType() {
 	Ui::showLayer(new ConnectionBox());
 }

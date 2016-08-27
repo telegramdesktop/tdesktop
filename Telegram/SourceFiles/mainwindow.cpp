@@ -171,7 +171,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
-		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
 			history->peer->loadUserpic(true, true);
 			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
@@ -182,7 +182,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
 			if (history->peer->isChat() || history->peer->isMegagroup()) {
 				p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), st::dlgChatImg);
 				rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
@@ -201,7 +201,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.setPen(st::dialogsDateFg);
 		p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::dialogsTextFont->ascent, dt);
 
-		if (!App::passcoded() && cNotifyView() <= dbinvShowPreview) {
+		if (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
 			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
@@ -226,7 +226,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dialogsNameFg);
-		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
 			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
@@ -372,6 +372,19 @@ MainWindow::MainWindow() {
 	iconbig32 = iconbig256.scaledToWidth(32, Qt::SmoothTransformation);
 	iconbig64 = iconbig256.scaledToWidth(64, Qt::SmoothTransformation);
 
+	subscribe(Global::RefNotifySettingsChanged(), [this](const Notify::ChangeType &type) {
+		if (type == Notify::ChangeType::DesktopEnabled) {
+			updateTrayMenu();
+			notifyClear();
+		} else if (type == Notify::ChangeType::ViewParams) {
+			notifyUpdateAll();
+		} else if (type == Notify::ChangeType::UseNative) {
+			notifyClearFast();
+		} else if (type == Notify::ChangeType::IncludeMuted) {
+			Notify::unreadCounterUpdated();
+		}
+	});
+
 	if (objectName().isEmpty()) {
 		setObjectName(qsl("MainWindow"));
 	}
@@ -395,6 +408,8 @@ MainWindow::MainWindow() {
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
 	connect(this, SIGNAL(imageLoaded()), this, SLOT(notifyUpdateAllPhotos()));
+
+	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -455,7 +470,7 @@ void MainWindow::firstShow() {
 #else
 	trayIconMenu = new QMenu(this);
 #endif
-	auto notificationItem = lang(cDesktopNotify()
+	auto notificationItem = lang(Global::DesktopNotify()
 		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
 
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -716,7 +731,7 @@ void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 	if (dc == MTP::maindc()) {
 		updateTitleStatus();
-//		if (settings) settings->updateConnectionType(); TODO
+		Global::RefConnectionTypeChanged().notify();
 	}
 }
 
@@ -1108,7 +1123,7 @@ void MainWindow::updateTrayMenu(bool force) {
     if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
     bool active = isActive(false);
-    QString notificationItem = lang(cDesktopNotify()
+    QString notificationItem = lang(Global::DesktopNotify()
         ? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
 
     if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
@@ -1255,15 +1270,28 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::showLayer(new InformBox(lang(lng_passcode_need_unblock)));
 		return;
 	}
-	cSetDesktopNotify(!cDesktopNotify());
-	if (settings) {
-//		settings->updateDisplayNotify(); TODO
-	} else {
-		if (!cDesktopNotify()) {
-			notifyClear();
+
+	bool soundNotifyChanged = false;
+	Global::SetDesktopNotify(!Global::DesktopNotify());
+	if (Global::DesktopNotify()) {
+		if (Global::RestoreSoundNotifyFromTray() && !Global::SoundNotify()) {
+			Global::SetSoundNotify(true);
+			Global::SetRestoreSoundNotifyFromTray(false);
+			soundNotifyChanged = true;
 		}
-		Local::writeUserSettings();
-		updateTrayMenu();
+	} else {
+		if (Global::SoundNotify()) {
+			Global::SetSoundNotify(false);
+			Global::SetRestoreSoundNotifyFromTray(true);
+			soundNotifyChanged = true;
+		} else {
+			Global::SetRestoreSoundNotifyFromTray(false);
+		}
+	}
+	Local::writeUserSettings();
+	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+	if (soundNotifyChanged) {
+		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
 	}
 }
 
@@ -1294,20 +1322,13 @@ void MainWindow::resizeEvent(QResizeEvent *e) {
 	}
 	if (layout != Global::AdaptiveLayout()) {
 		Global::SetAdaptiveLayout(layout);
-		updateAdaptiveLayout();
+		Adaptive::Changed().notify(true);
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
 	if (_mediaPreview) _mediaPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
-}
-
-void MainWindow::updateAdaptiveLayout() {
-	title->updateAdaptiveLayout();
-	if (main) main->updateAdaptiveLayout();
-	if (intro) intro->updateAdaptiveLayout();
-	if (layerBg) layerBg->updateAdaptiveLayout();
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {
@@ -1407,7 +1428,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 
 	uint64 when = ms + delay;
 	notifyWhenAlerts[history].insert(when, notifyByFrom);
-	if (cDesktopNotify() && !psSkipDesktopNotify()) {
+	if (Global::DesktopNotify() && !psSkipDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
 			i = notifyWhenMaps.insert(history, NotifyWhenMap());
@@ -1553,14 +1574,14 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 		App::playSound();
 	}
 
-    if (cCustomNotifies()) {
+    if (Global::CustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             int32 ind = (*i)->index();
             if (ind < 0) continue;
             --count;
         }
     }
-	if (count <= 0 || notifyWaiters.isEmpty() || !cDesktopNotify() || psSkipDesktopNotify()) {
+	if (count <= 0 || notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
 		if (nextAlert) {
 			notifyWaitTimer.start(nextAlert - ms);
 		}
@@ -1656,7 +1677,7 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 					} while (nextNotify);
 				}
 
-				if (cCustomNotifies()) {
+				if (Global::CustomNotifies()) {
 					NotifyWindow *notify = new NotifyWindow(notifyItem, x, y, fwdCount);
 					notifyWindows.push_back(notify);
 					psNotifyShown(notify);
@@ -1689,7 +1710,7 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 }
 
 void MainWindow::notifyItemRemoved(HistoryItem *item) {
-	if (cCustomNotifies()) {
+	if (Global::CustomNotifies()) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
 			(*i)->itemRemoved(item);
 		}
@@ -1697,7 +1718,7 @@ void MainWindow::notifyItemRemoved(HistoryItem *item) {
 }
 
 void MainWindow::notifyStopHiding() {
-    if (cCustomNotifies()) {
+    if (Global::CustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->stopHiding();
         }
@@ -1705,7 +1726,7 @@ void MainWindow::notifyStopHiding() {
 }
 
 void MainWindow::notifyStartHiding() {
-    if (cCustomNotifies()) {
+    if (Global::CustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->startHiding();
         }
@@ -1713,7 +1734,7 @@ void MainWindow::notifyStartHiding() {
 }
 
 void MainWindow::notifyUpdateAllPhotos() {
-    if (cCustomNotifies()) {
+    if (Global::CustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->updatePeerPhoto();
         }
@@ -1726,7 +1747,7 @@ void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButt
 }
 
 void MainWindow::notifyUpdateAll() {
-	if (cCustomNotifies()) {
+	if (Global::CustomNotifies()) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
 			(*i)->updateNotifyDisplay();
 		}
@@ -1735,7 +1756,7 @@ void MainWindow::notifyUpdateAll() {
 }
 
 void MainWindow::notifyActivateAll() {
-	if (cCustomNotifies()) {
+	if (Global::CustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             psActivateNotify(*i);
         }
@@ -2758,7 +2779,7 @@ void LastCrashedWindow::updateControls() {
 }
 
 void LastCrashedWindow::onNetworkSettings() {
-	const ConnectionProxy &p(Sandbox::PreLaunchProxy());
+	auto &p = Sandbox::PreLaunchProxy();
 	NetworkSettingsWindow *box = new NetworkSettingsWindow(this, p.host, p.port ? p.port : 80, p.user, p.password);
 	connect(box, SIGNAL(saved(QString, quint32, QString, QString)), this, SLOT(onNetworkSettingsSaved(QString, quint32, QString, QString)));
 	box->show();

@@ -32,7 +32,7 @@ class WidgetSlideWrap;
 
 namespace Settings {
 
-class BlockWidget : public ScrolledWidget, public Notify::Observer, public base::Subscriber {
+class BlockWidget : public ScrolledWidget, public Notify::Observer, protected base::Subscriber {
 	Q_OBJECT
 
 public:

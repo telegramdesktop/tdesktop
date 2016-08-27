@@ -513,7 +513,7 @@ QString ConnectionPrivate::transport() const {
 		return QString();
 	}
 	QString result = (_conn4 ? _conn4 : _conn6)->transport();
-	if (!result.isEmpty() && cTryIPv6()) result += (_conn4 ? "/IPv4" : "/IPv6");
+	if (!result.isEmpty() && Global::TryIPv6()) result += (_conn4 ? "/IPv4" : "/IPv6");
 	return result;
 }
 
@@ -1130,15 +1130,15 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 			}
 		}
 	}
-	bool noIPv4 = !port[IPv4address][HttpProtocol], noIPv6 = (!cTryIPv6() || !port[IPv6address][HttpProtocol]);
+	bool noIPv4 = !port[IPv4address][HttpProtocol], noIPv6 = (!Global::TryIPv6() || !port[IPv6address][HttpProtocol]);
 	if (noIPv4 && noIPv6) {
 		if (afterConfig) {
 			if (noIPv4) LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found right after config load!").arg(dc));
-			if (cTryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(dc));
+			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(dc));
 			return restart();
 		}
 		if (noIPv4) DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(dc));
-		if (cTryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(dc));
+		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(dc));
 		connect(configLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
 		configLoader()->load();
 		return;
@@ -1273,7 +1273,7 @@ void ConnectionPrivate::onPingSendForce() {
 }
 
 void ConnectionPrivate::onWaitReceivedFailed() {
-	if (cConnectionType() != dbictAuto && cConnectionType() != dbictTcpProxy) {
+	if (Global::ConnectionType() != dbictAuto && Global::ConnectionType() != dbictTcpProxy) {
 		return;
 	}
 

@@ -30,7 +30,7 @@ class IconedButton;
 
 namespace Window {
 
-class TopBarWidget : public TWidget {
+class TopBarWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -51,8 +51,6 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
-	void updateAdaptiveLayout();
-
 	void updateMembersShowArea();
 
 	Ui::RoundButton *mediaTypeButton();
@@ -71,6 +69,8 @@ signals:
 	void clicked();
 
 private:
+	void updateAdaptiveLayout();
+
 	MainWidget *main();
 	anim::fvalue a_over = { 0. };
 	Animation _a_appearance;

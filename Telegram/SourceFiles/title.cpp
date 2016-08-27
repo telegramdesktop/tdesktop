@@ -89,6 +89,8 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
 #endif
 
+	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();

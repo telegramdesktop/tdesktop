@@ -51,6 +51,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
+#include "window/chat_background.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -103,7 +104,15 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	_webPageUpdater.setSingleShot(true);
 	connect(&_webPageUpdater, SIGNAL(timeout()), this, SLOT(webPagesUpdate()));
 
+	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
+		using Update = Window::ChatBackgroundUpdate;
+		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
+			clearCachedBackground();
+		}
+	});
 	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
+
+	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
 	_dialogs->show();
 	if (Adaptive::OneColumn()) {
@@ -1007,8 +1016,8 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 }
 
 void MainWidget::onCacheBackground() {
-	const QPixmap &bg(*cChatBackground());
-	if (cTileBackground()) {
+	auto &bg = Window::chatBackground()->image();
+	if (Window::chatBackground()->tile()) {
 		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
         result.setDevicePixelRatio(cRetinaFactor());
 		{
@@ -1508,9 +1517,10 @@ void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *ret
 }
 
 void MainWidget::onDownloadPathSettings() {
-	cSetDownloadPath(QString());
-	cSetDownloadPathBookmark(QByteArray());
+	Global::SetDownloadPath(QString());
+	Global::SetDownloadPathBookmark(QByteArray());
 	Ui::showLayer(new DownloadPathBox());
+	Global::RefDownloadPathChanged().notify();
 }
 
 void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
@@ -1766,6 +1776,7 @@ bool MainWidget::isIdle() const {
 void MainWidget::clearCachedBackground() {
 	_cachedBackground = QPixmap();
 	_cacheBackgroundTimer.stop();
+	update();
 }
 
 QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
@@ -1782,7 +1793,7 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 }
 
 void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
-	const QSize &bg(cChatBackground()->size());
+	auto &bg = Window::chatBackground()->image().size();
 	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
 		float64 pxsize = forRect.height() / float64(bg.height());
 		int takewidth = qCeil(forRect.width() / pxsize);
@@ -2689,11 +2700,6 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 void MainWidget::updateAdaptiveLayout() {
 	showAll();
 	_sideShadow.setVisible(!Adaptive::OneColumn());
-	if (_wideSection) {
-		_wideSection->updateAdaptiveLayout();
-	}
-	_topBar->updateAdaptiveLayout();
-	_history->updateAdaptiveLayout();
 }
 
 bool MainWidget::needBackButton() {

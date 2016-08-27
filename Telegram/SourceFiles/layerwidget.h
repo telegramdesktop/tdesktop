@@ -61,8 +61,6 @@ public:
 
 	void showFast();
 
-	void updateAdaptiveLayout();
-
 	void showLayer(LayerWidget *l);
 	void showSpecialLayer(LayerWidget *l);
 	void appendLayer(LayerWidget *l);

@@ -91,19 +91,7 @@ inline const QString &cDialogHelperPathFinal() {
 }
 DeclareSetting(bool, CtrlEnter);
 
-typedef QPixmap *QPixmapPointer;
-DeclareSetting(QPixmapPointer, ChatBackground);
-DeclareSetting(int32, ChatBackgroundId);
-DeclareSetting(QPixmapPointer, ChatDogImage);
-DeclareSetting(bool, TileBackground);
-
-DeclareSetting(bool, SoundNotify);
-DeclareSetting(bool, IncludeMuted);
-DeclareSetting(bool, DesktopNotify);
-DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
-
-DeclareSetting(bool, WindowsNotifications);
 
 struct TWindowPos {
 	TWindowPos() : moncrc(0), maximized(0), x(0), y(0), w(0), h(0) {
@@ -114,10 +102,7 @@ struct TWindowPos {
 DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
-DeclareSetting(DBIConnectionType, ConnectionType);
-DeclareSetting(bool, TryIPv6);
 DeclareSetting(DBIDefaultAttach, DefaultAttach);
-DeclareSetting(ConnectionProxy, ConnectionProxy);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
@@ -128,9 +113,7 @@ DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
 DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
-DeclareSetting(bool, AskDownloadPath);
-DeclareSetting(QString, DownloadPath);
-DeclareSetting(QByteArray, DownloadPathBookmark);
+
 DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
@@ -279,7 +262,6 @@ DeclareSetting(QString, LangErrors);
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
-DeclareSetting(bool, CustomNotifies);
 
 DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);

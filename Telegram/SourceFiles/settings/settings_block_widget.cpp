@@ -96,7 +96,7 @@ void BlockWidget::createChildRow(ChildWidget<Radiobutton> &child, style::margins
 
 void BlockWidget::createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot) {
 	child = new LinkButton(this, text);
-	connect(child, SIGNAL(changed()), this, slot);
+	connect(child, SIGNAL(clicked()), this, slot);
 }
 
 } // namespace Settings

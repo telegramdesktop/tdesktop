@@ -25,7 +25,7 @@ namespace Settings {
 class CoverWidget;
 class BlockWidget;
 
-class InnerWidget : public TWidget {
+class InnerWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -42,6 +42,9 @@ public:
 
 	void showFinished();
 
+signals:
+	void heightUpdated();
+
 private slots:
 	void onBlockHeightUpdated();
 
@@ -50,6 +53,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void selfUpdated();
 	void refreshBlocks();
 
 	// Returns the new height value.

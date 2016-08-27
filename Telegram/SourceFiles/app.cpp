@@ -39,6 +39,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
+#include "window/chat_background.h"
 
 namespace {
 	App::LaunchState _launchState = App::Launched;
@@ -501,7 +502,7 @@ namespace {
 				}
 				if (d.is_self() && ::self != data) {
 					::self = data;
-					if (App::wnd()) App::wnd()->updateGlobalMenu();
+					Global::RefSelfChanged().notify();
 				}
 			}
 
@@ -2034,8 +2035,8 @@ namespace {
 		::gifItems.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
-		::self = 0;
-		if (App::wnd()) App::wnd()->updateGlobalMenu();
+		::self = nullptr;
+		Global::RefSelfChanged().notify(true);
 	}
 
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency) {
@@ -2323,7 +2324,7 @@ namespace {
 	}
 
 	void playSound() {
-		if (cSoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
+		if (Global::SoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
 	}
 
 	void checkImageCacheSize() {
@@ -2584,11 +2585,11 @@ namespace {
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings() {
-		const ConnectionProxy *proxy = 0;
+		const ProxyData *proxy = nullptr;
 		if (Global::started()) {
-			proxy = (cConnectionType() == dbictHttpProxy) ? (&cConnectionProxy()) : 0;
+			proxy = (Global::ConnectionType() == dbictHttpProxy) ? (&Global::ConnectionProxy()) : nullptr;
 		} else {
-			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? 0 : (&Sandbox::PreLaunchProxy());
+			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? nullptr : (&Sandbox::PreLaunchProxy());
 		}
 		if (proxy) {
 			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
@@ -2599,8 +2600,8 @@ namespace {
 
 	void setProxySettings(QTcpSocket &socket) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		if (cConnectionType() == dbictTcpProxy) {
-			const ConnectionProxy &p(cConnectionProxy());
+		if (Global::ConnectionType() == dbictTcpProxy) {
+			auto &p = Global::ConnectionProxy();
 			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
@@ -2673,50 +2674,43 @@ namespace {
 
 		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
 		int size = 0;
-		{
-			QImage img(p);
-			bool remove = false;
-			if (p.isNull()) {
-				if (id == DefaultChatBackground) {
-					img.load(st::msgBG);
-				} else {
-					img.load(st::msgBG0);
-					if (cRetina()) {
-						img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
-					} else if (cScale() != dbisOne) {
-						img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
-					}
-					id = 0;
+
+		QImage img(p);
+		bool remove = false;
+		if (p.isNull()) {
+			if (id == DefaultChatBackground) {
+				img.load(st::msgBG);
+			} else {
+				img.load(st::msgBG0);
+				if (cRetina()) {
+					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
+				} else if (cScale() != dbisOne) {
+					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
 				}
-				remove = true;
+				id = 0;
 			}
-			if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
-				img = img.convertToFormat(QImage::Format_RGB32);
-			}
-			img.setDevicePixelRatio(cRetinaFactor());
-
-			if (!nowrite) {
-				Local::writeBackground(id, remove ? QImage() : img);
-			}
-
-			int w = img.width(), h = img.height();
-			size = w * h;
-			const uchar *pix = img.constBits();
-			if (pix) {
-				for (int32 i = 0, l = size * 4; i < l; i += 4) {
-					components[2] += pix[i + 0];
-					components[1] += pix[i + 1];
-					components[0] += pix[i + 2];
-				}
-			}
-
-			delete cChatBackground();
-			cSetChatBackground(new QPixmap(pixmapFromImageInPlace(std_::move(img))));
-			cSetChatBackgroundId(id);
-
-			if (App::main()) App::main()->clearCachedBackground();
-
+			remove = true;
 		}
+		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
+			img = img.convertToFormat(QImage::Format_RGB32);
+		}
+		img.setDevicePixelRatio(cRetinaFactor());
+
+		if (!nowrite) {
+			Local::writeBackground(id, remove ? QImage() : img);
+		}
+
+		int w = img.width(), h = img.height();
+		size = w * h;
+		const uchar *pix = img.constBits();
+		if (pix) {
+			for (int32 i = 0, l = size * 4; i < l; i += 4) {
+				components[2] += pix[i + 0];
+				components[1] += pix[i + 1];
+				components[0] += pix[i + 2];
+			}
+		}
+
 		if (size) {
 			for (int32 i = 0; i < 3; ++i) components[i] /= size;
 		}
@@ -2733,43 +2727,41 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		{
-			QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
-			QImage::Format f = dog.format();
-			if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
-				dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-			}
-			uchar *dogBits = dog.bits();
-			if (max != min) {
-				float64 coef = float64(mid - min) / float64(max - min);
-				for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-					int dogmaxtomin[3] = { i, i + 1, i + 2 };
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
+		QImage::Format f = dog.format();
+		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
+			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		}
+		uchar *dogBits = dog.bits();
+		if (max != min) {
+			float64 coef = float64(mid - min) / float64(max - min);
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				int dogmaxtomin[3] = { i, i + 1, i + 2 };
+				if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+					qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+				}
+				if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
+					qSwap(dogmaxtomin[1], dogmaxtomin[2]);
 					if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
 						qSwap(dogmaxtomin[0], dogmaxtomin[1]);
 					}
-					if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
-						qSwap(dogmaxtomin[1], dogmaxtomin[2]);
-						if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
-							qSwap(dogmaxtomin[0], dogmaxtomin[1]);
-						}
-					}
-					uchar result[3];
-					result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
-					result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
-					result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
-					dogBits[i] = result[2];
-					dogBits[i + 1] = result[1];
-					dogBits[i + 2] = result[0];
 				}
-			} else {
-				for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-					uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
-					dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
-				}
+				uchar result[3];
+				result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
+				result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
+				result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
+				dogBits[i] = result[2];
+				dogBits[i + 1] = result[1];
+				dogBits[i + 2] = result[0];
 			}
-			delete cChatDogImage();
-			cSetChatDogImage(new QPixmap(pixmapFromImageInPlace(std_::move(dog))));
+		} else {
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
+				dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
+			}
 		}
+
+		Window::chatBackground()->init(id, pixmapFromImageInPlace(std_::move(img)), pixmapFromImageInPlace(std_::move(dog)));
 
 		memcpy(componentsScroll, components, sizeof(components));
 		memcpy(componentsPoint, components, sizeof(components));

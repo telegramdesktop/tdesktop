@@ -281,9 +281,6 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 	updateLayerBox();
 }
 
-void LayerStackWidget::updateAdaptiveLayout() {
-}
-
 void LayerStackWidget::showLayer(LayerWidget *l) {
 	clearLayers();
 	appendLayer(l);

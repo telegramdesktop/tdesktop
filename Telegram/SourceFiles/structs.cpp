@@ -806,7 +806,7 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 #elif defined Q_OS_LINUX
 	name = name.replace(QRegularExpression(qsl("[\\/]")), qsl("_"));
 #endif
-	if (cAskDownloadPath() || savingAs) {
+	if (Global::AskDownloadPath() || savingAs) {
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);
 		} else if (dir.path() != qsl(".")) {
@@ -851,12 +851,12 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 	}
 
 	QString path;
-	if (cDownloadPath().isEmpty()) {
+	if (Global::DownloadPath().isEmpty()) {
 		path = psDownloadPath();
-	} else if (cDownloadPath() == qsl("tmp")) {
+	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
-		path = cDownloadPath();
+		path = Global::DownloadPath();
 	}
 	if (name.isEmpty()) name = qsl(".unknown");
 	if (name.at(0) == QChar::fromLatin1('.')) {
@@ -1480,7 +1480,7 @@ QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) con
 	if (saveFromData) {
 		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
 			saveFromData = false;
-		} else if (type == FilePathResolveSaveFromDataSilent && (cAskDownloadPath() || forceSavingAs)) {
+		} else if (type == FilePathResolveSaveFromDataSilent && (Global::AskDownloadPath() || forceSavingAs)) {
 			saveFromData = false;
 		}
 	}

@@ -47,11 +47,6 @@ QString gLangErrors;
 
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
-bool gSoundNotify = true;
-bool gIncludeMuted = true;
-bool gDesktopNotify = true;
-DBINotifyView gNotifyView = dbinvShowPreview;
-bool gWindowsNotifications = true;
 bool gStartMinimized = false;
 bool gStartInTray = false;
 bool gAutoStart = false;
@@ -61,13 +56,6 @@ TWindowPos gWindowPos;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSupportTray = true;
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
-DBIConnectionType gConnectionType = dbictAuto;
-ConnectionProxy gConnectionProxy;
-#ifdef Q_OS_WIN
-bool gTryIPv6 = false;
-#else
-bool gTryIPv6 = true;
-#endif
 bool gSeenTrayTooltip = false;
 bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
@@ -75,16 +63,8 @@ bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
-bool gAskDownloadPath = false;
-QString gDownloadPath;
-QByteArray gDownloadPathBookmark;
 
 bool gCtrlEnter = false;
-
-QPixmapPointer gChatBackground = 0;
-int32 gChatBackgroundId = 0;
-QPixmapPointer gChatDogImage = 0;
-bool gTileBackground = false;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
@@ -126,7 +106,6 @@ QString gLangFile;
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
-bool gCustomNotifies = true;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
@@ -175,7 +154,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 	case dbipMac:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
 		gPlatformString = qsl("MacOS");
-		gCustomNotifies = false;
 	break;
 	case dbipMacOld:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));

@@ -20,6 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
 using "basic_types.style";
+using "dialogs/dialogs.style";
 
 settingsMaxWidth: 520px;
 settingsMaxPadding: 48px;
@@ -82,6 +83,22 @@ settingsSecondaryButton: RoundButton(settingsPrimaryButton) {
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
+settingsEditButton: RoundButton {
+	width: 24px;
+	height: 34px;
+	icon: settingsEditIcon;
+
+	textTop: 0px;
+	downTextTop: 1px;
+
+	textFg: transparent;
+	textFgOver: transparent;
+	secondaryTextFg: transparent;
+	secondaryTextFgOver: transparent;
+	textBg: transparent;
+	textBgOver: transparent;
+}
+
 
 settingsBlocksTop: 7px;
 settingsBlocksBottom: 20px;
@@ -117,3 +134,5 @@ settingsSliderLabelTop: 17px;
 settingsSliderLabelFont: normalFont;
 settingsSliderLabelFg: #1485c2;
 settingsSliderDuration: 200;
+
+settingsBackgroundSize: 120px;

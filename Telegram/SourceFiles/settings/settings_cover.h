@@ -93,6 +93,7 @@ private:
 	ChildWidget<Profile::CoverDropArea> _dropArea = { nullptr };
 
 	ChildWidget<FlatLabel> _name;
+	ChildWidget<Ui::RoundButton> _editNameInline;
 	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
@@ -101,6 +102,7 @@ private:
 
 	ChildWidget<Ui::RoundButton> _setPhoto;
 	ChildWidget<Ui::RoundButton> _editName;
+	bool _editNameVisible = true;
 
 	int _dividerTop = 0;
 

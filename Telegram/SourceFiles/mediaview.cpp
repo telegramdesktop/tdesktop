@@ -773,17 +773,17 @@ PeerData *MediaView::ui_getPeerForMouseAction() {
 }
 
 void MediaView::onDownload() {
-	if (cAskDownloadPath()) {
+	if (Global::AskDownloadPath()) {
 		return onSaveAs();
 	}
 
 	QString path;
-	if (cDownloadPath().isEmpty()) {
+	if (Global::DownloadPath().isEmpty()) {
 		path = psDownloadPath();
-	} else if (cDownloadPath() == qsl("tmp")) {
+	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
-		path = cDownloadPath();
+		path = Global::DownloadPath();
 	}
 	QString toName;
 	if (_doc) {

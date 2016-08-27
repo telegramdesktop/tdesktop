@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/photocropbox.h"
 #include "ui/filedialog.h"
 #include "window/top_bar_widget.h"
+#include "window/chat_background.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -812,7 +813,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, *cChatDogImage());
+		p.drawPixmap(dogPos, Window::chatBackground()->dog());
 		return;
 	} else if (_inSearch && _searchResults.isEmpty() && _searchFull && (!_migrated || _searchFullMigrated) && !_searchTimer.isActive()) {
 		p.setFont(st::noContactsFont->f);

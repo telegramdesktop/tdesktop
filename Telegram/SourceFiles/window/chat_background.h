@@ -20,47 +20,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "core/lambda_wrap.h"
+namespace Window {
 
-class BackgroundInner : public QWidget, public RPCSender {
-	Q_OBJECT
+struct ChatBackgroundUpdate {
+	enum class Type {
+		New,
+		Changed,
+		Start,
+	};
 
+	ChatBackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
+	}
+	Type type;
+	bool tiled;
+};
+
+class ChatBackground : public base::Observable<ChatBackgroundUpdate> {
 public:
-	BackgroundInner();
+	bool empty() const;
+	void initIfEmpty();
+	void init(int32 id, QPixmap &&image, QPixmap &&dog);
+	void reset();
 
-signals:
-	void backgroundChosen(int index);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	int32 id() const;
+	const QPixmap &image() const;
+	const QPixmap &dog() const;
+	bool tile() const;
+	void setTile(bool tile);
 
 private:
-	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
-	void updateWallpapers();
-
-	int32 _bgCount, _rows;
-	int32 _over, _overDown;
+	int32 _id = 0;
+	QPixmap _image;
+	QPixmap _dog;
+	bool _tile = false;
 
 };
 
-class BackgroundBox : public ItemListBox {
-	Q_OBJECT
+ChatBackground *chatBackground();
 
-public:
-	BackgroundBox();
-
-public slots:
-	void onBackgroundChosen(int index);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	BackgroundInner _inner;
-
-};
+} // namespace Window

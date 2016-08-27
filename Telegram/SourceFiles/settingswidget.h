@@ -194,7 +194,6 @@ private slots:
 
 private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void notifyDownloadPathUpdated(const DownloadPathUpdate &update);
 
 	void saveError(const QString &str = QString());
 

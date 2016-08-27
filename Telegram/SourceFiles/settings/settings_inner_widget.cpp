@@ -37,18 +37,34 @@ namespace Settings {
 
 InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
 , _self(App::self()) {
-	if (_self) {
-		_cover = new CoverWidget(this, _self);
-	}
 	refreshBlocks();
+	subscribe(Global::RefSelfChanged(), [this]() { selfUpdated(); });
+}
+
+void InnerWidget::selfUpdated() {
+	_self = App::self();
+	refreshBlocks();
+
+	if (_cover) {
+		_cover->setContentLeft(_contentLeft);
+		_cover->resizeToWidth(width());
+	}
+	for_const (auto block, _blocks) {
+		block->setContentLeft(_contentLeft);
+		block->resizeToWidth(width());
+	}
+	onBlockHeightUpdated();
 }
 
 void InnerWidget::refreshBlocks() {
+	_cover.destroyDelayed();
 	for_const (auto block, _blocks) {
 		block->deleteLater();
 	}
 	_blocks.clear();
+
 	if (_self) {
+		_cover = new CoverWidget(this, _self);
 		_blocks.push_back(new Settings::InfoWidget(this, _self));
 		_blocks.push_back(new Settings::NotificationsWidget(this, _self));
 	}
@@ -60,7 +76,12 @@ void InnerWidget::refreshBlocks() {
 		_blocks.push_back(new Settings::PrivacyWidget(this, _self));
 	}
 	_blocks.push_back(new Settings::AdvancedWidget(this, _self));
+
+	if (_cover) {
+		_cover->show();
+	}
 	for_const (auto block, _blocks) {
+		block->show();
 		connect(block, SIGNAL(heightUpdated()), this, SLOT(onBlockHeightUpdated()));
 	}
 }
@@ -102,6 +123,7 @@ void InnerWidget::onBlockHeightUpdated() {
 	int newHeight = refreshBlocksPositions();
 	if (newHeight != height()) {
 		resize(width(), newHeight);
+		emit heightUpdated();
 	}
 }
 

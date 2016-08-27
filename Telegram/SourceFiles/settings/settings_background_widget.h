@@ -21,19 +21,72 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/filedialog.h"
+
+class LinkButton;
+class Checkbox;
+namespace Ui {
+template <typename Widget>
+class WidgetSlideWrap;
+} // namespace Ui;
 
 namespace Settings {
 
+class BackgroundRow : public TWidget {
+	Q_OBJECT
+
+public:
+	BackgroundRow(QWidget *parent);
+
+	void updateImage();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
+
+signals:
+	void chooseFromGallery();
+	void chooseFromFile();
+
+private:
+	float64 radialProgress() const;
+	bool radialLoading() const;
+	QRect radialRect() const;
+	void radialStart();
+	uint64 radialTimeShift() const;
+	void step_radial(uint64 ms, bool timer);
+
+	QPixmap _background;
+	ChildWidget<LinkButton> _chooseFromGallery;
+	ChildWidget<LinkButton> _chooseFromFile;
+
+	RadialAnimation _radial;
+
+};
+
 class BackgroundWidget : public BlockWidget {
+	Q_OBJECT
+
 public:
 	BackgroundWidget(QWidget *parent, UserData *self);
 
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
+private slots:
+	void onChooseFromGallery();
+	void onChooseFromFile();
+	void onTile();
+	void onAdaptive();
 
 private:
-	void refreshControls();
+	void createControls();
+	void needBackgroundUpdate(bool tile);
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+
+	ChildWidget<BackgroundRow> _background = { nullptr };
+	ChildWidget<Checkbox> _tile = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _adaptive = { nullptr };
+
+	FileDialog::QueryId _chooseFromFileQueryId = 0;
 
 };
 

@@ -62,15 +62,11 @@ public:
 	TypingHistories typing;
 	Animation _a_typings;
 
-	int32 unreadBadge() const {
-		return _unreadFull - (cIncludeMuted() ? 0 : _unreadMuted);
-	}
-	int32 unreadMutedCount() const {
+	int unreadBadge() const;
+	int unreadMutedCount() const {
 		return _unreadMuted;
 	}
-	bool unreadOnlyMuted() const {
-		return cIncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
-	}
+	bool unreadOnlyMuted() const;
 	void unreadIncrement(int32 count, bool muted) {
 		_unreadFull += count;
 		if (muted) {
@@ -86,7 +82,7 @@ public:
 	}
 
 private:
-	int32 _unreadFull, _unreadMuted;
+	int _unreadFull, _unreadMuted;
 
 };
 

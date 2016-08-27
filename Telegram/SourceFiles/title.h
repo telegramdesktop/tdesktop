@@ -39,7 +39,7 @@ private:
 
 };
 
-class TitleWidget : public TWidget {
+class TitleWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -49,7 +49,6 @@ public:
 	void resizeEvent(QResizeEvent *e);
 
 	void updateBackButton();
-	void updateAdaptiveLayout();
 	void updateCounter();
 
 	void mousePressEvent(QMouseEvent *e);
@@ -77,6 +76,7 @@ signals:
 	void hiderClicked();
 
 private:
+	void updateAdaptiveLayout();
 
 	MainWindow *wnd;
 

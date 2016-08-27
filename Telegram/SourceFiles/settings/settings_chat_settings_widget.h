@@ -65,6 +65,7 @@ private slots:
 
 private:
 	void createControls();
+	QString downloadPathText() const;
 
 	ChildWidget<Checkbox> _replaceEmoji = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _viewList = { nullptr };

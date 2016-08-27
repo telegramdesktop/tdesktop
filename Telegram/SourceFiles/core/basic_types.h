@@ -747,11 +747,9 @@ enum DBIDefaultAttach {
 	dbidaPhoto = 1,
 };
 
-struct ConnectionProxy {
-	ConnectionProxy() : port(0) {
-	}
+struct ProxyData {
 	QString host;
-	uint32 port;
+	uint32 port = 0;
 	QString user, password;
 };
 

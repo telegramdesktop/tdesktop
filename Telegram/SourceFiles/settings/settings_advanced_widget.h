@@ -43,6 +43,9 @@ private slots:
 
 private:
 	void createControls();
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	void connectionTypeUpdated();
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 	void supportGot(const MTPhelp_Support &support);
 
 	ChildWidget<LinkButton> _manageLocalStorage = { nullptr };

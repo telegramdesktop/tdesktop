@@ -27,28 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "pspecific.h"
 
-namespace internal {
-namespace {
-
-void StartCallback() {
-}
-
-void FinishCallback() {
-}
-
-Notify::SimpleObservedEventRegistrator<DownloadPathUpdateHandler> creator(StartCallback, FinishCallback);
-
-} // namespace
-
-Notify::ConnectionId plainRegisterObserver(DownloadPathUpdateHandler &&handler) {
-	return creator.registerObserver(std_::forward<DownloadPathUpdateHandler>(handler));
-}
-
-} // namespace interanl
-
 DownloadPathBox::DownloadPathBox() : AbstractBox()
-, _path(cDownloadPath())
-, _pathBookmark(cDownloadPathBookmark())
+, _path(Global::DownloadPath())
+, _pathBookmark(Global::DownloadPathBookmark())
 , _default(this, qsl("dir_type"), 0, lang(lng_download_path_default_radio), _path.isEmpty())
 , _temp(this, qsl("dir_type"), 1, lang(lng_download_path_temp_radio), _path == qsl("tmp"))
 , _dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp"))
@@ -135,8 +116,8 @@ void DownloadPathBox::onChange() {
 void DownloadPathBox::onEditPath() {
 	filedialogInit();
 	QString path, lastPath = cDialogLastPath();
-	if (!cDownloadPath().isEmpty() && cDownloadPath() != qstr("tmp")) {
-		cSetDialogLastPath(cDownloadPath().left(cDownloadPath().size() - (cDownloadPath().endsWith('/') ? 1 : 0)));
+	if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
+		cSetDialogLastPath(Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0)));
 	}
 	if (filedialogGetDir(path, lang(lng_download_path_choose))) {
 		if (!path.isEmpty()) {
@@ -149,10 +130,10 @@ void DownloadPathBox::onEditPath() {
 }
 
 void DownloadPathBox::onSave() {
-	cSetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
-	cSetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
+	Global::SetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
+	Global::SetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
-	internal::creator.notify(DownloadPathUpdate());
+	Global::RefDownloadPathChanged().notify();
 	onClose();
 }
 

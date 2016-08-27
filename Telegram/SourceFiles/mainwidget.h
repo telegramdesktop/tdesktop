@@ -127,7 +127,7 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
-class MainWidget : public TWidget, public RPCSender {
+class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -138,7 +138,6 @@ public:
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
@@ -318,7 +317,6 @@ public:
 
 	bool isIdle() const;
 
-	void clearCachedBackground();
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void backgroundParams(const QRect &forRect, QRect &to, QRect &from) const;
 	void updateScrollColors();
@@ -480,6 +478,8 @@ private slots:
 	void onDeletePhotoSure();
 
 private:
+	void updateAdaptiveLayout();
+
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
 	void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
@@ -561,6 +561,8 @@ private:
 
 	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
 	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
+
+	void clearCachedBackground();
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;

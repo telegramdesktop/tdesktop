@@ -127,12 +127,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username))
 
 // notifications
-, _desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify())
-, _senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName)
-, _messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview)
-, _windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications())
-, _soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify())
-, _includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted())
+, _desktopNotify(this, lang(lng_settings_desktop_notify), Global::DesktopNotify())
+, _senderName(this, lang(lng_settings_show_name), Global::NotifyView() <= dbinvShowName)
+, _messagePreview(this, lang(lng_settings_show_preview), Global::NotifyView() <= dbinvShowPreview)
+, _windowsNotifications(this, lang(lng_settings_use_windows), Global::WindowsNotifications())
+, _soundNotify(this, lang(lng_settings_sound_notify), Global::SoundNotify())
+, _includeMuted(this, lang(lng_settings_include_muted), Global::IncludeMuted())
 
 // general
 , _changeLanguage(this, lang(lng_settings_change_lang))
@@ -165,9 +165,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter())
 , _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter())
 
-, _dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath())
+, _dontAskDownloadPath(this, lang(lng_download_path_dont_ask), false/*!cAskDownloadPath()*/)
 , _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew)
-, _downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::cbDefFlat.textLeft - _downloadPathWidth)))
+, _downloadPathEdit(this, /*cDownloadPath().isEmpty() ?*/ lang(lng_download_path_default) /*: ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::cbDefFlat.textLeft - _downloadPathWidth))*/)
 , _downloadPathClear(this, lang(lng_download_path_clear))
 , _tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing)))
 , _tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared)))
@@ -185,7 +185,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 // chat background
 , _backFromGallery(this, lang(lng_settings_bg_from_gallery))
 , _backFromFile(this, lang(lng_settings_bg_from_file))
-, _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _tileBackground(this, lang(lng_settings_bg_tile), false/*cTileBackground()*/)
 , _adaptiveForWide(this, lang(lng_settings_adaptive_wide), Global::AdaptiveForWide())
 , _needBackgroundUpdate(false)
 , _radial(animation(this, &SettingsInner::step_radial))
@@ -208,7 +208,6 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
 	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::UsernameChanged, this, &SettingsInner::notifyPeerUpdated);
-	registerDownloadPathObserver(this, &SettingsInner::notifyDownloadPathUpdated);
 
 	App::clearMousedItems();
 
@@ -313,7 +312,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	}
 
 	// chat background
-	if (!cChatBackground()) App::initBackground();
+	//if (!cChatBackground()) App::initBackground();
 	updateChatBackground();
 	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
 	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
@@ -366,19 +365,6 @@ void SettingsInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 			usernameChanged();
 		}
 	}
-}
-
-void SettingsInner::notifyDownloadPathUpdated(const DownloadPathUpdate &update) {
-	QString path;
-	if (cDownloadPath().isEmpty()) {
-		path = lang(lng_download_path_default);
-	} else if (cDownloadPath() == qsl("tmp")) {
-		path = lang(lng_download_path_temp);
-	} else {
-		path = st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth);
-	}
-	_downloadPathEdit.setText(path);
-	showAll();
 }
 
 void SettingsInner::peerUpdated(PeerData *data) {
@@ -556,25 +542,25 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += _ctrlEnterSend.height() + st::setSectionSkip;
 
 		top += _dontAskDownloadPath.height();
-		if (!cAskDownloadPath()) {
-			top += st::setLittleSkip;
-			p.setFont(st::linkFont->f);
-			p.setPen(st::black->p);
-			p.drawText(_left + st::cbDefFlat.textLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
-			if (cDownloadPath() == qsl("tmp")) {
-				QString clearText;
-				int32 clearWidth = 0;
-				switch (_tempDirClearState) {
-				case TempDirClearing: clearText = lang(lng_download_path_clearing); clearWidth = _tempDirClearingWidth; break;
-				case TempDirCleared: clearText = lang(lng_download_path_cleared); clearWidth = _tempDirClearedWidth; break;
-				case TempDirClearFailed: clearText = lang(lng_download_path_clear_failed); clearWidth = _tempDirClearFailedWidth; break;
-				}
-				if (clearWidth) {
-					p.drawText(_left + st::setWidth - clearWidth, top + st::linkFont->ascent, clearText);
-				}
-			}
-			top += _downloadPathEdit.height();
-		}
+		//if (!cAskDownloadPath()) {
+		//	top += st::setLittleSkip;
+		//	p.setFont(st::linkFont->f);
+		//	p.setPen(st::black->p);
+		//	p.drawText(_left + st::cbDefFlat.textLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
+		//	if (cDownloadPath() == qsl("tmp")) {
+		//		QString clearText;
+		//		int32 clearWidth = 0;
+		//		switch (_tempDirClearState) {
+		//		case TempDirClearing: clearText = lang(lng_download_path_clearing); clearWidth = _tempDirClearingWidth; break;
+		//		case TempDirCleared: clearText = lang(lng_download_path_cleared); clearWidth = _tempDirClearedWidth; break;
+		//		case TempDirClearFailed: clearText = lang(lng_download_path_clear_failed); clearWidth = _tempDirClearFailedWidth; break;
+		//		}
+		//		if (clearWidth) {
+		//			p.drawText(_left + st::setWidth - clearWidth, top + st::linkFont->ascent, clearText);
+		//		}
+		//	}
+		//	top += _downloadPathEdit.height();
+		//}
 		top += st::setLittleSkip;
 		top += _autoDownload.height();
 
@@ -755,14 +741,14 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_enterSend.move(_left, top); top += _enterSend.height() + st::setLittleSkip;
 		_ctrlEnterSend.move(_left, top); top += _ctrlEnterSend.height() + st::setSectionSkip;
 		_dontAskDownloadPath.move(_left, top); top += _dontAskDownloadPath.height();
-		if (!cAskDownloadPath()) {
-			top += st::setLittleSkip;
-			_downloadPathEdit.move(_left + st::cbDefFlat.textLeft + _downloadPathWidth, top);
-			if (cDownloadPath() == qsl("tmp")) {
-				_downloadPathClear.move(_left + st::setWidth - _downloadPathClear.width(), top);
-			}
-			top += _downloadPathEdit.height();
-		}
+		//if (!cAskDownloadPath()) {
+		//	top += st::setLittleSkip;
+		//	_downloadPathEdit.move(_left + st::cbDefFlat.textLeft + _downloadPathWidth, top);
+		//	if (cDownloadPath() == qsl("tmp")) {
+		//		_downloadPathClear.move(_left + st::setWidth - _downloadPathClear.width(), top);
+		//	}
+		//	top += _downloadPathEdit.height();
+		//}
 		top += st::setLittleSkip;
 		_autoDownload.move(_left + st::cbDefFlat.textLeft, top); top += _autoDownload.height();
 
@@ -950,19 +936,19 @@ void SettingsInner::updateOnlineDisplay() {
 }
 
 void SettingsInner::updateConnectionType() {
-	QString connection;
-	switch (cConnectionType()) {
-	case dbictAuto: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
-	} break;
-	case dbictHttpProxy:
-	case dbictTcpProxy: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
-	} break;
-	}
-	_connectionType.setText(connection);
+	//QString connection;
+	//switch (cConnectionType()) {
+	//case dbictAuto: {
+	//	QString transport = MTP::dctransport();
+	//	connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
+	//} break;
+	//case dbictHttpProxy:
+	//case dbictTcpProxy: {
+	//	QString transport = MTP::dctransport();
+	//	connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
+	//} break;
+	//}
+	//_connectionType.setText(connection);
 }
 
 void SettingsInner::passcodeChanged() {
@@ -1128,17 +1114,17 @@ void SettingsInner::showAll() {
 		_enterSend.show();
 		_ctrlEnterSend.show();
 		_dontAskDownloadPath.show();
-		if (cAskDownloadPath()) {
-			_downloadPathEdit.hide();
-			_downloadPathClear.hide();
-		} else {
-			_downloadPathEdit.show();
-			if (cDownloadPath() == qsl("tmp") && _tempDirClearState == TempDirExists) { // dir exists, not clearing right now
-				_downloadPathClear.show();
-			} else {
-				_downloadPathClear.hide();
-			}
-		}
+		//if (cAskDownloadPath()) {
+		//	_downloadPathEdit.hide();
+		//	_downloadPathClear.hide();
+		//} else {
+		//	_downloadPathEdit.show();
+		//	if (cDownloadPath() == qsl("tmp") && _tempDirClearState == TempDirExists) { // dir exists, not clearing right now
+		//		_downloadPathClear.show();
+		//	} else {
+		//		_downloadPathClear.hide();
+		//	}
+		//}
 		_autoDownload.show();
 	} else {
 		_replaceEmojis.hide();
@@ -1547,36 +1533,36 @@ void SettingsInner::setScale(DBIScale newScale) {
 }
 
 void SettingsInner::onSoundNotify() {
-	cSetSoundNotify(_soundNotify.checked());
-	Local::writeUserSettings();
+	//cSetSoundNotify(_soundNotify.checked());
+	//Local::writeUserSettings();
 }
 
 void SettingsInner::onIncludeMuted() {
-	cSetIncludeMuted(_includeMuted.checked());
-	Notify::unreadCounterUpdated();
-	Local::writeUserSettings();
+	//cSetIncludeMuted(_includeMuted.checked());
+	//Notify::unreadCounterUpdated();
+	//Local::writeUserSettings();
 }
 
 void SettingsInner::onWindowsNotifications() {
-	if (cPlatform() != dbipWindows) return;
-	cSetWindowsNotifications(!cWindowsNotifications());
-	App::wnd()->notifyClearFast();
-	cSetCustomNotifies(!cWindowsNotifications());
-	Local::writeUserSettings();
+	//if (cPlatform() != dbipWindows) return;
+	//cSetWindowsNotifications(!cWindowsNotifications());
+	//App::wnd()->notifyClearFast();
+	//cSetCustomNotifies(!cWindowsNotifications());
+	//Local::writeUserSettings();
 }
 
 void SettingsInner::onDesktopNotify() {
-	cSetDesktopNotify(_desktopNotify.checked());
-	if (!_desktopNotify.checked()) {
-		App::wnd()->notifyClear();
-		_senderName.setDisabled(true);
-		_messagePreview.setDisabled(true);
-	} else {
-		_senderName.setDisabled(false);
-		_messagePreview.setDisabled(!_senderName.checked());
-	}
-	Local::writeUserSettings();
-	if (App::wnd()) App::wnd()->updateTrayMenu();
+	//cSetDesktopNotify(_desktopNotify.checked());
+	//if (!_desktopNotify.checked()) {
+	//	App::wnd()->notifyClear();
+	//	_senderName.setDisabled(true);
+	//	_messagePreview.setDisabled(true);
+	//} else {
+	//	_senderName.setDisabled(false);
+	//	_messagePreview.setDisabled(!_senderName.checked());
+	//}
+	//Local::writeUserSettings();
+	//if (App::wnd()) App::wnd()->updateTrayMenu();
 }
 
 void SettingsInner::enableDisplayNotify(bool enable)
@@ -1585,32 +1571,32 @@ void SettingsInner::enableDisplayNotify(bool enable)
 }
 
 void SettingsInner::onSenderName() {
-	_messagePreview.setDisabled(!_senderName.checked());
-	if (!_senderName.checked() && _messagePreview.checked()) {
-		_messagePreview.setChecked(false);
-	} else {
-		if (_messagePreview.checked()) {
-			cSetNotifyView(dbinvShowPreview);
-		} else if (_senderName.checked()) {
-			cSetNotifyView(dbinvShowName);
-		} else {
-			cSetNotifyView(dbinvShowNothing);
-		}
-		Local::writeUserSettings();
-		App::wnd()->notifyUpdateAll();
-	}
+	//_messagePreview.setDisabled(!_senderName.checked());
+	//if (!_senderName.checked() && _messagePreview.checked()) {
+	//	_messagePreview.setChecked(false);
+	//} else {
+	//	if (_messagePreview.checked()) {
+	//		cSetNotifyView(dbinvShowPreview);
+	//	} else if (_senderName.checked()) {
+	//		cSetNotifyView(dbinvShowName);
+	//	} else {
+	//		cSetNotifyView(dbinvShowNothing);
+	//	}
+	//	Local::writeUserSettings();
+	//	App::wnd()->notifyUpdateAll();
+	//}
 }
 
 void SettingsInner::onMessagePreview() {
-	if (_messagePreview.checked()) {
-		cSetNotifyView(dbinvShowPreview);
-	} else if (_senderName.checked()) {
-		cSetNotifyView(dbinvShowName);
-	} else {
-		cSetNotifyView(dbinvShowNothing);
-	}
-	Local::writeUserSettings();
-	App::wnd()->notifyUpdateAll();
+	//if (_messagePreview.checked()) {
+	//	cSetNotifyView(dbinvShowPreview);
+	//} else if (_senderName.checked()) {
+	//	cSetNotifyView(dbinvShowName);
+	//} else {
+	//	cSetNotifyView(dbinvShowNothing);
+	//}
+	//Local::writeUserSettings();
+	//App::wnd()->notifyUpdateAll();
 }
 
 void SettingsInner::onReplaceEmojis() {
@@ -1649,12 +1635,12 @@ void SettingsInner::onCtrlEnterSend() {
 }
 
 void SettingsInner::onBackFromGallery() {
-	BackgroundBox *box = new BackgroundBox();
-	box->setUpdateCallback([this, weak_this = weakThis()](bool tile) {
-		if (!weak_this) return;
-		needBackgroundUpdate(tile);
-	});
-	Ui::showLayer(box);
+	//BackgroundBox *box = new BackgroundBox();
+	//box->setUpdateCallback([this, weak_this = weakThis()](bool tile) {
+	//	if (!weak_this) return;
+	//	needBackgroundUpdate(tile);
+	//});
+	//Ui::showLayer(box);
 }
 
 void SettingsInner::onBackFromFile() {
@@ -1735,23 +1721,23 @@ void SettingsInner::step_radial(uint64 ms, bool timer) {
 }
 
 void SettingsInner::updateChatBackground() {
-	int32 size = st::setBackgroundSize * cIntRetinaFactor();
-	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
-	back.setDevicePixelRatio(cRetinaFactor());
-	{
-		QPainter p(&back);
-		const QPixmap &pix(*cChatBackground());
-		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
-		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
-		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.setRenderHint(QPainter::SmoothPixmapTransform);
-		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
-	}
-	_background = App::pixmapFromImageInPlace(std_::move(back));
-	_background.setDevicePixelRatio(cRetinaFactor());
-	_needBackgroundUpdate = false;
+	//int32 size = st::setBackgroundSize * cIntRetinaFactor();
+	//QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
+	//back.setDevicePixelRatio(cRetinaFactor());
+	//{
+	//	QPainter p(&back);
+	//	const QPixmap &pix(*cChatBackground());
+	//	int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
+	//	int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
+	//	int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
+	//	p.setRenderHint(QPainter::SmoothPixmapTransform);
+	//	p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
+	//}
+	//_background = App::pixmapFromImageInPlace(std_::move(back));
+	//_background.setDevicePixelRatio(cRetinaFactor());
+	//_needBackgroundUpdate = false;
 
-	updateBackgroundRect();
+	//updateBackgroundRect();
 }
 
 void SettingsInner::needBackgroundUpdate(bool tile) {
@@ -1764,30 +1750,30 @@ void SettingsInner::needBackgroundUpdate(bool tile) {
 }
 
 void SettingsInner::onTileBackground() {
-	if (cTileBackground() != _tileBackground.checked()) {
-		cSetTileBackground(_tileBackground.checked());
-		if (App::main()) App::main()->clearCachedBackground();
-		Local::writeUserSettings();
-	}
+	//if (cTileBackground() != _tileBackground.checked()) {
+	//	cSetTileBackground(_tileBackground.checked());
+	//	if (App::main()) App::main()->clearCachedBackground();
+	//	Local::writeUserSettings();
+	//}
 }
 
 void SettingsInner::onAdaptiveForWide() {
-	if (Global::AdaptiveForWide() != _adaptiveForWide.checked()) {
-		Global::SetAdaptiveForWide(_adaptiveForWide.checked());
-		if (App::wnd()) {
-			App::wnd()->updateAdaptiveLayout();
-		}
-		Local::writeUserSettings();
-	}
+	//if (Global::AdaptiveForWide() != _adaptiveForWide.checked()) {
+	//	Global::SetAdaptiveForWide(_adaptiveForWide.checked());
+	//	if (App::wnd()) {
+	//		App::wnd()->updateAdaptiveLayout();
+	//	}
+	//	Local::writeUserSettings();
+	//}
 }
 
 void SettingsInner::onDontAskDownloadPath() {
-	cSetAskDownloadPath(!_dontAskDownloadPath.checked());
-	Local::writeUserSettings();
+	//cSetAskDownloadPath(!_dontAskDownloadPath.checked());
+	//Local::writeUserSettings();
 
-	showAll();
-	resizeEvent(0);
-	update();
+	//showAll();
+	//resizeEvent(0);
+	//update();
 }
 
 void SettingsInner::onDownloadPathEdit() {
@@ -2041,7 +2027,7 @@ void SettingsWidget::updateAdaptiveLayout() {
 }
 
 void SettingsWidget::updateDisplayNotify() {
-	_inner.enableDisplayNotify(cDesktopNotify());
+	//_inner.enableDisplayNotify(cDesktopNotify());
 }
 
 void SettingsWidget::updateOnlineDisplay() {

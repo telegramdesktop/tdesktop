@@ -520,7 +520,7 @@ public:
 EntitiesInText entitiesFromTextTags(const TextWithTags::Tags &tags);
 TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities);
 
-class HistoryWidget : public TWidget, public RPCSender {
+class HistoryWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -614,7 +614,6 @@ public:
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
-	void updateAdaptiveLayout();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);

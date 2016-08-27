@@ -107,3 +107,7 @@ dialogsNewChatButton: RoundButton {
 	textBg: transparent;
 	textBgOver: transparent;
 }
+
+settingsEditIcon: icon {
+	{ "dialogs_new_chat", #b7b7b7, point(3px, 9px) }
+};

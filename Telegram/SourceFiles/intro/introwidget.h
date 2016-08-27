@@ -34,8 +34,6 @@ public:
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	void updateAdaptiveLayout();
-
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);
 	void stop_show();

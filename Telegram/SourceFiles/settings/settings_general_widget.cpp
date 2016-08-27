@@ -52,6 +52,7 @@ QString currentVersion() {
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang)) {
+	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	refreshControls();
 }
 
@@ -73,9 +74,9 @@ void GeneralWidget::refreshControls() {
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
-		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onWorkmodeChange()), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray));
+		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onEnableTrayIcon()), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray));
 		if (cPlatform() == dbipWindows) {
-			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onWorkmodeChange()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
+			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
 
 			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
 			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), cStartMinimized());

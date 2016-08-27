@@ -886,9 +886,9 @@ bool MainWindow::psHasNativeNotifications() {
 Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psFirstShow() {
 	if (Toasts::supported()) {
-		cSetCustomNotifies(!cWindowsNotifications());
+		Global::SetCustomNotifies(!Global::WindowsNotifications());
 	} else {
-		cSetCustomNotifies(true);
+		Global::SetCustomNotifies(true);
 	}
 
 	_psShadowWindows.init(_shActive);
@@ -1088,10 +1088,10 @@ void MainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
 void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-	QString title = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
-	QString subtitle = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
-	bool showpix = (!App::passcoded() && cNotifyView() <= dbinvShowName);
-	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
+	QString title = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
+	QString subtitle = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	bool showpix = (!App::passcoded() && Global::NotifyView() <= dbinvShowName);
+	QString msg = (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
 
 	Toasts::create(item->history()->peer, item->id, showpix, title, subtitle, msg);
 }

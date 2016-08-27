@@ -28,6 +28,8 @@ class InnerWidget;
 class FixedBar;
 
 class Widget : public LayerWidget {
+	Q_OBJECT
+
 public:
 	Widget();
 
@@ -38,7 +40,12 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
+private slots:
+	void onInnerHeightUpdated();
+
 private:
+	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
+
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
 	ChildWidget<FixedBar> _fixedBar;

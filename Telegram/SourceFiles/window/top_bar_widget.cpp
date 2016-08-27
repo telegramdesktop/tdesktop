@@ -50,6 +50,8 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 	connect(_info, SIGNAL(clicked()), this, SLOT(onInfoClicked()));
 	connect(_search, SIGNAL(clicked()), this, SLOT(onSearch()));
 
+	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+
 	setCursor(style::cur_pointer);
 	showAll();
 }

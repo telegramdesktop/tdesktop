@@ -373,9 +373,6 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void IntroWidget::updateAdaptiveLayout() {
-}
-
 void IntroWidget::rpcClear() {
 	for (IntroStep *step : _stepHistory) {
 		step->rpcClear();

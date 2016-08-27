@@ -48,8 +48,6 @@ public:
 
 	void setInnerFocus() override;
 
-	void updateAdaptiveLayout() override;
-
 	bool showInternal(const Window::SectionMemento *memento) override;
 	std_::unique_ptr<Window::SectionMemento> createMemento() const override;
 
@@ -65,6 +63,8 @@ private slots:
 	void onScroll();
 
 private:
+	void updateAdaptiveLayout();
+
 	friend class SectionMemento;
 
 	ChildWidget<ScrollArea> _scroll;

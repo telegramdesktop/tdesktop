@@ -28,14 +28,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 
 ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
-, _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), cConnectionProxy().host)
-, _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port))
-, _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), cConnectionProxy().user)
-, _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), cConnectionProxy().password)
-, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto))
-, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy))
-, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy))
-, _tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6(), st::defaultBoxCheckbox)
+, _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), Global::ConnectionProxy().host)
+, _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
+, _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), Global::ConnectionProxy().user)
+, _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), Global::ConnectionProxy().password)
+, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (Global::ConnectionType() == dbictAuto))
+, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (Global::ConnectionType() == dbictHttpProxy))
+, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (Global::ConnectionType() == dbictTcpProxy))
+, _tryIPv6(this, lang(lng_connection_try_ipv6), Global::TryIPv6(), st::defaultBoxCheckbox)
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
@@ -167,7 +167,7 @@ void ConnectionBox::onSubmit() {
 
 void ConnectionBox::onSave() {
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
-		ConnectionProxy p;
+		ProxyData p;
 		p.host = _hostInput.getLastText().trimmed();
 		p.user = _userInput.getLastText().trimmed();
 		p.password = _passwordInput.getLastText().trimmed();
@@ -180,28 +180,32 @@ void ConnectionBox::onSave() {
 			return;
 		}
 		if (_httpProxyRadio.checked()) {
-			cSetConnectionType(dbictHttpProxy);
+			Global::SetConnectionType(dbictHttpProxy);
 		} else {
-			cSetConnectionType(dbictTcpProxy);
+			Global::SetConnectionType(dbictTcpProxy);
 		}
-		cSetConnectionProxy(p);
+		Global::SetConnectionProxy(p);
 	} else {
-		cSetConnectionType(dbictAuto);
-		cSetConnectionProxy(ConnectionProxy());
+		Global::SetConnectionType(dbictAuto);
+		Global::SetConnectionProxy(ProxyData());
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 #endif
 	}
-	if (cPlatform() == dbipWindows && cTryIPv6() != _tryIPv6.checked()) {
-		cSetTryIPv6(_tryIPv6.checked());
+	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6.checked()) {
+		Global::SetTryIPv6(_tryIPv6.checked());
 		Local::writeSettings();
+		Global::RefConnectionTypeChanged().notify();
+
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 		App::quit();
 	} else {
-		cSetTryIPv6(_tryIPv6.checked());
+		Global::SetTryIPv6(_tryIPv6.checked());
 		Local::writeSettings();
+		Global::RefConnectionTypeChanged().notify();
+
 		MTP::restart();
 		reinitImageLinkManager();
 		reinitWebLoadManager();

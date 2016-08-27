@@ -42,6 +42,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 , _self(App::self())
 , _userpicButton(this, _self)
 , _name(this, st::settingsNameLabel)
+, _editNameInline(this, QString(), st::settingsEditButton)
 , _setPhoto(this, lang(lng_settings_upload), st::settingsPrimaryButton)
 , _editName(this, lang(lng_settings_edit), st::settingsSecondaryButton) {
 	setAcceptDrops(true);
@@ -53,6 +54,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	connect(_setPhoto, SIGNAL(clicked()), this, SLOT(onSetPhoto()));
 	_editName->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
+	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
 	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged;
 	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
@@ -97,8 +99,6 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 
 	_userpicButton->moveToLeft(contentLeft() + st::settingsPhotoLeft, newHeight);
 
-	refreshNameGeometry(newWidth);
-
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	_statusPosition = QPoint(infoLeft + st::settingsStatusLeft, _userpicButton->y() + st::settingsStatusTop);
 	if (_cancelPhotoUpload) {
@@ -109,12 +109,11 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	int buttonsRight = newWidth - st::settingsButtonSkip;
 	_setPhoto->moveToLeft(buttonLeft, _userpicButton->y() + st::settingsButtonTop);
 	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
-	_editName->moveToLeft(buttonLeft, _setPhoto->y()); // TODO
-	if (buttonLeft + _editName->width() + st::settingsButtonSkip > newWidth) {
-		_editName->hide();
-	} else {
-		_editName->show();
-	}
+	_editName->moveToLeft(buttonLeft, _setPhoto->y());
+	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
+	_editName->setVisible(_editNameVisible);
+
+	refreshNameGeometry(newWidth);
 
 	newHeight += st::settingsPhotoSize;
 	newHeight += st::settingsMarginBottom;
@@ -133,9 +132,17 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 	int nameLeft = infoLeft + st::settingsNameLeft - st::settingsNameLabel.margin.left();
 	int nameTop = _userpicButton->y() + st::settingsNameTop - st::settingsNameLabel.margin.top();
 	int nameWidth = newWidth - infoLeft - st::settingsNameLeft;
+	auto editNameInlineVisible = !_editNameVisible;
+	if (editNameInlineVisible) {
+		nameWidth -= _editNameInline->width();
+	}
 	int marginsAdd = st::settingsNameLabel.margin.left() + st::settingsNameLabel.margin.right();
+
 	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
 	_name->moveToLeft(nameLeft, nameTop);
+
+	_editNameInline->moveToLeft(nameLeft + _name->width(), nameTop);
+	_editNameInline->setVisible(editNameInlineVisible);
 }
 
 void CoverWidget::showFinished() {

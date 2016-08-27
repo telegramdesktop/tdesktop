@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
 #include "data/data_drafts.h"
+#include "window/chat_background.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -910,7 +911,7 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetSoundNotify(v == 1);
+			Global::SetSoundNotify(v == 1);
 		} break;
 
 		case dbiAutoDownload: {
@@ -960,7 +961,7 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetIncludeMuted(v == 1);
+			Global::SetIncludeMuted(v == 1);
 		} break;
 
 		case dbiShowingSavedGifs: {
@@ -976,7 +977,7 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetDesktopNotify(v == 1);
+			Global::SetDesktopNotify(v == 1);
 			if (App::wnd()) App::wnd()->updateTrayMenu();
 		} break;
 
@@ -985,9 +986,9 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetWindowsNotifications(v == 1);
+			Global::SetWindowsNotifications(v == 1);
 			if (cPlatform() == dbipWindows) {
-				cSetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !cWindowsNotifications());
+				Global::SetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !Global::WindowsNotifications());
 			}
 		} break;
 
@@ -1011,18 +1012,17 @@ namespace {
 			switch (v) {
 			case dbictHttpProxy:
 			case dbictTcpProxy: {
-				ConnectionProxy p;
+				ProxyData p;
 				qint32 port;
 				stream >> p.host >> port >> p.user >> p.password;
 				if (!_checkStreamStatus(stream)) return false;
 
 				p.port = uint32(port);
-				cSetConnectionProxy(p);
-			}
-				cSetConnectionType(DBIConnectionType(v));
-				break;
+				Global::SetConnectionProxy(p);
+				Global::SetConnectionType(DBIConnectionType(v));
+			} break;
 			case dbictHttpAuto:
-			default: cSetConnectionType(dbictAuto); break;
+			default: Global::SetConnectionType(dbictAuto); break;
 			};
 		} break;
 
@@ -1031,7 +1031,7 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetTryIPv6(v == 1);
+			Global::SetTryIPv6(v == 1);
 		} break;
 
 		case dbiSeenTrayTooltip: {
@@ -1148,10 +1148,8 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetTileBackground(v == 1);
-			if (version < 8005 && !_backgroundKey) {
-				cSetTileBackground(false);
-			}
+			bool tile = (version < 8005 && !_backgroundKey) ? false : (v == 1);
+			Window::chatBackground()->setTile(tile);
 		} break;
 
 		case dbiAdaptiveForWide: {
@@ -1195,9 +1193,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			switch (v) {
-			case dbinvShowNothing: cSetNotifyView(dbinvShowNothing); break;
-			case dbinvShowName: cSetNotifyView(dbinvShowName); break;
-			default: cSetNotifyView(dbinvShowPreview); break;
+			case dbinvShowNothing: Global::SetNotifyView(dbinvShowNothing); break;
+			case dbinvShowName: Global::SetNotifyView(dbinvShowName); break;
+			default: Global::SetNotifyView(dbinvShowPreview); break;
 			}
 		} break;
 
@@ -1206,7 +1204,7 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetAskDownloadPath(v == 1);
+			Global::SetAskDownloadPath(v == 1);
 		} break;
 
 		case dbiDownloadPathOld: {
@@ -1215,8 +1213,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
-			cSetDownloadPath(v);
-			cSetDownloadPathBookmark(QByteArray());
+			Global::SetDownloadPath(v);
+			Global::SetDownloadPathBookmark(QByteArray());
+			Global::RefDownloadPathChanged().notify();
 		} break;
 
 		case dbiDownloadPath: {
@@ -1226,9 +1225,10 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
-			cSetDownloadPath(v);
-			cSetDownloadPathBookmark(bookmark);
+			Global::SetDownloadPath(v);
+			Global::SetDownloadPathBookmark(bookmark);
 			psDownloadPathEnableAccess();
+			Global::RefDownloadPathChanged().notify();
 		} break;
 
 		case dbiCompressPastedImage: {
@@ -1554,7 +1554,7 @@ namespace {
 		}
 
 		uint32 size = 18 * (sizeof(quint32) + sizeof(qint32));
-		size += sizeof(quint32) + Serialize::stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + Serialize::bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
+		size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
@@ -1567,19 +1567,19 @@ namespace {
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-		data.stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
+		data.stream << quint32(dbiTileBackground) << qint32(Window::chatBackground()->tile() ? 1 : 0);
 		data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 		data.stream << quint32(dbiAutoLock) << qint32(cAutoLock());
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
-		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
-		data.stream << quint32(dbiIncludeMuted) << qint32(cIncludeMuted());
+		data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
+		data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 		data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
-		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
-		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
-		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());
-		data.stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
-		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath()) << (cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
+		data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
+		data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
+		data.stream << quint32(dbiWindowsNotifications) << qint32(Global::WindowsNotifications());
+		data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
+		data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 		data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
@@ -2203,8 +2203,8 @@ namespace Local {
 		size += sizeof(quint32) + Serialize::stringSize(cLangFile());
 
 		size += sizeof(quint32) + sizeof(qint32);
-		if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
-			const ConnectionProxy &proxy(cConnectionProxy());
+		if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
+			auto &proxy = Global::ConnectionProxy();
 			size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 		}
 
@@ -2231,12 +2231,12 @@ namespace Local {
 		}
 		data.stream << quint32(dbiLangFile) << cLangFile();
 
-		data.stream << quint32(dbiConnectionType) << qint32(cConnectionType());
-		if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
-			const ConnectionProxy &proxy(cConnectionProxy());
+		data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType());
+		if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
+			auto &proxy = Global::ConnectionProxy();
 			data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
 		}
-		data.stream << quint32(dbiTryIPv6) << qint32(cTryIPv6());
+		data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 
 		TWindowPos pos(cWindowPos());
 		data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
@@ -3609,8 +3609,8 @@ namespace Local {
 		bg.stream >> id;
 		if (!id || id == DefaultChatBackground) {
 			if (bg.version < 8005) {
-				if (!id) cSetTileBackground(!DefaultChatBackground);
 				App::initBackground(DefaultChatBackground, QImage(), true);
+				if (!id) Window::chatBackground()->setTile(!DefaultChatBackground);
 			} else {
 				App::initBackground(id, QImage(), true);
 			}

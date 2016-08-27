@@ -36,7 +36,22 @@ namespace Settings {
 
 ChatSettingsWidget::ChatSettingsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_chat_settings)) {
 	createControls();
+
+	subscribe(Global::RefDownloadPathChanged(), [this]() {
+		_downloadPath->entity()->link()->setText(downloadPathText());
+		resizeToWidth(width());
+	});
 }
+
+QString ChatSettingsWidget::downloadPathText() const {
+	if (Global::DownloadPath().isEmpty()) {
+		return lang(lng_download_path_default);
+	} else if (Global::DownloadPath() == qsl("tmp")) {
+		return lang(lng_download_path_temp);
+	}
+	return QDir::toNativeSeparators(Global::DownloadPath());
+};
+
 
 void ChatSettingsWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
@@ -48,18 +63,13 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginList(st::defaultCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()));
 
-	addChildRow(_dontAskDownloadPath, marginSub, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !cAskDownloadPath());
-	auto downloadPathText = []() -> QString {
-		if (cDownloadPath().isEmpty()) {
-			return lang(lng_download_path_default);
-		} else if (cDownloadPath() == qsl("tmp")) {
-			return lang(lng_download_path_temp);
-		}
-		return QDir::toNativeSeparators(cDownloadPath());
-	};
+	addChildRow(_dontAskDownloadPath, marginSub, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
 	style::margins marginPath(st::defaultCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_downloadPath, marginPath, slidedPadding, lang(lng_download_path_label), downloadPathText());
 	connect(_downloadPath->entity()->link(), SIGNAL(clicked()), this, SLOT(onDownloadPath()));
+	if (Global::AskDownloadPath()) {
+		_downloadPath->hideFast();
+	}
 
 	addChildRow(_sendByEnter, marginSmall, qsl("send_key"), 0, lang(lng_settings_send_enter), SLOT(onSendByEnter()), !cCtrlEnter());
 	addChildRow(_sendByCtrlEnter, marginSkip, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
@@ -104,7 +114,7 @@ void ChatSettingsWidget::onViewList() {
 }
 
 void ChatSettingsWidget::onDontAskDownloadPath() {
-	cSetAskDownloadPath(!_dontAskDownloadPath->checked());
+	Global::SetAskDownloadPath(!_dontAskDownloadPath->checked());
 	Local::writeUserSettings();
 	if (_dontAskDownloadPath->checked()) {
 		_downloadPath->slideDown();
