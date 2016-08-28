@@ -351,8 +351,8 @@ template <typename EventType>
 class Observable : public internal::CommonObservable<EventType> {
 public:
 	void notify(EventType &&event, bool sync = false) {
-		if (_data) {
-			_data->notify(std_::move(event), sync);
+		if (this->_data) {
+			this->_data->notify(std_::move(event), sync);
 		}
 	}
 
@@ -459,20 +459,20 @@ public:
 			_events.push_back(std_::move(event));
 			callHandlers();
 		} else {
-			if (!_callHandlers) {
-				_callHandlers = [this]() {
+			if (!this->_callHandlers) {
+				this->_callHandlers = [this]() {
 					callHandlers();
 				};
 			}
 			if (_events.empty()) {
-				RegisterPendingObservable(&_callHandlers);
+				RegisterPendingObservable(&this->_callHandlers);
 			}
 			_events.push_back(std_::move(event));
 		}
 	}
 
 	~ObservableData() {
-		UnregisterObservable(&_callHandlers);
+		UnregisterObservable(&this->_callHandlers);
 	}
 
 private:
@@ -480,12 +480,12 @@ private:
 		_handling = true;
 		auto events = createAndSwap(_events);
 		for (auto &event : events) {
-			notifyEnumerate([this, &event]() {
-				_current->handler(event);
+			this->notifyEnumerate([this, &event]() {
+				this->_current->handler(event);
 			});
 		}
 		_handling = false;
-		UnregisterActiveObservable(&_callHandlers);
+		UnregisterActiveObservable(&this->_callHandlers);
 	}
 
 	std_::vector_of_moveable<EventType> _events;

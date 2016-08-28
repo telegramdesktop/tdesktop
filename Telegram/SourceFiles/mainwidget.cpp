@@ -1792,7 +1792,7 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 }
 
 void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
-	auto &bg = Window::chatBackground()->image().size();
+	auto bg = Window::chatBackground()->image().size();
 	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
 		float64 pxsize = forRect.height() / float64(bg.height());
 		int takewidth = qCeil(forRect.width() / pxsize);

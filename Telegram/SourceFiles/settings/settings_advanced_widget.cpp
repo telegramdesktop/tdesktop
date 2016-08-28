@@ -65,7 +65,8 @@ void AdvancedWidget::createControls() {
 	}
 	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
 	if (self()) {
-		addChildRow(_logOut, marginSmall, lang(lng_settings_logout), SLOT(onLogOut()));
+		style::margins marginLogout(0, 0, 0, 2 * st::settingsLargeSkip);
+		addChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
 	}
 }
 

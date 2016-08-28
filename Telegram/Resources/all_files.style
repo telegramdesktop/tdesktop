@@ -28,5 +28,6 @@ using "dialogs/dialogs.style";
 using "history/history.style";
 using "overview/overview.style";
 using "profile/profile.style";
+using "settings/settings.style";
 using "media/view/mediaview.style";
 using "ui/widgets/widgets.style";

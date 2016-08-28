@@ -1164,7 +1164,9 @@ void MainWindow::onLogoutSure() {
 
 void MainWindow::updateGlobalMenu() {
 #ifdef Q_OS_MAC
-	psMacUpdateMenu();
+	if (App::wnd()) {
+		psMacUpdateMenu();
+	}
 #endif
 }
 

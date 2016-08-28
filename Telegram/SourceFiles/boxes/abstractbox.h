@@ -102,7 +102,7 @@ public:
 class ScrollableBox : public AbstractBox {
 public:
 	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
-	void resizeEvent(QResizeEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
 
 protected:
 	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);

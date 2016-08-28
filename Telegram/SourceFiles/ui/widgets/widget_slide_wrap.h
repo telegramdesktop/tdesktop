@@ -43,7 +43,7 @@ public:
 		resize(_realSize);
 	}
 
-	bool eventFilter(QObject *object, QEvent *event) {
+	bool eventFilter(QObject *object, QEvent *event) override {
 		if (object == _entity && event->type() == QEvent::Resize) {
 			_realSize = _entity->rect().marginsAdded(_padding).size();
 			if (!_inResizeToWidth) {

@@ -455,7 +455,7 @@ QString psConvertFileUrl(const QUrl &url) {
 }
 
 void psDownloadPathEnableAccess() {
-	objc_downloadPathEnableAccess(cDownloadPathBookmark());
+	objc_downloadPathEnableAccess(Global::DownloadPathBookmark());
 }
 
 QByteArray psDownloadPathBookmark(const QString &path) {

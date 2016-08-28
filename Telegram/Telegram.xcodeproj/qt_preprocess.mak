@@ -96,6 +96,7 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_localstoragebox.cpp\
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
@@ -127,7 +128,17 @@ compilers: GeneratedFiles/qrc_telegram.cpp\
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
 	 GeneratedFiles/Debug/moc_session.cpp\
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
-	 GeneratedFiles/Debug/moc_settingswidget.cpp\
+   GeneratedFiles/Debug/moc_settings_advanced_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_background_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_block_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_chat_settings_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_cover.cpp\
+   GeneratedFiles/Debug/moc_settings_general_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_inner_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_notifications_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_privacy_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_scale_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -240,6 +251,7 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_localstoragebox.cpp\
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
@@ -271,7 +283,17 @@ compiler_moc_header_make_all: GeneratedFiles/Debug/moc_aboutbox.cpp\
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
 	 GeneratedFiles/Debug/moc_session.cpp\
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
-	 GeneratedFiles/Debug/moc_settingswidget.cpp\
+   GeneratedFiles/Debug/moc_settings_advanced_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_background_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_block_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_chat_settings_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_cover.cpp\
+   GeneratedFiles/Debug/moc_settings_general_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_inner_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_notifications_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_privacy_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_scale_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -327,6 +349,7 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_localimageloader.cpp\
 	 GeneratedFiles/Debug/moc_localstorage.cpp\
+	 GeneratedFiles/Debug/moc_localstoragebox.cpp\
 	 GeneratedFiles/Debug/moc_main_window_mac.cpp\
 	 GeneratedFiles/Debug/moc_mainwidget.cpp\
 	 GeneratedFiles/Debug/moc_mainwindow.cpp\
@@ -358,7 +381,17 @@ compiler_moc_header_clean:
 	 GeneratedFiles/Debug/moc_section_widget.cpp\
 	 GeneratedFiles/Debug/moc_session.cpp\
 	 GeneratedFiles/Debug/moc_sessionsbox.cpp\
-	 GeneratedFiles/Debug/moc_settingswidget.cpp\
+   GeneratedFiles/Debug/moc_settings_advanced_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_background_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_block_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_chat_settings_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_cover.cpp\
+   GeneratedFiles/Debug/moc_settings_general_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_inner_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_notifications_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_privacy_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_scale_widget.cpp\
+   GeneratedFiles/Debug/moc_settings_widget.cpp\
 	 GeneratedFiles/Debug/moc_stickersetbox.cpp\
 	 GeneratedFiles/Debug/moc_sysbuttons.cpp\
 	 GeneratedFiles/Debug/moc_title.cpp\
@@ -507,6 +540,9 @@ GeneratedFiles/Debug/moc_localimageloader.cpp: SourceFiles/localimageloader.h
 GeneratedFiles/Debug/moc_localstorage.cpp: SourceFiles/localstorage.h
 	$(MOC_FILE) SourceFiles/localstorage.h -o GeneratedFiles/Debug/moc_localstorage.cpp
 
+GeneratedFiles/Debug/moc_localstoragebox.cpp: SourceFiles/boxes/localstoragebox.h
+	$(MOC_FILE) SourceFiles/boxes/localstoragebox.h -o GeneratedFiles/Debug/moc_localstoragebox.cpp
+
 GeneratedFiles/Debug/moc_main_window_mac.cpp: SourceFiles/platform/mac/main_window_mac.h
 	$(MOC_FILE) SourceFiles/platform/mac/main_window_mac.h -o GeneratedFiles/Debug/moc_main_window_mac.cpp
 
@@ -600,8 +636,38 @@ GeneratedFiles/Debug/moc_session.cpp: SourceFiles/mtproto/session.h
 GeneratedFiles/Debug/moc_sessionsbox.cpp: SourceFiles/boxes/sessionsbox.h
 	$(MOC_FILE) SourceFiles/boxes/sessionsbox.h -o GeneratedFiles/Debug/moc_sessionsbox.cpp
 
-GeneratedFiles/Debug/moc_settingswidget.cpp: SourceFiles/settingswidget.h
-	$(MOC_FILE) SourceFiles/settingswidget.h -o GeneratedFiles/Debug/moc_settingswidget.cpp
+GeneratedFiles/Debug/moc_settings_advanced_widget.cpp: SourceFiles/settings/settings_advanced_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_advanced_widget.h -o GeneratedFiles/Debug/moc_settings_advanced_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_background_widget.cpp: SourceFiles/settings/settings_background_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_background_widget.h -o GeneratedFiles/Debug/moc_settings_background_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_block_widget.cpp: SourceFiles/settings/settings_block_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_block_widget.h -o GeneratedFiles/Debug/moc_settings_block_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_chat_settings_widget.cpp: SourceFiles/settings/settings_chat_settings_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_chat_settings_widget.h -o GeneratedFiles/Debug/moc_settings_chat_settings_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_cover.cpp: SourceFiles/settings/settings_cover.h
+	$(MOC_FILE) SourceFiles/settings/settings_cover.h -o GeneratedFiles/Debug/moc_settings_cover.cpp
+
+GeneratedFiles/Debug/moc_settings_general_widget.cpp: SourceFiles/settings/settings_general_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_general_widget.h -o GeneratedFiles/Debug/moc_settings_general_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_inner_widget.cpp: SourceFiles/settings/settings_inner_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_inner_widget.h -o GeneratedFiles/Debug/moc_settings_inner_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_notifications_widget.cpp: SourceFiles/settings/settings_notifications_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_notifications_widget.h -o GeneratedFiles/Debug/moc_settings_notifications_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_privacy_widget.cpp: SourceFiles/settings/settings_privacy_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_privacy_widget.h -o GeneratedFiles/Debug/moc_settings_privacy_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_scale_widget.cpp: SourceFiles/settings/settings_scale_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_scale_widget.h -o GeneratedFiles/Debug/moc_settings_scale_widget.cpp
+
+GeneratedFiles/Debug/moc_settings_widget.cpp: SourceFiles/settings/settings_widget.h
+	$(MOC_FILE) SourceFiles/settings/settings_widget.h -o GeneratedFiles/Debug/moc_settings_widget.cpp
 
 GeneratedFiles/Debug/moc_stickersetbox.cpp: SourceFiles/boxes/stickersetbox.h
 	$(MOC_FILE) SourceFiles/boxes/stickersetbox.h -o GeneratedFiles/Debug/moc_stickersetbox.cpp

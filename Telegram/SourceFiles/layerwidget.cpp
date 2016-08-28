@@ -224,7 +224,7 @@ void LayerStackWidget::startAnimation(float64 toOpacity) {
 	a_layer.start(toOpacity);
 	_a_background.start();
 	if (_layerCache.isNull()) {
-		if (auto cacheLayer = layer() ? layer() : _specialLayer) {
+		if (auto cacheLayer = layer() ? layer() : _specialLayer.ptr()) {
 			_layerCache = myGrab(cacheLayer);
 			_layerCacheBox = cacheLayer->geometry();
 			if (layer() && _specialLayer) {

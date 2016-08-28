@@ -343,8 +343,11 @@ public:
 	}
 
 	// So we can pass this pointer to methods like connect().
-	operator T*() const {
+	T *ptr() const {
 		return _widget;
+	}
+	operator T*() const {
+		return ptr();
 	}
 
 	void destroy() {

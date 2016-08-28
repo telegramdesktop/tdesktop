@@ -65,17 +65,19 @@ void InnerWidget::refreshBlocks() {
 
 	if (_self) {
 		_cover = new CoverWidget(this, _self);
-		_blocks.push_back(new Settings::InfoWidget(this, _self));
-		_blocks.push_back(new Settings::NotificationsWidget(this, _self));
+		_blocks.push_back(new InfoWidget(this, _self));
+		_blocks.push_back(new NotificationsWidget(this, _self));
 	}
-	_blocks.push_back(new Settings::GeneralWidget(this, _self));
-	_blocks.push_back(new Settings::ScaleWidget(this, _self));
+	_blocks.push_back(new GeneralWidget(this, _self));
+	if (!cRetina()) {
+		_blocks.push_back(new ScaleWidget(this, _self));
+	}
 	if (_self) {
-		_blocks.push_back(new Settings::ChatSettingsWidget(this, _self));
-		_blocks.push_back(new Settings::BackgroundWidget(this, _self));
-		_blocks.push_back(new Settings::PrivacyWidget(this, _self));
+		_blocks.push_back(new ChatSettingsWidget(this, _self));
+		_blocks.push_back(new BackgroundWidget(this, _self));
+		_blocks.push_back(new PrivacyWidget(this, _self));
 	}
-	_blocks.push_back(new Settings::AdvancedWidget(this, _self));
+	_blocks.push_back(new AdvancedWidget(this, _self));
 
 	if (_cover) {
 		_cover->show();
