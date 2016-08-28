@@ -18,13 +18,33 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
-  'type': 'executable',
   'variables': {
-    'win_subsystem': '2', # Windows application
+    'qrc_files': [
+      '<(res_loc)/telegram.qrc',
+      '<(res_loc)/telegram_emojis.qrc',
+    ],
   },
-  'includes': [
-    'common.gypi',
-    'settings_win.gypi',
-    'settings_mac.gypi',
+  'conditions': [
+    [ 'build_linux', {
+      'variables': {
+        'qrc_files': [
+          '<(res_loc)/telegram_linux.qrc',
+        ],
+      }
+    }],
+    [ 'build_mac', {
+      'variables': {
+        'qrc_files': [
+          '<(res_loc)/telegram_mac.qrc',
+        ],
+      },
+    }],
+    [ 'build_win', {
+      'variables': {
+        'qrc_files': [
+          '<(res_loc)/telegram_wnd.qrc',
+        ],
+      }
+    }],
   ],
 }

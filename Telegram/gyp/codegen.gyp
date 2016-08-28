@@ -24,6 +24,7 @@
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'gen_loc': '../GeneratedFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',
@@ -45,6 +46,7 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',
@@ -88,6 +90,7 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',

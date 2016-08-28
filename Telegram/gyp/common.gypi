@@ -21,31 +21,44 @@
   'variables': {
     'variables': {
       'variables': {
-        'build_os%': '<(OS)',
+        'variables': {
+          'variables': {
+            'build_os%': '<(OS)',
+          },
+          'build_os%': '<(build_os)',
+          'conditions': [
+            [ 'build_os == "win"', {
+              'build_win': 1,
+            }, {
+              'build_win': 0,
+            }],
+            [ 'build_os == "mac"', {
+              'build_mac': 1,
+            }, {
+              'build_mac': 0,
+            }],
+            [ 'build_os == "linux"', {
+              'build_linux': 1,
+            }, {
+              'build_linux': 0,
+            }],
+          ],
+        },
+        'build_os%': '<(build_os)',
+        'build_win%': '<(build_win)',
+        'build_mac%': '<(build_mac)',
+        'build_linux%': '<(build_linux)',
       },
       'build_os%': '<(build_os)',
-      'conditions': [
-        [ 'build_os == "win"', {
-          'build_win': 1,
-        }, {
-          'build_win': 0,
-        }],
-        [ 'build_os == "mac"', {
-          'build_mac': 1,
-        }, {
-          'build_mac': 0,
-        }],
-        [ 'build_os == "linux"', {
-          'build_linux': 1,
-        }, {
-          'build_linux': 0,
-        }],
-      ],
+      'build_win%': '<(build_win)',
+      'build_mac%': '<(build_mac)',
+      'build_linux%': '<(build_linux)',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',
     'build_mac%': '<(build_mac)',
     'build_linux%': '<(build_linux)',
+    'mac_target%': '10.8',
 
     # GYP does not support per-configuration libraries :(
     # So they will be emulated through additional link flags,
@@ -54,13 +67,16 @@
       [ 'build_win', {
         'ld_lib_prefix': '',
         'ld_lib_postfix': '.lib',
+        'exe_ext': '.exe',
       }, {
         'ld_lib_prefix': '-l',
         'ld_lib_postfix': '',
+        'exe_ext': '',
       }],
     ],
     'ld_lib_prefix': '<(ld_lib_prefix)',
     'ld_lib_postfix': '<(ld_lib_postfix)',
+    'exe_ext': '<(exe_ext)',
 
     'library%': 'static_library',
 
