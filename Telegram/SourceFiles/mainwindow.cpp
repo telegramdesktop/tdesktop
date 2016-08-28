@@ -32,7 +32,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "layerwidget.h"
-#include "settingswidget.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/addcontactbox.h"
@@ -698,29 +697,12 @@ void MainWindow::showSettings() {
 		return;
 	}
 
-	if (true) {
-		if (!layerBg) {
-			layerBg = new LayerStackWidget(this);
-		}
-		settings = new Settings::Widget();
-		connect(settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
-		layerBg->showSpecialLayer(settings);
-	} else {
-		QPixmap bg = grabInner();
-
-		if (intro) {
-			intro->stop_show();
-			intro->hide();
-		} else if (main) {
-			main->animStop_show();
-			main->hide();
-		}
-		auto settings = new SettingsWidget(this);
-		settings->animShow(bg);
-		title->updateBackButton();
-
-		fixOrder();
+	if (!layerBg) {
+		layerBg = new LayerStackWidget(this);
 	}
+	settings = new Settings::Widget();
+	connect(settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
+	layerBg->showSpecialLayer(settings);
 }
 
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {

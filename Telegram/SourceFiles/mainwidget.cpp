@@ -39,7 +39,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "fileuploader.h"
 #include "application.h"
 #include "mainwindow.h"
-#include "settingswidget.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"

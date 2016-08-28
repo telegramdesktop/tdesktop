@@ -127,8 +127,6 @@
       '<(src_loc)/mainwidget.h',
       '<(src_loc)/settings.cpp',
       '<(src_loc)/settings.h',
-      '<(src_loc)/settingswidget.cpp',
-      '<(src_loc)/settingswidget.h',
       '<(src_loc)/shortcuts.cpp',
       '<(src_loc)/shortcuts.h',
       '<(src_loc)/structs.cpp',

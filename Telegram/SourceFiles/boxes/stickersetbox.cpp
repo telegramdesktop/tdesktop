@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stickersetbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "settingswidget.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "localstorage.h"
