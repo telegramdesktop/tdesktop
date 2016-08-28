@@ -653,6 +653,10 @@ struct Data {
 
 	base::Observable<void> ChooseCustomLang;
 
+	int AutoLock = 3600;
+	bool LocalPasscode = false;
+	base::Observable<void> LocalPasscodeChanged;
+
 };
 
 } // namespace internal
@@ -756,5 +760,9 @@ DefineVar(Global, ProxyData, ConnectionProxy);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
 DefineRefVar(Global, base::Observable<void>, ChooseCustomLang);
+
+DefineVar(Global, int, AutoLock);
+DefineVar(Global, bool, LocalPasscode);
+DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 } // namespace Global

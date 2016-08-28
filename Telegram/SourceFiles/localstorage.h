@@ -81,16 +81,18 @@ namespace Local {
 		bool addTask(int task);
 		bool hasTask(ClearManagerTask task);
 		void start();
-		~ClearManager();
-
-	public slots:
-		void onStart();
+		void stop();
 
 	signals:
 		void succeed(int task, void *manager);
 		void failed(int task, void *manager);
 
+	private slots:
+		void onStart();
+
 	private:
+		~ClearManager();
+
 		ClearManagerData *data;
 
 	};

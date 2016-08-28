@@ -33,8 +33,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
-, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery))
-, _chooseFromFile(this, lang(lng_settings_bg_from_file))
+, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::defaultBoxLinkButton)
+, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::defaultBoxLinkButton)
 , _radial(animation(this, &BackgroundRow::step_radial)) {
 	Window::chatBackground()->initIfEmpty();
 
@@ -87,8 +87,8 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	_chooseFromGallery->resizeToWidth(qMin(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(qMin(linkWidth, _chooseFromFile->naturalWidth()));
 
-	_chooseFromGallery->moveToLeft(linkLeft, 0);
-	_chooseFromFile->moveToLeft(linkLeft, _chooseFromGallery->height() + st::settingsSmallSkip);
+	_chooseFromGallery->moveToLeft(linkLeft, 0, newWidth);
+	_chooseFromFile->moveToLeft(linkLeft, _chooseFromGallery->height() + st::settingsSmallSkip, newWidth);
 
 	return st::settingsBackgroundSize;
 }

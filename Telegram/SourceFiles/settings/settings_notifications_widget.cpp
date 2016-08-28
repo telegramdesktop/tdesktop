@@ -45,7 +45,7 @@ NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : Bloc
 }
 
 void NotificationsWidget::createControls() {
-	style::margins margin(0, 0, 0, st::settingsSmallSkip);
+	style::margins margin(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
 	addChildRow(_desktopNotifications, margin, lang(lng_settings_desktop_notify), SLOT(onDesktopNotifications()), Global::DesktopNotify());
 	addChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), SLOT(onShowSenderName()), Global::NotifyView() <= dbinvShowName);

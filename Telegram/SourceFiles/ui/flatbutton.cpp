@@ -121,26 +121,36 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.drawText(r, _text, style::al_top);
 }
 
-LinkButton::LinkButton(QWidget *parent, const QString &text, const style::linkButton &st) : Button(parent), _text(text), _st(st) {
+LinkButton::LinkButton(QWidget *parent, const QString &text, const style::linkButton &st) : Button(parent)
+, _text(text)
+, _textWidth(st.font->width(_text))
+, _st(st) {
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-	resize(_st.font->width(_text), _st.font->height);
+	resize(_textWidth, _st.font->height);
 	setCursor(style::cur_pointer);
 }
 
 int LinkButton::naturalWidth() const {
-	return _st.font->width(_text);
+	return _textWidth;
 }
 
 void LinkButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	p.setFont(((_state & StateOver) ? _st.overFont : _st.font)->f);
-	p.setPen(((_state & StateDown) ? _st.downColor : ((_state & StateOver) ? _st.overColor : _st.color))->p);
-	p.drawText(0, ((_state & StateOver) ? _st.overFont : _st.font)->ascent, _text);
+	Painter p(this);
+	auto &font = ((_state & StateOver) ? _st.overFont : _st.font);
+	auto &pen = ((_state & StateDown) ? _st.downColor : ((_state & StateOver) ? _st.overColor : _st.color));
+	p.setFont(font);
+	p.setPen(pen);
+	if (_textWidth > width()) {
+		p.drawText(0, font->ascent, font->elided(_text, width()));
+	} else {
+		p.drawText(0, font->ascent, _text);
+	}
 }
 
 void LinkButton::setText(const QString &text) {
 	_text = text;
-	resize(_st.font->width(_text), _st.font->height);
+	_textWidth = _st.font->width(_text);
+	resize(_textWidth, _st.font->height);
 	update();
 }
 

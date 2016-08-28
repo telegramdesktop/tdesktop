@@ -28,7 +28,11 @@ namespace Settings {
 
 class LabeledLink : public TWidget {
 public:
-	LabeledLink(QWidget *parent, const QString &label, const QString &text);
+	enum class Type {
+		Primary,
+		Secondary,
+	};
+	LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot);
 
 	void setLink(const QString &text);
 
@@ -47,6 +51,42 @@ private:
 
 };
 
+class DownloadPathState : public TWidget, public base::Subscriber {
+	Q_OBJECT
+
+public:
+	DownloadPathState(QWidget *parent);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
+
+private slots:
+	void onDownloadPath();
+	void onClear();
+	void onClearSure();
+	void onTempDirCleared(int task);
+	void onTempDirClearFailed(int task);
+
+private:
+	QString downloadPathText() const;
+	void updateControls();
+
+	enum class State {
+		Empty,
+		Exists,
+		Clearing,
+		Cleared,
+		ClearFailed,
+	};
+	State _state = State::Empty;
+
+	ChildWidget<LabeledLink> _path;
+	ChildWidget<LinkButton> _clear;
+
+};
+
 class ChatSettingsWidget : public BlockWidget {
 	Q_OBJECT
 
@@ -57,7 +97,6 @@ private slots:
 	void onReplaceEmoji();
 	void onViewList();
 	void onDontAskDownloadPath();
-	void onDownloadPath();
 	void onSendByEnter();
 	void onSendByCtrlEnter();
 	void onAutomaticMediaDownloadSettings();
@@ -65,12 +104,11 @@ private slots:
 
 private:
 	void createControls();
-	QString downloadPathText() const;
 
 	ChildWidget<Checkbox> _replaceEmoji = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _viewList = { nullptr };
 	ChildWidget<Checkbox> _dontAskDownloadPath = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<LabeledLink>> _downloadPath = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
 	ChildWidget<Radiobutton> _sendByEnter = { nullptr };
 	ChildWidget<Radiobutton> _sendByCtrlEnter = { nullptr };
 	ChildWidget<LinkButton> _automaticMediaDownloadSettings = { nullptr };

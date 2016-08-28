@@ -45,6 +45,9 @@ void InfoWidget::createControls() {
 	addChildRow(_mobileNumber, margin, slidedPadding);
 	addChildRow(_username, margin, slidedPadding);
 	addChildRow(_link, margin, slidedPadding);
+	if (self()->username.isEmpty()) {
+		_link->hideFast();
+	}
 	refreshControls();
 }
 
@@ -75,7 +78,7 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size()));
+	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), qsl("https://telegram.me/") + self()->username));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook(func(this, &InfoWidget::usernameClickHandlerHook));
@@ -106,10 +109,6 @@ bool InfoWidget::usernameClickHandlerHook(const ClickHandlerPtr &handler, Qt::Mo
 	return false;
 }
 
-InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent) : TWidget(parent) {
-	resize(width(), st::labelDefFlat.font->height);
-}
-
 void InfoWidget::setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
 	if (textWithEntities.text.isEmpty()) {
 		row->slideUp();
@@ -117,6 +116,9 @@ void InfoWidget::setLabeledText(ChildWidget<LabeledWrap> &row, const QString &la
 		row->entity()->setLabeledText(label, textWithEntities, shortTextWithEntities, copyText);
 		row->slideDown();
 	}
+}
+
+InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent) : TWidget(parent) {
 }
 
 void InfoWidget::LabeledWidget::setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
@@ -129,6 +131,7 @@ void InfoWidget::LabeledWidget::setLabeledText(const QString &label, const TextW
 	_label->show();
 	setLabelText(_text, textWithEntities, copyText);
 	setLabelText(_shortText, shortTextWithEntities, copyText);
+	resizeToWidth(width());
 }
 
 void InfoWidget::LabeledWidget::setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
@@ -161,7 +164,7 @@ void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 int InfoWidget::LabeledWidget::naturalWidth() const {
 	if (!_text) return -1;
-	return _label->naturalWidth() + st::normalFont->spacew + (_shortText ? _shortText : _text)->naturalWidth();
+	return _label->naturalWidth() + st::normalFont->spacew + _text->naturalWidth();
 }
 
 int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
@@ -170,7 +173,7 @@ int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
 
 	if (!_label) return 0;
 
-	_label->moveToLeft(0, st::settingsBlockOneLineTextPart.margin.top());
+	_label->moveToLeft(0, st::settingsBlockOneLineTextPart.margin.top(), newWidth);
 	auto labelNatural = _label->naturalWidth();
 	t_assert(labelNatural >= 0);
 
@@ -186,10 +189,10 @@ int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
 		textWidth = -(marginLeft + marginRight);
 	}
 	_text->resizeToWidth(textWidth + marginLeft + marginRight);
-	_text->moveToLeft(textLeft - marginLeft, 0);
+	_text->moveToLeft(textLeft - marginLeft, 0, newWidth);
 	if (_shortText) {
 		_shortText->resizeToWidth(textWidth + marginLeft + marginRight);
-		_shortText->moveToLeft(textLeft - marginLeft, 0);
+		_shortText->moveToLeft(textLeft - marginLeft, 0, newWidth);
 		if (doesNotFit) {
 			_shortText->show();
 			_text->hide();

@@ -57,7 +57,7 @@ private:
 	void refreshBlocks();
 
 	// Returns the new height value.
-	int refreshBlocksPositions();
+	int refreshBlocksPositions(int newWidth);
 
 	ChildWidget<CoverWidget> _cover = { nullptr };
 	QList<BlockWidget*> _blocks;

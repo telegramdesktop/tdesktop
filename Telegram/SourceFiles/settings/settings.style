@@ -104,22 +104,25 @@ settingsBlocksTop: 7px;
 settingsBlocksBottom: 20px;
 settingsBlockMarginTop: 14px;
 settingsBlockMarginRight: 10px;
-settingsBlockMarginBottom: 16px;
+settingsBlockMarginBottom: 10px;
 settingsBlockTitleHeight: 31px;
-settingsBlockTitleFont: font(14px semibold);
+settingsBlockTitleFont: font(15px semibold);
 settingsBlockTitleFg: #333333;
 settingsBlockTitleTop: 0px;
-settingsBlockLabel: flatLabel(labelDefFlat) {
+settingsPrimaryLabel: flatLabel(labelDefFlat) {
+	font: boxTextFont;
+}
+settingsBlockLabel: flatLabel(settingsPrimaryLabel) {
 	textFg: windowSubTextFg;
 }
-settingsBlockOneLineTextPart: flatLabel(labelDefFlat) {
+settingsBlockOneLineTextPart: flatLabel(settingsPrimaryLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
 	margin: margins(5px, 5px, 5px, 5px);
 	maxHeight: 20px;
 }
 settingsSubSkip: 4px;
 settingsSmallSkip: 10px;
-settingsSkip: 15px;
+settingsSkip: 14px;
 settingsLargeSkip: 23px;
 
 settingsActionPadding: margins(0px, 4px, 0px, 5px);

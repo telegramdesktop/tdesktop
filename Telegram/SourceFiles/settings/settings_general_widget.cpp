@@ -45,7 +45,7 @@ QString currentVersion() {
 		result += " alpha";
 	}
 	if (cBetaVersion()) {
-		result += qsl(" beta %1").arg(cBetaVersion());
+		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
 	}
 	return result;
 }
@@ -83,10 +83,10 @@ int UpdateStateRow::resizeGetHeight(int newWidth) {
 	auto restartLeft = labelWidth(lang(lng_settings_update_ready));
 
 	_check->resizeToWidth(qMin(newWidth, _check->naturalWidth()));
-	_check->moveToLeft(checkLeft, 0);
+	_check->moveToLeft(checkLeft, 0, newWidth);
 
 	_restart->resizeToWidth(qMin(newWidth, _restart->naturalWidth()));
-	_restart->moveToLeft(restartLeft, 0);
+	_restart->moveToLeft(restartLeft, 0, newWidth);
 
 	return _check->height();
 }
@@ -112,6 +112,7 @@ void UpdateStateRow::paintEvent(QPaintEvent *e) {
 void UpdateStateRow::onCheck() {
 	if (!cAutoUpdate()) return;
 
+	setState(State::Check);
 	cSetLastUpdateCheck(0);
 	Sandbox::startUpdateCheck();
 }
@@ -120,11 +121,11 @@ void UpdateStateRow::setState(State state, bool force) {
 	if (_state != state || force) {
 		_state = state;
 		switch (state) {
-		case State::None:
-		case State::Latest: _check->show(); _restart->hide(); break;
+		case State::None: _check->show(); _restart->hide(); break;
 		case State::Ready: _check->hide(); _restart->show(); break;
 		case State::Check:
 		case State::Download:
+		case State::Latest:
 		case State::Fail: _check->hide(); _restart->hide(); break;
 		}
 		resizeToWidth(width());
@@ -167,7 +168,7 @@ void UpdateStateRow::onFailed() {
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
-, _changeLanguage(this, lang(lng_settings_change_lang)) {
+, _changeLanguage(this, lang(lng_settings_change_lang), st::defaultBoxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
 	FileDialog::registerObserver(this, &GeneralWidget::notifyFileQueryUpdated);
@@ -175,7 +176,7 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 }
 
 int GeneralWidget::resizeGetHeight(int newWidth) {
-	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::btnDefLink.font->ascent);
+	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::btnDefLink.font->ascent, newWidth);
 	return BlockWidget::resizeGetHeight(newWidth);
 }
 
@@ -187,7 +188,7 @@ void GeneralWidget::refreshControls() {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersion()), SLOT(onUpdateAutomatically()), cAutoUpdate());
-	style::margins marginLink(st::defaultCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
+	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
 #endif // TDESKTOP_DISABLE_AUTOUPDATE

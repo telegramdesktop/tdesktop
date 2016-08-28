@@ -85,3 +85,5 @@ aboutRevokePublicLabel: flatLabel(labelDefFlat) {
 	width: 320px;
 	textFg: windowTextFg;
 }
+
+localStorageBoxSkip: 10px;

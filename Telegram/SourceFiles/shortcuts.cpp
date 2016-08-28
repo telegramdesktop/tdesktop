@@ -35,7 +35,7 @@ bool lock_telegram() {
 		if (App::passcoded()) {
 			w->passcodeWidget()->onSubmit();
 			return true;
-		} else if (cHasPasscode()) {
+		} else if (Global::LocalPasscode()) {
 			w->setupPasscode(true);
 			return true;
 		}

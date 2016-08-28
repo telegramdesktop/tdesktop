@@ -73,7 +73,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		Sandbox::updatingState() == Application::UpdatingReady ||
 #endif
-		cHasPasscode()
+		Global::LocalPasscode()
 	) {
 		showUpdateBtn();
 	}
@@ -309,7 +309,7 @@ void TitleWidget::showUpdateBtn() {
 		_close.hide();
 		return;
 	}
-	if (cHasPasscode()) {
+	if (Global::LocalPasscode()) {
 		_lock.show();
 	} else {
 		_lock.hide();

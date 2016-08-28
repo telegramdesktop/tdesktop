@@ -82,6 +82,7 @@ public slots:
 
 private:
 	QString _text;
+	int _textWidth = 0;
 	style::linkButton _st;
 
 };

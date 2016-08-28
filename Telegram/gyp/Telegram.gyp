@@ -163,6 +163,8 @@
       '<(src_loc)/boxes/emojibox.h',
       '<(src_loc)/boxes/languagebox.cpp',
       '<(src_loc)/boxes/languagebox.h',
+      '<(src_loc)/boxes/localstoragebox.cpp',
+      '<(src_loc)/boxes/localstoragebox.h',
       '<(src_loc)/boxes/passcodebox.cpp',
       '<(src_loc)/boxes/passcodebox.h',
       '<(src_loc)/boxes/photocropbox.cpp',

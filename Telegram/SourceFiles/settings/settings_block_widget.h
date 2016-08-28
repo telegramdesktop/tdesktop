@@ -89,7 +89,7 @@ private:
 	}
 	void createChildRow(ChildWidget<Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
 	void createChildRow(ChildWidget<Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
-	void createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot);
+	void createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st = st::defaultBoxLinkButton);
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
 	void rowHeightUpdated();

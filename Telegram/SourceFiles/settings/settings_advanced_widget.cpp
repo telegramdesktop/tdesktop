@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/connectionbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/aboutbox.h"
+#include "boxes/localstoragebox.h"
 #include "mainwindow.h"
 
 namespace Settings {
@@ -43,14 +44,22 @@ void AdvancedWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins marginLarge(0, 0, 0, st::settingsLargeSkip);
 
-	if (self()) {
-		addChildRow(_manageLocalStorage, marginSmall, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
-	}
+	style::margins marginLocalStorage = ([&marginSmall, &marginLarge]() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting));
-	connectionTypeUpdated();
-	connect(_connectionType->link(), SIGNAL(clicked()), this, SLOT(onConnectionType()));
+		return marginSmall;
+#else // TDESKTOP_DISABLE_NETWORK_PROXY
+		return marginLarge;
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
+	})();
+	if (self()) {
+		addChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
+	}
+
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
+	connectionTypeUpdated();
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+
 	if (self()) {
 		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
 	}
@@ -61,7 +70,7 @@ void AdvancedWidget::createControls() {
 }
 
 void AdvancedWidget::onManageLocalStorage() {
-
+	Ui::showLayer(new LocalStorageBox());
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY

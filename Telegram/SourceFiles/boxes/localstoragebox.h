@@ -20,57 +20,43 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#include "abstractbox.h"
 
-#include <QtNetwork/QLocalSocket>
-#include <QtNetwork/QLocalServer>
-#include <QtNetwork/QNetworkReply>
+class BoxButton;
+class LinkButton;
 
-class UpdateChecker : public QObject {
+class LocalStorageBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-	UpdateChecker(QThread *thread, const QString &url);
+	LocalStorageBox();
 
-	void unpackUpdate();
+private slots:
+	void onClear();
+	void onTempDirCleared(int task);
+	void onTempDirClearFailed(int task);
 
-	int32 ready();
-	int32 size();
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
-	static void clearAll();
-
-	~UpdateChecker();
-
-public slots:
-
-	void start();
-	void partMetaGot();
-	void partFinished(qint64 got, qint64 total);
-	void partFailed(QNetworkReply::NetworkError e);
-	void sendRequest();
+	void showAll() override;
 
 private:
-	void initOutput();
+	void updateControls();
+	void checkLocalStoredCounts();
 
-	void fatalFail();
+	enum class State {
+		Normal,
+		Clearing,
+		Cleared,
+		ClearFailed,
+	};
+	State _state = State::Normal;
 
-	QString updateUrl;
-	QNetworkAccessManager manager;
-	QNetworkReply *reply;
-	int32 already, full;
-	QFile outputFile;
+	ChildWidget<LinkButton> _clear;
+	ChildWidget<BoxButton> _close;
 
-	QMutex mutex;
+	int _imagesCount = -1;
+	int _audiosCount = -1;
 
 };
-
-bool checkReadyUpdate();
-
-#else // TDESKTOP_DISABLE_AUTOUPDATE
-class UpdateChecker : public QObject {
-	Q_OBJECT
-};
-
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
-
-QString countBetaVersionSignature(uint64 version);

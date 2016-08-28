@@ -1165,7 +1165,8 @@ namespace {
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetAutoLock(v);
+			Global::SetAutoLock(v);
+			Global::RefLocalPasscodeChanged().notify();
 		} break;
 
 		case dbiReplaceEmojis: {
@@ -1569,7 +1570,7 @@ namespace {
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
 		data.stream << quint32(dbiTileBackground) << qint32(Window::chatBackground()->tile() ? 1 : 0);
 		data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
-		data.stream << quint32(dbiAutoLock) << qint32(cAutoLock());
+		data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 		data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
@@ -2298,7 +2299,8 @@ namespace Local {
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
-		cSetHasPasscode(!passcode.isEmpty());
+		Global::SetLocalPasscode(!passcode.isEmpty());
+		Global::RefLocalPasscodeChanged().notify();
 	}
 
 	ReadMapState readMap(const QByteArray &pass) {
@@ -4167,11 +4169,22 @@ namespace Local {
 	void ClearManager::start() {
 		moveToThread(data->thread);
 		connect(data->thread, SIGNAL(started()), this, SLOT(onStart()));
+		connect(data->thread, SIGNAL(finished()), data->thread, SLOT(deleteLater()));
+		connect(data->thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 		data->thread->start();
 	}
 
+	void ClearManager::stop() {
+		{
+			QMutexLocker lock(&data->mutex);
+			data->tasks.clear();
+		}
+		auto thread = data->thread;
+		thread->quit();
+		thread->wait();
+	}
+
 	ClearManager::~ClearManager() {
-		data->thread->deleteLater();
 		delete data;
 	}
 
@@ -4231,11 +4244,11 @@ namespace Local {
 			}
 			{
 				QMutexLocker lock(&data->mutex);
-				if (data->tasks.at(0) == task) {
+				if (!data->tasks.isEmpty() && data->tasks.at(0) == task) {
 					data->tasks.pop_front();
-					if (data->tasks.isEmpty()) {
-						data->working = false;
-					}
+				}
+				if (data->tasks.isEmpty()) {
+					data->working = false;
 				}
 				if (result) {
 					emit succeed(task, data->working ? 0 : this);

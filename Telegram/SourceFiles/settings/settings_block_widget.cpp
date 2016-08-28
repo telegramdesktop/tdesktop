@@ -43,10 +43,10 @@ int BlockWidget::resizeGetHeight(int newWidth) {
 	int x = contentLeft(), result = contentTop();
 	int availw = newWidth - x;
 	for_const (auto &row, _rows) {
-		row.child->moveToLeft(x + row.margin.left(), result + row.margin.top());
-		auto availRowWidth = availw - row.margin.left() - row.margin.right();
+		row.child->moveToLeft(x + row.margin.left(), result + row.margin.top(), newWidth);
+		auto availRowWidth = availw - row.margin.left() - row.margin.right() - x;
 		auto natural = row.child->naturalWidth();
-		auto rowWidth = (natural < 0) ? (availRowWidth - x) : qMin(natural, availRowWidth);
+		auto rowWidth = (natural < 0) ? availRowWidth : qMin(natural, availRowWidth);
 		if (row.child->width() != rowWidth) {
 			row.child->resizeToWidth(rowWidth);
 		}
@@ -85,17 +85,17 @@ void BlockWidget::rowHeightUpdated() {
 }
 
 void BlockWidget::createChildRow(ChildWidget<Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
-	child = new Checkbox(this, text, checked);
+	child = new Checkbox(this, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
 void BlockWidget::createChildRow(ChildWidget<Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child = new Radiobutton(this, group, value, text, checked);
+	child = new Radiobutton(this, group, value, text, checked, st::defaultRadiobutton);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot) {
-	child = new LinkButton(this, text);
+void BlockWidget::createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st) {
+	child = new LinkButton(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }
 

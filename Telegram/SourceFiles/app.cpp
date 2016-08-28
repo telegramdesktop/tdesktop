@@ -188,8 +188,9 @@ namespace App {
 
 namespace {
 	bool loggedOut() {
-		if (cHasPasscode()) {
-			cSetHasPasscode(false);
+		if (Global::LocalPasscode()) {
+			Global::SetLocalPasscode(false);
+			Global::RefLocalPasscodeChanged().notify();
 		}
 		if (audioPlayer()) {
 			audioPlayer()->stopAndClear();

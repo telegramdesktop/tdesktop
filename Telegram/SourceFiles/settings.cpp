@@ -75,9 +75,6 @@ bool gCompressPastedImage = true;
 
 QString gTimeFormat = qsl("hh:mm");
 
-int32 gAutoLock = 3600;
-bool gHasPasscode = false;
-
 bool gHasAudioPlayer = true;
 bool gHasAudioCapture = true;
 

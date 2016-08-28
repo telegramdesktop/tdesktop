@@ -306,6 +306,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_privacy" = "Privacy and Security";
 
+"lng_local_storage_title" = "Local storage";
 "lng_settings_no_data_cached" = "No cached data found!";
 "lng_settings_images_cached" = "{count:_not_used_|# image|# images}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# voice message|# voice messages}, {size}";

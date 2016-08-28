@@ -191,9 +191,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _radial(animation(this, &SettingsInner::step_radial))
 
 // advanced
-, _passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on))
+, _passcodeEdit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on))
 , _passcodeTurnOff(this, lang(lng_passcode_turn_off))
-, _autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600))
+, _autoLock(this, /*(cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)*/"")
 , _autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' ')
 , _autoLockWidth(st::linkFont->width(_autoLockText))
 , _passwordEdit(this, lang(lng_cloud_password_set))
@@ -665,7 +665,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::black->p);
 	if (self()) {
 		top += _passcodeEdit.height() + st::setLittleSkip;
-		if (cHasPasscode()) {
+		if (Global::LocalPasscode()) {
 			p.drawText(_left, top + st::linkFont->ascent, _autoLockText);
 			top += _autoLock.height() + st::setLittleSkip;
 		}
@@ -782,7 +782,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	if (self()) {
 		_passcodeEdit.move(_left, top);
 		_passcodeTurnOff.move(_left + st::setWidth - _passcodeTurnOff.width(), top); top += _passcodeTurnOff.height() + st::setLittleSkip;
-		if (cHasPasscode()) {
+		if (Global::LocalPasscode()) {
 			_autoLock.move(_left + _autoLockWidth, top); top += _autoLock.height() + st::setLittleSkip;
 		}
 		_passwordEdit.move(_left, top);
@@ -953,8 +953,8 @@ void SettingsInner::updateConnectionType() {
 
 void SettingsInner::passcodeChanged() {
 	resizeEvent(0);
-	_passcodeEdit.setText(lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on));
-	_autoLock.setText((cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600));
+	//_passcodeEdit.setText(lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on));
+	//_autoLock.setText((cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600));
 //	_passwordEdit.setText()
 	showAll();
 }
@@ -1165,7 +1165,7 @@ void SettingsInner::showAll() {
 	// advanced
 	if (self()) {
 		_passcodeEdit.show();
-		if (cHasPasscode()) {
+		if (Global::LocalPasscode()) {
 			_autoLock.show();
 			_passcodeTurnOff.show();
 		} else {

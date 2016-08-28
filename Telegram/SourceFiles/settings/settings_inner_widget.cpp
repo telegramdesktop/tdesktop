@@ -102,25 +102,25 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 		block->resizeToWidth(newWidth);
 	}
 
-	int result = refreshBlocksPositions();
+	int result = refreshBlocksPositions(newWidth);
 	return result;
 }
 
-int InnerWidget::refreshBlocksPositions() {
+int InnerWidget::refreshBlocksPositions(int newWidth) {
 	int result = (_cover ? _cover->height() : 0) + st::settingsBlocksTop;
 	for_const (auto block, _blocks) {
 		if (block->isHidden()) {
 			continue;
 		}
 
-		block->moveToLeft(0, result);
+		block->moveToLeft(0, result, newWidth);
 		result += block->height();
 	}
 	return result;
 }
 
 void InnerWidget::onBlockHeightUpdated() {
-	int newHeight = refreshBlocksPositions();
+	int newHeight = refreshBlocksPositions(width());
 	if (newHeight != height()) {
 		resize(width(), newHeight);
 		emit heightUpdated();

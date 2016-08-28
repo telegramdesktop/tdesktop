@@ -339,7 +339,9 @@ void Application::closeApplication() {
 	_updateReply = 0;
 	if (_updateChecker) _updateChecker->deleteLater();
 	_updateChecker = 0;
-	if (_updateThread) _updateThread->quit();
+	if (_updateThread) {
+		_updateThread->quit();
+	}
 	_updateThread = 0;
 #endif
 
@@ -738,7 +740,8 @@ AppClass::AppClass() : QObject()
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
 	if (state == Local::ReadMapPassNeeded) {
-		cSetHasPasscode(true);
+		Global::SetLocalPasscode(true);
+		Global::RefLocalPasscodeChanged().notify();
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
 		DEBUG_LOG(("Application Info: local map read..."));

@@ -41,7 +41,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	_options.reserve(cnt);
 	for (int32 i = 0; i < cnt; ++i) {
 		int32 v = opts[i];
-		_options.push_back(new Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (cAutoLock() == v), st::langsButton));
+		_options.push_back(new Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (Global::AutoLock() == v), st::langsButton));
 		_options.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _options.back()->height() + st::boxOptionListPadding.top();
 		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));
@@ -73,8 +73,9 @@ void AutoLockBox::onChange() {
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
 		int32 v = _options[i]->val();
 		if (_options[i]->checked()) {
-			cSetAutoLock(v);
+			Global::SetAutoLock(v);
 			Local::writeUserSettings();
+			Global::RefLocalPasscodeChanged().notify();
 		}
 	}
 	App::wnd()->checkAutoLock();

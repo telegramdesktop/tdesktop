@@ -588,10 +588,10 @@ void MainWindow::checkAutoLockIn(int msec) {
 }
 
 void MainWindow::checkAutoLock() {
-	if (!cHasPasscode() || App::passcoded()) return;
+	if (!Global::LocalPasscode() || App::passcoded()) return;
 
 	App::app()->checkLocalTime();
-	uint64 ms = getms(true), idle = psIdleTime(), should = cAutoLock() * 1000ULL;
+	uint64 ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000ULL;
 	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
 		setupPasscode(true);
 	} else {
@@ -608,6 +608,7 @@ void MainWindow::setupIntro(bool anim) {
 	if (_mediaView) {
 		_mediaView->clearData();
 	}
+	Ui::hideSettingsAndLayer(true);
 
 	QPixmap bg = anim ? grabInner() : QPixmap();
 
@@ -1350,8 +1351,8 @@ void MainWindow::tempDirDelete(int task) {
 		if (_clearManager->addTask(task)) {
 			return;
 		} else {
-			_clearManager->deleteLater();
-			_clearManager = 0;
+			_clearManager->stop();
+			_clearManager = nullptr;
 		}
 	}
 	_clearManager = new Local::ClearManager();
@@ -1363,16 +1364,16 @@ void MainWindow::tempDirDelete(int task) {
 
 void MainWindow::onClearFinished(int task, void *manager) {
 	if (manager && manager == _clearManager) {
-		_clearManager->deleteLater();
-		_clearManager = 0;
+		_clearManager->stop();
+		_clearManager = nullptr;
 	}
 	emit tempDirCleared(task);
 }
 
 void MainWindow::onClearFailed(int task, void *manager) {
 	if (manager && manager == _clearManager) {
-		_clearManager->deleteLater();
-		_clearManager = 0;
+		_clearManager->stop();
+		_clearManager = nullptr;
 	}
 	emit tempDirClearFailed(task);
 }
@@ -1918,7 +1919,10 @@ void MainWindow::updateIsActive(int timeout) {
 
 MainWindow::~MainWindow() {
     notifyClearFast();
-	delete _clearManager;
+	if (_clearManager) {
+		_clearManager->stop();
+		_clearManager = nullptr;
+	}
 	delete _connecting;
 	delete _mediaView;
 	delete trayIcon;
