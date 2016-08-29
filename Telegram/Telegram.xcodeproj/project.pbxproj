@@ -707,6 +707,7 @@
 		07B773A01D737DFE00169745 /* localstoragebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = localstoragebox.cpp; path = SourceFiles/boxes/localstoragebox.cpp; sourceTree = SOURCE_ROOT; };
 		07B773A11D737DFE00169745 /* localstoragebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = localstoragebox.h; path = SourceFiles/boxes/localstoragebox.h; sourceTree = SOURCE_ROOT; };
 		07B773A31D737E1800169745 /* moc_localstoragebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localstoragebox.cpp; path = GeneratedFiles/Debug/moc_localstoragebox.cpp; sourceTree = SOURCE_ROOT; };
+		07B773A51D73B5D100169745 /* widget_slide_wrap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = widget_slide_wrap.h; path = SourceFiles/ui/widgets/widget_slide_wrap.h; sourceTree = SOURCE_ROOT; };
 		07B817011CB9A235006F7869 /* dialogs_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_common.h; path = SourceFiles/dialogs/dialogs_common.h; sourceTree = SOURCE_ROOT; };
 		07B817021CB9A235006F7869 /* dialogs_indexed_list.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dialogs_indexed_list.cpp; path = SourceFiles/dialogs/dialogs_indexed_list.cpp; sourceTree = SOURCE_ROOT; };
 		07B817031CB9A235006F7869 /* dialogs_indexed_list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dialogs_indexed_list.h; path = SourceFiles/dialogs/dialogs_indexed_list.h; sourceTree = SOURCE_ROOT; };
@@ -1489,6 +1490,7 @@
 			children = (
 				07E102F41D3E4E8C00BD33B1 /* label_simple.cpp */,
 				07E102F51D3E4E8C00BD33B1 /* label_simple.h */,
+				07B773A51D73B5D100169745 /* widget_slide_wrap.h */,
 				07E102F61D3E4E8C00BD33B1 /* widgets.style */,
 			);
 			name = widgets;
