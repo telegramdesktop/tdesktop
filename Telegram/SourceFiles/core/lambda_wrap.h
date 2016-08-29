@@ -173,7 +173,7 @@ struct lambda_wrap_helper_move : public lambda_wrap_helper_move_impl<Lambda
 };
 
 template <typename Lambda, typename Return, typename ...Args>
-const lambda_wrap_helper_move<Lambda, Return, Args...> lambda_wrap_helper_move<Lambda, Return, Args...>::instance{};
+const lambda_wrap_helper_move<Lambda, Return, Args...> lambda_wrap_helper_move<Lambda, Return, Args...>::instance = {};
 
 template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_copy_impl;
 
@@ -220,7 +220,7 @@ struct lambda_wrap_helper_copy : public lambda_wrap_helper_copy_impl<Lambda
 };
 
 template <typename Lambda, typename Return, typename ...Args>
-const lambda_wrap_helper_copy<Lambda, Return, Args...> lambda_wrap_helper_copy<Lambda, Return, Args...>::instance{};
+const lambda_wrap_helper_copy<Lambda, Return, Args...> lambda_wrap_helper_copy<Lambda, Return, Args...>::instance = {};
 
 } // namespace internal
 

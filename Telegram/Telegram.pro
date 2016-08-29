@@ -75,13 +75,16 @@ file_style_overview.target = GeneratedFiles/styles/style_overview.cpp
 file_style_overview.depends = style_target
 file_style_profile.target = GeneratedFiles/styles/style_profile.cpp
 file_style_profile.depends = style_target
+file_style_settings.target = GeneratedFiles/styles/style_settings.cpp
+file_style_settings.depends = style_target
 file_style_widgets.target = GeneratedFiles/styles/style_widgets.cpp
 file_style_widgets.depends = style_target
 
 QMAKE_EXTRA_TARGETS += codegen_style codegen_numbers codegen_lang \
 	file_style_basic file_style_basic_types file_style_boxes \
 	file_style_dialogs file_style_history file_style_mediaview \
-	file_style_overview file_style_profile file_style_widgets
+	file_style_overview file_style_profile file_style_settings \
+	file_style_widgets
 
 PRE_TARGETDEPS += style_target numbers_target lang_target
 
@@ -108,6 +111,7 @@ SOURCES += \
 	./GeneratedFiles/styles/style_mediaview.cpp \
 	./GeneratedFiles/styles/style_overview.cpp \
 	./GeneratedFiles/styles/style_profile.cpp \
+	./GeneratedFiles/styles/style_settings.cpp \
 	./GeneratedFiles/styles/style_widgets.cpp \
 	./SourceFiles/main.cpp \
 	./SourceFiles/stdafx.cpp \
@@ -135,7 +139,6 @@ SOURCES += \
 	./SourceFiles/logs.cpp \
 	./SourceFiles/mainwidget.cpp \
 	./SourceFiles/settings.cpp \
-	./SourceFiles/settingswidget.cpp \
 	./SourceFiles/shortcuts.cpp \
 	./SourceFiles/structs.cpp \
 	./SourceFiles/sysbuttons.cpp \
@@ -153,6 +156,7 @@ SOURCES += \
 	./SourceFiles/boxes/downloadpathbox.cpp \
 	./SourceFiles/boxes/emojibox.cpp \
 	./SourceFiles/boxes/languagebox.cpp \
+	./SourceFiles/boxes/localstoragebox.cpp \
 	./SourceFiles/boxes/passcodebox.cpp \
 	./SourceFiles/boxes/photocropbox.cpp \
 	./SourceFiles/boxes/photosendbox.cpp \
@@ -230,6 +234,19 @@ SOURCES += \
 	./SourceFiles/profile/profile_widget.cpp \
 	./SourceFiles/serialize/serialize_common.cpp \
 	./SourceFiles/serialize/serialize_document.cpp \
+	./SourceFiles/settings/settings_advanced_widget.cpp \
+	./SourceFiles/settings/settings_background_widget.cpp \
+	./SourceFiles/settings/settings_block_widget.cpp \
+	./SourceFiles/settings/settings_chat_settings_widget.cpp \
+	./SourceFiles/settings/settings_cover.cpp \
+	./SourceFiles/settings/settings_fixed_bar.cpp \
+	./SourceFiles/settings/settings_general_widget.cpp \
+	./SourceFiles/settings/settings_info_widget.cpp \
+	./SourceFiles/settings/settings_inner_widget.cpp \
+	./SourceFiles/settings/settings_notifications_widget.cpp \
+	./SourceFiles/settings/settings_privacy_widget.cpp \
+	./SourceFiles/settings/settings_scale_widget.cpp \
+	./SourceFiles/settings/settings_widget.cpp \
 	./SourceFiles/ui/buttons/history_down_button.cpp \
 	./SourceFiles/ui/buttons/icon_button.cpp \
 	./SourceFiles/ui/buttons/left_outline_button.cpp \
@@ -264,6 +281,7 @@ SOURCES += \
 	./SourceFiles/ui/inner_dropdown.cpp \
 	./SourceFiles/ui/scrollarea.cpp \
 	./SourceFiles/ui/twidget.cpp \
+	./SourceFiles/window/chat_background.cpp \
 	./SourceFiles/window/main_window.cpp \
 	./SourceFiles/window/section_widget.cpp \
 	./SourceFiles/window/slide_animation.cpp \
@@ -280,6 +298,7 @@ HEADERS += \
 	./GeneratedFiles/styles/style_mediaview.h \
 	./GeneratedFiles/styles/style_overview.h \
 	./GeneratedFiles/styles/style_profile.h \
+	./GeneratedFiles/styles/style_settings.h \
 	./GeneratedFiles/styles/style_widgets.h \
 	./SourceFiles/stdafx.h \
 	./SourceFiles/apiwrap.h \
@@ -308,7 +327,6 @@ HEADERS += \
 	./SourceFiles/logs.h \
 	./SourceFiles/mainwidget.h \
 	./SourceFiles/settings.h \
-	./SourceFiles/settingswidget.h \
 	./SourceFiles/shortcuts.h \
 	./SourceFiles/structs.h \
 	./SourceFiles/sysbuttons.h \
@@ -326,6 +344,7 @@ HEADERS += \
 	./SourceFiles/boxes/downloadpathbox.h \
 	./SourceFiles/boxes/emojibox.h \
 	./SourceFiles/boxes/languagebox.h \
+	./SourceFiles/boxes/localstoragebox.h \
 	./SourceFiles/boxes/passcodebox.h \
 	./SourceFiles/boxes/photocropbox.h \
 	./SourceFiles/boxes/photosendbox.h \
@@ -336,9 +355,10 @@ HEADERS += \
 	./SourceFiles/core/basic_types.h \
 	./SourceFiles/core/click_handler.h \
 	./SourceFiles/core/click_handler_types.h \
+	./SourceFiles/core/lambda_wrap.h \
 	./SourceFiles/core/observer.h \
-        ./SourceFiles/core/qthelp_regex.h \
-        ./SourceFiles/core/qthelp_url.h \
+	./SourceFiles/core/qthelp_regex.h \
+	./SourceFiles/core/qthelp_url.h \
 	./SourceFiles/core/vector_of_moveable.h \
 	./SourceFiles/core/version.h \
 	./SourceFiles/data/data_abstract_structure.h \
@@ -411,6 +431,19 @@ HEADERS += \
 	./SourceFiles/pspecific.h \
 	./SourceFiles/serialize/serialize_common.h \
 	./SourceFiles/serialize/serialize_document.h \
+	./SourceFiles/settings/settings_advanced_widget.h \
+	./SourceFiles/settings/settings_background_widget.h \
+	./SourceFiles/settings/settings_block_widget.h \
+	./SourceFiles/settings/settings_chat_settings_widget.h \
+	./SourceFiles/settings/settings_cover.h \
+	./SourceFiles/settings/settings_fixed_bar.h \
+	./SourceFiles/settings/settings_general_widget.h \
+	./SourceFiles/settings/settings_info_widget.h \
+	./SourceFiles/settings/settings_inner_widget.h \
+	./SourceFiles/settings/settings_notifications_widget.h \
+	./SourceFiles/settings/settings_privacy_widget.h \
+	./SourceFiles/settings/settings_scale_widget.h \
+	./SourceFiles/settings/settings_widget.h \
 	./SourceFiles/ui/buttons/history_down_button.h \
 	./SourceFiles/ui/buttons/icon_button.h \
 	./SourceFiles/ui/buttons/left_outline_button.h \
@@ -429,6 +462,7 @@ HEADERS += \
 	./SourceFiles/ui/toast/toast_manager.h \
 	./SourceFiles/ui/toast/toast_widget.h \
 	./SourceFiles/ui/widgets/label_simple.h \
+	./SourceFiles/ui/widgets/widget_slide_wrap.h \
 	./SourceFiles/ui/animation.h \
 	./SourceFiles/ui/boxshadow.h \
 	./SourceFiles/ui/button.h \
@@ -445,6 +479,7 @@ HEADERS += \
 	./SourceFiles/ui/inner_dropdown.h \
 	./SourceFiles/ui/scrollarea.h \
 	./SourceFiles/ui/twidget.h \
+	./SourceFiles/window/chat_background.h \
 	./SourceFiles/window/main_window.h \
 	./SourceFiles/window/section_memento.h \
 	./SourceFiles/window/section_widget.h \
