@@ -118,9 +118,9 @@ bool QtGifReaderImplementation::jumpToStart() {
 	delete _reader;
 	initDevice();
 	_reader = new QImageReader(_device);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+#ifndef OS_MAC_OLD
 	_reader->setAutoTransform(true);
-#endif
+#endif // OS_MAC_OLD
 	if (!_reader->canRead() || !_reader->supportsAnimation()) {
 		return false;
 	}

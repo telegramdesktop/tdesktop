@@ -31,6 +31,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
+#include <numeric>
+
 extern "C" {
 #ifdef Q_OS_MAC
 #include <iconv.h>

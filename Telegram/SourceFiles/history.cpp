@@ -6028,9 +6028,9 @@ void LocationManager::onFinished(QNetworkReply *reply) {
 			{
 				QBuffer buffer(&data);
 				QImageReader reader(&buffer);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+#ifndef OS_MAC_OLD
 				reader.setAutoTransform(true);
-#endif
+#endif // OS_MAC_OLD
 				thumb = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 				format = reader.format();
 				thumb.setDevicePixelRatio(cRetinaFactor());

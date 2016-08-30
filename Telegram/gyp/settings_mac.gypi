@@ -28,8 +28,6 @@
           'CoreText',
           'CoreGraphics',
           'OpenGL',
-          'VideoToolbox',
-          'VideoDecodeAcceleration',
           'AudioUnit',
           'ApplicationServices',
           'Foundation',
@@ -40,8 +38,6 @@
           'AudioToolbox',
           'CoreAudio',
           'QuartzCore',
-          'AVFoundation',
-          'CoreMedia',
           'AppKit',
           'CoreWLAN',
           'IOKit',
@@ -69,14 +65,40 @@
           '<@(mac_common_flags)',
         ],
         'OTHER_LDFLAGS': [
-          '-stdlib=libc++',
           '<!@(python -c "for s in \'<@(mac_frameworks)\'.split(\' \'): print(\'-framework \' + s)")',
         ],
         'MACOSX_DEPLOYMENT_TARGET': '<(mac_target)',
         'COMBINE_HIDPI_IMAGES': 'YES',
         'COPY_PHASE_STRIP': 'NO',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++14',
+      },
+      'configurations': {
+      	'Debug': {
+      		'xcode_settings': {
+      			'ENABLE_TESTABILITY': 'YES',
+      			'ONLY_ACTIVE_ARCH': 'YES',
+      		},
+      	},
+      },
+    }],
+    [ 'build_macold', {
+      'xcode_settings': {
+        'OTHER_CFLAGS': [
+          '-Wno-inconsistent-missing-override',
+        ],
+        'OTHER_CPLUSPLUSFLAGS': [
+          '-Wno-inconsistent-missing-override',
+        ],
+      },
+    }, {
+      'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',
+        'OTHER_LDFLAGS': [
+        	'-framework VideoToolbox',
+        	'-framework VideoDecodeAcceleration',
+        	'-framework AVFoundation',
+        	'-framework CoreMedia',
+        ],
       },
     }],
   ],

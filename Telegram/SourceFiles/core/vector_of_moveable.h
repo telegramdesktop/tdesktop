@@ -128,7 +128,11 @@ public:
 	}
 	inline const T &at(int index) const {
 		if (index < 0 || index >= _size) {
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+			throw std::exception();
+#else // QT_VERSION < 5.5.0
 			throw std::out_of_range("");
+#endif // QT_VERSION < 5.5.0
 		}
 		return data()[index];
 	}

@@ -48,7 +48,6 @@
         'ko',
         'pt-BR',
       ],
-      'mac_target': '10.8',
     },
     'includes': [
 	    'common_executable.gypi',
@@ -75,17 +74,12 @@
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
       '<(libs_loc)/breakpad/src',
-      '<(libs_loc)/crashpad/crashpad',
-      '<(libs_loc)/crashpad/crashpad/third_party/mini_chromium/mini_chromium',
       '<(libs_loc)/lzma/C',
       '<(libs_loc)/libexif-0.6.20',
       '<(libs_loc)/zlib-1.2.8',
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',
       '<(minizip_loc)',
-    ],
-    'library_dirs': [
-      '<(libs_loc)/ffmpeg',
     ],
     'sources': [
       '<@(qrc_files)',

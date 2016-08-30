@@ -47,6 +47,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
 #include "playerwidget.h"
+#include "core/qthelp_regex.h"
 
 namespace {
 
@@ -2971,9 +2972,8 @@ EntitiesInText entitiesFromTextTags(const FlatTextarea::TagList &tags) {
 	auto mentionStart = qstr("mention://user.");
 	for_const (auto &tag, tags) {
 		if (tag.id.startsWith(mentionStart)) {
-			auto match = QRegularExpression("^(\\d+\\.\\d+)(/|$)").match(tag.id.midRef(mentionStart.size()));
-			if (match.hasMatch()) {
-				result.push_back(EntityInText(EntityInTextMentionName, tag.offset, tag.length, match.captured(1)));
+			if (auto match = qthelp::regex_match("^(\\d+\\.\\d+)(/|$)", tag.id.midRef(mentionStart.size()))) {
+				result.push_back(EntityInText(EntityInTextMentionName, tag.offset, tag.length, match->captured(1)));
 			}
 		}
 	}
@@ -8111,7 +8111,12 @@ void HistoryWidget::updatePreview() {
 		updateMouseTracking();
 		if (_previewData->pendingTill) {
 			_previewTitle.setText(st::msgServiceNameFont, lang(lng_preview_loading), _textNameOptions);
-			_previewDescription.setText(st::msgFont, textClean(_previewLinks.splitRef(' ').at(0).toString()), _textDlgOptions);
+#ifndef OS_MAC_OLD
+			auto linkText = _previewLinks.splitRef(' ').at(0).toString();
+#else // OS_MAC_OLD
+			auto linkText = _previewLinks.split(' ').at(0);
+#endif // OS_MAC_OLD
+			_previewDescription.setText(st::msgFont, textClean(linkText), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;

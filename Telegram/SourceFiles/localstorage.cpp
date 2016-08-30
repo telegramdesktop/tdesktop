@@ -3621,9 +3621,9 @@ namespace Local {
 		QImage img;
 		QBuffer buf(&pngData);
 		QImageReader reader(&buf);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+#ifndef OS_MAC_OLD
 		reader.setAutoTransform(true);
-#endif
+#endif // OS_MAC_OLD
 		if (reader.read(&img)) {
 			App::initBackground(id, img, true);
 			return true;

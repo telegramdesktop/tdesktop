@@ -123,7 +123,17 @@ void ToggleableShadow::paintEvent(QPaintEvent *e) {
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
 	auto windowHandle = widget->window()->windowHandle();
 	auto localPoint = windowHandle->mapFromGlobal(globalPoint);
-	QMouseEvent ev(type, localPoint, localPoint, globalPoint, button, QGuiApplication::mouseButtons() | button, QGuiApplication::keyboardModifiers(), Qt::MouseEventSynthesizedByApplication);
+	QMouseEvent ev(type
+		, localPoint
+		, localPoint
+		, globalPoint
+		, button
+		, QGuiApplication::mouseButtons() | button
+		, QGuiApplication::keyboardModifiers()
+#ifndef OS_MAC_OLD
+		, Qt::MouseEventSynthesizedByApplication
+#endif // OS_MAC_OLD
+	);
 	ev.setTimestamp(getms());
 	QGuiApplication::sendEvent(windowHandle, &ev);
 }

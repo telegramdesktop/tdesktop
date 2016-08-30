@@ -25,6 +25,9 @@
     'sources': [
       '<(res_loc)/winrc/Telegram.rc',
     ],
+    'library_dirs': [
+      '<(libs_loc)/ffmpeg',
+    ],
     'libraries': [
       'libeay32',
       'ssleay32',

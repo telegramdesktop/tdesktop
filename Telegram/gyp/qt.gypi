@@ -24,9 +24,7 @@
         'variables': {
           'qt_libs': [
             'Qt5Core',
-            'qtpcre',
             'Qt5Gui',
-            'qtfreetype',
             'Qt5Widgets',
             'qtharfbuzzng',
             'Qt5Network',
@@ -34,8 +32,15 @@
             'Qt5PrintSupport',
             'qwebp',
           ],
+          'conditions': [
+            [ 'build_macold', {
+              'qt_version%': '5.3.2',
+            }, {
+              'qt_version%': '5.6.0',
+            }]
+          ],
         },
-        'qt_version%': '5.6.0',
+        'qt_version%': '<(qt_version)',
         'conditions': [
           [ 'build_win', {
             'qt_lib_prefix': '<(ld_lib_prefix)',
@@ -57,9 +62,20 @@
               'qcocoa',
             ],
           }],
+          [ 'build_macold', {
+            'qt_loc_unix': '/usr/local/Qt-<(qt_version)'
+          }, {
+            'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
+            'qt_libs': [
+            	'<@(qt_libs)',
+	            'qtfreetype',
+            	'qtpcre',
+            ],
+          }]
         ],
       },
       'qt_version%': '<(qt_version)',
+      'qt_loc_unix': '<(qt_loc_unix)',
       'qt_version_loc': '<!(python -c "print(\'<(qt_version)\'.replace(\'.\', \'_\'))")',
       'qt_libs_debug': [
         '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_debug_postfix)\')")',
@@ -75,7 +91,7 @@
       [ 'build_win', {
         'qt_loc': '../../../Libraries/qt<(qt_version_loc)/qtbase',
       }, {
-        'qt_loc': '/usr/local/tdesktop/Qt-<(qt_version)',
+        'qt_loc': '<(qt_loc_unix)',
       }],
     ],
   },

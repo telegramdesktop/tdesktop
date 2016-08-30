@@ -32,15 +32,8 @@
         '-lssl',
         '-lcrypto',
         '/usr/local/lib/liblzma.a',
-        '/usr/local/lib/libopenal.a',
         '/usr/local/lib/libopus.a',
         '/usr/local/lib/libexif.a',
-        '-lavcodec',
-        '-lavformat',
-        '-lswscale',
-        '-lswresample',
-        '-lavutil',
-        '/usr/local/lib/libiconv.a',
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',
@@ -57,17 +50,11 @@
     ],
     'configurations': {
       'Debug': {
-        'library_dirs': [
-          '<(libs_loc)/crashpad/crashpad/out/Debug',
-        ],
         'xcode_settings': {
           'GCC_OPTIMIZATION_LEVEL': '0',
         },
       },
       'Release': {
-        'library_dirs': [
-          '<(libs_loc)/crashpad/crashpad/out/Release',
-        ],
         'xcode_settings': {
           'DEBUG_INFORMATION_FORMAT': 'dwarf-with-dsym',
           'LLVM_LTO': 'YES',
@@ -97,7 +84,80 @@
       'action': [
         'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/'
       ],
-    }, {
+    }],
+  }], [ 'build_macold', {
+    'xcode_settings': {
+      'OTHER_LDFLAGS': [
+        '/usr/local/openal_old/lib/libopenal.a',
+        '/usr/local/zlib_old/lib/libz.a',
+        '/usr/local/iconv_old/lib/libiconv.a',
+        '/usr/local/ffmpeg_old/lib/libavcodec.a',
+        '/usr/local/ffmpeg_old/lib/libavformat.a',
+        '/usr/local/ffmpeg_old/lib/libavutil.a',
+        '/usr/local/ffmpeg_old/lib/libswscale.a',
+        '/usr/local/ffmpeg_old/lib/libswresample.a',
+      ],
+    },
+    'include_dirs': [
+      '<(libs_loc)/crashpad_oldmac/crashpad',
+      '<(libs_loc)/crashpad_oldmac/crashpad/third_party/mini_chromium/mini_chromium',
+    ],
+    'library_dirs': [
+      '/usr/local/ffmpeg_old',
+    ],
+    'configurations': {
+      'Debug': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad_oldmac/crashpad/out/Debug',
+        ],
+      },
+      'Release': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad_oldmac/crashpad/out/Release',
+        ],
+      },
+    },
+    'postbuilds': [{
+      'postbuild_name': 'Copy crashpad_client to Helpers',
+      'action': [
+        'cp',
+        '<(libs_loc)/crashpad_oldmac/crashpad/out/${CONFIGURATION}/crashpad_handler',
+        '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/',
+      ],
+    }],
+  }, {
+    'xcode_settings': {
+      'OTHER_LDFLAGS': [
+        '/usr/local/lib/libz.a',
+        '/usr/local/lib/libopenal.a',
+        '/usr/local/lib/libiconv.a',
+        '/usr/local/lib/libavcodec.a',
+        '/usr/local/lib/libavformat.a',
+        '/usr/local/lib/libavutil.a',
+        '/usr/local/lib/libswscale.a',
+        '/usr/local/lib/libswresample.a',
+      ],
+    },
+    'include_dirs': [
+      '<(libs_loc)/crashpad/crashpad',
+      '<(libs_loc)/crashpad/crashpad/third_party/mini_chromium/mini_chromium',
+    ],
+    'library_dirs': [
+      '/usr/local/ffmpeg',
+    ],
+    'configurations': {
+      'Debug': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad/crashpad/out/Debug',
+        ],
+      },
+      'Release': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad/crashpad/out/Release',
+        ],
+      },
+    },
+    'postbuilds': [{
       'postbuild_name': 'Copy crashpad_client to Helpers',
       'action': [
         'cp',
