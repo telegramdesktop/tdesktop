@@ -57,11 +57,14 @@
       'build_win%': '<(build_win)',
       'build_mac%': '<(build_mac)',
       'build_linux%': '<(build_linux)',
+
+	    'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',
     'build_mac%': '<(build_mac)',
     'build_linux%': '<(build_linux)',
+    'official_build_target%': '<(official_build_target)',
     'mac_target%': '10.8',
 
     # GYP does not support per-configuration libraries :(
@@ -77,6 +80,13 @@
         'ld_lib_postfix': '',
         'exe_ext': '',
       }],
+      [ '"<(official_build_target)" == "mac32"', {
+        'mac_target%': '10.6',
+        'build_mac32': 1,
+      }, {
+        'mac_target%': '10.8',
+        'build_mac32': 0,
+      }]
     ],
     'ld_lib_prefix': '<(ld_lib_prefix)',
     'ld_lib_postfix': '<(ld_lib_postfix)',
@@ -84,7 +94,6 @@
 
     'library%': 'static_library',
 
-    'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
   },
 
   'configurations': {

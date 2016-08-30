@@ -25,6 +25,7 @@
 *.opendb
 *.VC.db
 *.aps
+*.xcodeproj
 /Win32/
 ipch/
 
