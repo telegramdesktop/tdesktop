@@ -18,6 +18,10 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
+	'includes': [
+    'settings_win.gypi',
+    'settings_mac.gypi',
+	],
   'variables': {
     'variables': {
       'variables': {

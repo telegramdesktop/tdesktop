@@ -24,7 +24,5 @@
   },
   'includes': [
     'common.gypi',
-    'settings_win.gypi',
-    'settings_mac.gypi',
   ],
 }

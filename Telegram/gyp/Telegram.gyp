@@ -18,6 +18,9 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
+  'includes': [
+    'common.gypi',
+  ],
   'targets': [{
     'target_name': 'Telegram',
     'variables': {
@@ -36,10 +39,19 @@
         '<(src_loc)/profile/profile.style',
         '<(src_loc)/ui/widgets/widgets.style',
       ],
+      'langpacks': [
+        'en',
+        'de',
+        'es',
+        'it',
+        'nl',
+        'ko',
+        'pt-BR',
+      ],
       'mac_target': '10.8',
     },
     'includes': [
-      'common_executable.gypi',
+	    'common_executable.gypi',
       'telegram_qrc.gypi',
       'telegram_win.gypi',
       'telegram_mac.gypi',

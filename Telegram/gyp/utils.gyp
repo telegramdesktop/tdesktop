@@ -18,6 +18,9 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
+  'includes': [
+    'common.gypi',
+  ],
   'targets': [{
     'target_name': 'Updater',
     'variables': {
@@ -80,15 +83,15 @@
           'zlibstat',
           'LzmaLib',
         ],
-      }, {
-        'libraries': [
-          '-lssl',
-          '-lcrypto',
-          '-llzma',
-        ],
       }],
     ],
-
+    'xcode_settings': {
+      'OTHER_LDFLAGS': [
+        '-lssl',
+        '-lcrypto',
+        '-llzma',
+      ],
+    },
     'include_dirs': [
       '<(src_loc)',
       '<(libs_loc)/lzma/C',

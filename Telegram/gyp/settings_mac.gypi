@@ -48,6 +48,7 @@
         ],
       },
       'xcode_settings': {
+		    'SYMROOT': '../../out',
         'OTHER_CPLUSPLUSFLAGS': [
           '-std=c++14',
           '-Wno-switch',
