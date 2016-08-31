@@ -176,7 +176,11 @@ void settingsParseArgs(int argc, char *argv[]) {
 	break;
 	case dbipMac:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
+#ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
+#else // OS_MAC_STORE
+		gPlatformString = qsl("MacAppStore");
+#endif // OS_MAC_STORE
 		gCustomNotifies = false;
 	break;
 	case dbipMacOld:

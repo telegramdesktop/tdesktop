@@ -355,8 +355,13 @@ namespace {
 
 			// {fulltype} is in "{type}-{tag}-{tag}-{tag}" format
 			// if we find "all" tag we return the restriction string
-			QStringList typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
-			if (typeTags.contains(qsl("all"))) {
+			auto typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
+#ifndef OS_MAC_STORE
+			auto restrictionApplies = typeTags.contains(qsl("all"));
+#else // OS_MAC_STORE
+			auto restrictionApplies = typeTags.contains(qsl("all")) || typeTags.contains(qsl("ios"));
+#endif // OS_MAC_STORE
+			if (restrictionApplies) {
 				return fullRestriction.midRef(fullTypeEnd + 1).trimmed().toString();
 			}
 			return QString();

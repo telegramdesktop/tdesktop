@@ -95,6 +95,7 @@
       '<(src_loc)/application.h',
       '<(src_loc)/autoupdater.cpp',
       '<(src_loc)/autoupdater.h',
+      '<(src_loc)/config.h',
       '<(src_loc)/dialogswidget.cpp',
       '<(src_loc)/dialogswidget.h',
       '<(src_loc)/dropdown.cpp',

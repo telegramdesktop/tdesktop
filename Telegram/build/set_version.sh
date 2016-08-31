@@ -106,11 +106,6 @@ repl "\(AppVersion [ ]*=\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionHea
 repl "\(AppVersionStr [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 \"$VersionStrSmall\"" "$VersionHeaderPath"
 repl "\(AppAlphaVersion [ ]*=\) \([ ]*\)[a-z][a-z]*" "\1\2 $VersionAlphaBool" "$VersionHeaderPath"
 
-echo "Patching project.pbxproj..."
-TelegramProjectPath="$FullScriptPath/../Telegram.xcodeproj/project.pbxproj"
-repl "\(TDESKTOP_MAJOR_VERSION [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 $VersionMajor.$VersionMinor" "$TelegramProjectPath"
-repl "\(TDESKTOP_VERSION [ ]*=\) \([ ]*\)[^;][^;]*" "\1\2 $VersionStrSmall" "$TelegramProjectPath"
-
 echo "Patching Telegram.rc..."
 ResourcePath="$FullScriptPath/../Resources/winrc/Telegram.rc"
 repl "\(FILEVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*" "\1\2 $VersionMajor,$VersionMinor,$VersionPatch,$VersionBeta" "$ResourcePath"

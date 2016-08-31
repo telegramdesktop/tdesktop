@@ -23,7 +23,7 @@
       'GCC_PREFIX_HEADER': '<(src_loc)/stdafx.h',
       'GCC_PRECOMPILE_PREFIX_HEADER': 'YES',
       'INFOPLIST_FILE': '../Telegram.plist',
-      'CURRENT_PROJECT_VERSION': '0.10.2',
+      'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'OTHER_LDFLAGS': [
         '-lcups',
@@ -115,7 +115,7 @@
         'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/'
       ],
     }, {
-      'postbuild_name': 'Copy crashpad_client to Helpers',
+      'postbuild_name': 'Copy crashpad_handler to Helpers',
       'action': [
         'cp',
         '<(libs_loc)/crashpad_oldmac/crashpad/out/${CONFIGURATION}/crashpad_handler',
@@ -203,7 +203,7 @@
     ],
     'defines': [
       'TDESKTOP_DISABLE_AUTOUPDATE',
-      'MAC_USE_BREAKPAD',
+      'OS_MAC_STORE',
     ],
     'postbuilds': [{
       'postbuild_name': 'Clear Frameworks path',
