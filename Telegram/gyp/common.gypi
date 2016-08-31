@@ -85,7 +85,12 @@
       }, {
         'mac_target%': '10.8',
         'build_macold': 0,
-      }]
+      }],
+      [ '"<(official_build_target)" == "macstore"', {
+        'build_macstore': 1,
+      }, {
+        'build_macstore': 0,
+      }],
     ],
     'ld_lib_prefix': '<(ld_lib_prefix)',
     'ld_lib_postfix': '<(ld_lib_postfix)',

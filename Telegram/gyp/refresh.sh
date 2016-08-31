@@ -7,7 +7,9 @@ popd > /dev/null
 cd $FullScriptPath
 #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=ninja
 #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode-ninja
-gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode
+#gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode
+# use patched gyp with Xcode project generator
+../../../Libraries/gyp/gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode
 cd ../..
 
 cd $FullExecPath

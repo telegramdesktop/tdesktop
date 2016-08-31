@@ -94,10 +94,10 @@
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',
         'OTHER_LDFLAGS': [
-        	'-framework VideoToolbox',
-        	'-framework VideoDecodeAcceleration',
-        	'-framework AVFoundation',
-        	'-framework CoreMedia',
+          '-framework', 'VideoToolbox',
+          '-framework', 'VideoDecodeAcceleration',
+          '-framework', 'AVFoundation',
+          '-framework', 'CoreMedia',
         ],
       },
     }],

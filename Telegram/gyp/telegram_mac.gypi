@@ -23,8 +23,8 @@
       'GCC_PREFIX_HEADER': '<(src_loc)/stdafx.h',
       'GCC_PRECOMPILE_PREFIX_HEADER': 'YES',
       'INFOPLIST_FILE': '../Telegram.plist',
-      'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.Telegram',
-      'TDESKTOP_VERSION': '0.10.2',
+      'CURRENT_PROJECT_VERSION': '0.10.2',
+      'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'OTHER_LDFLAGS': [
         '-lcups',
         '-lbsm',
@@ -34,9 +34,6 @@
         '/usr/local/lib/liblzma.a',
         '/usr/local/lib/libopus.a',
         '/usr/local/lib/libexif.a',
-        '-lbase',
-        '-lcrashpad_client',
-        '-lcrashpad_util',
       ],
     },
     'include_dirs': [
@@ -67,6 +64,39 @@
       '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
       '../Telegram/Images.xcassets'
     ],
+  }], [ 'build_macold', {
+    'xcode_settings': {
+      'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.Telegram',
+      'OTHER_LDFLAGS': [
+        '/usr/local/openal_old/lib/libopenal.a',
+        '/usr/local/zlib_old/lib/libz.a',
+        '/usr/local/iconv_old/lib/libiconv.a',
+        '/usr/local/ffmpeg_old/lib/libavcodec.a',
+        '/usr/local/ffmpeg_old/lib/libavformat.a',
+        '/usr/local/ffmpeg_old/lib/libavutil.a',
+        '/usr/local/ffmpeg_old/lib/libswscale.a',
+        '/usr/local/ffmpeg_old/lib/libswresample.a',
+        '-lbase',
+        '-lcrashpad_client',
+        '-lcrashpad_util',
+      ],
+    },
+    'include_dirs': [
+      '<(libs_loc)/crashpad_oldmac/crashpad',
+      '<(libs_loc)/crashpad_oldmac/crashpad/third_party/mini_chromium/mini_chromium',
+    ],
+    'configurations': {
+      'Debug': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad_oldmac/crashpad/out/Debug',
+        ],
+      },
+      'Release': {
+        'library_dirs': [
+          '<(libs_loc)/crashpad_oldmac/crashpad/out/Release',
+        ],
+      },
+    },
     'postbuilds': [{
       'postbuild_name': 'Force Frameworks path',
       'action': [
@@ -84,40 +114,7 @@
       'action': [
         'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/'
       ],
-    }],
-  }], [ 'build_macold', {
-    'xcode_settings': {
-      'OTHER_LDFLAGS': [
-        '/usr/local/openal_old/lib/libopenal.a',
-        '/usr/local/zlib_old/lib/libz.a',
-        '/usr/local/iconv_old/lib/libiconv.a',
-        '/usr/local/ffmpeg_old/lib/libavcodec.a',
-        '/usr/local/ffmpeg_old/lib/libavformat.a',
-        '/usr/local/ffmpeg_old/lib/libavutil.a',
-        '/usr/local/ffmpeg_old/lib/libswscale.a',
-        '/usr/local/ffmpeg_old/lib/libswresample.a',
-      ],
-    },
-    'include_dirs': [
-      '<(libs_loc)/crashpad_oldmac/crashpad',
-      '<(libs_loc)/crashpad_oldmac/crashpad/third_party/mini_chromium/mini_chromium',
-    ],
-    'library_dirs': [
-      '/usr/local/ffmpeg_old',
-    ],
-    'configurations': {
-      'Debug': {
-        'library_dirs': [
-          '<(libs_loc)/crashpad_oldmac/crashpad/out/Debug',
-        ],
-      },
-      'Release': {
-        'library_dirs': [
-          '<(libs_loc)/crashpad_oldmac/crashpad/out/Release',
-        ],
-      },
-    },
-    'postbuilds': [{
+    }, {
       'postbuild_name': 'Copy crashpad_client to Helpers',
       'action': [
         'cp',
@@ -142,9 +139,6 @@
       '<(libs_loc)/crashpad/crashpad',
       '<(libs_loc)/crashpad/crashpad/third_party/mini_chromium/mini_chromium',
     ],
-    'library_dirs': [
-      '/usr/local/ffmpeg',
-    ],
     'configurations': {
       'Debug': {
         'library_dirs': [
@@ -157,7 +151,33 @@
         ],
       },
     },
+  }], [ '"<(build_macold)" != "1" and "<(build_macstore)" != "1"', {
+    'xcode_settings': {
+      'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.Telegram',
+      'OTHER_LDFLAGS': [
+        '-lbase',
+        '-lcrashpad_client',
+        '-lcrashpad_util',
+      ],
+     },
     'postbuilds': [{
+      'postbuild_name': 'Force Frameworks path',
+      'action': [
+        'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Frameworks/'
+      ],
+    }, {
+      'postbuild_name': 'Copy Updater to Frameworks',
+      'action': [
+        'cp',
+        '${BUILT_PRODUCTS_DIR}/Updater',
+        '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Frameworks/',
+      ],
+    }, {
+      'postbuild_name': 'Force Helpers path',
+      'action': [
+        'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/'
+      ],
+    }, {
       'postbuild_name': 'Copy crashpad_client to Helpers',
       'action': [
         'cp',
@@ -165,5 +185,43 @@
         '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/',
       ],
     }],
+  }], [ 'build_macstore', {
+    'xcode_settings': {
+      'PRODUCT_BUNDLE_IDENTIFIER': 'org.telegram.desktop',
+      'OTHER_LDFLAGS': [
+        '-framework', 'Breakpad',
+      ],
+      'FRAMEWORK_SEARCH_PATHS': [
+        '<(libs_loc)/breakpad/src/client/mac/build/Release',
+      ],
+    },
+    'mac_sandbox': 1,
+    'mac_sandbox_development_team': '6N38VWS5BX',
+    'product_name': 'Telegram Desktop',
+    'sources': [
+      '../Telegram/Telegram Desktop.entitlements',
+    ],
+    'defines': [
+      'TDESKTOP_DISABLE_AUTOUPDATE',
+      'MAC_USE_BREAKPAD',
+    ],
+    'postbuilds': [{
+      'postbuild_name': 'Clear Frameworks path',
+      'action': [
+        'rm', '-rf', '${BUILT_PRODUCTS_DIR}/Telegram Desktop.app/Contents/Frameworks'
+      ],
+    }, {
+      'postbuild_name': 'Force Frameworks path',
+      'action': [
+        'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegram Desktop.app/Contents/Frameworks/'
+      ],
+    }, {
+      'postbuild_name': 'Copy Breakpad.framework to Frameworks',
+      'action': [
+        'cp', '-a',
+        '<(libs_loc)/breakpad/src/client/mac/build/Release/Breakpad.framework',
+        '${BUILT_PRODUCTS_DIR}/Telegram Desktop.app/Contents/Frameworks/Breakpad.framework',
+      ],
+    }]
   }]],
 }
