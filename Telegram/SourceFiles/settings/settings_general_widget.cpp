@@ -286,7 +286,7 @@ void GeneralWidget::onUpdateAutomatically() {
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void GeneralWidget::onEnableTrayIcon() {
-	if ((!_enableTrayIcon->checked() || cPlatform() != dbipWindows) && !_enableTaskbarIcon->checked()) {
+	if ((!_enableTrayIcon->checked() || cPlatform() != dbipWindows) && _enableTaskbarIcon && !_enableTaskbarIcon->checked()) {
 		_enableTaskbarIcon->setChecked(true);
 	} else {
 		updateWorkmode();
@@ -302,7 +302,7 @@ void GeneralWidget::onEnableTaskbarIcon() {
 }
 
 void GeneralWidget::updateWorkmode() {
-	DBIWorkMode newMode = (_enableTrayIcon->checked() && _enableTaskbarIcon->checked()) ? dbiwmWindowAndTray : (_enableTrayIcon->checked() ? dbiwmTrayOnly : dbiwmWindowOnly);
+	DBIWorkMode newMode = (_enableTrayIcon->checked() && (!_enableTaskbarIcon || _enableTaskbarIcon->checked())) ? dbiwmWindowAndTray : (_enableTrayIcon->checked() ? dbiwmTrayOnly : dbiwmWindowOnly);
 	if (cWorkMode() != newMode && (newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)) {
 		cSetSeenTrayTooltip(false);
 	}
