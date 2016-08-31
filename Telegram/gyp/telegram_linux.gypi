@@ -18,11 +18,19 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
-  'type': 'executable',
-  'variables': {
-    'win_subsystem': '2', # Windows application
-  },
-  'includes': [
-    'common.gypi',
-  ],
+  'conditions': [[ 'build_linux', {
+    'include_dirs': [
+      '/usr/local/include',
+      '<(libs_loc)/openssl-xcode/include'
+    ],
+    'library_dirs': [
+      '/usr/local/lib',
+      '<(libs_loc)/libexif-0.6.20/libexif/.libs',
+    ],
+    'libraries': [
+      '-lssl',
+      '-lcrypto',
+      '-llzma',
+    ],
+  }]],
 }

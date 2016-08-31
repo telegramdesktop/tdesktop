@@ -664,7 +664,7 @@ bool Generator::writeIconValues() {
 		if (maskData.isEmpty()) {
 			return false;
 		}
-		source_->stream() << "const uchar iconMask" << i.value() << "Data[] = " << stringToBinaryArray(maskData.toStdString()) << ";\n";
+		source_->stream() << "const uchar iconMask" << i.value() << "Data[] = " << stringToBinaryArray(std::string(maskData.constData(), maskData.size())) << ";\n";
 		source_->stream() << "IconMask iconMask" << i.value() << "(iconMask" << i.value() << "Data);\n\n";
 	}
 	return true;

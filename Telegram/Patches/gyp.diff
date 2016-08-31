@@ -1,0 +1,42 @@
+diff --git a/pylib/gyp/generator/xcode.py b/pylib/gyp/generator/xcode.py
+index 0e3fb93..0679660 100644
+--- a/pylib/gyp/generator/xcode.py
++++ b/pylib/gyp/generator/xcode.py
+@@ -72,6 +72,10 @@ generator_additional_non_configuration_keys = [
+   'ios_app_extension',
+   'ios_watch_app',
+   'ios_watchkit_extension',
++
++  'mac_sandbox', # sandbox support
++  'mac_sandbox_development_team',
++
+   'mac_bundle',
+   'mac_bundle_resources',
+   'mac_framework_headers',
+@@ -761,6 +765,26 @@ def GenerateOutput(target_list, target_dicts, data, params):
+     xcode_targets[qualified_target] = xct
+     xcode_target_to_target_dict[xct] = spec
+ 
++    # sandbox support
++    is_sandbox = int(spec.get('mac_sandbox', 0))
++    if is_sandbox:
++      dev_team = spec.get('mac_sandbox_development_team', '%%ERROR%%')
++      assert dev_team != '%%ERROR%%', (
++          'mac_sandbox must be accompanied by mac_sandbox_development_team (target "%s")' %
++          target_name)
++      try:
++        tmp =  pbxp._properties['attributes']['TargetAttributes']
++      except KeyError:
++        pbxp._properties['attributes']['TargetAttributes'] = {}
++      pbxp._properties['attributes']['TargetAttributes'][xct] = {
++        'DevelopmentTeam': dev_team,
++        'SystemCapabilities': {
++          'com.apple.Sandbox': {
++            'enabled': 1,
++          },
++        },
++      }
++
+     spec_actions = spec.get('actions', [])
+     spec_rules = spec.get('rules', [])
+ 

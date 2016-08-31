@@ -18,12 +18,16 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
+  'includes': [
+    'common.gypi',
+  ],
   'targets': [{
     'target_name': 'MetaLang',
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'gen_loc': '../GeneratedFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',
@@ -45,6 +49,7 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',
@@ -88,6 +93,7 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',

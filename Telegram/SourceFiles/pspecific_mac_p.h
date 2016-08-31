@@ -79,6 +79,7 @@ void objc_deleteDir(const QString &dir);
 
 double objc_appkitVersion();
 
+QString objc_documentsPath();
 QString objc_appDataPath();
 QString objc_downloadPath();
 QString objc_currentCountry();
@@ -88,6 +89,7 @@ QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);
 
+class objc_FileBookmarkData;
 class objc_FileBookmark {
 public:
 	objc_FileBookmark(const QByteArray &bookmark);
@@ -99,5 +101,8 @@ public:
 	QByteArray bookmark() const;
 
 	~objc_FileBookmark();
+
+private:
+	objc_FileBookmarkData *data = nullptr;
 
 };

@@ -644,9 +644,9 @@ void Image::restore() const {
 
 	QBuffer buffer(&_saved);
 	QImageReader reader(&buffer, _format);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+#ifndef OS_MAC_OLD
 	reader.setAutoTransform(true);
-#endif
+#endif // OS_MAC_OLD
 	_data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 
 	if (!_data.isNull()) {

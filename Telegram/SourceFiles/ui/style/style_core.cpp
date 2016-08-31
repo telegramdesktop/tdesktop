@@ -106,7 +106,11 @@ namespace internal {
 
 QImage createCircleMask(int size, const QColor &bg, const QColor &fg) {
 	int realSize = size * cIntRetinaFactor();
+#ifndef OS_MAC_OLD
 	auto result = QImage(realSize, realSize, QImage::Format::Format_Grayscale8);
+#else // OS_MAC_OLD
+	auto result = QImage(realSize, realSize, QImage::Format::Format_RGB32);
+#endif // OS_MAC_OLD
 	{
 		QPainter pcircle(&result);
 		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);

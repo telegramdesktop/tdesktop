@@ -21,7 +21,7 @@
   'actions': [{
     'action_name': 'update_sprites',
     'inputs': [
-      '<(PRODUCT_DIR)/codegen_style.exe',
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '<(res_loc)/basic.style',
       '<(res_loc)/art/sprite.png',
       '<(res_loc)/art/sprite_200x.png',
@@ -31,7 +31,7 @@
       '<(res_loc)/art/sprite_150x.png',
     ],
     'action': [
-      '<(PRODUCT_DIR)/codegen_style.exe',
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I<(res_loc)', '-I<(src_loc)',
       '--skip-styles', '<(res_loc)/basic.style',
     ],
@@ -71,7 +71,7 @@
   }, {
     'action_name': 'codegen_lang',
     'inputs': [
-      '<(PRODUCT_DIR)/MetaLang.exe',
+      '<(PRODUCT_DIR)/MetaLang<(exe_ext)',
       '<(res_loc)/langs/lang.strings',
     ],
     'outputs': [
@@ -79,7 +79,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/lang_auto.h',
     ],
     'action': [
-      '<(PRODUCT_DIR)/MetaLang.exe',
+      '<(PRODUCT_DIR)/MetaLang<(exe_ext)',
       '-lang_in', '<(res_loc)/langs/lang.strings',
       '-lang_out', '<(SHARED_INTERMEDIATE_DIR)/lang_auto',
     ],
@@ -88,7 +88,7 @@
   }, {
     'action_name': 'codegen_numbers',
     'inputs': [
-      '<(PRODUCT_DIR)/codegen_numbers.exe',
+      '<(PRODUCT_DIR)/codegen_numbers<(exe_ext)',
       '<(res_loc)/numbers.txt',
     ],
     'outputs': [
@@ -96,7 +96,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/numbers.h',
     ],
     'action': [
-      '<(PRODUCT_DIR)/codegen_numbers.exe',
+      '<(PRODUCT_DIR)/codegen_numbers<(exe_ext)',
       '-o<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/numbers.txt',
     ],
     'message': 'codegen_numbers-ing numbers.txt..',
@@ -106,7 +106,7 @@
     'rule_name': 'codegen_style',
     'extension': 'style',
     'inputs': [
-      '<(PRODUCT_DIR)/codegen_style.exe',
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',
     ],
     'outputs': [
@@ -114,7 +114,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/styles/style_<(RULE_INPUT_ROOT).cpp',
     ],
     'action': [
-      '<(PRODUCT_DIR)/codegen_style.exe',
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I<(res_loc)', '-I<(src_loc)', '--skip-sprites',
       '-o<(SHARED_INTERMEDIATE_DIR)/styles',
 

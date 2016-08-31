@@ -21,51 +21,77 @@
   'variables': {
     'variables': {
       'variables': {
-        'qt_version%': '5.6.0',
+        'variables': {
+          'qt_libs': [
+            'Qt5Core',
+            'Qt5Gui',
+            'Qt5Widgets',
+            'qtharfbuzzng',
+            'Qt5Network',
+            'Qt5PlatformSupport',
+            'Qt5PrintSupport',
+            'qwebp',
+          ],
+          'conditions': [
+            [ 'build_macold', {
+              'qt_version%': '5.3.2',
+            }, {
+              'qt_version%': '5.6.0',
+            }]
+          ],
+        },
+        'qt_version%': '<(qt_version)',
+        'conditions': [
+          [ 'build_win', {
+            'qt_lib_prefix': '<(ld_lib_prefix)',
+            'qt_lib_debug_postfix': 'd<(ld_lib_postfix)',
+            'qt_lib_release_postfix': '<(ld_lib_postfix)',
+            'qt_libs': [
+              '<@(qt_libs)',
+              'qtmain',
+              'qwindows',
+            ],
+          }],
+          [ 'build_mac', {
+            'qt_lib_prefix': '<(ld_lib_prefix)',
+            'qt_lib_debug_postfix': '_debug<(ld_lib_postfix)',
+            'qt_lib_release_postfix': '<(ld_lib_postfix)',
+            'qt_libs': [
+              '<@(qt_libs)',
+              'qgenericbearer',
+              'qcocoa',
+            ],
+          }],
+          [ 'build_macold', {
+            'qt_loc_unix': '/usr/local/Qt-<(qt_version)'
+          }, {
+            'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
+            'qt_libs': [
+            	'<@(qt_libs)',
+	            'qtfreetype',
+            	'qtpcre',
+            ],
+          }]
+        ],
       },
       'qt_version%': '<(qt_version)',
-      'qt_version_loc': '<!(python -c "print(\'<(qt_version)\'.replace(\'.\', \'_\')))',
-      'qtlibs_debug': [
-        '<(ld_lib_prefix)Qt5Cored<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtmaind<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtpcred<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Guid<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtfreetyped<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Widgetsd<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtharfbuzzngd<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Networkd<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5PlatformSupportd<(ld_lib_postfix)',
-        '<(ld_lib_prefix)imageformats\qwebpd<(ld_lib_postfix)',
+      'qt_loc_unix': '<(qt_loc_unix)',
+      'qt_version_loc': '<!(python -c "print(\'<(qt_version)\'.replace(\'.\', \'_\'))")',
+      'qt_libs_debug': [
+        '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_debug_postfix)\')")',
       ],
-      'qtlibs_release': [
-        '<(ld_lib_prefix)Qt5Core<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtmain<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtpcre<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Gui<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtfreetype<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Widgets<(ld_lib_postfix)',
-        '<(ld_lib_prefix)qtharfbuzzng<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5Network<(ld_lib_postfix)',
-        '<(ld_lib_prefix)Qt5PlatformSupport<(ld_lib_postfix)',
-        '<(ld_lib_prefix)imageformats\qwebp<(ld_lib_postfix)',
+      'qt_libs_release': [
+        '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_release_postfix)\')")',
       ],
     },
+    'qt_libs_debug': [ '<@(qt_libs_debug)' ],
+    'qt_libs_release': [ '<@(qt_libs_release)' ],
     'qt_version%': '<(qt_version)',
     'conditions': [
       [ 'build_win', {
-        'qtlibs_debug': [
-          '<(ld_lib_prefix)platforms/qwindowsd<(ld_lib_postfix)',
-          '<@(qtlibs_debug)',
-        ],
-        'qtlibs_release': [
-          '<(ld_lib_prefix)platforms/qwindows<(ld_lib_postfix)',
-          '<@(qtlibs_release)',
-        ],
         'qt_loc': '../../../Libraries/qt<(qt_version_loc)/qtbase',
       }, {
-        'qtlibs_debug': [ '<@(qtlibs_debug)' ],
-        'qtlibs_release': [ '<@(qtlibs_release)' ],
-        'qt_loc': '/usr/local/qt<(qt_version_loc)/qtbase',
+        'qt_loc': '<(qt_loc_unix)',
       }],
     ],
   },
@@ -77,9 +103,17 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalDependencies': [
-                '<@(qtlibs_debug)'
+                '<@(qt_libs_debug)',
               ],
             },
+          },
+        }],
+        [ 'build_mac', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '<@(qt_libs_debug)',
+              '/usr/local/lib/libz.a',
+            ],
           },
         }],
       ],
@@ -90,9 +124,17 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalDependencies': [
-                '<@(qtlibs_release)',
+                '<@(qt_libs_release)',
               ],
             },
+          },
+        }],
+        [ 'build_mac', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '<@(qt_libs_release)',
+              '/usr/local/lib/libz.a',
+            ],
           },
         }],
       ],
@@ -107,6 +149,9 @@
   'library_dirs': [
     '<(qt_loc)/lib',
     '<(qt_loc)/plugins',
+    '<(qt_loc)/plugins/bearer',
+    '<(qt_loc)/plugins/platforms',
+    '<(qt_loc)/plugins/imageformats',
   ],
   'defines': [
     'QT_WIDGETS_LIB',
@@ -122,13 +167,13 @@
       '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/moc/moc_<(RULE_INPUT_ROOT).cpp',
     ],
     'action': [
-      '<(qt_loc)/bin/moc.exe',
+      '<(qt_loc)/bin/moc<(exe_ext)',
 
       # Silence "Note: No relevant classes found. No output generated."
       '--no-notes',
 
-      '<!@(python -c "for s in \'<@(_defines)\'.split(\' \'): print(\'-D\' + s))',
-      # '<!@(python -c "for s in \'<@(_include_dirs)\'.split(\' \'): print(\'-I\' + s))',
+      '<!@(python -c "for s in \'<@(_defines)\'.split(\' \'): print(\'-D\' + s)")',
+      # '<!@(python -c "for s in \'<@(_include_dirs)\'.split(\' \'): print(\'-I\' + s)")',
       '<(RULE_INPUT_PATH)',
       '-o', '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/moc/moc_<(RULE_INPUT_ROOT).cpp',
     ],
@@ -144,7 +189,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/qrc/qrc_<(RULE_INPUT_ROOT).cpp',
     ],
     'action': [
-      '<(qt_loc)/bin/rcc.exe',
+      '<(qt_loc)/bin/rcc<(exe_ext)',
       '-name', '<(RULE_INPUT_ROOT)',
       '-no-compress',
       '<(RULE_INPUT_PATH)',

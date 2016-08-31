@@ -18,6 +18,9 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
+  'includes': [
+    'common.gypi',
+  ],
   'targets': [{
     'target_name': 'Updater',
     'variables': {
@@ -65,19 +68,30 @@
     'variables': {
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
     },
     'includes': [
       'common_executable.gypi',
       'qt.gypi',
     ],
-    'libraries': [
-      'libeay32',
-      'ssleay32',
-      'Crypt32',
-      'zlibstat',
-      'LzmaLib',
+    'conditions': [
+      [ 'build_win', {
+        'libraries': [
+          'libeay32',
+          'ssleay32',
+          'Crypt32',
+          'zlibstat',
+          'LzmaLib',
+        ],
+      }],
     ],
-
+    'xcode_settings': {
+      'OTHER_LDFLAGS': [
+        '-lssl',
+        '-lcrypto',
+        '-llzma',
+      ],
+    },
     'include_dirs': [
       '<(src_loc)',
       '<(libs_loc)/lzma/C',
@@ -89,23 +103,47 @@
     ],
     'configurations': {
       'Debug': {
-        'include_dirs': [
-          '<(libs_loc)/openssl_debug/Debug/include',
-        ],
-        'library_dirs': [
-          '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
-          '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatDebug',
-          '<(libs_loc)/openssl_debug/Debug/lib',
+        'conditions': [
+          [ 'build_win', {
+            'include_dirs': [
+              '<(libs_loc)/openssl_debug/Debug/include',
+            ],
+            'library_dirs': [
+              '<(libs_loc)/openssl_debug/Debug/lib',
+              '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
+              '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatDebug',
+            ],
+          }, {
+            'include_dirs': [
+              '/usr/local/include',
+              '<(libs_loc)/openssl-xcode/include'
+            ],
+            'library_dirs': [
+              '/usr/local/lib',
+            ],
+          }]
         ],
       },
       'Release': {
-        'include_dirs': [
-          '<(libs_loc)/openssl/Release/include',
-        ],
-        'library_dirs': [
-          '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
-          '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatRelease',
-          '<(libs_loc)/openssl/Release/lib',
+        'conditions': [
+          [ 'build_win', {
+            'include_dirs': [
+              '<(libs_loc)/openssl/Release/include',
+            ],
+            'library_dirs': [
+              '<(libs_loc)/openssl/Release/lib',
+              '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
+              '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatRelease',
+            ],
+          }, {
+            'include_dirs': [
+              '/usr/local/include',
+              '<(libs_loc)/openssl-xcode/include'
+            ],
+            'library_dirs': [
+              '/usr/local/lib',
+            ],
+          }]
         ],
       },
     },

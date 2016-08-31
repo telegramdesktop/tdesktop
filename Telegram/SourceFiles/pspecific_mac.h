@@ -20,7 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific_mac_p.h"
 
 inline QString psServerPrefix() {
+#ifndef OS_MAC_STORE
     return qsl("/tmp/");
+#else // OS_MAC_STORE
+	return objc_documentsPath();
+#endif // OS_MAC_STORE
 }
 inline void psCheckLocalSocket(const QString &serverName) {
     QFile address(serverName);

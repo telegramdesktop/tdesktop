@@ -21,8 +21,6 @@ Error () {
   exit 1
 }
 
-FastParam="$1"
-
 if [ ! -f "$FullScriptPath/target" ]; then
   Error "Build target not found!"
 fi
@@ -70,13 +68,13 @@ elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../Mac/Release"
+  ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac32" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.6 and 10.7.."
   UpdateFile="tmac32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../Mac/Release"
+  ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$BetaVersion" != "0" ]; then
@@ -84,7 +82,7 @@ elif [ "$BuildTarget" == "macstore" ]; then
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
-  ReleasePath="$HomePath/../Mac/Release"
+  ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram Desktop"
   DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
   DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
@@ -214,10 +212,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     Error "Dropbox path not found!"
   fi
 
-  if [ "$FastParam" != "fast" ]; then
-    touch "./Resources/telegram.qrc"
-    touch "./Telegram.plist"
-  fi
+  gyp/refresh.sh
+  cd ../
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
@@ -229,9 +225,17 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   fi
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-    echo "Removing Updater debug symbols.."
-    rm -rf "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater.dSYM"
-    echo "Done!"
+    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
+      Error "Updater not found!"
+    fi
+    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Helpers/crashpad_handler" ]; then
+      Error "crashpad_handler not found!"
+    fi
+  fi
+  if [ "$BuildTarget" == "macstore" ]; then
+    if [ ! -d "$ReleasePath/$BinaryName.app/Contents/Frameworks/Breakpad.framework" ]; then
+      Error "Breakpad.framework not found!"
+    fi
   fi
 
   echo "Dumping debug symbols.."
@@ -246,7 +250,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
   elif [ "$BuildTarget" == "macstore" ]; then
-    codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "Telegram/Telegram Desktop.entitlements"
+    codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram Desktop.entitlements"
+    echo "Making an installer.."
+    productbuild --sign "3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
   fi
   echo "Done!"
 

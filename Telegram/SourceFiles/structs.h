@@ -1417,7 +1417,13 @@ inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
 	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
 }
 inline uint qHash(const LocationCoords &t, uint seed = 0) {
+#ifndef OS_MAC_OLD
 	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
+#else // OS_MAC_OLD
+	uint h1 = qHash(t.lat, seed);
+	uint h2 = qHash(t.lon, seed);
+	return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
+#endif // OS_MAC_OLD
 }
 
 struct LocationData {

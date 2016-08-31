@@ -21,9 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "app.h"
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#ifdef OS_MAC_OLD
 #include <libexif/exif-data.h>
-#endif
+#endif // OS_MAC_OLD
 
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
@@ -350,8 +350,13 @@ namespace {
 
 			// {fulltype} is in "{type}-{tag}-{tag}-{tag}" format
 			// if we find "all" tag we return the restriction string
-			QStringList typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
-			if (typeTags.contains(qsl("all"))) {
+			auto typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
+#ifndef OS_MAC_STORE
+			auto restrictionApplies = typeTags.contains(qsl("all"));
+#else // OS_MAC_STORE
+			auto restrictionApplies = typeTags.contains(qsl("all")) || typeTags.contains(qsl("ios"));
+#endif // OS_MAC_STORE
+			if (restrictionApplies) {
 				return fullRestriction.midRef(fullTypeEnd + 1).trimmed().toString();
 			}
 			return QString();
@@ -2390,9 +2395,9 @@ namespace {
         }
 		{
 			QImageReader reader(&buffer, *format);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+#ifndef OS_MAC_OLD
 			reader.setAutoTransform(true);
-#endif
+#endif // OS_MAC_OLD
 			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
 			QByteArray fmt = reader.format();
 			if (!fmt.isEmpty()) *format = fmt;
@@ -2405,7 +2410,7 @@ namespace {
 		buffer.seek(0);
         QString fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#ifdef OS_MAC_OLD
 			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
 			if (exifData) {
 				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
@@ -2426,7 +2431,7 @@ namespace {
 				}
 				exif_data_free(exifData);
 			}
-#endif
+#endif // OS_MAC_OLD
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);

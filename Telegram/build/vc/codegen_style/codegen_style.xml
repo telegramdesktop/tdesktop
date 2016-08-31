@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ProjectSchemaDefinitions xmlns="http://schemas.microsoft.com/build/2009/properties" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">
-  <ItemType Name="CodegenStyleItem" DisplayName="Style File" />
-  <ContentType Name="CodegenStyleContent" ItemType="CodegenStyleItem" DisplayName="Style File" />
-  <FileExtension Name="*.style" ContentType="CodegenStyleContent" />
-</ProjectSchemaDefinitions>
