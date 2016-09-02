@@ -813,7 +813,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 	void create(const MTPReplyMarkup &markup);
 
 	struct Button {
-		enum Type {
+		enum class Type {
 			Default,
 			Url,
 			Callback,
@@ -821,6 +821,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 			RequestLocation,
 			SwitchInline,
 			SwitchInlineSame,
+			Game,
 		};
 		Type type;
 		QString text;
@@ -2757,10 +2758,17 @@ inline MTPDmessage::Flags newMessageFlags(PeerData *p) {
 	return result;
 }
 
-struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
+struct HistoryServiceDependentData {
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
 	ClickHandlerPtr lnk;
+};
+
+struct HistoryServicePinned : public BaseComponent<HistoryServicePinned>, public HistoryServiceDependentData {
+};
+
+struct HistoryServiceGameScore : public BaseComponent<HistoryServiceGameScore>, public HistoryServiceDependentData {
+	int score = 0;
 };
 
 namespace HistoryLayout {
@@ -2776,18 +2784,16 @@ public:
 		return _create(history, msgId, date, msg, flags, from);
 	}
 
-	bool updateDependencyItem() override {
-		return updatePinned(true);
-	}
+	bool updateDependencyItem() override;
 	MsgId dependencyMsgId() const override {
-		if (const HistoryServicePinned *pinned = Get<HistoryServicePinned>()) {
-			return pinned->msgId;
+		if (auto dependent = GetDependentData()) {
+			return dependent->msgId;
 		}
 		return 0;
 	}
 	bool notificationReady() const override {
-		if (const HistoryServicePinned *pinned = Get<HistoryServicePinned>()) {
-			return (pinned->msg || !pinned->msgId);
+		if (auto dependent = GetDependentData()) {
+			return (dependent->msg || !dependent->msgId);
 		}
 		return true;
 	}
@@ -2842,9 +2848,31 @@ protected:
 
 	void removeMedia();
 
+	HistoryServiceDependentData *GetDependentData() {
+		if (auto pinned = Get<HistoryServicePinned>()) {
+			return pinned;
+		} else if (auto gamescore = Get<HistoryServiceGameScore>()) {
+			return gamescore;
+		}
+		return nullptr;
+	}
+	const HistoryServiceDependentData *GetDependentData() const {
+		return const_cast<HistoryService*>(this)->GetDependentData();
+	}
+	bool updateDependent(bool force = false);
+	bool updateDependentText() {
+		if (Has<HistoryServicePinned>()) {
+			return updatePinnedText();
+		} else if (Has<HistoryServiceGameScore>()) {
+			return updateGameScoreText();
+		}
+		return false;
+	}
+	void clearDependency();
+
 	void setMessageByAction(const MTPmessageAction &action);
-	bool updatePinned(bool force = false);
 	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
+	bool updateGameScoreText(QString *ptext = nullptr);
 
 };
 

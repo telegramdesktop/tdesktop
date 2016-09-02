@@ -63,37 +63,39 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 	}
 	if (!button) return;
 
+	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
 	switch (button->type) {
-	case HistoryMessageReplyMarkup::Button::Default: {
+	case ButtonType::Default: {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
 		sendBotCommand(msg->history()->peer, msg->fromOriginal()->asUser(), QString(button->text), replyTo);
 	} break;
 
-	case HistoryMessageReplyMarkup::Button::Callback: {
+	case ButtonType::Callback:
+	case ButtonType::Game: {
 		if (MainWidget *m = main()) {
 			m->app_sendBotCallback(button, msg, row, col);
 		}
 	} break;
 
-	case HistoryMessageReplyMarkup::Button::Url: {
+	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
 		UrlClickHandler(url).onClick(Qt::LeftButton);
 	} break;
 
-	case HistoryMessageReplyMarkup::Button::RequestLocation: {
+	case ButtonType::RequestLocation: {
 		Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
 	} break;
 
-	case HistoryMessageReplyMarkup::Button::RequestPhone: {
+	case ButtonType::RequestPhone: {
 		SharePhoneConfirmBox *box = new SharePhoneConfirmBox(msg->history()->peer);
 		box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
 		Ui::showLayer(box);
 	} break;
 
-	case HistoryMessageReplyMarkup::Button::SwitchInlineSame:
-	case HistoryMessageReplyMarkup::Button::SwitchInline: {
+	case ButtonType::SwitchInlineSame:
+	case ButtonType::SwitchInline: {
 		if (auto m = App::main()) {
 			auto getMessageBot = [msg]() -> UserData* {
 				if (auto bot = msg->viaBot()) {
@@ -107,7 +109,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 			};
 			if (auto bot = getMessageBot()) {
 				auto tryFastSwitch = [bot, &button, msgId = msg->id]() -> bool {
-					auto samePeer = (button->type == HistoryMessageReplyMarkup::Button::SwitchInlineSame);
+					auto samePeer = (button->type == ButtonType::SwitchInlineSame);
 					if (samePeer) {
 						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data), bot, msgId);
 						return true;

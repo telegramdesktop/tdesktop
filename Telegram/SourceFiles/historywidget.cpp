@@ -5764,7 +5764,19 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, msg->id));
 
 	BotCallbackInfo info = { msg->fullId(), row, col };
-	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(_peer->input, MTP_int(msg->id), MTP_bytes(button->data)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
+	MTPmessages_GetBotCallbackAnswer::Flags flags = 0;
+	QByteArray sendData;
+	int32 sendGameId = 0;
+	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
+	if (button->type == ButtonType::Game) {
+		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_game_id;
+		auto strData = QString::fromUtf8(button->data);
+		sendGameId = strData.midRef(0, strData.indexOf(',')).toInt();
+	} else if (button->type == ButtonType::Callback) {
+		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_data;
+		sendData = button->data;
+	}
+	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData), MTP_int(sendGameId)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
 	Ui::repaintHistoryItem(msg);
 
 	if (_replyToId == msg->id) {
@@ -5777,7 +5789,7 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 }
 
 void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req) {
-	if (HistoryItem *item = App::histItemById(info.msgId)) {
+	if (auto item = App::histItemById(info.msgId)) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
@@ -5788,7 +5800,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 		}
 	}
 	if (answer.type() == mtpc_messages_botCallbackAnswer) {
-		const auto &answerData(answer.c_messages_botCallbackAnswer());
+		auto &answerData = answer.c_messages_botCallbackAnswer();
 		if (answerData.has_message()) {
 			if (answerData.is_alert()) {
 				Ui::showLayer(new InformBox(qs(answerData.vmessage)));
