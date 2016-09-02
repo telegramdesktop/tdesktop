@@ -89,7 +89,6 @@ QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);
 
-class objc_FileBookmarkData;
 class objc_FileBookmark {
 public:
 	objc_FileBookmark(const QByteArray &bookmark);
@@ -103,6 +102,9 @@ public:
 	~objc_FileBookmark();
 
 private:
+#ifdef OS_MAC_STORE
+	class objc_FileBookmarkData;
 	objc_FileBookmarkData *data = nullptr;
+#endif // OS_MAC_STORE
 
 };
