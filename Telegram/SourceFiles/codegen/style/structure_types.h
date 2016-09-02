@@ -75,7 +75,10 @@ inline bool operator!=(const Type &a, const Type &b) {
 namespace data {
 
 inline int pxAdjust(int value, int scale) {
-	return qRound((value * scale / 4.) + (value > 0 ? -0.01 : 0.01));
+	if (value < 0) {
+		return -pxAdjust(-value, scale);
+	}
+	return static_cast<int>(std::floor((value * scale / 4.) + 0.1));
 }
 
 struct point {
