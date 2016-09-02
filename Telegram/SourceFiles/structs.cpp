@@ -1636,7 +1636,7 @@ void PeerOpenClickHandler::onClickImpl() const {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
 				Ui::showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
-				Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
+				Ui::showPeerHistory(peer(), ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 			}
 		} else {
 			Ui::showPeerProfile(peer());
