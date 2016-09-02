@@ -51,7 +51,7 @@
       ],
     },
     'includes': [
-	    'common_executable.gypi',
+      'common_executable.gypi',
       'telegram_qrc.gypi',
       'telegram_win.gypi',
       'telegram_mac.gypi',

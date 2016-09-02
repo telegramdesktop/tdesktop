@@ -89,11 +89,6 @@ call :repl "Replace=(AppVersion\s+=) (\s*)\d+/$1$2 %VersionFull%" "Filename=%Ver
 call :repl "Replace=(AppVersionStr\s+=) (\s*)[&hat;;]+/$1$2 &quot;%VersionStrSmall%&quot;" "Filename=%VersionHeaderPath%" || goto :error
 call :repl "Replace=(AppAlphaVersion\s+=) (\s*)[a-z]+/$1$2 %VersionAlphaBool%" "Filename=%VersionHeaderPath%" || goto :error
 
-echo Patching project.pbxproj...
-set "TelegramProjectPath=%FullScriptPath%..\Telegram.xcodeproj\project.pbxproj"
-call :repl "Replace=(TDESKTOP_MAJOR_VERSION\s+=) (\s*)[&hat;;]+/$1$2 %VersionMajor%.%VersionMinor%" "Filename=%TelegramProjectPath%" || goto :error
-call :repl "Replace=(TDESKTOP_VERSION\s+=) (\s*)[&hat;;]+/$1$2 %VersionStrSmall%" "Filename=%TelegramProjectPath%" || goto :error
-
 echo Patching Telegram.rc...
 set "ResourcePath=%FullScriptPath%..\Resources\winrc\Telegram.rc"
 call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
