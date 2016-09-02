@@ -94,7 +94,12 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
+#ifndef OS_MAC_STORE
 	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();
+#else // OS_MAC_STORE
+	h[4] = 0; // use only first 4 chars
+	_localServerName = psServerPrefix() + h;
+#endif // OS_MAC_STORE
 
 	connect(&_localSocket, SIGNAL(connected()), this, SLOT(socketConnected()));
 	connect(&_localSocket, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));

@@ -45,6 +45,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma clang diagnostic pop
 #endif // __clang__
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#define OS_MAC_OLD
+#endif // QT_VERSION < 5.5.0
+
+#ifdef OS_MAC_STORE
+#define MAC_USE_BREAKPAD
+#endif // OS_MAC_STORE
+
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
 

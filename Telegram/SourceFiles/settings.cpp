@@ -136,12 +136,14 @@ bool gAutoPlayGif = true;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
+#ifndef OS_MAC_OLD
 	if (QSysInfo::macVersion() >= QSysInfo::MV_10_11) {
 		gIsElCapitan = true;
-	} else if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
-		gPlatform = dbipMacOld;
 	}
-#endif
+#else // OS_MAC_OLD
+	gPlatform = dbipMacOld;
+#endif // OS_MAC_OLD
+#endif // Q_OS_MAC
 
 	switch (cPlatform()) {
 	case dbipWindows:
@@ -150,7 +152,11 @@ void settingsParseArgs(int argc, char *argv[]) {
 	break;
 	case dbipMac:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
+#ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
+#else // OS_MAC_STORE
+		gPlatformString = qsl("MacAppStore");
+#endif // OS_MAC_STORE
 	break;
 	case dbipMacOld:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
