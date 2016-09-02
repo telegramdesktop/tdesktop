@@ -1355,7 +1355,7 @@ RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCal
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _revokeCallback(std::move(revokeCallback)) {
+, _revokeCallback(std_::move(revokeCallback)) {
 	setMouseTracking(true);
 
 	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
