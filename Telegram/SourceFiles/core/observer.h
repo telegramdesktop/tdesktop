@@ -103,7 +103,12 @@ public:
 	void notify(Flags flags, Args&&... args) {
 		t_assert(started());
 
-		for (auto &entry : _list->entries) {
+		auto &entries = _list->entries;
+		// This way of iterating (i < entries.size() should be used
+		// because some entries can be removed from the end of the
+		// entries list while the loop is still running.
+		for (int i = 0; i < entries.size(); ++i) {
+			auto &entry = entries[i];
 			if (!entry.handler.isNull() && (flags & entry.flags)) {
 				entry.handler.call(std_::forward<Args>(args)...);
 			}
@@ -131,7 +136,7 @@ private:
 
 		t_assert(that->started());
 
-		auto &entries(that->_list->entries);
+		auto &entries = that->_list->entries;
 		if (entries.size() <= connectionIndex) return;
 
 		if (entries.size() == connectionIndex + 1) {
