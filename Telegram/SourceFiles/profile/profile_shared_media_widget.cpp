@@ -84,7 +84,7 @@ void SharedMediaWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 int SharedMediaWidget::resizeGetHeight(int newWidth) {
 	int newHeight = contentTop();
 
-	resizeButtons(&newHeight);
+	resizeButtons(newWidth, &newHeight);
 
 	return newHeight;
 }
@@ -135,11 +135,11 @@ void SharedMediaWidget::onMediaChosen() {
 	}
 }
 
-void SharedMediaWidget::resizeButtons(int *top) {
+void SharedMediaWidget::resizeButtons(int newWidth, int *top) {
 	t_assert(top != nullptr);
 
 	int left = defaultOutlineButtonLeft();
-	int availableWidth = width() - left - st::profileBlockMarginRight;
+	int availableWidth = newWidth - left - st::profileBlockMarginRight;
 	accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
 	for_const (auto button, _mediaButtons) {
 		if (!button) continue;

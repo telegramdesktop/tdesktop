@@ -138,18 +138,6 @@ QString BetaSignature;
 int main(int argc, char *argv[])
 {
 	QString workDir;
-#ifdef Q_OS_MAC
-    if (QDir(QString()).absolutePath() == "/") {
-		QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
-		if (!first.isEmpty()) {
-			QFileInfo info(first);
-			if (info.exists()) {
-				QDir result(info.absolutePath() + "/../../..");
-				workDir = result.absolutePath() + '/';
-			}
-		}
-	}
-#endif
 
 	QString remove;
 	int version = 0;

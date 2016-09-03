@@ -1355,7 +1355,7 @@ RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCal
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _revokeCallback(std::move(revokeCallback)) {
+, _revokeCallback(std_::move(revokeCallback)) {
 	setMouseTracking(true);
 
 	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
@@ -1406,7 +1406,7 @@ void RevokePublicLinkBox::mousePressEvent(QMouseEvent *e) {
 void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = createAndSwap(_pressed);
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
-	if (pressed == _selected) {
+	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, qsl("telegram.me/") + pressed->userName(), lt_group, pressed->name);
 		weakRevokeConfirmBox = new ConfirmBox(text, lang(lng_channels_too_much_public_revoke));

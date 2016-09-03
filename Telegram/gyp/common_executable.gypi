@@ -25,4 +25,10 @@
   'includes': [
     'common.gypi',
   ],
+  'msvs_settings': {
+    'VCLinkerTool': {
+      'SubSystem': '<(win_subsystem)',
+      'ImportLibrary': '<(PRODUCT_DIR)/<(_target_name).lib',
+    },
+  },
 }

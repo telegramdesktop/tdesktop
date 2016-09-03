@@ -53,7 +53,7 @@ private:
 	void refreshButton(MediaOverviewType type);
 	void refreshVisibility();
 
-	void resizeButtons(int *top);
+	void resizeButtons(int newWidth, int *top);
 
 	Ui::LeftOutlineButton *_mediaButtons[OverviewCount] = { nullptr };
 	History *_history;

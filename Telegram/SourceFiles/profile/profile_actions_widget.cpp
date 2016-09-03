@@ -98,15 +98,15 @@ Ui::LeftOutlineButton *ActionsWidget::addButton(const QString &text, const char 
 	result->show();
 
 	int top = buttonsBottom() + skipHeight;
-	resizeButton(result, top);
+	resizeButton(result, width(), top);
 
 	_buttons.push_back(result);
 	return result;
 };
 
-void ActionsWidget::resizeButton(Ui::LeftOutlineButton *button, int top) {
+void ActionsWidget::resizeButton(Ui::LeftOutlineButton *button, int newWidth, int top) {
 	int left = defaultOutlineButtonLeft();
-	int availableWidth = width() - left - st::profileBlockMarginRight;
+	int availableWidth = newWidth - left - st::profileBlockMarginRight;
 	accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
 	button->resizeToWidth(availableWidth);
 	button->moveToLeft(left, top);
@@ -242,7 +242,7 @@ void ActionsWidget::refreshLeaveChannel() {
 
 int ActionsWidget::resizeGetHeight(int newWidth) {
 	for_const (auto button, _buttons) {
-		resizeButton(button, button->y());
+		resizeButton(button, newWidth, button->y());
 	}
 	return buttonsBottom();
 }

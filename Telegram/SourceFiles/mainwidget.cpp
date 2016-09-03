@@ -3451,7 +3451,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 				_history->resizeEvent(0);
 			}
 		}
-		Ui::showPeerHistory(peer->id, msgId);
+		Ui::showPeerHistory(peer->id, msgId, Ui::ShowWay::Forward);
 	}
 }
 

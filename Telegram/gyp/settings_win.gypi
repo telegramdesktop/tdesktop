@@ -42,10 +42,8 @@
           'TreatWChar_tAsBuiltInType': 'false',
         },
         'VCLinkerTool': {
-          'SubSystem': '<(win_subsystem)',
           'MinimumRequiredVersion': '5.01',
           'ImageHasSafeExceptionHandlers': 'false',   # Disable /SAFESEH
-          'ImportLibrary': '<(PRODUCT_DIR)/<(_target_name).lib',
         },
       },
       'libraries': [

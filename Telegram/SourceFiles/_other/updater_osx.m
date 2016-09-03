@@ -160,6 +160,14 @@ int main(int argc, const char * argv[]) {
 
 		writeLog([@"Starting update files iteration, path: " stringByAppendingString: srcEnum]);
 
+		NSString *contentsPath = [appDirFull stringByAppendingString: @"/Contents"];
+		writeLog([[NSArray arrayWithObjects: @"Clearing dir ", contentsPath, nil] componentsJoinedByString:@""]);
+		if (![fileManager removeItemAtPath:contentsPath error:nil]) {
+			writeLog([@"Failed to clear path for directory " stringByAppendingString:contentsPath]);
+			delFolder();
+			return -1;
+		}
+
 		NSArray *keys = [NSArray arrayWithObject:NSURLIsDirectoryKey];
 		NSDirectoryEnumerator *enumerator = [fileManager
 											 enumeratorAtURL:[NSURL fileURLWithPath:srcEnum]

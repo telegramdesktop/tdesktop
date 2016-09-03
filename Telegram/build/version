@@ -1,6 +1,6 @@
-AppVersion         10002
+AppVersion         10003
 AppVersionStrMajor 0.10
-AppVersionStrSmall 0.10.2
-AppVersionStr      0.10.2
-AlphaChannel       0
-BetaVersion        10002001
+AppVersionStrSmall 0.10.3
+AppVersionStr      0.10.3
+AlphaChannel       1
+BetaVersion        0

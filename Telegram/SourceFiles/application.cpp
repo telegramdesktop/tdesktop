@@ -1065,8 +1065,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 9058) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Alpha version of an embedded video player");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10003) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New cute design for the Settings page");
 			} else if (Local::oldMapVersion() < 10000) {
 				versionFeatures = langNewVersionText();
 			} else {

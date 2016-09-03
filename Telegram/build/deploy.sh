@@ -83,7 +83,7 @@ elif [ "$BuildTarget" == "mac" ]; then
   fi
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../Mac/Release"
+  ReleasePath="$HomePath/../out/Release"
   RemoteFolder="tmac"
   Mac32DeployPath="$HomePath/../../tother/tmac32/$AppVersionStrMajor/$AppVersionStrFull"
   Mac32UpdateFile="tmac32upd$AppVersion"

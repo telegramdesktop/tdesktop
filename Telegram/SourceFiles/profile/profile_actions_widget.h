@@ -73,7 +73,7 @@ private:
 
 	Ui::LeftOutlineButton *addButton(const QString &text, const char *slot
 		, const style::OutlineButton &st = st::defaultLeftOutlineButton, int skipHeight = 0);
-	void resizeButton(Ui::LeftOutlineButton *button, int top);
+	void resizeButton(Ui::LeftOutlineButton *button, int newWidth, int top);
 
 	QString getBlockButtonText() const;
 	bool hasBotCommand(const QString &command) const;

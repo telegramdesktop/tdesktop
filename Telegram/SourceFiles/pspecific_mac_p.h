@@ -24,31 +24,31 @@ public:
 
 	PsMacWindowPrivate();
 
-    void setWindowBadge(const QString &str);
-    void startBounce();
+	void setWindowBadge(const QString &str);
+	void startBounce();
 
 	void updateDelegate();
-    
-    void showNotify(uint64 peer, int32 msgId, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
-    void clearNotifies(uint64 peer = 0);
-    
-    void enableShadow(WId winId);
+
+	void showNotify(uint64 peer, int32 msgId, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
+	void clearNotifies(uint64 peer = 0);
+
+	void enableShadow(WId winId);
 
 	bool filterNativeEvent(void *event);
 
-    virtual void activeSpaceChanged() {
-    }
+	virtual void activeSpaceChanged() {
+	}
 	virtual void darkModeChanged() {
 	}
-    virtual void notifyClicked(unsigned long long peer, int msgid) {
-    }
-    virtual void notifyReplied(unsigned long long peer, int msgid, const char *str) {
-    }
-    
+	virtual void notifyClicked(unsigned long long peer, int msgid) {
+	}
+	virtual void notifyReplied(unsigned long long peer, int msgid, const char *str) {
+	}
+
 	~PsMacWindowPrivate();
 
-    PsMacWindowData *data;
-    
+	PsMacWindowData *data;
+
 };
 
 void objc_holdOnTop(WId winId);
@@ -89,7 +89,6 @@ QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);
 
-class objc_FileBookmarkData;
 class objc_FileBookmark {
 public:
 	objc_FileBookmark(const QByteArray &bookmark);
@@ -103,6 +102,9 @@ public:
 	~objc_FileBookmark();
 
 private:
+#ifdef OS_MAC_STORE
+	class objc_FileBookmarkData;
 	objc_FileBookmarkData *data = nullptr;
+#endif // OS_MAC_STORE
 
 };

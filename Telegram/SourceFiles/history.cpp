@@ -8458,7 +8458,7 @@ void GoToMessageClickHandler::onClickImpl() const {
 		if (current && current->history()->peer->id == peer()) {
 			App::main()->pushReplyReturn(current);
 		}
-		Ui::showPeerHistory(peer(), msgid());
+		Ui::showPeerHistory(peer(), msgid(), Ui::ShowWay::Forward);
 	}
 }
 
