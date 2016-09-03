@@ -1406,7 +1406,7 @@ void RevokePublicLinkBox::mousePressEvent(QMouseEvent *e) {
 void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = createAndSwap(_pressed);
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
-	if (pressed == _selected) {
+	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, qsl("telegram.me/") + pressed->userName(), lt_group, pressed->name);
 		weakRevokeConfirmBox = new ConfirmBox(text, lang(lng_channels_too_much_public_revoke));
