@@ -320,17 +320,18 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent),
-_disabled(false), _st(st),
-hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this, &_st),
-_touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
-_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
-_touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false), _other(0) {
+ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent)
+, _st(st)
+, _horizontalBar(this, false, &_st)
+, _verticalBar(this, true, &_st)
+, _topShadow(this, &_st)
+, _bottomShadow(this, &_st)
+, _touchEnabled(handleTouch) {
 	setLayoutDirection(cLangDir());
 
-	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));
-	connect(&vert, SIGNAL(bottomShadowVisibility(bool)), &bottomSh, SLOT(changeVisibility(bool)));
-	vert.updateBar(true);
+	connect(_verticalBar, SIGNAL(topShadowVisibility(bool)), _topShadow, SLOT(changeVisibility(bool)));
+	connect(_verticalBar, SIGNAL(bottomShadowVisibility(bool)), _bottomShadow, SLOT(changeVisibility(bool)));
+	_verticalBar->updateBar(true);
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -338,8 +339,8 @@ _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouc
 	setFrameStyle(QFrame::NoFrame | QFrame::Plain);
 	viewport()->setAutoFillBackground(false);
 
-	_horValue = horizontalScrollBar()->value();
-	_vertValue = verticalScrollBar()->value();
+	_horizontalValue = horizontalScrollBar()->value();
+	_verticalValue = verticalScrollBar()->value();
 
 	if (_touchEnabled) {
 		viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
@@ -360,25 +361,26 @@ void ScrollArea::onScrolled() {
 	myEnsureResized(widget());
 
 	bool em = false;
-	int32 horValue = horizontalScrollBar()->value(), vertValue = verticalScrollBar()->value();
-	if (_horValue != horValue) {
+	int horizontalValue = horizontalScrollBar()->value();
+	int verticalValue = verticalScrollBar()->value();
+	if (_horizontalValue != horizontalValue) {
 		if (_disabled) {
-			horizontalScrollBar()->setValue(_horValue);
+			horizontalScrollBar()->setValue(_horizontalValue);
 		} else {
-			_horValue = horValue;
+			_horizontalValue = horizontalValue;
 			if (_st.hiding) {
-				hor.hideTimeout(_st.hiding);
+				_horizontalBar->hideTimeout(_st.hiding);
 			}
 			em = true;
 		}
 	}
-	if (_vertValue != vertValue) {
+	if (_verticalValue != verticalValue) {
 		if (_disabled) {
-			verticalScrollBar()->setValue(_vertValue);
+			verticalScrollBar()->setValue(_verticalValue);
 		} else {
-			_vertValue = vertValue;
+			_verticalValue = verticalValue;
 			if (_st.hiding) {
-				vert.hideTimeout(_st.hiding);
+				_verticalBar->hideTimeout(_st.hiding);
 			}
 			em = true;
 		}
@@ -410,11 +412,11 @@ int ScrollArea::scrollTopMax() const {
 }
 
 int ScrollArea::scrollLeft() const {
-	return _horValue;
+	return _horizontalValue;
 }
 
 int ScrollArea::scrollTop() const {
-	return _vertValue;
+	return _verticalValue;
 }
 
 void ScrollArea::onTouchTimer() {
@@ -610,8 +612,8 @@ void ScrollArea::touchScrollUpdated(const QPoint &screenPos) {
 void ScrollArea::disableScroll(bool dis) {
 	_disabled = dis;
 	if (_disabled && _st.hiding) {
-		hor.hideTimeout(0);
-		vert.hideTimeout(0);
+		_horizontalBar->hideTimeout(0);
+		_verticalBar->hideTimeout(0);
 	}
 }
 
@@ -632,10 +634,10 @@ bool ScrollArea::touchScroll(const QPoint &delta) {
 
 void ScrollArea::resizeEvent(QResizeEvent *e) {
 	QScrollArea::resizeEvent(e);
-	hor.recountSize();
-	vert.recountSize();
-	topSh.setGeometry(QRect(0, 0, width(), qAbs(_st.topsh)));
-	bottomSh.setGeometry(QRect(0, height() - qAbs(_st.bottomsh), width(), qAbs(_st.bottomsh)));
+	_horizontalBar->recountSize();
+	_verticalBar->recountSize();
+	_topShadow->setGeometry(QRect(0, 0, width(), qAbs(_st.topsh)));
+	_bottomShadow->setGeometry(QRect(0, height() - qAbs(_st.bottomsh), width(), qAbs(_st.bottomsh)));
 	if (SplittedWidget *w = qobject_cast<SplittedWidget*>(widget())) {
 		w->resize(width() - w->otherWidth(), w->height());
 		if (!rtl()) {
@@ -663,16 +665,16 @@ void ScrollArea::keyPressEvent(QKeyEvent *e) {
 void ScrollArea::enterEventHook(QEvent *e) {
 	if (_disabled) return;
 	if (_st.hiding) {
-		hor.hideTimeout(_st.hiding);
-		vert.hideTimeout(_st.hiding);
+		_horizontalBar->hideTimeout(_st.hiding);
+		_verticalBar->hideTimeout(_st.hiding);
 	}
 	return QScrollArea::enterEvent(e);
 }
 
 void ScrollArea::leaveEventHook(QEvent *e) {
 	if (_st.hiding) {
-		hor.hideTimeout(0);
-		vert.hideTimeout(0);
+		_horizontalBar->hideTimeout(0);
+		_verticalBar->hideTimeout(0);
 	}
 	return QScrollArea::leaveEvent(e);
 }
@@ -716,10 +718,10 @@ void ScrollArea::setWidget(QWidget *w) {
 	} else if (!_other && splitted) {
 		_other = new SplittedWidgetOther(this);
 		_other->setAttribute(Qt::WA_OpaquePaintEvent);
-		_other->resize(vert.width(), _other->height());
+		_other->resize(_verticalBar->width(), _other->height());
 		connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-		hor.raise();
-		vert.raise();
+		_horizontalBar->raise();
+		_verticalBar->raise();
 	}
 	if (_ownsWidget) {
 		_ownsWidget = false;
@@ -734,7 +736,7 @@ void ScrollArea::setWidget(QWidget *w) {
 			w->setAttribute(Qt::WA_AcceptTouchEvents);
 		}
 		if (splitted) {
-			splitted->setOtherWidth(vert.width());
+			splitted->setOtherWidth(_verticalBar->width());
 			w->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), w->height());
 			connect(splitted, SIGNAL(resizeOther()), this, SLOT(onResizeOther()));
 			connect(splitted, SIGNAL(updateOther(const QRect&)), this, SLOT(onUpdateOther(const QRect&)));
@@ -783,8 +785,8 @@ void ScrollArea::updateColors(const style::color &bar, const style::color &bg, c
 	_st.bgColor = bg;
 	_st.barOverColor = barOver;
 	_st.bgOverColor = bgOver;
-	hor.update();
-	vert.update();
+	_horizontalBar->update();
+	_verticalBar->update();
 }
 
 bool ScrollArea::focusNextPrevChild(bool next) {
