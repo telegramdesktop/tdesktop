@@ -1160,7 +1160,7 @@ namespace {
 	QMutex _bookmarksMutex;
 }
 
-class objc_FileBookmarkData {
+class objc_FileBookmark::objc_FileBookmarkData {
 public:
 	~objc_FileBookmarkData() {
 		if (url) [url release];

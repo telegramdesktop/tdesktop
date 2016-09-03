@@ -417,7 +417,7 @@ private:
 	}
 
 	static void destroyNode(Subscription::Node *node) {
-		if (auto that = node->observable.lock()) {
+		if (auto that = node->observable.toStrongRef()) {
 			static_cast<CommonObservableData*>(that.data())->remove(node);
 		}
 	}

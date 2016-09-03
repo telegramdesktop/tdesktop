@@ -39,9 +39,9 @@ public:
 		, _plaindata(createAndSwap(other._plaindata)) {
 	}
 	vector_of_moveable &operator=(vector_of_moveable &&other) {
-		std::swap(_size, other._size);
-		std::swap(_capacity, other._capacity);
-		std::swap(_plaindata, other._plaindata);
+		std_::swap(_size, other._size);
+		std_::swap(_capacity, other._capacity);
+		std_::swap(_plaindata, other._plaindata);
 		return *this;
 	}
 
@@ -165,7 +165,7 @@ private:
 			new (newLocation) T(std_::move(*oldLocation));
 			oldLocation->~T();
 		}
-		std::swap(_plaindata, newPlainData);
+		std_::swap(_plaindata, newPlainData);
 		_capacity = newCapacity;
 		operator delete[](newPlainData);
 	}
