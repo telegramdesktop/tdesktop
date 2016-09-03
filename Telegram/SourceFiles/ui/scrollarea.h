@@ -235,30 +235,35 @@ private:
 	void touchUpdateSpeed();
 	void touchDeaccelerate(int32 elapsed);
 
-	bool _disabled;
+	bool _disabled = false;
 	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
 	bool _movingByScrollBar = false;
 
 	style::flatScroll _st;
-	ScrollBar hor, vert;
-	ScrollShadow topSh, bottomSh;
-	int32 _horValue, _vertValue;
+	ChildWidget<ScrollBar> _horizontalBar, _verticalBar;
+	ChildWidget<ScrollShadow> _topShadow, _bottomShadow;
+	int _horizontalValue, _verticalValue;
 
 	bool _touchEnabled;
 	QTimer _touchTimer;
-	bool _touchScroll, _touchPress, _touchRightButton;
+	bool _touchScroll = false;
+	bool _touchPress = false;
+	bool _touchRightButton = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 
-	TouchScrollState _touchScrollState;
-	bool _touchPrevPosValid, _touchWaitingAcceleration;
+	TouchScrollState _touchScrollState = TouchScrollManual;
+	bool _touchPrevPosValid = false;
+	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
+	uint64 _touchSpeedTime = 0;
+	uint64 _touchAccelerationTime = 0;
+	uint64 _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	bool _widgetAcceptsTouch;
+	bool _widgetAcceptsTouch = false;
 
 	friend class SplittedWidgetOther;
-	SplittedWidgetOther *_other;
+	SplittedWidgetOther *_other = nullptr;
 
 };
 

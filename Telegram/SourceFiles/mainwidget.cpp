@@ -2038,6 +2038,11 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 				break;
 			}
 		}
+		if (auto historyPeer = _history->peer()) {
+			if (way == Ui::ShowWay::Forward && historyPeer->id == peerId) {
+				way = Ui::ShowWay::ClearStack;
+			}
+		}
 	}
 
 	if (back || (way == Ui::ShowWay::ClearStack)) {
