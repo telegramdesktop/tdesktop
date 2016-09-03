@@ -1083,10 +1083,9 @@ void AppClass::checkMapVersion() {
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
-	if (auto w = _window) {
-		_window = 0;
-		delete w;
-	}
+	auto window = createAndSwap(_window);
+	delete window;
+
 	anim::stopManager();
 
 	stopWebLoadManager();
@@ -1095,7 +1094,7 @@ AppClass::~AppClass() {
 
 	MTP::finish();
 
-	AppObject = 0;
+	AppObject = nullptr;
 	deleteAndMark(_uploader);
 	deleteAndMark(_translator);
 

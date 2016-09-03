@@ -2832,8 +2832,6 @@ public:
 	QString inDialogsText() const override;
 	QString inReplyText() const override;
 
-	void setServiceText(const QString &text);
-
 	~HistoryService();
 
 protected:
@@ -2846,8 +2844,12 @@ protected:
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
 
+	using Links = QList<ClickHandlerPtr>;
+	void setServiceText(const QString &text, const Links &links);
+
 	void removeMedia();
 
+private:
 	HistoryServiceDependentData *GetDependentData() {
 		if (auto pinned = Get<HistoryServicePinned>()) {
 			return pinned;
@@ -2860,19 +2862,13 @@ protected:
 		return const_cast<HistoryService*>(this)->GetDependentData();
 	}
 	bool updateDependent(bool force = false);
-	bool updateDependentText() {
-		if (Has<HistoryServicePinned>()) {
-			return updatePinnedText();
-		} else if (Has<HistoryServiceGameScore>()) {
-			return updateGameScoreText();
-		}
-		return false;
-	}
+	bool updateDependentText();
 	void clearDependency();
 
 	void setMessageByAction(const MTPmessageAction &action);
-	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
-	bool updateGameScoreText(QString *ptext = nullptr);
+
+	bool preparePinnedText(const QString &from, QString *outText, Links *outLinks);
+	bool prepareGameScoreText(const QString &from, QString *outText, Links *outLinks);
 
 };
 
