@@ -301,7 +301,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
     fi
     cd "$ReleasePath"
-    "./Packer" -path "$BinaryName.app" -version $VersionForPacker $AlphaBetaParam
+    "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
     echo "Packer done!"
 
     if [ "$BetaVersion" != "0" ]; then
