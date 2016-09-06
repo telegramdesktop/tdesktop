@@ -162,6 +162,7 @@ SOURCES += \
 	./SourceFiles/boxes/photosendbox.cpp \
 	./SourceFiles/boxes/report_box.cpp \
 	./SourceFiles/boxes/sessionsbox.cpp \
+	./SourceFiles/boxes/sharebox.cpp \
 	./SourceFiles/boxes/stickersetbox.cpp \
 	./SourceFiles/boxes/usernamebox.cpp \
 	./SourceFiles/core/basic_types.cpp \
@@ -350,6 +351,7 @@ HEADERS += \
 	./SourceFiles/boxes/photosendbox.h \
 	./SourceFiles/boxes/report_box.h \
 	./SourceFiles/boxes/sessionsbox.h \
+	./SourceFiles/boxes/sharebox.h \
 	./SourceFiles/boxes/stickersetbox.h \
 	./SourceFiles/boxes/usernamebox.h \
 	./SourceFiles/core/basic_types.h \

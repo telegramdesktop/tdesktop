@@ -357,7 +357,7 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	connect(&_inner, SIGNAL(installed(uint64)), this, SLOT(onInstalled(uint64)));
 
@@ -394,7 +394,7 @@ void StickerSetBox::onUpdateButtons() {
 }
 
 void StickerSetBox::onScroll() {
-	_inner.setScrollBottom(_scroll.scrollTop() + _scroll.height());
+	_inner.setScrollBottom(scrollArea()->scrollTop() + scrollArea()->height());
 }
 
 void StickerSetBox::showAll() {
@@ -1326,7 +1326,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 		if (addedSet) {
 			_inner->updateSize();
 			setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
-			_inner->setVisibleScrollbar((_scroll.scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
+			_inner->setVisibleScrollbar((scrollArea()->scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
 			App::api()->requestStickerSets();
 		} else {
 			_allArchivedLoaded = v.isEmpty() || (offsetId != 0);
@@ -1389,7 +1389,7 @@ void StickersBox::setup() {
 	connect(_inner, SIGNAL(checkDraggingScroll(int)), this, SLOT(onCheckDraggingScroll(int)));
 	connect(_inner, SIGNAL(noDraggingScroll()), this, SLOT(onNoDraggingScroll()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	_scrollTimer.setSingleShot(false);
 
 	rebuildList();
@@ -1404,8 +1404,8 @@ void StickersBox::onScroll() {
 void StickersBox::checkLoadMoreArchived() {
 	if (_section != Section::Archived) return;
 
-	int scrollTop = _scroll.scrollTop(), scrollTopMax = _scroll.scrollTopMax();
-	if (scrollTop + PreloadHeightsCount * _scroll.height() >= scrollTopMax) {
+	int scrollTop = scrollArea()->scrollTop(), scrollTopMax = scrollArea()->scrollTopMax();
+	if (scrollTop + PreloadHeightsCount * scrollArea()->height() >= scrollTopMax) {
 		if (!_archivedRequestId && !_allArchivedLoaded) {
 			uint64 lastId = 0;
 			for (auto setId = Global::ArchivedStickerSetsOrder().cend(), e = Global::ArchivedStickerSetsOrder().cbegin(); setId != e;) {
@@ -1522,7 +1522,7 @@ StickersBox::~StickersBox() {
 void StickersBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
-	_inner->setVisibleScrollbar((_scroll.scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
+	_inner->setVisibleScrollbar((scrollArea()->scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
 	if (_topShadow) {
 		_topShadow->setGeometry(0, st::boxTitleHeight + _aboutHeight, width(), st::lineWidth);
 	}
@@ -1546,14 +1546,14 @@ void StickersBox::onStickersUpdated() {
 void StickersBox::rebuildList() {
 	_inner->rebuild();
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
-	_inner->setVisibleScrollbar((_scroll.scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
+	_inner->setVisibleScrollbar((scrollArea()->scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
 }
 
 void StickersBox::onCheckDraggingScroll(int localY) {
-	if (localY < _scroll.scrollTop()) {
-		_scrollDelta = localY - _scroll.scrollTop();
-	} else if (localY >= _scroll.scrollTop() + _scroll.height()) {
-		_scrollDelta = localY - _scroll.scrollTop() - _scroll.height() + 1;
+	if (localY < scrollArea()->scrollTop()) {
+		_scrollDelta = localY - scrollArea()->scrollTop();
+	} else if (localY >= scrollArea()->scrollTop() + scrollArea()->height()) {
+		_scrollDelta = localY - scrollArea()->scrollTop() - scrollArea()->height() + 1;
 	} else {
 		_scrollDelta = 0;
 	}
@@ -1570,7 +1570,7 @@ void StickersBox::onNoDraggingScroll() {
 
 void StickersBox::onScrollTimer() {
 	int32 d = (_scrollDelta > 0) ? qMin(_scrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_scrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
-	_scroll.scrollToY(_scroll.scrollTop() + d);
+	scrollArea()->scrollToY(scrollArea()->scrollTop() + d);
 }
 
 void StickersBox::onSave() {

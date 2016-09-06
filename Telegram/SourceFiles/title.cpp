@@ -142,12 +142,13 @@ void TitleWidget::setHideLevel(float64 level) {
 		}
 	}
 }
-
+#include "boxes/sharebox.h" // TODO
 void TitleWidget::onContacts() {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 	if (!App::self()) return;
-	Ui::showLayer(new ContactsBox());
+	Ui::showLayer(new ShareBox([](const QVector<PeerData*> &result) {
+	}));
 }
 
 void TitleWidget::onAbout() {

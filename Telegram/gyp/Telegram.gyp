@@ -183,6 +183,8 @@
       '<(src_loc)/boxes/report_box.h',
       '<(src_loc)/boxes/sessionsbox.cpp',
       '<(src_loc)/boxes/sessionsbox.h',
+      '<(src_loc)/boxes/sharebox.cpp',
+      '<(src_loc)/boxes/sharebox.h',
       '<(src_loc)/boxes/stickersetbox.cpp',
       '<(src_loc)/boxes/stickersetbox.h',
       '<(src_loc)/boxes/usernamebox.cpp',

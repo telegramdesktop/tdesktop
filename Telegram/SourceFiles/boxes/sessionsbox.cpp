@@ -252,10 +252,10 @@ void SessionsBox::resizeEvent(QResizeEvent *e) {
 void SessionsBox::showAll() {
 	_done.show();
 	if (_loading) {
-		_scroll.hide();
+		scrollArea()->hide();
 		_shadow.hide();
 	} else {
-		_scroll.show();
+		scrollArea()->show();
 		_shadow.show();
 	}
 	ScrollableBox::showAll();

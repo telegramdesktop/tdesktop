@@ -87,3 +87,25 @@ aboutRevokePublicLabel: flatLabel(labelDefFlat) {
 }
 
 localStorageBoxSkip: 10px;
+
+shareRowsTop: 12px;
+shareRowHeight: 108px;
+sharePhotoRadius: 28px;
+sharePhotoSmallRadius: 24px;
+sharePhotoTop: 6px;
+shareSelectWidth: 2px;
+shareSelectFg: windowActiveBg;
+shareCheckBorder: windowBg;
+shareCheckBg: windowActiveBg;
+shareCheckRadius: 10px;
+shareCheckSmallRadius: 3px;
+shareCheckIcon: icon {
+	{ "default_checkbox_check", windowBg, point(3px, 6px) },
+};
+shareNameFont: font(11px);
+shareNameFg: windowTextFg;
+shareNameActiveFg: btnYesColor;
+shareNameTop: 6px;
+shareColumnSkip: 6px;
+shareSelectDuration: 150;
+shareActivateDuration: 150;

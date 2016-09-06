@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_indexed_list.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
-#include "boxes/contactsbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
@@ -1353,11 +1352,11 @@ void ContactsBox::init() {
 		_cancel.hide();
 	}
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
-	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
+	connect(&_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
 	connect(&_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 	connect(&_inner, SIGNAL(adminAdded()), this, SIGNAL(adminAdded()));
@@ -1478,9 +1477,9 @@ void ContactsBox::keyPressEvent(QKeyEvent *e) {
 		} else if (e->key() == Qt::Key_Up) {
 			_inner.selectSkip(-1);
 		} else if (e->key() == Qt::Key_PageDown) {
-			_inner.selectSkipPage(_scroll.height(), 1);
+			_inner.selectSkipPage(scrollArea()->height(), 1);
 		} else if (e->key() == Qt::Key_PageUp) {
-			_inner.selectSkipPage(_scroll.height(), -1);
+			_inner.selectSkipPage(scrollArea()->height(), -1);
 		} else {
 			ItemListBox::keyPressEvent(e);
 		}
@@ -1530,7 +1529,7 @@ void ContactsBox::onFilterCancel() {
 }
 
 void ContactsBox::onFilterUpdate() {
-	_scroll.scrollToY(0);
+	scrollArea()->scrollToY(0);
 	if (_filter.getLastText().isEmpty()) {
 		_filterCancel.hide();
 	} else {
@@ -1681,7 +1680,7 @@ bool ContactsBox::editAdminFail(const RPCError &error) {
 }
 
 void ContactsBox::onScroll() {
-	_inner.loadProfilePhotos(_scroll.scrollTop());
+	_inner.loadProfilePhotos(scrollArea()->scrollTop());
 }
 
 void ContactsBox::creationDone(const MTPUpdates &updates) {
@@ -2245,8 +2244,8 @@ MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox
 
 	connect(&_inner, SIGNAL(addRequested()), this, SLOT(onAdd()));
 
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
+	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(&_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(loaded()), this, SLOT(onLoaded()));
 
 	connect(&_loadTimer, SIGNAL(timeout()), &_inner, SLOT(load()));
@@ -2260,9 +2259,9 @@ void MembersBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_inner.selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner.selectSkipPage(_scroll.height(), 1);
+		_inner.selectSkipPage(scrollArea()->height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner.selectSkipPage(_scroll.height(), -1);
+		_inner.selectSkipPage(scrollArea()->height(), -1);
 	} else {
 		ItemListBox::keyPressEvent(e);
 	}
@@ -2282,7 +2281,7 @@ void MembersBox::resizeEvent(QResizeEvent *e) {
 }
 
 void MembersBox::onScroll() {
-	_inner.loadProfilePhotos(_scroll.scrollTop());
+	_inner.loadProfilePhotos(scrollArea()->scrollTop());
 }
 
 void MembersBox::onAdd() {
