@@ -42,13 +42,14 @@ ShareBox::ShareBox(SubmitCallback &&callback) : ItemListBox(st::boxScroll)
 	init(_inner, bottomSkip, topSkip);
 
 	connect(_inner, SIGNAL(selectedChanged()), this, SLOT(onSelectedChanged()));
+	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
 	connect(_share, SIGNAL(clicked()), this, SLOT(onShare()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-//	connect(_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_filter, SIGNAL(submitted(bool)), _inner, SLOT(onSelectActive()));
 	connect(_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
-	connect(_inner, SIGNAL(selectAllQuery()), _filter, SLOT(selectAll()));
+	connect(_inner, SIGNAL(filterCancel()), this, SLOT(onFilterCancel()));
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 
 	_filterCancel->setAttribute(Qt::WA_OpaquePaintEvent);
@@ -149,6 +150,24 @@ void ShareBox::resizeEvent(QResizeEvent *e) {
 	_bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _share->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
+void ShareBox::keyPressEvent(QKeyEvent *e) {
+	if (_filter->hasFocus()) {
+		if (e->key() == Qt::Key_Up) {
+			_inner->activateSkipColumn(-1);
+		} else if (e->key() == Qt::Key_Down) {
+			_inner->activateSkipColumn(1);
+		} else if (e->key() == Qt::Key_PageUp) {
+			_inner->activateSkipPage(scrollArea()->height(), -1);
+		} else if (e->key() == Qt::Key_PageDown) {
+			_inner->activateSkipPage(scrollArea()->height(), 1);
+		} else {
+			ItemListBox::keyPressEvent(e);
+		}
+	} else {
+		ItemListBox::keyPressEvent(e);
+	}
+}
+
 void ShareBox::moveButtons() {
 	_share->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _share->height());
 	auto cancelRight = st::boxButtonPadding.right();
@@ -163,7 +182,6 @@ void ShareBox::onFilterCancel() {
 }
 
 void ShareBox::onFilterUpdate() {
-	scrollArea()->scrollToY(0);
 	_filterCancel->setVisible(!_filter->getLastText().isEmpty());
 	_inner->updateFilter(_filter->getLastText());
 }
@@ -178,6 +196,21 @@ void ShareBox::onSelectedChanged() {
 	_share->setVisible(_inner->hasSelected());
 	moveButtons();
 	update();
+}
+
+void ShareBox::onMustScrollTo(int top, int bottom) {
+	auto scrollTop = scrollArea()->scrollTop(), scrollBottom = scrollTop + scrollArea()->height();
+	auto from = scrollTop, to = scrollTop;
+	if (scrollTop > top) {
+		to = top;
+	} else if (scrollBottom < bottom) {
+		to = bottom - (scrollBottom - scrollTop);
+	}
+	if (from != to) {
+		START_ANIMATION(_scrollAnimation, func([this]() {
+			scrollArea()->scrollToY(_scrollAnimation.current(scrollArea()->scrollTop()));
+		}), from, to, st::shareScrollDuration, anim::sineInOut);
+	}
 }
 
 void ShareBox::onScroll() {
@@ -218,6 +251,36 @@ void ShareInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	loadProfilePhotos(visibleTop);
 }
 
+void ShareInner::activateSkipRow(int direction) {
+	activateSkipColumn(direction * _columnCount);
+}
+
+int ShareInner::displayedChatsCount() const {
+	return _filter.isEmpty() ? _chatsIndexed->size() : (_filtered.size() + d_byUsernameFiltered.size());
+}
+
+void ShareInner::activateSkipColumn(int direction) {
+	if (_active < 0) {
+		if (direction > 0) {
+			setActive(0);
+		}
+		return;
+	}
+	auto count = displayedChatsCount();
+	auto active = _active + direction;
+	if (active < 0) {
+		active = (_active > 0) ? 0 : -1;
+	}
+	if (active >= count) {
+		active = count - 1;
+	}
+	setActive(active);
+}
+
+void ShareInner::activateSkipPage(int pageHeight, int direction) {
+	activateSkipRow(direction * (pageHeight / _rowHeight));
+}
+
 void ShareInner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
 		_chatsIndexed->peerNameChanged(update.peer, update.oldNames, update.oldNameFirstChars);
@@ -247,12 +310,22 @@ void ShareInner::repaintChatAtIndex(int index) {
 }
 
 ShareInner::Chat *ShareInner::getChatAtIndex(int index) {
+	if (index < 0) return nullptr;
 	auto row = ([this, index]() -> Dialogs::Row* {
-		if (index < 0) return nullptr;
 		if (_filter.isEmpty()) return _chatsIndexed->rowAtY(index, 1);
 		return (index < _filtered.size()) ? _filtered[index] : nullptr;
 	})();
-	return row ? static_cast<Chat*>(row->attached) : nullptr;
+	if (row) {
+		return static_cast<Chat*>(row->attached);
+	}
+
+	if (!_filter.isEmpty()) {
+		index -= _filtered.size();
+		if (index >= 0 && index < d_byUsernameFiltered.size()) {
+			return d_byUsernameFiltered[index];
+		}
+	}
+	return nullptr;
 }
 
 void ShareInner::repaintChat(PeerData *peer) {
@@ -271,6 +344,12 @@ int ShareInner::chatIndex(PeerData *peer) const {
 	} else {
 		for_const (auto row, _filtered) {
 			if (row->history()->peer == peer) {
+				return index;
+			}
+			++index;
+		}
+		for_const (auto row, d_byUsernameFiltered) {
+			if (row->peer == peer) {
 				return index;
 			}
 			++index;
@@ -347,6 +426,8 @@ void ShareInner::setActive(int active) {
 		_active = active;
 		changeNameFg(_active, st::shareNameFg, st::shareNameActiveFg);
 	}
+	auto y = (_active < _columnCount) ? 0 : (_rowsTop + ((_active / _columnCount) * _rowHeight));
+	emit mustScrollTo(y, y + _rowHeight);
 }
 
 void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
@@ -441,28 +522,14 @@ void ShareInner::paintEvent(QPaintEvent *e) {
 	auto indexFrom = rowFrom * _columnCount;
 	auto indexTo = rowTo * _columnCount;
 	if (_filter.isEmpty()) {
-		if (!_chatsIndexed->isEmpty() || !_byUsername.isEmpty()) {
-			if (!_chatsIndexed->isEmpty()) {
-				auto i = _chatsIndexed->cfind(indexFrom, 1);
-				for (auto end = _chatsIndexed->cend(); i != end; ++i) {
-					if (indexFrom >= indexTo) {
-						break;
-					}
-					paintChat(p, getChat(*i), indexFrom);
-					++indexFrom;
+		if (!_chatsIndexed->isEmpty()) {
+			auto i = _chatsIndexed->cfind(indexFrom, 1);
+			for (auto end = _chatsIndexed->cend(); i != end; ++i) {
+				if (indexFrom >= indexTo) {
+					break;
 				}
-				indexFrom -= _chatsIndexed->size();
-				indexTo -= _chatsIndexed->size();
-			}
-			if (!_byUsername.isEmpty()) {
-				if (indexFrom < 0) indexFrom = 0;
-				while (indexFrom < indexTo) {
-					if (indexFrom >= d_byUsername.size()) {
-						break;
-					}
-					paintChat(p, d_byUsername[indexFrom], indexFrom);
-					++indexFrom;
-				}
+				paintChat(p, getChat(*i), indexFrom);
+				++indexFrom;
 			}
 		} else {
 			// empty
@@ -475,7 +542,8 @@ void ShareInner::paintEvent(QPaintEvent *e) {
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
 		} else {
-			if (!_filtered.isEmpty()) {
+			auto filteredSize = _filtered.size();
+			if (filteredSize) {
 				if (indexFrom < 0) indexFrom = 0;
 				while (indexFrom < indexTo) {
 					if (indexFrom >= _filtered.size()) {
@@ -484,8 +552,8 @@ void ShareInner::paintEvent(QPaintEvent *e) {
 					paintChat(p, getChat(_filtered[indexFrom]), indexFrom);
 					++indexFrom;
 				}
-				indexFrom -= _filtered.size();
-				indexTo -= _filtered.size();
+				indexFrom -= filteredSize;
+				indexTo -= filteredSize;
 			}
 			if (!_byUsernameFiltered.isEmpty()) {
 				if (indexFrom < 0) indexFrom = 0;
@@ -493,7 +561,7 @@ void ShareInner::paintEvent(QPaintEvent *e) {
 					if (indexFrom >= d_byUsernameFiltered.size()) {
 						break;
 					}
-					paintChat(p, d_byUsernameFiltered[indexFrom], indexFrom);
+					paintChat(p, d_byUsernameFiltered[indexFrom], filteredSize + indexFrom);
 					++indexFrom;
 				}
 			}
@@ -523,8 +591,7 @@ void ShareInner::updateUpon(const QPoint &pos) {
 	auto xupon = (x >= left) && (x < left + (_rowWidth - st::shareColumnSkip));
 	auto yupon = (y >= top) && (y < top + st::sharePhotoRadius * 2 + st::shareNameTop + st::shareNameFont->height * 2);
 	auto upon = (xupon && yupon) ? (row * _columnCount + column) : -1;
-	auto count = _filter.isEmpty() ? (_chatsIndexed->size() + d_byUsername.size()) : (_filtered.size() + d_byUsernameFiltered.size());
-	if (upon >= count) {
+	if (upon >= displayedChatsCount()) {
 		upon = -1;
 	}
 	_upon = upon;
@@ -533,10 +600,12 @@ void ShareInner::updateUpon(const QPoint &pos) {
 void ShareInner::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		updateUpon(e->pos());
-		if (_upon >= 0) {
-			changeCheckState(getChatAtIndex(_upon));
-		}
+		changeCheckState(getChatAtIndex(_upon));
 	}
+}
+
+void ShareInner::onSelectActive() {
+	changeCheckState(getChatAtIndex(_active > 0 ? _active : 0));
 }
 
 void ShareInner::resizeEvent(QResizeEvent *e) {
@@ -563,6 +632,20 @@ float64 anim_bumpy(const float64 &delta, const float64 &dt) {
 }
 
 void ShareInner::changeCheckState(Chat *chat) {
+	if (!chat) return;
+
+	if (!_filter.isEmpty()) {
+		auto row = _chatsIndexed->getRow(chat->peer->id);
+		if (!row) {
+			row = _chatsIndexed->addToEnd(App::history(chat->peer)).value(0);
+		}
+		chat = getChat(row);
+		if (!chat->selected) {
+			_chatsIndexed->moveToTop(chat->peer);
+		}
+		emit filterCancel();
+	}
+
 	chat->selected = !chat->selected;
 	if (chat->selected) {
 		_selected.insert(chat->peer);
@@ -582,7 +665,9 @@ void ShareInner::changeCheckState(Chat *chat) {
 	START_ANIMATION(chat->selection, func([this, chat] {
 		repaintChat(chat->peer);
 	}), chat->selected ? 0 : 1, chat->selected ? 1 : 0, st::shareSelectDuration, anim_bumpy);
-	setActive(chatIndex(chat->peer));
+	if (chat->selected) {
+		setActive(chatIndex(chat->peer));
+	}
 	emit selectedChanged();
 }
 
@@ -684,11 +769,10 @@ void ShareInner::updateFilter(QString filter) {
 		_filter = filter;
 
 		_byUsernameFiltered.clear();
-		d_byUsernameFiltered.clear();
-		for (int i = 0, l = _byUsernameDatas.size(); i < l; ++i) {
-			delete _byUsernameDatas[i];
+		for (int i = 0, l = d_byUsernameFiltered.size(); i < l; ++i) {
+			delete d_byUsernameFiltered[i];
 		}
-		_byUsernameDatas.clear();
+		d_byUsernameFiltered.clear();
 
 		if (_filter.isEmpty()) {
 			refresh();
@@ -731,34 +815,13 @@ void ShareInner::updateFilter(QString filter) {
 						}
 					}
 				}
-
-				_byUsernameFiltered.reserve(_byUsername.size());
-				d_byUsernameFiltered.reserve(d_byUsername.size());
-				for (int i = 0, l = _byUsername.size(); i < l; ++i) {
-					auto &names = _byUsername[i]->names;
-					PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
-					for (fi = fb; fi != fe; ++fi) {
-						auto filterName = *fi;
-						for (ni = nb; ni != ne; ++ni) {
-							if (ni->startsWith(*fi)) {
-								break;
-							}
-						}
-						if (ni == ne) {
-							break;
-						}
-					}
-					if (fi == fe) {
-						_byUsernameFiltered.push_back(_byUsername[i]);
-						d_byUsernameFiltered.push_back(d_byUsername[i]);
-					}
-				}
 			}
 			refresh();
 
 			_searching = true;
 			emit searchByUsername();
 		}
+		setActive(-1);
 		update();
 		loadProfilePhotos(0);
 	}
@@ -781,8 +844,10 @@ void ShareInner::peopleReceived(const QString &query, const QVector<MTPPeer> &pe
 			if (!peer || !peer->canWrite()) continue;
 
 			auto chat = new Chat(peer);
-			_byUsernameDatas.push_back(chat);
 			updateChatName(chat, peer);
+			if (auto row = _chatsIndexed->getRow(peer->id)) {
+				continue;
+			}
 
 			_byUsernameFiltered.push_back(peer);
 			d_byUsernameFiltered.push_back(chat);
@@ -793,22 +858,12 @@ void ShareInner::peopleReceived(const QString &query, const QVector<MTPPeer> &pe
 }
 
 void ShareInner::refresh() {
-	if (_filter.isEmpty()) {
-		if (!_chatsIndexed->isEmpty() || !_byUsername.isEmpty()) {
-			auto count = _chatsIndexed->size() + _byUsername.size();
-			auto rows = (count / _columnCount) + (count % _columnCount ? 1 : 0);
-			resize(width(), _rowsTop + rows * _rowHeight);
-		} else {
-			resize(width(), st::noContactsHeight);
-		}
+	auto count = displayedChatsCount();
+	if (count) {
+		auto rows = (count / _columnCount) + (count % _columnCount ? 1 : 0);
+		resize(width(), _rowsTop + rows * _rowHeight);
 	} else {
-		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
-			resize(width(), st::noContactsHeight);
-		} else {
-			auto count = _filtered.size() + _byUsernameFiltered.size();
-			auto rows = (count / _columnCount) + (count % _columnCount ? 1 : 0);
-			resize(width(), _rowsTop + rows * _rowHeight);
-		}
+		resize(width(), st::noContactsHeight);
 	}
 	update();
 }
@@ -821,15 +876,10 @@ ShareInner::~ShareInner() {
 
 QVector<PeerData*> ShareInner::selected() const {
 	QVector<PeerData*> result;
-	result.reserve(_dataMap.size() + _byUsername.size());
+	result.reserve(_dataMap.size());
 	for_const (auto chat, _dataMap) {
 		if (chat->selected) {
 			result.push_back(chat->peer);
-		}
-	}
-	for (int i = 0, l = _byUsername.size(); i < l; ++i) {
-		if (d_byUsername[i]->selected) {
-			result.push_back(_byUsername[i]);
 		}
 	}
 	return result;

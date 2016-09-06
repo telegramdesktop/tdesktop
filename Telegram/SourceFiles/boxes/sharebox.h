@@ -55,9 +55,12 @@ private slots:
 	void onShare();
 	void onSelectedChanged();
 
+	void onMustScrollTo(int top, int bottom);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void doSetInnerFocus() override;
 
@@ -90,6 +93,8 @@ private:
 	using PeopleQueries = QMap<mtpRequestId, QString>;
 	PeopleQueries _peopleQueries;
 
+	IntAnimation _scrollAnimation;
+
 };
 
 namespace internal {
@@ -105,13 +110,20 @@ public:
 
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 
+	void activateSkipRow(int direction);
+	void activateSkipColumn(int direction);
+	void activateSkipPage(int pageHeight, int direction);
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void updateFilter(QString filter = QString());
 
 	~ShareInner();
 
+public slots:
+	void onSelectActive();
+
 signals:
-	void selectAllQuery();
+	void mustScrollTo(int ymin, int ymax);
+	void filterCancel();
 	void searchByUsername();
 	void selectedChanged();
 
@@ -126,6 +138,8 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	int displayedChatsCount() const;
 
 	static constexpr int WideCacheScale = 4;
 	struct Chat {
@@ -192,9 +206,8 @@ private:
 	QString _lastQuery;
 	using ByUsernameRows = QVector<PeerData*>;
 	using ByUsernameDatas = QVector<Chat*>;
-	ByUsernameRows _byUsername, _byUsernameFiltered;
-	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
-	ByUsernameDatas _byUsernameDatas;
+	ByUsernameRows _byUsernameFiltered;
+	ByUsernameDatas d_byUsernameFiltered;
 
 };
 

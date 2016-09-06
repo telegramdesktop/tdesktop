@@ -53,10 +53,9 @@ public:
 
 	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const;
 	Row *addToEnd(History *history);
-	bool insertBefore(Row *row, Row *before);
-	bool insertAfter(Row *row, Row *after);
 	Row *adjustByName(const PeerData *peer);
 	Row *addByName(History *history);
+	bool moveToTop(PeerId peerId);
 	void adjustByPos(Row *row);
 	bool del(PeerId peerId, Row *replacedBy = nullptr);
 	void remove(Row *row);
@@ -114,6 +113,8 @@ public:
 
 private:
 	void adjustCurrent(int y, int h) const;
+	bool insertBefore(Row *row, Row *before);
+	bool insertAfter(Row *row, Row *after);
 	static Row *next(Row *row) {
 		return row->_next;
 	}

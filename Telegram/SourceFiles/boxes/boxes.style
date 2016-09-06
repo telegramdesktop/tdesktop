@@ -109,3 +109,4 @@ shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareSelectDuration: 150;
 shareActivateDuration: 150;
+shareScrollDuration: 300;
