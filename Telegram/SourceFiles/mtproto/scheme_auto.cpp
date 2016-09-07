@@ -2894,6 +2894,8 @@ void _serialize_updateNewStickerSet(MTPStringLogger &to, int32 stage, int32 lev,
 }
 
 void _serialize_updateStickerSetsOrder(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDupdateStickerSetsOrder::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -2901,7 +2903,9 @@ void _serialize_updateStickerSetsOrder(MTPStringLogger &to, int32 stage, int32 l
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  masks: "); ++stages.back(); if (flag & MTPDupdateStickerSetsOrder::Flag::f_masks) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4468,12 +4472,13 @@ void _serialize_stickerSet(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	case 1: to.add("  installed: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_installed) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  archived: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_archived) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 3: to.add("  official: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_official) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 4: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 5: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 6: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 7: to.add("  short_name: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 8: to.add("  count: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 9: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  masks: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_masks) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 7: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 8: to.add("  short_name: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 9: to.add("  count: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 10: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -5929,6 +5934,20 @@ void _serialize_stickerSetCovered(MTPStringLogger &to, int32 stage, int32 lev, T
 	}
 }
 
+void _serialize_stickerSetMultiCovered(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ stickerSetMultiCovered");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  set: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  covers: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -6439,6 +6458,8 @@ void _serialize_messages_editChatAdmin(MTPStringLogger &to, int32 stage, int32 l
 }
 
 void _serialize_messages_reorderStickerSets(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_reorderStickerSets::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -6446,7 +6467,9 @@ void _serialize_messages_reorderStickerSets(MTPStringLogger &to, int32 stage, in
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  masks: "); ++stages.back(); if (flag & MTPmessages_reorderStickerSets::Flag::f_masks) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6547,7 +6570,16 @@ void _serialize_messages_saveDraft(MTPStringLogger &to, int32 stage, int32 lev, 
 }
 
 void _serialize_messages_readFeaturedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	to.add("{ messages_readFeaturedStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_readFeaturedStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
 }
 
 void _serialize_messages_saveRecentSticker(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -8113,6 +8145,19 @@ void _serialize_messages_getAllStickers(MTPStringLogger &to, int32 stage, int32 
 	}
 }
 
+void _serialize_messages_getMaskStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getMaskStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_messages_getWebPagePreview(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -8322,19 +8367,6 @@ void _serialize_messages_getRecentStickers(MTPStringLogger &to, int32 stage, int
 	}
 	switch (stage) {
 	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
-void _serialize_messages_getUnusedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ messages_getUnusedStickers");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -9039,6 +9071,7 @@ namespace {
 		_serializers.insert(mtpc_messages_stickerSetInstallResultSuccess, _serialize_messages_stickerSetInstallResultSuccess);
 		_serializers.insert(mtpc_messages_stickerSetInstallResultArchive, _serialize_messages_stickerSetInstallResultArchive);
 		_serializers.insert(mtpc_stickerSetCovered, _serialize_stickerSetCovered);
+		_serializers.insert(mtpc_stickerSetMultiCovered, _serialize_stickerSetMultiCovered);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -9197,6 +9230,7 @@ namespace {
 		_serializers.insert(mtpc_photos_deletePhotos, _serialize_photos_deletePhotos);
 		_serializers.insert(mtpc_messages_getStickers, _serialize_messages_getStickers);
 		_serializers.insert(mtpc_messages_getAllStickers, _serialize_messages_getAllStickers);
+		_serializers.insert(mtpc_messages_getMaskStickers, _serialize_messages_getMaskStickers);
 		_serializers.insert(mtpc_messages_getWebPagePreview, _serialize_messages_getWebPagePreview);
 		_serializers.insert(mtpc_messages_exportChatInvite, _serialize_messages_exportChatInvite);
 		_serializers.insert(mtpc_channels_exportInvite, _serialize_channels_exportInvite);
@@ -9212,7 +9246,6 @@ namespace {
 		_serializers.insert(mtpc_messages_getPeerDialogs, _serialize_messages_getPeerDialogs);
 		_serializers.insert(mtpc_messages_getFeaturedStickers, _serialize_messages_getFeaturedStickers);
 		_serializers.insert(mtpc_messages_getRecentStickers, _serialize_messages_getRecentStickers);
-		_serializers.insert(mtpc_messages_getUnusedStickers, _serialize_messages_getUnusedStickers);
 		_serializers.insert(mtpc_messages_getArchivedStickers, _serialize_messages_getArchivedStickers);
 		_serializers.insert(mtpc_updates_getState, _serialize_updates_getState);
 		_serializers.insert(mtpc_updates_getDifference, _serialize_updates_getDifference);

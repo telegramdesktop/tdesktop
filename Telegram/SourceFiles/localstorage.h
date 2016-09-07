@@ -183,4 +183,7 @@ namespace Local {
 
 	void writeReportSpamStatuses();
 
+	bool encrypt(const void *src, void *dst, uint32 len, const void *key128);
+	bool decrypt(const void *src, void *dst, uint32 len, const void *key128);
+
 };

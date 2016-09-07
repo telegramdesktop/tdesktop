@@ -37,6 +37,9 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
+QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
+void shareGameScoreByHash(const QString &hash);
+
 class ShareBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 

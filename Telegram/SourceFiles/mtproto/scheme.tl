@@ -383,7 +383,7 @@ updateChannelMessageViews#98a12b4b channel_id:int id:int views:int = Update;
 updateChatAdmins#6e947941 chat_id:int enabled:Bool version:int = Update;
 updateChatParticipantAdmin#b6901959 chat_id:int user_id:int is_admin:Bool version:int = Update;
 updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
-updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
+updateStickerSetsOrder#bb2d201 flags:# masks:flags.0?true order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
 updateBotInlineQuery#54826690 flags:# query_id:long user_id:int query:string geo:flags.0?GeoPoint offset:string = Update;
@@ -560,7 +560,7 @@ inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
 inputStickerSetShortName#861cc8a0 short_name:string = InputStickerSet;
 
-stickerSet#cd303b41 flags:# installed:flags.0?true archived:flags.1?true official:flags.2?true id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
+stickerSet#cd303b41 flags:# installed:flags.0?true archived:flags.1?true official:flags.2?true masks:flags.3?true id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
 
 messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:Vector<Document> = messages.StickerSet;
 
@@ -716,6 +716,7 @@ messages.stickerSetInstallResultSuccess#38641628 = messages.StickerSetInstallRes
 messages.stickerSetInstallResultArchive#35e410a8 sets:Vector<StickerSetCovered> = messages.StickerSetInstallResult;
 
 stickerSetCovered#6410a5d2 set:StickerSet cover:Document = StickerSetCovered;
+stickerSetMultiCovered#3407e51b set:StickerSet covers:Vector<Document> = StickerSetCovered;
 
 ---functions---
 
@@ -836,7 +837,7 @@ messages.toggleChatAdmins#ec8bd9e1 chat_id:int enabled:Bool = Updates;
 messages.editChatAdmin#a9e69f2e chat_id:int user_id:InputUser is_admin:Bool = Bool;
 messages.migrateChat#15a3b8e3 chat_id:int = Updates;
 messages.searchGlobal#9e3cacb0 q:string offset_date:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
-messages.reorderStickerSets#9fcfbc30 order:Vector<long> = Bool;
+messages.reorderStickerSets#78337739 flags:# masks:flags.0?true order:Vector<long> = Bool;
 messages.getDocumentByHash#338e2464 sha256:bytes size:int mime_type:string = Document;
 messages.searchGifs#bf9a776b q:string offset:int = messages.FoundGifs;
 messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
@@ -853,14 +854,14 @@ messages.getPeerDialogs#2d9776b9 peers:Vector<InputPeer> = messages.PeerDialogs;
 messages.saveDraft#bc39e14b flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int peer:InputPeer message:string entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getAllDrafts#6a3f8d65 = Updates;
 messages.getFeaturedStickers#2dacca4f hash:int = messages.FeaturedStickers;
-messages.readFeaturedStickers#e21cbb = Bool;
+messages.readFeaturedStickers#5b118126 id:Vector<long> = Bool;
 messages.getRecentStickers#99197c2c hash:int = messages.RecentStickers;
 messages.saveRecentSticker#348e39bf id:InputDocument unsave:Bool = Bool;
 messages.clearRecentStickers#ab02e5d2 = Bool;
-messages.getUnusedStickers#4309d65b limit:int = Vector<StickerSetCovered>;
 messages.getArchivedStickers#906e241f offset_id:long limit:int = messages.ArchivedStickers;
 messages.setGameScore#dfbc7c1f flags:# edit_message:flags.0?true peer:InputPeer id:int user_id:InputUser game_id:int score:int = Updates;
 messages.setInlineGameScore#54f882f1 flags:# edit_message:flags.0?true id:InputBotInlineMessageID user_id:InputUser game_id:int score:int = Bool;
+messages.getMaskStickers#65b8c79f hash:int = messages.AllStickers;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

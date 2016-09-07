@@ -45,6 +45,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/confirmphonebox.h"
+#include "boxes/sharebox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
@@ -3299,33 +3300,34 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QString u(url.trimmed());
-	if (u.size() > 8192) u = u.mid(0, 8192);
+	auto urlTrimmed = url.trimmed();
+	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
 
-	if (!u.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		return;
 	}
+	auto command = urlTrimmed.midRef(qstr("tg://").size());
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto joinChatMatch = regex_match(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), u, matchOptions)) {
+	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
 		joinGroupByHash(joinChatMatch->captured(1));
-	} else if (auto stickerSetMatch = regex_match(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), u, matchOptions)) {
+	} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), command, matchOptions)) {
 		stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
-	} else if (auto shareUrlMatch = regex_match(qsl("^tg://msg_url/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto url = params.value(qsl("url"));
 		if (!url.isEmpty()) {
 			shareUrlLayer(url, params.value("text"));
 		}
-	} else if (auto confirmPhoneMatch = regex_match(qsl("^tg://confirmphone/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto phone = params.value(qsl("phone"));
 		auto hash = params.value(qsl("hash"));
 		if (!phone.isEmpty() && !hash.isEmpty()) {
 			ConfirmPhoneBox::start(phone, hash);
 		}
-	} else if (auto usernameMatch = regex_match(qsl("^tg://resolve/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto domain = params.value(qsl("domain"));
 		if (auto domainMatch = regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
@@ -3345,6 +3347,9 @@ void MainWidget::openLocalUrl(const QString &url) {
 			}
 			openPeerByName(domain, post, startToken);
 		}
+	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
+		auto params = url_parse_params(shareGameScoreMatch->captured(1), UrlParamNameTransform::ToLower);
+		shareGameScoreByHash(params.value(qsl("hash")));
 	}
 }
 
@@ -4742,22 +4747,24 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
-		auto &order = d.vorder.c_vector().v;
-		auto &sets = Global::StickerSets();
-		Stickers::Order result;
-		for (int32 i = 0, l = order.size(); i < l; ++i) {
-			if (sets.constFind(order.at(i).v) == sets.cend()) {
-				break;
+		if (!d.is_masks()) {
+			auto &order = d.vorder.c_vector().v;
+			auto &sets = Global::StickerSets();
+			Stickers::Order result;
+			for (int32 i = 0, l = order.size(); i < l; ++i) {
+				if (sets.constFind(order.at(i).v) == sets.cend()) {
+					break;
+				}
+				result.push_back(order.at(i).v);
 			}
-			result.push_back(order.at(i).v);
-		}
-		if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
-			Global::SetLastStickersUpdate(0);
-			App::main()->updateStickers();
-		} else {
-			Global::SetStickerSetsOrder(result);
-			Local::writeInstalledStickers();
-			emit stickersUpdated();
+			if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
+				Global::SetLastStickersUpdate(0);
+				App::main()->updateStickers();
+			} else {
+				Global::SetStickerSetsOrder(result);
+				Local::writeInstalledStickers();
+				emit stickersUpdated();
+			}
 		}
 	} break;
 

@@ -46,8 +46,23 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
 	for_const (auto &stickerSet, v) {
-		if (stickerSet.type() == mtpc_stickerSetCovered && stickerSet.c_stickerSetCovered().vset.type() == mtpc_stickerSet) {
-			auto set = Stickers::feedSet(stickerSet.c_stickerSetCovered().vset.c_stickerSet());
+		const MTPDstickerSet *setData = nullptr;
+		switch (stickerSet.type()) {
+		case mtpc_stickerSetCovered: {
+			auto &d = stickerSet.c_stickerSetCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				setData = &d.vset.c_stickerSet();
+			}
+		} break;
+		case mtpc_stickerSetMultiCovered: {
+			auto &d = stickerSet.c_stickerSetMultiCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				setData = &d.vset.c_stickerSet();
+			}
+		} break;
+		}
+		if (setData) {
+			auto set = Stickers::feedSet(*setData);
 			if (set->stickers.isEmpty()) {
 				setsToRequest.insert(set->id, set->access);
 			}
@@ -1059,10 +1074,15 @@ void StickersInner::rebuild() {
 
 	if (_section == Section::Featured && Global::FeaturedStickerSetsUnreadCount()) {
 		Global::SetFeaturedStickerSetsUnreadCount(0);
+		QVector<MTPlong> readIds;
+		readIds.reserve(Global::StickerSets().size());
 		for (auto &set : Global::RefStickerSets()) {
-			set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
+				set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+				readIds.push_back(MTP_long(set.id));
+			}
 		}
-		MTP::send(MTPmessages_ReadFeaturedStickers(), rpcDone(&StickersInner::readFeaturedDone), rpcFail(&StickersInner::readFeaturedFail));
+		MTP::send(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(readIds)), rpcDone(&StickersInner::readFeaturedDone), rpcFail(&StickersInner::readFeaturedFail));
 	}
 }
 
@@ -1299,9 +1319,24 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	bool addedSet = false;
 	auto &v = stickers.vsets.c_vector().v;
 	for_const (auto &stickerSet, v) {
-		if (stickerSet.type() != mtpc_stickerSetCovered || stickerSet.c_stickerSetCovered().vset.type() != mtpc_stickerSet) continue;
+		const MTPDstickerSet *setData = nullptr;
+		switch (stickerSet.type()) {
+		case mtpc_stickerSetCovered: {
+			auto &d = stickerSet.c_stickerSetCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				setData = &d.vset.c_stickerSet();
+			}
+		} break;
+		case mtpc_stickerSetMultiCovered: {
+			auto &d = stickerSet.c_stickerSetMultiCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				setData = &d.vset.c_stickerSet();
+			}
+		} break;
+		}
+		if (!setData) continue;
 
-		if (auto set = Stickers::feedSet(stickerSet.c_stickerSetCovered().vset.c_stickerSet())) {
+		if (auto set = Stickers::feedSet(*setData)) {
 			auto index = archived.indexOf(set->id);
 			if (archived.isEmpty() || index != archived.size() - 1) {
 				if (index < archived.size() - 1) {
@@ -1452,10 +1487,12 @@ void StickersBox::saveOrder() {
 	if (order.size() > 1) {
 		QVector<MTPlong> mtpOrder;
 		mtpOrder.reserve(order.size());
-		for (int32 i = 0, l = order.size(); i < l; ++i) {
+		for (int i = 0, l = order.size(); i < l; ++i) {
 			mtpOrder.push_back(MTP_long(order.at(i)));
 		}
-		_reorderRequest = MTP::send(MTPmessages_ReorderStickerSets(MTP_vector<MTPlong>(mtpOrder)), rpcDone(&StickersBox::reorderDone), rpcFail(&StickersBox::reorderFail));
+
+		MTPmessages_ReorderStickerSets::Flags flags = 0;
+		_reorderRequest = MTP::send(MTPmessages_ReorderStickerSets(MTP_flags(flags), MTP_vector<MTPlong>(mtpOrder)), rpcDone(&StickersBox::reorderDone), rpcFail(&StickersBox::reorderFail));
 	} else {
 		reorderDone(MTP_boolTrue());
 	}

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
+#include "boxes/sharebox.h"
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
@@ -3851,37 +3852,53 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
 	}
 	for (int i = 0, l = d_sets.size(); i != l; ++i) {
-		if (d_sets.at(i).type() == mtpc_stickerSetCovered && d_sets.at(i).c_stickerSetCovered().vset.type() == mtpc_stickerSet) {
-			const auto &set(d_sets.at(i).c_stickerSetCovered().vset.c_stickerSet());
-			auto it = sets.find(set.vid.v);
-			QString title = stickerSetTitle(set);
+		auto &setData = d_sets[i];
+		const MTPDstickerSet *set = nullptr;
+		switch (setData.type()) {
+		case mtpc_stickerSetCovered: {
+			auto &d = setData.c_stickerSetCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				set = &d.vset.c_stickerSet();
+			}
+		} break;
+		case mtpc_stickerSetMultiCovered: {
+			auto &d = setData.c_stickerSetMultiCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				set = &d.vset.c_stickerSet();
+			}
+		} break;
+		}
+
+		if (set) {
+			auto it = sets.find(set->vid.v);
+			QString title = stickerSetTitle(*set);
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
-				if (unread.contains(set.vid.v)) {
+				if (unread.contains(set->vid.v)) {
 					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}
-				it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | setClientFlags));
+				it = sets.insert(set->vid.v, Stickers::Set(set->vid.v, set->vaccess_hash.v, title, qs(set->vshort_name), set->vcount.v, set->vhash.v, set->vflags.v | setClientFlags));
 			} else {
-				it->access = set.vaccess_hash.v;
+				it->access = set->vaccess_hash.v;
 				it->title = title;
-				it->shortName = qs(set.vshort_name);
+				it->shortName = qs(set->vshort_name);
 				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-				it->flags = set.vflags.v | clientFlags;
+				it->flags = set->vflags.v | clientFlags;
 				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
 				if (unread.contains(it->id)) {
 					it->flags |= MTPDstickerSet_ClientFlag::f_unread;
 				} else {
 					it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
 				}
-				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
-					it->count = set.vcount.v;
-					it->hash = set.vhash.v;
+				if (it->count != set->vcount.v || it->hash != set->vhash.v || it->emoji.isEmpty()) {
+					it->count = set->vcount.v;
+					it->hash = set->vhash.v;
 					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
 				}
 			}
-			setsOrder.push_back(set.vid.v);
+			setsOrder.push_back(set->vid.v);
 			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-				setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
+				setsToRequest.insert(set->vid.v, set->vaccess_hash.v);
 			}
 		}
 	}
@@ -5763,12 +5780,12 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, msg->id));
 
-	BotCallbackInfo info = { msg->fullId(), row, col };
+	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
+	BotCallbackInfo info = { msg->fullId(), row, col, (button->type == ButtonType::Game) };
 	MTPmessages_GetBotCallbackAnswer::Flags flags = 0;
 	QByteArray sendData;
 	int32 sendGameId = 0;
-	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
-	if (button->type == ButtonType::Game) {
+	if (info.game) {
 		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_game_id;
 		auto strData = QString::fromUtf8(button->data);
 		sendGameId = strData.midRef(0, strData.indexOf(',')).toInt();
@@ -5810,7 +5827,11 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 				Ui::Toast::Show(App::wnd(), toast);
 			}
 		} else if (answerData.has_url()) {
-			UrlClickHandler(qs(answerData.vurl)).onClick(Qt::LeftButton);
+			auto url = qs(answerData.vurl);
+			if (info.game) {
+				url = appendShareGameScoreUrl(url, info.msgId);
+			}
+			UrlClickHandler(url).onClick(Qt::LeftButton);
 		}
 	}
 }

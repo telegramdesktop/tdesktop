@@ -873,6 +873,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_share_title" = "Share to";
 "lng_share_confirm" = "Share";
+"lng_share_wrong_user" = "This game was opened from a different user.";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";

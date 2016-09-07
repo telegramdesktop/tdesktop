@@ -74,7 +74,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (MainWidget *m = main()) {
+		if (auto m = main()) {
 			m->app_sendBotCallback(button, msg, row, col);
 		}
 	} break;

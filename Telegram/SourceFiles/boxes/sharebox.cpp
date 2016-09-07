@@ -27,6 +27,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "core/qthelp_url.h"
+#include "localstorage.h"
+#include "boxes/confirmbox.h"
+#include "apiwrap.h"
 
 ShareBox::ShareBox(SubmitCallback &&callback) : ItemListBox(st::boxScroll)
 , _callback(std_::move(callback))
@@ -886,3 +890,106 @@ QVector<PeerData*> ShareInner::selected() const {
 }
 
 } // namespace internal
+
+QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
+	auto shareHashData = QByteArray(0x10, Qt::Uninitialized);
+	auto ints = reinterpret_cast<int32*>(shareHashData.data());
+	ints[0] = MTP::authedId();
+	ints[1] = fullId.channel;
+	ints[2] = fullId.msg;
+	ints[3] = 0;
+
+	auto key128Size = 0x10;
+	auto shareHashEncrypted = QByteArray(key128Size + shareHashData.size(), Qt::Uninitialized);
+	hashSha1(shareHashData.constData(), shareHashData.size(), shareHashEncrypted.data());
+	if (!Local::encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
+		return url;
+	}
+
+	auto shareHash = shareHashEncrypted.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+	auto shareUrl = qsl("tg://share_game_score?hash=") + QString::fromLatin1(shareHash);
+
+	auto shareComponent = qsl("tgShareScoreUrl=") + qthelp::url_encode(shareUrl);
+
+	auto hashPosition = url.indexOf('#');
+	if (hashPosition < 0) {
+		return url + '#' + shareComponent;
+	}
+	auto hash = url.mid(hashPosition + 1);
+	if (hash.indexOf('=') >= 0 || hash.indexOf('?') >= 0) {
+		return url + '&' + shareComponent;
+	}
+	if (!hash.isEmpty()) {
+		return url + '?' + shareComponent;
+	}
+	return url + shareComponent;
+}
+
+namespace {
+
+void shareGameScoreFromItem(HistoryItem *item) {
+	Ui::showLayer(new ShareBox([msgId = item->fullId()](const QVector<PeerData*> &result) {
+		MTPmessages_ForwardMessages::Flags sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
+		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(msgId.msg));
+		if (auto main = App::main()) {
+			if (auto item = App::histItemById(msgId)) {
+				for_const (auto peer, result) {
+					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
+					MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input), main->rpcDone(&MainWidget::sentUpdatesReceived));
+				}
+			}
+		}
+		Ui::hideLayer();
+	}));
+}
+
+class GameMessageResolvedCallback : public SharedCallback<void, ChannelData*, MsgId> {
+public:
+	void call(ChannelData *channel, MsgId msgId) const override {
+		if (auto item = App::histItemById(channel, msgId)) {
+			shareGameScoreFromItem(item);
+		} else {
+			Ui::showLayer(new InformBox(lang(lng_edit_deleted)));
+		}
+	}
+
+};
+
+} // namespace
+
+void shareGameScoreByHash(const QString &hash) {
+	auto key128Size = 0x10;
+
+	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() % 0x10) != 0) {
+		Ui::showLayer(new InformBox(lang(lng_confirm_phone_link_invalid)));
+		return;
+	}
+
+	auto hashData = QByteArray(hashEncrypted.size() - key128Size, Qt::Uninitialized);
+	if (!Local::decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
+		return;
+	}
+
+	char checkSha1[20] = { 0 };
+	if (memcmp(hashSha1(hashData.constData(), hashData.size(), checkSha1), hashEncrypted.constData(), key128Size) != 0) {
+		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		return;
+	}
+	auto ints = reinterpret_cast<int32*>(hashData.data());
+	if (ints[0] != MTP::authedId()) {
+		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		return;
+	}
+
+	auto channelId = ints[1];
+	auto msgId = ints[2];
+	if (auto item = App::histItemById(channelId, msgId)) {
+		shareGameScoreFromItem(item);
+	} else if (App::api()) {
+		auto channel = channelId ? App::channelLoaded(channelId) : nullptr;
+		if (channel || !channelId) {
+			App::api()->requestMessageData(channel, msgId, std_::make_unique<GameMessageResolvedCallback>());
+		}
+	}
+}

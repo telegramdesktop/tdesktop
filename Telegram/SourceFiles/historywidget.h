@@ -960,6 +960,7 @@ private:
 	struct BotCallbackInfo {
 		FullMsgId msgId;
 		int row, col;
+		bool game;
 	};
 	void botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
 	bool botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);

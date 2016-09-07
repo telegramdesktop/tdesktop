@@ -4011,6 +4011,22 @@ namespace Local {
 		_writeReportSpamStatuses();
 	}
 
+	bool encrypt(const void *src, void *dst, uint32 len, const void *key128) {
+		if (!_localKey.created()) {
+			return false;
+		}
+		MTP::aesEncryptLocal(src, dst, len, &_localKey, key128);
+		return true;
+	}
+
+	bool decrypt(const void *src, void *dst, uint32 len, const void *key128) {
+		if (!_localKey.created()) {
+			return false;
+		}
+		MTP::aesDecryptLocal(src, dst, len, &_localKey, key128);
+		return true;
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
