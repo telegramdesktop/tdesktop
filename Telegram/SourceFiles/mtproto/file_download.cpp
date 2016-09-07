@@ -430,7 +430,7 @@ bool mtpFileLoader::loadPart() {
 
 	App::app()->killDownloadSessionsStop(_dc);
 
-	mtpRequestId reqId = MTP::send(MTPupload_GetFile(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit))), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dldDcId(_dc, dcIndex), 50);
+	mtpRequestId reqId = MTP::send(MTPupload_GetFile(loc, MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dldDcId(_dc, dcIndex), 50);
 
 	++_queue->queries;
 	dr.v[dcIndex] += limit;
