@@ -38,6 +38,7 @@
         '<(src_loc)/overview/overview.style',
         '<(src_loc)/profile/profile.style',
         '<(src_loc)/settings/settings.style',
+        '<(src_loc)/stickers/stickers.style',
         '<(src_loc)/ui/widgets/widgets.style',
       ],
       'langpacks': [
@@ -377,6 +378,10 @@
       '<(src_loc)/settings/settings_scale_widget.h',
       '<(src_loc)/settings/settings_widget.cpp',
       '<(src_loc)/settings/settings_widget.h',
+      '<(src_loc)/stickers/emoji_pan.cpp',
+      '<(src_loc)/stickers/emoji_pan.h',
+      '<(src_loc)/stickers/stickers.cpp',
+      '<(src_loc)/stickers/stickers.h',
       '<(src_loc)/ui/buttons/history_down_button.cpp',
       '<(src_loc)/ui/buttons/history_down_button.h',
       '<(src_loc)/ui/buttons/icon_button.cpp',

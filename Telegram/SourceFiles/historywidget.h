@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/boxshadow.h"
-#include "dropdown.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -38,6 +37,10 @@ namespace Ui {
 class HistoryDownButton;
 class InnerDropdown;
 } // namespace Ui
+
+class Dropdown;
+class DragArea;
+class EmojiPan;
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -1124,10 +1127,10 @@ private:
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
-	Dropdown _attachType;
-	EmojiPan _emojiPan;
+	ChildWidget<Dropdown> _attachType;
+	ChildWidget<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
-	DragArea _attachDragDocument, _attachDragPhoto;
+	ChildWidget<DragArea> _attachDragDocument, _attachDragPhoto;
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 

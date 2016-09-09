@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stickersetbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "stickers/stickers.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "localstorage.h"
@@ -36,54 +37,6 @@ constexpr int kArchivedLimitFirstRequest = 10;
 constexpr int kArchivedLimitPerPage = 30;
 
 } // namespace
-
-namespace Stickers {
-
-void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
-	auto &v = d.vsets.c_vector().v;
-	auto &order = Global::RefStickerSetsOrder();
-	Stickers::Order archived;
-	archived.reserve(v.size());
-	QMap<uint64, uint64> setsToRequest;
-	for_const (auto &stickerSet, v) {
-		const MTPDstickerSet *setData = nullptr;
-		switch (stickerSet.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
-			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
-			}
-		} break;
-		}
-		if (setData) {
-			auto set = Stickers::feedSet(*setData);
-			if (set->stickers.isEmpty()) {
-				setsToRequest.insert(set->id, set->access);
-			}
-			auto index = order.indexOf(set->id);
-			if (index >= 0) {
-				order.removeAt(index);
-			}
-			archived.push_back(set->id);
-		}
-	}
-	if (!setsToRequest.isEmpty()) {
-		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			App::api()->scheduleStickerSetRequest(i.key(), i.value());
-		}
-		App::api()->requestStickerSets();
-	}
-	Local::writeArchivedStickers();
-	Ui::showLayer(new StickersBox(archived), KeepOtherLayers);
-}
-
-} // namespace Stickers
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
 , _input(set) {
@@ -215,12 +168,13 @@ void StickerSetInner::installDone(const MTPmessages_StickerSetInstallResult &res
 
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
-	} else if (wasArchived) {
-		Local::writeArchivedStickers();
+	} else {
+		if (wasArchived) {
+			Local::writeArchivedStickers();
+		}
+		Local::writeInstalledStickers();
+		emit App::main()->stickersUpdated();
 	}
-
-	Local::writeInstalledStickers();
-	emit App::main()->stickersUpdated();
 	emit installed(_setId);
 }
 
@@ -864,59 +818,13 @@ void StickersInner::installSet(uint64 setId) {
 
 	MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersInner::installDone), rpcFail(&StickersInner::installFail, setId));
 
-	auto flags = it->flags;
-	it->flags &= ~(MTPDstickerSet::Flag::f_archived | MTPDstickerSet_ClientFlag::f_unread);
-	it->flags |= MTPDstickerSet::Flag::f_installed;
-	auto changedFlags = flags ^ it->flags;
-
-	auto &order = Global::RefStickerSetsOrder();
-	int insertAtIndex = 0, currentIndex = order.indexOf(setId);
-	if (currentIndex != insertAtIndex) {
-		if (currentIndex > 0) {
-			order.removeAt(currentIndex);
-		}
-		order.insert(insertAtIndex, setId);
-	}
-
-	auto custom = sets.find(Stickers::CustomSetId);
-	if (custom != sets.cend()) {
-		for_const (auto sticker, it->stickers) {
-			int removeIndex = custom->stickers.indexOf(sticker);
-			if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
-		}
-		if (custom->stickers.isEmpty()) {
-			sets.erase(custom);
-		}
-	}
-	Local::writeInstalledStickers();
-	if (changedFlags & MTPDstickerSet_ClientFlag::f_unread) Local::writeFeaturedStickers();
-	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = Global::RefArchivedStickerSetsOrder().indexOf(setId);
-		if (index >= 0) {
-			Global::RefArchivedStickerSetsOrder().removeAt(index);
-			Local::writeArchivedStickers();
-		}
-	}
-	emit App::main()->stickersUpdated();
+	Stickers::installLocally(setId);
 }
 
 void StickersInner::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
-		Local::writeInstalledStickers();
-		Local::writeArchivedStickers();
-		emit App::main()->stickersUpdated();
 	}
-
-	// TEST DATA ONLY
-	//MTPVector<MTPStickerSet> v = MTP_vector<MTPStickerSet>(0);
-	//for (auto &set : Global::RefStickerSets()) {
-	//	if (rand() < RAND_MAX / 2) {
-	//		set.flags |= MTPDstickerSet::Flag::f_archived;
-	//		v._vector().v.push_back(MTP_stickerSet(MTP_flags(set.flags), MTP_long(set.id), MTP_long(set.access), MTP_string(set.title), MTP_string(set.shortName), MTP_int(set.count), MTP_int(set.hash)));
-	//	}
-	//}
-	//Stickers::applyArchivedResult(MTP_messages_stickerSetInstallResultArchive(v).c_messages_stickerSetInstallResultArchive());
 }
 
 bool StickersInner::installFail(uint64 setId, const RPCError &error) {
@@ -929,19 +837,7 @@ bool StickersInner::installFail(uint64 setId, const RPCError &error) {
 		return true;
 	}
 
-	it->flags &= ~MTPDstickerSet::Flag::f_installed;
-
-	auto &order = Global::RefStickerSetsOrder();
-	int currentIndex = order.indexOf(setId);
-	if (currentIndex >= 0) {
-		order.removeAt(currentIndex);
-	}
-
-	Local::writeInstalledStickers();
-	emit App::main()->stickersUpdated();
-
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
-
+	Stickers::undoInstallLocally(setId);
 	return true;
 }
 

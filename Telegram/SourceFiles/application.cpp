@@ -959,17 +959,17 @@ void AppClass::killDownloadSessions() {
 void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
 	if (!App::self()) return;
 
-	QMap<FullMsgId, PeerId>::iterator i = photoUpdates.find(msgId);
+	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
-		PeerId id = i.value();
+		auto id = i.value();
 		if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
 			MTP::send(MTPphotos_UploadProfilePhoto(file, MTP_string(""), MTP_inputGeoPointEmpty(), MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100))), rpcDone(&AppClass::selfPhotoDone), rpcFail(&AppClass::peerPhotoFail, id));
 		} else if (peerIsChat(id)) {
-			History *hist = App::history(id);
-			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(hist->peer->asChat()->inputChat, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, hist->sendRequestId);
+			auto history = App::history(id);
+			history->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(history->peer->asChat()->inputChat, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, history->sendRequestId);
 		} else if (peerIsChannel(id)) {
-			History *hist = App::history(id);
-			hist->sendRequestId = MTP::send(MTPchannels_EditPhoto(hist->peer->asChannel()->inputChannel, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, hist->sendRequestId);
+			auto history = App::history(id);
+			history->sendRequestId = MTP::send(MTPchannels_EditPhoto(history->peer->asChannel()->inputChannel, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, history->sendRequestId);
 		}
 	}
 }
