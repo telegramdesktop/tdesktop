@@ -57,6 +57,7 @@
       'telegram_mac.gypi',
       'telegram_linux.gypi',
       'qt.gypi',
+      'qt_rcc.gypi',
       'codegen_rules.gypi',
     ],
 

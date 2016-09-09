@@ -155,9 +155,9 @@ void QGtkDialog::show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindo
 
     Libs::gtk_widget_realize(gtkWidget); // creates X window
 
-	if (parent) {
-		Platform::internal::XSetTransientForHint(Libs::gtk_widget_get_window(gtkWidget), parent->winId());
-	}
+    if (parent) {
+        Platform::internal::XSetTransientForHint(Libs::gtk_widget_get_window(gtkWidget), parent->winId());
+    }
 
     if (modality != Qt::NonModal) {
         Libs::gdk_window_set_modal_hint(Libs::gtk_widget_get_window(gtkWidget), true);
