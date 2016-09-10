@@ -113,7 +113,7 @@ private:
 };
 
 class EmojiPanel;
-class EmojiPanInner : public TWidget {
+class EmojiPanInner : public ScrolledWidget {
 	Q_OBJECT
 
 public:
@@ -121,13 +121,6 @@ public:
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e) override;
-
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 	void step_selected(uint64 ms, bool timer);
 	void hideFinish();
@@ -140,13 +133,20 @@ public:
 
 	void refreshRecent();
 
-	void setScrollTop(int top);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	void fillPanels(QVector<EmojiPanel*> &panels);
 	void refreshPanels(QVector<EmojiPanel*> &panels);
 
-public slots:
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
+public slots:
 	void updateSelected();
 
 	void onShowPicker();
@@ -156,7 +156,6 @@ public slots:
 	bool checkPickerHide();
 
 signals:
-
 	void selected(EmojiPtr emoji);
 
 	void switchToStickers();
@@ -168,7 +167,6 @@ signals:
 	void saveConfigDelayed(int32 delay);
 
 private:
-
 	int32 _maxHeight;
 
 	int countHeight();
@@ -180,7 +178,9 @@ private:
 	Animations _animations;
 	Animation _a_selected;
 
-	int _top = 0, _counts[emojiTabCount];
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+	int _counts[emojiTabCount];
 
 	QVector<EmojiPtr> _emojis[emojiTabCount];
 	QVector<float64> _hovers[emojiTabCount];
@@ -207,22 +207,14 @@ struct StickerIcon {
 	int pixh = 0;
 };
 
-class StickerPanInner : public TWidget {
+class StickerPanInner : public ScrolledWidget {
 	Q_OBJECT
 
 public:
-
 	StickerPanInner();
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e) override;
-
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 	void step_selected(uint64 ms, bool timer);
 
@@ -247,7 +239,7 @@ public:
 	void fillPanels(QVector<EmojiPanel*> &panels);
 	void refreshPanels(QVector<EmojiPanel*> &panels);
 
-	void setScrollTop(int top);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void preloadImages();
 
 	uint64 currentSet(int yOffset) const;
@@ -264,12 +256,21 @@ public:
 
 	~StickerPanInner();
 
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+
 private slots:
 	void updateSelected();
 	void onSettings();
 	void onPreview();
 	void onUpdateInlineItems();
 	void onSwitchPm();
+	void onImageLoaded();
 
 signals:
 	void selected(DocumentData *sticker);
@@ -310,6 +311,7 @@ private:
 		return const_cast<StickerPanInner*>(this)->shownSets();
 	}
 	int featuredRowHeight() const;
+	void readVisibleSets();
 
 	bool showingInlineItems() const { // Gifs or Inline results
 		return (_section == Section::Inlines) || (_section == Section::Gifs);
@@ -324,7 +326,11 @@ private:
 
 	void refreshSwitchPmButton(const InlineCacheEntry *entry);
 
-	void appendSet(Sets &to, uint64 setId);
+	enum class AppendSkip {
+		Archived,
+		Installed,
+	};
+	void appendSet(Sets &to, uint64 setId, AppendSkip skip);
 
 	void selectEmoji(EmojiPtr emoji);
 	QRect stickerRect(int tab, int sel);
@@ -335,7 +341,8 @@ private:
 	Animations _animations;
 	Animation _a_selected;
 
-	int _top = 0;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 
 	Sets _mySets;
 	Sets _featuredSets;

@@ -1155,7 +1155,9 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
-				sticker()->set = d.vstickerset;
+				if (sticker()->set.type() != mtpc_inputStickerSetID || d.vstickerset.type() == mtpc_inputStickerSetID) {
+					sticker()->set = d.vstickerset;
+				}
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {

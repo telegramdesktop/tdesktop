@@ -27,6 +27,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "ui/filedialog.h"
+#include "styles/style_stickers.h"
+
+namespace {
+
+constexpr int kStickerPreviewEmojiLimit = 10;
+
+} // namespace
 
 void LayerWidget::setInnerFocus() {
 	auto focused = App::wnd()->focusWidget();
@@ -339,6 +346,7 @@ void LayerStackWidget::activateLayer(LayerWidget *l) {
 		startShow();
 	} else {
 		l->show();
+		l->showDone();
 		if (App::wnd()) App::wnd()->setInnerFocus();
 		updateLayerBox();
 	}
@@ -426,7 +434,8 @@ LayerStackWidget::~LayerStackWidget() {
 
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
 , a_shown(0, 0)
-, _a_shown(animation(this, &MediaPreviewWidget::step_shown)) {
+, _a_shown(animation(this, &MediaPreviewWidget::step_shown))
+, _emojiSize(EmojiSizes[EIndex + 1] / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 }
@@ -435,8 +444,8 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
 
-	const QPixmap &draw(currentImage());
-	int w = draw.width() / cIntRetinaFactor(), h = draw.height() / cIntRetinaFactor();
+	auto &image = currentImage();
+	int w = image.width() / cIntRetinaFactor(), h = image.height() / cIntRetinaFactor();
 	if (_a_shown.animating()) {
 		float64 shown = a_shown.current();
 		p.setOpacity(shown);
@@ -444,7 +453,17 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 //		h = qMax(qRound(h * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(h % 2), 1);
 	}
 	p.fillRect(r, st::stickerPreviewBg);
-	p.drawPixmap((width() - w) / 2, (height() - h) / 2, draw);
+	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
+	if (!_emojiList.isEmpty()) {
+		int emojiCount = _emojiList.size();
+		int emojiWidth = emojiCount * _emojiSize + (emojiCount - 1) * st::stickerEmojiSkip;
+		int emojiLeft = (width() - emojiWidth) / 2;
+		int esize = _emojiSize * cIntRetinaFactor();
+		for_const (auto emoji, _emojiList) {
+			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - _emojiSize * 2, width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
+			emojiLeft += _emojiSize + st::stickerEmojiSkip;
+		}
+	}
 }
 
 void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
@@ -472,6 +491,7 @@ void MediaPreviewWidget::showPreview(DocumentData *document) {
 	startShow();
 	_photo = nullptr;
 	_document = document;
+	fillEmojiString();
 	resetGifAndCache();
 }
 
@@ -508,6 +528,42 @@ void MediaPreviewWidget::hidePreview() {
 	_photo = nullptr;
 	_document = nullptr;
 	resetGifAndCache();
+}
+
+void MediaPreviewWidget::fillEmojiString() {
+	auto getStickerEmojiList = [this](uint64 setId) {
+		QList<EmojiPtr> result;
+		auto &sets = Global::StickerSets();
+		auto it = sets.constFind(setId);
+		if (it == sets.cend()) {
+			return result;
+		}
+		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
+			for_const (auto document, *i) {
+				if (document == _document) {
+					result.append(i.key());
+					if (result.size() >= kStickerPreviewEmojiLimit) {
+						return result;
+					}
+				}
+			}
+		}
+		return result;
+	};
+
+	if (auto sticker = _document->sticker()) {
+		auto &inputSet = sticker->set;
+		if (inputSet.type() == mtpc_inputStickerSetID) {
+			_emojiList = getStickerEmojiList(inputSet.c_inputStickerSetID().vid.v);
+		} else {
+			_emojiList.clear();
+			if (auto emoji = emojiFromText(sticker->alt)) {
+				_emojiList.append(emoji);
+			}
+		}
+	} else {
+		_emojiList.clear();
+	}
 }
 
 void MediaPreviewWidget::resetGifAndCache() {

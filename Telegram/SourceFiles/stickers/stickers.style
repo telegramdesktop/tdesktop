@@ -37,3 +37,24 @@ featuredStickersAdd: RoundButton(defaultActiveButton) {
 	textTop: 4px;
 	downTextTop: 5px;
 }
+
+stickerEmojiSkip: 5px;
+
+stickersAddIcon: icon {
+	{ "stickers_add", #ffffff },
+};
+stickersAddSize: size(30px, 24px);
+
+stickersFeaturedHeight: 32px;
+stickersFeaturedFont: contactsNameFont;
+stickersFeaturedPosition: point(16px, 6px);
+stickersFeaturedBadgeFont: semiboldFont;
+stickersFeaturedBadgeSize: 21px;
+stickersFeaturedPen: contactsNewItemFg;
+stickersFeaturedUnreadBg: msgFileInBg;
+stickersFeaturedUnreadSize: 5px;
+stickersFeaturedUnreadSkip: 5px;
+stickersFeaturedUnreadTop: 7px;
+stickersFeaturedInstalled: icon {
+	{ "mediaview_save_check", #40ace3 }
+};

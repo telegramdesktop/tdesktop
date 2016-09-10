@@ -3836,14 +3836,14 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 	_featuredStickersUpdateRequest = 0;
 
 	if (stickers.type() != mtpc_messages_featuredStickers) return;
-	auto &d(stickers.c_messages_featuredStickers());
+	auto &d = stickers.c_messages_featuredStickers();
 
 	OrderedSet<uint64> unread;
 	for_const (auto &unreadSetId, d.vunread.c_vector().v) {
 		unread.insert(unreadSetId.v);
 	}
 
-	auto &d_sets(d.vsets.c_vector().v);
+	auto &d_sets = d.vsets.c_vector().v;
 
 	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
 	setsOrder.clear();

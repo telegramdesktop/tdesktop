@@ -1029,12 +1029,10 @@ struct DocumentAdditionalData {
 };
 
 struct StickerData : public DocumentAdditionalData {
-	StickerData() : set(MTP_inputStickerSetEmpty()) {
-	}
 	ImagePtr img;
 	QString alt;
 
-	MTPInputStickerSet set;
+	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
 	bool setInstalled() const;
 
 	StorageImageLocation loc; // doc thumb location

@@ -133,7 +133,6 @@ class MediaPreviewWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
 	MediaPreviewWidget(QWidget *parent);
 
 	void paintEvent(QPaintEvent *e);
@@ -148,10 +147,10 @@ public:
 	~MediaPreviewWidget();
 
 private:
-
 	QSize currentDimensions() const;
 	QPixmap currentImage() const;
 	void startShow();
+	void fillEmojiString();
 	void resetGifAndCache();
 
 	anim::fvalue a_shown;
@@ -162,6 +161,9 @@ private:
 	bool gif() const {
 		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
 	}
+
+	int _emojiSize;
+	QList<EmojiPtr> _emojiList;
 
 	void clipCallback(Media::Clip::Notification notification);
 

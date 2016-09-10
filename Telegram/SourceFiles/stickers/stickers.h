@@ -25,5 +25,25 @@ namespace Stickers {
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 void installLocally(uint64 setId);
 void undoInstallLocally(uint64 setId);
+void markFeaturedAsRead(uint64 setId);
 
+namespace internal {
+
+class FeaturedReader : public QObject {
+	Q_OBJECT
+
+public:
+	FeaturedReader(QObject *parent);
+	void scheduleRead(uint64 setId);
+
+private slots:
+	void onReadSets();
+
+private:
+	QTimer *_timer;
+	OrderedSet<uint64> _setIds;
+
+};
+
+} // namespace internal
 } // namespace Stickers

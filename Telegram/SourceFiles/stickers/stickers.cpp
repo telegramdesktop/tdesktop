@@ -19,15 +19,22 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "stickers.h"
 
 #include "boxes/stickersetbox.h"
 #include "boxes/confirmbox.h"
+#include "lang.h"
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 
 namespace Stickers {
+namespace {
+
+constexpr int kReadFeaturedSetsTimeoutMs = 1000;
+internal::FeaturedReader *FeaturedReaderInstance = nullptr;
+
+} // namespace
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets.c_vector().v;
@@ -140,4 +147,61 @@ void undoInstallLocally(uint64 setId) {
 	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
 }
 
+void markFeaturedAsRead(uint64 setId) {
+	if (!FeaturedReaderInstance) {
+		if (auto main = App::main()) {
+			FeaturedReaderInstance = new internal::FeaturedReader(main);
+		} else {
+			return;
+		}
+	}
+	FeaturedReaderInstance->scheduleRead(setId);
+}
+
+namespace internal {
+
+void readFeaturedDone() {
+	Local::writeFeaturedStickers();
+	if (App::main()) {
+		emit App::main()->stickersUpdated();
+	}
+}
+
+FeaturedReader::FeaturedReader(QObject *parent) : QObject(parent)
+, _timer(new QTimer(this)) {
+	_timer->setSingleShot(true);
+	connect(_timer, SIGNAL(timeout()), this, SLOT(onReadSets()));
+}
+
+void FeaturedReader::scheduleRead(uint64 setId) {
+	if (!_setIds.contains(setId)) {
+		_setIds.insert(setId);
+		_timer->start(kReadFeaturedSetsTimeoutMs);
+	}
+}
+
+void FeaturedReader::onReadSets() {
+	auto &sets = Global::RefStickerSets();
+	auto count = Global::FeaturedStickerSetsUnreadCount();
+	QVector<MTPlong> wrappedIds;
+	wrappedIds.reserve(_setIds.size());
+	for_const (auto setId, _setIds) {
+		auto it = sets.find(setId);
+		if (it != sets.cend()) {
+			it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			wrappedIds.append(MTP_long(setId));
+			if (count) {
+				--count;
+			}
+		}
+	}
+	_setIds.clear();
+
+	if (!wrappedIds.empty()) {
+		MTP::send(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds)), rpcDone(&readFeaturedDone));
+		Global::SetFeaturedStickerSetsUnreadCount(count);
+	}
+}
+
+} // namespace internal
 } // namespace Stickers

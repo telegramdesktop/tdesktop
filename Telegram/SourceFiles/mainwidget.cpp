@@ -4691,15 +4691,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						writeArchived = true;
 					}
 				}
-
-				const auto &v(set.vdocuments.c_vector().v);
+				auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
+				auto &v = set.vdocuments.c_vector().v;
 				it->stickers.clear();
 				it->stickers.reserve(v.size());
 				for (int32 i = 0, l = v.size(); i < l; ++i) {
-					DocumentData *doc = App::feedDocument(v.at(i));
+					auto doc = App::feedDocument(v.at(i));
 					if (!doc || !doc->sticker()) continue;
 
 					it->stickers.push_back(doc);
+					if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
+						doc->sticker()->set = inputSet;
+					}
 				}
 				it->emoji.clear();
 				auto &packs = set.vpacks.c_vector().v;
@@ -4780,16 +4783,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadFeaturedStickers: {
-		for (auto &set : Global::RefStickerSets()) {
-			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
-				set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
-			}
-		}
-		if (Global::FeaturedStickerSetsUnreadCount()) {
-			Global::SetFeaturedStickerSetsUnreadCount(0);
-			Local::writeFeaturedStickers();
-			emit stickersUpdated();
-		}
+		// We read some of the featured stickers, perhaps not all of them.
+		// Here we don't know what featured sticker sets were read, so we
+		// request all of them once again.
+		Global::SetLastFeaturedStickersUpdate(0);
+		App::main()->updateStickers();
 	} break;
 
 	////// Cloud saved GIFs

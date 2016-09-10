@@ -3215,6 +3215,7 @@ namespace Local {
 				it = sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags)));
 			}
 			auto &set = it.value();
+			auto inputSet = MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
 
 			if (scnt < 0) { // disabled not loaded set
 				if (!set.count || set.stickers.isEmpty()) {
@@ -3240,6 +3241,11 @@ namespace Local {
 
 				if (fillStickers) {
 					set.stickers.push_back(document);
+					if (!(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
+						if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+							document->sticker()->set = inputSet;
+						}
+					}
 					++set.count;
 				}
 			}
@@ -3287,6 +3293,8 @@ namespace Local {
 	}
 
 	void writeInstalledStickers() {
+		if (!Global::started()) return;
+
 		_writeStickerSets(_installedStickersKey, [](const Stickers::Set &set) {
 			if (set.id == Stickers::CloudRecentSetId) { // separate file for recent
 				return StickerSetCheckResult::Skip;
@@ -3306,6 +3314,8 @@ namespace Local {
 	}
 
 	void writeFeaturedStickers() {
+		if (!Global::started()) return;
+
 		_writeStickerSets(_featuredStickersKey, [](const Stickers::Set &set) {
 			if (set.id == Stickers::CloudRecentSetId) { // separate file for recent
 				return StickerSetCheckResult::Skip;
@@ -3323,6 +3333,8 @@ namespace Local {
 	}
 
 	void writeRecentStickers() {
+		if (!Global::started()) return;
+
 		_writeStickerSets(_recentStickersKey, [](const Stickers::Set &set) {
 			if (set.id != Stickers::CloudRecentSetId || set.stickers.isEmpty()) {
 				return StickerSetCheckResult::Skip;
@@ -3332,6 +3344,8 @@ namespace Local {
 	}
 
 	void writeArchivedStickers() {
+		if (!Global::started()) return;
+
 		_writeStickerSets(_archivedStickersKey, [](const Stickers::Set &set) {
 			if (!(set.flags & MTPDstickerSet::Flag::f_archived) || set.stickers.isEmpty()) {
 				return StickerSetCheckResult::Skip;
