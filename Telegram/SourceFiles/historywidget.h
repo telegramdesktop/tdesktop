@@ -803,7 +803,7 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
-	void onStickerSend(DocumentData *sticker);
+	bool onStickerSend(DocumentData *sticker);
 	void onPhotoSend(PhotoData *photo);
 	void onInlineResultSend(InlineBots::Result *result, UserData *bot);
 
@@ -913,7 +913,7 @@ private:
 		void call(ChannelData *channel, MsgId msgId) const override;
 	};
 
-	void sendExistingDocument(DocumentData *doc, const QString &caption);
+	bool sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 
 	void drawField(Painter &p, const QRect &rect);

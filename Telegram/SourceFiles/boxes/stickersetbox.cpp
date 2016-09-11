@@ -39,7 +39,7 @@ constexpr int kArchivedLimitPerPage = 30;
 
 } // namespace
 
-StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
+StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : ScrolledWidget()
 , _input(set) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
@@ -49,6 +49,8 @@ StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&StickerSetInner::gotSet), rpcFail(&StickerSetInner::failedSet));
 	App::main()->updateStickers();
 
+	setMouseTracking(true);
+
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 }
@@ -56,15 +58,20 @@ StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
 void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_pack.clear();
 	_emoji.clear();
+	_packOvers.clear();
+	_selected = -1;
+	setCursor(style::cur_default);
 	if (set.type() == mtpc_messages_stickerSet) {
 		auto &d(set.c_messages_stickerSet());
 		auto &v(d.vdocuments.c_vector().v);
 		_pack.reserve(v.size());
+		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
 			auto doc = App::feedDocument(v.at(i));
 			if (!doc || !doc->sticker()) continue;
 
 			_pack.push_back(doc);
+			_packOvers.push_back(FloatAnimation());
 		}
 		auto &packs(d.vpacks.c_vector().v);
 		for (int i = 0, l = packs.size(); i < l; ++i) {
@@ -112,6 +119,8 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		resize(st::stickersPadding.left() + StickerPanPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
 	}
 	_loaded = true;
+
+	updateSelected();
 
 	emit updateButtons();
 }
@@ -188,15 +197,16 @@ bool StickerSetInner::installFail(const RPCError &error) {
 }
 
 void StickerSetInner::mousePressEvent(QMouseEvent *e) {
-	int32 index = stickerFromGlobalPos(e->globalPos());
+	int index = stickerFromGlobalPos(e->globalPos());
 	if (index >= 0 && index < _pack.size()) {
 		_previewTimer.start(QApplication::startDragTime());
 	}
 }
 
 void StickerSetInner::mouseMoveEvent(QMouseEvent *e) {
+	updateSelected();
 	if (_previewShown >= 0) {
-		int32 index = stickerFromGlobalPos(e->globalPos());
+		int index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && index != _previewShown) {
 			_previewShown = index;
 			Ui::showMediaPreview(_pack.at(_previewShown));
@@ -205,11 +215,47 @@ void StickerSetInner::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void StickerSetInner::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	if (_previewShown >= 0) {
+		_previewShown = -1;
+		return;
+	}
+	if (_previewTimer.isActive()) {
+		_previewTimer.stop();
+		int index = stickerFromGlobalPos(e->globalPos());
+		if (index >= 0 && index < _pack.size()) {
+			if (auto main = App::main()) {
+				if (main->onSendSticker(_pack.at(index))) {
+					Ui::hideSettingsAndLayer();
+				}
+			}
+		}
+	}
+}
+
+void StickerSetInner::updateSelected() {
+	auto index = stickerFromGlobalPos(QCursor::pos());
+	if (index != _selected) {
+		startOverAnimation(_selected, 1., 0.);
+		_selected = index;
+		startOverAnimation(_selected, 0., 1.);
+		setCursor(_selected >= 0 ? style::cur_pointer : style::cur_default);
+	}
+}
+
+void StickerSetInner::startOverAnimation(int index, float64 from, float64 to) {
+	if (index >= 0 && index < _packOvers.size()) {
+		START_ANIMATION(_packOvers[index], func([this, index]() {
+			int row = index / StickerPanPerRow;
+			int column = index % StickerPanPerRow;
+			int left = st::stickersPadding.left() + column * st::stickersSize.width();
+			int top = st::stickersPadding.top() + row * st::stickersSize.height();
+			rtlupdate(left, top, st::stickersSize.width(), st::stickersSize.height());
+		}), from, to, st::emojiPanDuration, anim::linear);
+	}
 }
 
 void StickerSetInner::onPreview() {
-	int32 index = stickerFromGlobalPos(QCursor::pos());
+	int index = stickerFromGlobalPos(QCursor::pos());
 	if (index >= 0 && index < _pack.size()) {
 		_previewShown = index;
 		Ui::showMediaPreview(_pack.at(_previewShown));
@@ -241,10 +287,19 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 		for (int32 j = 0; j < StickerPanPerRow; ++j) {
 			int32 index = i * StickerPanPerRow + j;
 			if (index >= _pack.size()) break;
+			t_assert(index < _packOvers.size());
 
 			DocumentData *doc = _pack.at(index);
 			QPoint pos(st::stickersPadding.left() + j * st::stickersSize.width(), st::stickersPadding.top() + i * st::stickersSize.height());
 
+			if (auto over = _packOvers[index].current((index == _selected) ? 1. : 0.)) {
+				p.setOpacity(over);
+				QPoint tl(pos);
+				if (rtl()) tl.setX(width() - tl.x() - st::stickersSize.width());
+				App::roundRect(p, QRect(tl, st::stickersSize), st::emojiPanHover, StickerHoverCorners);
+				p.setOpacity(1);
+
+			}
 			bool goodThumb = !doc->thumb->isNull() && ((doc->thumb->width() >= 128) || (doc->thumb->height() >= 128));
 			if (goodThumb) {
 				doc->thumb->load();
@@ -272,10 +327,9 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void StickerSetInner::setScrollBottom(int32 bottom) {
-	if (bottom == _bottom) return;
-
-	_bottom = bottom;
+void StickerSetInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
 }
 
 bool StickerSetInner::loaded() const {
@@ -364,7 +418,9 @@ void StickerSetBox::onUpdateButtons() {
 }
 
 void StickerSetBox::onScroll() {
-	_inner.setScrollBottom(scrollArea()->scrollTop() + scrollArea()->height());
+	auto scroll = scrollArea();
+	auto scrollTop = scroll->scrollTop();
+	_inner.setVisibleTopBottom(scrollTop, scrollTop + scroll->height());
 }
 
 void StickerSetBox::showAll() {

@@ -1712,6 +1712,10 @@ void MainWidget::onShareContactCancel() {
 	_history->cancelShareContact();
 }
 
+bool MainWidget::onSendSticker(DocumentData *document) {
+	return _history->onStickerSend(document);
+}
+
 void MainWidget::dialogsCancelled() {
 	if (_hider) {
 		_hider->startHide();

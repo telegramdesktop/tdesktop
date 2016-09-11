@@ -24,17 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ConfirmBox;
 
-class StickerSetInner : public TWidget, public RPCSender {
+class StickerSetInner : public ScrolledWidget, public RPCSender {
 	Q_OBJECT
 
 public:
 	StickerSetInner(const MTPInputStickerSet &set);
-
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-
-	void paintEvent(QPaintEvent *e);
 
 	bool loaded() const;
 	int32 notInstalled() const;
@@ -42,12 +36,18 @@ public:
 	QString title() const;
 	QString shortName() const;
 
-	void setScrollBottom(int32 bottom);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void install();
 
 	~StickerSetInner();
 
-public slots:
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private slots:
 	void onPreview();
 
 signals:
@@ -55,7 +55,9 @@ signals:
 	void installed(uint64 id);
 
 private:
-	int32 stickerFromGlobalPos(const QPoint &p) const;
+	void updateSelected();
+	void startOverAnimation(int index, float64 from, float64 to);
+	int stickerFromGlobalPos(const QPoint &p) const;
 
 	void gotSet(const MTPmessages_StickerSet &set);
 	bool failedSet(const RPCError &error);
@@ -63,6 +65,7 @@ private:
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installFail(const RPCError &error);
 
+	QVector<FloatAnimation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;
@@ -73,13 +76,17 @@ private:
 	int32 _setHash = 0;
 	MTPDstickerSet::Flags _setFlags = 0;
 
-	int32 _bottom = 0;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest = 0;
 
+	int _selected = -1;
+
 	QTimer _previewTimer;
-	int32 _previewShown = -1;
+	int _previewShown = -1;
+
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {

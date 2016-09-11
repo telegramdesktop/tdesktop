@@ -7458,8 +7458,8 @@ void HistoryWidget::onFieldTabbed() {
 	}
 }
 
-void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	sendExistingDocument(sticker, QString());
+bool HistoryWidget::onStickerSend(DocumentData *sticker) {
+	return sendExistingDocument(sticker, QString());
 }
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
@@ -7646,14 +7646,14 @@ void HistoryWidget::ReplyEditMessageDataCallback::call(ChannelData *channel, Msg
 	}
 }
 
-void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
+bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
 	if (!_history || !doc || !canSendMessages(_peer)) {
-		return;
+		return false;
 	}
 
 	MTPInputDocument mtpInput = doc->mtpInput();
 	if (mtpInput.type() == mtpc_inputDocumentEmpty) {
-		return;
+		return false;
 	}
 
 	App::main()->readServerHistory(_history);
@@ -7707,6 +7707,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	if (!_emojiPan->isHidden()) _emojiPan->hideStart();
 
 	_field.setFocus();
+	return true;
 }
 
 void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) {
