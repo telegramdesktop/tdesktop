@@ -200,6 +200,7 @@
       '<(src_loc)/core/qthelp_url.cpp',
       '<(src_loc)/core/qthelp_url.h',
       '<(src_loc)/core/vector_of_moveable.h',
+      '<(src_loc)/core/version.h',
       '<(src_loc)/data/data_abstract_structure.cpp',
       '<(src_loc)/data/data_abstract_structure.h',
       '<(src_loc)/data/data_drafts.cpp',
@@ -456,19 +457,11 @@
       '<(src_loc)/window/top_bar_widget.cpp',
       '<(src_loc)/window/top_bar_widget.h',
     ],
-    'configurations': {
-      'Release': {
-        'conditions': [
-          ['"<(official_build_target)" != ""', {
-            'defines': [
-              'CUSTOM_API_ID',
-            ],
-          }],
-        ],
-      },
-    },
     'conditions': [
       [ '"<(official_build_target)" != ""', {
+        'defines': [
+          'CUSTOM_API_ID',
+        ],
         'dependencies': [
           'utils.gyp:Packer',
         ],
