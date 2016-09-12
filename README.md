@@ -35,9 +35,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * [Visual Studio 2015][msvc]
 * [Xcode 7][xcode]
-* [Xcode 7 for OS X 10.6 and 10.7][xcode_old]
-* [Qt Creator 3.5.1 Ubuntu][qtcreator]
-* [Using qmake on GNU/Linux][qmake]
+* [GYP/CMake on GNU/Linux][cmake]
 
 ## Projects in Telegram solution
 
@@ -83,5 +81,4 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [msvc]: doc/building-msvc.md
 [xcode]: doc/building-xcode.md
 [xcode_old]: doc/building-xcode-old.md
-[qtcreator]: doc/building-qtcreator.md
-[qmake]: doc/building-qmake.md
+[cmake]: doc/building-cmake.md

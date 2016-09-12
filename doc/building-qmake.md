@@ -1,6 +1,8 @@
 Building via qmake
 ==================
 
+**NB** These are outdated, please refer to [Building using GYP/CMake][cmake] instructions.
+
 The following commands assume the following environment variables are set:
 
  * `$srcdir`: The directory into which the source has been downloaded and
@@ -133,3 +135,4 @@ In case these instructions are at some point out of date, the above may serve
 as an update reference.
 
 [arch-package]: https://aur.archlinux.org/packages/telegram-desktop/
+[cmake]: building-cmake.md
