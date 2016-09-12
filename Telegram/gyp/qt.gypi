@@ -23,14 +23,13 @@
       'variables': {
         'variables': {
           'qt_libs': [
-            'Qt5Core',
-            'Qt5Gui',
-            'Qt5Widgets',
-            'qtharfbuzzng',
-            'Qt5Network',
-            'Qt5PlatformSupport',
-            'Qt5PrintSupport',
             'qwebp',
+            'Qt5PrintSupport',
+            'Qt5PlatformSupport',
+            'Qt5Network',
+            'Qt5Widgets',
+            'Qt5Gui',
+            'qtharfbuzzng',
           ],
           'conditions': [
             [ 'build_macold', {
@@ -48,8 +47,11 @@
             'qt_lib_release_postfix': '<(ld_lib_postfix)',
             'qt_libs': [
               '<@(qt_libs)',
+              'Qt5Core',
               'qtmain',
               'qwindows',
+              'qtfreetype',
+              'qtpcre',
             ],
           }],
           [ 'build_mac', {
@@ -58,20 +60,54 @@
             'qt_lib_release_postfix': '<(ld_lib_postfix)',
             'qt_libs': [
               '<@(qt_libs)',
+              'Qt5Core',
               'qgenericbearer',
               'qcocoa',
             ],
           }],
           [ 'build_macold', {
             'qt_loc_unix': '/usr/local/Qt-<(qt_version)'
-          }, {
+          }],
+          [ 'build_mac and not build_macold', {
             'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
             'qt_libs': [
-            	'<@(qt_libs)',
-	            'qtfreetype',
-            	'qtpcre',
+              '<@(qt_libs)',
+              'Qt5Core',
+              'qtfreetype',
+              'qtpcre',
             ],
-          }]
+          }],
+          [ 'build_linux', {
+            'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
+            'qt_lib_prefix': 'lib',
+            'qt_lib_debug_postfix': '.a',
+            'qt_lib_release_postfix': '.a',
+            'qt_libs': [
+              'qxcb',
+              'Qt5XcbQpa',
+              'qconnmanbearer',
+              'qgenericbearer',
+              'qnmbearer',
+              '<@(qt_libs)',
+              'Qt5DBus',
+              'Qt5Core',
+              'qtpcre',
+              'ssl',
+              'crypto',
+              'Xi',
+              'Xext',
+              'SM',
+              'ICE',
+              'fontconfig',
+              'expat',
+              'freetype',
+              'xcb',
+              'xcb-shm',
+              'xcb-xfixes',
+              'xcb-render',
+              'xcb-static',
+            ],
+          }],
         ],
       },
       'qt_version%': '<(qt_version)',
@@ -143,6 +179,10 @@
 
   'include_dirs': [
     '<(qt_loc)/include',
+    '<(qt_loc)/include/QtCore',
+    '<(qt_loc)/include/QtGui',
+    '<(qt_loc)/include/QtCore/<(qt_version)',
+    '<(qt_loc)/include/QtGui/<(qt_version)',
     '<(qt_loc)/include/QtCore/<(qt_version)/QtCore',
     '<(qt_loc)/include/QtGui/<(qt_version)/QtGui',
   ],
@@ -152,12 +192,40 @@
     '<(qt_loc)/plugins/bearer',
     '<(qt_loc)/plugins/platforms',
     '<(qt_loc)/plugins/imageformats',
+    '<(qt_loc)/plugins/platforminputcontexts',
   ],
   'defines': [
     'QT_WIDGETS_LIB',
     'QT_NETWORK_LIB',
     'QT_GUI_LIB',
     'QT_CORE_LIB',
+  ],
+  'conditions': [
+    [ 'build_linux', {
+      'library_dirs': [
+        '<(qt_loc)/plugins/platforms/xcb/xcb-static',
+      ],
+      'libraries': [
+        '/usr/local/lib/libxkbcommon.a',
+        '<@(qt_libs_release)',
+        'X11',
+        'X11-xcb',
+        'dbus-1',
+        'dl',
+        'gthread-2.0',
+        'glib-2.0',
+        'pthread',
+      ],
+      'include_dirs': [
+        '<(qt_loc)/mkspecs/linux-g++',
+      ],
+      'ldflags': [
+        '-static-libstdc++',
+        '-pthread',
+        '-g',
+        '-rdynamic',
+      ],
+    }],
   ],
 
   'rules': [{
@@ -178,24 +246,6 @@
       '-o', '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/moc/moc_<(RULE_INPUT_ROOT).cpp',
     ],
     'message': 'Moc-ing <(RULE_INPUT_ROOT).h..',
-    'process_outputs_as_sources': 1,
-  }, {
-    'rule_name': 'qt_rcc',
-    'extension': 'qrc',
-    'inputs': [
-      '<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
-    ],
-    'outputs': [
-      '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/qrc/qrc_<(RULE_INPUT_ROOT).cpp',
-    ],
-    'action': [
-      '<(qt_loc)/bin/rcc<(exe_ext)',
-      '-name', '<(RULE_INPUT_ROOT)',
-      '-no-compress',
-      '<(RULE_INPUT_PATH)',
-      '-o', '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/qrc/qrc_<(RULE_INPUT_ROOT).cpp',
-    ],
-    'message': 'Rcc-ing <(RULE_INPUT_ROOT).qrc..',
     'process_outputs_as_sources': 1,
   }],
 }

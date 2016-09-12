@@ -50,13 +50,13 @@ if [ "$BuildTarget" == "linux" ]; then
   echo "Deploying version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
-  ReleasePath="$HomePath/../Linux/Release"
+  ReleasePath="$HomePath/../out/Release"
   RemoteFolder="tlinux"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Deploying version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
-  ReleasePath="$HomePath/../Linux/Release"
+  ReleasePath="$HomePath/../out/Release"
   RemoteFolder="tlinux32"
 elif [ "$BuildTarget" == "mac" ]; then
   DeployMac="0"

@@ -18,10 +18,11 @@
 # Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 {
-	'includes': [
+  'includes': [
     'settings_win.gypi',
     'settings_mac.gypi',
-	],
+    'settings_linux.gypi',
+  ],
   'variables': {
     'variables': {
       'variables': {
@@ -58,7 +59,7 @@
       'build_mac%': '<(build_mac)',
       'build_linux%': '<(build_linux)',
 
-	    'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
+      'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',

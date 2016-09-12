@@ -19,6 +19,15 @@
 
 {
   'conditions': [[ 'build_linux', {
+    'variables': {
+      'pkgconfig_libs': [
+# In order to work libxkbcommon must be linked statically,
+# PKGCONFIG links it like "-L/usr/local/lib -lxkbcommon"
+# which makes a dynamic link which leads to segfault in
+# QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
+        #'xkbcommon',
+      ],
+    },
     'include_dirs': [
       '/usr/local/include',
       '<(libs_loc)/openssl-xcode/include'
@@ -26,11 +35,52 @@
     'library_dirs': [
       '/usr/local/lib',
       '<(libs_loc)/libexif-0.6.20/libexif/.libs',
+      '<(libs_loc)/breakpad/src/client/linux',
     ],
     'libraries': [
-      '-lssl',
-      '-lcrypto',
-      '-llzma',
+      'breakpad_client',
+      'composeplatforminputcontextplugin',
+      'ibusplatforminputcontextplugin',
+      'fcitxplatforminputcontextplugin',
+      'liblzma.a',
+      'libopenal.a',
+      'libavformat.a',
+      'libavcodec.a',
+      'libswresample.a',
+      'libswscale.a',
+      'libavutil.a',
+      'libopus.a',
+      'libva-x11.a',
+      'libva-drm.a',
+      'libva.a',
+      'libz.a',
+#      '<!(pkg-config 2> /dev/null --libs <@(pkgconfig_libs))',
     ],
+    'cflags_cc': [
+      '<!(pkg-config 2> /dev/null --cflags appindicator-0.1)',
+      '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
+      '<!(pkg-config 2> /dev/null --cflags glib-2.0)',
+      '<!(pkg-config 2> /dev/null --cflags dee-1.0)',
+    ],
+    'configurations': {
+      'Release': {
+        'cflags': [
+          '-Ofast',
+          '-flto',
+          '-fno-strict-aliasing',
+        ],
+        'cflags_cc': [
+          '-Ofast',
+          '-flto',
+          '-fno-strict-aliasing',
+        ],
+        'ldflags': [
+          '-Ofast',
+          '-flto',
+        ],
+      },
+    },
+    'cmake_precompiled_header': '<(src_loc)/stdafx.h',
+    'cmake_precompiled_header_script': 'PrecompiledHeader.cmake',
   }]],
 }
