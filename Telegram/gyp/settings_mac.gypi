@@ -73,13 +73,18 @@
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++14',
       },
       'configurations': {
-      	'Debug': {
-      		'xcode_settings': {
-      			'ENABLE_TESTABILITY': 'YES',
-      			'ONLY_ACTIVE_ARCH': 'YES',
-      		},
-      	},
+        'Debug': {
+          'xcode_settings': {
+            'ENABLE_TESTABILITY': 'YES',
+            'ONLY_ACTIVE_ARCH': 'YES',
+          },
+        },
       },
+      'conditions': [
+        [ '"<(official_build_target)" != "" and "<(official_build_target)" != "mac" and "<(official_build_target)" != "mac32" and "<(official_build_target)" != "macstore"', {
+          'sources': [ '__Wrong_Official_Build_Target__' ],
+        }],
+      ],
     }],
     [ 'build_macold', {
       'xcode_settings': {

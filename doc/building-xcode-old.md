@@ -1,5 +1,7 @@
 ##Build instructions for Xcode 7.2.1
 
+**NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
+
 ###Prepare folder
 
 Choose a folder for the future build, for example **/Users/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
@@ -199,3 +201,5 @@ building (**make** command) will take really long time.
 * Open Telegram.xcodeproj and build for Debug
 * Build Updater target as well, it is required for Telegram relaunch
 * Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 6.1 - Custom Compiler Flags > Other C / C++ Flags > Release)
+
+[xcode]: building-xcode.md

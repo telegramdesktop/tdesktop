@@ -1,12 +1,9 @@
-##Build instructions for Qt Creator 3.5.1 under Ubuntu 12.04
-
-**NB** These are outdated, please refer to [Building using GYP/CMake][cmake] instructions.
+##Build instructions for GYP/CMake under Ubuntu 12.04
 
 ###Prepare
 
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
-* Install Qt Creator from [**Downloads page**](https://www.qt.io/download/)
 
 You need to install g++ version 4.9 manually by such commands
 
@@ -26,7 +23,7 @@ By git – in Terminal go to **/home/user/TBuild** and run
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master** to **tdesktop** to have **/home/user/TBuild/tdesktop/Telegram/Telegram.pro** project
+or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master** to **tdesktop**
 
 ###Prepare libraries
 
@@ -166,27 +163,31 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-###Building Telegram codegen utilities
+####GYP and CMake
 
-In Terminal go to **/home/user/TBuild/tdesktop** and run
+In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    mkdir -p Linux/obj/codegen_style/Debug
-    cd Linux/obj/codegen_style/Debug
-    /usr/local/tdesktop/Qt-5.6.0/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_style/codegen_style.pro
-    make
-    mkdir -p ../../codegen_numbers/Debug
-    cd ../../codegen_numbers/Debug
-    /usr/local/tdesktop/Qt-5.6.0/bin/qmake CONFIG+=debug ../../../../Telegram/build/qmake/codegen_numbers/codegen_numbers.pro
+    git clone https://chromium.googlesource.com/external/gyp
+    wget https://cmake.org/files/v3.6/cmake-3.6.2.tar.gz
+    tar -xf cmake-3.6.2.tar.gz
+    cd gyp
+    git apply ../../tdesktop/Telegram/Patches/gyp.diff
+    cd ../cmake-3.6.2
+    ./configure
     make
 
 ###Building Telegram Desktop
 
-* Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**
-* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/tdesktop/Qt-5.6.0/bin/qmake > **Qt 5.6.0 (Qt-5.6.0)** > Apply
-* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.6.0 (Qt-5.6.0)** > Apply
-* Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
-* Open Telegram.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediate** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediate** and build for Debug, if GeneratedFiles are not found click **Run qmake** from **Build** menu and try again
-* Open Updater.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateUpdater** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateUpdater** and build for Debug
-* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram.pro project and may require changing paths in **/home/user/TBuild/tdesktop/Telegram/FixMake.sh** or **/home/user/TBuild/tdesktop/Telegram/FixMake32.sh** for static library linking fix, static linking applies only on second Release build (first uses old Makefile)
+In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 
-[cmake]: building-cmake.md
+    gyp/refresh.sh
+
+To make Debug version go to **/home/user/TBuild/tdesktop/out/Debug** and run
+
+    make
+
+To make Release version go to **/home/user/TBuild/tdesktop/out/Release** and run
+
+    make
+
+You can debug your builds from Qt Creator, just open **CMakeLists.txt** from **/home/user/TBuild/tdesktop/out/Debug** and start debug.

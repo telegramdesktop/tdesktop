@@ -948,7 +948,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Trending stickers. Check out and install noteworthy sticker packs from the new tab in Settings.\n— Archived stickers. Unused stickers are now archived automatically when you go over the 200 limit.\n— Group previews. Preview groups before joining them via invite link – see who else is in the group before joining.\n— New internal video player.\n— Improved design for chats.";
+"lng_new_version_text" = "— New cute design for the Settings page\n— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

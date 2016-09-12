@@ -3,8 +3,6 @@ FullExecPath=$PWD
 pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
-QMakePath="/usr/local/tdesktop/Qt-5.6.0/bin/qmake"
-QMakeArgs="INCLUDEPATH+=/usr/local/include INCLUDEPATH+=/usr/local/include/opus"
 
 if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
   echo ""
@@ -54,15 +52,13 @@ if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
-  WorkPath="$HomePath/../Linux"
-  ReleasePath="$WorkPath/Release"
+  ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Building version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
-  WorkPath="$HomePath/../Linux"
-  ReleasePath="$WorkPath/Release"
+  ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
@@ -127,20 +123,9 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Dropbox path not found!"
   fi
 
-  mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
-  cd "$WorkPath/ReleaseIntermediateUpdater"
-  "$QMakePath" "$HomePath/Updater.pro" -r -spec linux-g++
-  make
-  echo "Updater build complete!"
-
-  mkdir -p "$WorkPath/ReleaseIntermediate"
-  cd "$WorkPath/ReleaseIntermediate"
-  "$QMakePath" $QMakeArgs "$HomePath/Telegram.pro" -r -spec linux-g++
-
-  eval "$HomePath/build/makefile_static.sh"
-  ./../codegen/Debug/codegen_style "-I./../../Telegram/Resources" "-I./../../Telegram/SourceFiles" "-o./GeneratedFiles/styles" all_files.style --rebuild
-  ./../codegen/Debug/codegen_numbers "-o./GeneratedFiles" "./../../Telegram/Resources/numbers.txt"
-  ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/langs/lang.strings -lang_out ./GeneratedFiles/lang_auto
+  gyp/refresh.sh
+ 
+  cd $ReleasePath
   make -j4
   echo "$BinaryName build complete!"
 
@@ -301,7 +286,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
     fi
     cd "$ReleasePath"
-    "./Packer" -path "$BinaryName.app" -version $VersionForPacker $AlphaBetaParam
+    "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
     echo "Packer done!"
 
     if [ "$BetaVersion" != "0" ]; then

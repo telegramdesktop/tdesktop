@@ -18,8 +18,6 @@ or:
 * download in ZIP and extract to **/Users/user/TBuild**
 * rename **tdesktop-master** to **tdesktop**.
 
-The path to Telegram.xcodeproj should now be: **/Users/user/TBuild/tdesktop/Telegram/Telegram.xcodeproj**
-
 ###Prepare libraries
 
 In your build Terminal run:
@@ -248,11 +246,17 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
     ninja -C out/Release
 
+####Prepare GYP
+
+In Terminal go to **/Users/user/TBuild/Libraries** and run
+
+    cd gyp
+    git apply ../../tdesktop/Telegram/Patches/gyp.diff
+
 ###Building Telegram Desktop
 
-* Launch Xcode, all projects will be taken from **/Users/user/TBuild/tdesktop/Telegram**
-* Open MetaEmoji.xcodeproj and build for Debug (Release optionally)
-* Open MetaLang.xcodeproj and build for Debug (Release optionally)
-* Open Telegram.xcodeproj and build for Debug
-* Build Updater target as well, it is required for Telegram relaunch
-* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 6.1 - Custom Compiler Flags > Other C / C++ Flags > Release)
+In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
+
+    gyp/refresh.sh
+
+Then launch Xcode, open **/Users/user/TBuild/tdesktop/Telegram.xcodeproj** and build for Debug / Release.

@@ -217,6 +217,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_upload" = "Imposta foto profilo";
 "lng_settings_crop_profile" = "Seleziona un riquadro per la tua foto profilo";
 "lng_settings_uploading_photo" = "Carico foto...";
+"lng_settings_edit" = "Modifica";
+
+"lng_settings_drop_area_subtitle" = "per impostarla come foto profilo";
 
 "lng_username_title" = "Username";
 "lng_username_about" = "Puoi scegliere un username su Telegram.\nSe lo fai, le altre persone potranno trovarti\ntramite questo username e contattarti \nsenza conoscere il tuo numero di telefono.\n\nPuoi usare a-z, 0-9 e underscore.\nLa lunghezza minima è di 5 caratteri.";
@@ -231,7 +234,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Questo link apre una chat con te:";
 "lng_username_copied" = "Link copiato negli appunti.";
 
-"lng_settings_section_contact_info" = "Info contatto";
+"lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Numero di telefono:";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Scegli username";
@@ -250,7 +253,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "Cambia lingua";
 "lng_languages" = "Lingue";
 "lng_sure_save_language" = "Telegram si riavvierà per cambiare lingua";
-"lng_settings_auto_update" = "Aggiorna automaticamente";
+"lng_settings_update_automatically" = "Aggiorna automaticamente (ver. {version})";
 "lng_settings_current_version" = "Versione {version}";
 "lng_settings_check_now" = "Cerca aggiornamenti";
 "lng_settings_update_checking" = "Cerco aggiornamenti...";
@@ -264,10 +267,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "Avvia Telegram all'avvio del sistema";
 "lng_settings_start_min" = "Avvia ridotto a icona";
 "lng_settings_add_sendto" = "Inserisci Telegram nel menu «Invia a»";
-"lng_settings_scale_label" = "Ridimensiona interfaccia";
+"lng_settings_section_scale" = "Scala interfaccia";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
-"lng_settings_section_chat" = "Impostazioni chat";
+"lng_settings_section_chat_settings" = "Impostazioni chat";
 "lng_settings_replace_emojis" = "Riconosci emoji";
 "lng_settings_view_emojis" = "Visualizza lista";
 "lng_settings_emoji_list" = "Emoji supportate";
@@ -301,7 +304,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_cleared" = "Eliminato!";
 "lng_download_path_clear_failed" = "Eliminazione fallita :(";
 
-"lng_settings_section_cache" = "Archivio locale";
+"lng_settings_section_privacy" = "Privacy e sicurezza";
+
+"lng_local_storage_title" = "Archivio locale";
 "lng_settings_no_data_cached" = "Non ci sono dati nella cache!";
 "lng_settings_images_cached" = "{count:_not_used_|# immagine|# immagini}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# messaggio vocale|# messaggi vocali}, {size}";
@@ -310,7 +315,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_local_storage_cleared" = "Eliminato!";
 "lng_local_storage_clear_failed" = "Eliminazione fallita :(";
 
-"lng_settings_section_advanced" = "Avanzate";
+"lng_settings_section_advanced_settings" = "Impostazioni avanzate";
 
 "lng_passcode_remove_button" = "Rimuovi";
 
@@ -384,6 +389,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Vuoi terminare questa sessione?";
 "lng_settings_reset_button" = "Chiudi";
 "lng_settings_reset_done" = "Altre sessioni terminate";
+"lng_settings_manage_local_storage" = "Gestisci archivio locale";
 "lng_settings_ask_question" = "Fai una domanda";
 "lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti di Telegram: contengono suggerimenti importanti per risolvere i problemi e risposte a quasi tutte le domande.";
 "lng_settings_faq_button" = "Domande frequenti";
@@ -599,8 +605,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_not_accessible" = "Spiacenti, questo canale non è accessibile.";
 "lng_group_not_accessible" = "Spiacenti, questo gruppo non è accessibile.";
 
-"lng_channels_too_much_public_existing" = "Spiacenti, hai già creato troppi canali pubblici. Prima devi eliminarne qualcuno.";
-"lng_channels_too_much_public" = "Spiacenti, hai creato troppi canali pubblici.\n\nPuoi creare un canale privato\no eliminare un tuo canale pubblico.";
+"lng_channels_too_much_public_about" = "Spiacenti, hai riservato troppi username pubblici. Puoi revocare il link da uno dei tuoi gruppi o canali più vecchi.";
+"lng_channels_too_much_public_revoke_confirm_group" = "Sei sicuro di voler revocare il link {link}?\n\nIl gruppo «{group}» diventerà privato.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "Sei sicuro di voler revocare il link {link}?\n\nIl canale «{group}» diventerà privato.";
+"lng_channels_too_much_public_revoke" = "Revoca";
 
 "lng_group_invite_bad_link" = "Questo link di invito non funziona o è scaduto.";
 "lng_group_invite_want_join" = "Vuoi unirti al gruppo «{title}»?";
@@ -934,7 +942,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Sticker in primo piano. Visualizza e installa set di sticker degni di nota dalla nuova scheda nelle Impostazioni.\n— Sticker archiviati. Gli sticker non utilizzati sono ora archiviati automaticamente quando vai oltre il limite dei 200 set.\n— Anteprime dei gruppi. Visualizza l'anteprima dei gruppi prima di unirti tramite link di invito - guarda chi è nel gruppo prima di unirti.\n— Nuovo lettore video interno.\n— Design migliorato per le chat.";
+"lng_new_version_text" = "— Nuovo design per la pagina delle Impostazioni\n— Risoluzione di problemi e altri miglioramenti minori";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

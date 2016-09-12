@@ -84,6 +84,13 @@
           'LzmaLib',
         ],
       }],
+      [ 'build_linux', {
+        'libraries': [
+          'ssl',
+          'crypto',
+          'lzma',
+        ],
+      }],
     ],
     'xcode_settings': {
       'OTHER_LDFLAGS': [
