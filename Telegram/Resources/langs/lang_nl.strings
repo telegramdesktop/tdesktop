@@ -217,6 +217,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_upload" = "Profielfoto instellen";
 "lng_settings_crop_profile" = "Kies een vierkant voor je profielfoto";
 "lng_settings_uploading_photo" = "Foto uploaden...";
+"lng_settings_edit" = "Wijzig";
+
+"lng_settings_drop_area_subtitle" = "om als foto in te stellen";
 
 "lng_username_title" = "Gebruikersnaam";
 "lng_username_about" = "Je kunt hier je gebruikersnaam kiezen. \nHiermee kunnen anderen je vinden \nen contact met je opnemen zonder \nje telefoonnummer te weten.\n\na-z, 0-9 en underscore is toegestaan. \nDe minimale lengte is 5 tekens.";
@@ -231,7 +234,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Deze link opent een chat met jou:";
 "lng_username_copied" = "Link gekopieerd naar klembord.";
 
-"lng_settings_section_contact_info" = "Contactgegevens";
+"lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Telefoonnummer:";
 "lng_settings_username" = "Gebruikersnaam:";
 "lng_settings_choose_username" = "gebruikersnaam kiezen";
@@ -250,7 +253,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "Taal wijzigen";
 "lng_languages" = "Talen";
 "lng_sure_save_language" = "Opnieuw starten om de taal te wijzen?";
-"lng_settings_auto_update" = "Automatisch bijwerken";
+"lng_settings_update_automatically" = "Automatisch bijwerken (ver. {version})";
 "lng_settings_current_version" = "Versie {version}";
 "lng_settings_check_now" = "Controleer op updates";
 "lng_settings_update_checking" = "Controleren op updates...";
@@ -264,10 +267,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "Telegram uitvoeren bij opstarten";
 "lng_settings_start_min" = "Minimaliseren bij uitvoeren";
 "lng_settings_add_sendto" = "Telegram toevoegen aan \"Kopiëren naar\"-menu";
-"lng_settings_scale_label" = "Interfaceschaal";
+"lng_settings_section_scale" = "Interfaceschaal";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
-"lng_settings_section_chat" = "Chatopties";
+"lng_settings_section_chat_settings" = "Chatinstellingen";
 "lng_settings_replace_emojis" = "Emoji's vervangen";
 "lng_settings_view_emojis" = "Lijst bekijken";
 "lng_settings_emoji_list" = "Ondersteunde emoji's";
@@ -301,7 +304,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_cleared" = "Gewist!";
 "lng_download_path_clear_failed" = "Wissen mislukt";
 
-"lng_settings_section_cache" = "Lokale opslag";
+"lng_settings_section_privacy" = "Privacy en veilighed";
+
+"lng_local_storage_title" = "Lokale opslag";
 "lng_settings_no_data_cached" = "Geen cache-data gevonden!";
 "lng_settings_images_cached" = "{count:_not_used_|# afbeelding|# afbeeldingen}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# spraakbericht|# spraakberichten}, {size}";
@@ -310,7 +315,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_local_storage_cleared" = "Gewist!";
 "lng_local_storage_clear_failed" = "Wissen mislukt";
 
-"lng_settings_section_advanced" = "Geavanceerd";
+"lng_settings_section_advanced_settings" = "Geavanceerde instellingen";
 
 "lng_passcode_remove_button" = "Verwijder";
 
@@ -384,6 +389,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Deze sessie beëindigen?";
 "lng_settings_reset_button" = "Beëindigen";
 "lng_settings_reset_done" = "Alle andere sessies zijn beëindigd";
+"lng_settings_manage_local_storage" = "Lokale opslag beheren";
 "lng_settings_ask_question" = "Een vraag stellen";
 "lng_settings_ask_sure" = "De ondersteuning voor Telegram wordt gedaan door vrijwilligers.  We proberen zo snel mogelijk te reageren maar het kan even duren. \n\nBekijk ook de veelgestelde vragen,  deze bevat belangrijke tips en antwoorden op de meest gestelde vragen. ";
 "lng_settings_faq_button" = "Veelgestelde vragen";
@@ -599,8 +605,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_not_accessible" = "Sorry, dit kanaal is privé.";
 "lng_group_not_accessible" = "Sorry, deze groep is niet beschikbaar.";
 
-"lng_channels_too_much_public_existing" = "Je hebt teveel publieke kanalen gemaakt. Verwijder er eerst één.";
-"lng_channels_too_much_public" = "Het maximale aantal publieke kanalen is bereikt.\n\nMaak een privé-kanaal \nof verwijder eerst een publiek kanaal.";
+"lng_channels_too_much_public_about" = "Het maximale aantal publieke gebruikersnamen is bereikt. Trek eerst een link van één van je oudere groepen of kanalen in.";
+"lng_channels_too_much_public_revoke_confirm_group" = "Deze link echt intrekken {link}?\n\nDe groep «{group}» zal privé worden.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "Deze link echt intrekken {link}?\n\nHet kanaal «{group}» zal privé worden.";
+"lng_channels_too_much_public_revoke" = "Intrekken";
 
 "lng_group_invite_bad_link" = "Deze uitnodigingslink is defect of verlopen.";
 "lng_group_invite_want_join" = "Wil je lid worden van de groep \"{title}\"?";
@@ -934,7 +942,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Populaire stickers. Zoek je nieuwe stickerbundels om te installeren? Populaire stickerbundels zijn nu te vinden onder instellingen.\n— Gearchiveerde stickers. Ongebruikte stickers archiveren we automatisch als je over de limiet van 200 stickerbundels gaat.\n— Voorvertoningen van groepen. Bekijk een groep voordat je besluit lid te worden.\n— Nieuwe ingebouwde videospeler.\n— Designverbeteringen voor de chatinterface.";
+"lng_new_version_text" = "— Nieuw ontwerp voor het tabblad met instellingen\n— Probleemoplossing en andere kleine verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

@@ -217,6 +217,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_upload" = "프로필 이미지 선택";
 "lng_settings_crop_profile" = "프로필 사진으로 사용할 사각영역을 선택하세요";
 "lng_settings_uploading_photo" = "사진 업로드 중...";
+"lng_settings_edit" = "수정";
+
+"lng_settings_drop_area_subtitle" = "프로필 사진으로 설정";
 
 "lng_username_title" = "아이디";
 "lng_username_about" = "텔레그램 아이디를 설정할 수 있습니다. \n아이디를 설정하면 회원님의 전화번호를 몰라도 아이디로 회원님을 찾아 대화를 나눌 수 있습니다.\n아이디는 영문, 밑줄, 숫자로 a-z, _, 0-9, \n다섯 글자 이상으로 설정해 주세요.";
@@ -231,7 +234,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "회원님과 대화를 할 수 있는 링크입니다.";
 "lng_username_copied" = "클립보드에 링크가 복사되었습니다.";
 
-"lng_settings_section_contact_info" = "연락처 정보";
+"lng_settings_section_info" = "정보";
 "lng_settings_phone_number" = "전화번호";
 "lng_settings_username" = "아이디:";
 "lng_settings_choose_username" = "아이디 설정하기";
@@ -250,7 +253,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "언어 변경";
 "lng_languages" = "언어";
 "lng_sure_save_language" = "언어를 변경하기 위해 텔레그램을 재시작합니다.";
-"lng_settings_auto_update" = "자동 업데이트";
+"lng_settings_update_automatically" = "자동 업데이트(ver. {version})";
 "lng_settings_current_version" = " {version}";
 "lng_settings_check_now" = "업데이트 확인";
 "lng_settings_update_checking" = "업데이트 확인 중...";
@@ -264,10 +267,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "시스템 시작시 자동실행";
 "lng_settings_start_min" = "최소화로 시작";
 "lng_settings_add_sendto" = " «보내기» 메뉴에 추가";
-"lng_settings_scale_label" = "인터페이스 크기 조절";
+"lng_settings_section_scale" = "인터페이스 크기";
 "lng_settings_scale_auto" = "자동 ({cur})";
 
-"lng_settings_section_chat" = "채팅 설정";
+"lng_settings_section_chat_settings" = "채팅방 설정";
 "lng_settings_replace_emojis" = "이모티콘 자동변환";
 "lng_settings_view_emojis" = "목록 보기";
 "lng_settings_emoji_list" = "지원되는 이모티콘";
@@ -301,7 +304,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_cleared" = "초기화 완료!";
 "lng_download_path_clear_failed" = "초기화 실패 :(";
 
-"lng_settings_section_cache" = "로컬 저장소";
+"lng_settings_section_privacy" = "개인정보 및 보안";
+
+"lng_local_storage_title" = "로컬 저장소";
 "lng_settings_no_data_cached" = "캐시 데이터가 없습니다!";
 "lng_settings_images_cached" = "{count:_not_used_|이미지 #개|이미지 #개}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 #개|음성 메시지 #개}, {size}";
@@ -310,7 +315,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_local_storage_cleared" = "초기화 완료!";
 "lng_local_storage_clear_failed" = "초기화 실패 :(";
 
-"lng_settings_section_advanced" = "고급";
+"lng_settings_section_advanced_settings" = "고급 설정";
 
 "lng_passcode_remove_button" = "삭제";
 
@@ -384,6 +389,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "해당 세션을 강제 종료 하시겠습니까?";
 "lng_settings_reset_button" = "종료";
 "lng_settings_reset_done" = "다른 모든 세션이 강제 종료 되었습니다.";
+"lng_settings_manage_local_storage" = "로컬 저장소 관리";
 "lng_settings_ask_question" = "질문하기";
 "lng_settings_ask_sure" = "텔레그램에 관한 질문은 자원봉사자들이 답변해 드립니다. 신속한 답변을 위해 노력하지만 답변이 다소 늦을 수 있습니다.\n\n일반적인 문제와 해결방법에 대해서는 자주 묻는 질문을 확인해 보세요.";
 "lng_settings_faq_button" = "자주 묻는 질문 으로 이동";
@@ -599,8 +605,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_not_accessible" = "채널에 접근 할 수 없습니다.";
 "lng_group_not_accessible" = "죄송합니다. 그룹방에 접근 할 수 없습니다.";
 
-"lng_channels_too_much_public_existing" = "너무 많은 공개 채널을 생성하였습니다. 기존 공개채널을 삭제해주세요.";
-"lng_channels_too_much_public" = "너무 많은 공개 채널을 생성하였습니다. \n\n비공개 채널을 생성하시던가, 기존 공개채널을 삭제해주세요";
+"lng_channels_too_much_public_about" = "죄송합니다, 너무 많은 공개 아이디를 점유하셨습니다. 기존 그룹 및 채널에 있는 링크를 폐기해주셔야합니다.";
+"lng_channels_too_much_public_revoke_confirm_group" = "이 링크 {link} 를 폐기하시겠습니까?\n\n«{group}» 그룹방은 비공개로 전환됩니다.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "이 링크 {link} 를 폐기하시겠습니까?\n\n«{group}» 채널방은 비공개로 전환됩니다.";
+"lng_channels_too_much_public_revoke" = "폐기";
 
 "lng_group_invite_bad_link" = "초대링크가 깨졌거나 폐기되었습니다.";
 "lng_group_invite_want_join" = "«{title}» 그룹방에 참여하시겠습니까?";
@@ -851,7 +859,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_forward_share_contact" = "{recipient} 님에게 연락처를 공유하시겠습니까?";
 "lng_forward_send_file_confirm" = "«{name}» 을 {recipient} 님에게 보내시겠습니까?";
 "lng_forward_send_files_confirm" = "선택한 파일을  {recipient} 님에게 보내시겠습니까?";
-"lng_forward_send" = "보낵";
+"lng_forward_send" = "보내기";
 "lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
 "lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
 "lng_forwarding_from_two" = "{user} 님과 {second_user}";
@@ -934,7 +942,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 인기스티커. 설정내 새로운 탭으로 인기있는 스티커를 확인하고 설치\n— 보관스티커. 스티커 개수가 200개 이상일 경우 미사용 스티커는 보관으로 자동이관\n— 그룹방 미리보기. 초대링크로 입장하기전에 미리보기 - 그룹방 참여인원 확인가능\n— 새로운 내부 비디오 플레이어\n— 대화 디자인 향상";
+"lng_new_version_text" = "— 이쁜 설정 페이지 디자인\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
