@@ -217,6 +217,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_upload" = "Definir Foto de Perfil";
 "lng_settings_crop_profile" = "Selecione uma área para a foto do perfil";
 "lng_settings_uploading_photo" = "Carregando foto...";
+"lng_settings_edit" = "Editar";
+
+"lng_settings_drop_area_subtitle" = "para defini-la como sua foto";
 
 "lng_username_title" = "Nome de usuário";
 "lng_username_about" = "Você pode escolher um nome de usuário.\nAssim, outras pessoas poderão encontrar\nvocê pelo nome de usuário e entrar em\ncontato sem precisar saber seu telefone.\n\nVocê pode usar a-z, 0-9 e underline.\nO tamanho mínimo é de 5 caracteres.";
@@ -231,7 +234,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Esse link abre um chat com você:";
 "lng_username_copied" = "Link copiado para área de transferência.";
 
-"lng_settings_section_contact_info" = "Informação de contato";
+"lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Número de telefone:";
 "lng_settings_username" = "Nome de usuário:";
 "lng_settings_choose_username" = "Escolher nome de usuário";
@@ -242,7 +245,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar pré-visualização da mensagem";
 "lng_settings_use_windows" = "Usar notificações do Windows";
 "lng_settings_sound_notify" = "Tocar som";
-"lng_settings_include_muted" = "Incluir chats silenciados no contador de notificações";
+"lng_settings_include_muted" = "Incluir os chats silenciados no contador";
 
 "lng_notification_preview" = "Você tem uma nova mensagem";
 
@@ -250,7 +253,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "Alterar idioma";
 "lng_languages" = "Idiomas";
 "lng_sure_save_language" = "Telegram irá reiniciar para alterar o idioma";
-"lng_settings_auto_update" = "Atualizar automaticamente";
+"lng_settings_update_automatically" = "Atualizar automaticamente (ver. {version})";
 "lng_settings_current_version" = "Versão {version}";
 "lng_settings_check_now" = "Verificar atualizações";
 "lng_settings_update_checking" = "Verificando atualizações...";
@@ -263,11 +266,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_workmode_window" = "Mostrar ícone na barra de ferramentas";
 "lng_settings_auto_start" = "Iniciar Telegram junto ao sistema";
 "lng_settings_start_min" = "Iniciar minimizado";
-"lng_settings_add_sendto" = "Colocar o Telegram no menu «Enviar para»";
-"lng_settings_scale_label" = "Escala de interface";
+"lng_settings_add_sendto" = "Colocar Telegram no menu «Enviar para»";
+"lng_settings_section_scale" = "Escala de Interface";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
-"lng_settings_section_chat" = "Opções de conversa";
+"lng_settings_section_chat_settings" = "Configurações de Conversa";
 "lng_settings_replace_emojis" = "Substituir emoji";
 "lng_settings_view_emojis" = "Lista de visualização";
 "lng_settings_emoji_list" = "Emojis suportados";
@@ -283,7 +286,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_backgrounds_header" = "Escolha o seu novo papel de parede";
 
-"lng_download_path_dont_ask" = "Não perguntar onde salvar para cada arquivo";
+"lng_download_path_dont_ask" = "Não perguntar onde salvar cada arquivo";
 "lng_download_path_label" = "Baixar em:";
 "lng_download_path_temp" = "pasta temporária";
 "lng_download_path_default" = "pasta padrão";
@@ -301,7 +304,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_download_path_cleared" = "Concluído!";
 "lng_download_path_clear_failed" = "Limpeza falhou :(";
 
-"lng_settings_section_cache" = "Armazenamento local";
+"lng_settings_section_privacy" = "Privacidade e Segurança";
+
+"lng_local_storage_title" = "Armazenamento local";
 "lng_settings_no_data_cached" = "Nada encontrado no cache!";
 "lng_settings_images_cached" = "{count:_not_used_|# imagem|# imagens}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# mensagem de voz|# mensagens de voz}, {size}";
@@ -310,7 +315,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_local_storage_cleared" = "Concluído!";
 "lng_local_storage_clear_failed" = "Limpeza falhou :(";
 
-"lng_settings_section_advanced" = "Avançado";
+"lng_settings_section_advanced_settings" = "Configurações Avançadas";
 
 "lng_passcode_remove_button" = "Remover";
 
@@ -384,6 +389,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Você deseja terminar essa sessão?";
 "lng_settings_reset_button" = "Encerrar";
 "lng_settings_reset_done" = "Outras sessões encerradas";
+"lng_settings_manage_local_storage" = "Gerenciar armazenamento local";
 "lng_settings_ask_question" = "Fazer uma Pergunta";
 "lng_settings_ask_sure" = "Entenda que o suporte do Telegram é feito por voluntários. Tentaremos responder o mais rápido possível, mas poderemos demorar um pouco.\n\nPor favor verifique a página de Perguntas Frequentes do Telegram: há dicas e respostas para a maioria das perguntas.";
 "lng_settings_faq_button" = "Ler o FAQ";
@@ -599,8 +605,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_not_accessible" = "Desculpe, esse canal não está acessível.";
 "lng_group_not_accessible" = "Desculpe, esse grupo não está acessível.";
 
-"lng_channels_too_much_public_existing" = "Desculpe, você já criou muitos canais públicos. Apague um primeiro.";
-"lng_channels_too_much_public" = "Desculpe, você já criou muitos canais públicos.\n\nVocê pode criar um canal privado\nou apagar um de seus canais públicos.";
+"lng_channels_too_much_public_about" = "Desculpe, você reservou muitos nomes públicos. Você pode remover o link público de um de seus grupos ou canais.";
+"lng_channels_too_much_public_revoke_confirm_group" = "Você tem certeza que deseja remover o link {link}?\n\nO grupo «{group}» se tornará privado.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "Você tem certeza que deseja remover o link {link}?\n\nO canal «{group}» se tornará privado.";
+"lng_channels_too_much_public_revoke" = "Remover";
 
 "lng_group_invite_bad_link" = "Link de convite quebrado ou expirado.";
 "lng_group_invite_want_join" = "Você deseja entrar no grupo «{title}»?";
@@ -654,7 +662,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensagem de voz";
 
-"lng_media_auto_settings" = "Configurações do download automático de mídia";
+"lng_media_auto_settings" = "Download automático de mídia";
 "lng_media_auto_photo" = "Baixar foto automaticamente";
 "lng_media_auto_audio" = "Baixar mensagem de voz automaticamente";
 "lng_media_auto_gif" = "Baixar GIF autometicamente";
@@ -934,7 +942,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Stickers populares. Veja e instale pacotes de stickers em destaque através da nova aba em Configurações.\n— Stickers arquivados. Stickers sem uso agora são arquivados automaticamente quando você chegar ao limite dos 200.\n— Pré-visualização de grupos. Visualize os grupos antes de entrar através do link de convite - veja quem mais está no grupo antes de entrar.\n— Novo reprodutor de vídeo interno.\n— Design melhorado nas conversas.";
+"lng_new_version_text" = "— Novo design para a página de Configurações\n— Resolução de bugs e outras menores melhorias";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
