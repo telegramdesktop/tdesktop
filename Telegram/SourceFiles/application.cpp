@@ -1067,7 +1067,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10003) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New cute design for the Settings page");
-			} else if (Local::oldMapVersion() < 10000) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10005) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

@@ -39,11 +39,6 @@
       'lib_exif',
       'OpenAL32',
       'common',
-      'libavformat/libavformat.a',
-      'libavcodec/libavcodec.a',
-      'libavutil/libavutil.a',
-      'libswresample/libswresample.a',
-      'libswscale/libswscale.a',
       'opus',
       'celt',
       'silk_common',
@@ -52,6 +47,17 @@
       'lib/exception_handler',
       'lib/crash_generation_client',
     ],
+    'msvs_settings': {
+      'VCLinkerTool': {
+        'AdditionalOptions': [
+          'libavformat/libavformat.a',
+          'libavcodec/libavcodec.a',
+          'libavutil/libavutil.a',
+          'libswresample/libswresample.a',
+          'libswscale/libswscale.a',
+        ],
+      },
+    },
     'configurations': {
       'Debug': {
         'include_dirs': [

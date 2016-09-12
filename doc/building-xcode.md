@@ -250,7 +250,6 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run
 
-    git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git apply ../../tdesktop/Telegram/Patches/gyp.diff
 
