@@ -3530,7 +3530,8 @@ void HistoryWidget::updateStickers() {
 	}
 	if (!Global::LastRecentStickersUpdate() || now >= Global::LastRecentStickersUpdate() + StickersUpdateTimeout) {
 		if (!_recentStickersUpdateRequest) {
-			_recentStickersUpdateRequest = MTP::send(MTPmessages_GetRecentStickers(MTP_int(Local::countRecentStickersHash())), rpcDone(&HistoryWidget::recentStickersGot), rpcFail(&HistoryWidget::recentStickersFailed));
+			MTPmessages_GetRecentStickers::Flags flags = 0;
+			_recentStickersUpdateRequest = MTP::send(MTPmessages_GetRecentStickers(MTP_flags(flags), MTP_int(Local::countRecentStickersHash())), rpcDone(&HistoryWidget::recentStickersGot), rpcFail(&HistoryWidget::recentStickersFailed));
 		}
 	}
 	if (!Global::LastFeaturedStickersUpdate() || now >= Global::LastFeaturedStickersUpdate() + StickersUpdateTimeout) {
@@ -6714,7 +6715,9 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
 		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		MTPDinputMediaUploadedPhoto::Flags mediaFlags = 0;
+		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(mediaFlags), file, MTP_string(caption.text), MTPVector<MTPInputDocument>());
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -6732,7 +6735,8 @@ namespace {
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		} else if (document->type == StickerDocument && document->sticker()) {
-			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker()->alt), document->sticker()->set));
+			MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
+			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(document->sticker()->alt), document->sticker()->set, MTPMaskCoords()));
 		} else if (document->type == SongDocument && document->song()) {
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
 		} else if (document->type == VoiceDocument && document->voice()) {
@@ -6763,7 +6767,9 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			MTPDinputMediaUploadedDocument::Flags mediaFlags = 0;
+			auto media = MTP_inputMediaUploadedDocument(MTP_flags(mediaFlags), file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -6789,7 +6795,9 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			MTPDinputMediaUploadedThumbDocument::Flags mediaFlags = 0;
+			auto media = MTP_inputMediaUploadedThumbDocument(MTP_flags(mediaFlags), file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }

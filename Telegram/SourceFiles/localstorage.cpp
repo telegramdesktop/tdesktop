@@ -3395,7 +3395,8 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
+				MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));

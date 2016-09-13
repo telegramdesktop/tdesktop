@@ -94,20 +94,20 @@ enum {
 	mtpc_inputFile = 0xf52ff27f,
 	mtpc_inputFileBig = 0xfa4f0bb5,
 	mtpc_inputMediaEmpty = 0x9664f57f,
-	mtpc_inputMediaUploadedPhoto = 0xf7aff1c0,
+	mtpc_inputMediaUploadedPhoto = 0x630c9af1,
 	mtpc_inputMediaPhoto = 0xe9bfb4f3,
 	mtpc_inputMediaGeoPoint = 0xf9c44144,
 	mtpc_inputMediaContact = 0xa6e45987,
-	mtpc_inputMediaUploadedDocument = 0x1d89306d,
-	mtpc_inputMediaUploadedThumbDocument = 0xad613491,
+	mtpc_inputMediaUploadedDocument = 0xd070f1e9,
+	mtpc_inputMediaUploadedThumbDocument = 0x50d88cae,
 	mtpc_inputMediaDocument = 0x1a77f29c,
 	mtpc_inputMediaVenue = 0x2827a81a,
 	mtpc_inputMediaGifExternal = 0x4843b0fd,
 	mtpc_inputMediaPhotoExternal = 0xb55f4f18,
 	mtpc_inputMediaDocumentExternal = 0xe5e9607c,
 	mtpc_inputChatPhotoEmpty = 0x1ca48f57,
-	mtpc_inputChatUploadedPhoto = 0x94254732,
-	mtpc_inputChatPhoto = 0xb2e1bf08,
+	mtpc_inputChatUploadedPhoto = 0x927c55b4,
+	mtpc_inputChatPhoto = 0x8953ad37,
 	mtpc_inputGeoPointEmpty = 0xe4c123d6,
 	mtpc_inputGeoPoint = 0xf3b7acc9,
 	mtpc_inputPhotoEmpty = 0x1cd7bf0d,
@@ -115,8 +115,6 @@ enum {
 	mtpc_inputFileLocation = 0x14637196,
 	mtpc_inputEncryptedFileLocation = 0xf5235d55,
 	mtpc_inputDocumentFileLocation = 0x430f0724,
-	mtpc_inputPhotoCropAuto = 0xade6b004,
-	mtpc_inputPhotoCrop = 0xd9915325,
 	mtpc_inputAppEvent = 0x770656a8,
 	mtpc_peerUser = 0x9db1bc6d,
 	mtpc_peerChat = 0xbad0e5bb,
@@ -184,7 +182,7 @@ enum {
 	mtpc_messageActionGameScore = 0x3a14cfa5,
 	mtpc_dialog = 0x66ffba14,
 	mtpc_photoEmpty = 0x2331b22d,
-	mtpc_photo = 0xcded42fe,
+	mtpc_photo = 0x9288dd29,
 	mtpc_photoSizeEmpty = 0xe17e23c,
 	mtpc_photoSize = 0x77bfb61b,
 	mtpc_photoCachedSize = 0xe9a734fa,
@@ -374,10 +372,11 @@ enum {
 	mtpc_accountDaysTTL = 0xb8d0afdf,
 	mtpc_documentAttributeImageSize = 0x6c37c15c,
 	mtpc_documentAttributeAnimated = 0x11b58939,
-	mtpc_documentAttributeSticker = 0x3a556302,
+	mtpc_documentAttributeSticker = 0x6319d612,
 	mtpc_documentAttributeVideo = 0x5910cccb,
 	mtpc_documentAttributeAudio = 0x9852f9c6,
 	mtpc_documentAttributeFilename = 0x15590068,
+	mtpc_documentAttributeHasStickers = 0x9801d2f7,
 	mtpc_messages_stickersNotModified = 0xf1749a22,
 	mtpc_messages_stickers = 0x8a8ecd32,
 	mtpc_stickerPack = 0x12b299d4,
@@ -518,6 +517,9 @@ enum {
 	mtpc_messages_stickerSetInstallResultArchive = 0x35e410a8,
 	mtpc_stickerSetCovered = 0x6410a5d2,
 	mtpc_stickerSetMultiCovered = 0x3407e51b,
+	mtpc_maskCoords = 0xaed6dbb2,
+	mtpc_inputStickeredMediaPhoto = 0x4a992157,
+	mtpc_inputStickeredMediaDocument = 0x438865b,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -539,6 +541,7 @@ enum {
 	mtpc_auth_recoverPassword = 0x4ea56e92,
 	mtpc_auth_resendCode = 0x3ef1a9bf,
 	mtpc_auth_cancelCode = 0x1f040578,
+	mtpc_auth_dropTempAuthKeys = 0x8e48a188,
 	mtpc_account_registerDevice = 0x637ea878,
 	mtpc_account_unregisterDevice = 0x65c55b40,
 	mtpc_account_updateNotifySettings = 0x84be5b93,
@@ -615,7 +618,6 @@ enum {
 	mtpc_messages_sendEncryptedService = 0x32d439a4,
 	mtpc_messages_receivedQueue = 0x55a5bb66,
 	mtpc_messages_readMessageContents = 0x36a73f77,
-	mtpc_messages_getStickers = 0xae22e045,
 	mtpc_messages_getAllStickers = 0x1c9618b1,
 	mtpc_messages_getWebPagePreview = 0x25223e24,
 	mtpc_messages_exportChatInvite = 0x7d885289,
@@ -648,18 +650,19 @@ enum {
 	mtpc_messages_getAllDrafts = 0x6a3f8d65,
 	mtpc_messages_getFeaturedStickers = 0x2dacca4f,
 	mtpc_messages_readFeaturedStickers = 0x5b118126,
-	mtpc_messages_getRecentStickers = 0x99197c2c,
-	mtpc_messages_saveRecentSticker = 0x348e39bf,
-	mtpc_messages_clearRecentStickers = 0xab02e5d2,
+	mtpc_messages_getRecentStickers = 0x5ea192c9,
+	mtpc_messages_saveRecentSticker = 0x392718f8,
+	mtpc_messages_clearRecentStickers = 0x8999602d,
 	mtpc_messages_getArchivedStickers = 0x906e241f,
 	mtpc_messages_setGameScore = 0xdfbc7c1f,
 	mtpc_messages_setInlineGameScore = 0x54f882f1,
 	mtpc_messages_getMaskStickers = 0x65b8c79f,
+	mtpc_messages_getAttachedStickers = 0xcc5b67cc,
 	mtpc_updates_getState = 0xedd4882a,
 	mtpc_updates_getDifference = 0xa041495,
 	mtpc_updates_getChannelDifference = 0xbb32d7c0,
-	mtpc_photos_updateProfilePhoto = 0xeef579a0,
-	mtpc_photos_uploadProfilePhoto = 0xd50f9c88,
+	mtpc_photos_updateProfilePhoto = 0xf0bb5152,
+	mtpc_photos_uploadProfilePhoto = 0x4f32c098,
 	mtpc_photos_deletePhotos = 0x87cf7f2f,
 	mtpc_photos_getUserPhotos = 0x91cd32a8,
 	mtpc_upload_saveFilePart = 0xb304a621,
@@ -823,9 +826,6 @@ class MTPinputFileLocation;
 class MTPDinputFileLocation;
 class MTPDinputEncryptedFileLocation;
 class MTPDinputDocumentFileLocation;
-
-class MTPinputPhotoCrop;
-class MTPDinputPhotoCrop;
 
 class MTPinputAppEvent;
 class MTPDinputAppEvent;
@@ -1401,6 +1401,13 @@ class MTPstickerSetCovered;
 class MTPDstickerSetCovered;
 class MTPDstickerSetMultiCovered;
 
+class MTPmaskCoords;
+class MTPDmaskCoords;
+
+class MTPinputStickeredMedia;
+class MTPDinputStickeredMediaPhoto;
+class MTPDinputStickeredMediaDocument;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1437,7 +1444,6 @@ typedef MTPBoxed<MTPinputChatPhoto> MTPInputChatPhoto;
 typedef MTPBoxed<MTPinputGeoPoint> MTPInputGeoPoint;
 typedef MTPBoxed<MTPinputPhoto> MTPInputPhoto;
 typedef MTPBoxed<MTPinputFileLocation> MTPInputFileLocation;
-typedef MTPBoxed<MTPinputPhotoCrop> MTPInputPhotoCrop;
 typedef MTPBoxed<MTPinputAppEvent> MTPInputAppEvent;
 typedef MTPBoxed<MTPpeer> MTPPeer;
 typedef MTPBoxed<MTPstorage_fileType> MTPstorage_FileType;
@@ -1580,6 +1586,8 @@ typedef MTPBoxed<MTPmessages_recentStickers> MTPmessages_RecentStickers;
 typedef MTPBoxed<MTPmessages_archivedStickers> MTPmessages_ArchivedStickers;
 typedef MTPBoxed<MTPmessages_stickerSetInstallResult> MTPmessages_StickerSetInstallResult;
 typedef MTPBoxed<MTPstickerSetCovered> MTPStickerSetCovered;
+typedef MTPBoxed<MTPmaskCoords> MTPMaskCoords;
+typedef MTPBoxed<MTPinputStickeredMedia> MTPInputStickeredMedia;
 
 // Type classes definitions
 
@@ -2979,43 +2987,6 @@ private:
 	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPinputFileLocation> MTPInputFileLocation;
-
-class MTPinputPhotoCrop : private mtpDataOwner {
-public:
-	MTPinputPhotoCrop() : mtpDataOwner(0), _type(0) {
-	}
-	MTPinputPhotoCrop(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
-		read(from, end, cons);
-	}
-
-	MTPDinputPhotoCrop &_inputPhotoCrop() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPhotoCrop) throw mtpErrorWrongTypeId(_type, mtpc_inputPhotoCrop);
-		split();
-		return *(MTPDinputPhotoCrop*)data;
-	}
-	const MTPDinputPhotoCrop &c_inputPhotoCrop() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPhotoCrop) throw mtpErrorWrongTypeId(_type, mtpc_inputPhotoCrop);
-		return *(const MTPDinputPhotoCrop*)data;
-	}
-
-	uint32 innerLength() const;
-	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
-	void write(mtpBuffer &to) const;
-
-	typedef void ResponseType;
-
-private:
-	explicit MTPinputPhotoCrop(mtpTypeId type);
-	explicit MTPinputPhotoCrop(MTPDinputPhotoCrop *_data);
-
-	friend class MTP::internal::TypeCreator;
-
-	mtpTypeId _type;
-};
-typedef MTPBoxed<MTPinputPhotoCrop> MTPInputPhotoCrop;
 
 class MTPinputAppEvent : private mtpDataOwner {
 public:
@@ -9829,6 +9800,87 @@ private:
 };
 typedef MTPBoxed<MTPstickerSetCovered> MTPStickerSetCovered;
 
+class MTPmaskCoords : private mtpDataOwner {
+public:
+	MTPmaskCoords();
+	MTPmaskCoords(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_maskCoords) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDmaskCoords &_maskCoords() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDmaskCoords*)data;
+	}
+	const MTPDmaskCoords &c_maskCoords() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDmaskCoords*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_maskCoords);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPmaskCoords(MTPDmaskCoords *_data);
+
+	friend class MTP::internal::TypeCreator;
+};
+typedef MTPBoxed<MTPmaskCoords> MTPMaskCoords;
+
+class MTPinputStickeredMedia : private mtpDataOwner {
+public:
+	MTPinputStickeredMedia() : mtpDataOwner(0), _type(0) {
+	}
+	MTPinputStickeredMedia(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDinputStickeredMediaPhoto &_inputStickeredMediaPhoto() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputStickeredMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaPhoto);
+		split();
+		return *(MTPDinputStickeredMediaPhoto*)data;
+	}
+	const MTPDinputStickeredMediaPhoto &c_inputStickeredMediaPhoto() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputStickeredMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaPhoto);
+		return *(const MTPDinputStickeredMediaPhoto*)data;
+	}
+
+	MTPDinputStickeredMediaDocument &_inputStickeredMediaDocument() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputStickeredMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaDocument);
+		split();
+		return *(MTPDinputStickeredMediaDocument*)data;
+	}
+	const MTPDinputStickeredMediaDocument &c_inputStickeredMediaDocument() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputStickeredMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaDocument);
+		return *(const MTPDinputStickeredMediaDocument*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPinputStickeredMedia(mtpTypeId type);
+	explicit MTPinputStickeredMedia(MTPDinputStickeredMediaPhoto *_data);
+	explicit MTPinputStickeredMedia(MTPDinputStickeredMediaDocument *_data);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPinputStickeredMedia> MTPInputStickeredMedia;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -10245,13 +10297,24 @@ public:
 
 class MTPDinputMediaUploadedPhoto : public mtpDataImpl<MTPDinputMediaUploadedPhoto> {
 public:
+	enum class Flag : int32 {
+		f_stickers = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_stickers() const { return vflags.v & Flag::f_stickers; }
+
 	MTPDinputMediaUploadedPhoto() {
 	}
-	MTPDinputMediaUploadedPhoto(const MTPInputFile &_file, const MTPstring &_caption) : vfile(_file), vcaption(_caption) {
+	MTPDinputMediaUploadedPhoto(const MTPflags<MTPDinputMediaUploadedPhoto::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) : vflags(_flags), vfile(_file), vcaption(_caption), vstickers(_stickers) {
 	}
 
+	MTPflags<MTPDinputMediaUploadedPhoto::Flags> vflags;
 	MTPInputFile vfile;
 	MTPstring vcaption;
+	MTPVector<MTPInputDocument> vstickers;
 };
 
 class MTPDinputMediaPhoto : public mtpDataImpl<MTPDinputMediaPhoto> {
@@ -10289,29 +10352,51 @@ public:
 
 class MTPDinputMediaUploadedDocument : public mtpDataImpl<MTPDinputMediaUploadedDocument> {
 public:
+	enum class Flag : int32 {
+		f_stickers = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_stickers() const { return vflags.v & Flag::f_stickers; }
+
 	MTPDinputMediaUploadedDocument() {
 	}
-	MTPDinputMediaUploadedDocument(const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) : vfile(_file), vmime_type(_mime_type), vattributes(_attributes), vcaption(_caption) {
+	MTPDinputMediaUploadedDocument(const MTPflags<MTPDinputMediaUploadedDocument::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) : vflags(_flags), vfile(_file), vmime_type(_mime_type), vattributes(_attributes), vcaption(_caption), vstickers(_stickers) {
 	}
 
+	MTPflags<MTPDinputMediaUploadedDocument::Flags> vflags;
 	MTPInputFile vfile;
 	MTPstring vmime_type;
 	MTPVector<MTPDocumentAttribute> vattributes;
 	MTPstring vcaption;
+	MTPVector<MTPInputDocument> vstickers;
 };
 
 class MTPDinputMediaUploadedThumbDocument : public mtpDataImpl<MTPDinputMediaUploadedThumbDocument> {
 public:
+	enum class Flag : int32 {
+		f_stickers = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_stickers() const { return vflags.v & Flag::f_stickers; }
+
 	MTPDinputMediaUploadedThumbDocument() {
 	}
-	MTPDinputMediaUploadedThumbDocument(const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) : vfile(_file), vthumb(_thumb), vmime_type(_mime_type), vattributes(_attributes), vcaption(_caption) {
+	MTPDinputMediaUploadedThumbDocument(const MTPflags<MTPDinputMediaUploadedThumbDocument::Flags> &_flags, const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) : vflags(_flags), vfile(_file), vthumb(_thumb), vmime_type(_mime_type), vattributes(_attributes), vcaption(_caption), vstickers(_stickers) {
 	}
 
+	MTPflags<MTPDinputMediaUploadedThumbDocument::Flags> vflags;
 	MTPInputFile vfile;
 	MTPInputFile vthumb;
 	MTPstring vmime_type;
 	MTPVector<MTPDocumentAttribute> vattributes;
 	MTPstring vcaption;
+	MTPVector<MTPInputDocument> vstickers;
 };
 
 class MTPDinputMediaDocument : public mtpDataImpl<MTPDinputMediaDocument> {
@@ -10376,22 +10461,20 @@ class MTPDinputChatUploadedPhoto : public mtpDataImpl<MTPDinputChatUploadedPhoto
 public:
 	MTPDinputChatUploadedPhoto() {
 	}
-	MTPDinputChatUploadedPhoto(const MTPInputFile &_file, const MTPInputPhotoCrop &_crop) : vfile(_file), vcrop(_crop) {
+	MTPDinputChatUploadedPhoto(const MTPInputFile &_file) : vfile(_file) {
 	}
 
 	MTPInputFile vfile;
-	MTPInputPhotoCrop vcrop;
 };
 
 class MTPDinputChatPhoto : public mtpDataImpl<MTPDinputChatPhoto> {
 public:
 	MTPDinputChatPhoto() {
 	}
-	MTPDinputChatPhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : vid(_id), vcrop(_crop) {
+	MTPDinputChatPhoto(const MTPInputPhoto &_id) : vid(_id) {
 	}
 
 	MTPInputPhoto vid;
-	MTPInputPhotoCrop vcrop;
 };
 
 class MTPDinputGeoPoint : public mtpDataImpl<MTPDinputGeoPoint> {
@@ -10449,18 +10532,6 @@ public:
 	MTPlong vid;
 	MTPlong vaccess_hash;
 	MTPint vversion;
-};
-
-class MTPDinputPhotoCrop : public mtpDataImpl<MTPDinputPhotoCrop> {
-public:
-	MTPDinputPhotoCrop() {
-	}
-	MTPDinputPhotoCrop(const MTPdouble &_crop_left, const MTPdouble &_crop_top, const MTPdouble &_crop_width) : vcrop_left(_crop_left), vcrop_top(_crop_top), vcrop_width(_crop_width) {
-	}
-
-	MTPdouble vcrop_left;
-	MTPdouble vcrop_top;
-	MTPdouble vcrop_width;
 };
 
 class MTPDinputAppEvent : public mtpDataImpl<MTPDinputAppEvent> {
@@ -11248,11 +11319,21 @@ public:
 
 class MTPDphoto : public mtpDataImpl<MTPDphoto> {
 public:
+	enum class Flag : int32 {
+		f_has_stickers = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_has_stickers() const { return vflags.v & Flag::f_has_stickers; }
+
 	MTPDphoto() {
 	}
-	MTPDphoto(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vsizes(_sizes) {
+	MTPDphoto(const MTPflags<MTPDphoto::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vdate(_date), vsizes(_sizes) {
 	}
 
+	MTPflags<MTPDphoto::Flags> vflags;
 	MTPlong vid;
 	MTPlong vaccess_hash;
 	MTPint vdate;
@@ -13104,13 +13185,27 @@ public:
 
 class MTPDdocumentAttributeSticker : public mtpDataImpl<MTPDdocumentAttributeSticker> {
 public:
+	enum class Flag : int32 {
+		f_mask = (1 << 1),
+		f_mask_coords = (1 << 0),
+
+		MAX_FIELD = (1 << 1),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_mask() const { return vflags.v & Flag::f_mask; }
+	bool has_mask_coords() const { return vflags.v & Flag::f_mask_coords; }
+
 	MTPDdocumentAttributeSticker() {
 	}
-	MTPDdocumentAttributeSticker(const MTPstring &_alt, const MTPInputStickerSet &_stickerset) : valt(_alt), vstickerset(_stickerset) {
+	MTPDdocumentAttributeSticker(const MTPflags<MTPDdocumentAttributeSticker::Flags> &_flags, const MTPstring &_alt, const MTPInputStickerSet &_stickerset, const MTPMaskCoords &_mask_coords) : vflags(_flags), valt(_alt), vstickerset(_stickerset), vmask_coords(_mask_coords) {
 	}
 
+	MTPflags<MTPDdocumentAttributeSticker::Flags> vflags;
 	MTPstring valt;
 	MTPInputStickerSet vstickerset;
+	MTPMaskCoords vmask_coords;
 };
 
 class MTPDdocumentAttributeVideo : public mtpDataImpl<MTPDdocumentAttributeVideo> {
@@ -14906,6 +15001,39 @@ public:
 	MTPVector<MTPDocument> vcovers;
 };
 
+class MTPDmaskCoords : public mtpDataImpl<MTPDmaskCoords> {
+public:
+	MTPDmaskCoords() {
+	}
+	MTPDmaskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) : vn(_n), vx(_x), vy(_y), vzoom(_zoom) {
+	}
+
+	MTPint vn;
+	MTPdouble vx;
+	MTPdouble vy;
+	MTPdouble vzoom;
+};
+
+class MTPDinputStickeredMediaPhoto : public mtpDataImpl<MTPDinputStickeredMediaPhoto> {
+public:
+	MTPDinputStickeredMediaPhoto() {
+	}
+	MTPDinputStickeredMediaPhoto(const MTPInputPhoto &_id) : vid(_id) {
+	}
+
+	MTPInputPhoto vid;
+};
+
+class MTPDinputStickeredMediaDocument : public mtpDataImpl<MTPDinputStickeredMediaDocument> {
+public:
+	MTPDinputStickeredMediaDocument() {
+	}
+	MTPDinputStickeredMediaDocument(const MTPInputDocument &_id) : vid(_id) {
+	}
+
+	MTPInputDocument vid;
+};
+
 // RPC methods
 
 class MTPreq_pq { // RPC method 'req_pq'
@@ -16184,6 +16312,45 @@ public:
 	MTPauth_CancelCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_cancelCode>(from, end, cons) {
 	}
 	MTPauth_CancelCode(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_cancelCode>(MTPauth_cancelCode(_phone_number, _phone_code_hash)) {
+	}
+};
+
+class MTPauth_dropTempAuthKeys { // RPC method 'auth.dropTempAuthKeys'
+public:
+	MTPVector<MTPlong> vexcept_auth_keys;
+
+	MTPauth_dropTempAuthKeys() {
+	}
+	MTPauth_dropTempAuthKeys(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_dropTempAuthKeys) {
+		read(from, end, cons);
+	}
+	MTPauth_dropTempAuthKeys(const MTPVector<MTPlong> &_except_auth_keys) : vexcept_auth_keys(_except_auth_keys) {
+	}
+
+	uint32 innerLength() const {
+		return vexcept_auth_keys.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_dropTempAuthKeys;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_dropTempAuthKeys) {
+		vexcept_auth_keys.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vexcept_auth_keys.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPauth_DropTempAuthKeys : public MTPBoxed<MTPauth_dropTempAuthKeys> {
+public:
+	MTPauth_DropTempAuthKeys() {
+	}
+	MTPauth_DropTempAuthKeys(const MTPauth_dropTempAuthKeys &v) : MTPBoxed<MTPauth_dropTempAuthKeys>(v) {
+	}
+	MTPauth_DropTempAuthKeys(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_dropTempAuthKeys>(from, end, cons) {
+	}
+	MTPauth_DropTempAuthKeys(const MTPVector<MTPlong> &_except_auth_keys) : MTPBoxed<MTPauth_dropTempAuthKeys>(MTPauth_dropTempAuthKeys(_except_auth_keys)) {
 	}
 };
 
@@ -19477,48 +19644,6 @@ public:
 	}
 };
 
-class MTPmessages_getStickers { // RPC method 'messages.getStickers'
-public:
-	MTPstring vemoticon;
-	MTPstring vhash;
-
-	MTPmessages_getStickers() {
-	}
-	MTPmessages_getStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getStickers) {
-		read(from, end, cons);
-	}
-	MTPmessages_getStickers(const MTPstring &_emoticon, const MTPstring &_hash) : vemoticon(_emoticon), vhash(_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vemoticon.innerLength() + vhash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_messages_getStickers;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getStickers) {
-		vemoticon.read(from, end);
-		vhash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vemoticon.write(to);
-		vhash.write(to);
-	}
-
-	typedef MTPmessages_Stickers ResponseType;
-};
-class MTPmessages_GetStickers : public MTPBoxed<MTPmessages_getStickers> {
-public:
-	MTPmessages_GetStickers() {
-	}
-	MTPmessages_GetStickers(const MTPmessages_getStickers &v) : MTPBoxed<MTPmessages_getStickers>(v) {
-	}
-	MTPmessages_GetStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getStickers>(from, end, cons) {
-	}
-	MTPmessages_GetStickers(const MTPstring &_emoticon, const MTPstring &_hash) : MTPBoxed<MTPmessages_getStickers>(MTPmessages_getStickers(_emoticon, _hash)) {
-	}
-};
-
 class MTPmessages_getAllStickers { // RPC method 'messages.getAllStickers'
 public:
 	MTPint vhash;
@@ -21063,6 +21188,16 @@ public:
 
 class MTPmessages_getRecentStickers { // RPC method 'messages.getRecentStickers'
 public:
+	enum class Flag : int32 {
+		f_attached = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_attached() const { return vflags.v & Flag::f_attached; }
+
+	MTPflags<MTPmessages_getRecentStickers::Flags> vflags;
 	MTPint vhash;
 
 	MTPmessages_getRecentStickers() {
@@ -21070,24 +21205,28 @@ public:
 	MTPmessages_getRecentStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getRecentStickers) {
 		read(from, end, cons);
 	}
-	MTPmessages_getRecentStickers(MTPint _hash) : vhash(_hash) {
+	MTPmessages_getRecentStickers(const MTPflags<MTPmessages_getRecentStickers::Flags> &_flags, MTPint _hash) : vflags(_flags), vhash(_hash) {
 	}
 
 	uint32 innerLength() const {
-		return vhash.innerLength();
+		return vflags.innerLength() + vhash.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getRecentStickers;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getRecentStickers) {
+		vflags.read(from, end);
 		vhash.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vhash.write(to);
 	}
 
 	typedef MTPmessages_RecentStickers ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPmessages_getRecentStickers::Flags)
+
 class MTPmessages_GetRecentStickers : public MTPBoxed<MTPmessages_getRecentStickers> {
 public:
 	MTPmessages_GetRecentStickers() {
@@ -21096,12 +21235,22 @@ public:
 	}
 	MTPmessages_GetRecentStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getRecentStickers>(from, end, cons) {
 	}
-	MTPmessages_GetRecentStickers(MTPint _hash) : MTPBoxed<MTPmessages_getRecentStickers>(MTPmessages_getRecentStickers(_hash)) {
+	MTPmessages_GetRecentStickers(const MTPflags<MTPmessages_getRecentStickers::Flags> &_flags, MTPint _hash) : MTPBoxed<MTPmessages_getRecentStickers>(MTPmessages_getRecentStickers(_flags, _hash)) {
 	}
 };
 
 class MTPmessages_saveRecentSticker { // RPC method 'messages.saveRecentSticker'
 public:
+	enum class Flag : int32 {
+		f_attached = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_attached() const { return vflags.v & Flag::f_attached; }
+
+	MTPflags<MTPmessages_saveRecentSticker::Flags> vflags;
 	MTPInputDocument vid;
 	MTPBool vunsave;
 
@@ -21110,26 +21259,30 @@ public:
 	MTPmessages_saveRecentSticker(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_saveRecentSticker) {
 		read(from, end, cons);
 	}
-	MTPmessages_saveRecentSticker(const MTPInputDocument &_id, MTPBool _unsave) : vid(_id), vunsave(_unsave) {
+	MTPmessages_saveRecentSticker(const MTPflags<MTPmessages_saveRecentSticker::Flags> &_flags, const MTPInputDocument &_id, MTPBool _unsave) : vflags(_flags), vid(_id), vunsave(_unsave) {
 	}
 
 	uint32 innerLength() const {
-		return vid.innerLength() + vunsave.innerLength();
+		return vflags.innerLength() + vid.innerLength() + vunsave.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_saveRecentSticker;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_saveRecentSticker) {
+		vflags.read(from, end);
 		vid.read(from, end);
 		vunsave.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vid.write(to);
 		vunsave.write(to);
 	}
 
 	typedef MTPBool ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPmessages_saveRecentSticker::Flags)
+
 class MTPmessages_SaveRecentSticker : public MTPBoxed<MTPmessages_saveRecentSticker> {
 public:
 	MTPmessages_SaveRecentSticker() {
@@ -21138,31 +21291,48 @@ public:
 	}
 	MTPmessages_SaveRecentSticker(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_saveRecentSticker>(from, end, cons) {
 	}
-	MTPmessages_SaveRecentSticker(const MTPInputDocument &_id, MTPBool _unsave) : MTPBoxed<MTPmessages_saveRecentSticker>(MTPmessages_saveRecentSticker(_id, _unsave)) {
+	MTPmessages_SaveRecentSticker(const MTPflags<MTPmessages_saveRecentSticker::Flags> &_flags, const MTPInputDocument &_id, MTPBool _unsave) : MTPBoxed<MTPmessages_saveRecentSticker>(MTPmessages_saveRecentSticker(_flags, _id, _unsave)) {
 	}
 };
 
 class MTPmessages_clearRecentStickers { // RPC method 'messages.clearRecentStickers'
 public:
+	enum class Flag : int32 {
+		f_attached = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_attached() const { return vflags.v & Flag::f_attached; }
+
+	MTPflags<MTPmessages_clearRecentStickers::Flags> vflags;
+
 	MTPmessages_clearRecentStickers() {
 	}
 	MTPmessages_clearRecentStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_clearRecentStickers) {
 		read(from, end, cons);
 	}
+	MTPmessages_clearRecentStickers(const MTPflags<MTPmessages_clearRecentStickers::Flags> &_flags) : vflags(_flags) {
+	}
 
 	uint32 innerLength() const {
-		return 0;
+		return vflags.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_clearRecentStickers;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_clearRecentStickers) {
+		vflags.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 	}
 
 	typedef MTPBool ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPmessages_clearRecentStickers::Flags)
+
 class MTPmessages_ClearRecentStickers : public MTPBoxed<MTPmessages_clearRecentStickers> {
 public:
 	MTPmessages_ClearRecentStickers() {
@@ -21170,6 +21340,8 @@ public:
 	MTPmessages_ClearRecentStickers(const MTPmessages_clearRecentStickers &v) : MTPBoxed<MTPmessages_clearRecentStickers>(v) {
 	}
 	MTPmessages_ClearRecentStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_clearRecentStickers>(from, end, cons) {
+	}
+	MTPmessages_ClearRecentStickers(const MTPflags<MTPmessages_clearRecentStickers::Flags> &_flags) : MTPBoxed<MTPmessages_clearRecentStickers>(MTPmessages_clearRecentStickers(_flags)) {
 	}
 };
 
@@ -21381,6 +21553,45 @@ public:
 	}
 };
 
+class MTPmessages_getAttachedStickers { // RPC method 'messages.getAttachedStickers'
+public:
+	MTPInputStickeredMedia vmedia;
+
+	MTPmessages_getAttachedStickers() {
+	}
+	MTPmessages_getAttachedStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getAttachedStickers) {
+		read(from, end, cons);
+	}
+	MTPmessages_getAttachedStickers(const MTPInputStickeredMedia &_media) : vmedia(_media) {
+	}
+
+	uint32 innerLength() const {
+		return vmedia.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getAttachedStickers;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getAttachedStickers) {
+		vmedia.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vmedia.write(to);
+	}
+
+	typedef MTPVector<MTPStickerSetCovered> ResponseType;
+};
+class MTPmessages_GetAttachedStickers : public MTPBoxed<MTPmessages_getAttachedStickers> {
+public:
+	MTPmessages_GetAttachedStickers() {
+	}
+	MTPmessages_GetAttachedStickers(const MTPmessages_getAttachedStickers &v) : MTPBoxed<MTPmessages_getAttachedStickers>(v) {
+	}
+	MTPmessages_GetAttachedStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getAttachedStickers>(from, end, cons) {
+	}
+	MTPmessages_GetAttachedStickers(const MTPInputStickeredMedia &_media) : MTPBoxed<MTPmessages_getAttachedStickers>(MTPmessages_getAttachedStickers(_media)) {
+	}
+};
+
 class MTPupdates_getState { // RPC method 'updates.getState'
 public:
 	MTPupdates_getState() {
@@ -21508,29 +21719,26 @@ public:
 class MTPphotos_updateProfilePhoto { // RPC method 'photos.updateProfilePhoto'
 public:
 	MTPInputPhoto vid;
-	MTPInputPhotoCrop vcrop;
 
 	MTPphotos_updateProfilePhoto() {
 	}
 	MTPphotos_updateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
 		read(from, end, cons);
 	}
-	MTPphotos_updateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : vid(_id), vcrop(_crop) {
+	MTPphotos_updateProfilePhoto(const MTPInputPhoto &_id) : vid(_id) {
 	}
 
 	uint32 innerLength() const {
-		return vid.innerLength() + vcrop.innerLength();
+		return vid.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_photos_updateProfilePhoto;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
 		vid.read(from, end);
-		vcrop.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vid.write(to);
-		vcrop.write(to);
 	}
 
 	typedef MTPUserProfilePhoto ResponseType;
@@ -21543,42 +21751,33 @@ public:
 	}
 	MTPphotos_UpdateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_updateProfilePhoto>(from, end, cons) {
 	}
-	MTPphotos_UpdateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_updateProfilePhoto>(MTPphotos_updateProfilePhoto(_id, _crop)) {
+	MTPphotos_UpdateProfilePhoto(const MTPInputPhoto &_id) : MTPBoxed<MTPphotos_updateProfilePhoto>(MTPphotos_updateProfilePhoto(_id)) {
 	}
 };
 
 class MTPphotos_uploadProfilePhoto { // RPC method 'photos.uploadProfilePhoto'
 public:
 	MTPInputFile vfile;
-	MTPstring vcaption;
-	MTPInputGeoPoint vgeo_point;
-	MTPInputPhotoCrop vcrop;
 
 	MTPphotos_uploadProfilePhoto() {
 	}
 	MTPphotos_uploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
 		read(from, end, cons);
 	}
-	MTPphotos_uploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : vfile(_file), vcaption(_caption), vgeo_point(_geo_point), vcrop(_crop) {
+	MTPphotos_uploadProfilePhoto(const MTPInputFile &_file) : vfile(_file) {
 	}
 
 	uint32 innerLength() const {
-		return vfile.innerLength() + vcaption.innerLength() + vgeo_point.innerLength() + vcrop.innerLength();
+		return vfile.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_photos_uploadProfilePhoto;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
 		vfile.read(from, end);
-		vcaption.read(from, end);
-		vgeo_point.read(from, end);
-		vcrop.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vfile.write(to);
-		vcaption.write(to);
-		vgeo_point.write(to);
-		vcrop.write(to);
 	}
 
 	typedef MTPphotos_Photo ResponseType;
@@ -21591,7 +21790,7 @@ public:
 	}
 	MTPphotos_UploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_uploadProfilePhoto>(from, end, cons) {
 	}
-	MTPphotos_UploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_uploadProfilePhoto>(MTPphotos_uploadProfilePhoto(_file, _caption, _geo_point, _crop)) {
+	MTPphotos_UploadProfilePhoto(const MTPInputFile &_file) : MTPBoxed<MTPphotos_uploadProfilePhoto>(MTPphotos_uploadProfilePhoto(_file)) {
 	}
 };
 
@@ -23371,8 +23570,8 @@ public:
 	inline static MTPinputMedia new_inputMediaEmpty() {
 		return MTPinputMedia(mtpc_inputMediaEmpty);
 	}
-	inline static MTPinputMedia new_inputMediaUploadedPhoto(const MTPInputFile &_file, const MTPstring &_caption) {
-		return MTPinputMedia(new MTPDinputMediaUploadedPhoto(_file, _caption));
+	inline static MTPinputMedia new_inputMediaUploadedPhoto(const MTPflags<MTPDinputMediaUploadedPhoto::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+		return MTPinputMedia(new MTPDinputMediaUploadedPhoto(_flags, _file, _caption, _stickers));
 	}
 	inline static MTPinputMedia new_inputMediaPhoto(const MTPInputPhoto &_id, const MTPstring &_caption) {
 		return MTPinputMedia(new MTPDinputMediaPhoto(_id, _caption));
@@ -23383,11 +23582,11 @@ public:
 	inline static MTPinputMedia new_inputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
 		return MTPinputMedia(new MTPDinputMediaContact(_phone_number, _first_name, _last_name));
 	}
-	inline static MTPinputMedia new_inputMediaUploadedDocument(const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) {
-		return MTPinputMedia(new MTPDinputMediaUploadedDocument(_file, _mime_type, _attributes, _caption));
+	inline static MTPinputMedia new_inputMediaUploadedDocument(const MTPflags<MTPDinputMediaUploadedDocument::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+		return MTPinputMedia(new MTPDinputMediaUploadedDocument(_flags, _file, _mime_type, _attributes, _caption, _stickers));
 	}
-	inline static MTPinputMedia new_inputMediaUploadedThumbDocument(const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) {
-		return MTPinputMedia(new MTPDinputMediaUploadedThumbDocument(_file, _thumb, _mime_type, _attributes, _caption));
+	inline static MTPinputMedia new_inputMediaUploadedThumbDocument(const MTPflags<MTPDinputMediaUploadedThumbDocument::Flags> &_flags, const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+		return MTPinputMedia(new MTPDinputMediaUploadedThumbDocument(_flags, _file, _thumb, _mime_type, _attributes, _caption, _stickers));
 	}
 	inline static MTPinputMedia new_inputMediaDocument(const MTPInputDocument &_id, const MTPstring &_caption) {
 		return MTPinputMedia(new MTPDinputMediaDocument(_id, _caption));
@@ -23407,11 +23606,11 @@ public:
 	inline static MTPinputChatPhoto new_inputChatPhotoEmpty() {
 		return MTPinputChatPhoto(mtpc_inputChatPhotoEmpty);
 	}
-	inline static MTPinputChatPhoto new_inputChatUploadedPhoto(const MTPInputFile &_file, const MTPInputPhotoCrop &_crop) {
-		return MTPinputChatPhoto(new MTPDinputChatUploadedPhoto(_file, _crop));
+	inline static MTPinputChatPhoto new_inputChatUploadedPhoto(const MTPInputFile &_file) {
+		return MTPinputChatPhoto(new MTPDinputChatUploadedPhoto(_file));
 	}
-	inline static MTPinputChatPhoto new_inputChatPhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) {
-		return MTPinputChatPhoto(new MTPDinputChatPhoto(_id, _crop));
+	inline static MTPinputChatPhoto new_inputChatPhoto(const MTPInputPhoto &_id) {
+		return MTPinputChatPhoto(new MTPDinputChatPhoto(_id));
 	}
 	inline static MTPinputGeoPoint new_inputGeoPointEmpty() {
 		return MTPinputGeoPoint(mtpc_inputGeoPointEmpty);
@@ -23433,12 +23632,6 @@ public:
 	}
 	inline static MTPinputFileLocation new_inputDocumentFileLocation(const MTPlong &_id, const MTPlong &_access_hash, MTPint _version) {
 		return MTPinputFileLocation(new MTPDinputDocumentFileLocation(_id, _access_hash, _version));
-	}
-	inline static MTPinputPhotoCrop new_inputPhotoCropAuto() {
-		return MTPinputPhotoCrop(mtpc_inputPhotoCropAuto);
-	}
-	inline static MTPinputPhotoCrop new_inputPhotoCrop(const MTPdouble &_crop_left, const MTPdouble &_crop_top, const MTPdouble &_crop_width) {
-		return MTPinputPhotoCrop(new MTPDinputPhotoCrop(_crop_left, _crop_top, _crop_width));
 	}
 	inline static MTPinputAppEvent new_inputAppEvent(const MTPdouble &_time, const MTPstring &_type, const MTPlong &_peer, const MTPstring &_data) {
 		return MTPinputAppEvent(new MTPDinputAppEvent(_time, _type, _peer, _data));
@@ -23641,8 +23834,8 @@ public:
 	inline static MTPphoto new_photoEmpty(const MTPlong &_id) {
 		return MTPphoto(new MTPDphotoEmpty(_id));
 	}
-	inline static MTPphoto new_photo(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) {
-		return MTPphoto(new MTPDphoto(_id, _access_hash, _date, _sizes));
+	inline static MTPphoto new_photo(const MTPflags<MTPDphoto::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) {
+		return MTPphoto(new MTPDphoto(_flags, _id, _access_hash, _date, _sizes));
 	}
 	inline static MTPphotoSize new_photoSizeEmpty(const MTPstring &_type) {
 		return MTPphotoSize(new MTPDphotoSizeEmpty(_type));
@@ -24211,8 +24404,8 @@ public:
 	inline static MTPdocumentAttribute new_documentAttributeAnimated() {
 		return MTPdocumentAttribute(mtpc_documentAttributeAnimated);
 	}
-	inline static MTPdocumentAttribute new_documentAttributeSticker(const MTPstring &_alt, const MTPInputStickerSet &_stickerset) {
-		return MTPdocumentAttribute(new MTPDdocumentAttributeSticker(_alt, _stickerset));
+	inline static MTPdocumentAttribute new_documentAttributeSticker(const MTPflags<MTPDdocumentAttributeSticker::Flags> &_flags, const MTPstring &_alt, const MTPInputStickerSet &_stickerset, const MTPMaskCoords &_mask_coords) {
+		return MTPdocumentAttribute(new MTPDdocumentAttributeSticker(_flags, _alt, _stickerset, _mask_coords));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h) {
 		return MTPdocumentAttribute(new MTPDdocumentAttributeVideo(_duration, _w, _h));
@@ -24222,6 +24415,9 @@ public:
 	}
 	inline static MTPdocumentAttribute new_documentAttributeFilename(const MTPstring &_file_name) {
 		return MTPdocumentAttribute(new MTPDdocumentAttributeFilename(_file_name));
+	}
+	inline static MTPdocumentAttribute new_documentAttributeHasStickers() {
+		return MTPdocumentAttribute(mtpc_documentAttributeHasStickers);
 	}
 	inline static MTPmessages_stickers new_messages_stickersNotModified() {
 		return MTPmessages_stickers(mtpc_messages_stickersNotModified);
@@ -24642,6 +24838,15 @@ public:
 	}
 	inline static MTPstickerSetCovered new_stickerSetMultiCovered(const MTPStickerSet &_set, const MTPVector<MTPDocument> &_covers) {
 		return MTPstickerSetCovered(new MTPDstickerSetMultiCovered(_set, _covers));
+	}
+	inline static MTPmaskCoords new_maskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) {
+		return MTPmaskCoords(new MTPDmaskCoords(_n, _x, _y, _zoom));
+	}
+	inline static MTPinputStickeredMedia new_inputStickeredMediaPhoto(const MTPInputPhoto &_id) {
+		return MTPinputStickeredMedia(new MTPDinputStickeredMediaPhoto(_id));
+	}
+	inline static MTPinputStickeredMedia new_inputStickeredMediaDocument(const MTPInputDocument &_id) {
+		return MTPinputStickeredMedia(new MTPDinputStickeredMediaDocument(_id));
 	}
 	};
 
@@ -25892,7 +26097,7 @@ inline uint32 MTPinputMedia::innerLength() const {
 	switch (_type) {
 		case mtpc_inputMediaUploadedPhoto: {
 			const MTPDinputMediaUploadedPhoto &v(c_inputMediaUploadedPhoto());
-			return v.vfile.innerLength() + v.vcaption.innerLength();
+			return v.vflags.innerLength() + v.vfile.innerLength() + v.vcaption.innerLength() + (v.has_stickers() ? v.vstickers.innerLength() : 0);
 		}
 		case mtpc_inputMediaPhoto: {
 			const MTPDinputMediaPhoto &v(c_inputMediaPhoto());
@@ -25908,11 +26113,11 @@ inline uint32 MTPinputMedia::innerLength() const {
 		}
 		case mtpc_inputMediaUploadedDocument: {
 			const MTPDinputMediaUploadedDocument &v(c_inputMediaUploadedDocument());
-			return v.vfile.innerLength() + v.vmime_type.innerLength() + v.vattributes.innerLength() + v.vcaption.innerLength();
+			return v.vflags.innerLength() + v.vfile.innerLength() + v.vmime_type.innerLength() + v.vattributes.innerLength() + v.vcaption.innerLength() + (v.has_stickers() ? v.vstickers.innerLength() : 0);
 		}
 		case mtpc_inputMediaUploadedThumbDocument: {
 			const MTPDinputMediaUploadedThumbDocument &v(c_inputMediaUploadedThumbDocument());
-			return v.vfile.innerLength() + v.vthumb.innerLength() + v.vmime_type.innerLength() + v.vattributes.innerLength() + v.vcaption.innerLength();
+			return v.vflags.innerLength() + v.vfile.innerLength() + v.vthumb.innerLength() + v.vmime_type.innerLength() + v.vattributes.innerLength() + v.vcaption.innerLength() + (v.has_stickers() ? v.vstickers.innerLength() : 0);
 		}
 		case mtpc_inputMediaDocument: {
 			const MTPDinputMediaDocument &v(c_inputMediaDocument());
@@ -25948,8 +26153,10 @@ inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 		case mtpc_inputMediaUploadedPhoto: _type = cons; {
 			if (!data) setData(new MTPDinputMediaUploadedPhoto());
 			MTPDinputMediaUploadedPhoto &v(_inputMediaUploadedPhoto());
+			v.vflags.read(from, end);
 			v.vfile.read(from, end);
 			v.vcaption.read(from, end);
+			if (v.has_stickers()) { v.vstickers.read(from, end); } else { v.vstickers = MTPVector<MTPInputDocument>(); }
 		} break;
 		case mtpc_inputMediaPhoto: _type = cons; {
 			if (!data) setData(new MTPDinputMediaPhoto());
@@ -25972,19 +26179,23 @@ inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 		case mtpc_inputMediaUploadedDocument: _type = cons; {
 			if (!data) setData(new MTPDinputMediaUploadedDocument());
 			MTPDinputMediaUploadedDocument &v(_inputMediaUploadedDocument());
+			v.vflags.read(from, end);
 			v.vfile.read(from, end);
 			v.vmime_type.read(from, end);
 			v.vattributes.read(from, end);
 			v.vcaption.read(from, end);
+			if (v.has_stickers()) { v.vstickers.read(from, end); } else { v.vstickers = MTPVector<MTPInputDocument>(); }
 		} break;
 		case mtpc_inputMediaUploadedThumbDocument: _type = cons; {
 			if (!data) setData(new MTPDinputMediaUploadedThumbDocument());
 			MTPDinputMediaUploadedThumbDocument &v(_inputMediaUploadedThumbDocument());
+			v.vflags.read(from, end);
 			v.vfile.read(from, end);
 			v.vthumb.read(from, end);
 			v.vmime_type.read(from, end);
 			v.vattributes.read(from, end);
 			v.vcaption.read(from, end);
+			if (v.has_stickers()) { v.vstickers.read(from, end); } else { v.vstickers = MTPVector<MTPInputDocument>(); }
 		} break;
 		case mtpc_inputMediaDocument: _type = cons; {
 			if (!data) setData(new MTPDinputMediaDocument());
@@ -26026,8 +26237,10 @@ inline void MTPinputMedia::write(mtpBuffer &to) const {
 	switch (_type) {
 		case mtpc_inputMediaUploadedPhoto: {
 			const MTPDinputMediaUploadedPhoto &v(c_inputMediaUploadedPhoto());
+			v.vflags.write(to);
 			v.vfile.write(to);
 			v.vcaption.write(to);
+			if (v.has_stickers()) v.vstickers.write(to);
 		} break;
 		case mtpc_inputMediaPhoto: {
 			const MTPDinputMediaPhoto &v(c_inputMediaPhoto());
@@ -26046,18 +26259,22 @@ inline void MTPinputMedia::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_inputMediaUploadedDocument: {
 			const MTPDinputMediaUploadedDocument &v(c_inputMediaUploadedDocument());
+			v.vflags.write(to);
 			v.vfile.write(to);
 			v.vmime_type.write(to);
 			v.vattributes.write(to);
 			v.vcaption.write(to);
+			if (v.has_stickers()) v.vstickers.write(to);
 		} break;
 		case mtpc_inputMediaUploadedThumbDocument: {
 			const MTPDinputMediaUploadedThumbDocument &v(c_inputMediaUploadedThumbDocument());
+			v.vflags.write(to);
 			v.vfile.write(to);
 			v.vthumb.write(to);
 			v.vmime_type.write(to);
 			v.vattributes.write(to);
 			v.vcaption.write(to);
+			if (v.has_stickers()) v.vstickers.write(to);
 		} break;
 		case mtpc_inputMediaDocument: {
 			const MTPDinputMediaDocument &v(c_inputMediaDocument());
@@ -26131,8 +26348,9 @@ inline MTPinputMedia::MTPinputMedia(MTPDinputMediaDocumentExternal *_data) : mtp
 inline MTPinputMedia MTP_inputMediaEmpty() {
 	return MTP::internal::TypeCreator::new_inputMediaEmpty();
 }
-inline MTPinputMedia MTP_inputMediaUploadedPhoto(const MTPInputFile &_file, const MTPstring &_caption) {
-	return MTP::internal::TypeCreator::new_inputMediaUploadedPhoto(_file, _caption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputMediaUploadedPhoto::Flags)
+inline MTPinputMedia MTP_inputMediaUploadedPhoto(const MTPflags<MTPDinputMediaUploadedPhoto::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+	return MTP::internal::TypeCreator::new_inputMediaUploadedPhoto(_flags, _file, _caption, _stickers);
 }
 inline MTPinputMedia MTP_inputMediaPhoto(const MTPInputPhoto &_id, const MTPstring &_caption) {
 	return MTP::internal::TypeCreator::new_inputMediaPhoto(_id, _caption);
@@ -26143,11 +26361,13 @@ inline MTPinputMedia MTP_inputMediaGeoPoint(const MTPInputGeoPoint &_geo_point) 
 inline MTPinputMedia MTP_inputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
 	return MTP::internal::TypeCreator::new_inputMediaContact(_phone_number, _first_name, _last_name);
 }
-inline MTPinputMedia MTP_inputMediaUploadedDocument(const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) {
-	return MTP::internal::TypeCreator::new_inputMediaUploadedDocument(_file, _mime_type, _attributes, _caption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputMediaUploadedDocument::Flags)
+inline MTPinputMedia MTP_inputMediaUploadedDocument(const MTPflags<MTPDinputMediaUploadedDocument::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+	return MTP::internal::TypeCreator::new_inputMediaUploadedDocument(_flags, _file, _mime_type, _attributes, _caption, _stickers);
 }
-inline MTPinputMedia MTP_inputMediaUploadedThumbDocument(const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) {
-	return MTP::internal::TypeCreator::new_inputMediaUploadedThumbDocument(_file, _thumb, _mime_type, _attributes, _caption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputMediaUploadedThumbDocument::Flags)
+inline MTPinputMedia MTP_inputMediaUploadedThumbDocument(const MTPflags<MTPDinputMediaUploadedThumbDocument::Flags> &_flags, const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
+	return MTP::internal::TypeCreator::new_inputMediaUploadedThumbDocument(_flags, _file, _thumb, _mime_type, _attributes, _caption, _stickers);
 }
 inline MTPinputMedia MTP_inputMediaDocument(const MTPInputDocument &_id, const MTPstring &_caption) {
 	return MTP::internal::TypeCreator::new_inputMediaDocument(_id, _caption);
@@ -26169,11 +26389,11 @@ inline uint32 MTPinputChatPhoto::innerLength() const {
 	switch (_type) {
 		case mtpc_inputChatUploadedPhoto: {
 			const MTPDinputChatUploadedPhoto &v(c_inputChatUploadedPhoto());
-			return v.vfile.innerLength() + v.vcrop.innerLength();
+			return v.vfile.innerLength();
 		}
 		case mtpc_inputChatPhoto: {
 			const MTPDinputChatPhoto &v(c_inputChatPhoto());
-			return v.vid.innerLength() + v.vcrop.innerLength();
+			return v.vid.innerLength();
 		}
 	}
 	return 0;
@@ -26190,13 +26410,11 @@ inline void MTPinputChatPhoto::read(const mtpPrime *&from, const mtpPrime *end, 
 			if (!data) setData(new MTPDinputChatUploadedPhoto());
 			MTPDinputChatUploadedPhoto &v(_inputChatUploadedPhoto());
 			v.vfile.read(from, end);
-			v.vcrop.read(from, end);
 		} break;
 		case mtpc_inputChatPhoto: _type = cons; {
 			if (!data) setData(new MTPDinputChatPhoto());
 			MTPDinputChatPhoto &v(_inputChatPhoto());
 			v.vid.read(from, end);
-			v.vcrop.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputChatPhoto");
 	}
@@ -26206,12 +26424,10 @@ inline void MTPinputChatPhoto::write(mtpBuffer &to) const {
 		case mtpc_inputChatUploadedPhoto: {
 			const MTPDinputChatUploadedPhoto &v(c_inputChatUploadedPhoto());
 			v.vfile.write(to);
-			v.vcrop.write(to);
 		} break;
 		case mtpc_inputChatPhoto: {
 			const MTPDinputChatPhoto &v(c_inputChatPhoto());
 			v.vid.write(to);
-			v.vcrop.write(to);
 		} break;
 	}
 }
@@ -26230,11 +26446,11 @@ inline MTPinputChatPhoto::MTPinputChatPhoto(MTPDinputChatPhoto *_data) : mtpData
 inline MTPinputChatPhoto MTP_inputChatPhotoEmpty() {
 	return MTP::internal::TypeCreator::new_inputChatPhotoEmpty();
 }
-inline MTPinputChatPhoto MTP_inputChatUploadedPhoto(const MTPInputFile &_file, const MTPInputPhotoCrop &_crop) {
-	return MTP::internal::TypeCreator::new_inputChatUploadedPhoto(_file, _crop);
+inline MTPinputChatPhoto MTP_inputChatUploadedPhoto(const MTPInputFile &_file) {
+	return MTP::internal::TypeCreator::new_inputChatUploadedPhoto(_file);
 }
-inline MTPinputChatPhoto MTP_inputChatPhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) {
-	return MTP::internal::TypeCreator::new_inputChatPhoto(_id, _crop);
+inline MTPinputChatPhoto MTP_inputChatPhoto(const MTPInputPhoto &_id) {
+	return MTP::internal::TypeCreator::new_inputChatPhoto(_id);
 }
 
 inline uint32 MTPinputGeoPoint::innerLength() const {
@@ -26429,59 +26645,6 @@ inline MTPinputFileLocation MTP_inputEncryptedFileLocation(const MTPlong &_id, c
 }
 inline MTPinputFileLocation MTP_inputDocumentFileLocation(const MTPlong &_id, const MTPlong &_access_hash, MTPint _version) {
 	return MTP::internal::TypeCreator::new_inputDocumentFileLocation(_id, _access_hash, _version);
-}
-
-inline uint32 MTPinputPhotoCrop::innerLength() const {
-	switch (_type) {
-		case mtpc_inputPhotoCrop: {
-			const MTPDinputPhotoCrop &v(c_inputPhotoCrop());
-			return v.vcrop_left.innerLength() + v.vcrop_top.innerLength() + v.vcrop_width.innerLength();
-		}
-	}
-	return 0;
-}
-inline mtpTypeId MTPinputPhotoCrop::type() const {
-	if (!_type) throw mtpErrorUninitialized();
-	return _type;
-}
-inline void MTPinputPhotoCrop::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != _type) setData(0);
-	switch (cons) {
-		case mtpc_inputPhotoCropAuto: _type = cons; break;
-		case mtpc_inputPhotoCrop: _type = cons; {
-			if (!data) setData(new MTPDinputPhotoCrop());
-			MTPDinputPhotoCrop &v(_inputPhotoCrop());
-			v.vcrop_left.read(from, end);
-			v.vcrop_top.read(from, end);
-			v.vcrop_width.read(from, end);
-		} break;
-		default: throw mtpErrorUnexpected(cons, "MTPinputPhotoCrop");
-	}
-}
-inline void MTPinputPhotoCrop::write(mtpBuffer &to) const {
-	switch (_type) {
-		case mtpc_inputPhotoCrop: {
-			const MTPDinputPhotoCrop &v(c_inputPhotoCrop());
-			v.vcrop_left.write(to);
-			v.vcrop_top.write(to);
-			v.vcrop_width.write(to);
-		} break;
-	}
-}
-inline MTPinputPhotoCrop::MTPinputPhotoCrop(mtpTypeId type) : mtpDataOwner(0), _type(type) {
-	switch (type) {
-		case mtpc_inputPhotoCropAuto: break;
-		case mtpc_inputPhotoCrop: setData(new MTPDinputPhotoCrop()); break;
-		default: throw mtpErrorBadTypeId(type, "MTPinputPhotoCrop");
-	}
-}
-inline MTPinputPhotoCrop::MTPinputPhotoCrop(MTPDinputPhotoCrop *_data) : mtpDataOwner(_data), _type(mtpc_inputPhotoCrop) {
-}
-inline MTPinputPhotoCrop MTP_inputPhotoCropAuto() {
-	return MTP::internal::TypeCreator::new_inputPhotoCropAuto();
-}
-inline MTPinputPhotoCrop MTP_inputPhotoCrop(const MTPdouble &_crop_left, const MTPdouble &_crop_top, const MTPdouble &_crop_width) {
-	return MTP::internal::TypeCreator::new_inputPhotoCrop(_crop_left, _crop_top, _crop_width);
 }
 
 inline MTPinputAppEvent::MTPinputAppEvent() : mtpDataOwner(new MTPDinputAppEvent()) {
@@ -28024,7 +28187,7 @@ inline uint32 MTPphoto::innerLength() const {
 		}
 		case mtpc_photo: {
 			const MTPDphoto &v(c_photo());
-			return v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vdate.innerLength() + v.vsizes.innerLength();
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vdate.innerLength() + v.vsizes.innerLength();
 		}
 	}
 	return 0;
@@ -28044,6 +28207,7 @@ inline void MTPphoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId
 		case mtpc_photo: _type = cons; {
 			if (!data) setData(new MTPDphoto());
 			MTPDphoto &v(_photo());
+			v.vflags.read(from, end);
 			v.vid.read(from, end);
 			v.vaccess_hash.read(from, end);
 			v.vdate.read(from, end);
@@ -28060,6 +28224,7 @@ inline void MTPphoto::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_photo: {
 			const MTPDphoto &v(c_photo());
+			v.vflags.write(to);
 			v.vid.write(to);
 			v.vaccess_hash.write(to);
 			v.vdate.write(to);
@@ -28081,8 +28246,9 @@ inline MTPphoto::MTPphoto(MTPDphoto *_data) : mtpDataOwner(_data), _type(mtpc_ph
 inline MTPphoto MTP_photoEmpty(const MTPlong &_id) {
 	return MTP::internal::TypeCreator::new_photoEmpty(_id);
 }
-inline MTPphoto MTP_photo(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) {
-	return MTP::internal::TypeCreator::new_photo(_id, _access_hash, _date, _sizes);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDphoto::Flags)
+inline MTPphoto MTP_photo(const MTPflags<MTPDphoto::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) {
+	return MTP::internal::TypeCreator::new_photo(_flags, _id, _access_hash, _date, _sizes);
 }
 
 inline uint32 MTPphotoSize::innerLength() const {
@@ -32470,7 +32636,7 @@ inline uint32 MTPdocumentAttribute::innerLength() const {
 		}
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &v(c_documentAttributeSticker());
-			return v.valt.innerLength() + v.vstickerset.innerLength();
+			return v.vflags.innerLength() + v.valt.innerLength() + v.vstickerset.innerLength() + (v.has_mask_coords() ? v.vmask_coords.innerLength() : 0);
 		}
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &v(c_documentAttributeVideo());
@@ -32504,8 +32670,10 @@ inline void MTPdocumentAttribute::read(const mtpPrime *&from, const mtpPrime *en
 		case mtpc_documentAttributeSticker: _type = cons; {
 			if (!data) setData(new MTPDdocumentAttributeSticker());
 			MTPDdocumentAttributeSticker &v(_documentAttributeSticker());
+			v.vflags.read(from, end);
 			v.valt.read(from, end);
 			v.vstickerset.read(from, end);
+			if (v.has_mask_coords()) { v.vmask_coords.read(from, end); } else { v.vmask_coords = MTPMaskCoords(); }
 		} break;
 		case mtpc_documentAttributeVideo: _type = cons; {
 			if (!data) setData(new MTPDdocumentAttributeVideo());
@@ -32528,6 +32696,7 @@ inline void MTPdocumentAttribute::read(const mtpPrime *&from, const mtpPrime *en
 			MTPDdocumentAttributeFilename &v(_documentAttributeFilename());
 			v.vfile_name.read(from, end);
 		} break;
+		case mtpc_documentAttributeHasStickers: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPdocumentAttribute");
 	}
 }
@@ -32540,8 +32709,10 @@ inline void MTPdocumentAttribute::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &v(c_documentAttributeSticker());
+			v.vflags.write(to);
 			v.valt.write(to);
 			v.vstickerset.write(to);
+			if (v.has_mask_coords()) v.vmask_coords.write(to);
 		} break;
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &v(c_documentAttributeVideo());
@@ -32571,6 +32742,7 @@ inline MTPdocumentAttribute::MTPdocumentAttribute(mtpTypeId type) : mtpDataOwner
 		case mtpc_documentAttributeVideo: setData(new MTPDdocumentAttributeVideo()); break;
 		case mtpc_documentAttributeAudio: setData(new MTPDdocumentAttributeAudio()); break;
 		case mtpc_documentAttributeFilename: setData(new MTPDdocumentAttributeFilename()); break;
+		case mtpc_documentAttributeHasStickers: break;
 		default: throw mtpErrorBadTypeId(type, "MTPdocumentAttribute");
 	}
 }
@@ -32590,8 +32762,9 @@ inline MTPdocumentAttribute MTP_documentAttributeImageSize(MTPint _w, MTPint _h)
 inline MTPdocumentAttribute MTP_documentAttributeAnimated() {
 	return MTP::internal::TypeCreator::new_documentAttributeAnimated();
 }
-inline MTPdocumentAttribute MTP_documentAttributeSticker(const MTPstring &_alt, const MTPInputStickerSet &_stickerset) {
-	return MTP::internal::TypeCreator::new_documentAttributeSticker(_alt, _stickerset);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDdocumentAttributeSticker::Flags)
+inline MTPdocumentAttribute MTP_documentAttributeSticker(const MTPflags<MTPDdocumentAttributeSticker::Flags> &_flags, const MTPstring &_alt, const MTPInputStickerSet &_stickerset, const MTPMaskCoords &_mask_coords) {
+	return MTP::internal::TypeCreator::new_documentAttributeSticker(_flags, _alt, _stickerset, _mask_coords);
 }
 inline MTPdocumentAttribute MTP_documentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h) {
 	return MTP::internal::TypeCreator::new_documentAttributeVideo(_duration, _w, _h);
@@ -32602,6 +32775,9 @@ inline MTPdocumentAttribute MTP_documentAttributeAudio(const MTPflags<MTPDdocume
 }
 inline MTPdocumentAttribute MTP_documentAttributeFilename(const MTPstring &_file_name) {
 	return MTP::internal::TypeCreator::new_documentAttributeFilename(_file_name);
+}
+inline MTPdocumentAttribute MTP_documentAttributeHasStickers() {
+	return MTP::internal::TypeCreator::new_documentAttributeHasStickers();
 }
 
 inline uint32 MTPmessages_stickers::innerLength() const {
@@ -36359,6 +36535,102 @@ inline MTPstickerSetCovered MTP_stickerSetCovered(const MTPStickerSet &_set, con
 }
 inline MTPstickerSetCovered MTP_stickerSetMultiCovered(const MTPStickerSet &_set, const MTPVector<MTPDocument> &_covers) {
 	return MTP::internal::TypeCreator::new_stickerSetMultiCovered(_set, _covers);
+}
+
+inline MTPmaskCoords::MTPmaskCoords() : mtpDataOwner(new MTPDmaskCoords()) {
+}
+
+inline uint32 MTPmaskCoords::innerLength() const {
+	const MTPDmaskCoords &v(c_maskCoords());
+	return v.vn.innerLength() + v.vx.innerLength() + v.vy.innerLength() + v.vzoom.innerLength();
+}
+inline mtpTypeId MTPmaskCoords::type() const {
+	return mtpc_maskCoords;
+}
+inline void MTPmaskCoords::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_maskCoords) throw mtpErrorUnexpected(cons, "MTPmaskCoords");
+
+	if (!data) setData(new MTPDmaskCoords());
+	MTPDmaskCoords &v(_maskCoords());
+	v.vn.read(from, end);
+	v.vx.read(from, end);
+	v.vy.read(from, end);
+	v.vzoom.read(from, end);
+}
+inline void MTPmaskCoords::write(mtpBuffer &to) const {
+	const MTPDmaskCoords &v(c_maskCoords());
+	v.vn.write(to);
+	v.vx.write(to);
+	v.vy.write(to);
+	v.vzoom.write(to);
+}
+inline MTPmaskCoords::MTPmaskCoords(MTPDmaskCoords *_data) : mtpDataOwner(_data) {
+}
+inline MTPmaskCoords MTP_maskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) {
+	return MTP::internal::TypeCreator::new_maskCoords(_n, _x, _y, _zoom);
+}
+
+inline uint32 MTPinputStickeredMedia::innerLength() const {
+	switch (_type) {
+		case mtpc_inputStickeredMediaPhoto: {
+			const MTPDinputStickeredMediaPhoto &v(c_inputStickeredMediaPhoto());
+			return v.vid.innerLength();
+		}
+		case mtpc_inputStickeredMediaDocument: {
+			const MTPDinputStickeredMediaDocument &v(c_inputStickeredMediaDocument());
+			return v.vid.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPinputStickeredMedia::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPinputStickeredMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_inputStickeredMediaPhoto: _type = cons; {
+			if (!data) setData(new MTPDinputStickeredMediaPhoto());
+			MTPDinputStickeredMediaPhoto &v(_inputStickeredMediaPhoto());
+			v.vid.read(from, end);
+		} break;
+		case mtpc_inputStickeredMediaDocument: _type = cons; {
+			if (!data) setData(new MTPDinputStickeredMediaDocument());
+			MTPDinputStickeredMediaDocument &v(_inputStickeredMediaDocument());
+			v.vid.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPinputStickeredMedia");
+	}
+}
+inline void MTPinputStickeredMedia::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_inputStickeredMediaPhoto: {
+			const MTPDinputStickeredMediaPhoto &v(c_inputStickeredMediaPhoto());
+			v.vid.write(to);
+		} break;
+		case mtpc_inputStickeredMediaDocument: {
+			const MTPDinputStickeredMediaDocument &v(c_inputStickeredMediaDocument());
+			v.vid.write(to);
+		} break;
+	}
+}
+inline MTPinputStickeredMedia::MTPinputStickeredMedia(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_inputStickeredMediaPhoto: setData(new MTPDinputStickeredMediaPhoto()); break;
+		case mtpc_inputStickeredMediaDocument: setData(new MTPDinputStickeredMediaDocument()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPinputStickeredMedia");
+	}
+}
+inline MTPinputStickeredMedia::MTPinputStickeredMedia(MTPDinputStickeredMediaPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputStickeredMediaPhoto) {
+}
+inline MTPinputStickeredMedia::MTPinputStickeredMedia(MTPDinputStickeredMediaDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputStickeredMediaDocument) {
+}
+inline MTPinputStickeredMedia MTP_inputStickeredMediaPhoto(const MTPInputPhoto &_id) {
+	return MTP::internal::TypeCreator::new_inputStickeredMediaPhoto(_id);
+}
+inline MTPinputStickeredMedia MTP_inputStickeredMediaDocument(const MTPInputDocument &_id) {
+	return MTP::internal::TypeCreator::new_inputStickeredMediaDocument(_id);
 }
 inline MTPDmessage::Flags mtpCastFlags(MTPDmessageService::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
 inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDmessageService::Flags> flags) { return mtpCastFlags(flags.v); }

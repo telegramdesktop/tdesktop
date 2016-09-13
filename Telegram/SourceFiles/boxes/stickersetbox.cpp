@@ -791,7 +791,8 @@ void StickersInner::onClearRecent() {
 	emit App::main()->updateStickers();
 	rebuild();
 
-	MTP::send(MTPmessages_ClearRecentStickers());
+	MTPmessages_ClearRecentStickers::Flags flags = 0;
+	MTP::send(MTPmessages_ClearRecentStickers(MTP_flags(flags)));
 }
 
 void StickersInner::onClearBoxDestroyed(QObject *box) {

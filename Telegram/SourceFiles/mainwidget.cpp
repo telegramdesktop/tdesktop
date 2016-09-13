@@ -2051,14 +2051,14 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 	}
 
+	dlgUpdated();
 	if (back || (way == Ui::ShowWay::ClearStack)) {
-		dlgUpdated();
 		_peerInStack = nullptr;
 		_msgIdInStack = 0;
-		dlgUpdated();
 	} else {
 		saveSectionInStack();
 	}
+	dlgUpdated();
 
 	PeerData *wasActivePeer = activePeer();
 
@@ -2197,11 +2197,8 @@ void MainWidget::saveSectionInStack() {
 	} else if (_wideSection) {
 		_stack.push_back(std_::make_unique<StackItemSection>(_wideSection->createMemento()));
 	} else if (_history->peer()) {
-		dlgUpdated();
 		_peerInStack = _history->peer();
 		_msgIdInStack = _history->msgId();
-		dlgUpdated();
-
 		_stack.push_back(std_::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
 	}
 }

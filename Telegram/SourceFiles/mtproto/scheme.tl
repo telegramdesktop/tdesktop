@@ -146,12 +146,12 @@ inputFile#f52ff27f id:long parts:int name:string md5_checksum:string = InputFile
 inputFileBig#fa4f0bb5 id:long parts:int name:string = InputFile;
 
 inputMediaEmpty#9664f57f = InputMedia;
-inputMediaUploadedPhoto#f7aff1c0 file:InputFile caption:string = InputMedia;
+inputMediaUploadedPhoto#630c9af1 flags:# file:InputFile caption:string stickers:flags.0?Vector<InputDocument> = InputMedia;
 inputMediaPhoto#e9bfb4f3 id:InputPhoto caption:string = InputMedia;
 inputMediaGeoPoint#f9c44144 geo_point:InputGeoPoint = InputMedia;
 inputMediaContact#a6e45987 phone_number:string first_name:string last_name:string = InputMedia;
-inputMediaUploadedDocument#1d89306d file:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
-inputMediaUploadedThumbDocument#ad613491 file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
+inputMediaUploadedDocument#d070f1e9 flags:# file:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string stickers:flags.0?Vector<InputDocument> = InputMedia;
+inputMediaUploadedThumbDocument#50d88cae flags:# file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string stickers:flags.0?Vector<InputDocument> = InputMedia;
 inputMediaDocument#1a77f29c id:InputDocument caption:string = InputMedia;
 inputMediaVenue#2827a81a geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputMedia;
 inputMediaGifExternal#4843b0fd url:string q:string = InputMedia;
@@ -159,8 +159,8 @@ inputMediaPhotoExternal#b55f4f18 url:string caption:string = InputMedia;
 inputMediaDocumentExternal#e5e9607c url:string caption:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
-inputChatUploadedPhoto#94254732 file:InputFile crop:InputPhotoCrop = InputChatPhoto;
-inputChatPhoto#b2e1bf08 id:InputPhoto crop:InputPhotoCrop = InputChatPhoto;
+inputChatUploadedPhoto#927c55b4 file:InputFile = InputChatPhoto;
+inputChatPhoto#8953ad37 id:InputPhoto = InputChatPhoto;
 
 inputGeoPointEmpty#e4c123d6 = InputGeoPoint;
 inputGeoPoint#f3b7acc9 lat:double long:double = InputGeoPoint;
@@ -171,9 +171,6 @@ inputPhoto#fb95c6c4 id:long access_hash:long = InputPhoto;
 inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#430f0724 id:long access_hash:long version:int = InputFileLocation;
-
-inputPhotoCropAuto#ade6b004 = InputPhotoCrop;
-inputPhotoCrop#d9915325 crop_left:double crop_top:double crop_width:double = InputPhotoCrop;
 
 inputAppEvent#770656a8 time:double type:string peer:long data:string = InputAppEvent;
 
@@ -258,7 +255,7 @@ messageActionGameScore#3a14cfa5 game_id:int score:int = MessageAction;
 dialog#66ffba14 flags:# peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
-photo#cded42fe id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
+photo#9288dd29 flags:# has_stickers:flags.0?true id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
 
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
@@ -509,10 +506,11 @@ accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
-documentAttributeSticker#3a556302 alt:string stickerset:InputStickerSet = DocumentAttribute;
+documentAttributeSticker#6319d612 flags:# mask:flags.1?true alt:string stickerset:InputStickerSet mask_coords:flags.0?MaskCoords = DocumentAttribute;
 documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
 documentAttributeAudio#9852f9c6 flags:# voice:flags.10?true duration:int title:flags.0?string performer:flags.1?string waveform:flags.2?bytes = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
+documentAttributeHasStickers#9801d2f7 = DocumentAttribute;
 
 messages.stickersNotModified#f1749a22 = messages.Stickers;
 messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stickers;
@@ -718,6 +716,11 @@ messages.stickerSetInstallResultArchive#35e410a8 sets:Vector<StickerSetCovered> 
 stickerSetCovered#6410a5d2 set:StickerSet cover:Document = StickerSetCovered;
 stickerSetMultiCovered#3407e51b set:StickerSet covers:Vector<Document> = StickerSetCovered;
 
+maskCoords#aed6dbb2 n:int x:double y:double zoom:double = MaskCoords;
+
+inputStickeredMediaPhoto#4a992157 id:InputPhoto = InputStickeredMedia;
+inputStickeredMediaDocument#438865b id:InputDocument = InputStickeredMedia;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -742,6 +745,7 @@ auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
 auth.recoverPassword#4ea56e92 code:string = auth.Authorization;
 auth.resendCode#3ef1a9bf phone_number:string phone_code_hash:string = auth.SentCode;
 auth.cancelCode#1f040578 phone_number:string phone_code_hash:string = Bool;
+auth.dropTempAuthKeys#8e48a188 except_auth_keys:Vector<long> = Bool;
 
 account.registerDevice#637ea878 token_type:int token:string = Bool;
 account.unregisterDevice#65c55b40 token_type:int token:string = Bool;
@@ -822,7 +826,6 @@ messages.sendEncryptedFile#9a901b66 peer:InputEncryptedChat random_id:long data:
 messages.sendEncryptedService#32d439a4 peer:InputEncryptedChat random_id:long data:bytes = messages.SentEncryptedMessage;
 messages.receivedQueue#55a5bb66 max_qts:int = Vector<long>;
 messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages;
-messages.getStickers#ae22e045 emoticon:string hash:string = messages.Stickers;
 messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#25223e24 message:string = MessageMedia;
 messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
@@ -855,20 +858,21 @@ messages.saveDraft#bc39e14b flags:# no_webpage:flags.1?true reply_to_msg_id:flag
 messages.getAllDrafts#6a3f8d65 = Updates;
 messages.getFeaturedStickers#2dacca4f hash:int = messages.FeaturedStickers;
 messages.readFeaturedStickers#5b118126 id:Vector<long> = Bool;
-messages.getRecentStickers#99197c2c hash:int = messages.RecentStickers;
-messages.saveRecentSticker#348e39bf id:InputDocument unsave:Bool = Bool;
-messages.clearRecentStickers#ab02e5d2 = Bool;
+messages.getRecentStickers#5ea192c9 flags:# attached:flags.0?true hash:int = messages.RecentStickers;
+messages.saveRecentSticker#392718f8 flags:# attached:flags.0?true id:InputDocument unsave:Bool = Bool;
+messages.clearRecentStickers#8999602d flags:# attached:flags.0?true = Bool;
 messages.getArchivedStickers#906e241f offset_id:long limit:int = messages.ArchivedStickers;
 messages.setGameScore#dfbc7c1f flags:# edit_message:flags.0?true peer:InputPeer id:int user_id:InputUser game_id:int score:int = Updates;
 messages.setInlineGameScore#54f882f1 flags:# edit_message:flags.0?true id:InputBotInlineMessageID user_id:InputUser game_id:int score:int = Bool;
 messages.getMaskStickers#65b8c79f hash:int = messages.AllStickers;
+messages.getAttachedStickers#cc5b67cc media:InputStickeredMedia = Vector<StickerSetCovered>;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
 updates.getChannelDifference#bb32d7c0 channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
 
-photos.updateProfilePhoto#eef579a0 id:InputPhoto crop:InputPhotoCrop = UserProfilePhoto;
-photos.uploadProfilePhoto#d50f9c88 file:InputFile caption:string geo_point:InputGeoPoint crop:InputPhotoCrop = photos.Photo;
+photos.updateProfilePhoto#f0bb5152 id:InputPhoto = UserProfilePhoto;
+photos.uploadProfilePhoto#4f32c098 file:InputFile = photos.Photo;
 photos.deletePhotos#87cf7f2f id:Vector<InputPhoto> = Vector<long>;
 photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int = photos.Photos;
 
