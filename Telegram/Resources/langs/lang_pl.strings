@@ -580,7 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
-"lng_profile_migrate_learn_more" = "Learn more »";
+"lng_profile_migrate_learn_more" = "Dowiedz się więcej »";
 "lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";
 "lng_profile_migrate_feature1" = "— The members limit is {count:_not_used_|# user|# users}";
 "lng_profile_migrate_feature2" = "— New members see the entire chat history";
@@ -599,121 +599,121 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_confirm" = "Convert";
 "lng_profile_add_more_after_upgrade" = "You will be able to add up to {count:_not_used_|# member|# members} after you upgrade your group to a supergroup.";
 
-"lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
-"lng_group_not_accessible" = "Sorry, this group is not accessible.";
+"lng_channel_not_accessible" = "Przepraszamy, ten kanał nie jest dostępny.";
+"lng_group_not_accessible" = "Przepraszamy, ta grupa nie jest dostępna.";
 
 "lng_channels_too_much_public_existing" = "Sorry, you have created too many public channels already. Please delete one first.";
 "lng_channels_too_much_public" = "Sorry, you have created too many public channels.\n\nYou can either create a private channel\nor delete one of your public channels first.";
 
-"lng_group_invite_bad_link" = "This invite link is broken or has expired.";
-"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
-"lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
-"lng_group_invite_join" = "Join";
+"lng_group_invite_bad_link" = "Link z zaproszeniem jest uszkodzony bądź wygasł.";
+"lng_group_invite_want_join" = "Czy chcesz dołączyć do grupy «{title}»?";
+"lng_group_invite_want_join_channel" = "Czy chcesz dołączyć do kanału «{title}»?";
+"lng_group_invite_join" = "Dołącz";
 
 "lng_group_invite_members" = "{count:_not_used_|# member|# members}, among them:";
 
-"lng_group_invite_link" = "Invite link:";
-"lng_group_invite_create" = "Create an invite link";
+"lng_group_invite_link" = "Link z zaproszeniem:";
+"lng_group_invite_create" = "Utwórz link z zaproszeniem";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are too many members in it already.";
 
-"lng_channel_public_link_copied" = "Link copied to clipboard.";
+"lng_channel_public_link_copied" = "Skopiowano link do schowka.";
 
-"lng_forwarded" = "Forwarded from {user}";
-"lng_forwarded_channel" = "Forwarded from {channel}";
-"lng_forwarded_via" = "Forwarded from {user} via {inline_bot}";
-"lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
+"lng_forwarded" = "Przekazano od {user}";
+"lng_forwarded_channel" = "Przekazano z {channel}";
+"lng_forwarded_via" = "Przekazano od {user} przez {inline_bot}";
+"lng_forwarded_channel_via" = "Przekazano z {channel} przez {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
-"lng_in_reply_to" = "In reply to";
-"lng_edited" = "edited";
-"lng_edited_date" = "Edited: {date}";
-"lng_cancel_edit_post_sure" = "Cancel editing?";
-"lng_cancel_edit_post_yes" = "Yes";
-"lng_cancel_edit_post_no" = "No";
+"lng_in_reply_to" = "W odpowiedzi na";
+"lng_edited" = "edytowano";
+"lng_edited_date" = "Edytowano: {date}";
+"lng_cancel_edit_post_sure" = "Anulować edycję?";
+"lng_cancel_edit_post_yes" = "Tak";
+"lng_cancel_edit_post_no" = "Nie";
 
 "lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
 "lng_bot_inline_geo_unavailable" = "Sorry, this bot requires location sharing.\nIt is not available in Telegram Desktop.";
-"lng_bot_share_phone" = "Share Phone Number?";
-"lng_bot_share_phone_confirm" = "Share";
+"lng_bot_share_phone" = "Udostępnić numer telefonu?";
+"lng_bot_share_phone_confirm" = "Udostępnij";
 
-"lng_attach_failed" = "Failed";
-"lng_attach_file" = "File";
-"lng_attach_photo" = "Photo";
+"lng_attach_failed" = "Nieudane";
+"lng_attach_file" = "Plik";
+"lng_attach_photo" = "Zdjęcie";
 
-"lng_media_type" = "Media type";
-"lng_media_type_photos" = "Photos";
-"lng_media_type_videos" = "Video files";
-"lng_media_type_songs" = "Audio files";
-"lng_media_type_files" = "Files";
-"lng_media_type_audios" = "Voice messages";
-"lng_media_type_links" = "Shared links";
+"lng_media_type" = "Typ mediów";
+"lng_media_type_photos" = "Zdjęcia";
+"lng_media_type_videos" = "Pliki wideo";
+"lng_media_type_songs" = "Pliki audio";
+"lng_media_type_files" = "Pliki";
+"lng_media_type_audios" = "Wiadomości głosowe";
+"lng_media_type_links" = "Udostępnione linki";
 
-"lng_media_open_with" = "Open With";
-"lng_media_download" = "Download";
-"lng_media_cancel" = "Cancel";
-"lng_media_video" = "Video file";
-"lng_media_audio" = "Voice message";
+"lng_media_open_with" = "Otwórz za pomocą";
+"lng_media_download" = "Pobierz";
+"lng_media_cancel" = "Anuluj";
+"lng_media_video" = "Plik wideo";
+"lng_media_audio" = "Wiadomość głosowa";
 
-"lng_media_auto_settings" = "Automatic media download settings";
-"lng_media_auto_photo" = "Automatic photo download";
-"lng_media_auto_audio" = "Automatic voice message download";
-"lng_media_auto_gif" = "Automatic GIF download";
-"lng_media_auto_private_chats" = "Private chats";
-"lng_media_auto_groups" = "Groups and channels";
-"lng_media_auto_play" = "Autoplay";
+"lng_media_auto_settings" = "Ustawienia automatycznego pobierania mediów";
+"lng_media_auto_photo" = "Automatyczne pobieranie zdjęć";
+"lng_media_auto_audio" = "Automatyczne pobieranie wiadomości głosowych";
+"lng_media_auto_gif" = "Automatyczne pobieranie GIFów";
+"lng_media_auto_private_chats" = "Czaty prywatne";
+"lng_media_auto_groups" = "Grupy i kanały";
+"lng_media_auto_play" = "Auto-odtwarzanie";
 
-"lng_emoji_category0" = "Frequently used";
-"lng_emoji_category1" = "People";
-"lng_emoji_category2" = "Nature";
-"lng_emoji_category3" = "Food & Drink";
-"lng_emoji_category4" = "Activity";
-"lng_emoji_category5" = "Travel & Places";
-"lng_emoji_category6" = "Objects";
-"lng_emoji_category7" = "Symbols & Flags";
+"lng_emoji_category0" = "Często używane";
+"lng_emoji_category1" = "Uśmiechy i ludzie";
+"lng_emoji_category2" = "Zwierzęta i natura";
+"lng_emoji_category3" = "Jedzenie i napoje";
+"lng_emoji_category4" = "Zajęcia";
+"lng_emoji_category5" = "Podróże i miejsca";
+"lng_emoji_category6" = "Obiekty";
+"lng_emoji_category7" = "Symbole i flagi";
 
-"lng_recent_stickers" = "Frequently used";
-"lng_switch_stickers" = "Stickers";
-"lng_switch_stickers_gifs" = "GIFs & Stickers";
+"lng_recent_stickers" = "Ostatnio używane";
+"lng_switch_stickers" = "Naklejki";
+"lng_switch_stickers_gifs" = "GIFy i naklejki";
 "lng_switch_emoji" = "Emoji";
 
-"lng_saved_gifs" = "Saved GIFs";
-"lng_inline_bot_results" = "Results from {inline_bot}";
-"lng_inline_bot_no_results" = "No results";
-"lng_inline_bot_via" = "via {inline_bot}";
+"lng_saved_gifs" = "Zapisane GIFy";
+"lng_inline_bot_results" = "Wyniki z {inline_bot}";
+"lng_inline_bot_no_results" = "Brak wyników";
+"lng_inline_bot_via" = "przez {inline_bot}";
 
-"lng_box_remove" = "Remove";
+"lng_box_remove" = "Usuń";
 
-"lng_custom_stickers" = "Custom stickers";
-"lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
-"lng_stickers_add_pack" = "Add stickers";
-"lng_stickers_share_pack" = "Share Stickers";
-"lng_stickers_not_found" = "Sticker pack not found.";
-"lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
-"lng_stickers_archived" = "Archived Stickers";
-"lng_stickers_copied" = "Sticker pack link copied to clipboard.";
-"lng_stickers_default_set" = "Great Minds";
-"lng_stickers_you_have" = "Manage and reorder sticker packs";
-"lng_stickers_packs" = "Sticker Packs";
-"lng_stickers_reorder" = "Click and drag to reorder sticker packs";
-"lng_stickers_featured" = "Trending Stickers";
-"lng_stickers_clear_recent" = "Clear";
-"lng_stickers_clear_recent_sure" = "Are you sure you want to clear your frequently used stickers list?";
+"lng_custom_stickers" = "Własne naklejki";
+"lng_stickers_remove_pack" = "Usuń «{sticker_pack}»?";
+"lng_stickers_add_pack" = "Dodaj naklejki";
+"lng_stickers_share_pack" = "Udostępnij naklejki";
+"lng_stickers_not_found" = "Nie znaleziono pakietu naklejek.";
+"lng_stickers_packs_archived" = "Nieużywane naklejki, zostały zarchiwizowane, żeby zwolnić miejsce dla aktywowanych pakietów naklejek.";
+"lng_stickers_archived" = "Zarchiwizowane naklejki";
+"lng_stickers_copied" = "Link do pakietu naklejek skopiowano do schowka.";
+"lng_stickers_default_set" = "Wielkie umysły";
+"lng_stickers_you_have" = "Zarządzaj pakietami naklejek";
+"lng_stickers_packs" = "Pakiety naklejek";
+"lng_stickers_reorder" = "Kliknij i przeciągnij, żeby zmienić kolejność pakietów naklejek";
+"lng_stickers_featured" = "Popularne naklejki";
+"lng_stickers_clear_recent" = "Wyczyść";
+"lng_stickers_clear_recent_sure" = "Czy chcesz wyczyścić listę ostatnio używanych naklejek?";
 "lng_stickers_remove" = "Delete";
-"lng_stickers_return" = "Undo";
-"lng_stickers_restore" = "Restore";
-"lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
+"lng_stickers_return" = "Cofnij";
+"lng_stickers_restore" = "Przywróć";
+"lng_stickers_count" = "{count:Ładowanie...|# naklejka|# naklejek}";
 
-"lng_in_dlg_photo" = "Photo";
-"lng_in_dlg_video" = "Video file";
-"lng_in_dlg_audio_file" = "Audio file";
-"lng_in_dlg_contact" = "Contact";
-"lng_in_dlg_audio" = "Voice message";
-"lng_in_dlg_file" = "File";
-"lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
+"lng_in_dlg_photo" = "Zdjęcie";
+"lng_in_dlg_video" = "Plik wideo";
+"lng_in_dlg_audio_file" = "Plik audio";
+"lng_in_dlg_contact" = "Kontakt";
+"lng_in_dlg_audio" = "Wiadomość głosowa";
+"lng_in_dlg_file" = "Plik";
+"lng_in_dlg_sticker" = "Naklejka";
+"lng_in_dlg_sticker_emoji" = "Naklejka {emoji}";
 
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from" = "Delete all from this user";
@@ -759,16 +759,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_open_link" = "Otwórz";
 
 "lng_bot_start" = "Start";
-"lng_bot_choose_group" = "Choose Group";
-"lng_bot_no_groups" = "You have no groups";
-"lng_bot_groups_not_found" = "No groups found";
-"lng_bot_sure_invite" = "Add the bot to «{group}»?";
-"lng_bot_already_in_group" = "The bot is already a member of the group.";
+"lng_bot_choose_group" = "Wybierz grupę";
+"lng_bot_no_groups" = "Nie masz grupy";
+"lng_bot_groups_not_found" = "Nie znaleziono grup";
+"lng_bot_sure_invite" = "Dodaj bota do «{group}»?";
+"lng_bot_already_in_group" = "Bot jest już członkiem tej grupy.";
 
-"lng_typing" = "typing";
-"lng_user_typing" = "{user} is typing";
-"lng_users_typing" = "{user} and {second_user} are typing";
-"lng_many_typing" = "{count:_not_used_|# is|# are} typing";
+"lng_typing" = "pisze";
+"lng_user_typing" = "{user} pisze";
+"lng_users_typing" = "{user} i {second_user} piszą";
+"lng_many_typing" = "{count:_not_used_|# pisze|# piszą}";
 "lng_send_action_record_video" = "recording a video";
 "lng_user_action_record_video" = "{user} is recording a video";
 "lng_send_action_upload_video" = "sending a video";
