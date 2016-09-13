@@ -101,7 +101,6 @@
               'fontconfig',
               'expat',
               'freetype',
-              'xcb',
               'xcb-shm',
               'xcb-xfixes',
               'xcb-render',
@@ -202,12 +201,10 @@
   ],
   'conditions': [
     [ 'build_linux', {
-      'library_dirs': [
-        '<(qt_loc)/plugins/platforms/xcb/xcb-static',
-      ],
       'libraries': [
         '/usr/local/lib/libxkbcommon.a',
         '<@(qt_libs_release)',
+        'xcb',
         'X11',
         'X11-xcb',
         'dbus-1',
