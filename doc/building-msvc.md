@@ -205,6 +205,11 @@ If you didn't install Windows SDKs before, you need to install them now. To inst
 If you already have Windows SDKs then find the library folder and correct it at configure's command below (like **C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86**).
 
 #### Building library
+go to Libraries directory
+
+    D:
+    cd /tbuild/libraries/qt5_6_0/qtbase
+and run
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "D:\TBuild\Libraries\openssl\Release\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\openssl_debug\Debug\lib\ssleay32.lib D:\TBuild\Libraries\openssl_debug\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\openssl\Release\lib\ssleay32.lib D:\TBuild\Libraries\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
     nmake
@@ -247,8 +252,8 @@ and run
 #### Build
 
 * Open in VS2015 **D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln**
-* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations
-* Change "Treat Warnings As Errors" to "No" in all projects & configurations
+* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>Language)
+* Change "Treat Warnings As Errors" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>General)
 * Build Debug configuration
 * Build Release configuration
 
