@@ -1890,20 +1890,27 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 }
 
 void MediaView::wheelEvent(QWheelEvent *e) {
-	if (e->delta() < 0) {
-		if (e->modifiers().testFlag(Qt::ControlModifier)) {
-			zoomOut();
-		} else {
-			if (e->source() == Qt::MouseEventNotSynthesized) {
-				moveToNext(-1);
+	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+
+	_verticalWheelDelta += e->angleDelta().y();
+	while (qAbs(_verticalWheelDelta) >= step) {
+		if (_verticalWheelDelta < 0) {
+			_verticalWheelDelta += step;
+			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+				zoomOut();
+			} else {
+				if (e->source() == Qt::MouseEventNotSynthesized) {
+					moveToNext(1);
+				}
 			}
-		}
-	} else {
-		if (e->modifiers().testFlag(Qt::ControlModifier)) {
-			zoomIn();
 		} else {
-			if (e->source() == Qt::MouseEventNotSynthesized) {
-				moveToNext(1);
+			_verticalWheelDelta -= step;
+			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+				zoomIn();
+			} else {
+				if (e->source() == Qt::MouseEventNotSynthesized) {
+					moveToNext(-1);
+				}
 			}
 		}
 	}

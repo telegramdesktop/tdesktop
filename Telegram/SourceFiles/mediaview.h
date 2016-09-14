@@ -322,6 +322,8 @@ private:
 	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
 	ShowingOpacities _animOpacities;
 
+	int _verticalWheelDelta = 0;
+
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
