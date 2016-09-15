@@ -1890,7 +1890,11 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 }
 
 void MediaView::wheelEvent(QWheelEvent *e) {
+#ifdef OS_MAC_OLD
+	constexpr auto step = 120;
+#else // OS_MAC_OLD
 	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+#endif // OS_MAC_OLD
 
 	_verticalWheelDelta += e->angleDelta().y();
 	while (qAbs(_verticalWheelDelta) >= step) {
@@ -1899,18 +1903,22 @@ void MediaView::wheelEvent(QWheelEvent *e) {
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomOut();
 			} else {
+#ifndef OS_MAC_OLD
 				if (e->source() == Qt::MouseEventNotSynthesized) {
 					moveToNext(1);
 				}
+#endif // OS_MAC_OLD
 			}
 		} else {
 			_verticalWheelDelta -= step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomIn();
 			} else {
+#ifndef OS_MAC_OLD
 				if (e->source() == Qt::MouseEventNotSynthesized) {
 					moveToNext(-1);
 				}
+#endif // OS_MAC_OLD
 			}
 		}
 	}

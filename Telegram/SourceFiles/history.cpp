@@ -5896,7 +5896,9 @@ void LocationManager::init() {
 	App::setProxySettings(*manager);
 
 	connect(manager, SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
+#ifndef OS_MAC_OLD
 	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
+#endif // OS_MAC_OLD
 	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
 
 	if (black) {

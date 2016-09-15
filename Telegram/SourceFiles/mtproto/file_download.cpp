@@ -818,7 +818,9 @@ WebLoadManager::WebLoadManager(QThread *thread) {
 	connect(this, SIGNAL(error(webFileLoader*)), _webLoadMainManager, SLOT(error(webFileLoader*)));
 
 	connect(&_manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
+#ifndef OS_MAC_OLD
 	connect(&_manager, SIGNAL(sslErrors(QNetworkReply*,const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
+#endif // OS_MAC_OLD
 }
 
 void WebLoadManager::append(webFileLoader *loader, const QString &url) {
