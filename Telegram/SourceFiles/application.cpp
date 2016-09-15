@@ -126,6 +126,13 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	}
 }
 
+bool Application::event(QEvent *e) {
+	if (e->type() == QEvent::Close) {
+		App::quit();
+	}
+	return QApplication::event(e);
+}
+
 void Application::socketConnected() {
 	LOG(("Socket connected, this is not the first application instance, sending show command..."));
 	_secondInstance = true;

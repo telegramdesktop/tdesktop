@@ -91,14 +91,22 @@
           'lzma',
         ],
       }],
+      [ 'build_mac', {
+        'include_dirs': [
+          '<(libs_loc)/openssl-xcode/include'
+        ],
+        'library_dirs': [
+          '<(libs_loc)/openssl-xcode',
+        ],
+        'xcode_settings': {
+          'OTHER_LDFLAGS': [
+            '-lssl',
+            '-lcrypto',
+            '-llzma',
+          ],
+        },
+      }],
     ],
-    'xcode_settings': {
-      'OTHER_LDFLAGS': [
-        '-lssl',
-        '-lcrypto',
-        '-llzma',
-      ],
-    },
     'include_dirs': [
       '<(src_loc)',
       '<(libs_loc)/lzma/C',
