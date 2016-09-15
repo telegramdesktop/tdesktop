@@ -101,7 +101,6 @@
               'fontconfig',
               'expat',
               'freetype',
-              'xcb',
               'xcb-shm',
               'xcb-xfixes',
               'xcb-render',
@@ -192,7 +191,6 @@
     '<(qt_loc)/plugins/bearer',
     '<(qt_loc)/plugins/platforms',
     '<(qt_loc)/plugins/imageformats',
-    '<(qt_loc)/plugins/platforminputcontexts',
   ],
   'defines': [
     'QT_WIDGETS_LIB',
@@ -203,11 +201,12 @@
   'conditions': [
     [ 'build_linux', {
       'library_dirs': [
-        '<(qt_loc)/plugins/platforms/xcb/xcb-static',
+        '<(qt_loc)/plugins/platforminputcontexts',
       ],
       'libraries': [
         '/usr/local/lib/libxkbcommon.a',
         '<@(qt_libs_release)',
+        'xcb',
         'X11',
         'X11-xcb',
         'dbus-1',

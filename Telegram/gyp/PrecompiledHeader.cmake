@@ -102,6 +102,8 @@ function(add_precompiled_header _target _input)
       OUTPUT "${_pchfile}"
       COMMAND "${CMAKE_COMMAND}" -E copy "${_pch_header}" "${_pchfile}"
       DEPENDS "${_pch_header}"
+      IMPLICIT_DEPENDS CXX "${_pch_header}"
+      IMPLICIT_DEPENDS C "${_pch_header}"
       COMMENT "Updating ${_name}")
 
     if(_source_for_c_flags)
@@ -112,6 +114,7 @@ function(add_precompiled_header _target _input)
         OUTPUT "${_output_c}"
         COMMAND "${CMAKE_C_COMPILER}" ${_compiler_FLAGS} -x c-header -o "${_output_c}" -c "${_pchfile}"
         DEPENDS "${_pchfile}" "${_pch_c_flags_file}"
+        IMPLICIT_DEPENDS C "${_pch_header}"
         COMMENT "Precompiling ${_name} for ${_target} (C)")
     endif()
     if(_source_for_cpp_flags)
@@ -122,6 +125,7 @@ function(add_precompiled_header _target _input)
         OUTPUT "${_output_cxx}"
         COMMAND "${CMAKE_CXX_COMPILER}" ${_compiler_FLAGS} -x c++-header -o "${_output_cxx}" -c "${_pchfile}"
         DEPENDS "${_pchfile}" "${_pch_cpp_flags_file}"
+        IMPLICIT_DEPENDS CXX "${_pch_header}"
         COMMENT "Precompiling ${_name} for ${_target} (C++)")
     endif()
 

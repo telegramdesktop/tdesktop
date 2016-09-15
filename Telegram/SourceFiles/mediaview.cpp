@@ -520,6 +520,74 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 	}
 }
 
+void MediaView::zoomIn() {
+	int32 newZoom = _zoom;
+	if (newZoom == ZoomToScreenLevel) {
+		if (qCeil(_zoomToScreen) <= MaxZoomLevel) {
+			newZoom = qCeil(_zoomToScreen);
+		}
+	} else {
+		if (newZoom < _zoomToScreen && (newZoom + 1 > _zoomToScreen || (_zoomToScreen > MaxZoomLevel && newZoom == MaxZoomLevel))) {
+			newZoom = ZoomToScreenLevel;
+		} else if (newZoom < MaxZoomLevel) {
+			++newZoom;
+		}
+	}
+	zoomUpdate(newZoom);
+}
+
+void MediaView::zoomOut() {
+	int32 newZoom = _zoom;
+	if (newZoom == ZoomToScreenLevel) {
+		if (qFloor(_zoomToScreen) >= -MaxZoomLevel) {
+			newZoom = qFloor(_zoomToScreen);
+		}
+	} else {
+		if (newZoom > _zoomToScreen && (newZoom - 1 < _zoomToScreen || (_zoomToScreen < -MaxZoomLevel && newZoom == -MaxZoomLevel))) {
+			newZoom = ZoomToScreenLevel;
+		} else if (newZoom > -MaxZoomLevel) {
+			--newZoom;
+		}
+	}
+	zoomUpdate(newZoom);
+}
+
+void MediaView::zoomReset() {
+	int32 newZoom = _zoom;
+	if (_zoom == 0) {
+		if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -MaxZoomLevel && qRound(_zoomToScreen) <= MaxZoomLevel) {
+			newZoom = qRound(_zoomToScreen);
+		} else {
+			newZoom = ZoomToScreenLevel;
+		}
+	} else {
+		newZoom = 0;
+	}
+	_x = -_width / 2;
+	_y = -((gifShown() ? _gif->height() : (_current.height() / cIntRetinaFactor())) / 2);
+	float64 z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
+	if (z >= 0) {
+		_x = qRound(_x * (z + 1));
+		_y = qRound(_y * (z + 1));
+	} else {
+		_x = qRound(_x / (-z + 1));
+		_y = qRound(_y / (-z + 1));
+	}
+	_x += width() / 2;
+	_y += height() / 2;
+	update();
+	zoomUpdate(newZoom);
+}
+
+void MediaView::zoomUpdate(int32 &newZoom) {
+	if (newZoom != ZoomToScreenLevel) {
+		while ((newZoom < 0 && (-newZoom + 1) > _w) || (-newZoom + 1) > _h) {
+			++newZoom;
+		}
+	}
+	setZoomLevel(newZoom);
+}
+
 void MediaView::clearData() {
 	if (!isHidden()) {
 		hide();
@@ -1810,62 +1878,49 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		moveToNext(-1);
 	} else if (e->key() == Qt::Key_Right) {
 		moveToNext(1);
-    } else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
-		int32 newZoom = _zoom;
-        if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
-			if (newZoom == ZoomToScreenLevel) {
-				if (qCeil(_zoomToScreen) <= MaxZoomLevel) {
-					newZoom = qCeil(_zoomToScreen);
-				}
-			} else {
-				if (newZoom < _zoomToScreen && (newZoom + 1 > _zoomToScreen || (_zoomToScreen > MaxZoomLevel && newZoom == MaxZoomLevel))) {
-					newZoom = ZoomToScreenLevel;
-				} else if (newZoom < MaxZoomLevel) {
-					++newZoom;
-				}
-			}
+	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
+		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
+			zoomIn();
 		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
-			if (newZoom == ZoomToScreenLevel) {
-				if (qFloor(_zoomToScreen) >= -MaxZoomLevel) {
-					newZoom = qFloor(_zoomToScreen);
-				}
+			zoomOut();
+		} else {
+			zoomReset();
+		}
+	}
+}
+
+void MediaView::wheelEvent(QWheelEvent *e) {
+#ifdef OS_MAC_OLD
+	constexpr auto step = 120;
+#else // OS_MAC_OLD
+	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+#endif // OS_MAC_OLD
+
+	_verticalWheelDelta += e->angleDelta().y();
+	while (qAbs(_verticalWheelDelta) >= step) {
+		if (_verticalWheelDelta < 0) {
+			_verticalWheelDelta += step;
+			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+				zoomOut();
 			} else {
-				if (newZoom > _zoomToScreen && (newZoom - 1 < _zoomToScreen || (_zoomToScreen < -MaxZoomLevel && newZoom == -MaxZoomLevel))) {
-					newZoom = ZoomToScreenLevel;
-				} else if (newZoom > -MaxZoomLevel) {
-					--newZoom;
+#ifndef OS_MAC_OLD
+				if (e->source() == Qt::MouseEventNotSynthesized) {
+					moveToNext(1);
 				}
+#endif // OS_MAC_OLD
 			}
 		} else {
-			if (_zoom == 0) {
-				if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -MaxZoomLevel && qRound(_zoomToScreen) <= MaxZoomLevel) {
-					newZoom = qRound(_zoomToScreen);
-				} else {
-					newZoom = ZoomToScreenLevel;
+			_verticalWheelDelta -= step;
+			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+				zoomIn();
+			} else {
+#ifndef OS_MAC_OLD
+				if (e->source() == Qt::MouseEventNotSynthesized) {
+					moveToNext(-1);
 				}
-			} else {
-				newZoom = 0;
-			}
-			_x = -_width / 2;
-			_y = -((gifShown() ? _gif->height() : (_current.height() / cIntRetinaFactor())) / 2);
-			float64 z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
-			if (z >= 0) {
-				_x = qRound(_x * (z + 1));
-				_y = qRound(_y * (z + 1));
-			} else {
-				_x = qRound(_x / (-z + 1));
-				_y = qRound(_y / (-z + 1));
-			}
-			_x += width() / 2;
-			_y += height() / 2;
-			update();
-		}
-		if (newZoom != ZoomToScreenLevel) {
-			while ((newZoom < 0 && (-newZoom + 1) > _w) || (-newZoom + 1) > _h) {
-				++newZoom;
+#endif // OS_MAC_OLD
 			}
 		}
-		setZoomLevel(newZoom);
 	}
 }
 
@@ -2114,6 +2169,8 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 				_yStart = _y;
 			}
 		}
+	} else if (e->button() == Qt::MiddleButton) {
+		zoomReset();
 	}
 	activateControls();
 }
