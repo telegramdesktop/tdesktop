@@ -19,15 +19,16 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/confirmbox.h"
 
-#include "confirmbox.h"
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "application.h"
 #include "core/click_handler_types.h"
 #include "styles/style_boxes.h"
+#include "localstorage.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -192,6 +193,18 @@ ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_th
 
 void ConfirmLinkBox::onOpenLink() {
 	Ui::hideLayer();
+	UrlClickHandler::doOpen(_url);
+}
+
+ConfirmBotGameBox::ConfirmBotGameBox(UserData *bot, const QString &url) : ConfirmBox(lng_allow_bot_pass(lt_bot_name, bot->name), lang(lng_allow_bot))
+, _bot(bot)
+, _url(url) {
+	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
+}
+
+void ConfirmBotGameBox::onOpenLink() {
+	Ui::hideLayer();
+	Local::makeBotTrusted(_bot);
 	UrlClickHandler::doOpen(_url);
 }
 

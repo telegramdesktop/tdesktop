@@ -764,6 +764,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
+"lng_allow_bot_pass" = "Do you allow {bot_name} to pass your Telegram name and id to the web pages you open via this bot?";
+"lng_allow_bot" = "Allow";
 
 "lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Choose Group";

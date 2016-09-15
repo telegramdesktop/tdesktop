@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
+#include "localstorage.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -110,6 +111,20 @@ void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
 		App::openLocalUrl(u);
 	} else {
 		Ui::showLayer(new ConfirmLinkBox(u));
+	}
+}
+
+void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
+	auto u = url();
+
+	u = tryConvertUrlToLocal(u);
+
+	if (u.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(u);
+	} else if (!_bot || Local::isBotTrusted(_bot)) {
+		doOpen(u);
+	} else {
+		Ui::showLayer(new ConfirmBotGameBox(_bot, u));
 	}
 }
 

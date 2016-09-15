@@ -4680,72 +4680,73 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &set = d.vstickerset.c_messages_stickerSet();
 			if (set.vset.type() == mtpc_stickerSet) {
 				auto &s = set.vset.c_stickerSet();
-
-				auto &sets = Global::RefStickerSets();
-				auto it = sets.find(s.vid.v);
-				if (it == sets.cend()) {
-					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
-				} else {
-					it->flags |= MTPDstickerSet::Flag::f_installed;
-					if (it->flags & MTPDstickerSet::Flag::f_archived) {
-						it->flags &= ~MTPDstickerSet::Flag::f_archived;
-						writeArchived = true;
-					}
-				}
-				auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
-				auto &v = set.vdocuments.c_vector().v;
-				it->stickers.clear();
-				it->stickers.reserve(v.size());
-				for (int32 i = 0, l = v.size(); i < l; ++i) {
-					auto doc = App::feedDocument(v.at(i));
-					if (!doc || !doc->sticker()) continue;
-
-					it->stickers.push_back(doc);
-					if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
-						doc->sticker()->set = inputSet;
-					}
-				}
-				it->emoji.clear();
-				auto &packs = set.vpacks.c_vector().v;
-				for (int32 i = 0, l = packs.size(); i < l; ++i) {
-					if (packs.at(i).type() != mtpc_stickerPack) continue;
-					auto &pack = packs.at(i).c_stickerPack();
-					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-						auto &stickers = pack.vdocuments.c_vector().v;
-						StickerPack p;
-						p.reserve(stickers.size());
-						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
-							DocumentData *doc = App::document(stickers.at(j).v);
-							if (!doc || !doc->sticker()) continue;
-
-							p.push_back(doc);
+				if (!s.is_masks()) {
+					auto &sets = Global::RefStickerSets();
+					auto it = sets.find(s.vid.v);
+					if (it == sets.cend()) {
+						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+					} else {
+						it->flags |= MTPDstickerSet::Flag::f_installed;
+						if (it->flags & MTPDstickerSet::Flag::f_archived) {
+							it->flags &= ~MTPDstickerSet::Flag::f_archived;
+							writeArchived = true;
 						}
-						it->emoji.insert(e, p);
 					}
-				}
+					auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
+					auto &v = set.vdocuments.c_vector().v;
+					it->stickers.clear();
+					it->stickers.reserve(v.size());
+					for (int i = 0, l = v.size(); i < l; ++i) {
+						auto doc = App::feedDocument(v.at(i));
+						if (!doc || !doc->sticker()) continue;
 
-				auto &order(Global::RefStickerSetsOrder());
-				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
-				if (currentIndex != insertAtIndex) {
-					if (currentIndex > 0) {
-						order.removeAt(currentIndex);
+						it->stickers.push_back(doc);
+						if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
+							doc->sticker()->set = inputSet;
+						}
 					}
-					order.insert(insertAtIndex, s.vid.v);
-				}
+					it->emoji.clear();
+					auto &packs = set.vpacks.c_vector().v;
+					for (int i = 0, l = packs.size(); i < l; ++i) {
+						if (packs.at(i).type() != mtpc_stickerPack) continue;
+						auto &pack = packs.at(i).c_stickerPack();
+						if (auto e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+							auto &stickers = pack.vdocuments.c_vector().v;
+							StickerPack p;
+							p.reserve(stickers.size());
+							for (int j = 0, c = stickers.size(); j < c; ++j) {
+								auto doc = App::document(stickers.at(j).v);
+								if (!doc || !doc->sticker()) continue;
 
-				auto custom = sets.find(Stickers::CustomSetId);
-				if (custom != sets.cend()) {
-					for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
-						int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
-						if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
+								p.push_back(doc);
+							}
+							it->emoji.insert(e, p);
+						}
 					}
-					if (custom->stickers.isEmpty()) {
-						sets.erase(custom);
+
+					auto &order(Global::RefStickerSetsOrder());
+					int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
+					if (currentIndex != insertAtIndex) {
+						if (currentIndex > 0) {
+							order.removeAt(currentIndex);
+						}
+						order.insert(insertAtIndex, s.vid.v);
 					}
+
+					auto custom = sets.find(Stickers::CustomSetId);
+					if (custom != sets.cend()) {
+						for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
+							int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
+							if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
+						}
+						if (custom->stickers.isEmpty()) {
+							sets.erase(custom);
+						}
+					}
+					Local::writeInstalledStickers();
+					if (writeArchived) Local::writeArchivedStickers();
+					emit stickersUpdated();
 				}
-				Local::writeInstalledStickers();
-				if (writeArchived) Local::writeArchivedStickers();
-				emit stickersUpdated();
 			}
 		}
 	} break;
@@ -4756,7 +4757,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &order = d.vorder.c_vector().v;
 			auto &sets = Global::StickerSets();
 			Stickers::Order result;
-			for (int32 i = 0, l = order.size(); i < l; ++i) {
+			for (int i = 0, l = order.size(); i < l; ++i) {
 				if (sets.constFind(order.at(i).v) == sets.cend()) {
 					break;
 				}

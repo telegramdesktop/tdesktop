@@ -961,6 +961,7 @@ private:
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	struct BotCallbackInfo {
+		UserData *bot;
 		FullMsgId msgId;
 		int row, col;
 		bool game;

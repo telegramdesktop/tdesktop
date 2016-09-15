@@ -5783,8 +5783,16 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, msg->id));
 
+	auto bot = msg->viaBot();
+	if (!bot) {
+		bot = msg->from()->asUser();
+		if (bot && !bot->botInfo) {
+			bot = nullptr;
+		}
+	}
+
 	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
-	BotCallbackInfo info = { msg->fullId(), row, col, (button->type == ButtonType::Game) };
+	BotCallbackInfo info = { bot, msg->fullId(), row, col, (button->type == ButtonType::Game) };
 	MTPmessages_GetBotCallbackAnswer::Flags flags = 0;
 	QByteArray sendData;
 	int32 sendGameId = 0;
@@ -5833,8 +5841,10 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 			auto url = qs(answerData.vurl);
 			if (info.game) {
 				url = appendShareGameScoreUrl(url, info.msgId);
+				BotGameUrlClickHandler(info.bot, url).onClick(Qt::LeftButton);
+			} else {
+				UrlClickHandler(url).onClick(Qt::LeftButton);
 			}
-			UrlClickHandler(url).onClick(Qt::LeftButton);
 		}
 	}
 }

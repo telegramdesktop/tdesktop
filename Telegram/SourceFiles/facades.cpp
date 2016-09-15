@@ -55,7 +55,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 	const HistoryMessageReplyMarkup::Button *button = nullptr;
 	if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
 		if (row < markup->rows.size()) {
-			const auto &buttonRow(markup->rows.at(row));
+			auto &buttonRow = markup->rows[row];
 			if (col < buttonRow.size()) {
 				button = &buttonRow.at(col);
 			}
@@ -81,7 +81,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
-		UrlClickHandler(url).onClick(Qt::LeftButton);
+		HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
 	} break;
 
 	case ButtonType::RequestLocation: {
