@@ -20,8 +20,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/button.h"
+
 namespace Media {
 namespace Player {
+
+class TitleButton : public Button {
+public:
+	TitleButton(QWidget *parent);
+
+	void setShowPause(bool showPause);
+	void finishIconTransform();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+
+private:
+	void paintIcon(Painter &p);
+
+	bool _showPause = true;
+	FloatAnimation _iconTransformToPause;
+	ColorAnimation _iconFg;
+
+};
 
 } // namespace Clip
 } // namespace Media

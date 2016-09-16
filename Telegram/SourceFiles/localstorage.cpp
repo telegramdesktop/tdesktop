@@ -31,13 +31,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
-#include "playerwidget.h"
+#include "media/media_audio.h"
 #include "apiwrap.h"
 
 namespace Local {
 namespace {
 
-typedef quint64 FileKey;
+using FileKey = quint64;
 
 static const char tdfMagic[] = { 'T', 'D', 'F', '$' };
 static const int32 tdfMagicLen = sizeof(tdfMagic);

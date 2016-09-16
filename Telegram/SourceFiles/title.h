@@ -24,6 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "sysbuttons.h"
 
 class MainWindow;
+namespace Media {
+namespace Player {
+class TitleButton;
+} // namespace Player
+} // namespace Media
 
 class TitleHider : public QWidget {
 public:
@@ -89,6 +94,7 @@ private:
 
 	FlatButton _cancel, _settings, _contacts, _about;
 
+	ChildWidget<Media::Player::TitleButton> _player = { nullptr };
 	LockBtn _lock;
 	UpdateBtn _update;
 	MinimizeBtn _minimize;

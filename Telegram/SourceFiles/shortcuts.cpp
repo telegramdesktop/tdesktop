@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace ShortcutCommands {
 
-typedef bool(*Handler)();
+using Handler = bool(*)();
 
 bool lock_telegram() {
 	if (auto w = App::wnd()) {

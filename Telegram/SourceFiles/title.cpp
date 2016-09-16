@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
+#include "media/player/media_player_button.h"
 
 TitleHider::TitleHider(QWidget *parent) : QWidget(parent), _level(0) {
 }
@@ -56,6 +57,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 , _settings(this, lang(lng_menu_settings), st::titleTextButton)
 , _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 , _about(this, lang(lng_menu_about), st::titleTextButton)
+, _player(this)
 , _lock(this, window)
 , _update(this, window, lang(lng_menu_update))
 , _minimize(this, window)
@@ -101,7 +103,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBG->b);
+	p.fillRect(rect(), st::titleBg);
 	if (!_cancel.isHidden()) {
 		p.setPen(st::titleTextButton.color->p);
 		p.setFont(st::titleTextButton.font->f);
@@ -188,6 +190,10 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	if (_update.isHidden() && !_lock.isHidden()) {
 		p.setX(p.x() - _lock.width());
 		_lock.move(p);
+	}
+	if (_player) {
+		p.setX(p.x() - _player->width());
+		_player->move(p);
 	}
 
 	_settings.move(st::titleMenuOffset, 0);
@@ -368,6 +374,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
+		|| (_player && _player->geometry().contains(p))
 		|| (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestSysButton && _lock.isVisible())
         || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())
 		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestSysButton)

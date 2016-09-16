@@ -395,8 +395,7 @@ boxSearchCancel: iconedButton {
 	height: 48px;
 }
 
-titleBG: #6389a8;
-titleColor: #0f8dcc;//rgb(20, 136, 210);
+titleBg: #6389a8;
 titleHeight: 39px;
 titleIconPos: point(7px, 7px);
 titleIconImg: sprite(161px, 100px, 26px, 26px);
@@ -440,13 +439,16 @@ btnDefIconed: iconedButton {
 	cursor: cursor(pointer);
 }
 
+titleButtonFg: #c4d8e9;
+titleButtonActiveFg: #ffffff;
+titleButtonDuration: 150;
 sysBtnDelta: 6px;
 sysUpd: sysButton {
 	size: size(31px, 39px);
 	img: sprite(184px, 1px, 19px, 19px);
-	color: #c4d8e9;
-	overColor: white;
-	duration: 150;
+	color: titleButtonFg;
+	overColor: titleButtonActiveFg;
+	duration: titleButtonDuration;
 }
 updateBlinkDuration: 500;
 sysMin: sysButton(sysUpd) {
