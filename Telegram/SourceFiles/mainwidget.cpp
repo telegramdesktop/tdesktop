@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
 #include "data/data_drafts.h"
+#include "dropdown.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -45,6 +46,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/confirmphonebox.h"
+#include "boxes/sharebox.h"
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
@@ -1710,6 +1712,10 @@ void MainWidget::onShareContactCancel() {
 	_history->cancelShareContact();
 }
 
+bool MainWidget::onSendSticker(DocumentData *document) {
+	return _history->onStickerSend(document);
+}
+
 void MainWidget::dialogsCancelled() {
 	if (_hider) {
 		_hider->startHide();
@@ -2045,14 +2051,14 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 	}
 
+	dlgUpdated();
 	if (back || (way == Ui::ShowWay::ClearStack)) {
-		dlgUpdated();
 		_peerInStack = nullptr;
 		_msgIdInStack = 0;
-		dlgUpdated();
 	} else {
 		saveSectionInStack();
 	}
+	dlgUpdated();
 
 	PeerData *wasActivePeer = activePeer();
 
@@ -2191,11 +2197,8 @@ void MainWidget::saveSectionInStack() {
 	} else if (_wideSection) {
 		_stack.push_back(std_::make_unique<StackItemSection>(_wideSection->createMemento()));
 	} else if (_history->peer()) {
-		dlgUpdated();
 		_peerInStack = _history->peer();
 		_msgIdInStack = _history->msgId();
-		dlgUpdated();
-
 		_stack.push_back(std_::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
 	}
 }
@@ -3299,33 +3302,34 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QString u(url.trimmed());
-	if (u.size() > 8192) u = u.mid(0, 8192);
+	auto urlTrimmed = url.trimmed();
+	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
 
-	if (!u.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		return;
 	}
+	auto command = urlTrimmed.midRef(qstr("tg://").size());
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto joinChatMatch = regex_match(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), u, matchOptions)) {
+	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
 		joinGroupByHash(joinChatMatch->captured(1));
-	} else if (auto stickerSetMatch = regex_match(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), u, matchOptions)) {
+	} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), command, matchOptions)) {
 		stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
-	} else if (auto shareUrlMatch = regex_match(qsl("^tg://msg_url/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto url = params.value(qsl("url"));
 		if (!url.isEmpty()) {
 			shareUrlLayer(url, params.value("text"));
 		}
-	} else if (auto confirmPhoneMatch = regex_match(qsl("^tg://confirmphone/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto phone = params.value(qsl("phone"));
 		auto hash = params.value(qsl("hash"));
 		if (!phone.isEmpty() && !hash.isEmpty()) {
 			ConfirmPhoneBox::start(phone, hash);
 		}
-	} else if (auto usernameMatch = regex_match(qsl("^tg://resolve/?\\?(.+)(#|$)"), u, matchOptions)) {
+	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto domain = params.value(qsl("domain"));
 		if (auto domainMatch = regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
@@ -3345,6 +3349,9 @@ void MainWidget::openLocalUrl(const QString &url) {
 			}
 			openPeerByName(domain, post, startToken);
 		}
+	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
+		auto params = url_parse_params(shareGameScoreMatch->captured(1), UrlParamNameTransform::ToLower);
+		shareGameScoreByHash(params.value(qsl("hash")));
 	}
 }
 
@@ -4673,91 +4680,97 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &set = d.vstickerset.c_messages_stickerSet();
 			if (set.vset.type() == mtpc_stickerSet) {
 				auto &s = set.vset.c_stickerSet();
-
-				auto &sets = Global::RefStickerSets();
-				auto it = sets.find(s.vid.v);
-				if (it == sets.cend()) {
-					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
-				} else {
-					it->flags |= MTPDstickerSet::Flag::f_installed;
-					if (it->flags & MTPDstickerSet::Flag::f_archived) {
-						it->flags &= ~MTPDstickerSet::Flag::f_archived;
-						writeArchived = true;
-					}
-				}
-
-				const auto &v(set.vdocuments.c_vector().v);
-				it->stickers.clear();
-				it->stickers.reserve(v.size());
-				for (int32 i = 0, l = v.size(); i < l; ++i) {
-					DocumentData *doc = App::feedDocument(v.at(i));
-					if (!doc || !doc->sticker()) continue;
-
-					it->stickers.push_back(doc);
-				}
-				it->emoji.clear();
-				auto &packs = set.vpacks.c_vector().v;
-				for (int32 i = 0, l = packs.size(); i < l; ++i) {
-					if (packs.at(i).type() != mtpc_stickerPack) continue;
-					auto &pack = packs.at(i).c_stickerPack();
-					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-						auto &stickers = pack.vdocuments.c_vector().v;
-						StickerPack p;
-						p.reserve(stickers.size());
-						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
-							DocumentData *doc = App::document(stickers.at(j).v);
-							if (!doc || !doc->sticker()) continue;
-
-							p.push_back(doc);
+				if (!s.is_masks()) {
+					auto &sets = Global::RefStickerSets();
+					auto it = sets.find(s.vid.v);
+					if (it == sets.cend()) {
+						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+					} else {
+						it->flags |= MTPDstickerSet::Flag::f_installed;
+						if (it->flags & MTPDstickerSet::Flag::f_archived) {
+							it->flags &= ~MTPDstickerSet::Flag::f_archived;
+							writeArchived = true;
 						}
-						it->emoji.insert(e, p);
 					}
-				}
+					auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
+					auto &v = set.vdocuments.c_vector().v;
+					it->stickers.clear();
+					it->stickers.reserve(v.size());
+					for (int i = 0, l = v.size(); i < l; ++i) {
+						auto doc = App::feedDocument(v.at(i));
+						if (!doc || !doc->sticker()) continue;
 
-				auto &order(Global::RefStickerSetsOrder());
-				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
-				if (currentIndex != insertAtIndex) {
-					if (currentIndex > 0) {
-						order.removeAt(currentIndex);
+						it->stickers.push_back(doc);
+						if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
+							doc->sticker()->set = inputSet;
+						}
 					}
-					order.insert(insertAtIndex, s.vid.v);
-				}
+					it->emoji.clear();
+					auto &packs = set.vpacks.c_vector().v;
+					for (int i = 0, l = packs.size(); i < l; ++i) {
+						if (packs.at(i).type() != mtpc_stickerPack) continue;
+						auto &pack = packs.at(i).c_stickerPack();
+						if (auto e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+							auto &stickers = pack.vdocuments.c_vector().v;
+							StickerPack p;
+							p.reserve(stickers.size());
+							for (int j = 0, c = stickers.size(); j < c; ++j) {
+								auto doc = App::document(stickers.at(j).v);
+								if (!doc || !doc->sticker()) continue;
 
-				auto custom = sets.find(Stickers::CustomSetId);
-				if (custom != sets.cend()) {
-					for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
-						int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
-						if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
+								p.push_back(doc);
+							}
+							it->emoji.insert(e, p);
+						}
 					}
-					if (custom->stickers.isEmpty()) {
-						sets.erase(custom);
+
+					auto &order(Global::RefStickerSetsOrder());
+					int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
+					if (currentIndex != insertAtIndex) {
+						if (currentIndex > 0) {
+							order.removeAt(currentIndex);
+						}
+						order.insert(insertAtIndex, s.vid.v);
 					}
+
+					auto custom = sets.find(Stickers::CustomSetId);
+					if (custom != sets.cend()) {
+						for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
+							int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
+							if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
+						}
+						if (custom->stickers.isEmpty()) {
+							sets.erase(custom);
+						}
+					}
+					Local::writeInstalledStickers();
+					if (writeArchived) Local::writeArchivedStickers();
+					emit stickersUpdated();
 				}
-				Local::writeInstalledStickers();
-				if (writeArchived) Local::writeArchivedStickers();
-				emit stickersUpdated();
 			}
 		}
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
-		auto &order = d.vorder.c_vector().v;
-		auto &sets = Global::StickerSets();
-		Stickers::Order result;
-		for (int32 i = 0, l = order.size(); i < l; ++i) {
-			if (sets.constFind(order.at(i).v) == sets.cend()) {
-				break;
+		if (!d.is_masks()) {
+			auto &order = d.vorder.c_vector().v;
+			auto &sets = Global::StickerSets();
+			Stickers::Order result;
+			for (int i = 0, l = order.size(); i < l; ++i) {
+				if (sets.constFind(order.at(i).v) == sets.cend()) {
+					break;
+				}
+				result.push_back(order.at(i).v);
 			}
-			result.push_back(order.at(i).v);
-		}
-		if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
-			Global::SetLastStickersUpdate(0);
-			App::main()->updateStickers();
-		} else {
-			Global::SetStickerSetsOrder(result);
-			Local::writeInstalledStickers();
-			emit stickersUpdated();
+			if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
+				Global::SetLastStickersUpdate(0);
+				App::main()->updateStickers();
+			} else {
+				Global::SetStickerSetsOrder(result);
+				Local::writeInstalledStickers();
+				emit stickersUpdated();
+			}
 		}
 	} break;
 
@@ -4772,16 +4785,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadFeaturedStickers: {
-		for (auto &set : Global::RefStickerSets()) {
-			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
-				set.flags &= ~MTPDstickerSet_ClientFlag::f_unread;
-			}
-		}
-		if (Global::FeaturedStickerSetsUnreadCount()) {
-			Global::SetFeaturedStickerSetsUnreadCount(0);
-			Local::writeFeaturedStickers();
-			emit stickersUpdated();
-		}
+		// We read some of the featured stickers, perhaps not all of them.
+		// Here we don't know what featured sticker sets were read, so we
+		// request all of them once again.
+		Global::SetLastFeaturedStickersUpdate(0);
+		App::main()->updateStickers();
 	} break;
 
 	////// Cloud saved GIFs

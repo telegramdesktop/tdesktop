@@ -189,6 +189,14 @@ void List::adjustByPos(Row *row) {
 	}
 }
 
+bool List::moveToTop(PeerId peerId) {
+	auto i = _rowByPeer.find(peerId);
+	if (i == _rowByPeer.cend()) return false;
+
+	insertBefore(i.value(), _begin);
+	return true;
+}
+
 bool List::del(PeerId peerId, Row *replacedBy) {
 	auto i = _rowByPeer.find(peerId);
 	if (i == _rowByPeer.cend()) return false;

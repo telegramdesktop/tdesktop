@@ -386,13 +386,15 @@ void FileLoadTask::process() {
 					full.save(&buffer, "JPG", 77);
 				}
 
-				photo = MTP_photo(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+				MTPDphoto::Flags photoFlags = 0;
+				photo = MTP_photo(MTP_flags(photoFlags), MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
 			}
 
 			QByteArray thumbFormat = "JPG";
 			int32 thumbQuality = 87;
 			if (!animated && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string(""), MTP_inputStickerSetEmpty()));
+				MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(""), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 				thumbFormat = "webp";
 				thumbname = qsl("thumb.webp");
 			}

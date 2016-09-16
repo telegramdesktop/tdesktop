@@ -71,6 +71,16 @@ void IndexedList::adjustByPos(const RowsByLetter &links) {
 	}
 }
 
+void IndexedList::moveToTop(PeerData *peer) {
+	if (_list.moveToTop(peer->id)) {
+		for_const (auto ch, peer->chars) {
+			if (auto list = _index.value(ch)) {
+				list->moveToTop(peer->id);
+			}
+		}
+	}
+}
+
 void IndexedList::peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	t_assert(_sortMode != SortMode::Date);
 	if (_sortMode == SortMode::Name) {

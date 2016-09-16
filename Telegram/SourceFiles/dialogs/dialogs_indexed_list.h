@@ -34,6 +34,7 @@ public:
 	RowsByLetter addToEnd(History *history);
 	Row *addByName(History *history);
 	void adjustByPos(const RowsByLetter &links);
+	void moveToTop(PeerData *peer);
 
 	// For sortMode != SortMode::Date
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);

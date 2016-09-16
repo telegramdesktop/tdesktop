@@ -1275,8 +1275,8 @@ public:
 template <typename R, typename... Args>
 class NullFunctionImplementation : public FunctionImplementation<R, Args...> {
 public:
-	virtual R call(Args... args) { return R(); }
-	virtual void destroy() {}
+	R call(Args... args) override { return R(); }
+	void destroy() override {}
 	static NullFunctionImplementation<R, Args...> SharedInstance;
 
 };
@@ -1325,7 +1325,7 @@ class WrappedFunction : public FunctionImplementation<R, Args...> {
 public:
 	using Method = R(*)(Args... args);
 	WrappedFunction(Method method) : _method(method) {}
-	virtual R call(Args... args) { return (*_method)(args...); }
+	R call(Args... args) override { return (*_method)(args...); }
 
 private:
 	Method _method;
@@ -1341,7 +1341,7 @@ class ObjectFunction : public FunctionImplementation<R, Args...> {
 public:
 	using Method = R(I::*)(Args... args);
 	ObjectFunction(O *obj, Method method) : _obj(obj), _method(method) {}
-	virtual R call(Args... args) { return (_obj->*_method)(args...); }
+	R call(Args... args) override { return (_obj->*_method)(args...); }
 
 private:
 	O *_obj;

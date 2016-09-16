@@ -438,7 +438,7 @@ CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxW
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
-	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
+	connect(&_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 
 	_filterCancel.setAttribute(Qt::WA_OpaquePaintEvent);
@@ -456,9 +456,9 @@ void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_inner.selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner.selectSkipPage(_scroll.height(), 1);
+		_inner.selectSkipPage(scrollArea()->height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner.selectSkipPage(_scroll.height(), -1);
+		_inner.selectSkipPage(scrollArea()->height(), -1);
 	} else {
 		ItemListBox::keyPressEvent(e);
 	}
@@ -496,7 +496,7 @@ void CountrySelectBox::onFilterCancel() {
 }
 
 void CountrySelectBox::onFilterUpdate() {
-	_scroll.scrollToY(0);
+	scrollArea()->scrollToY(0);
 	if (_filter.getLastText().isEmpty()) {
 		_filterCancel.hide();
 	} else {

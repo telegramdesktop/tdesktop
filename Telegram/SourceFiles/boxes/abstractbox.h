@@ -101,18 +101,20 @@ public:
 
 class ScrollableBox : public AbstractBox {
 public:
-	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
-	void resizeEvent(QResizeEvent *e) override;
+	ScrollableBox(const style::flatScroll &scroll, int w = st::boxWideWidth);
 
 protected:
-	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);
+	void init(QWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
+	void initOwned(QWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
 
-	void showAll() override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	ScrollArea _scroll;
+	ScrollArea *scrollArea() {
+		return _scroll;
+	}
 
 private:
-	QWidget *_innerPtr;
+	ChildWidget<ScrollArea> _scroll;
 	int32 _topSkip, _bottomSkip;
 
 };

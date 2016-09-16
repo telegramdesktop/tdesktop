@@ -122,6 +122,17 @@ public:
 
 };
 
+class BotGameUrlClickHandler : public UrlClickHandler {
+public:
+	BotGameUrlClickHandler(UserData *bot, QString url) : UrlClickHandler(url, false), _bot(bot) {
+	}
+	void onClick(Qt::MouseButton button) const override;
+
+private:
+	UserData *_bot;
+
+};
+
 class MentionClickHandler : public TextClickHandler {
 public:
 	MentionClickHandler(const QString &tag) : _tag(tag) {

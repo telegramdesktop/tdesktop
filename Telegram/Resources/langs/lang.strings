@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "a contact information";
 "lng_action_pinned_media_location" = "a location mark";
 "lng_action_pinned_media_sticker" = "a sticker";
+"lng_action_game_score" = "{from} scored {score} in {game}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_stickers_featured_add" = "Add";
 
 "lng_saved_gifs" = "Saved GIFs";
 "lng_inline_bot_results" = "Results from {inline_bot}";
@@ -762,6 +764,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
+"lng_allow_bot_pass" = "Do you allow {bot_name} to pass your Telegram name and id to the web pages you open via this bot?";
+"lng_allow_bot" = "Allow";
 
 "lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Choose Group";
@@ -869,6 +873,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "Sorry, no way to share here :(";
 "lng_reply_cant" = "Sorry, no way to reply to an old message in supergroup :(";
 "lng_reply_cant_forward" = "Sorry, no way to reply to an old message in supergroup :( Do you wish to forward it and add your comment?";
+
+"lng_share_title" = "Share to";
+"lng_share_confirm" = "Share";
+"lng_share_wrong_user" = "This game was opened from a different user.";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";

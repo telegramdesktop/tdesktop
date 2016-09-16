@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/boxshadow.h"
-#include "dropdown.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -38,6 +37,10 @@ namespace Ui {
 class HistoryDownButton;
 class InnerDropdown;
 } // namespace Ui
+
+class Dropdown;
+class DragArea;
+class EmojiPan;
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public AbstractTooltipShower {
@@ -800,7 +803,7 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
-	void onStickerSend(DocumentData *sticker);
+	bool onStickerSend(DocumentData *sticker);
 	void onPhotoSend(PhotoData *photo);
 	void onInlineResultSend(InlineBots::Result *result, UserData *bot);
 
@@ -910,7 +913,7 @@ private:
 		void call(ChannelData *channel, MsgId msgId) const override;
 	};
 
-	void sendExistingDocument(DocumentData *doc, const QString &caption);
+	bool sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 
 	void drawField(Painter &p, const QRect &rect);
@@ -958,8 +961,10 @@ private:
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	struct BotCallbackInfo {
+		UserData *bot;
 		FullMsgId msgId;
 		int row, col;
+		bool game;
 	};
 	void botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
 	bool botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
@@ -1123,10 +1128,10 @@ private:
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
-	Dropdown _attachType;
-	EmojiPan _emojiPan;
+	ChildWidget<Dropdown> _attachType;
+	ChildWidget<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
-	DragArea _attachDragDocument, _attachDragPhoto;
+	ChildWidget<DragArea> _attachDragDocument, _attachDragPhoto;
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 

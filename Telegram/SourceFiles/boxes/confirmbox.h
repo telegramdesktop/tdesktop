@@ -125,6 +125,21 @@ private:
 
 };
 
+class ConfirmBotGameBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	ConfirmBotGameBox(UserData *bot, const QString &url);
+
+public slots:
+	void onOpenLink();
+
+private:
+	UserData *_bot;
+	QString _url;
+
+};
+
 class MaxInviteBox : public AbstractBox {
 	Q_OBJECT
 

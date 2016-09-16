@@ -674,9 +674,9 @@ void checkForSwitchInlineButton(HistoryItem *item) {
 			return;
 		}
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			for_const (const auto &row, markup->rows) {
-				for_const (const auto &button, row) {
-					if (button.type == HistoryMessageReplyMarkup::Button::SwitchInline) {
+			for_const (auto &row, markup->rows) {
+				for_const (auto &button, row) {
+					if (button.type == HistoryMessageReplyMarkup::Button::Type::SwitchInline) {
 						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button.data));
 						return;
 					}
@@ -2222,7 +2222,7 @@ public:
 	// Copy to clipboard support.
 	void copyToClipboard() const override {
 		if (auto button = getButton()) {
-			if (button->type == HistoryMessageReplyMarkup::Button::Url) {
+			if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
 				auto url = QString::fromUtf8(button->data);
 				if (!url.isEmpty()) {
 					QApplication::clipboard()->setText(url);
@@ -2232,7 +2232,7 @@ public:
 	}
 	QString copyToClipboardContextItemText() const override {
 		if (auto button = getButton()) {
-			if (button->type == HistoryMessageReplyMarkup::Button::Url) {
+			if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
 				return lang(lng_context_copy_link);
 			}
 		}
@@ -2247,7 +2247,7 @@ public:
 		if (auto item = App::histItemById(_itemId)) {
 			if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 				if (_row < markup->rows.size()) {
-					const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
+					auto &row = markup->rows.at(_row);
 					if (_col < row.size()) {
 						return &row.at(_col);
 					}
@@ -2292,14 +2292,14 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
 		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
-			const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(i));
+			auto &row = markup->rows.at(i);
 			int s = row.size();
 			ButtonRow newRow(s, Button());
 			for (int j = 0; j != s; ++j) {
-				Button &button(newRow[j]);
-				QString str = row.at(j).text;
+				auto &button = newRow[j];
+				auto str = row.at(j).text;
 				button.type = row.at(j).type;
-				button.link.reset(new ReplyMarkupClickHandler(item, i, j));
+				button.link = MakeShared<ReplyMarkupClickHandler>(item, i, j);
 				button.text.setText(_st->textFont(), textOneLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
 			}
@@ -2323,14 +2323,14 @@ void ReplyKeyboard::resize(int width, int height) {
 
 	auto markup = _item->Get<HistoryMessageReplyMarkup>();
 	float64 y = 0, buttonHeight = _rows.isEmpty() ? _st->buttonHeight() : (float64(height + _st->buttonSkip()) / _rows.size());
-	for (ButtonRow &row : _rows) {
+	for (auto &row : _rows) {
 		int s = row.size();
 
 		int widthForButtons = _width - ((s - 1) * _st->buttonSkip());
 		int widthForText = widthForButtons;
 		int widthOfText = 0;
 		int maxMinButtonWidth = 0;
-		for_const (const Button &button, row) {
+		for_const (auto &button, row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
 			int minButtonWidth = _st->minButtonWidth(button.type);
 			widthForText -= minButtonWidth;
@@ -2368,10 +2368,10 @@ void ReplyKeyboard::resize(int width, int height) {
 }
 
 bool ReplyKeyboard::isEnoughSpace(int width, const style::botKeyboardButton &st) const {
-	for_const (const auto &row, _rows) {
+	for_const (auto &row, _rows) {
 		int s = row.size();
 		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
-		for_const (const auto &button, row) {
+		for_const (auto &button, row) {
 			widthLeft -= qMax(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
 				if (row.size() > 3) {
@@ -2416,8 +2416,8 @@ void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
 	t_assert(_width > 0);
 
 	_st->startPaint(p);
-	for_const (const ButtonRow &row, _rows) {
-		for_const (const Button &button, row) {
+	for_const (auto &row, _rows) {
+		for_const (auto &button, row) {
 			QRect rect(button.rect);
 			if (rect.y() >= clip.y() + clip.height()) return;
 			if (rect.y() + rect.height() < clip.y()) continue;
@@ -2433,8 +2433,8 @@ void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
 ClickHandlerPtr ReplyKeyboard::getState(int x, int y) const {
 	t_assert(_width > 0);
 
-	for_const (const ButtonRow &row, _rows) {
-		for_const (const Button &button, row) {
+	for_const (auto &row, _rows) {
+		for_const (auto &button, row) {
 			QRect rect(button.rect);
 
 			// just ignore the buttons that didn't layout well
@@ -2453,7 +2453,7 @@ void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool act
 
 	bool startAnimation = false;
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
-		const ButtonRow &row(_rows.at(i));
+		auto &row = _rows.at(i);
 		for (int j = 0, cols = row.size(); j != cols; ++j) {
 			if (row.at(j).link == p) {
 				bool startAnimation = _animations.isEmpty();
@@ -2514,8 +2514,9 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &
 
 	paintButtonBg(p, rect, pressed, button.howMuchOver);
 	paintButtonIcon(p, rect, button.type);
-	if (button.type == HistoryMessageReplyMarkup::Button::Callback) {
-		if (const HistoryMessageReplyMarkup::Button *data = button.link->getButton()) {
+	if (button.type == HistoryMessageReplyMarkup::Button::Type::Callback
+		|| button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
+		if (auto data = button.link->getButton()) {
 			if (data->requestId) {
 				paintButtonLoading(p, rect);
 			}
@@ -2541,42 +2542,47 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 	}
 
 	rows.reserve(v.size());
-	for_const (const auto &row, v) {
+	for_const (auto &row, v) {
 		switch (row.type()) {
 		case mtpc_keyboardButtonRow: {
-			const auto &r(row.c_keyboardButtonRow());
-			const auto &b(r.vbuttons.c_vector().v);
+			auto &r = row.c_keyboardButtonRow();
+			auto &b = r.vbuttons.c_vector().v;
 			if (!b.isEmpty()) {
 				ButtonRow buttonRow;
 				buttonRow.reserve(b.size());
 				for_const (const auto &button, b) {
 					switch (button.type()) {
 					case mtpc_keyboardButton: {
-						buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
+						buttonRow.push_back({ Button::Type::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonCallback: {
-						const auto &buttonData(button.c_keyboardButtonCallback());
-						buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata), 0 });
+						auto &buttonData = button.c_keyboardButtonCallback();
+						buttonRow.push_back({ Button::Type::Callback, qs(buttonData.vtext), qba(buttonData.vdata), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestGeoLocation: {
-						buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray(), 0 });
+						buttonRow.push_back({ Button::Type::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestPhone: {
-						buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray(), 0 });
+						buttonRow.push_back({ Button::Type::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonUrl: {
-						const auto &buttonData(button.c_keyboardButtonUrl());
-						buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
+						auto &buttonData = button.c_keyboardButtonUrl();
+						buttonRow.push_back({ Button::Type::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
 					} break;
 					case mtpc_keyboardButtonSwitchInline: {
 						auto &buttonData = button.c_keyboardButtonSwitchInline();
-						auto buttonType = buttonData.is_same_peer() ? Button::SwitchInlineSame : Button::SwitchInline;
+						auto buttonType = buttonData.is_same_peer() ? Button::Type::SwitchInlineSame : Button::Type::SwitchInline;
 						buttonRow.push_back({ buttonType, qs(buttonData.vtext), qba(buttonData.vquery), 0 });
-						if (buttonType == Button::SwitchInline) {
+						if (buttonType == Button::Type::SwitchInline) {
 							// Optimization flag.
 							// Fast check on all new messages if there is a switch button to auto-click it.
 							flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
 						}
+					} break;
+					case mtpc_keyboardButtonGame: {
+						auto &buttonData = button.c_keyboardButtonGame();
+						auto strData = QString::number(buttonData.vgame_id.v) + ',' + qs(buttonData.vgame_title);
+						buttonRow.push_back({ Button::Type::Game, qs(buttonData.vtext), strData.toUtf8(), 0 });
 					} break;
 					}
 				}
@@ -6614,11 +6620,11 @@ void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rec
 	using Button = HistoryMessageReplyMarkup::Button;
 	style::sprite sprite;
 	switch (type) {
-	case Button::Url: sprite = st::msgBotKbUrlIcon; break;
-//	case Button::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
-//	case Button::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
-	case Button::SwitchInlineSame:
-	case Button::SwitchInline: sprite = st::msgBotKbSwitchPmIcon; break;
+	case Button::Type::Url: sprite = st::msgBotKbUrlIcon; break;
+//	case Button::Type::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
+//	case Button::Type::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
+	case Button::Type::SwitchInlineSame:
+	case Button::Type::SwitchInline: sprite = st::msgBotKbSwitchPmIcon; break;
 	}
 	if (!sprite.isEmpty()) {
 		p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, sprite);
@@ -6634,12 +6640,13 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	using Button = HistoryMessageReplyMarkup::Button;
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
-	case Button::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
-	//case Button::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
-	//case Button::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
-	case Button::SwitchInlineSame:
-	case Button::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
-	case Button::Callback: iconWidth = st::msgInvSendingImg.pxWidth(); break;
+	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
+	//case Button::Type::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
+	//case Button::Type::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	case Button::Type::SwitchInlineSame:
+	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
+	case Button::Type::Callback:
+	case Button::Type::Game: iconWidth = st::msgInvSendingImg.pxWidth(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
@@ -7871,23 +7878,25 @@ HistoryMessage::~HistoryMessage() {
 }
 
 void HistoryService::setMessageByAction(const MTPmessageAction &action) {
-	QList<ClickHandlerPtr> links;
-	LangString text = lang(lng_message_empty);
-	QString from = textcmdLink(1, _from->name);
+	auto text = lang(lng_message_empty);
+	auto from = textcmdLink(1, _from->name);
+
+	Links links;
+	links.push_back(MakeShared<PeerOpenClickHandler>(_from));
 
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
-		const auto &d(action.c_messageActionChatAddUser());
-		const auto &v(d.vusers.c_vector().v);
+		auto &d = action.c_messageActionChatAddUser();
+		auto &v = d.vusers.c_vector().v;
 		bool foundSelf = false;
-		for (int32 i = 0, l = v.size(); i < l; ++i) {
+		for (int i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).v == MTP::authedId()) {
 				foundSelf = true;
 				break;
 			}
 		}
 		if (v.size() == 1) {
-			UserData *u = App::user(peerFromUser(v.at(0)));
+			auto u = App::user(peerFromUser(v.at(0)));
 			if (u == _from) {
 				text = lng_action_user_joined(lt_from, from);
 			} else {
@@ -7897,9 +7906,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		} else if (v.isEmpty()) {
 			text = lng_action_add_user(lt_from, from, lt_user, "somebody");
 		} else {
-			for (int32 i = 0, l = v.size(); i < l; ++i) {
-				UserData *u = App::user(peerFromUser(v.at(i)));
-				QString linkText = textcmdLink(i + 2, u->name);
+			for (int i = 0, l = v.size(); i < l; ++i) {
+				auto u = App::user(peerFromUser(v.at(i)));
+				auto linkText = textcmdLink(i + 2, u->name);
 				if (i == 0) {
 					text = linkText;
 				} else if (i + 1 < l) {
@@ -7919,7 +7928,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatJoinedByLink: {
-		const auto &d(action.c_messageActionChatJoinedByLink());
+		auto &d = action.c_messageActionChatJoinedByLink();
 		//if (true || peerFromUser(d.vinviter_id) == _from->id) {
 			text = lng_action_user_joined_by_link(lt_from, from);
 		//} else {
@@ -7933,12 +7942,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatCreate: {
-		const auto &d(action.c_messageActionChatCreate());
+		auto &d = action.c_messageActionChatCreate();
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
 	case mtpc_messageActionChannelCreate: {
-		const auto &d(action.c_messageActionChannelCreate());
+		auto &d = action.c_messageActionChannelCreate();
 		if (isPost()) {
 			text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
 		} else {
@@ -7955,18 +7964,18 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatDeleteUser: {
-		const auto &d(action.c_messageActionChatDeleteUser());
+		auto &d = action.c_messageActionChatDeleteUser();
 		if (peerFromUser(d.vuser_id) == _from->id) {
 			text = lng_action_user_left(lt_from, from);
 		} else {
-			UserData *u = App::user(peerFromUser(d.vuser_id));
+			auto u = App::user(peerFromUser(d.vuser_id));
 			links.push_back(MakeShared<PeerOpenClickHandler>(u));
 			text = lng_action_kick_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 		}
 	} break;
 
 	case mtpc_messageActionChatEditPhoto: {
-		const auto &d(action.c_messageActionChatEditPhoto());
+		auto &d = action.c_messageActionChatEditPhoto();
 		if (d.vphoto.type() == mtpc_photo) {
 			_media.reset(new HistoryPhoto(this, history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth));
 		}
@@ -7974,13 +7983,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatEditTitle: {
-		const auto &d(action.c_messageActionChatEditTitle());
+		auto &d = action.c_messageActionChatEditTitle();
 		text = isPost() ? lng_action_changed_title_channel(lt_title, textClean(qs(d.vtitle))) : lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
 	case mtpc_messageActionChatMigrateTo: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		const auto &d(action.c_messageActionChatMigrateTo());
+		auto &d = action.c_messageActionChatMigrateTo();
 		if (true/*PeerData *channel = App::channelLoaded(d.vchannel_id.v)*/) {
 			text = lang(lng_action_group_migrate);
 		} else {
@@ -7990,7 +7999,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	case mtpc_messageActionChannelMigrateFrom: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		const auto &d(action.c_messageActionChannelMigrateFrom());
+		auto &d = action.c_messageActionChannelMigrateFrom();
 		if (true/*PeerData *chat = App::chatLoaded(d.vchat_id.v)*/) {
 			text = lang(lng_action_group_migrate);
 		} else {
@@ -7999,74 +8008,63 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionPinMessage: {
-		if (updatePinnedText(&from, &text)) {
-			auto pinned = Get<HistoryServicePinned>();
-			t_assert(pinned != nullptr);
+		preparePinnedText(from, &text, &links);
+	} break;
 
-			links.push_back(pinned->lnk);
-		}
+	case mtpc_messageActionGameScore: {
+		prepareGameScoreText(from, &text, &links);
 	} break;
 
 	default: from = QString(); break;
 	}
 
-	textstyleSet(&st::serviceTextStyle);
-	_text.setText(st::msgServiceFont, text, _historySrvOptions);
-	textstyleRestore();
-	if (!from.isEmpty()) {
-		_text.setLink(1, MakeShared<PeerOpenClickHandler>(_from));
-	}
-	for (int32 i = 0, l = links.size(); i < l; ++i) {
-		_text.setLink(i + 2, links.at(i));
+	setServiceText(text, links);
+	for (int i = 0, count = links.size(); i != count; ++i) {
+		_text.setLink(1 + i, links.at(i));
 	}
 }
 
-bool HistoryService::updatePinned(bool force) {
-	auto pinned = Get<HistoryServicePinned>();
-	t_assert(pinned != nullptr);
+bool HistoryService::updateDependent(bool force) {
+	auto dependent = GetDependentData();
+	t_assert(dependent != nullptr);
 
 	if (!force) {
-		if (!pinned->msgId || pinned->msg) {
+		if (!dependent->msgId || dependent->msg) {
 			return true;
 		}
 	}
 
-	if (!pinned->lnk) {
-		pinned->lnk.reset(new GoToMessageClickHandler(history()->peer->id, pinned->msgId));
+	if (!dependent->lnk) {
+		dependent->lnk.reset(new GoToMessageClickHandler(history()->peer->id, dependent->msgId));
 	}
 	bool gotDependencyItem = false;
-	if (!pinned->msg) {
-		pinned->msg = App::histItemById(channelId(), pinned->msgId);
-		if (pinned->msg) {
-			App::historyRegDependency(this, pinned->msg);
+	if (!dependent->msg) {
+		dependent->msg = App::histItemById(channelId(), dependent->msgId);
+		if (dependent->msg) {
+			App::historyRegDependency(this, dependent->msg);
 			gotDependencyItem = true;
 		}
 	}
-	if (pinned->msg) {
-		updatePinnedText();
+	if (dependent->msg) {
+		updateDependentText();
 	} else if (force) {
-		if (pinned->msgId > 0) {
-			pinned->msgId = 0;
+		if (dependent->msgId > 0) {
+			dependent->msgId = 0;
 			gotDependencyItem = true;
 		}
-		updatePinnedText();
+		updateDependentText();
 	}
 	if (force) {
 		if (gotDependencyItem && App::wnd()) {
 			App::wnd()->notifySettingGot();
 		}
 	}
-	return (pinned->msg || !pinned->msgId);
+	return (dependent->msg || !dependent->msgId);
 }
 
-bool HistoryService::updatePinnedText(const QString *pfrom, QString *ptext) {
+bool HistoryService::preparePinnedText(const QString &from, QString *outText, Links *outLinks) {
 	bool result = false;
-	QString from, text;
-	if (pfrom) {
-		from = *pfrom;
-	} else {
-		from = textcmdLink(1, _from->name);
-	}
+	QString text;
 
 	ClickHandlerPtr second;
 	auto pinned = Get<HistoryServicePinned>();
@@ -8112,21 +8110,47 @@ bool HistoryService::updatePinnedText(const QString *pfrom, QString *ptext) {
 	} else {
 		text = lng_action_pinned_media(lt_from, from, lt_media, lang(lng_deleted_message));
 	}
-	if (ptext) {
-		*ptext = text;
+	*outText = text;
+	if (second) {
+		outLinks->push_back(second);
+	}
+	return result;
+}
+
+bool HistoryService::prepareGameScoreText(const QString &from, QString *outText, Links *outLinks) {
+	bool result = false;
+	QString text;
+
+	ClickHandlerPtr second;
+	auto gamescore = Get<HistoryServiceGameScore>();
+	if (gamescore && gamescore->msg) {
+		auto getGameTitle = [item = gamescore->msg, &second]() -> QString {
+			if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+				for (int i = 0, rowsCount = markup->rows.size(); i != rowsCount; ++i) {
+					auto &row = markup->rows[i];
+					for (int j = 0, buttonsCount = row.size(); j != buttonsCount; ++j) {
+						auto &button = row[j];
+						if (button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
+							auto strData = QString::fromUtf8(button.data);
+							second = MakeShared<ReplyMarkupClickHandler>(item, i, j);
+							return textcmdLink(2, strData.mid(strData.indexOf(',') + 1));
+						}
+					}
+				}
+			}
+			return lang(lng_deleted_message);
+		};
+		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, getGameTitle());
+		result = true;
+	} else if (gamescore && gamescore->msgId) {
+		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, lang(lng_contacts_loading));
+		result = true;
 	} else {
-		setServiceText(text);
-		_text.setLink(1, MakeShared<PeerOpenClickHandler>(_from));
-		if (second) {
-			_text.setLink(2, second);
-		}
-		if (history()->textCachedFor == this) {
-			history()->textCachedFor = 0;
-		}
-		if (App::main()) {
-			App::main()->dlgUpdated(history(), id);
-		}
-		App::historyUpdateDependent(this);
+		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, lang(lng_deleted_message));
+	}
+	*outText = text;
+	if (second) {
+		outLinks->push_back(second);
 	}
 	return result;
 }
@@ -8134,10 +8158,17 @@ bool HistoryService::updatePinnedText(const QString *pfrom, QString *ptext) {
 HistoryService::HistoryService(History *history, const MTPDmessageService &msg) :
 	HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	if (msg.has_reply_to_msg_id()) {
-		UpdateComponents(HistoryServicePinned::Bit());
-		MsgId pinnedMsgId = Get<HistoryServicePinned>()->msgId = msg.vreply_to_msg_id.v;
-		if (!updatePinned() && App::api()) {
-			App::api()->requestMessageData(history->peer->asChannel(), pinnedMsgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+		if (msg.vaction.type() == mtpc_messageActionPinMessage) {
+			UpdateComponents(HistoryServicePinned::Bit());
+		} else if (msg.vaction.type() == mtpc_messageActionGameScore) {
+			UpdateComponents(HistoryServiceGameScore::Bit());
+			Get<HistoryServiceGameScore>()->score = msg.vaction.c_messageActionGameScore().vscore.v;
+		}
+		if (auto dependent = GetDependentData()) {
+			dependent->msgId = msg.vreply_to_msg_id.v;
+			if (!updateDependent() && App::api()) {
+				App::api()->requestMessageData(history->peer->asChannel(), dependent->msgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+			}
 		}
 	}
 	setMessageByAction(msg.vaction);
@@ -8145,13 +8176,20 @@ HistoryService::HistoryService(History *history, const MTPDmessageService &msg) 
 
 HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags, int32 from) :
 	HistoryItem(history, msgId, flags, date, from) {
-	_text.setText(st::msgServiceFont, msg, _historySrvOptions);
+	setServiceText(msg, Links());
 }
 
 void HistoryService::initDimensions() {
 	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	_minh = _text.minHeight();
 	if (_media) _media->initDimensions();
+}
+
+bool HistoryService::updateDependencyItem() {
+	if (GetDependentData()) {
+		return updateDependent(true);
+	}
+	return HistoryItem::updateDependencyItem();
 }
 
 void HistoryService::countPositionAndSize(int32 &left, int32 &width) const {
@@ -8176,10 +8214,14 @@ QString HistoryService::inReplyText() const {
 	return result.trimmed().startsWith(author()->name) ? result.trimmed().mid(author()->name.size()).trimmed() : result;
 }
 
-void HistoryService::setServiceText(const QString &text) {
+void HistoryService::setServiceText(const QString &text, const Links &links) {
 	textstyleSet(&st::serviceTextStyle);
 	_text.setText(st::msgServiceFont, text, _historySrvOptions);
 	textstyleRestore();
+	for (int i = 0, count = links.size(); i != count; ++i) {
+		_text.setLink(1 + i, links.at(i));
+	}
+
 	setPendingInitDimensions();
 	_textWidth = -1;
 	_textHeight = 0;
@@ -8296,13 +8338,19 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 	if (_media) {
 		height -= st::msgServiceMargin.top() + _media->height();
 	}
-	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
+	auto outer = QRect(left, st::msgServiceMargin.top(), width, height);
+	auto trect = outer.marginsAdded(-st::msgServicePadding);
 	if (trect.contains(x, y)) {
 		textstyleSet(&st::serviceTextStyle);
 		auto textRequest = request.forText();
 		textRequest.align = style::al_center;
 		result = _text.getState(x - trect.x(), y - trect.y(), trect.width(), textRequest);
 		textstyleRestore();
+		if (auto gamescore = Get<HistoryServiceGameScore>()) {
+			if (!result.link && outer.contains(x, y)) {
+				result.link = gamescore->lnk;
+			}
+		}
 	} else if (_media) {
 		result = _media->getState(x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), request);
 	}
@@ -8311,8 +8359,11 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 
 void HistoryService::applyEditionToEmpty() {
 	TextWithEntities textWithEntities = { QString(), EntitiesInText() };
-	setServiceText(QString());
+	setServiceText(QString(), Links());
 	removeMedia();
+
+	clearDependency();
+	UpdateComponents(0);
 
 	finishEditionToEmpty();
 }
@@ -8352,25 +8403,58 @@ void HistoryService::eraseFromOverview() {
 	}
 }
 
-HistoryService::~HistoryService() {
-	if (auto pinned = Get<HistoryServicePinned>()) {
-		if (pinned->msg) {
-			App::historyUnregDependency(this, pinned->msg);
+bool HistoryService::updateDependentText() {
+	auto result = false;
+	auto from = textcmdLink(1, _from->name);
+	QString text;
+	Links links;
+	links.push_back(MakeShared<PeerOpenClickHandler>(_from));
+	if (Has<HistoryServicePinned>()) {
+		result = preparePinnedText(from, &text, &links);
+	} else if (Has<HistoryServiceGameScore>()) {
+		result = prepareGameScoreText(from, &text, &links);
+	} else {
+		return result;
+	}
+
+	setServiceText(text, links);
+	if (history()->textCachedFor == this) {
+		history()->textCachedFor = 0;
+	}
+	if (App::main()) {
+		App::main()->dlgUpdated(history(), id);
+	}
+	App::historyUpdateDependent(this);
+	return result;
+}
+
+void HistoryService::clearDependency() {
+	if (auto dependent = GetDependentData()) {
+		if (dependent->msg) {
+			App::historyUnregDependency(this, dependent->msg);
 		}
 	}
+}
+
+HistoryService::~HistoryService() {
+	clearDependency();
 	_media.clear();
 }
 
 HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, UserData *inviter, MTPDmessage::Flags flags)
 	: HistoryService(history, clientMsgId(), inviteDate, QString(), flags) {
-	textstyleSet(&st::serviceTextStyle);
-	if (peerToUser(inviter->id) == MTP::authedId()) {
-		_text.setText(st::msgServiceFont, lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined), _historySrvOptions);
-	} else {
-		_text.setText(st::msgServiceFont, history->isMegagroup() ? lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name)) : lng_action_add_you(lt_from, textcmdLink(1, inviter->name)), _historySrvOptions);
-		_text.setLink(1, MakeShared<PeerOpenClickHandler>(inviter));
-	}
-	textstyleRestore();
+	Links links;
+	auto text = ([history, inviter, &links]() {
+		if (peerToUser(inviter->id) == MTP::authedId()) {
+			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
+		}
+		links.push_back(MakeShared<PeerOpenClickHandler>(inviter));
+		if (history->isMegagroup()) {
+			return lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
+		}
+		return lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
+	})();
+	setServiceText(text, links);
 }
 
 void GoToMessageClickHandler::onClickImpl() const {

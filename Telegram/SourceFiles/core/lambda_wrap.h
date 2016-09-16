@@ -372,3 +372,42 @@ public:
 };
 
 } // namespace base
+
+// While we still use Function<>
+
+template <typename FunctionType>
+struct LambdaFunctionHelper;
+
+template <typename Lambda, typename R, typename ...Args>
+struct LambdaFunctionHelper<R(Lambda::*)(Args...) const> {
+	using FunctionType = Function<R, Args...>;
+	using UniqueType = base::lambda_unique<R(Args...)>;
+};
+
+template <typename FunctionType>
+using LambdaGetFunction = typename LambdaFunctionHelper<FunctionType>::FunctionType;
+
+template <typename FunctionType>
+using LambdaGetUnique = typename LambdaFunctionHelper<FunctionType>::UniqueType;
+
+template <typename R, typename ...Args>
+class LambdaFunctionImplementation : public FunctionImplementation<R, Args...> {
+public:
+	LambdaFunctionImplementation(base::lambda_unique<R(Args...)> &&lambda) : _lambda(std_::move(lambda)) {
+	}
+	R call(Args... args) override { return _lambda(std_::forward<Args>(args)...); }
+
+private:
+	base::lambda_unique<R(Args...)> _lambda;
+
+};
+
+template <typename R, typename ...Args>
+inline Function<R, Args...> lambda_wrap_helper(base::lambda_unique<R(Args...)> &&lambda) {
+	return Function<R, Args...>(new LambdaFunctionImplementation<R, Args...>(std_::move(lambda)));
+}
+
+template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
+inline LambdaGetFunction<decltype(&Lambda::operator())> func(Lambda &&lambda) {
+	return lambda_wrap_helper(LambdaGetUnique<decltype(&Lambda::operator())>(std_::move(lambda)));
+}

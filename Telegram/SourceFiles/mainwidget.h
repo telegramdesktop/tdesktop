@@ -212,6 +212,7 @@ public:
 	void onSendFileCancel(const FileLoadResultPtr &file);
 	void onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
 	void onShareContactCancel();
+	bool onSendSticker(DocumentData *sticker);
 
 	void destroyData();
 	void updateOnlineDisplayIn(int32 msecs);

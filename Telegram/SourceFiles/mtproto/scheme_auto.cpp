@@ -588,6 +588,8 @@ void _serialize_inputMediaEmpty(MTPStringLogger &to, int32 stage, int32 lev, Typ
 }
 
 void _serialize_inputMediaUploadedPhoto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDinputMediaUploadedPhoto::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -595,8 +597,10 @@ void _serialize_inputMediaUploadedPhoto(MTPStringLogger &to, int32 stage, int32 
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  stickers: "); ++stages.back(); if (flag & MTPDinputMediaUploadedPhoto::Flag::f_stickers) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -644,6 +648,8 @@ void _serialize_inputMediaContact(MTPStringLogger &to, int32 stage, int32 lev, T
 }
 
 void _serialize_inputMediaUploadedDocument(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDinputMediaUploadedDocument::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -651,15 +657,19 @@ void _serialize_inputMediaUploadedDocument(MTPStringLogger &to, int32 stage, int
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  stickers: "); ++stages.back(); if (flag & MTPDinputMediaUploadedDocument::Flag::f_stickers) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
 
 void _serialize_inputMediaUploadedThumbDocument(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDinputMediaUploadedThumbDocument::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -667,11 +677,13 @@ void _serialize_inputMediaUploadedThumbDocument(MTPStringLogger &to, int32 stage
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  thumb: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 4: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  thumb: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  attributes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  stickers: "); ++stages.back(); if (flag & MTPDinputMediaUploadedThumbDocument::Flag::f_stickers) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -762,7 +774,6 @@ void _serialize_inputChatUploadedPhoto(MTPStringLogger &to, int32 stage, int32 l
 	}
 	switch (stage) {
 	case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -776,7 +787,6 @@ void _serialize_inputChatPhoto(MTPStringLogger &to, int32 stage, int32 lev, Type
 	}
 	switch (stage) {
 	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -857,25 +867,6 @@ void _serialize_inputDocumentFileLocation(MTPStringLogger &to, int32 stage, int3
 	case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
-void _serialize_inputPhotoCropAuto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	to.add("{ inputPhotoCropAuto }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-}
-
-void _serialize_inputPhotoCrop(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ inputPhotoCrop");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  crop_left: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  crop_top: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  crop_width: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -1672,6 +1663,20 @@ void _serialize_messageActionHistoryClear(MTPStringLogger &to, int32 stage, int3
 	to.add("{ messageActionHistoryClear }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
+void _serialize_messageActionGameScore(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messageActionGameScore");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  game_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  score: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_dialog(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	MTPDdialog::Flags flag(iflag);
 
@@ -1709,6 +1714,8 @@ void _serialize_photoEmpty(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 }
 
 void _serialize_photo(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDphoto::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -1716,10 +1723,12 @@ void _serialize_photo(MTPStringLogger &to, int32 stage, int32 lev, Types &types,
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  sizes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  has_stickers: "); ++stages.back(); if (flag & MTPDphoto::Flag::f_has_stickers) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  sizes: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -2880,6 +2889,8 @@ void _serialize_updateNewStickerSet(MTPStringLogger &to, int32 stage, int32 lev,
 }
 
 void _serialize_updateStickerSetsOrder(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDupdateStickerSetsOrder::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -2887,7 +2898,9 @@ void _serialize_updateStickerSetsOrder(MTPStringLogger &to, int32 stage, int32 l
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  masks: "); ++stages.back(); if (flag & MTPDupdateStickerSetsOrder::Flag::f_masks) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -2970,6 +2983,8 @@ void _serialize_updateChannelPinnedMessage(MTPStringLogger &to, int32 stage, int
 }
 
 void _serialize_updateBotCallbackQuery(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDupdateBotCallbackQuery::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -2977,11 +2992,13 @@ void _serialize_updateBotCallbackQuery(MTPStringLogger &to, int32 stage, int32 l
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 4: to.add("  data: "); ++stages.back(); types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  data: "); ++stages.back(); if (flag & MTPDupdateBotCallbackQuery::Flag::f_data) { types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 6: to.add("  game_id: "); ++stages.back(); if (flag & MTPDupdateBotCallbackQuery::Flag::f_game_id) { types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -3002,6 +3019,8 @@ void _serialize_updateEditMessage(MTPStringLogger &to, int32 stage, int32 lev, T
 }
 
 void _serialize_updateInlineBotCallbackQuery(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDupdateInlineBotCallbackQuery::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -3009,10 +3028,12 @@ void _serialize_updateInlineBotCallbackQuery(MTPStringLogger &to, int32 stage, i
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  msg_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  data: "); ++stages.back(); types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  msg_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  data: "); ++stages.back(); if (flag & MTPDupdateInlineBotCallbackQuery::Flag::f_data) { types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 5: to.add("  game_id: "); ++stages.back(); if (flag & MTPDupdateInlineBotCallbackQuery::Flag::f_game_id) { types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4008,6 +4029,8 @@ void _serialize_documentAttributeAnimated(MTPStringLogger &to, int32 stage, int3
 }
 
 void _serialize_documentAttributeSticker(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDdocumentAttributeSticker::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -4015,8 +4038,11 @@ void _serialize_documentAttributeSticker(MTPStringLogger &to, int32 stage, int32
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  alt: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  mask: "); ++stages.back(); if (flag & MTPDdocumentAttributeSticker::Flag::f_mask) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 2: to.add("  alt: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  mask_coords: "); ++stages.back(); if (flag & MTPDdocumentAttributeSticker::Flag::f_mask_coords) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4067,6 +4093,10 @@ void _serialize_documentAttributeFilename(MTPStringLogger &to, int32 stage, int3
 	case 0: to.add("  file_name: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
+}
+
+void _serialize_documentAttributeHasStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ documentAttributeHasStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
 void _serialize_messages_stickersNotModified(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -4446,12 +4476,13 @@ void _serialize_stickerSet(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	case 1: to.add("  installed: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_installed) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  archived: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_archived) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 3: to.add("  official: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_official) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 4: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 5: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 6: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 7: to.add("  short_name: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 8: to.add("  count: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 9: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  masks: "); ++stages.back(); if (flag & MTPDstickerSet::Flag::f_masks) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 7: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 8: to.add("  short_name: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 9: to.add("  count: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 10: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4581,6 +4612,22 @@ void _serialize_keyboardButtonSwitchInline(MTPStringLogger &to, int32 stage, int
 	case 1: to.add("  same_peer: "); ++stages.back(); if (flag & MTPDkeyboardButtonSwitchInline::Flag::f_same_peer) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  query: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_keyboardButtonGame(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ keyboardButtonGame");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  game_title: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  game_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  start_param: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -5891,6 +5938,62 @@ void _serialize_stickerSetCovered(MTPStringLogger &to, int32 stage, int32 lev, T
 	}
 }
 
+void _serialize_stickerSetMultiCovered(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ stickerSetMultiCovered");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  set: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  covers: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_maskCoords(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ maskCoords");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  n: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  x: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  y: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  zoom: "); ++stages.back(); types.push_back(mtpc_double+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_inputStickeredMediaPhoto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ inputStickeredMediaPhoto");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_inputStickeredMediaDocument(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ inputStickeredMediaDocument");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -6068,6 +6171,19 @@ void _serialize_auth_cancelCode(MTPStringLogger &to, int32 stage, int32 lev, Typ
 	switch (stage) {
 	case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_auth_dropTempAuthKeys(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_dropTempAuthKeys");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  except_auth_keys: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6401,6 +6517,8 @@ void _serialize_messages_editChatAdmin(MTPStringLogger &to, int32 stage, int32 l
 }
 
 void _serialize_messages_reorderStickerSets(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_reorderStickerSets::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -6408,7 +6526,9 @@ void _serialize_messages_reorderStickerSets(MTPStringLogger &to, int32 stage, in
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  masks: "); ++stages.back(); if (flag & MTPmessages_reorderStickerSets::Flag::f_masks) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6509,10 +6629,21 @@ void _serialize_messages_saveDraft(MTPStringLogger &to, int32 stage, int32 lev, 
 }
 
 void _serialize_messages_readFeaturedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	to.add("{ messages_readFeaturedStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_readFeaturedStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
 }
 
 void _serialize_messages_saveRecentSticker(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_saveRecentSticker::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -6520,14 +6651,48 @@ void _serialize_messages_saveRecentSticker(MTPStringLogger &to, int32 stage, int
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unsave: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  attached: "); ++stages.back(); if (flag & MTPmessages_saveRecentSticker::Flag::f_attached) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  unsave: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
 
 void _serialize_messages_clearRecentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	to.add("{ messages_clearRecentStickers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+	MTPmessages_clearRecentStickers::Flags flag(iflag);
+
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_clearRecentStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  attached: "); ++stages.back(); if (flag & MTPmessages_clearRecentStickers::Flag::f_attached) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_setInlineGameScore(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_setInlineGameScore::Flags flag(iflag);
+
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_setInlineGameScore");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  edit_message: "); ++stages.back(); if (flag & MTPmessages_setInlineGameScore::Flag::f_edit_message) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  game_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  score: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
 }
 
 void _serialize_upload_saveFilePart(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -7447,10 +7612,11 @@ void _serialize_messages_forwardMessages(MTPStringLogger &to, int32 stage, int32
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  silent: "); ++stages.back(); if (flag & MTPmessages_forwardMessages::Flag::f_silent) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 2: to.add("  background: "); ++stages.back(); if (flag & MTPmessages_forwardMessages::Flag::f_background) { to.add("YES [ BY BIT 6 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
-	case 3: to.add("  from_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 4: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int+0); stages.push_back(0); flags.push_back(0); break;
-	case 5: to.add("  random_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
-	case 6: to.add("  to_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  with_my_score: "); ++stages.back(); if (flag & MTPmessages_forwardMessages::Flag::f_with_my_score) { to.add("YES [ BY BIT 8 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 8 IN FIELD flags ]"); } break;
+	case 4: to.add("  from_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int+0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  random_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long+0); stages.push_back(0); flags.push_back(0); break;
+	case 7: to.add("  to_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -7643,6 +7809,27 @@ void _serialize_messages_editMessage(MTPStringLogger &to, int32 stage, int32 lev
 
 void _serialize_messages_getAllDrafts(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ messages_getAllDrafts }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_messages_setGameScore(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_setGameScore::Flags flag(iflag);
+
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_setGameScore");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  edit_message: "); ++stages.back(); if (flag & MTPmessages_setGameScore::Flag::f_edit_message) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  game_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  score: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
 }
 
 void _serialize_channels_createChannel(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -8006,25 +8193,24 @@ void _serialize_photos_deletePhotos(MTPStringLogger &to, int32 stage, int32 lev,
 	}
 }
 
-void _serialize_messages_getStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ messages_getStickers");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  emoticon: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
 void _serialize_messages_getAllStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
 		to.add("{ messages_getAllStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_getMaskStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getMaskStickers");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -8189,6 +8375,8 @@ void _serialize_messages_getMessageEditData(MTPStringLogger &to, int32 stage, in
 }
 
 void _serialize_messages_getBotCallbackAnswer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_getBotCallbackAnswer::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -8196,9 +8384,11 @@ void _serialize_messages_getBotCallbackAnswer(MTPStringLogger &to, int32 stage, 
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  data: "); ++stages.back(); types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  data: "); ++stages.back(); if (flag & MTPmessages_getBotCallbackAnswer::Flag::f_data) { types.push_back(mtpc_bytes+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 4: to.add("  game_id: "); ++stages.back(); if (flag & MTPmessages_getBotCallbackAnswer::Flag::f_game_id) { types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8230,6 +8420,8 @@ void _serialize_messages_getFeaturedStickers(MTPStringLogger &to, int32 stage, i
 }
 
 void _serialize_messages_getRecentStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_getRecentStickers::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -8237,20 +8429,9 @@ void _serialize_messages_getRecentStickers(MTPStringLogger &to, int32 stage, int
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
-void _serialize_messages_getUnusedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ messages_getUnusedStickers");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  attached: "); ++stages.back(); if (flag & MTPmessages_getRecentStickers::Flag::f_attached) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8265,6 +8446,19 @@ void _serialize_messages_getArchivedStickers(MTPStringLogger &to, int32 stage, i
 	switch (stage) {
 	case 0: to.add("  offset_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_getAttachedStickers(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getAttachedStickers");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8313,7 +8507,6 @@ void _serialize_photos_updateProfilePhoto(MTPStringLogger &to, int32 stage, int3
 	}
 	switch (stage) {
 	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8327,9 +8520,6 @@ void _serialize_photos_uploadProfilePhoto(MTPStringLogger &to, int32 stage, int3
 	}
 	switch (stage) {
 	case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  geo_point: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -8553,8 +8743,6 @@ namespace {
 		_serializers.insert(mtpc_inputFileLocation, _serialize_inputFileLocation);
 		_serializers.insert(mtpc_inputEncryptedFileLocation, _serialize_inputEncryptedFileLocation);
 		_serializers.insert(mtpc_inputDocumentFileLocation, _serialize_inputDocumentFileLocation);
-		_serializers.insert(mtpc_inputPhotoCropAuto, _serialize_inputPhotoCropAuto);
-		_serializers.insert(mtpc_inputPhotoCrop, _serialize_inputPhotoCrop);
 		_serializers.insert(mtpc_inputAppEvent, _serialize_inputAppEvent);
 		_serializers.insert(mtpc_peerUser, _serialize_peerUser);
 		_serializers.insert(mtpc_peerChat, _serialize_peerChat);
@@ -8619,6 +8807,7 @@ namespace {
 		_serializers.insert(mtpc_messageActionChannelMigrateFrom, _serialize_messageActionChannelMigrateFrom);
 		_serializers.insert(mtpc_messageActionPinMessage, _serialize_messageActionPinMessage);
 		_serializers.insert(mtpc_messageActionHistoryClear, _serialize_messageActionHistoryClear);
+		_serializers.insert(mtpc_messageActionGameScore, _serialize_messageActionGameScore);
 		_serializers.insert(mtpc_dialog, _serialize_dialog);
 		_serializers.insert(mtpc_photoEmpty, _serialize_photoEmpty);
 		_serializers.insert(mtpc_photo, _serialize_photo);
@@ -8815,6 +9004,7 @@ namespace {
 		_serializers.insert(mtpc_documentAttributeVideo, _serialize_documentAttributeVideo);
 		_serializers.insert(mtpc_documentAttributeAudio, _serialize_documentAttributeAudio);
 		_serializers.insert(mtpc_documentAttributeFilename, _serialize_documentAttributeFilename);
+		_serializers.insert(mtpc_documentAttributeHasStickers, _serialize_documentAttributeHasStickers);
 		_serializers.insert(mtpc_messages_stickersNotModified, _serialize_messages_stickersNotModified);
 		_serializers.insert(mtpc_messages_stickers, _serialize_messages_stickers);
 		_serializers.insert(mtpc_stickerPack, _serialize_stickerPack);
@@ -8854,6 +9044,7 @@ namespace {
 		_serializers.insert(mtpc_keyboardButtonRequestPhone, _serialize_keyboardButtonRequestPhone);
 		_serializers.insert(mtpc_keyboardButtonRequestGeoLocation, _serialize_keyboardButtonRequestGeoLocation);
 		_serializers.insert(mtpc_keyboardButtonSwitchInline, _serialize_keyboardButtonSwitchInline);
+		_serializers.insert(mtpc_keyboardButtonGame, _serialize_keyboardButtonGame);
 		_serializers.insert(mtpc_keyboardButtonRow, _serialize_keyboardButtonRow);
 		_serializers.insert(mtpc_replyKeyboardHide, _serialize_replyKeyboardHide);
 		_serializers.insert(mtpc_replyKeyboardForceReply, _serialize_replyKeyboardForceReply);
@@ -8953,6 +9144,10 @@ namespace {
 		_serializers.insert(mtpc_messages_stickerSetInstallResultSuccess, _serialize_messages_stickerSetInstallResultSuccess);
 		_serializers.insert(mtpc_messages_stickerSetInstallResultArchive, _serialize_messages_stickerSetInstallResultArchive);
 		_serializers.insert(mtpc_stickerSetCovered, _serialize_stickerSetCovered);
+		_serializers.insert(mtpc_stickerSetMultiCovered, _serialize_stickerSetMultiCovered);
+		_serializers.insert(mtpc_maskCoords, _serialize_maskCoords);
+		_serializers.insert(mtpc_inputStickeredMediaPhoto, _serialize_inputStickeredMediaPhoto);
+		_serializers.insert(mtpc_inputStickeredMediaDocument, _serialize_inputStickeredMediaDocument);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -8968,6 +9163,7 @@ namespace {
 		_serializers.insert(mtpc_auth_sendInvites, _serialize_auth_sendInvites);
 		_serializers.insert(mtpc_auth_bindTempAuthKey, _serialize_auth_bindTempAuthKey);
 		_serializers.insert(mtpc_auth_cancelCode, _serialize_auth_cancelCode);
+		_serializers.insert(mtpc_auth_dropTempAuthKeys, _serialize_auth_dropTempAuthKeys);
 		_serializers.insert(mtpc_account_registerDevice, _serialize_account_registerDevice);
 		_serializers.insert(mtpc_account_unregisterDevice, _serialize_account_unregisterDevice);
 		_serializers.insert(mtpc_account_updateNotifySettings, _serialize_account_updateNotifySettings);
@@ -9002,6 +9198,7 @@ namespace {
 		_serializers.insert(mtpc_messages_readFeaturedStickers, _serialize_messages_readFeaturedStickers);
 		_serializers.insert(mtpc_messages_saveRecentSticker, _serialize_messages_saveRecentSticker);
 		_serializers.insert(mtpc_messages_clearRecentStickers, _serialize_messages_clearRecentStickers);
+		_serializers.insert(mtpc_messages_setInlineGameScore, _serialize_messages_setInlineGameScore);
 		_serializers.insert(mtpc_upload_saveFilePart, _serialize_upload_saveFilePart);
 		_serializers.insert(mtpc_upload_saveBigFilePart, _serialize_upload_saveBigFilePart);
 		_serializers.insert(mtpc_help_saveAppLog, _serialize_help_saveAppLog);
@@ -9081,6 +9278,7 @@ namespace {
 		_serializers.insert(mtpc_messages_sendInlineBotResult, _serialize_messages_sendInlineBotResult);
 		_serializers.insert(mtpc_messages_editMessage, _serialize_messages_editMessage);
 		_serializers.insert(mtpc_messages_getAllDrafts, _serialize_messages_getAllDrafts);
+		_serializers.insert(mtpc_messages_setGameScore, _serialize_messages_setGameScore);
 		_serializers.insert(mtpc_channels_createChannel, _serialize_channels_createChannel);
 		_serializers.insert(mtpc_channels_editAdmin, _serialize_channels_editAdmin);
 		_serializers.insert(mtpc_channels_editTitle, _serialize_channels_editTitle);
@@ -9107,8 +9305,8 @@ namespace {
 		_serializers.insert(mtpc_messages_sendEncryptedService, _serialize_messages_sendEncryptedService);
 		_serializers.insert(mtpc_messages_receivedQueue, _serialize_messages_receivedQueue);
 		_serializers.insert(mtpc_photos_deletePhotos, _serialize_photos_deletePhotos);
-		_serializers.insert(mtpc_messages_getStickers, _serialize_messages_getStickers);
 		_serializers.insert(mtpc_messages_getAllStickers, _serialize_messages_getAllStickers);
+		_serializers.insert(mtpc_messages_getMaskStickers, _serialize_messages_getMaskStickers);
 		_serializers.insert(mtpc_messages_getWebPagePreview, _serialize_messages_getWebPagePreview);
 		_serializers.insert(mtpc_messages_exportChatInvite, _serialize_messages_exportChatInvite);
 		_serializers.insert(mtpc_channels_exportInvite, _serialize_channels_exportInvite);
@@ -9124,8 +9322,8 @@ namespace {
 		_serializers.insert(mtpc_messages_getPeerDialogs, _serialize_messages_getPeerDialogs);
 		_serializers.insert(mtpc_messages_getFeaturedStickers, _serialize_messages_getFeaturedStickers);
 		_serializers.insert(mtpc_messages_getRecentStickers, _serialize_messages_getRecentStickers);
-		_serializers.insert(mtpc_messages_getUnusedStickers, _serialize_messages_getUnusedStickers);
 		_serializers.insert(mtpc_messages_getArchivedStickers, _serialize_messages_getArchivedStickers);
+		_serializers.insert(mtpc_messages_getAttachedStickers, _serialize_messages_getAttachedStickers);
 		_serializers.insert(mtpc_updates_getState, _serialize_updates_getState);
 		_serializers.insert(mtpc_updates_getDifference, _serialize_updates_getDifference);
 		_serializers.insert(mtpc_updates_getChannelDifference, _serialize_updates_getChannelDifference);

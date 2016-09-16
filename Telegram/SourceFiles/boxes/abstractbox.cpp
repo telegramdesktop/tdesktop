@@ -193,28 +193,32 @@ void AbstractBox::raiseShadow() {
 	}
 }
 
-ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : AbstractBox(w),
-_scroll(this, scroll), _innerPtr(0), _topSkip(st::boxTitleHeight), _bottomSkip(st::boxScrollSkip) {
+ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : AbstractBox(w)
+, _scroll(this, scroll)
+, _topSkip(st::boxTitleHeight)
+, _bottomSkip(st::boxScrollSkip) {
 	setBlueTitle(true);
 }
 
 void ScrollableBox::resizeEvent(QResizeEvent *e) {
-	_scroll.setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
+	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
 	AbstractBox::resizeEvent(e);
 }
 
-void ScrollableBox::init(QWidget *inner, int32 bottomSkip, int32 topSkip) {
+void ScrollableBox::init(QWidget *inner, int bottomSkip, int topSkip) {
 	_bottomSkip = bottomSkip;
 	_topSkip = topSkip;
-	_innerPtr = inner;
-	_scroll.setWidget(_innerPtr);
-	_scroll.setFocusPolicy(Qt::NoFocus);
-	ScrollableBox::resizeEvent(0);
+	_scroll->setWidget(inner);
+	_scroll->setFocusPolicy(Qt::NoFocus);
+	ScrollableBox::resizeEvent(nullptr);
 }
 
-void ScrollableBox::showAll() {
-	_scroll.show();
-	AbstractBox::showAll();
+void ScrollableBox::initOwned(QWidget *inner, int bottomSkip, int topSkip) {
+	_bottomSkip = bottomSkip;
+	_topSkip = topSkip;
+	_scroll->setOwnedWidget(inner);
+	_scroll->setFocusPolicy(Qt::NoFocus);
+	ScrollableBox::resizeEvent(nullptr);
 }
 
 ItemListBox::ItemListBox(const style::flatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {

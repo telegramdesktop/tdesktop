@@ -1866,6 +1866,8 @@ emojiSymbolsActive: sprite(287px, 286px, 21px, 22px);
 stickersSettings: sprite(140px, 124px, 21px, 22px);
 savedGifsOver: sprite(329px, 286px, 21px, 22px);
 savedGifsActive: sprite(350px, 286px, 21px, 22px);
+featuredStickersOver: sprite(329px, 264px, 21px, 22px);
+featuredStickersActive: sprite(350px, 264px, 21px, 22px);
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);

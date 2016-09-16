@@ -1140,7 +1140,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 	for (int32 i = 0, l = attributes.size(); i < l; ++i) {
 		switch (attributes[i].type()) {
 		case mtpc_documentAttributeImageSize: {
-			const auto &d(attributes[i].c_documentAttributeImageSize());
+			auto &d = attributes[i].c_documentAttributeImageSize();
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
@@ -1148,14 +1148,16 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			_additional = nullptr;
 		} break;
 		case mtpc_documentAttributeSticker: {
-			const auto &d(attributes[i].c_documentAttributeSticker());
+			auto &d = attributes[i].c_documentAttributeSticker();
 			if (type == FileDocument) {
 				type = StickerDocument;
 				_additional = std_::make_unique<StickerData>();
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
-				sticker()->set = d.vstickerset;
+				if (sticker()->set.type() != mtpc_inputStickerSetID || d.vstickerset.type() == mtpc_inputStickerSetID) {
+					sticker()->set = d.vstickerset;
+				}
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {
