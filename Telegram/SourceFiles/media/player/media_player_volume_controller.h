@@ -23,5 +23,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
+class VolumeController : public TWidget {
+public:
+	VolumeController(QWidget *parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+
+private:
+
+};
+
 } // namespace Clip
 } // namespace Media

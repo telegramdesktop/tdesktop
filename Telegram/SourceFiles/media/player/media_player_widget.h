@@ -20,8 +20,65 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/boxshadow.h"
+
+class ScrollArea;
+
 namespace Media {
 namespace Player {
+
+class CoverWidget;
+class ListWidget;
+
+class Widget : public TWidget {
+	Q_OBJECT
+
+public:
+	Widget(QWidget *parent);
+
+	bool overlaps(const QRect &globalRect);
+
+	void otherEnter();
+	void otherLeave();
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+private slots:
+	void onShowStart();
+	void onHideStart();
+	void onScroll();
+
+	void onWindowActiveChanged();
+
+private:
+	void hidingFinished();
+	int contentLeft() const;
+	int contentWidth() const {
+		return width() - contentLeft();
+	}
+
+	void startAnimation();
+
+	bool _hiding = false;
+
+	QPixmap _cache;
+	FloatAnimation _a_appearance;
+
+	QTimer _hideTimer, _showTimer;
+
+	Ui::RectShadow _shadow;
+	ChildWidget<CoverWidget> _cover;
+	ChildWidget<ListWidget> _list = { nullptr };
+	ChildWidget<ScrollArea> _scroll = { nullptr };
+
+
+};
 
 } // namespace Clip
 } // namespace Media

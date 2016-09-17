@@ -31,3 +31,63 @@ mediaPlayerTitleButtonPauseTop: 8px;
 mediaPlayerTitleButtonPauseStroke: 3px;
 mediaPlayerTitleButtonPlayLeft: 10px;
 mediaPlayerTitleButtonPlayTop: 7px;
+
+mediaPlayerMarginLeft: 10px;
+mediaPlayerMarginBottom: 10px;
+mediaPlayerWidth: 344px;
+mediaPlayerCoverHeight: 102px;
+
+mediaPlayerPlayButton: IconButton {
+	width: 32px;
+	height: 32px;
+
+	opacity: 1.;
+	overOpacity: 1.;
+
+	icon: icon {
+		{ "player_play", #54b5ed, point(6px, 7px) },
+	};
+	iconPosition: point(0px, 0px);
+	downIconPosition: point(0px, 0px);
+
+	duration: 0;
+}
+mediaPlayerPauseIcon: icon {
+	{ "player_pause", #54b5ed, point(9px, 8px) }
+};
+
+mediaPlayerRepeatButton: IconButton(mediaPlayerPlayButton) {
+	icon: icon {
+		{ "player_repeat", #54b5ed, point(9px, 9px)}
+	};
+}
+
+mediaPlayerPadding: 18px;
+mediaPlayerNameTop: 24px;
+mediaPlayerPlayLeft: 9px;
+mediaPlayerPlayTop: 58px;
+mediaPlayerNameFont: normalFont;
+mediaPlayerNameFg: windowTextFg;
+mediaPlayerTimeFont: normalFont;
+mediaPlayerTimeFg: windowSubTextFg;
+mediaPlayerPlaybackTop: 32px;
+mediaPlayerPlaybackPadding: 8px;
+mediaPlayerPlaybackBg: #54b5ed;
+mediaPlayerPlaybackLine: 3px;
+
+mediaPlayerVolumeRight: 50px;
+mediaPlayerVolumeWidth: 86px;
+mediaPlayerVolumeLength: 64px;
+
+mediaPlayerVolumeIcon0: icon {
+	{ "player_volume0", #54b5ed },
+};
+mediaPlayerVolumeIcon1: icon {
+	{ "player_volume1", #54b5ed },
+};
+mediaPlayerVolumeIcon2: icon {
+	{ "player_volume2", #54b5ed },
+};
+mediaPlayerVolumeIcon3: icon {
+	{ "player_volume3", #54b5ed },
+};

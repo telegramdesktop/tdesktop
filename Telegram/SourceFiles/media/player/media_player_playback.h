@@ -23,5 +23,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
+class PlaybackWidget : public TWidget {
+public:
+	PlaybackWidget(QWidget *parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+
+};
+
 } // namespace Clip
 } // namespace Media

@@ -27,6 +27,12 @@ namespace Dialogs {
 class Row;
 } // namespace Dialogs
 
+namespace Media {
+namespace Player {
+class Widget;
+} // namespace Player
+} // namespace Media
+
 namespace Ui {
 class PeerAvatarButton;
 } // namespace Ui
@@ -580,6 +586,7 @@ private:
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;
+	ChildWidget<Media::Player::Widget> _mediaPlayer = { nullptr };
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
 	ChildWidget<HistoryHider> _hider = { nullptr };
 	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;

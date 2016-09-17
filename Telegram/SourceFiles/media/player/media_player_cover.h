@@ -20,8 +20,39 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+class FlatLabel;
+namespace Ui {
+class LabelSimple;
+class IconButton;
+} // namespace Ui
+
 namespace Media {
 namespace Player {
+
+class PlaybackWidget;
+class VolumeController;
+
+class CoverWidget : public TWidget {
+public:
+	CoverWidget(QWidget *parent);
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void updatePlayPrevNextPositions();
+
+	ChildWidget<FlatLabel> _nameLabel;
+	ChildWidget<Ui::LabelSimple> _timeLabel;
+	ChildWidget<PlaybackWidget> _playback;
+	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
+	ChildWidget<Ui::IconButton> _playPause;
+	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
+	ChildWidget<VolumeController> _volumeController;
+	ChildWidget<Ui::IconButton> _repeatTrack;
+
+};
 
 } // namespace Clip
 } // namespace Media

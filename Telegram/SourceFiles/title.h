@@ -61,6 +61,10 @@ public:
 
 	void maximizedChanged(bool maximized, bool force = false);
 
+	Media::Player::TitleButton *playerButton() {
+		return _player;
+	}
+
 	HitTestType hitTest(const QPoint &p);
 
 	void setHideLevel(float64 level);

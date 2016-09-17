@@ -21,8 +21,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_volume_controller.h"
 
+#include "styles/style_media_player.h"
+
 namespace Media {
 namespace Player {
+
+VolumeController::VolumeController(QWidget *parent) : TWidget(parent) {
+	resize(st::mediaPlayerVolumeWidth, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlaybackLine);
+}
+
+void VolumeController::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	st::mediaPlayerVolumeIcon0.paint(p, QPoint(0, (height() - st::mediaPlayerVolumeIcon0.height()) / 2), width());
+
+	auto left = rtl() ? 0 : width() - st::mediaPlayerVolumeLength;
+	p.fillRect(left, st::mediaPlayerPlaybackPadding, st::mediaPlayerVolumeLength, st::mediaPlayerPlaybackLine, st::mediaPlayerPlaybackBg);
+}
+
+void VolumeController::mousePressEvent(QMouseEvent *e) {
+}
+
+void VolumeController::mouseMoveEvent(QMouseEvent *e) {
+}
+
+void VolumeController::mouseReleaseEvent(QMouseEvent *e) {
+}
 
 } // namespace Player
 } // namespace Media

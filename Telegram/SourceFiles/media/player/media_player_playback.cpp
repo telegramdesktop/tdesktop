@@ -21,8 +21,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_playback.h"
 
+#include "styles/style_media_player.h"
+
 namespace Media {
 namespace Player {
+
+PlaybackWidget::PlaybackWidget(QWidget *parent) : TWidget(parent) {
+}
+
+void PlaybackWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(0, st::mediaPlayerPlaybackPadding, width(), st::mediaPlayerPlaybackLine, st::mediaPlayerPlaybackBg);
+}
 
 } // namespace Player
 } // namespace Media

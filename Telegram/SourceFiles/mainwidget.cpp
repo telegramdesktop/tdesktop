@@ -50,6 +50,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
+#include "media/player/media_player_button.h"
+#include "media/player/media_player_widget.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "window/chat_background.h"
@@ -74,6 +76,11 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _mediaType(this)
 , _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
+
+	if (!_mediaPlayer) {
+		_mediaPlayer = new Media::Player::Widget(this);
+		App::wnd()->getTitle()->playerButton()->installEventFilter(_mediaPlayer);
+	}
 
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_ptsWaiter.setRequesting(true);
@@ -2405,6 +2412,7 @@ void MainWidget::orderWidgets() {
 	_dialogs->raise();
 	_mediaType->raise();
 	_sideShadow.raise();
+	if (_mediaPlayer) _mediaPlayer->raise();
 	if (_hider) _hider->raise();
 }
 
@@ -2664,6 +2672,9 @@ inline int chatsListWidth(int windowWidth) {
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
+	if (_mediaPlayer) {
+		_mediaPlayer->moveToRight(0, 0);
+	}
 	if (Adaptive::OneColumn()) {
 		_dialogsWidth = width();
 		_player->setGeometry(0, 0, _dialogsWidth, _player->height());
