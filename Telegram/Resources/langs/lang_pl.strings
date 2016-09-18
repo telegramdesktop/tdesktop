@@ -88,7 +88,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_continue" = "Kontynuuj";
 "lng_close" = "Zamknij";
 "lng_connecting" = "Łączenie...";
-"lng_reconnecting" = "Ponowna próba połączenia w ciągu {count:now|in # s|in # s}...";
+"lng_reconnecting" = "Ponowna próba połączenia: {count:teraz|w ciągu # s|w ciągu # s}...";
 "lng_reconnecting_try_now" = "Spróbuj teraz";
 
 "lng_status_service_notifications" = "usługa powiadomień";
@@ -125,7 +125,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Za dużo prób. Proszę spróbować później.";
 "lng_gif_error" = "Wystąpił błąd podczas wczytywania animacji :(";
 "lng_edit_error" = "Nie możesz edytować wiadomości";
-"lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining.";
+"lng_join_channel_error" = "Przepraszamy, dołączyłeś do zbyt wielu kanałów i super grup. Opuść niektóre aby dołączyć.";
 "lng_join_channel_error" = "Przepraszamy, dołączyłeś do zbyt wielu kanałów i super grup. Opuść niektóre aby dołączyć.";
 "lng_edit_deleted" = "Wiadomość została usunięta";
 "lng_edit_too_long" = "Twoja wiadomość jest zbyt długa";
@@ -151,7 +151,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_phone_ph" = "Twój numer telefonu";
 "lng_phone_title" = "Telefon";
-"lng_phone_desc" = "Please confirm your country code and\nenter your phone number.";
+"lng_phone_desc" = "Proszę, potwierdź swój kraj\ni wpisz swój numer telefonu.";
 "lng_phone_desc" = "Proszę, potwierdź swój kraj\ni wpisz swój numer telefonu.";
 "lng_phone_notreg" = "Informacja: jeżeli nie masz jeszcze konta Telegram,\n[b]zarejestruj się[/b] proszę przez [a href=\"https://telegram.org/\"]iOS / Android[/a] lub {signup_start}tutaj »{signup_end}";
 "lng_country_code" = "Kod pocztowy";
@@ -170,10 +170,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_code_called" = "Telegram połączył się z twoim numerem
 
 "lng_bad_phone" = "Nieprawidłowy numer telefonu. Proszę spróbować ponownie.";
-"lng_bad_phone_noreg" = "Phone number not registered.";
+"lng_bad_phone_noreg" = "Numer telefonu nie jest zarejestrowany.";
 "lng_bad_code" = "Wpisałeś nieprawidłowy kod.";
-"lng_bad_name" = "Please enter your first and last name.";
-"lng_bad_photo" = "Bad image selected.";
+"lng_bad_name" = "Wpisz imię i nazwisko.";
+"lng_bad_photo" = "Wybrano nieprawidłową grafikę.";
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
@@ -186,11 +186,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_recover_hint" = "Kod został wysłany na adres {recover_email}";
 "lng_signin_bad_password" = "Wpisałeś nieprawidłowe hasło.";
 "lng_signin_wrong_code" = "Wpisałeś nieprawidłowy kod.";
-"lng_signin_try_password" = "Having trouble accessing your e-mail?";
+"lng_signin_try_password" = "Problem z dostępem do konta e-mail?";
 "lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set a new one in Settings.";
 "lng_signin_no_email_forgot" = "Since you haven't provided a recovery\ne-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
-"lng_signin_reset_account" = "Reset your account";
+"lng_signin_reset_account" = "Resetuj konto";
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 "lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
@@ -200,7 +200,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
 
 "lng_signup_title" = "Informacja i zdjęcie";
-"lng_signup_desc" = "Proszę wpisać swoje imię i\ndodaj zdjęcie.";
+"lng_signup_desc" = "Podaj swoje imię i\ndodaj zdjęcie.";
 
 "lng_signup_firstname" = "Imię";
 "lng_signup_lastname" = "Nazwisko";
@@ -218,11 +218,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "Zapisz";
 "lng_settings_upload" = "Ustaw zdjęcie profilowe";
-"lng_settings_crop_profile" = "Select a square area for your profile photo";
+"lng_settings_crop_profile" = "Wybierz obszar dla zdjęcia profilowego";
 "lng_settings_uploading_photo" = "Przesyłanie zdjęcia...";
 
 "lng_username_title" = "Nazwa użytkownika";
-"lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
+"lng_username_about" = "Wybierz nazwę użytkownika Telegram.\nDzięki temu, inni użytkownicy będą mogli cię znaleźć\ni skontaktować się z tobą, nawet\njeśli nie znają twojego numeru telefonu.\n\nMożesz użyć znaków a-z, 0-9 oraz symbolu podkreślenia.\nMinimalna długość nazwy to 5 znaków.";
 "lng_username_choose" = "Wybierz nazwę użytkownika.";
 "lng_username_invalid" = "Nazwa użytkownika jest nieprawidłowa.";
 "lng_username_occupied" = "Nazwa użytkownika jest zajęta.";
@@ -282,7 +282,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_bg_from_gallery" = "wybierz z galerii";
 "lng_settings_bg_from_file" = "Wybierz z pliku";
 "lng_settings_bg_tile" = "Powiel tło";
-"lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
+"lng_settings_adaptive_wide" = "Płynny układ dla szerokich ekranów";
 
 "lng_backgrounds_header" = "Wybierz nowe tło czatu";
 
@@ -323,8 +323,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_passcode_remove" = "Usuń lokalne hasło";
 "lng_passcode_turn_off" = "Wyłącz";
 "lng_passcode_autolock" = "Automatyczna blokada";
-"lng_passcode_autolock_away" = "Auto-Lock if away for:";
-"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
+"lng_passcode_autolock_away" = "Auto blokada, jeśli nieobecny przez:";
+"lng_passcode_autolock_inactive" = "Auto blokada, jeśli nieaktywny przez:";
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minutę|# minut}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# godzinę|# godzin}";
 "lng_passcode_enter_old" = "Wpisz bieżące hasło";
@@ -344,7 +344,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cloud_password_change" = "Change cloud password";
 "lng_cloud_password_create" = "Cloud password";
 "lng_cloud_password_remove" = "Remove cloud password";
-"lng_cloud_password_set" = "Włącz uwierzytelnianie wielopoziomowe";
+"lng_cloud_password_set" = "Włącz weryfikację dwuetapową";
 "lng_cloud_password_edit" = "Change cloud password";
 "lng_cloud_password_enter_old" = "Wpisz aktualne hasło";
 "lng_cloud_password_enter_first" = "Wpisz hasło";
@@ -358,41 +358,41 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the pin code.";
 "lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery e-mail?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
 "lng_cloud_password_skip_email" = "Pomiń e-mail";
-"lng_cloud_password_almost" = "A confirmation link was sent to the\ne-mail you provided. Two-step verification will be enabled as soon as you follow that link.";
-"lng_cloud_password_was_set" = "Two-step verification enabled.";
+"lng_cloud_password_almost" = "Link potwierdzający został wysłany na\nna podany adres e-mail. Weryfikacja dwuetapowa będzie włączona tuz po tym, jak użyjesz odnośnika z przesłanej wiadomości.";
+"lng_cloud_password_was_set" = "Weryfikacja dwuetapowa jest włączona.";
 "lng_cloud_password_updated" = "Your cloud password was updated.";
-"lng_cloud_password_removed" = "Two-step verification was disabled.";
-"lng_cloud_password_differ" = "Passwords do not match";
+"lng_cloud_password_removed" = "Weryfikacja dwuetapowa jest wyłączona.";
+"lng_cloud_password_differ" = "Hasła nie są jednakowe";
 "lng_cloud_password_wrong" = "Wrong cloud password";
-"lng_cloud_password_is_same" = "Password was not changed";
+"lng_cloud_password_is_same" = "Hasło nie zostało zmienione";
 
 "lng_connection_type" = "Typ połączenia:";
 "lng_connection_auto_connecting" = "Domyślne (łączenie...)";
-"lng_connection_auto" = "Default ({transport} used)";
-"lng_connection_proxy_connecting" = "Connecting through proxy...";
-"lng_connection_proxy" = "{transport} with proxy";
+"lng_connection_auto" = "Domyślne (użyto {transport})";
+"lng_connection_proxy_connecting" = "Łączenie przez proxy...";
+"lng_connection_proxy" = "{transport} z proxy";
 "lng_connection_header" = "Typ połączenia";
 "lng_connection_auto_rb" = "Auto (TCP jeśli dostępne, lub HTTP)";
-"lng_connection_http_proxy_rb" = "HTTP with custom http-proxy";
-"lng_connection_tcp_proxy_rb" = "TCP with custom socks5-proxy";
-"lng_connection_try_ipv6" = "Try connecting through IPv6";
-"lng_connection_host_ph" = "Hostname";
+"lng_connection_http_proxy_rb" = "HTTP z własnym http-proxy";
+"lng_connection_tcp_proxy_rb" = "TCP z własnym socks5-proxy";
+"lng_connection_try_ipv6" = "Próbuj łączyć przez IPv6";
+"lng_connection_host_ph" = "Nazwa hosta";
 "lng_connection_port_ph" = "Port";
 "lng_connection_user_ph" = "Nazwa użytkownika";
 "lng_connection_password_ph" = "Hasło";
 "lng_connection_save" = "Zapisz";
 "lng_settings_show_sessions" = "Pokaż wszystkie sesje";
 "lng_settings_reset" = "Przerwij wszystkie inne sesje";
-"lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
-"lng_settings_reset_one_sure" = "Do you want to terminate this session?";
-"lng_settings_reset_button" = "Terminate";
-"lng_settings_reset_done" = "Other sessions terminated";
-"lng_settings_ask_question" = "Ask a Question";
+"lng_settings_reset_sure" = "Chcesz przerwać wszystkie, inne sesje?";
+"lng_settings_reset_one_sure" = "Chcesz przerwać tę sesję?";
+"lng_settings_reset_button" = "Przerwij";
+"lng_settings_reset_done" = "Przerwano wybrane sesje";
+"lng_settings_ask_question" = "Zadaj pytanie";
 "lng_settings_ask_sure" = "Please note that Telegram Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
-"lng_settings_faq_button" = "Go to FAQ";
-"lng_settings_ask_ok" = "Ask";
+"lng_settings_faq_button" = "Przejdź do FAQ";
+"lng_settings_ask_ok" = "Zapytaj";
 "lng_settings_faq" = "Telegram FAQ";
-"lng_settings_logout" = "Log Out";
+"lng_settings_logout" = "Wyloguj";
 "lng_sure_logout" = "Czy na pewno chcesz się wylogować?";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
@@ -483,7 +483,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_report_reason_other" = "Inne";
 "lng_report_reason_description" = "Opis";
 "lng_report_button" = "Zgłoś";
-"lng_report_thanks" = "Thank you! Your report will be reviewed by our team very soon.";
+"lng_report_thanks" = "Dziękujemy! Twoje zgłoszenie zostanie rozpatrzone najszybciej jak to możliwe.";
 
 "lng_channel_add_admins" = "Nowy administrator";
 "lng_channel_add_members" = "Dodaj użytkowników";
@@ -846,7 +846,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_image_compressed" = "Wysyłaj skompresowane grafiki";
 "lng_send_image_empty" = "Nie można wysłać pustego pliku :(";
 "lng_send_image_too_large" = "Nie można wysłać pliku, ponieważ jest większy niż 1,5 GB :(";
-"lng_send_folder" = "Nie można wysłać «{name}», ponieważ to katalog :(";
+"lng_send_folder" = "Nie można wysłać «{name}», ponieważ jest to katalog :(";
 
 "lng_forward_choose" = "Wybierz odbiorców...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
