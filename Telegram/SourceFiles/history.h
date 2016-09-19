@@ -1061,6 +1061,16 @@ public:
 		}
 		return nullptr;
 	}
+	UserData *getMessageBot() const {
+		if (auto bot = viaBot()) {
+			return bot;
+		}
+		auto bot = from()->asUser();
+		if (!bot) {
+			bot = history()->peer->asUser();
+		}
+		return (bot && bot->botInfo) ? bot : nullptr;
+	};
 
 	History *history() const {
 		return _history;

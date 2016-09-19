@@ -65,6 +65,10 @@ private:
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installFail(const RPCError &error);
 
+	bool isMasksSet() const {
+		return (_setFlags & MTPDstickerSet::Flag::f_masks);
+	}
+
 	QVector<FloatAnimation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;

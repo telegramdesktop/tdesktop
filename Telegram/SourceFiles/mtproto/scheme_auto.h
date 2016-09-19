@@ -284,9 +284,9 @@ enum {
 	mtpc_updateBotInlineSend = 0xe48f964,
 	mtpc_updateEditChannelMessage = 0x1b3f4df7,
 	mtpc_updateChannelPinnedMessage = 0x98592475,
-	mtpc_updateBotCallbackQuery = 0x81c5615f,
+	mtpc_updateBotCallbackQuery = 0x4bf9a8a0,
 	mtpc_updateEditMessage = 0xe40370a3,
-	mtpc_updateInlineBotCallbackQuery = 0xd618a28b,
+	mtpc_updateInlineBotCallbackQuery = 0x4f2f45d1,
 	mtpc_updateReadChannelOutbox = 0x25d6c9c7,
 	mtpc_updateDraftMessage = 0xee2bb969,
 	mtpc_updateReadFeaturedStickers = 0x571d2742,
@@ -653,7 +653,7 @@ enum {
 	mtpc_messages_getRecentStickers = 0x5ea192c9,
 	mtpc_messages_saveRecentSticker = 0x392718f8,
 	mtpc_messages_clearRecentStickers = 0x8999602d,
-	mtpc_messages_getArchivedStickers = 0x906e241f,
+	mtpc_messages_getArchivedStickers = 0x57f17692,
 	mtpc_messages_setGameScore = 0xdfbc7c1f,
 	mtpc_messages_setInlineGameScore = 0x54f882f1,
 	mtpc_messages_getMaskStickers = 0x65b8c79f,
@@ -12365,7 +12365,7 @@ public:
 
 	MTPDupdateBotCallbackQuery() {
 	}
-	MTPDupdateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPbytes &_data, MTPint _game_id) : vflags(_flags), vquery_id(_query_id), vuser_id(_user_id), vpeer(_peer), vmsg_id(_msg_id), vdata(_data), vgame_id(_game_id) {
+	MTPDupdateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) : vflags(_flags), vquery_id(_query_id), vuser_id(_user_id), vpeer(_peer), vmsg_id(_msg_id), vchat_instance(_chat_instance), vdata(_data), vgame_id(_game_id) {
 	}
 
 	MTPflags<MTPDupdateBotCallbackQuery::Flags> vflags;
@@ -12373,6 +12373,7 @@ public:
 	MTPint vuser_id;
 	MTPPeer vpeer;
 	MTPint vmsg_id;
+	MTPlong vchat_instance;
 	MTPbytes vdata;
 	MTPint vgame_id;
 };
@@ -12405,13 +12406,14 @@ public:
 
 	MTPDupdateInlineBotCallbackQuery() {
 	}
-	MTPDupdateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPbytes &_data, MTPint _game_id) : vflags(_flags), vquery_id(_query_id), vuser_id(_user_id), vmsg_id(_msg_id), vdata(_data), vgame_id(_game_id) {
+	MTPDupdateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) : vflags(_flags), vquery_id(_query_id), vuser_id(_user_id), vmsg_id(_msg_id), vchat_instance(_chat_instance), vdata(_data), vgame_id(_game_id) {
 	}
 
 	MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> vflags;
 	MTPlong vquery_id;
 	MTPint vuser_id;
 	MTPInputBotInlineMessageID vmsg_id;
+	MTPlong vchat_instance;
 	MTPbytes vdata;
 	MTPint vgame_id;
 };
@@ -21347,6 +21349,16 @@ public:
 
 class MTPmessages_getArchivedStickers { // RPC method 'messages.getArchivedStickers'
 public:
+	enum class Flag : int32 {
+		f_masks = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_masks() const { return vflags.v & Flag::f_masks; }
+
+	MTPflags<MTPmessages_getArchivedStickers::Flags> vflags;
 	MTPlong voffset_id;
 	MTPint vlimit;
 
@@ -21355,26 +21367,30 @@ public:
 	MTPmessages_getArchivedStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getArchivedStickers) {
 		read(from, end, cons);
 	}
-	MTPmessages_getArchivedStickers(const MTPlong &_offset_id, MTPint _limit) : voffset_id(_offset_id), vlimit(_limit) {
+	MTPmessages_getArchivedStickers(const MTPflags<MTPmessages_getArchivedStickers::Flags> &_flags, const MTPlong &_offset_id, MTPint _limit) : vflags(_flags), voffset_id(_offset_id), vlimit(_limit) {
 	}
 
 	uint32 innerLength() const {
-		return voffset_id.innerLength() + vlimit.innerLength();
+		return vflags.innerLength() + voffset_id.innerLength() + vlimit.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getArchivedStickers;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getArchivedStickers) {
+		vflags.read(from, end);
 		voffset_id.read(from, end);
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		voffset_id.write(to);
 		vlimit.write(to);
 	}
 
 	typedef MTPmessages_ArchivedStickers ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPmessages_getArchivedStickers::Flags)
+
 class MTPmessages_GetArchivedStickers : public MTPBoxed<MTPmessages_getArchivedStickers> {
 public:
 	MTPmessages_GetArchivedStickers() {
@@ -21383,7 +21399,7 @@ public:
 	}
 	MTPmessages_GetArchivedStickers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getArchivedStickers>(from, end, cons) {
 	}
-	MTPmessages_GetArchivedStickers(const MTPlong &_offset_id, MTPint _limit) : MTPBoxed<MTPmessages_getArchivedStickers>(MTPmessages_getArchivedStickers(_offset_id, _limit)) {
+	MTPmessages_GetArchivedStickers(const MTPflags<MTPmessages_getArchivedStickers::Flags> &_flags, const MTPlong &_offset_id, MTPint _limit) : MTPBoxed<MTPmessages_getArchivedStickers>(MTPmessages_getArchivedStickers(_flags, _offset_id, _limit)) {
 	}
 };
 
@@ -24140,14 +24156,14 @@ public:
 	inline static MTPupdate new_updateChannelPinnedMessage(MTPint _channel_id, MTPint _id) {
 		return MTPupdate(new MTPDupdateChannelPinnedMessage(_channel_id, _id));
 	}
-	inline static MTPupdate new_updateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPbytes &_data, MTPint _game_id) {
-		return MTPupdate(new MTPDupdateBotCallbackQuery(_flags, _query_id, _user_id, _peer, _msg_id, _data, _game_id));
+	inline static MTPupdate new_updateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) {
+		return MTPupdate(new MTPDupdateBotCallbackQuery(_flags, _query_id, _user_id, _peer, _msg_id, _chat_instance, _data, _game_id));
 	}
 	inline static MTPupdate new_updateEditMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 		return MTPupdate(new MTPDupdateEditMessage(_message, _pts, _pts_count));
 	}
-	inline static MTPupdate new_updateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPbytes &_data, MTPint _game_id) {
-		return MTPupdate(new MTPDupdateInlineBotCallbackQuery(_flags, _query_id, _user_id, _msg_id, _data, _game_id));
+	inline static MTPupdate new_updateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) {
+		return MTPupdate(new MTPDupdateInlineBotCallbackQuery(_flags, _query_id, _user_id, _msg_id, _chat_instance, _data, _game_id));
 	}
 	inline static MTPupdate new_updateReadChannelOutbox(MTPint _channel_id, MTPint _max_id) {
 		return MTPupdate(new MTPDupdateReadChannelOutbox(_channel_id, _max_id));
@@ -29744,7 +29760,7 @@ inline uint32 MTPupdate::innerLength() const {
 		}
 		case mtpc_updateBotCallbackQuery: {
 			const MTPDupdateBotCallbackQuery &v(c_updateBotCallbackQuery());
-			return v.vflags.innerLength() + v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vpeer.innerLength() + v.vmsg_id.innerLength() + (v.has_data() ? v.vdata.innerLength() : 0) + (v.has_game_id() ? v.vgame_id.innerLength() : 0);
+			return v.vflags.innerLength() + v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vpeer.innerLength() + v.vmsg_id.innerLength() + v.vchat_instance.innerLength() + (v.has_data() ? v.vdata.innerLength() : 0) + (v.has_game_id() ? v.vgame_id.innerLength() : 0);
 		}
 		case mtpc_updateEditMessage: {
 			const MTPDupdateEditMessage &v(c_updateEditMessage());
@@ -29752,7 +29768,7 @@ inline uint32 MTPupdate::innerLength() const {
 		}
 		case mtpc_updateInlineBotCallbackQuery: {
 			const MTPDupdateInlineBotCallbackQuery &v(c_updateInlineBotCallbackQuery());
-			return v.vflags.innerLength() + v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vmsg_id.innerLength() + (v.has_data() ? v.vdata.innerLength() : 0) + (v.has_game_id() ? v.vgame_id.innerLength() : 0);
+			return v.vflags.innerLength() + v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vmsg_id.innerLength() + v.vchat_instance.innerLength() + (v.has_data() ? v.vdata.innerLength() : 0) + (v.has_game_id() ? v.vgame_id.innerLength() : 0);
 		}
 		case mtpc_updateReadChannelOutbox: {
 			const MTPDupdateReadChannelOutbox &v(c_updateReadChannelOutbox());
@@ -30069,6 +30085,7 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v.vuser_id.read(from, end);
 			v.vpeer.read(from, end);
 			v.vmsg_id.read(from, end);
+			v.vchat_instance.read(from, end);
 			if (v.has_data()) { v.vdata.read(from, end); } else { v.vdata = MTPbytes(); }
 			if (v.has_game_id()) { v.vgame_id.read(from, end); } else { v.vgame_id = MTPint(); }
 		} break;
@@ -30086,6 +30103,7 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v.vquery_id.read(from, end);
 			v.vuser_id.read(from, end);
 			v.vmsg_id.read(from, end);
+			v.vchat_instance.read(from, end);
 			if (v.has_data()) { v.vdata.read(from, end); } else { v.vdata = MTPbytes(); }
 			if (v.has_game_id()) { v.vgame_id.read(from, end); } else { v.vgame_id = MTPint(); }
 		} break;
@@ -30362,6 +30380,7 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			v.vuser_id.write(to);
 			v.vpeer.write(to);
 			v.vmsg_id.write(to);
+			v.vchat_instance.write(to);
 			if (v.has_data()) v.vdata.write(to);
 			if (v.has_game_id()) v.vgame_id.write(to);
 		} break;
@@ -30377,6 +30396,7 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			v.vquery_id.write(to);
 			v.vuser_id.write(to);
 			v.vmsg_id.write(to);
+			v.vchat_instance.write(to);
 			if (v.has_data()) v.vdata.write(to);
 			if (v.has_game_id()) v.vgame_id.write(to);
 		} break;
@@ -30681,15 +30701,15 @@ inline MTPupdate MTP_updateChannelPinnedMessage(MTPint _channel_id, MTPint _id) 
 	return MTP::internal::TypeCreator::new_updateChannelPinnedMessage(_channel_id, _id);
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDupdateBotCallbackQuery::Flags)
-inline MTPupdate MTP_updateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPbytes &_data, MTPint _game_id) {
-	return MTP::internal::TypeCreator::new_updateBotCallbackQuery(_flags, _query_id, _user_id, _peer, _msg_id, _data, _game_id);
+inline MTPupdate MTP_updateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) {
+	return MTP::internal::TypeCreator::new_updateBotCallbackQuery(_flags, _query_id, _user_id, _peer, _msg_id, _chat_instance, _data, _game_id);
 }
 inline MTPupdate MTP_updateEditMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 	return MTP::internal::TypeCreator::new_updateEditMessage(_message, _pts, _pts_count);
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDupdateInlineBotCallbackQuery::Flags)
-inline MTPupdate MTP_updateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPbytes &_data, MTPint _game_id) {
-	return MTP::internal::TypeCreator::new_updateInlineBotCallbackQuery(_flags, _query_id, _user_id, _msg_id, _data, _game_id);
+inline MTPupdate MTP_updateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, MTPint _game_id) {
+	return MTP::internal::TypeCreator::new_updateInlineBotCallbackQuery(_flags, _query_id, _user_id, _msg_id, _chat_instance, _data, _game_id);
 }
 inline MTPupdate MTP_updateReadChannelOutbox(MTPint _channel_id, MTPint _max_id) {
 	return MTP::internal::TypeCreator::new_updateReadChannelOutbox(_channel_id, _max_id);

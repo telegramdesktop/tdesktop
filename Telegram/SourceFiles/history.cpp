@@ -2581,7 +2581,17 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 					} break;
 					case mtpc_keyboardButtonGame: {
 						auto &buttonData = button.c_keyboardButtonGame();
-						auto strData = QString::number(buttonData.vgame_id.v) + ',' + qs(buttonData.vgame_title);
+						auto title = qs(buttonData.vgame_title);
+						auto start = qs(buttonData.vstart_param);
+						auto charIsGoodForStartParam = [](QChar ch) {
+							return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-');
+						};
+						for (auto &ch : start) {
+							if (!charIsGoodForStartParam(ch)) {
+								ch = '_';
+							}
+						}
+						auto strData = QString::number(buttonData.vgame_id.v) + ',' + start + ',' + title;
 						buttonRow.push_back({ Button::Type::Game, qs(buttonData.vtext), strData.toUtf8(), 0 });
 					} break;
 					}
@@ -6468,7 +6478,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 
 		replyToLnk.reset(new GoToMessageClickHandler(replyToMsg->history()->peer->id, replyToMsg->id));
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
-			if (UserData *bot = replyToMsg->viaBot()) {
+			if (auto bot = replyToMsg->viaBot()) {
 				_replyToVia.reset(new HistoryMessageVia());
 				_replyToVia->create(peerToUser(bot->id));
 			}
@@ -6720,7 +6730,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 	if (fwd->authorOriginal()->isChannel()) {
 		config.originalId = fwd->id;
 	}
-	UserData *fwdViaBot = fwd->viaBot();
+	auto fwdViaBot = fwd->viaBot();
 	if (fwdViaBot) config.viaBotId = peerToUser(fwdViaBot->id);
 	int fwdViewsCount = fwd->viewsCount();
 	if (fwdViewsCount > 0) {
@@ -8133,7 +8143,9 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 						if (button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
 							auto strData = QString::fromUtf8(button.data);
 							second = MakeShared<ReplyMarkupClickHandler>(item, i, j);
-							return textcmdLink(2, strData.mid(strData.indexOf(',') + 1));
+							auto parts = strData.split(',');
+							t_assert(parts.size() > 2);
+							return textcmdLink(2, parts.mid(2).join(','));
 						}
 					}
 				}
