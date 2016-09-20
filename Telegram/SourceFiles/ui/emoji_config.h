@@ -173,7 +173,7 @@ inline void appendPartToResult(QString &result, const QChar *start, const QChar 
 			if (entity.offset() >= from - start) {
 				entity.extendToLeft(from - start - result.size());
 			}
-			if (entity.offset() + entity.length() < to - start) {
+			if (entity.offset() + entity.length() <= to - start) {
 				entity.shrinkFromRight(from - start - result.size());
 			}
 		}
