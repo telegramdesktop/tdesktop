@@ -444,7 +444,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
 
-	auto &image = currentImage();
+	auto image = currentImage();
 	int w = image.width() / cIntRetinaFactor(), h = image.height() / cIntRetinaFactor();
 	if (_a_shown.animating()) {
 		float64 shown = a_shown.current();

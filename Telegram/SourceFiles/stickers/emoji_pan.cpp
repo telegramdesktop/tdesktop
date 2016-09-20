@@ -1441,12 +1441,12 @@ void StickerPanInner::refreshStickers() {
 			}
 			auto i = _animations.find(sel + 1);
 			if (i != _animations.cend()) {
-				i.value() = (i.value() >= st::emojiPanDuration) ? (i.value() - st::emojiPanDuration) : 0;
+				i.value() = (i.value() >= static_cast<uint32>(st::emojiPanDuration)) ? (i.value() - st::emojiPanDuration) : 0;
 			}
 			if (xsel >= 0) {
 				auto j = _animations.find(xsel + 1);
 				if (j != _animations.cend()) {
-					j.value() = (j.value() >= st::emojiPanDuration) ? (j.value() - st::emojiPanDuration) : 0;
+					j.value() = (j.value() >= static_cast<uint32>(st::emojiPanDuration)) ? (j.value() - st::emojiPanDuration) : 0;
 				}
 			}
 			step_selected(getms(), true);

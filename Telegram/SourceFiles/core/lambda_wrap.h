@@ -437,7 +437,7 @@ using RPCDoneHandlerImplementation = RPCHandlerImplementation<RPCAbstractDoneHan
 template <typename R>
 class RPCDoneHandlerImplementationBare : public RPCDoneHandlerImplementation<R(const mtpPrime*, const mtpPrime*)> { // done(from, end)
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R(const mtpPrime*, const mtpPrime*)>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler(from, end) : void(0);
 	}
@@ -447,7 +447,7 @@ public:
 template <typename R>
 class RPCDoneHandlerImplementationBareReq : public RPCDoneHandlerImplementation<R(const mtpPrime*, const mtpPrime*, mtpRequestId)> { // done(from, end, req_id)
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R(const mtpPrime*, const mtpPrime*, mtpRequestId)>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler(from, end, requestId) : void(0);
 	}
@@ -457,7 +457,7 @@ public:
 template <typename R, typename T>
 class RPCDoneHandlerImplementationPlain : public RPCDoneHandlerImplementation<R(const T&)> { // done(result)
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R(const T&)>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler(T(from, end)) : void(0);
 	}
@@ -467,7 +467,7 @@ public:
 template <typename R, typename T>
 class RPCDoneHandlerImplementationReq : public RPCDoneHandlerImplementation<R(const T&, mtpRequestId)> { // done(result, req_id)
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R(const T&, mtpRequestId)>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler(T(from, end), requestId) : void(0);
 	}
@@ -477,7 +477,7 @@ public:
 template <typename R>
 class RPCDoneHandlerImplementationNo : public RPCDoneHandlerImplementation<R()> { // done()
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R()>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler() : void(0);
 	}
@@ -487,7 +487,7 @@ public:
 template <typename R>
 class RPCDoneHandlerImplementationNoReq : public RPCDoneHandlerImplementation<R(mtpRequestId)> { // done(req_id)
 public:
-	using Parent::Parent;
+	using RPCDoneHandlerImplementation<R(mtpRequestId)>::Parent::Parent;
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		return this->_handler ? this->_handler(requestId) : void(0);
 	}

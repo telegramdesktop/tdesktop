@@ -580,7 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "a contact information";
 "lng_action_pinned_media_location" = "a location mark";
 "lng_action_pinned_media_sticker" = "a sticker";
-"lng_action_game_score" = "{from} scored {score} in {game}";
+"lng_action_game_score" = "{from} scored {count:#|#|#} in {game}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
