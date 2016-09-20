@@ -581,6 +581,7 @@ namespace {
 	FileKey _backgroundKey = 0;
 	bool _backgroundWasRead = false;
 
+	bool _readingUserSettings = false;
 	FileKey _userSettingsKey = 0;
 	FileKey _recentHashtagsAndBotsKey = 0;
 	bool _recentHashtagsAndBotsWereRead = false;
@@ -1548,6 +1549,12 @@ namespace {
 	}
 
 	void _writeUserSettings() {
+		if (_readingUserSettings) {
+			LOG(("App Error: attempt to write settings while reading them!"));
+			return;
+		}
+		LOG(("App Info: writing encrypted user settings..."));
+
 		if (!_userSettingsKey) {
 			_userSettingsKey = genKey();
 			_mapChanged = true;
@@ -1622,22 +1629,28 @@ namespace {
 	void _readUserSettings() {
 		FileReadDescriptor userSettings;
 		if (!readEncryptedFile(userSettings, _userSettingsKey)) {
+			LOG(("App Info: could not read encrypted user settings..."));
 			_readOldUserSettings();
 			return _writeUserSettings();
 		}
 
 		LOG(("App Info: reading encrypted user settings..."));
+		_readingUserSettings = true;
 		while (!userSettings.stream.atEnd()) {
 			quint32 blockId;
 			userSettings.stream >> blockId;
 			if (!_checkStreamStatus(userSettings.stream)) {
+				_readingUserSettings = false;
 				return _writeUserSettings();
 			}
 
 			if (!_readSetting(blockId, userSettings.stream, userSettings.version)) {
+				_readingUserSettings = false;
 				return _writeUserSettings();
 			}
 		}
+		_readingUserSettings = false;
+		LOG(("App Info: encrypted user settings read."));
 	}
 
 	void _writeMtpData() {

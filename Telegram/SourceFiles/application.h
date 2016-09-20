@@ -28,12 +28,12 @@ class Application : public QApplication {
 	Q_OBJECT
 
 public:
-
 	Application(int &argc, char **argv);
+
+	bool event(QEvent *e) override;
 
 // Single instance application
 public slots:
-
 	void socketConnected();
 	void socketError(QLocalSocket::LocalSocketError e);
 	void socketDisconnected();
@@ -48,7 +48,6 @@ public slots:
 	void closeApplication(); // will be done in aboutToQuit()
 
 private:
-
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
 	typedef QList<LocalClient> LocalClients;
 
@@ -64,7 +63,6 @@ private:
 
 // Autoupdating
 public:
-
 	void startUpdateCheck(bool forceWait);
 	void stopUpdate();
 
@@ -78,7 +76,6 @@ public:
 	int32 updatingReady();
 
 signals:
-
 	void updateChecking();
 	void updateLatest();
 	void updateProgress(qint64 ready, qint64 total);
@@ -86,7 +83,6 @@ signals:
 	void updateFailed();
 
 public slots:
-
 	void updateCheck();
 
 	void updateGotCurrent();
@@ -96,7 +92,6 @@ public slots:
 	void onUpdateFailed();
 
 private:
-
 	SingleTimer _updateCheckTimer;
 	QNetworkReply *_updateReply = nullptr;
 	QNetworkAccessManager _updateManager;

@@ -107,6 +107,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void keyPressEvent(QKeyEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -169,6 +170,11 @@ private:
 
 	void step_state(uint64 ms, bool timer);
 	void step_radial(uint64 ms, bool timer);
+
+	void zoomIn();
+	void zoomOut();
+	void zoomReset();
+	void zoomUpdate(int32 &newZoom);
 
 	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
 
@@ -315,6 +321,8 @@ private:
 	Showing _animations;
 	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
 	ShowingOpacities _animOpacities;
+
+	int _verticalWheelDelta = 0;
 
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
