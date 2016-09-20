@@ -3874,7 +3874,7 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 
 		if (set) {
 			auto it = sets.find(set->vid.v);
-			QString title = stickerSetTitle(*set);
+			auto title = stickerSetTitle(*set);
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
 				if (unread.contains(set->vid.v)) {
@@ -5783,13 +5783,7 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, msg->id));
 
-	auto bot = msg->viaBot();
-	if (!bot) {
-		bot = msg->from()->asUser();
-		if (bot && !bot->botInfo) {
-			bot = nullptr;
-		}
-	}
+	auto bot = msg->getMessageBot();
 
 	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
 	BotCallbackInfo info = { bot, msg->fullId(), row, col, (button->type == ButtonType::Game) };

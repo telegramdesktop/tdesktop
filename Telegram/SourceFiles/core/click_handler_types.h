@@ -29,7 +29,7 @@ public:
 	}
 
 	void copyToClipboard() const override {
-		QString u = url();
+		auto u = url();
 		if (!u.isEmpty()) {
 			QApplication::clipboard()->setText(u);
 		}

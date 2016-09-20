@@ -44,8 +44,9 @@ class ShareBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
+	using CopyCallback = base::lambda_unique<void()>;
 	using SubmitCallback = base::lambda_unique<void(const QVector<PeerData*> &)>;
-	ShareBox(SubmitCallback &&callback);
+	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback);
 
 private slots:
 	void onFilterUpdate();
@@ -55,7 +56,8 @@ private slots:
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
-	void onShare();
+	void onSubmit();
+	void onCopyLink();
 	void onSelectedChanged();
 
 	void onMustScrollTo(int top, int bottom);
@@ -69,16 +71,19 @@ protected:
 
 private:
 	void moveButtons();
+	void updateButtonsVisibility();
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
 
-	SubmitCallback _callback;
+	CopyCallback _copyCallback;
+	SubmitCallback _submitCallback;
 
 	ChildWidget<internal::ShareInner> _inner;
 	ChildWidget<InputField> _filter;
 	ChildWidget<IconedButton> _filterCancel;
 
+	ChildWidget<BoxButton> _copy;
 	ChildWidget<BoxButton> _share;
 	ChildWidget<BoxButton> _cancel;
 

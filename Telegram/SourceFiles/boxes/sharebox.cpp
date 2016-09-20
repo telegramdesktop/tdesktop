@@ -31,12 +31,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
+#include "ui/toast/toast.h"
 
-ShareBox::ShareBox(SubmitCallback &&callback) : ItemListBox(st::boxScroll)
-, _callback(std_::move(callback))
+ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback) : ItemListBox(st::boxScroll)
+, _copyCallback(std_::move(copyCallback))
+, _submitCallback(std_::move(submitCallback))
 , _inner(this)
 , _filter(this, st::boxSearchField, lang(lng_participant_filter))
 , _filterCancel(this, st::boxSearchCancel)
+, _copy(this, lang(lng_share_copy_link), st::defaultBoxButton)
 , _share(this, lang(lng_share_confirm), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this)
@@ -47,7 +50,8 @@ ShareBox::ShareBox(SubmitCallback &&callback) : ItemListBox(st::boxScroll)
 
 	connect(_inner, SIGNAL(selectedChanged()), this, SLOT(onSelectedChanged()));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
-	connect(_share, SIGNAL(clicked()), this, SLOT(onShare()));
+	connect(_copy, SIGNAL(clicked()), this, SLOT(onCopyLink()));
+	connect(_share, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
@@ -60,6 +64,8 @@ ShareBox::ShareBox(SubmitCallback &&callback) : ItemListBox(st::boxScroll)
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
+
+	updateButtonsVisibility();
 
 	prepare();
 }
@@ -173,12 +179,16 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void ShareBox::moveButtons() {
+	_copy->moveToRight(st::boxButtonPadding.right(), _share->y());
 	_share->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _share->height());
-	auto cancelRight = st::boxButtonPadding.right();
-	if (_inner->hasSelected()) {
-		cancelRight += _share->width() + st::boxButtonPadding.left();
-	}
-	_cancel->moveToRight(cancelRight, _share->y());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _share->width() + st::boxButtonPadding.left(), _share->y());
+}
+
+void ShareBox::updateButtonsVisibility() {
+	auto hasSelected = _inner->hasSelected();
+	_copy->setVisible(!hasSelected);
+	_share->setVisible(hasSelected);
+	_cancel->setVisible(hasSelected);
 }
 
 void ShareBox::onFilterCancel() {
@@ -190,14 +200,20 @@ void ShareBox::onFilterUpdate() {
 	_inner->updateFilter(_filter->getLastText());
 }
 
-void ShareBox::onShare() {
-	if (_callback) {
-		_callback(_inner->selected());
+void ShareBox::onSubmit() {
+	if (_submitCallback) {
+		_submitCallback(_inner->selected());
+	}
+}
+
+void ShareBox::onCopyLink() {
+	if (_copyCallback) {
+		_copyCallback();
 	}
 }
 
 void ShareBox::onSelectedChanged() {
-	_share->setVisible(_inner->hasSelected());
+	updateButtonsVisibility();
 	moveButtons();
 	update();
 }
@@ -928,19 +944,76 @@ QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 namespace {
 
 void shareGameScoreFromItem(HistoryItem *item) {
-	Ui::showLayer(new ShareBox([msgId = item->fullId()](const QVector<PeerData*> &result) {
-		MTPmessages_ForwardMessages::Flags sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
-		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(msgId.msg));
+	struct ShareGameScoreData {
+		ShareGameScoreData(const FullMsgId &msgId) : msgId(msgId) {
+		}
+		FullMsgId msgId;
+		OrderedSet<mtpRequestId> requests;
+	};
+	auto data = MakeShared<ShareGameScoreData>(item->fullId());
+
+	auto copyCallback = [data]() {
 		if (auto main = App::main()) {
-			if (auto item = App::histItemById(msgId)) {
-				for_const (auto peer, result) {
-					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
-					MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input), main->rpcDone(&MainWidget::sentUpdatesReceived));
+			if (auto item = App::histItemById(data->msgId)) {
+				if (auto bot = item->getMessageBot()) {
+					if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+						for (int i = 0, rowsCount = markup->rows.size(); i != rowsCount; ++i) {
+							auto &row = markup->rows[i];
+							for (int j = 0, buttonsCount = row.size(); j != buttonsCount; ++j) {
+								auto &button = row[j];
+								if (button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
+									auto strData = QString::fromUtf8(button.data);
+									auto parts = strData.split(',');
+									t_assert(parts.size() > 1);
+
+									QApplication::clipboard()->setText(qsl("https://telegram.me/") + bot->username + qsl("?start=") + parts[1]);
+
+									Ui::Toast::Config toast;
+									toast.text = lang(lng_share_game_link_copied);
+									Ui::Toast::Show(App::wnd(), toast);
+									return;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
-		Ui::hideLayer();
-	}));
+	};
+	auto submitCallback = [data](const QVector<PeerData*> &result) {
+		if (!data->requests.empty()) {
+			return; // Share clicked already.
+		}
+
+		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
+			if (auto main = App::main()) {
+				main->sentUpdatesReceived(updates);
+			}
+			data->requests.remove(requestId);
+			if (data->requests.empty()) {
+				Ui::Toast::Config toast;
+				toast.text = lang(lng_share_done);
+				Ui::Toast::Show(App::wnd(), toast);
+
+				Ui::hideLayer();
+			}
+		};
+
+		MTPmessages_ForwardMessages::Flags sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
+		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
+		if (auto main = App::main()) {
+			if (auto item = App::histItemById(data->msgId)) {
+				for_const (auto peer, result) {
+					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
+					auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
+					auto callback = doneCallback;
+					auto requestId = MTP::send(request, rpcDone(std_::move(callback)));
+					data->requests.insert(requestId);
+				}
+			}
+		}
+	};
+	Ui::showLayer(new ShareBox(std_::move(copyCallback), std_::move(submitCallback)));
 }
 
 class GameMessageResolvedCallback : public SharedCallback<void, ChannelData*, MsgId> {

@@ -103,9 +103,7 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 }
 
 void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = url();
-
-	u = tryConvertUrlToLocal(u);
+	auto u = tryConvertUrlToLocal(url());
 
 	if (u.startsWith(qstr("tg://"))) {
 		App::openLocalUrl(u);
@@ -115,9 +113,7 @@ void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
 }
 
 void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = url();
-
-	u = tryConvertUrlToLocal(u);
+	auto u = tryConvertUrlToLocal(url());
 
 	if (u.startsWith(qstr("tg://"))) {
 		App::openLocalUrl(u);

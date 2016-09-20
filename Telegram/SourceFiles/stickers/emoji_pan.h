@@ -254,6 +254,10 @@ public:
 	}
 	int countHeight(bool plain = false);
 
+	void installedLocally(uint64 setId);
+	void notInstalledLocally(uint64 setId);
+	void clearInstalledLocally();
+
 	~StickerPanInner();
 
 protected:
@@ -281,7 +285,7 @@ signals:
 	void installSet(quint64 setId);
 	void removeSet(quint64 setId);
 
-	void refreshIcons();
+	void refreshIcons(bool scrollAnimation);
 	void emptyInlineRows();
 
 	void switchToEmoji();
@@ -294,6 +298,9 @@ signals:
 	void saveConfigDelayed(int32 delay);
 
 private:
+	static constexpr bool kRefreshIconsScrollAnimation = true;
+	static constexpr bool kRefreshIconsNoAnimation = false;
+
 	struct Set {
 		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
 		}
@@ -346,6 +353,7 @@ private:
 
 	Sets _mySets;
 	Sets _featuredSets;
+	OrderedSet<uint64> _installedLocallySets;
 	QList<bool> _custom;
 
 	enum class Section {
@@ -527,10 +535,12 @@ public:
 	}
 
 public slots:
+	void hideStart();
 	void refreshStickers();
+
+private slots:
 	void refreshSavedGifs();
 
-	void hideStart();
 	void hideFinish();
 
 	void showStart();
@@ -547,7 +557,7 @@ public slots:
 	void onRemoveSetSure();
 	void onDelayedHide();
 
-	void onRefreshIcons();
+	void onRefreshIcons(bool scrollAnimation);
 	void onRefreshPanels();
 
 	void onSaveConfig();
@@ -572,7 +582,12 @@ private:
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
 
-	void validateSelectedIcon(bool animated = false);
+	enum class ValidateIconAnimations {
+		Full,
+		Scroll,
+		None,
+	};
+	void validateSelectedIcon(ValidateIconAnimations animations);
 	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child);

@@ -234,6 +234,9 @@ void StickerSetInner::mouseReleaseEvent(QMouseEvent *e) {
 
 void StickerSetInner::updateSelected() {
 	auto index = stickerFromGlobalPos(QCursor::pos());
+	if (isMasksSet()) {
+		index = -1;
+	}
 	if (index != _selected) {
 		startOverAnimation(_selected, 1., 0.);
 		_selected = index;
@@ -356,6 +359,10 @@ QString StickerSetInner::shortName() const {
 }
 
 void StickerSetInner::install() {
+	if (isMasksSet()) {
+		Ui::showLayer(new InformBox(lang(lng_stickers_masks_pack)), KeepOtherLayers);
+		return;
+	}
 	if (_installRequest) return;
 	_installRequest = MTP::send(MTPmessages_InstallStickerSet(_input, MTP_bool(false)), rpcDone(&StickerSetInner::installDone), rpcFail(&StickerSetInner::installFail));
 }
@@ -1328,11 +1335,13 @@ void StickersBox::setup() {
 	if (_section == Section::Installed) {
 		Local::readArchivedStickers();
 		if (Global::ArchivedStickerSetsOrder().isEmpty()) {
-			_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
+			MTPmessages_GetArchivedStickers::Flags flags = 0;
+			_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
 		}
 	} else if (_section == Section::Archived) {
 		// Reload the archived list.
-		_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
+		MTPmessages_GetArchivedStickers::Flags flags = 0;
+		_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
 
 		auto &sets = Global::StickerSets();
 		for_const (auto setId, Global::ArchivedStickerSetsOrder()) {
@@ -1414,7 +1423,8 @@ void StickersBox::checkLoadMoreArchived() {
 					}
 				}
 			}
-			_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_long(lastId), MTP_int(kArchivedLimitPerPage)), rpcDone(&StickersBox::getArchivedDone, lastId));
+			MTPmessages_GetArchivedStickers::Flags flags = 0;
+			_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(lastId), MTP_int(kArchivedLimitPerPage)), rpcDone(&StickersBox::getArchivedDone, lastId));
 		}
 	}
 }

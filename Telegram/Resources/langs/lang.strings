@@ -712,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "Undo";
 "lng_stickers_restore" = "Restore";
 "lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
+"lng_stickers_masks_pack" = "This is a pack of mask stickers. You can use them in the photo editor on our mobile apps.";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video file";
@@ -875,8 +876,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_reply_cant_forward" = "Sorry, no way to reply to an old message in supergroup :( Do you wish to forward it and add your comment?";
 
 "lng_share_title" = "Share to";
-"lng_share_confirm" = "Share";
+"lng_share_copy_link" = "Copy share link";
+"lng_share_confirm" = "Send";
 "lng_share_wrong_user" = "This game was opened from a different user.";
+"lng_share_game_link_copied" = "Game link copied to clipboard.";
+"lng_share_done" = "Done!";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";
