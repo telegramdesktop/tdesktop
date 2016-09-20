@@ -92,8 +92,6 @@
               'Qt5DBus',
               'Qt5Core',
               'qtpcre',
-              'ssl',
-              'crypto',
               'Xi',
               'Xext',
               'SM',
@@ -204,6 +202,8 @@
       'libraries': [
         '/usr/local/lib/libxkbcommon.a',
         '<@(qt_libs_release)',
+        '/usr/local/ssl/lib/libssl.a',
+        '/usr/local/ssl/lib/libcrypto.a',
         'xcb',
         'X11',
         'X11-xcb',
