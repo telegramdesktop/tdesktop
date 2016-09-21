@@ -55,7 +55,7 @@ struct AudioPlaybackState {
 	int32 frequency = 0;
 };
 
-class AudioPlayer : public QObject {
+class AudioPlayer : public QObject, public base::Observable<AudioMsgId> {
 	Q_OBJECT
 
 public:
@@ -70,7 +70,6 @@ public:
 	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs);
-	void videoSoundProgress(const AudioMsgId &audio);
 	AudioPlaybackState currentVideoState(uint64 videoPlayId);
 	void stopFromVideo(uint64 videoPlayId);
 	void pauseFromVideo(uint64 videoPlayId);
@@ -86,9 +85,11 @@ public:
 
 	~AudioPlayer();
 
-public slots:
+private slots:
 	void onError(const AudioMsgId &audio);
 	void onStopped(const AudioMsgId &audio);
+
+	void onUpdated(const AudioMsgId &audio);
 
 signals:
 	void updated(const AudioMsgId &audio);
@@ -109,6 +110,8 @@ private:
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
 	bool updateCurrentStarted(AudioMsgId::Type type, int32 pos = -1);
 	bool checkCurrentALError(AudioMsgId::Type type);
+
+	void videoSoundProgress(const AudioMsgId &audio);
 
 	struct AudioMsg {
 		void clear();
@@ -185,27 +188,21 @@ class AudioCapture : public QObject {
 	Q_OBJECT
 
 public:
-
 	AudioCapture();
-
-	void start();
-	void stop(bool needResult);
 
 	bool check();
 
 	~AudioCapture();
 
 signals:
+	void start();
+	void stop(bool needResult);
 
-	void captureOnStart();
-	void captureOnStop(bool needResult);
-
-	void onDone(QByteArray data, VoiceWaveform waveform, qint32 samples);
-	void onUpdate(quint16 level, qint32 samples);
-	void onError();
+	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
+	void updated(quint16 level, qint32 samples);
+	void error();
 
 private:
-
 	friend class AudioCaptureInner;
 
 	QThread _captureThread;
@@ -270,18 +267,15 @@ class AudioCaptureInner : public QObject {
 	Q_OBJECT
 
 public:
-
 	AudioCaptureInner(QThread *thread);
 	~AudioCaptureInner();
 
 signals:
-
 	void error();
-	void update(quint16 level, qint32 samples);
+	void updated(quint16 level, qint32 samples);
 	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
 
-	public slots:
-
+public slots:
 	void onInit();
 	void onStart();
 	void onStop(bool needResult);
@@ -289,7 +283,6 @@ signals:
 	void onTimeout();
 
 private:
-
 	void processFrame(int32 offset, int32 framesize);
 
 	void writeFrame(AVFrame *frame);

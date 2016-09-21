@@ -35,7 +35,6 @@ SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text)
 	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 	setCursor(style::cur_default);
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 }
 
 void SysBtn::setText(const QString &text) {
@@ -49,7 +48,7 @@ void SysBtn::setOverLevel(float64 level) {
 	update();
 }
 
-void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
+void SysBtn::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	a_color.start((_state & StateOver ? _st.overColor : _st.color)->c);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
@@ -109,60 +108,48 @@ void SysBtn::step_color(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-MinimizeBtn::MinimizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMin), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
+MinimizeBtn::MinimizeBtn(QWidget *parent) : SysBtn(parent, st::sysMin) {
+	setClickedCallback([this]() {
+		window()->setWindowState(Qt::WindowMinimized);
+	});
 }
 
-void MinimizeBtn::onClick() {
-	wnd->setWindowState(Qt::WindowMinimized);
+MaximizeBtn::MaximizeBtn(QWidget *parent) : SysBtn(parent, st::sysMax) {
+	setClickedCallback([this]() {
+		window()->setWindowState(Qt::WindowMaximized);
+	});
 }
 
-MaximizeBtn::MaximizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMax), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
+RestoreBtn::RestoreBtn(QWidget *parent) : SysBtn(parent, st::sysRes) {
+	setClickedCallback([this]() {
+		window()->setWindowState(Qt::WindowNoState);
+	});
 }
 
-void MaximizeBtn::onClick() {
-	wnd->setWindowState(Qt::WindowMaximized);
+CloseBtn::CloseBtn(QWidget *parent) : SysBtn(parent, st::sysCls) {
+	setClickedCallback([this]() {
+		window()->close();
+	});
 }
 
-RestoreBtn::RestoreBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysRes), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
-}
-
-void RestoreBtn::onClick() {
-	wnd->setWindowState(Qt::WindowNoState);
-}
-
-CloseBtn::CloseBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysCls), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
-}
-
-void CloseBtn::onClick() {
-	wnd->close();
-}
-
-UpdateBtn::UpdateBtn(QWidget *parent, MainWindow *window, const QString &text) : SysBtn(parent, st::sysUpd, text), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
-}
-
-void UpdateBtn::onClick() {
+UpdateBtn::UpdateBtn(QWidget *parent) : SysBtn(parent, st::sysUpd, lang(lng_menu_update)) {
+	setClickedCallback([]() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	checkReadyUpdate();
-	if (Sandbox::updatingState() == Application::UpdatingReady) {
-		cSetRestartingUpdate(true);
-	} else
+		checkReadyUpdate();
+		if (Sandbox::updatingState() == Application::UpdatingReady) {
+			cSetRestartingUpdate(true);
+		} else
 #endif
-	{
-		cSetRestarting(true);
-		cSetRestartingToSettings(false);
-	}
-	App::quit();
+		{
+			cSetRestarting(true);
+			cSetRestartingToSettings(false);
+		}
+		App::quit();
+	});
 }
 
-LockBtn::LockBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysLock), wnd(window) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
-}
-
-void LockBtn::onClick() {
-	Shortcuts::launch(qsl("lock_telegram"));
+LockBtn::LockBtn(QWidget *parent) : SysBtn(parent, st::sysLock) {
+	setClickedCallback([] {
+		Shortcuts::launch(qsl("lock_telegram"));
+	});
 }

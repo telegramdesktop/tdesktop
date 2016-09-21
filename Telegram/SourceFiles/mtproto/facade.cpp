@@ -851,7 +851,7 @@ void finish() {
 	_started = false;
 }
 
-void authed(int32 uid) {
+void setAuthedId(int32 uid) {
 	internal::authed(uid);
 }
 

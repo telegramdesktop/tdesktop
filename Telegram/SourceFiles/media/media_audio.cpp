@@ -308,6 +308,7 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(_fader, SIGNAL(audioStopped(const AudioMsgId&)), this, SLOT(onStopped(const AudioMsgId&)));
 	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
 	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)), Qt::QueuedConnection);
+	connect(this, SIGNAL(updated(const AudioMsgId&)), this, SLOT(onUpdated(const AudioMsgId&)));
 	_loaderThread.start();
 	_faderThread.start();
 }
@@ -342,6 +343,13 @@ AudioPlayer::~AudioPlayer() {
 	_loaderThread.quit();
 	_faderThread.wait();
 	_loaderThread.wait();
+}
+
+void AudioPlayer::onUpdated(const AudioMsgId &audio) {
+	if (audio.type() == AudioMsgId::Type::Video) {
+		videoSoundProgress(audio);
+	}
+	notify(AudioMsgId(audio));
 }
 
 void AudioPlayer::onError(const AudioMsgId &audio) {
@@ -906,22 +914,14 @@ bool audioCheckError() {
 } // namespace internal
 
 AudioCapture::AudioCapture() : _capture(new AudioCaptureInner(&_captureThread)) {
-	connect(this, SIGNAL(captureOnStart()), _capture, SLOT(onStart()));
-	connect(this, SIGNAL(captureOnStop(bool)), _capture, SLOT(onStop(bool)));
-	connect(_capture, SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SIGNAL(onDone(QByteArray,VoiceWaveform,qint32)));
-	connect(_capture, SIGNAL(update(quint16,qint32)), this, SIGNAL(onUpdate(quint16,qint32)));
-	connect(_capture, SIGNAL(error()), this, SIGNAL(onError()));
+	connect(this, SIGNAL(start()), _capture, SLOT(onStart()));
+	connect(this, SIGNAL(stop(bool)), _capture, SLOT(onStop(bool)));
+	connect(_capture, SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SIGNAL(done(QByteArray,VoiceWaveform,qint32)));
+	connect(_capture, SIGNAL(updated(quint16,qint32)), this, SIGNAL(updated(quint16,qint32)));
+	connect(_capture, SIGNAL(error()), this, SIGNAL(error()));
 	connect(&_captureThread, SIGNAL(started()), _capture, SLOT(onInit()));
 	connect(&_captureThread, SIGNAL(finished()), _capture, SLOT(deleteLater()));
 	_captureThread.start();
-}
-
-void AudioCapture::start() {
-	emit captureOnStart();
-}
-
-void AudioCapture::stop(bool needResult) {
-	emit captureOnStop(needResult);
 }
 
 bool AudioCapture::check() {
@@ -1664,7 +1664,7 @@ void AudioCaptureInner::onTimeout() {
 		}
 		qint32 samplesFull = d->fullSamples + _captured.size() / sizeof(short), samplesSinceUpdate = samplesFull - d->lastUpdate;
 		if (samplesSinceUpdate > AudioVoiceMsgUpdateView * AudioVoiceMsgFrequency / 1000) {
-			emit update(d->levelMax, samplesFull);
+			emit updated(d->levelMax, samplesFull);
 			d->lastUpdate = samplesFull;
 			d->levelMax = 0;
 		}

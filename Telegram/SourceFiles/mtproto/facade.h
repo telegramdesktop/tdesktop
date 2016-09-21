@@ -180,7 +180,7 @@ int32 state(mtpRequestId req); // < 0 means waiting for such count of ms
 
 void finish();
 
-void authed(int32 uid);
+void setAuthedId(int32 uid);
 int32 authedId();
 void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 

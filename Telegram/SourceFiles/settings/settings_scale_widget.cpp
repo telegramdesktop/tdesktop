@@ -217,7 +217,7 @@ void ScaleWidget::setScale(DBIScale newScale) {
 
 	cSetConfigScale(newScale);
 	Local::writeSettings();
-	App::wnd()->getTitle()->showUpdateBtn();
+	App::wnd()->getTitle()->updateControlsVisibility();
 	if (newScale == dbisAuto && !_auto->checked()) {
 		_auto->setChecked(true);
 	} else if (newScale != dbisAuto && _auto->checked()) {

@@ -350,6 +350,12 @@ public:
 		return ptr();
 	}
 
+	// Use that instead "= new T(parent, ...)"
+	template <typename Parent, typename... Args>
+	void create(Parent &&parent, Args&&... args) {
+		delete _widget;
+		_widget = new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
+	}
 	void destroy() {
 		if (_widget) {
 			delete _widget;

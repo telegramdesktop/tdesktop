@@ -406,7 +406,7 @@ void PasscodeBox::onSave(bool force) {
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());
 		App::wnd()->checkAutoLock();
-		App::wnd()->getTitle()->showUpdateBtn();
+		App::wnd()->getTitle()->updateControlsVisibility();
 		onClose();
 	}
 }

@@ -200,7 +200,7 @@ namespace {
 			w->notifyClearFast();
 			w->setupIntro(true);
 		}
-		MTP::authed(0);
+		MTP::setAuthedId(0);
 		Local::reset();
 
 		cSetOtherOnline(0);
@@ -211,9 +211,8 @@ namespace {
 		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (auto w = wnd()) {
-			w->getTitle()->updateBackButton();
-			w->updateTitleStatus();
-			w->getTitle()->resizeEvent(0);
+			w->updateConnectingStatus();
+			w->getTitle()->updateControlsVisibility();
 		}
 		return true;
 	}

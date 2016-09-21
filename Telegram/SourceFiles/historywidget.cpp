@@ -3065,9 +3065,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
 	if (audioCapture()) {
-		connect(audioCapture(), SIGNAL(onError()), this, SLOT(onRecordError()));
-		connect(audioCapture(), SIGNAL(onUpdate(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
-		connect(audioCapture(), SIGNAL(onDone(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
+		connect(audioCapture(), SIGNAL(error()), this, SLOT(onRecordError()));
+		connect(audioCapture(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
+		connect(audioCapture(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 	}
 
 	_updateHistoryItems.setSingleShot(true);
@@ -5719,7 +5719,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::stopRecording(bool send) {
-	audioCapture()->stop(send);
+	emit audioCapture()->stop(send);
 
 	a_recordingLevel = anim::ivalue(0, 0);
 	_a_recording.stop();
@@ -7411,7 +7411,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	if (_replyForwardPressed && !_fieldBarCancel.isHidden()) {
 		updateField();
 	} else if (_inRecord && cHasAudioCapture()) {
-		audioCapture()->start();
+		emit audioCapture()->start();
 
 		_recording = _inField = true;
 		updateControlsVisibility();

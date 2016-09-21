@@ -29,31 +29,14 @@ namespace Player {
 class TitleButton;
 } // namespace Player
 } // namespace Media
-
-class TitleHider : public QWidget {
-public:
-
-	TitleHider(QWidget *parent);
-	void paintEvent(QPaintEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void setLevel(float64 level);
-
-private:
-
-	float64 _level;
-
-};
+class AudioMsgId;
 
 class TitleWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
+	TitleWidget(QWidget *parent);
 
-	TitleWidget(MainWindow *parent);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void updateBackButton();
 	void updateCounter();
 
 	void mousePressEvent(QMouseEvent *e);
@@ -71,28 +54,33 @@ public:
 
 	void step_update(float64 ms, bool timer);
 
-	~TitleWidget();
-
 public slots:
-
 	void onWindowStateChanged(Qt::WindowState state = Qt::WindowNoState);
-	void showUpdateBtn();
+	void updateControlsVisibility();
 	void onContacts();
 	void onAbout();
 
 signals:
-
 	void hiderClicked();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void updateAdaptiveLayout();
+	void updateRestartButtonVisibility();
+	void updateMenuButtonsVisibility();
+	void updateSystemButtonsVisibility();
+	void updateControlsPosition();
 
-	MainWindow *wnd;
+	void handleSongUpdate(const AudioMsgId &audioId);
 
 	style::color statusColor;
 
-	float64 hideLevel;
-	TitleHider *hider;
+	class Hider;
+	float64 hideLevel = 0;
+	ChildWidget<Hider> _hider = { nullptr };
 
 	float64 _lastUpdateMs;
 

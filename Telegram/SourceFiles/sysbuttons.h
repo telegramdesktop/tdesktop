@@ -23,13 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/animation.h"
 #include "ui/button.h"
 
-class MainWindow;
-
 class SysBtn : public Button {
-	Q_OBJECT
-
 public:
-
 	SysBtn(QWidget *parent, const style::sysButton &st, const QString &text = QString());
 
 	void setText(const QString &text);
@@ -42,11 +37,8 @@ public:
 
 	void step_color(float64 ms, bool timer);
 
-public slots:
-
-	void onStateChange(int oldState, ButtonStateChangeSource source);
-
 protected:
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 	style::sysButton _st;
 	anim::cvalue a_color;
@@ -58,97 +50,37 @@ protected:
 };
 
 class MinimizeBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	MinimizeBtn(QWidget *parent);
 
-	MinimizeBtn(QWidget *parent, MainWindow *window);
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };
 
 class MaximizeBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	MaximizeBtn(QWidget *parent);
 
-	MaximizeBtn(QWidget *parent, MainWindow *window);
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };
 
 class RestoreBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	RestoreBtn(QWidget *parent);
 
-	RestoreBtn(QWidget *parent, MainWindow *window);
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };
 
 class CloseBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	CloseBtn(QWidget *parent);
 
-	CloseBtn(QWidget *parent, MainWindow *window);
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };
 
 class UpdateBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	UpdateBtn(QWidget *parent);
 
-	UpdateBtn(QWidget *parent, MainWindow *window, const QString &text = QString());
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };
 
 class LockBtn : public SysBtn {
-	Q_OBJECT
-
 public:
+	LockBtn(QWidget *parent);
 
-	LockBtn(QWidget *parent, MainWindow *window);
-
-public slots:
-
-	void onClick();
-
-private:
-
-	MainWindow *wnd;
 };

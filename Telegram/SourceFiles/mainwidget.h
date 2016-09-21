@@ -137,7 +137,6 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-
 	MainWidget(MainWindow *window);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -413,7 +412,6 @@ public:
 	~MainWidget();
 
 signals:
-
 	void peerUpdated(PeerData *peer);
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void peerPhotoChanged(PeerData *peer);
@@ -423,7 +421,6 @@ signals:
 	void savedGifsUpdated();
 
 public slots:
-
 	void webPagesUpdate();
 
 	void audioPlayProgress(const AudioMsgId &audioId);
@@ -479,8 +476,6 @@ public slots:
 
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
-
-private slots:
 
 	void onDeletePhotoSure();
 

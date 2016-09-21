@@ -515,7 +515,7 @@ void MainWindow::clearWidgets() {
 		hideMediaview();
 		_mediaView->rpcClear();
 	}
-	title->updateBackButton();
+	title->updateControlsVisibility();
 	updateGlobalMenu();
 }
 
@@ -548,7 +548,7 @@ void MainWindow::clearPasscode() {
 		main->animShow(bg, true);
 	}
 	notifyUpdateAll();
-	title->updateBackButton();
+	title->updateControlsVisibility();
 	updateGlobalMenu();
 }
 
@@ -574,7 +574,7 @@ void MainWindow::setupPasscode(bool anim) {
 	}
 	_shouldLockAt = 0;
 	notifyUpdateAll();
-	title->updateBackButton();
+	title->updateControlsVisibility();
 	updateGlobalMenu();
 }
 
@@ -620,7 +620,7 @@ void MainWindow::setupIntro(bool anim) {
 
 	fixOrder();
 
-	updateTitleStatus();
+	updateConnectingStatus();
 
 	_delayedServiceMsgs.clear();
 	if (_serviceHistoryRequest) {
@@ -673,11 +673,11 @@ void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	} else {
 		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
 	}
-	title->resizeEvent(0);
+	title->updateControlsVisibility();
 
 	fixOrder();
 
-	updateTitleStatus();
+	updateConnectingStatus();
 }
 
 void MainWindow::updateUnreadCounter() {
@@ -713,12 +713,12 @@ void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 
 void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 	if (dc == MTP::maindc()) {
-		updateTitleStatus();
+		updateConnectingStatus();
 		Global::RefConnectionTypeChanged().notify();
 	}
 }
 
-void MainWindow::updateTitleStatus() {
+void MainWindow::updateConnectingStatus() {
 	int32 state = MTP::dcstate();
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
@@ -726,7 +726,7 @@ void MainWindow::updateTitleStatus() {
 		}
 	} else if (state < 0) {
 		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(lng_reconnecting_try_now));
-		QTimer::singleShot((-state) % 1000, this, SLOT(updateTitleStatus()));
+		QTimer::singleShot((-state) % 1000, this, SLOT(updateConnectingStatus()));
 	} else {
 		hideConnecting();
 	}
@@ -853,28 +853,21 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
 	} else {
-		_connecting = new ConnectingWidget(this, text, reconnect);
+		_connecting.create(this, text, reconnect);
 		_connecting->show();
 		resizeEvent(0);
 		fixOrder();
 	}
-	if (settings) settings->update();
-}
-
-bool MainWindow::connectingVisible() const {
-	return _connecting && !_connecting->isHidden();
 }
 
 void MainWindow::hideConnecting() {
 	if (_connecting) {
-		_connecting->deleteLater();
-		_connecting = 0;
+		_connecting.destroyDelayed();
 	}
-	if (settings) settings->update();
 }
 
 bool MainWindow::doWeReadServerHistory() const {
-	return isActive(false) && main && (!settings || !settings->isVisible()) && main->doWeReadServerHistory();
+	return isActive(false) && main && !Ui::isLayerShown() && main->doWeReadServerHistory();
 }
 
 void MainWindow::checkHistoryActivation() {

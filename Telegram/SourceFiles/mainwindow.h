@@ -175,10 +175,6 @@ public:
 	MainWidget *mainWidget();
 	PasscodeWidget *passcodeWidget();
 
-	void showConnecting(const QString &text, const QString &reconnect = QString());
-	void hideConnecting();
-	bool connectingVisible() const;
-
 	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
@@ -204,7 +200,7 @@ public:
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
-    void notifySettingGot();
+	void notifySettingGot();
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
@@ -215,7 +211,7 @@ public:
 	void notifyUpdateAll();
 	void notifyActivateAll();
 
-    QImage iconLarge() const;
+	QImage iconLarge() const;
 
 	void sendPaths();
 
@@ -257,7 +253,7 @@ public slots:
 	void showSettings();
 	void layerHidden();
 	void setInnerFocus();
-	void updateTitleStatus();
+	void updateConnectingStatus();
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
@@ -294,11 +290,13 @@ signals:
 
 	void imageLoaded();
 
-private slots:
+	private slots:
 	void onStateChanged(Qt::WindowState state);
 	void onSettingsDestroyed(QObject *was);
 
 private:
+	void showConnecting(const QString &text, const QString &reconnect = QString());
+	void hideConnecting();
 
 	QPixmap grabInner();
 
@@ -322,7 +320,7 @@ private:
 	QTimer _isActiveTimer;
 	bool _isActive = false;
 
-	ConnectingWidget *_connecting = nullptr;
+	ChildWidget<ConnectingWidget> _connecting = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
 

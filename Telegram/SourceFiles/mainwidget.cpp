@@ -77,11 +77,6 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
-	if (!_mediaPlayer) {
-		_mediaPlayer = new Media::Player::Widget(this);
-		App::wnd()->getTitle()->playerButton()->installEventFilter(_mediaPlayer);
-	}
-
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
@@ -128,7 +123,7 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	} else {
 		_history->show();
 	}
-	App::wnd()->getTitle()->updateBackButton();
+	App::wnd()->getTitle()->updateControlsVisibility();
 	_topBar->hide();
 
 	_player->hidePlayer();
@@ -574,7 +569,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
 			}
-			App::wnd()->getTitle()->updateBackButton();
+			App::wnd()->getTitle()->updateControlsVisibility();
 		} else {
 			if (_forwardConfirm) {
 				_forwardConfirm->deleteLater();
@@ -611,7 +606,7 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 			resizeEvent(0);
 			_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
 		}
-		App::wnd()->getTitle()->updateBackButton();
+		App::wnd()->getTitle()->updateControlsVisibility();
 	} else {
 		_hider->show();
 		resizeEvent(0);
@@ -1549,7 +1544,6 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	if (audioId.type() == AudioMsgId::Type::Video) {
-		audioPlayer()->videoSoundProgress(audioId);
 		return;
 	}
 
@@ -1559,8 +1553,8 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		playbackState.state = AudioPlayerStopped;
 		audioPlayer()->clearStoppedAtStart(audioId);
 
-		DocumentData *audio = audioId.audio();
-		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
+		auto document = audioId.audio();
+		auto filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
 			if (documentIsValidMediaFile(filepath)) {
 				psOpenFile(filepath);
@@ -1583,14 +1577,12 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (audioId.type() != AudioMsgId::Type::Video) {
-		if (auto item = App::histItemById(audioId.contextId())) {
-			Ui::repaintHistoryItem(item);
-		}
-		if (auto items = InlineBots::Layout::documentItems()) {
-			for (auto item : items->value(audioId.audio())) {
-				Ui::repaintInlineItem(item);
-			}
+	if (auto item = App::histItemById(audioId.contextId())) {
+		Ui::repaintHistoryItem(item);
+	}
+	if (auto items = InlineBots::Layout::documentItems()) {
+		for (auto item : items->value(audioId.audio())) {
+			Ui::repaintInlineItem(item);
 		}
 	}
 }
@@ -2142,7 +2134,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_dialogs->update();
 	}
 	topBar()->showAll();
-	App::wnd()->getTitle()->updateBackButton();
+	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
@@ -2264,7 +2256,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 
 	orderWidgets();
 
-	App::wnd()->getTitle()->updateBackButton();
+	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 void MainWidget::showWideSection(const Window::SectionMemento &memento) {
@@ -2363,7 +2355,7 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 
 	orderWidgets();
 
-	App::wnd()->getTitle()->updateBackButton();
+	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 bool MainWidget::stackIsEmpty() const {
@@ -3285,8 +3277,9 @@ void MainWidget::mtpPing() {
 void MainWidget::start(const MTPUser &user) {
 	int32 uid = user.c_user().vid.v;
 	if (MTP::authedId() != uid) {
-		MTP::authed(uid);
+		MTP::setAuthedId(uid);
 		Local::writeMtpData();
+		App::wnd()->getTitle()->updateControlsVisibility();
 	}
 
 	Local::readSavedPeers();

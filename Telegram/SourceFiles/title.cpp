@@ -27,71 +27,86 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
+#include "media/media_audio.h"
 #include "media/player/media_player_button.h"
 
-TitleHider::TitleHider(QWidget *parent) : QWidget(parent), _level(0) {
+class TitleWidget::Hider : public TWidget {
+public:
+	Hider(QWidget *parent);
+
+	using ClickedCallback = base::lambda_unique<void()>;
+	void setClickedCallback(ClickedCallback &&callback) {
+		_callback = std_::move(callback);
+	}
+	void setLevel(float64 level);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+private:
+	ClickedCallback _callback;
+	float64 _level = 0;
+
+};
+
+TitleWidget::Hider::Hider(QWidget *parent) : TWidget(parent) {
 }
 
-void TitleHider::paintEvent(QPaintEvent *e) {
+void TitleWidget::Hider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setOpacity(_level * st::layerAlpha);
 	p.fillRect(App::main()->dlgsWidth(), 0, width() - App::main()->dlgsWidth(), height(), st::layerBg->b);
 }
 
-void TitleHider::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton) {
-		emit static_cast<TitleWidget*>(parentWidget())->hiderClicked();
+void TitleWidget::Hider::mousePressEvent(QMouseEvent *e) {
+	if (e->button() == Qt::LeftButton && _callback) {
+		_callback();
 	}
 }
 
-void TitleHider::setLevel(float64 level) {
+void TitleWidget::Hider::setLevel(float64 level) {
 	_level = level;
 	update();
 }
 
-TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
-, wnd(window)
-, hideLevel(0)
-, hider(0)
+TitleWidget::TitleWidget(QWidget *parent) : TWidget(parent)
 , _cancel(this, lang(lng_cancel), st::titleTextButton)
 , _settings(this, lang(lng_menu_settings), st::titleTextButton)
 , _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 , _about(this, lang(lng_menu_about), st::titleTextButton)
-, _player(this)
-, _lock(this, window)
-, _update(this, window, lang(lng_menu_update))
-, _minimize(this, window)
-, _maximize(this, window)
-, _restore(this, window)
-, _close(this, window)
+, _lock(this)
+, _update(this)
+, _minimize(this)
+, _maximize(this)
+, _restore(this)
+, _close(this)
 , _a_update(animation(this, &TitleWidget::step_update))
-, lastMaximized(!(window->windowState() & Qt::WindowMaximized)) {
-	setGeometry(0, 0, wnd->width(), st::titleHeight);
+, lastMaximized(!(parent->windowState() & Qt::WindowMaximized)) {
+	setGeometry(0, 0, parent->width(), st::titleHeight);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-	_lock.hide();
-	_update.hide();
-    _cancel.hide();
-	if (
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		Sandbox::updatingState() == Application::UpdatingReady ||
-#endif
-		Global::LocalPasscode()
-	) {
-		showUpdateBtn();
-	}
+
 	onWindowStateChanged();
+	updateControlsVisibility();
 
 	connect(&_cancel, SIGNAL(clicked()), this, SIGNAL(hiderClicked()));
-	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
+	connect(&_settings, SIGNAL(clicked()), parent, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
-	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
+	connect(parent->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(updateControlsVisibility()));
 #endif
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+	if (auto player = audioPlayer()) {
+		subscribe(player, [this](const AudioMsgId &audio) {
+			if (audio.type() == AudioMsgId::Type::Song) {
+				handleSongUpdate(audio);
+			}
+		});
+	}
 
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
@@ -127,20 +142,31 @@ void TitleWidget::setHideLevel(float64 level) {
 	if (level != hideLevel) {
 		hideLevel = level;
 		if (hideLevel) {
-			if (!hider) {
-				hider = new TitleHider(this);
-				hider->move(0, 0);
-				hider->resize(size());
-				if (Adaptive::OneColumn()) {
-					hider->hide();
-				} else {
-					hider->show();
-				}
+			if (!_hider) {
+				_hider.create(this);
+				_hider->setGeometry(rect());
+				_hider->setClickedCallback([this]() { emit hiderClicked(); });
+				_hider->setVisible(!Adaptive::OneColumn());
 			}
-			hider->setLevel(hideLevel);
+			_hider->setLevel(hideLevel);
 		} else {
-			if (hider) hider->deleteLater();
-			hider = 0;
+			if (_hider) {
+				_hider.destroyDelayed();
+			}
+		}
+	}
+}
+
+void TitleWidget::handleSongUpdate(const AudioMsgId &audioId) {
+	t_assert(audioId.type() == AudioMsgId::Type::Song);
+
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
+	if (playing == audioId) {
+		auto songIsPlaying = !(playbackState.state & AudioPlayerStoppedMask) && (playbackState.state != AudioPlayerFinishing);
+		if (songIsPlaying && !_player) {
+			_player.create(this);
+			updateControlsVisibility();
 		}
 	}
 }
@@ -157,12 +183,7 @@ void TitleWidget::onAbout() {
 	Ui::showLayer(new AboutBox());
 }
 
-TitleWidget::~TitleWidget() {
-	delete hider;
-	hider = 0;
-}
-
-void TitleWidget::resizeEvent(QResizeEvent *e) {
+void TitleWidget::updateControlsPosition() {
 	QPoint p(width() - ((cPlatform() == dbipWindows && lastMaximized) ? 0 : st::sysBtnDelta), 0);
 
 	if (!_update.isHidden()) {
@@ -177,16 +198,16 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	}
 	_cancel.move(p.x() - _cancel.width(), 0);
 
-    if (cPlatform() == dbipWindows) {
-        p.setX(p.x() - _close.width());
-        _close.move(p);
+	if (cPlatform() == dbipWindows) {
+		p.setX(p.x() - _close.width());
+		_close.move(p);
 
-        p.setX(p.x() - _maximize.width());
-        _restore.move(p); _maximize.move(p);
+		p.setX(p.x() - _maximize.width());
+		_restore.move(p); _maximize.move(p);
 
-        p.setX(p.x() - _minimize.width());
-        _minimize.move(p);
-    }
+		p.setX(p.x() - _minimize.width());
+		_minimize.move(p);
+	}
 	if (_update.isHidden() && !_lock.isHidden()) {
 		p.setX(p.x() - _lock.width());
 		_lock.move(p);
@@ -197,61 +218,108 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	}
 
 	_settings.move(st::titleMenuOffset, 0);
-	if (MTP::authedId() && _cancel.isHidden() && !App::passcoded()) {
-		if (_contacts.isHidden()) _contacts.show();
+	if (_contacts.isHidden()) {
+		_about.move(_settings.x() + _settings.width(), 0);
+	} else {
 		_contacts.move(_settings.x() + _settings.width(), 0);
 		_about.move(_contacts.x() + _contacts.width(), 0);
-	} else {
-		if (!_contacts.isHidden()) _contacts.hide();
-		if (!MTP::authedId()) _about.move(_settings.x() + _settings.width(), 0);
 	}
 
-	if (hider) hider->resize(size());
+	if (_hider) {
+		_hider->resize(size());
+	}
 }
 
-void TitleWidget::updateBackButton() {
-	if (App::passcoded()) {
-		if (!_cancel.isHidden()) _cancel.hide();
-		if (!_settings.isHidden()) _settings.hide();
-		if (!_contacts.isHidden()) _contacts.hide();
-		if (!_about.isHidden()) _about.hide();
-		_lock.setSysBtnStyle(st::sysUnlock);
-	} else {
-		_lock.setSysBtnStyle(st::sysLock);
-		if (Adaptive::OneColumn() && App::main() && App::main()->selectingPeer()) {
-			_cancel.show();
-			if (!_settings.isHidden()) _settings.hide();
-			if (!_contacts.isHidden()) _contacts.hide();
-			if (!_about.isHidden()) _about.hide();
-		} else {
-			if (!_cancel.isHidden()) _cancel.hide();
-			bool authed = (MTP::authedId() > 0);
-			if (Adaptive::OneColumn()) {
-				if (_settings.isHidden()) _settings.show();
-				if (authed && _contacts.isHidden()) _contacts.show();
-				if (_about.isHidden()) _about.show();
-			} else {
-				if (_settings.isHidden()) _settings.show();
-				if (authed && _contacts.isHidden()) _contacts.show();
-				if (_about.isHidden()) _about.show();
-			}
-		}
-	}
-	showUpdateBtn();
+void TitleWidget::resizeEvent(QResizeEvent *e) {
+	updateControlsPosition();
+}
+
+void TitleWidget::updateControlsVisibility() {
+	auto passcoded = App::passcoded();
+	auto authed = (App::main() != nullptr);
+	auto selecting = authed && App::main()->selectingPeer();
+	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting && !passcoded);
+
+	_cancel.setVisible(oneColumnSelecting);
+
+	updateRestartButtonVisibility();
+	updateMenuButtonsVisibility();
+	updateSystemButtonsVisibility();
+
+	updateControlsPosition();
 	update();
 }
 
+void TitleWidget::updateRestartButtonVisibility() {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+#else
+	bool updateReady = false;
+#endif
+	auto scaleRestarting = cEvalScale(cConfigScale()) != cEvalScale(cRealScale());
+
+	auto updateVisible = _cancel.isHidden() && (updateReady || scaleRestarting);
+	if (updateVisible) {
+		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
+		_update.show();
+		_a_update.start();
+	} else {
+		_update.hide();
+		_a_update.stop();
+	}
+}
+
+void TitleWidget::updateMenuButtonsVisibility() {
+	if (_cancel.isHidden()) {
+		if (App::passcoded()) {
+			_settings.hide();
+			_contacts.hide();
+			_about.hide();
+			_lock.setSysBtnStyle(st::sysUnlock);
+		} else {
+			_lock.setSysBtnStyle(st::sysLock);
+			_settings.show();
+			_contacts.setVisible(App::main() != nullptr);
+			_about.show();
+		}
+	} else {
+		_settings.hide();
+		_contacts.hide();
+		_about.hide();
+	}
+}
+
+void TitleWidget::updateSystemButtonsVisibility() {
+	if (_cancel.isHidden()) {
+		_lock.setVisible(Global::LocalPasscode());
+		if (_player) {
+			_player->show();
+		}
+	} else {
+		_lock.hide();
+		if (_player) {
+			_player->hide();
+		}
+	}
+	if (_update.isHidden() && _cancel.isHidden() && cPlatform() == dbipWindows) {
+		_minimize.show();
+		maximizedChanged(lastMaximized, true);
+		_close.show();
+	} else {
+		_minimize.hide();
+		_restore.hide();
+		_maximize.hide();
+		_close.hide();
+	}
+}
+
 void TitleWidget::updateAdaptiveLayout() {
-	updateBackButton();
+	updateControlsVisibility();
 	if (Adaptive::OneColumn()) {
 		updateCounter();
 	}
-	if (hider) {
-		if (Adaptive::OneColumn()) {
-			hider->hide();
-		} else {
-			hider->show();
-		}
+	if (_hider) {
+		_hider->setVisible(!Adaptive::OneColumn());
 	}
 }
 
@@ -282,69 +350,30 @@ void TitleWidget::updateCounter() {
 }
 
 void TitleWidget::mousePressEvent(QMouseEvent *e) {
-	if (wnd->psHandleTitle()) return;
-	if (e->buttons() & Qt::LeftButton) {
-		wnd->wStartDrag(e);
-		e->accept();
+	if (auto wnd = App::wnd()) {
+		if (wnd->psHandleTitle()) return;
+		if (e->buttons() & Qt::LeftButton) {
+			wnd->wStartDrag(e);
+			e->accept();
+		}
 	}
 }
 
 void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
-	if (wnd->psHandleTitle()) return;
-	Qt::WindowStates s(wnd->windowState());
-	if (s.testFlag(Qt::WindowMaximized)) {
-		wnd->setWindowState(s & ~Qt::WindowMaximized);
-	} else {
-		wnd->setWindowState(s | Qt::WindowMaximized);
+	if (auto wnd = App::wnd()) {
+		if (wnd->psHandleTitle()) return;
+		Qt::WindowStates s(wnd->windowState());
+		if (s.testFlag(Qt::WindowMaximized)) {
+			wnd->setWindowState(s & ~Qt::WindowMaximized);
+		} else {
+			wnd->setWindowState(s | Qt::WindowMaximized);
+		}
 	}
 }
 
 void TitleWidget::onWindowStateChanged(Qt::WindowState state) {
 	if (state == Qt::WindowMinimized) return;
 	maximizedChanged(state == Qt::WindowMaximized);
-}
-
-void TitleWidget::showUpdateBtn() {
-	if (Adaptive::OneColumn() && App::main() && App::main()->selectingPeer()) {
-		_cancel.show();
-		_lock.hide();
-		_update.hide();
-		_minimize.hide();
-		_restore.hide();
-		_maximize.hide();
-		_close.hide();
-		return;
-	}
-	if (Global::LocalPasscode()) {
-		_lock.show();
-	} else {
-		_lock.hide();
-	}
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
-#else
-	bool updateReady = false;
-#endif
-	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
-		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
-		_update.show();
-		resizeEvent(0);
-		_minimize.hide();
-		_restore.hide();
-		_maximize.hide();
-		_close.hide();
-		_a_update.start();
-	} else {
-		_update.hide();
-		if (cPlatform() == dbipWindows) {
-			_minimize.show();
-			maximizedChanged(lastMaximized, true);
-			_close.show();
-		}
-		_a_update.stop();
-	}
-	resizeEvent(0);
-	update();
 }
 
 void TitleWidget::maximizedChanged(bool maximized, bool force) {
@@ -362,14 +391,14 @@ void TitleWidget::maximizedChanged(bool maximized, bool force) {
 	_maximize.setVisible(!maximized);
 	_restore.setVisible(maximized);
 
-	resizeEvent(0);
+	updateControlsPosition();
 }
 
 HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (App::wnd() && Ui::isLayerShown()) return HitTestNone;
 
 	int x(p.x()), y(p.y()), w(width()), h(height());
-	if (!Adaptive::OneColumn() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
+	if (!Adaptive::OneColumn() && _hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;
