@@ -1206,7 +1206,7 @@ public:
 	}
 	virtual void applyEdition(const MTPDmessage &message) {
 	}
-	virtual void applyEditionToEmpty() {
+	virtual void applyEdition(const MTPDmessageService &message) {
 	}
 	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
@@ -2626,7 +2626,7 @@ public:
     QString notificationHeader() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
-	void applyEditionToEmpty() override;
+	void applyEdition(const MTPDmessageService &message) override;
 	void updateMedia(const MTPMessageMedia *media) override;
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
@@ -2693,7 +2693,6 @@ public:
 	~HistoryMessage();
 
 private:
-
 	HistoryMessage(History *history, const MTPDmessage &msg);
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities); // local message
@@ -2706,6 +2705,7 @@ private:
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
 	int performResizeGetHeight(int width);
+	void applyEditionToEmpty();
 
 	bool displayForwardedFrom() const {
 		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {
@@ -2827,7 +2827,7 @@ public:
 		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 
-	void applyEditionToEmpty() override;
+	void applyEdition(const MTPDmessageService &message) override;
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
@@ -2875,6 +2875,7 @@ private:
 	bool updateDependentText();
 	void clearDependency();
 
+	void createFromMtp(const MTPDmessageService &message);
 	void setMessageByAction(const MTPmessageAction &action);
 
 	bool preparePinnedText(const QString &from, QString *outText, Links *outLinks);
@@ -2884,7 +2885,6 @@ private:
 
 class HistoryJoined : public HistoryService, private HistoryItemInstantiated<HistoryJoined> {
 public:
-
 	static HistoryJoined *create(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags) {
 		return _create(history, date, from, flags);
 	}
@@ -2894,7 +2894,6 @@ public:
 	}
 
 protected:
-
 	HistoryJoined(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags);
 	using HistoryItemInstantiated<HistoryJoined>::_create;
 	friend class HistoryItemInstantiated<HistoryJoined>;

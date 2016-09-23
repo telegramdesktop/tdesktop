@@ -4602,9 +4602,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		if (d.vmessage.type() == mtpc_message) { // apply message edit
-			App::updateEditedMessage(d.vmessage.c_message());
-		}
+		App::updateEditedMessage(d.vmessage);
+
 		if (channel && !_handlingChannelDifference) {
 			channel->ptsApplySkippedUpdates();
 		}
@@ -4618,14 +4617,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		if (d.vmessage.type() == mtpc_message) { // apply message edit
-			App::updateEditedMessage(d.vmessage.c_message());
-		} else if (d.vmessage.type() == mtpc_messageService) {
-			auto &message = d.vmessage.c_messageService();
-			if (message.vaction.type() == mtpc_messageActionHistoryClear) {
-				App::updateEditedMessageToEmpty(peerFromMessage(d.vmessage), message.vid.v);
-			}
-		}
+		App::updateEditedMessage(d.vmessage);
+
 		ptsApplySkippedUpdates();
 	} break;
 

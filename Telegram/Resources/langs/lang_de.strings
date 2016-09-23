@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "einen Kontakt";
 "lng_action_pinned_media_location" = "einen Standort";
 "lng_action_pinned_media_sticker" = "einen Sticker";
+"lng_action_game_score" = "{from} erzielte {count:Punkte|Punkt|Punkte} bei {game}";
 
 "lng_profile_migrate_reached" = "Limit von {count:_not_used_|# Mitglied|# Mitgliedern} erreicht";
 "lng_profile_migrate_body" = "Um das Limit aufzuheben, ändere die Gruppe in eine Supergruppe.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Sticker";
 "lng_switch_stickers_gifs" = "GIFs & Sticker";
 "lng_switch_emoji" = "Emoji";
+"lng_stickers_featured_add" = "Hinzufügen";
 
 "lng_saved_gifs" = "Gespeicherte GIFs";
 "lng_inline_bot_results" = "Ergebnisse von {inline_bot}";
@@ -710,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "Rückgängig";
 "lng_stickers_restore" = "Zeigen";
 "lng_stickers_count" = "{count:Lade...|# Sticker|# Sticker}";
+"lng_stickers_masks_pack" = "Das ist ein Masken-Paket. Du kannst Masken nur im Editor unserer mobilen Apps verwenden.";
 
 "lng_in_dlg_photo" = "Bild";
 "lng_in_dlg_video" = "Videodatei";
@@ -762,6 +765,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Diesen Link öffnen?";
 "lng_open_link" = "Öffnen";
+"lng_allow_bot_pass" = "Darf {bot_name} deinen Anzeigenamen und deine id mit Internetseiten teilen, die du mit diesem Bot öffnest?";
+"lng_allow_bot" = "Erlauben";
 
 "lng_bot_start" = "Starten";
 "lng_bot_choose_group" = "Gruppe auswählen";
@@ -869,6 +874,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "Weiterleitung nicht möglich :(";
 "lng_reply_cant" = "Leider kann man alte Nachrichten in Supergruppen nicht beantworten :(";
 "lng_reply_cant_forward" = "Leider kann man alte Nachrichten in Supergruppen nicht beantworten. Stattdessen mit Kommentar weiterleiten?";
+
+"lng_share_title" = "Teilen";
+"lng_share_copy_link" = "Link kopieren";
+"lng_share_confirm" = "Senden";
+"lng_share_wrong_user" = "Dieses Spiel wurde von einem anderen Nutzer geöffnet.";
+"lng_share_game_link_copied" = "Link in die Zwischenablage kopiert.";
+"lng_share_done" = "Fertig!";
 
 "lng_contact_phone" = "Telefonnummer";
 "lng_enter_contact_data" = "Neuer Kontakt";

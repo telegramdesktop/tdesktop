@@ -245,7 +245,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar la vista previa del mensaje";
 "lng_settings_use_windows" = "Usar notificaciones de Windows";
 "lng_settings_sound_notify" = "Reproducir sonido";
-"lng_settings_include_muted" = "Incluir los chats silenciados en el conteo de “no leídos”";
+"lng_settings_include_muted" = "Contar chats silenciados en los “no leídos”";
 
 "lng_notification_preview" = "Tienes un nuevo mensaje";
 
@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "un contacto";
 "lng_action_pinned_media_location" = "una ubicación";
 "lng_action_pinned_media_sticker" = "un sticker";
+"lng_action_game_score" = "{from} ha conseguido {count:# puntos|# punto|# puntos} en {game}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_body" = "Para superar este límite, puedes convertir tu grupo en un supergrupo.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIF y stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_stickers_featured_add" = "Añadir";
 
 "lng_saved_gifs" = "GIF guardados";
 "lng_inline_bot_results" = "Resultados de {inline_bot}";
@@ -710,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "Deshacer";
 "lng_stickers_restore" = "Restaurar";
 "lng_stickers_count" = "{count:Cargando...|# sticker|# stickers}";
+"lng_stickers_masks_pack" = "Este es un pack de stickers de máscaras. Puedes usarlas en el editor de fotos de nuestras aplicaciones en móviles.";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -762,6 +765,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "¿Abrir este enlace?";
 "lng_open_link" = "Abrir";
+"lng_allow_bot_pass" = "¿Permites a {bot_name} entregar tu nombre e id de Telegram a los sitios web que abres a través de este bot?";
+"lng_allow_bot" = "Permitir";
 
 "lng_bot_start" = "Iniciar";
 "lng_bot_choose_group" = "Elegir grupo";
@@ -869,6 +874,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "Lo sentimos. No hay forma de compartir aquí :(";
 "lng_reply_cant" = "Lo sentimos, no puedes responder un mensaje viejo en un supergrupo :(";
 "lng_reply_cant_forward" = "Lo sentimos, no puedes responder un mensaje viejo en un supergrupo :( ¿Quieres reenviarlo y añadir un comentario?";
+
+"lng_share_title" = "Compartir con";
+"lng_share_copy_link" = "Copiar enlace para compartir";
+"lng_share_confirm" = "Enviar";
+"lng_share_wrong_user" = "Este juego fue abierto por un usuario diferente.";
+"lng_share_game_link_copied" = "Enlace del juego copiado al portapapeles.";
+"lng_share_done" = "¡Hecho!";
 
 "lng_contact_phone" = "Número de teléfono";
 "lng_enter_contact_data" = "Nuevo contacto";

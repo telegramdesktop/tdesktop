@@ -1150,11 +1150,11 @@ void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 		}
 		_downloadPathUrl = url;
 
-		cSetDownloadPath(objcString([_downloadPathUrl path]) + '/');
+		Global::SetDownloadPath(objcString([_downloadPathUrl path]) + '/');
 		if (isStale) {
 			NSData *data = [_downloadPathUrl bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
 			if (data) {
-				cSetDownloadPathBookmark(QByteArray::fromNSData(data));
+				Global::SetDownloadPathBookmark(QByteArray::fromNSData(data));
 				Local::writeUserSettings();
 			}
 		}

@@ -1441,12 +1441,12 @@ void StickerPanInner::refreshStickers() {
 			}
 			auto i = _animations.find(sel + 1);
 			if (i != _animations.cend()) {
-				i.value() = (i.value() >= st::emojiPanDuration) ? (i.value() - st::emojiPanDuration) : 0;
+				i.value() = (i.value() >= static_cast<uint32>(st::emojiPanDuration)) ? (i.value() - st::emojiPanDuration) : 0;
 			}
 			if (xsel >= 0) {
 				auto j = _animations.find(xsel + 1);
 				if (j != _animations.cend()) {
-					j.value() = (j.value() >= st::emojiPanDuration) ? (j.value() - st::emojiPanDuration) : 0;
+					j.value() = (j.value() >= static_cast<uint32>(st::emojiPanDuration)) ? (j.value() - st::emojiPanDuration) : 0;
 				}
 			}
 			step_selected(getms(), true);
@@ -2158,7 +2158,7 @@ void StickerPanInner::updateSelected() {
 	}
 	for (int c = 0, l = sets.size(); c < l; ++c) {
 		auto &set = sets[c];
-		bool special = featured ? false : (set.flags & MTPDstickerSet::Flag::f_official);
+		bool special = featured ? false : bool(set.flags & MTPDstickerSet::Flag::f_official);
 
 		y = ytill;
 		if (featured) {
