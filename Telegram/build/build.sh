@@ -357,7 +357,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
     mkdir -p "$DropboxDeployPath"
-    cp -v "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
+    cp -rv "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
     cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DropboxDeployPath/"
   fi
 fi
