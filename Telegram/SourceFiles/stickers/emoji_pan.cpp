@@ -2158,7 +2158,7 @@ void StickerPanInner::updateSelected() {
 	}
 	for (int c = 0, l = sets.size(); c < l; ++c) {
 		auto &set = sets[c];
-		bool special = featured ? false : (set.flags & MTPDstickerSet::Flag::f_official);
+		bool special = featured ? false : bool(set.flags & MTPDstickerSet::Flag::f_official);
 
 		y = ytill;
 		if (featured) {
