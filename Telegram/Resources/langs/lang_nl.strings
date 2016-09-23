@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "een contact";
 "lng_action_pinned_media_location" = "een locatie";
 "lng_action_pinned_media_sticker" = "een sticker";
+"lng_action_game_score" = "{from} heeft met {game} {count:#punten|#punt|#punten} behaald";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
 "lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIF's & stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_stickers_featured_add" = "Toevoegen";
 
 "lng_saved_gifs" = "Opgeslagen GIF's";
 "lng_inline_bot_results" = "Resultaten van {inline_bot}";
@@ -710,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "Ongedaan maken";
 "lng_stickers_restore" = "Herstellen";
 "lng_stickers_count" = "{count:Laden..|# sticker|# stickers}";
+"lng_stickers_masks_pack" = "Dit een set met maskers. Je kunt ze gebruiken als je een foto bewerkt in onze mobiele apps.";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -762,6 +765,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Link openen?";
 "lng_open_link" = "Openen";
+"lng_allow_bot_pass" = "Wil je {bot_name} toestaan om je naam en ID door te geven aan webpagina's die je opent via deze bot?";
+"lng_allow_bot" = "Toestaan";
 
 "lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";
@@ -869,6 +874,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "Sorry, delen hierheen kan niet :(";
 "lng_reply_cant" = "Sorry, je kunt geen oude berichten beantwoorden in een supergroep :(";
 "lng_reply_cant_forward" = "Je kunt geen oude berichten beantwoorden in een supergroep :( Doorsturen en commentaar toevoegen?";
+
+"lng_share_title" = "Delen met";
+"lng_share_copy_link" = "Link kopiëren";
+"lng_share_confirm" = "Stuur";
+"lng_share_wrong_user" = "Resultaten zijn van een andere gebruiker of sessie.";
+"lng_share_game_link_copied" = "Link gekopieerd naar klembord.";
+"lng_share_done" = "Klaar!";
 
 "lng_contact_phone" = "Telefoonnummer";
 "lng_enter_contact_data" = "Nieuw contact";

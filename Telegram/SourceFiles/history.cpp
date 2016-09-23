@@ -8152,13 +8152,13 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 			}
 			return lang(lng_deleted_message);
 		};
-		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, getGameTitle());
+		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, getGameTitle());
 		result = true;
 	} else if (gamescore && gamescore->msgId) {
-		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, lang(lng_contacts_loading));
+		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, lang(lng_contacts_loading));
 		result = true;
 	} else {
-		text = lng_action_game_score(lt_from, from, lt_score, QString::number(gamescore->score), lt_game, lang(lng_deleted_message));
+		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, lang(lng_deleted_message));
 	}
 	*outText = text;
 	if (second) {

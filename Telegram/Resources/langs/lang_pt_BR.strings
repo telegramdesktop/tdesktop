@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "um contato";
 "lng_action_pinned_media_location" = "uma localização";
 "lng_action_pinned_media_sticker" = "um sticker";
+"lng_action_game_score" = "{from} marcou {count:pontos|ponto|pontos} em {game}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# membro|# membros} limite alcançado";
 "lng_profile_migrate_body" = "Para ir além desse limite, você pode converter seu grupo em um supergrupo.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs e Stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_stickers_featured_add" = "Adicionar";
 
 "lng_saved_gifs" = "GIFs Salvos";
 "lng_inline_bot_results" = "Resultados de {inline_bot}";
@@ -710,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "Desfazer";
 "lng_stickers_restore" = "Restaurar";
 "lng_stickers_count" = "{count:Carregando...|# sticker|# stickers}";
+"lng_stickers_masks_pack" = "Esse é um pacote de máscaras. Você pode usá-las no editor de fotos em nossos aplicativos para celular.";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -762,6 +765,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Abrir este link?";
 "lng_open_link" = "Abrir";
+"lng_allow_bot_pass" = "Você permite ao {bot_name} passar seu nome do Telegram e id para páginas web que você abrir através desse bot?";
+"lng_allow_bot" = "Permitir";
 
 "lng_bot_start" = "Iniciar";
 "lng_bot_choose_group" = "Escolher Grupo";
@@ -869,6 +874,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "Não há como compartilhar aqui :(";
 "lng_reply_cant" = "Desculpe, não há como responder uma mensagem antiga no supergrupo :(";
 "lng_reply_cant_forward" = "Não há como responder uma mensagem antiga no supergrupo :( Deseja encaminhá-la e adicionar um comentário?";
+
+"lng_share_title" = "Compartilhar com";
+"lng_share_copy_link" = "Copiar link";
+"lng_share_confirm" = "Enviar";
+"lng_share_wrong_user" = "Este jogo foi aberto por outro usuário.";
+"lng_share_game_link_copied" = "Link copiado para a área de transferência.";
+"lng_share_done" = "Concluído!";
 
 "lng_contact_phone" = "Número de telefone";
 "lng_enter_contact_data" = "Novo Contato";

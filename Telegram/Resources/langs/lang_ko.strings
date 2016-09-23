@@ -580,6 +580,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "연락처 정보";
 "lng_action_pinned_media_location" = "위치 마크";
 "lng_action_pinned_media_sticker" = "스티커";
+"lng_action_game_score" = "{game} 에서 {from} 님이 {count:#|#|#} 점 획득";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# 명|# 명} 한계치에 도달 되었습니다.";
 "lng_profile_migrate_body" = "제한을 초과하고 싶으실 경우, 슈퍼그룹으로 그룹 업그레이드가 가능합니다.";
@@ -683,6 +684,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "스티커";
 "lng_switch_stickers_gifs" = "GIF & 스티커";
 "lng_switch_emoji" = "이모티콘";
+"lng_stickers_featured_add" = "추가";
 
 "lng_saved_gifs" = "저장된 GIF";
 "lng_inline_bot_results" = "{inline_bot} 결과";
@@ -710,6 +712,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_return" = "실행취소";
 "lng_stickers_restore" = "복구";
 "lng_stickers_count" = "{count:Loading...|# 스티커|# 스티커}";
+"lng_stickers_masks_pack" = "마스크 스티커 팩입니다. 모바일 기기에 있는 사진 에디터에서 사용 가능합니다.";
 
 "lng_in_dlg_photo" = "사진";
 "lng_in_dlg_video" = "비디오 파일";
@@ -762,6 +765,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "이 링크로 이동하시겠나요?";
 "lng_open_link" = "열기";
+"lng_allow_bot_pass" = "이 bot을 통하여 {bot_name}이 텔레그램 이름과 아이디를 웹페이지로 전달하시기를 허락하시나요?";
+"lng_allow_bot" = "허용";
 
 "lng_bot_start" = "시작";
 "lng_bot_choose_group" = "그룹 선택";
@@ -869,6 +874,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_share_cant" = "이쪽으로 공유 할 수 없습니다 :(";
 "lng_reply_cant" = "죄송합니다. 슈퍼그룹방의 이전 메시지에 답글을 할 수 없습니다 :(";
 "lng_reply_cant_forward" = "죄송합니다. 슈퍼그룹방의 이전 메시지에 답글을 할 수 없습니다 :( 메시지를 전달하거나 코멘트를 다시겠나요?";
+
+"lng_share_title" = "공유하기";
+"lng_share_copy_link" = "공유링크 복사";
+"lng_share_confirm" = "전송";
+"lng_share_wrong_user" = "다른 회원님이 게임을 시작하였습니다.";
+"lng_share_game_link_copied" = "클립보드에 게임링크가 복사되었습니다.";
+"lng_share_done" = "완료!";
 
 "lng_contact_phone" = "전화번호";
 "lng_enter_contact_data" = "새로운 연락처";
