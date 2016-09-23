@@ -8145,7 +8145,13 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 							second = MakeShared<ReplyMarkupClickHandler>(item, i, j);
 							auto parts = strData.split(',');
 							t_assert(parts.size() > 2);
-							return textcmdLink(2, parts.mid(2).join(','));
+							QString gameTitle;
+							gameTitle.reserve(strData.size() - 2);
+							gameTitle.append(parts[2]);
+							for (int i = 3, count = parts.size(); i != count; ++i) {
+								gameTitle.append(',').append(parts[i]);
+							}
+							return textcmdLink(2, gameTitle);
 						}
 					}
 				}
