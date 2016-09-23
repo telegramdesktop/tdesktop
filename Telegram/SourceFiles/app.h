@@ -72,8 +72,7 @@ namespace App {
 	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
-	void updateEditedMessage(const MTPDmessage &m);
-	void updateEditedMessageToEmpty(PeerId peerId, MsgId msgId);
+	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);

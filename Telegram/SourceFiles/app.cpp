@@ -1111,19 +1111,22 @@ namespace {
 		return false;
 	}
 
-	void updateEditedMessage(const MTPDmessage &m) {
-		PeerId peerId = peerFromMTP(m.vto_id);
+	template <typename TMTPDclass>
+	void updateEditedMessage(const TMTPDclass &m) {
+		auto peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
-		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
+		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->applyEdition(m);
 		}
 	}
 
-	void updateEditedMessageToEmpty(PeerId peerId, MsgId msgId) {
-		if (auto existing = App::histItemById(peerToChannel(peerId), msgId)) {
-			existing->applyEditionToEmpty();
+	void updateEditedMessage(const MTPMessage &m) {
+		if (m.type() == mtpc_message) { // apply message edit
+			App::updateEditedMessage(m.c_message());
+		} else if (m.type() == mtpc_messageService) {
+			App::updateEditedMessage(m.c_messageService());
 		}
 	}
 

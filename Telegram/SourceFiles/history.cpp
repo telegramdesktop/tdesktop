@@ -7103,6 +7103,12 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	finishEdition(keyboardTop);
 }
 
+void HistoryMessage::applyEdition(const MTPDmessageService &message) {
+	if (message.vaction.type() == mtpc_messageActionHistoryClear) {
+		applyEditionToEmpty();
+	}
+}
+
 void HistoryMessage::applyEditionToEmpty() {
 	setEmptyText();
 	setMedia(nullptr);
@@ -8175,20 +8181,7 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 
 HistoryService::HistoryService(History *history, const MTPDmessageService &msg) :
 	HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
-	if (msg.has_reply_to_msg_id()) {
-		if (msg.vaction.type() == mtpc_messageActionPinMessage) {
-			UpdateComponents(HistoryServicePinned::Bit());
-		} else if (msg.vaction.type() == mtpc_messageActionGameScore) {
-			UpdateComponents(HistoryServiceGameScore::Bit());
-			Get<HistoryServiceGameScore>()->score = msg.vaction.c_messageActionGameScore().vscore.v;
-		}
-		if (auto dependent = GetDependentData()) {
-			dependent->msgId = msg.vreply_to_msg_id.v;
-			if (!updateDependent() && App::api()) {
-				App::api()->requestMessageData(history->peer->asChannel(), dependent->msgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
-			}
-		}
-	}
+	createFromMtp(msg);
 	setMessageByAction(msg.vaction);
 }
 
@@ -8375,15 +8368,36 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 	return result;
 }
 
-void HistoryService::applyEditionToEmpty() {
-	TextWithEntities textWithEntities = { QString(), EntitiesInText() };
-	setServiceText(QString(), Links());
-	removeMedia();
+void HistoryService::createFromMtp(const MTPDmessageService &message) {
+	if (message.has_reply_to_msg_id()) {
+		if (message.vaction.type() == mtpc_messageActionPinMessage) {
+			UpdateComponents(HistoryServicePinned::Bit());
+		} else if (message.vaction.type() == mtpc_messageActionGameScore) {
+			UpdateComponents(HistoryServiceGameScore::Bit());
+			Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
+		}
+		if (auto dependent = GetDependentData()) {
+			dependent->msgId = message.vreply_to_msg_id.v;
+			if (!updateDependent() && App::api()) {
+				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+			}
+		}
+	}
+	setMessageByAction(message.vaction);
+}
 
+void HistoryService::applyEdition(const MTPDmessageService &message) {
 	clearDependency();
 	UpdateComponents(0);
 
-	finishEditionToEmpty();
+	createFromMtp(message);
+
+	if (message.vaction.type() == mtpc_messageActionHistoryClear) {
+		removeMedia();
+		finishEditionToEmpty();
+	} else {
+		finishEdition(-1);
+	}
 }
 
 void HistoryService::removeMedia() {
