@@ -32,7 +32,7 @@ namespace {
 		Qt::LayoutDirectionAuto, // dir
 	};
 	TextParseOptions _labelMarkedOptions = {
-		TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands, // flags
+		TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMono, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir
@@ -67,28 +67,32 @@ void FlatLabel::init() {
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 }
 
-void FlatLabel::setText(const QString &text) {
+template <typename SetCallback>
+void FlatLabel::setTextByCallback(SetCallback callback) {
 	textstyleSet(&_tst);
-	_text.setText(_st.font, text, _labelOptions);
+	callback();
 	refreshSize();
 	textstyleRestore();
 	setMouseTracking(_selectable || _text.hasLinks());
+	update();
+}
+
+void FlatLabel::setText(const QString &text) {
+	setTextByCallback([this, &text]() {
+		_text.setText(_st.font, text, _labelOptions);
+	});
 }
 
 void FlatLabel::setRichText(const QString &text) {
-	textstyleSet(&_tst);
-	_text.setRichText(_st.font, text, _labelOptions);
-	refreshSize();
-	textstyleRestore();
-	setMouseTracking(_selectable || _text.hasLinks());
+	setTextByCallback([this, &text]() {
+		_text.setRichText(_st.font, text, _labelOptions);
+	});
 }
 
 void FlatLabel::setMarkedText(const TextWithEntities &textWithEntities) {
-	textstyleSet(&_tst);
-	_text.setMarkedText(_st.font, textWithEntities, _labelMarkedOptions);
-	refreshSize();
-	textstyleRestore();
-	setMouseTracking(_selectable || _text.hasLinks());
+	setTextByCallback([this, &textWithEntities]() {
+		_text.setMarkedText(_st.font, textWithEntities, _labelMarkedOptions);
+	});
 }
 
 void FlatLabel::setSelectable(bool selectable) {

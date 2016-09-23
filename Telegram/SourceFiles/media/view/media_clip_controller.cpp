@@ -34,7 +34,7 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(this)
+, _playback(this, st::mediaviewPlayback)
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
@@ -48,12 +48,17 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 
 	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
-	connect(_playback, SIGNAL(seekProgress(float64)), this, SLOT(onSeekProgress(float64)));
-	connect(_playback, SIGNAL(seekFinished(float64)), this, SLOT(onSeekFinished(float64)));
 	connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
+
+	_playback->setChangeProgressCallback([this](float64 value) {
+		handleSeekProgress(value);
+	});
+	_playback->setChangeFinishedCallback([this](float64 value) {
+		handleSeekFinished(value);
+	});
 }
 
-void Controller::onSeekProgress(float64 progress) {
+void Controller::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
 	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
@@ -64,7 +69,7 @@ void Controller::onSeekProgress(float64 progress) {
 	}
 }
 
-void Controller::onSeekFinished(float64 progress) {
+void Controller::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
 	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
@@ -99,9 +104,9 @@ void Controller::fadeUpdated(float64 opacity) {
 	_playback->setFadeOpacity(opacity);
 }
 
-void Controller::updatePlayback(const AudioPlaybackState &playbackState, bool reset) {
+void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
 	updatePlayPauseResumeState(playbackState);
-	_playback->updateState(playbackState, reset);
+	_playback->updateState(playbackState);
 	updateTimeTexts(playbackState);
 }
 
@@ -189,11 +194,13 @@ void Controller::resizeEvent(QResizeEvent *e) {
 	_fullScreenToggle->moveToRight(st::mediaviewFullScreenLeft, fullScreenTop);
 
 	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
-	_playback->resize(width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft, st::mediaviewSeekSize.height());
+
+	int playbackWidth = width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft;
+	_playback->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
 	_playback->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
 
 	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
-	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - _playback->width(), st::mediaviewPlayProgressTop);
+	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - playbackWidth, st::mediaviewPlayProgressTop);
 }
 
 void Controller::paintEvent(QPaintEvent *e) {

@@ -469,7 +469,7 @@ void PlayerWidget::playPressed() {
 		}
 	} else {
 		audioPlayer()->play(_song);
-		if (App::main()) App::main()->audioPlayProgress(_song);
+		audioPlayer()->notify(_song);
 	}
 }
 
@@ -494,15 +494,15 @@ void PlayerWidget::playPausePressed() {
 		audioPlayer()->pauseresume(AudioMsgId::Type::Song);
 	} else {
 		audioPlayer()->play(_song);
-		if (App::main()) App::main()->audioPlayProgress(_song);
+		audioPlayer()->notify(_song);
 	}
 }
 
 void PlayerWidget::prevPressed() {
 	if (isHidden()) return;
 
-	History *history = _msgmigrated ? _migrated : _history;
-	const History::MediaOverview *o = history ? &history->overview[OverviewMusicFiles] : 0;
+	auto history = _msgmigrated ? _migrated : _history;
+	auto o = history ? &history->overview[OverviewMusicFiles] : nullptr;
 	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
 		startPlay(FullMsgId(history->channelId(), o->at(_index - 1)));
 	} else if (!_index && _history && _migrated && !_msgmigrated) {
@@ -516,8 +516,8 @@ void PlayerWidget::prevPressed() {
 void PlayerWidget::nextPressed() {
 	if (isHidden()) return;
 
-	History *history = _msgmigrated ? _migrated : _history;
-	const History::MediaOverview *o = history ? &history->overview[OverviewMusicFiles] : 0;
+	auto history = _msgmigrated ? _migrated : _history;
+	auto o = history ? &history->overview[OverviewMusicFiles] : nullptr;
 	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
 		startPlay(FullMsgId(history->channelId(), o->at(_index + 1)));
 	} else if (o && (_index == o->size() - 1) && _msgmigrated && _history->overviewLoaded(OverviewMusicFiles)) {
@@ -680,11 +680,11 @@ void PlayerWidget::updateState(AudioMsgId playing, AudioPlaybackState playbackSt
 	if (wasPlaying && playbackState.state == AudioPlayerStoppedAtEnd) {
 		if (_repeat) {
 			if (_song.audio()) {
-				audioPlayer()->play(_song, OverviewMusicFiles);
-				updateState();
+//				audioPlayer()->play(_song);
+//				updateState();
 			}
 		} else {
-			nextPressed();
+//			nextPressed();
 		}
 	}
 

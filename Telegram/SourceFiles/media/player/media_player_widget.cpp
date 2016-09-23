@@ -38,7 +38,9 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShowStart()));
 
-	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	if (_scroll) {
+		connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	}
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));

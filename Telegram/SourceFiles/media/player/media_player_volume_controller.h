@@ -20,6 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
+class IconButton;
+class MediaSlider;
+} // namespace Ui
+
 namespace Media {
 namespace Player {
 
@@ -28,12 +33,15 @@ public:
 	VolumeController(QWidget *parent);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void setVolume(float64 volume, bool animated = true);
+	void applyVolumeChange(float64 volume);
+
+	ChildWidget<Ui::IconButton> _toggle;
+	ChildWidget<Ui::MediaSlider> _slider;
+	float64 _rememberedVolume = Global::kDefaultVolume;
 
 };
 

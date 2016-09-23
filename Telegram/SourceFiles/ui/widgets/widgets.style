@@ -33,4 +33,14 @@ defaultLabelSimple: LabelSimple {
 	textFg: windowTextFg;
 }
 
+MediaSlider {
+	width: pixels;
+	activeFg: color;
+	inactiveFg: color;
+	activeOpacity: double;
+	inactiveOpacity: double;
+	seekSize: size;
+	duration: int;
+}
+
 widgetSlideDuration: 200;

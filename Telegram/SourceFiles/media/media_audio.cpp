@@ -349,7 +349,7 @@ void AudioPlayer::onUpdated(const AudioMsgId &audio) {
 	if (audio.type() == AudioMsgId::Type::Video) {
 		videoSoundProgress(audio);
 	}
-	notify(AudioMsgId(audio));
+	notify(audio);
 }
 
 void AudioPlayer::onError(const AudioMsgId &audio) {

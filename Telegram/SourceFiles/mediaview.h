@@ -135,7 +135,7 @@ private:
 	void updateCursor();
 	void setZoomLevel(int newZoom);
 
-	void updateVideoPlaybackState(const AudioPlaybackState &state, bool reset = false);
+	void updateVideoPlaybackState(const AudioPlaybackState &state);
 	void updateSilentVideoPlaybackState();
 	void restartVideoAtSeekPosition(int64 positionMs);
 

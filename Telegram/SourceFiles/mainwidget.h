@@ -139,10 +139,6 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 public:
 	MainWidget(MainWindow *window);
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
 	bool needBackButton();
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
@@ -382,6 +378,8 @@ public:
 
 	void closePlayer();
 
+	void documentLoadProgress(DocumentData *document);
+
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -423,7 +421,6 @@ signals:
 public slots:
 	void webPagesUpdate();
 
-	void audioPlayProgress(const AudioMsgId &audioId);
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
@@ -479,8 +476,15 @@ public slots:
 
 	void onDeletePhotoSure();
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+
 private:
 	void updateAdaptiveLayout();
+	void handleAudioUpdate(const AudioMsgId &audioId);
+	void updateMediaPlayerPosition();
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);

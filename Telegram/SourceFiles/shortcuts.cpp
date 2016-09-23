@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "passcodewidget.h"
 #include "mainwidget.h"
-#include "playerwidget.h"
+#include "media/player/media_player_instance.h"
 
 namespace ShortcutCommands {
 
@@ -77,61 +77,49 @@ bool quit_telegram() {
 //}
 
 bool media_play() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->playPressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->play();
+		return true;
 	}
 	return false;
 }
 
 bool media_pause() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->pausePressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->pause();
+		return true;
 	}
 	return false;
 }
 
 bool media_playpause() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->playPausePressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->playPause();
+		return true;
 	}
 	return false;
 }
 
 bool media_stop() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->stopPressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->stop();
+		return true;
 	}
 	return false;
 }
 
 bool media_previous() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->prevPressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->previous();
+		return true;
 	}
 	return false;
 }
 
 bool media_next() {
-	if (auto m = App::main()) {
-		if (!m->player()->isHidden()) {
-			m->player()->nextPressed();
-			return true;
-		}
+	if (Media::Player::exists()) {
+		Media::Player::instance()->next();
+		return true;
 	}
 	return false;
 }

@@ -27,6 +27,7 @@ class MainWindow;
 namespace Media {
 namespace Player {
 class TitleButton;
+class CreatedEvent;
 } // namespace Player
 } // namespace Media
 class AudioMsgId;
@@ -43,10 +44,6 @@ public:
 	void mouseDoubleClickEvent(QMouseEvent *e);
 
 	void maximizedChanged(bool maximized, bool force = false);
-
-	Media::Player::TitleButton *playerButton() {
-		return _player;
-	}
 
 	HitTestType hitTest(const QPoint &p);
 
@@ -74,7 +71,7 @@ private:
 	void updateSystemButtonsVisibility();
 	void updateControlsPosition();
 
-	void handleSongUpdate(const AudioMsgId &audioId);
+	void handleMediaPlayerCreated(const Media::Player::CreatedEvent &e);
 
 	style::color statusColor;
 

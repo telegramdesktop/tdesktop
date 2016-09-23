@@ -29,6 +29,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/aboutbox.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_button.h"
+#include "media/player/media_player_widget.h"
+#include "media/player/media_player_instance.h"
 
 class TitleWidget::Hider : public TWidget {
 public:
@@ -100,10 +102,12 @@ TitleWidget::TitleWidget(QWidget *parent) : TWidget(parent)
 #endif
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
-	if (auto player = audioPlayer()) {
-		subscribe(player, [this](const AudioMsgId &audio) {
-			if (audio.type() == AudioMsgId::Type::Song) {
-				handleSongUpdate(audio);
+	if (Media::Player::exists()) {
+		subscribe(Media::Player::instance()->createdNotifier(), [this](const Media::Player::CreatedEvent &e) {
+			if (!_player) {
+				_player.create(this);
+				_player->installEventFilter(e.widget);
+				updateControlsVisibility();
 			}
 		});
 	}
@@ -153,20 +157,6 @@ void TitleWidget::setHideLevel(float64 level) {
 			if (_hider) {
 				_hider.destroyDelayed();
 			}
-		}
-	}
-}
-
-void TitleWidget::handleSongUpdate(const AudioMsgId &audioId) {
-	t_assert(audioId.type() == AudioMsgId::Type::Song);
-
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
-	if (playing == audioId) {
-		auto songIsPlaying = !(playbackState.state & AudioPlayerStoppedMask) && (playbackState.state != AudioPlayerFinishing);
-		if (songIsPlaying && !_player) {
-			_player.create(this);
-			updateControlsVisibility();
 		}
 	}
 }

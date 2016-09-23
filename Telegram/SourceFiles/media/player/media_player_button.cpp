@@ -23,6 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_media_player.h"
 #include "media/media_audio.h"
+#include "media/player/media_player_instance.h"
+#include "shortcuts.h"
 
 namespace Media {
 namespace Player {
@@ -32,8 +34,33 @@ TitleButton::TitleButton(QWidget *parent) : Button(parent) {
 	resize(st::mediaPlayerTitleButtonSize);
 
 	setClickedCallback([this]() {
-		setShowPause(!_showPause);
+		if (exists()) {
+			if (_showPause) {
+				instance()->pause();
+			} else {
+				instance()->play();
+			}
+		}
 	});
+
+	if (exists()) {
+		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
+			updatePauseState();
+		});
+		updatePauseState();
+		finishIconTransform();
+	}
+}
+
+void TitleButton::updatePauseState() {
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
+	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+	if (exists() && instance()->isSeeking()) {
+		showPause = true;
+	}
+	setShowPause(showPause);
 }
 
 void TitleButton::setShowPause(bool showPause) {

@@ -26,6 +26,18 @@ mediaviewActiveOpacity: 1.;
 mediaviewInactiveOpacity: 0.78;
 mediaviewOverDuration: 150;
 
+mediaviewPlaybackActive: #ffffff;
+mediaviewPlaybackInactive: #474747;
+mediaviewPlayback: MediaSlider {
+	width: 3px;
+	activeFg: mediaviewPlaybackActive;
+	inactiveFg: mediaviewPlaybackInactive;
+	activeOpacity: mediaviewActiveOpacity;
+	inactiveOpacity: mediaviewInactiveOpacity;
+	seekSize: size(11px, 11px);
+	duration: mediaviewOverDuration;
+}
+
 mediaviewControllerSize: size(600px, 50px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
@@ -65,11 +77,7 @@ mediaviewFullScreenOutIcon: icon {
 	{ "media_fullscreen_from", #ffffff, point(0px, 0px) },
 };
 
-mediaviewPlaybackActive: #ffffff;
-mediaviewPlaybackInactive: #474747;
-mediaviewPlaybackWidth: 3px;
 mediaviewPlaybackTop: 28px;
-mediaviewSeekSize: size(11px, 11px);
 
 mediaviewVolumeSize: size(44px, 20px);
 mediaviewVolumeIcon: icon {

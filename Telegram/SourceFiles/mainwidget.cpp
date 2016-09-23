@@ -50,8 +50,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
-#include "media/player/media_player_button.h"
 #include "media/player/media_player_widget.h"
+#include "media/player/media_player_instance.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "window/chat_background.h"
@@ -98,9 +98,14 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	connect(_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
 	connect(_history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
-	if (audioPlayer()) {
-		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
+	if (auto player = audioPlayer()) {
+		subscribe(player, [this](const AudioMsgId &audioId) {
+			if (audioId.type() != AudioMsgId::Type::Video) {
+				handleAudioUpdate(audioId);
+			}
+		});
 	}
+
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
 
@@ -1542,11 +1547,7 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 	}
 }
 
-void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
-	if (audioId.type() == AudioMsgId::Type::Video) {
-		return;
-	}
-
+void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	AudioMsgId playing;
 	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
 	if (playing == audioId && playbackState.state == AudioPlayerStoppedAtStart) {
@@ -1563,6 +1564,13 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
+		if (!_mediaPlayer && Media::Player::exists()) {
+			_mediaPlayer.create(this);
+			updateMediaPlayerPosition();
+			orderWidgets();
+			Media::Player::instance()->createdNotifier().notify(Media::Player::CreatedEvent(_mediaPlayer), true);
+		}
+
 		_player->updateState(playing, playbackState);
 
 		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
@@ -1600,28 +1608,35 @@ void MainWidget::closePlayer() {
 }
 
 void MainWidget::documentLoadProgress(FileLoader *loader) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
+	if (auto mtpLoader = loader ? loader->mtpLoader() : nullptr) {
+		documentLoadProgress(App::document(mtpLoader->objId()));
+	}
+}
 
-	DocumentData *document = App::document(l->objId());
+void MainWidget::documentLoadProgress(DocumentData *document) {
 	if (document->loaded()) {
 		document->performActionOnLoad();
 	}
 
-	const DocumentItems &items(App::documentItems());
-	DocumentItems::const_iterator i = items.constFind(document);
+	auto &items = App::documentItems();
+	auto i = items.constFind(document);
 	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+		for (auto j = i->cbegin(), e = i->cend(); j != e; ++j) {
 			Ui::repaintHistoryItem(j.key());
 		}
 	}
 	App::wnd()->documentUpdated(document);
 
-	if (!document->loaded() && document->loading() && document->song() && audioPlayer()) {
-		AudioMsgId playing;
-		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-		if (playing.audio() == document && !_player->isHidden()) {
-			_player->updateState(playing, playbackState);
+	if (!document->loaded() && document->song()) {
+		if (audioPlayer() && document->loading()) {
+			AudioMsgId playing;
+			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+			if (playing.audio() == document && !_player->isHidden()) {
+				_player->updateState(playing, playbackState);
+			}
+		}
+		if (Media::Player::exists()) {
+			Media::Player::instance()->documentLoadProgress(document);
 		}
 	}
 }
@@ -2664,9 +2679,7 @@ inline int chatsListWidth(int windowWidth) {
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
-	if (_mediaPlayer) {
-		_mediaPlayer->moveToRight(0, 0);
-	}
+	updateMediaPlayerPosition();
 	if (Adaptive::OneColumn()) {
 		_dialogsWidth = width();
 		_player->setGeometry(0, 0, _dialogsWidth, _player->height());
@@ -2698,6 +2711,12 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
 	_contentScrollAddToY = 0;
+}
+
+void MainWidget::updateMediaPlayerPosition() {
+	if (_mediaPlayer) {
+		_mediaPlayer->moveToRight(0, 0);
+	}
 }
 
 int MainWidget::contentScrollAddToY() const {

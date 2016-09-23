@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "core/observer.h"
 #include "window/chat_background.h"
+#include "media/player/media_player_instance.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -722,6 +723,7 @@ AppClass::AppClass() : QObject()
 	style::startManager();
 	anim::startManager();
 	historyInit();
+	Media::Player::start();
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -1108,6 +1110,7 @@ AppClass::~AppClass() {
 
 	Window::chatBackground()->reset();
 
+	Media::Player::finish();
 	style::stopManager();
 
 	Local::finish();

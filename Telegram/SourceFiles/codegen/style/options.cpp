@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <ostream>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
 #include "codegen/common/logging.h"
 
 namespace codegen {
@@ -32,6 +33,7 @@ constexpr int kErrorIncludePathExpected     = 901;
 constexpr int kErrorOutputPathExpected      = 902;
 constexpr int kErrorInputPathExpected       = 903;
 constexpr int kErrorSingleInputPathExpected = 904;
+constexpr int kErrorWorkingPathExpected     = 905;
 
 } // namespace
 
@@ -76,6 +78,17 @@ Options parseOptions() {
 			}
 		} else if (arg.startsWith("-o")) {
 			result.outputPath = arg.mid(2);
+
+		// Working path
+		} else if (arg == "-w") {
+			if (++i == count) {
+				logError(kErrorWorkingPathExpected, "Command Line") << "working path expected after -w";
+				return Options();
+			} else {
+				common::logSetWorkingPath(args.at(i));
+			}
+		} else if (arg.startsWith("-w")) {
+			common::logSetWorkingPath(arg.mid(2));
 
 		// Input path
 		} else {

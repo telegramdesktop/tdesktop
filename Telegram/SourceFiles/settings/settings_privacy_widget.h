@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-class LocalPasscodeState : public TWidget, public base::Subscriber {
+class LocalPasscodeState : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

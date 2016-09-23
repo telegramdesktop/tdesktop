@@ -334,7 +334,7 @@ public slots:
 	void onScroll();
 
 	void onScrollTimer();
-	void onPlayerSongChanged(const FullMsgId &msgId);
+//	void onPlayerSongChanged(const FullMsgId &msgId);
 
 	void onForwardSelected();
 	void onDeleteSelected();

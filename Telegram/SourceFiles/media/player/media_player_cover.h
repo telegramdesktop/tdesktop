@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+class AudioMsgId;
+struct AudioPlaybackState;
 class FlatLabel;
 namespace Ui {
 class LabelSimple;
@@ -27,12 +29,17 @@ class IconButton;
 } // namespace Ui
 
 namespace Media {
+namespace Clip {
+class Playback;
+} // namespace Clip
+
 namespace Player {
 
 class PlaybackWidget;
 class VolumeController;
+struct UpdatedEvent;
 
-class CoverWidget : public TWidget {
+class CoverWidget : public TWidget, private base::Subscriber {
 public:
 	CoverWidget(QWidget *parent);
 
@@ -41,11 +48,30 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void handleSeekProgress(float64 progress);
+	void handleSeekFinished(float64 progress);
+
 	void updatePlayPrevNextPositions();
+	void updateLabelPositions();
+	void updateRepeatTrackIcon();
+	void createPrevNextButtons();
+	void destroyPrevNextButtons();
+
+	void handleSongUpdate(const UpdatedEvent &e);
+	void handleSongChange();
+	void handlePlaylistUpdate();
+
+	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeLabel();
+
+	bool _showPause = true;
+	int64 _seekPositionMs = -1;
+	int64 _lastDurationMs = 0;
+	QString _time;
 
 	ChildWidget<FlatLabel> _nameLabel;
 	ChildWidget<Ui::LabelSimple> _timeLabel;
-	ChildWidget<PlaybackWidget> _playback;
+	ChildWidget<Clip::Playback> _playback;
 	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
 	ChildWidget<Ui::IconButton> _playPause;
 	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };

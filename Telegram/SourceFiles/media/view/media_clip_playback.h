@@ -20,51 +20,56 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/widgets/media_slider.h"
+
 struct AudioPlaybackState;
+namespace style {
+struct MediaSlider;
+} // namespace style
+namespace Ui {
+class MediaSlider;
+} // namespace Ui
 
 namespace Media {
 namespace Clip {
 
-class Playback : public TWidget {
-	Q_OBJECT
-
+class Playback {
 public:
-	Playback(QWidget *parent);
+	Playback(QWidget *parent, const style::MediaSlider &st);
 
-	void updateState(const AudioPlaybackState &playbackState, bool reset);
-	void setFadeOpacity(float64 opacity);
+	void updateState(const AudioPlaybackState &playbackState);
 
-signals:
-	void seekProgress(float64 progress);
-	void seekFinished(float64 progress);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void setFadeOpacity(float64 opacity) {
+		_slider->setFadeOpacity(opacity);
+	}
+	void setChangeProgressCallback(Ui::MediaSlider::Callback &&callback) {
+		_slider->setChangeProgressCallback(std_::move(callback));
+	}
+	void setChangeFinishedCallback(Ui::MediaSlider::Callback &&callback) {
+		_slider->setChangeFinishedCallback(std_::move(callback));
+	}
+	void setGeometry(int x, int y, int w, int h) {
+		_slider->setGeometry(x, y, w, h);
+	}
+	void hide() {
+		_slider->hide();
+	}
+	void show() {
+		_slider->show();
+	}
+	void moveToLeft(int x, int y) {
+		_slider->moveToLeft(x, y);
+	}
+	void resize(int w, int h) {
+		_slider->resize(w, h);
+	}
 
 private:
-	void step_progress(float64 ms, bool timer);
-	void updateCallback() {
-		update();
-	}
-	void setOver(bool over);
-
-	bool _over = false;
-	FloatAnimation _a_over;
+	Ui::MediaSlider *_slider;
 
 	int64 _position = 0;
 	int64 _duration = 0;
-	anim::fvalue a_progress = { 0., 0. };
-	Animation _a_progress;
 
-	bool _mouseDown = false;
-	float64 _downProgress = 0.;
-
-	float64 _fadeOpacity = 1.;
 	bool _playing = false;
 
 };

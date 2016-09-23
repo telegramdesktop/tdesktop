@@ -117,6 +117,7 @@
       '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I<(res_loc)', '-I<(src_loc)', '--skip-sprites',
       '-o<(SHARED_INTERMEDIATE_DIR)/styles',
+      '-w<(PRODUCT_DIR)/../..',
 
       # GYP/Ninja bug workaround: if we specify just <(RULE_INPUT_PATH)
       # the <(RULE_INPUT_ROOT) variables won't be available in Ninja,

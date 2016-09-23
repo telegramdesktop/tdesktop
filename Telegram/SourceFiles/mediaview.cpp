@@ -1450,7 +1450,7 @@ void MediaView::restartVideoAtSeekPosition(int64 positionMs) {
 	state.position = _videoPositionMs;
 	state.duration = _videoDurationMs;
 	state.frequency = _videoFrequencyMs;
-	updateVideoPlaybackState(state, true);
+	updateVideoPlaybackState(state);
 }
 
 void MediaView::onVideoSeekProgress(int64 positionMs) {
@@ -1497,12 +1497,12 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	}
 }
 
-void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state, bool reset) {
+void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
 	if (state.frequency) {
 		if (state.state & AudioPlayerStoppedMask) {
 			_videoStopped = true;
 		}
-		_clipController->updatePlayback(state, reset);
+		_clipController->updatePlayback(state);
 	} else { // Audio has stopped already.
 		_videoIsSilent = true;
 		updateSilentVideoPlaybackState();

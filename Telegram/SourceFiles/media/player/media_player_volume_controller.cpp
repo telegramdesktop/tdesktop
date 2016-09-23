@@ -21,31 +21,69 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_volume_controller.h"
 
+#include "media/media_audio.h"
+#include "ui/buttons/icon_button.h"
+#include "ui/widgets/media_slider.h"
 #include "styles/style_media_player.h"
+#include "styles/style_widgets.h"
 
 namespace Media {
 namespace Player {
 
-VolumeController::VolumeController(QWidget *parent) : TWidget(parent) {
-	resize(st::mediaPlayerVolumeWidth, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlaybackLine);
+VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
+, _toggle(this, st::mediaPlayerVolumeToggle)
+, _slider(this, st::mediaPlayerPlayback) {
+	_toggle->setClickedCallback([this]() {
+		setVolume(_slider->value() ? 0. : _rememberedVolume);
+	});
+	_slider->setChangeProgressCallback([this](float64 volume) {
+		applyVolumeChange(volume);
+	});
+	_slider->setChangeFinishedCallback([this](float64 volume) {
+		if (volume > 0) {
+			_rememberedVolume = volume;
+		}
+		applyVolumeChange(volume);
+	});
+
+	auto animated = false;
+	setVolume(Global::SongVolume(), animated);
+
+	resize(st::mediaPlayerVolumeWidth, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlayback.width);
 }
 
-void VolumeController::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	st::mediaPlayerVolumeIcon0.paint(p, QPoint(0, (height() - st::mediaPlayerVolumeIcon0.height()) / 2), width());
-
-	auto left = rtl() ? 0 : width() - st::mediaPlayerVolumeLength;
-	p.fillRect(left, st::mediaPlayerPlaybackPadding, st::mediaPlayerVolumeLength, st::mediaPlayerPlaybackLine, st::mediaPlayerPlaybackBg);
+void VolumeController::resizeEvent(QResizeEvent *e) {
+	_slider->resize(st::mediaPlayerVolumeLength, height());
+	_slider->moveToRight(0, 0);
+	_toggle->moveToLeft(0, (height() - _toggle->height()) / 2);
 }
 
-void VolumeController::mousePressEvent(QMouseEvent *e) {
+void VolumeController::setVolume(float64 volume, bool animated) {
+	_slider->setValue(volume, animated);
+	if (volume > 0) {
+		_rememberedVolume = volume;
+	}
+	applyVolumeChange(volume);
 }
 
-void VolumeController::mouseMoveEvent(QMouseEvent *e) {
-}
-
-void VolumeController::mouseReleaseEvent(QMouseEvent *e) {
+void VolumeController::applyVolumeChange(float64 volume) {
+	if (volume > 0) {
+		if (volume < 1 / 3.) {
+			_toggle->setIcon(&st::mediaPlayerVolumeIcon1);
+		} else if (volume < 2 / 3.) {
+			_toggle->setIcon(&st::mediaPlayerVolumeIcon2);
+		} else {
+			_toggle->setIcon(&st::mediaPlayerVolumeIcon3);
+		}
+	} else {
+		_toggle->setIcon(nullptr);
+	}
+	if (volume != Global::SongVolume()) {
+		Global::SetSongVolume(volume);
+		if (auto player = audioPlayer()) {
+			emit player->songVolumeChanged();
+		}
+	}
 }
 
 } // namespace Player

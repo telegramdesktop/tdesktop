@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_overview.h"
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_clip_reader.h"
+#include "media/player/media_player_instance.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
@@ -874,7 +875,7 @@ bool File::updateStatusText() const {
 					realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
 					showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
 				}
-				if (!showPause && (playing == AudioMsgId(document, FullMsgId())) && App::main() && App::main()->player()->seekingSong(playing)) {
+				if (!showPause && (playing == AudioMsgId(document, FullMsgId())) && Media::Player::exists() && Media::Player::instance()->isSeeking()) {
 					showPause = true;
 				}
 			}

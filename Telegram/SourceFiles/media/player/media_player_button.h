@@ -25,12 +25,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
-class TitleButton : public Button {
+class TitleButton : public Button, private base::Subscriber {
 public:
 	TitleButton(QWidget *parent);
 
-	void setShowPause(bool showPause);
-	void finishIconTransform();
+	void updatePauseState();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -39,6 +38,9 @@ protected:
 
 private:
 	void paintIcon(Painter &p);
+
+	void setShowPause(bool showPause);
+	void finishIconTransform();
 
 	bool _showPause = true;
 	FloatAnimation _iconTransformToPause;

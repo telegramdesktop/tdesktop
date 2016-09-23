@@ -340,7 +340,7 @@ inline constexpr typename remove_reference<T>::type &&move(T &&value) noexcept {
 }
 
 template <typename T>
-void swap(T &a, T &b) {
+void swap_moveable(T &a, T &b) {
 	T tmp = move(a);
 	a = move(b);
 	b = move(tmp);
@@ -517,7 +517,7 @@ struct is_base_of {
 template <typename T>
 T createAndSwap(T &value) {
 	T result = T();
-	std_::swap(result, value);
+	std_::swap_moveable(result, value);
 	return std_::move(result);
 }
 

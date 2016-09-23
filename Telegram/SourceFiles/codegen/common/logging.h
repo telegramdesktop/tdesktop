@@ -72,6 +72,8 @@ LogStream operator<<(LogStream &&stream, T &&value) {
 // logError(kErrorFileTooLarge, filepath) << "file too large, size=" << size;
 LogStream logError(int code, const QString &filepath, int line = 0);
 
+void logSetWorkingPath(const QString &workingpath);
+
 static constexpr int kErrorInternal = 666;
 
 } // namespace common

@@ -22,7 +22,7 @@ import glob
 import re
 import binascii
 
-# define some checked flag convertions
+# define some checked flag conversions
 # the key flag type should be a subset of the value flag type
 # with exact the same names, then the key flag can be implicitly
 # casted to the value flag type

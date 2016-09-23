@@ -30,7 +30,7 @@ namespace Player {
 class CoverWidget;
 class ListWidget;
 
-class Widget : public TWidget {
+class Widget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

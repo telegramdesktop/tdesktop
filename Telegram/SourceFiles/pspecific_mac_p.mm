@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "playerwidget.h"
 #include "localstorage.h"
+#include "media/player/media_player_instance.h"
 
 #include "lang.h"
 
@@ -336,21 +337,27 @@ bool PsMacWindowPrivate::filterNativeEvent(void *event) {
 		switch (keyCode) {
 		case NX_KEYTYPE_PLAY:
 			if (keyState == 0) { // Play pressed and released
-				if (App::main()) App::main()->player()->playPausePressed();
+				if (Media::Player::exists()) {
+					Media::Player::instance()->playPause();
+				}
 				return true;
 			}
 			break;
 
 		case NX_KEYTYPE_FAST:
 			if (keyState == 0) { // Next pressed and released
-				if (App::main()) App::main()->player()->nextPressed();
+				if (Media::Player::exists()) {
+					Media::Player::instance()->next();
+				}
 				return true;
 			}
 			break;
 
 		case NX_KEYTYPE_REWIND:
 			if (keyState == 0) { // Previous pressed and released
-				if (App::main()) App::main()->player()->prevPressed();
+				if (Media::Player::exists()) {
+					Media::Player::instance()->previous();
+				}
 				return true;
 			}
 			break;

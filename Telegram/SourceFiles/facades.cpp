@@ -584,8 +584,8 @@ struct Data {
 
 	int32 DebugLoggingFlags = 0;
 
-	float64 SongVolume = 0.9;
-	float64 VideoVolume = 0.9;
+	float64 SongVolume = kDefaultVolume;
+	float64 VideoVolume = kDefaultVolume;
 
 	// config
 	int32 ChatSizeMax = 200;

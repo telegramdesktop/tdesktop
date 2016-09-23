@@ -1126,13 +1126,13 @@ public:
 		return (type == SongDocument) ? static_cast<SongData*>(_additional.get()) : nullptr;
 	}
 	const SongData *song() const {
-		return (type == SongDocument) ? static_cast<const SongData*>(_additional.get()) : nullptr;
+		return const_cast<DocumentData*>(this)->song();
 	}
 	VoiceData *voice() {
 		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional.get()) : nullptr;
 	}
 	const VoiceData *voice() const {
-		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional.get()) : nullptr;
+		return const_cast<DocumentData*>(this)->voice();
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1141,7 +1141,10 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
-		return (type == SongDocument) ? !static_cast<SongData*>(_additional.get())->title.isEmpty() : false;
+		if (auto s = song()) {
+			return (s->duration > 0);
+		}
+		return false;
 	}
 	bool isVideo() const {
 		return (type == VideoDocument);

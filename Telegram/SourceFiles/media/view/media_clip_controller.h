@@ -43,7 +43,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void updatePlayback(const AudioPlaybackState &playbackState, bool reset);
+	void updatePlayback(const AudioPlaybackState &playbackState);
 	void setInFullScreen(bool inFullScreen);
 
 	void grabStart() override;
@@ -60,16 +60,15 @@ signals:
 	void toFullScreenPressed();
 	void fromFullScreenPressed();
 
-private slots:
-	void onSeekProgress(float64 progress);
-	void onSeekFinished(float64 progress);
-
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 
 private:
+	void handleSeekProgress(float64 progress);
+	void handleSeekFinished(float64 progress);
+
 	template <typename Callback>
 	void startFading(Callback start);
 	void fadeFinished();

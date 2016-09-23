@@ -774,20 +774,20 @@ void PhotoOpenClickHandler::onClickImpl() const {
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
-	PhotoData *data = photo();
+	auto data = photo();
 	if (!data->date) return;
 
 	data->download();
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {
-	PhotoData *data = photo();
+	auto data = photo();
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
-			if (HistoryMessage *msg = item->toHistoryMessage()) {
-				if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
+		if (auto item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : nullptr)) {
+			if (auto media = item->getMedia()) {
+				if (media->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(media)->photo() == data) {
 					App::contextItem(item);
 					App::main()->deleteLayer(-2);
 				}
@@ -975,8 +975,8 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			} else {
 				AudioMsgId audio(data, msgId);
 				audioPlayer()->play(audio);
+				audioPlayer()->notify(audio);
 				if (App::main()) {
-					App::main()->audioPlayProgress(audio);
 					App::main()->mediaMarkRead(data);
 				}
 			}
@@ -988,7 +988,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 			} else {
 				AudioMsgId song(data, msgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->audioPlayProgress(song);
+				audioPlayer()->notify(song);
 			}
 		} else if (playVideo) {
 			if (!data->data().isEmpty()) {
@@ -1084,13 +1084,13 @@ void DocumentSaveClickHandler::onClickImpl() const {
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
-	DocumentData *data = document();
+	auto data = document();
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
-			if (HistoryMessage *msg = item->toHistoryMessage()) {
-				if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
+		if (auto item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : nullptr)) {
+			if (auto media = item->getMedia()) {
+				if (media->getDocument() == data) {
 					App::contextItem(item);
 					App::main()->deleteLayer(-2);
 				}
@@ -1270,7 +1270,7 @@ void DocumentData::performActionOnLoad() {
 			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
 			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
-			} else {
+			} else if (playbackState.state & AudioPlayerStoppedMask) {
 				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
 				if (App::main()) App::main()->mediaMarkRead(this);
 			}
@@ -1281,10 +1281,10 @@ void DocumentData::performActionOnLoad() {
 			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
 			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
-			} else {
+			} else if (playbackState.state & AudioPlayerStoppedMask) {
 				AudioMsgId song(this, _actionOnLoadMsgId);
 				audioPlayer()->play(song);
-				if (App::main()) App::main()->audioPlayProgress(song);
+				audioPlayer()->notify(song);
 			}
 		}
 	} else if (playAnimation) {
@@ -1428,15 +1428,17 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	FileLoader *l = _loader;
+	auto loader = createAndSwap(_loader);
 	_loader = CancelledMtpFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->stop();
+	loader->cancel();
+	loader->deleteLater();
+	loader->stop();
 
-		notifyLayoutChanged();
+	notifyLayoutChanged();
+	if (auto main = App::main()) {
+		main->documentLoadProgress(this);
 	}
+
 	_actionOnLoad = ActionOnLoadNone;
 }
 

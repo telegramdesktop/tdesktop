@@ -31,7 +31,6 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
-
 namespace App {
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
@@ -235,6 +234,8 @@ namespace Global {
 bool started();
 void start();
 void finish();
+
+constexpr float64 kDefaultVolume = 0.9;
 
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);

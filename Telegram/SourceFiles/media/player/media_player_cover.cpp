@@ -24,30 +24,112 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatlabel.h"
 #include "ui/widgets/label_simple.h"
 #include "ui/buttons/icon_button.h"
-#include "media/player/media_player_playback.h"
+#include "media/media_audio.h"
+#include "media/view/media_clip_playback.h"
+#include "media/player/media_player_instance.h"
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
+#include "styles/style_mediaview.h"
+#include "shortcuts.h"
 
 namespace Media {
 namespace Player {
 
 CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
-, _nameLabel(this)
-, _timeLabel(this)
-, _playback(this)
+, _nameLabel(this, st::mediaPlayerName)
+, _timeLabel(this, st::mediaPlayerTime)
+, _playback(this, st::mediaPlayerPlayback)
 , _playPause(this, st::mediaPlayerPlayButton)
 , _volumeController(this)
 , _repeatTrack(this, st::mediaPlayerRepeatButton) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
-	_playPause->setIcon(&st::mediaPlayerPauseIcon);
+
+	_playback->setChangeProgressCallback([this](float64 value) {
+		handleSeekProgress(value);
+	});
+	_playback->setChangeFinishedCallback([this](float64 value) {
+		handleSeekFinished(value);
+	});
+
+	if (_showPause) {
+		_playPause->setIcon(&st::mediaPlayerPauseIcon);
+	}
+	_playPause->setClickedCallback([this]() {
+		if (exists()) {
+			if (_showPause) {
+				instance()->pause();
+			} else {
+				instance()->play();
+			}
+		}
+	});
+
+	updateRepeatTrackIcon();
+	_repeatTrack->setClickedCallback([this]() {
+		instance()->toggleRepeat();
+		updateRepeatTrackIcon();
+	});
+
+	if (exists()) {
+		subscribe(instance()->playlistChangedNotifier(), [this]() {
+			handlePlaylistUpdate();
+		});
+		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
+			handleSongUpdate(e);
+		});
+		subscribe(instance()->songChangedNotifier(), [this]() {
+			handleSongChange();
+		});
+		handleSongChange();
+		if (auto player = audioPlayer()) {
+			AudioMsgId playing;
+			auto playbackState = player->currentState(&playing, AudioMsgId::Type::Song);
+			handleSongUpdate(UpdatedEvent(&playing, &playbackState));
+		}
+	}
+}
+
+void CoverWidget::handleSeekProgress(float64 progress) {
+	if (!_lastDurationMs) return;
+
+	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	if (_seekPositionMs != positionMs) {
+		_seekPositionMs = positionMs;
+		updateTimeLabel();
+		if (exists()) {
+			instance()->startSeeking();
+		}
+	}
+}
+
+void CoverWidget::handleSeekFinished(float64 progress) {
+	if (!_lastDurationMs) return;
+
+	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	_seekPositionMs = -1;
+
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	if (playing && playbackState.duration) {
+		audioPlayer()->seek(qRound(progress * playbackState.duration));
+	}
+
+	updateTimeLabel();
+	if (exists()) {
+		instance()->stopSeeking();
+	}
 }
 
 void CoverWidget::resizeEvent(QResizeEvent *e) {
-	_nameLabel->moveToLeft(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerNameFont->ascent);
-	_timeLabel->moveToRight(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerTimeFont->ascent);
-	_playback->setGeometry(st::mediaPlayerPadding, st::mediaPlayerPlaybackTop, width() - 2 * st::mediaPlayerPadding, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlaybackLine);
+	_nameLabel->resizeToWidth(width() - 2 * (st::mediaPlayerPadding) - _timeLabel->width() - st::normalFont->spacew);
+	updateLabelPositions();
+
+	int skip = (st::mediaPlayerPlayback.seekSize.width() / 2);
+	int length = (width() - 2 * st::mediaPlayerPadding + st::mediaPlayerPlayback.seekSize.width());
+	_playback->setGeometry(st::mediaPlayerPadding - skip, st::mediaPlayerPlaybackTop, length, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlayback.width);
+
 	_repeatTrack->moveToRight(st::mediaPlayerPlayLeft, st::mediaPlayerPlayTop);
-	_volumeController->moveToRight(st::mediaPlayerVolumeRight, st::mediaPlayerPlayTop + (_playPause->height() - _volumeController->height()) / 2);
+	_volumeController->moveToRight(st::mediaPlayerVolumeRight, st::mediaPlayerVolumeTop);
 	updatePlayPrevNextPositions();
 }
 
@@ -57,7 +139,145 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 }
 
 void CoverWidget::updatePlayPrevNextPositions() {
-	_playPause->moveToLeft(st::mediaPlayerPlayLeft, st::mediaPlayerPlayTop);
+	if (_previousTrack) {
+		auto left = st::mediaPlayerPlayLeft;
+		_previousTrack->moveToLeft(left, st::mediaPlayerPlayTop); left += _previousTrack->width() + st::mediaPlayerPlaySkip;
+		_playPause->moveToLeft(left, st::mediaPlayerPlayTop); left += _playPause->width() + st::mediaPlayerPlaySkip;
+		_nextTrack->moveToLeft(left, st::mediaPlayerPlayTop);
+	} else {
+		_playPause->moveToLeft(st::mediaPlayerPlayLeft, st::mediaPlayerPlayTop);
+	}
+}
+
+void CoverWidget::updateLabelPositions() {
+	_nameLabel->moveToLeft(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerName.font->ascent);
+	_timeLabel->moveToRight(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerTime.font->ascent);
+}
+
+void CoverWidget::updateRepeatTrackIcon() {
+	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatDisabledIcon);
+}
+
+void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
+	auto &audioId = *e.audioId;
+	auto &playbackState = *e.playbackState;
+	if (!audioId || !audioId.audio()->song()) {
+		return;
+	}
+
+	_playback->updateState(*e.playbackState);
+
+	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
+	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+	if (exists() && instance()->isSeeking()) {
+		showPause = true;
+	}
+	if (_showPause != showPause) {
+		_showPause = showPause;
+		_playPause->setIcon(_showPause ? &st::mediaPlayerPauseIcon : nullptr);
+	}
+
+	updateTimeText(audioId, playbackState);
+}
+
+void CoverWidget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState) {
+	QString time;
+	qint64 position = 0, duration = 0, display = 0;
+	auto frequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+		display = position = playbackState.position;
+		duration = playbackState.duration;
+	} else {
+		display = playbackState.duration ? playbackState.duration : (audioId.audio()->song()->duration * frequency);
+	}
+
+	_lastDurationMs = (playbackState.duration * 1000LL) / frequency;
+
+	if (duration || !audioId.audio()->loading()) {
+		display = display / frequency;
+		_time = formatDurationText(display);
+	} else {
+		auto loaded = audioId.audio()->loadOffset();
+		auto loadProgress = snap(float64(loaded) / qMax(audioId.audio()->size, 1), 0., 1.);
+		_time = QString::number(qRound(loadProgress * 100)) + '%';
+	}
+	if (_seekPositionMs < 0) {
+		updateTimeLabel();
+	}
+}
+
+void CoverWidget::updateTimeLabel() {
+	auto timeLabelWidth = _timeLabel->width();
+	if (_seekPositionMs >= 0) {
+		auto playAlready = _seekPositionMs / 1000LL;
+		_timeLabel->setText(formatDurationText(playAlready));
+	} else {
+		_timeLabel->setText(_time);
+	}
+	if (timeLabelWidth != _timeLabel->width()) {
+		_nameLabel->resizeToWidth(width() - 2 * (st::mediaPlayerPadding) - _timeLabel->width() - st::normalFont->spacew);
+		updateLabelPositions();
+	}
+}
+
+void CoverWidget::handleSongChange() {
+	auto &current = instance()->current();
+	auto song = current.audio()->song();
+
+	TextWithEntities textWithEntities;
+	if (song->performer.isEmpty()) {
+		textWithEntities.text = song->title.isEmpty() ? (current.audio()->name.isEmpty() ? qsl("Unknown Track") : current.audio()->name) : song->title;
+	} else {
+		auto title = song->title.isEmpty() ? qsl("Unknown Track") : textClean(song->title);
+		textWithEntities.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + title;
+		textWithEntities.entities.append({ EntityInTextBold, 0, song->performer.size(), QString() });
+	}
+	_nameLabel->setMarkedText(textWithEntities);
+
+	handlePlaylistUpdate();
+}
+
+void CoverWidget::handlePlaylistUpdate() {
+	auto &current = instance()->current();
+	auto &playlist = instance()->playlist();
+	auto index = playlist.indexOf(current.contextId());
+	if (!current || index < 0) {
+		destroyPrevNextButtons();
+	} else {
+		createPrevNextButtons();
+		auto previousEnabled = (index > 0);
+		auto nextEnabled = (index + 1 < playlist.size());
+		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
+		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
+	}
+}
+
+void CoverWidget::createPrevNextButtons() {
+	if (!_previousTrack) {
+		_previousTrack.create(this, st::mediaPlayerPreviousButton);
+		_nextTrack.create(this, st::mediaPlayerNextButton);
+		_previousTrack->setClickedCallback([this]() {
+			if (exists()) {
+				instance()->previous();
+			}
+		});
+		_nextTrack->setClickedCallback([this]() {
+			if (exists()) {
+				instance()->next();
+			}
+		});
+		updatePlayPrevNextPositions();
+	}
+}
+
+void CoverWidget::destroyPrevNextButtons() {
+	if (_previousTrack) {
+		_previousTrack.destroy();
+		_nextTrack.destroy();
+		updatePlayPrevNextPositions();
+	}
 }
 
 } // namespace Player

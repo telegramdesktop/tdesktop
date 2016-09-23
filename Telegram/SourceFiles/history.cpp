@@ -1177,7 +1177,7 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 			return _buildingFrontBlock->block;
 		}
 
-		HistoryBlock *result = _buildingFrontBlock->block = new HistoryBlock(this);
+		auto result = _buildingFrontBlock->block = new HistoryBlock(this);
 		if (_buildingFrontBlock->expectedItemsCount > 0) {
 			result->items.reserve(_buildingFrontBlock->expectedItemsCount + 1);
 		}
@@ -1194,7 +1194,7 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 		return blocks.back();
 	}
 
-	HistoryBlock *result = new HistoryBlock(this);
+	auto result = new HistoryBlock(this);
 	result->setIndexInHistory(blocks.size());
 	blocks.push_back(result);
 
@@ -1206,7 +1206,7 @@ void History::addItemToBlock(HistoryItem *item) {
 	t_assert(item != nullptr);
 	t_assert(item->detached());
 
-	HistoryBlock *block = prepareBlockForAddingItem();
+	auto block = prepareBlockForAddingItem();
 
 	item->attachToBlock(block, block->items.size());
 	block->items.push_back(item);
@@ -1231,21 +1231,21 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
-		HistoryItem *adding = createItem(*i, false, true);
+		auto adding = createItem(*i, false, true);
 		if (!adding) continue;
 
 		addItemToBlock(adding);
 	}
 
-	HistoryBlock *block = finishBuildingFrontBlock();
+	auto block = finishBuildingFrontBlock();
 	if (!block) {
 		// If no items were added it means we've loaded everything old.
 		oldLoaded = true;
 	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
 		bool channel = isChannel();
 		int32 mask = 0;
-		QList<UserData*> *lastAuthors = 0;
-		OrderedSet<PeerData*> *markupSenders = 0;
+		QList<UserData*> *lastAuthors = nullptr;
+		OrderedSet<PeerData*> *markupSenders = nullptr;
 		if (peer->isChat()) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;
@@ -1254,7 +1254,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 		}
 		for (int32 i = block->items.size(); i > 0; --i) {
-			HistoryItem *item = block->items[i - 1];
+			auto item = block->items[i - 1];
 			mask |= item->addToOverview(AddToOverviewFront);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
@@ -1272,7 +1272,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			if (item->author()->id) {
 				if (markupSenders) { // chats with bots
 					if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) {
-						MTPDreplyKeyboardMarkup::Flags markupFlags = item->replyKeyboardFlags();
+						auto markupFlags = item->replyKeyboardFlags();
 						if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
 							bool wasKeyboardHide = markupSenders->contains(item->author());
 							if (!wasKeyboardHide) {
@@ -1340,7 +1340,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		bool atLeastOneAdded = false;
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
-			HistoryItem *adding = createItem(*i, false, true);
+			auto adding = createItem(*i, false, true);
 			if (!adding) continue;
 
 			addItemToBlock(adding);

@@ -2136,8 +2136,6 @@ namespace {
 	}
 
 	void initMedia() {
-		audioInit();
-
 		if (!::monofont) {
 			QString family;
 			tryFontFamily(family, qsl("Consolas"));
@@ -2210,21 +2208,19 @@ namespace {
 	}
 
 	void deinitMedia() {
-		audioFinish();
-
 		delete ::emoji;
 		::emoji = 0;
 		delete ::emojiLarge;
 		::emojiLarge = 0;
-		for (int32 j = 0; j < 4; ++j) {
-			for (int32 i = 0; i < RoundCornersCount; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int i = 0; i < RoundCornersCount; ++i) {
 				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
 			}
 			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
 			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
 		}
-		for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-			for (int32 j = 0; j < 4; ++j) {
+		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+			for (int j = 0; j < 4; ++j) {
 				delete i->p[j];
 			}
 		}

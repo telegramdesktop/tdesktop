@@ -8723,7 +8723,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
+	bool hasTopBar = !App::main()->topBar()->isHidden();
 
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
@@ -8741,7 +8741,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	QRect fill(0, 0, width(), App::main()->height());
-	int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
+	int fromy = (hasTopBar ? (-st::topBarHeight) : 0), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
 		auto &pix = Window::chatBackground()->image();

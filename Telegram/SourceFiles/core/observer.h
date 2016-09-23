@@ -335,7 +335,7 @@ class CommonObservable {
 public:
 	using Handler = typename CommonObservableData<EventType>::Handler;
 
-	Subscription subscribe(Handler &&handler) {
+	Subscription add_subscription(Handler &&handler) {
 		if (!_data) {
 			_data = MakeShared<ObservableData<EventType>>(this);
 		}
@@ -359,6 +359,9 @@ public:
 		if (this->_data) {
 			this->_data->notify(std_::move(event), sync);
 		}
+	}
+	void notify(const EventType &event, bool sync = false) {
+		notify(EventType(event));
 	}
 
 };
@@ -562,7 +565,7 @@ class Subscriber {
 protected:
 	template <typename EventType, typename Lambda>
 	int subscribe(base::Observable<EventType> &observable, Lambda &&handler) {
-		_subscriptions.push_back(observable.subscribe(std_::forward<Lambda>(handler)));
+		_subscriptions.push_back(observable.add_subscription(std_::forward<Lambda>(handler)));
 		return _subscriptions.size() - 1;
 	}
 

@@ -51,7 +51,7 @@ private:
 
 };
 
-class DownloadPathState : public TWidget, public base::Subscriber {
+class DownloadPathState : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

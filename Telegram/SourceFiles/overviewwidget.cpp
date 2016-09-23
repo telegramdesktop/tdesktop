@@ -1922,7 +1922,7 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	_scrollTimer.setSingleShot(false);
 
-	connect(App::main()->player(), SIGNAL(playerSongChanged(const FullMsgId&)), this, SLOT(onPlayerSongChanged(const FullMsgId&)));
+//	connect(App::main()->player(), SIGNAL(playerSongChanged(const FullMsgId&)), this, SLOT(onPlayerSongChanged(const FullMsgId&)));
 
 	switchType(type);
 }
@@ -2262,14 +2262,14 @@ void OverviewWidget::onScrollTimer() {
 	_scroll.scrollToY(_scroll.scrollTop() + d);
 }
 
-void OverviewWidget::onPlayerSongChanged(const FullMsgId &msgId) {
-	if (type() == OverviewMusicFiles) {
+//void OverviewWidget::onPlayerSongChanged(const FullMsgId &msgId) {
+//	if (type() == OverviewMusicFiles) {
 //		int32 top = _inner.itemTop(msgId);
 //		if (top > 0) {
 //			_scroll.scrollToY(snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax()));
 //		}
-	}
-}
+//	}
+//}
 
 void OverviewWidget::checkSelectingScroll(QPoint point) {
 	if (point.y() < _scroll.scrollTop()) {
