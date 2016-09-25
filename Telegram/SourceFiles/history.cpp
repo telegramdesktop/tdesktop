@@ -574,6 +574,15 @@ History *Histories::find(const PeerId &peerId) {
 	return (i == map.cend()) ? 0 : i.value();
 }
 
+History *Histories::findOrInsert(const PeerId &peerId) {
+	auto i = map.constFind(peerId);
+	if (i == map.cend()) {
+		auto history = peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId));
+		i = map.insert(peerId, history);
+	}
+	return i.value();
+}
+
 History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
@@ -584,10 +593,10 @@ History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 
 		history->outboxReadBefore = maxOutboxRead + 1;
 	} else {
 		auto history = i.value();
-		if (unreadCount >= history->unreadCount()) {
+		if (unreadCount > history->unreadCount()) {
 			history->setUnreadCount(unreadCount);
-			history->inboxReadBefore = maxInboxRead + 1;
 		}
+		accumulate_max(history->inboxReadBefore, maxInboxRead + 1);
 		accumulate_max(history->outboxReadBefore, maxOutboxRead + 1);
 	}
 	return i.value();
@@ -1442,8 +1451,8 @@ MsgId History::inboxRead(MsgId upTo) {
 
 	updateChatListEntry();
 	if (peer->migrateTo()) {
-		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-			h->updateChatListEntry();
+		if (auto migrateTo = App::historyLoaded(peer->migrateTo()->id)) {
+			migrateTo->updateChatListEntry();
 		}
 	}
 

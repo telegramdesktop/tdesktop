@@ -2875,18 +2875,18 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	bool isFinal = true;
 	switch (diff.type()) {
 	case mtpc_updates_channelDifferenceEmpty: {
-		const auto &d(diff.c_updates_channelDifferenceEmpty());
+		auto &d = diff.c_updates_channelDifferenceEmpty();
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		isFinal = d.is_final();
 		channel->ptsInit(d.vpts.v);
 	} break;
 
 	case mtpc_updates_channelDifferenceTooLong: {
-		const auto &d(diff.c_updates_channelDifferenceTooLong());
+		auto &d = diff.c_updates_channelDifferenceTooLong();
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		History *h = App::historyLoaded(channel->id);
+		auto h = App::historyLoaded(channel->id);
 		if (h) {
 			h->setNotLoadedAtBottom();
 		}
@@ -2912,7 +2912,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	} break;
 
 	case mtpc_updates_channelDifference: {
-		const auto &d(diff.c_updates_channelDifference());
+		auto &d = diff.c_updates_channelDifference();
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
@@ -2921,11 +2921,11 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		feedMessageIds(d.vother_updates);
 
 		// feed messages and groups, copy from App::feedMsgs
-		History *h = App::history(channel->id);
-		const auto &vmsgs(d.vnew_messages.c_vector().v);
-		QMap<uint64, int32> msgsIds;
-		for (int32 i = 0, l = vmsgs.size(); i < l; ++i) {
-			const auto &msg(vmsgs.at(i));
+		auto h = App::history(channel->id);
+		auto &vmsgs = d.vnew_messages.c_vector().v;
+		QMap<uint64, int> msgsIds;
+		for (int i = 0, l = vmsgs.size(); i < l; ++i) {
+			auto &msg = vmsgs[i];
 			switch (msg.type()) {
 			case mtpc_message: {
 				const auto &d(msg.c_message());
@@ -2939,9 +2939,9 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i + 1); break;
 			}
 		}
-		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			if (i.value() > 0) { // add message
-				const auto &msg(vmsgs.at(i.value() - 1));
+		for_const (auto msgIndex, msgsIds) {
+			if (msgIndex > 0) { // add message
+				auto &msg = vmsgs.at(msgIndex - 1);
 				if (channel->id != peerFromMessage(msg)) {
 					LOG(("API Error: message with invalid peer returned in channelDifference, channelId: %1, peer: %2").arg(peerToChannel(channel->id)).arg(peerFromMessage(msg)));
 					continue; // wtf
@@ -4501,13 +4501,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePrivacy: {
-		const auto &d(update.c_updatePrivacy());
+		auto &d = update.c_updatePrivacy();
 	} break;
 
 	/////// Channel updates
 	case mtpc_updateChannel: {
-		const auto &d(update.c_updateChannel());
-		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+		auto &d = update.c_updateChannel();
+		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			App::markPeerUpdated(channel);
 			channel->inviter = 0;
 			if (!channel->amIn()) {
@@ -4521,7 +4521,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNewChannelMessage: {
 		auto &d = update.c_updateNewChannelMessage();
-		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
 			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
@@ -4556,8 +4556,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
-			if (item) {
+			if (auto item = App::histories().addNewMessage(d.vmessage, NewMessageUnread)) {
 				_history->peerMessagesUpdated(item->history()->peer->id);
 			}
 		}
@@ -4567,8 +4566,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateEditChannelMessage: {
-		const auto &d(update.c_updateEditChannelMessage());
-		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+		auto &d = update.c_updateEditChannelMessage();
+		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
@@ -4587,7 +4586,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateEditMessage: {
-		const auto &d(update.c_updateEditMessage());
+		auto &d = update.c_updateEditMessage();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4600,9 +4599,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelPinnedMessage: {
-		const auto &d(update.c_updateChannelPinnedMessage());
+		auto &d = update.c_updateChannelPinnedMessage();
 
-		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			if (channel->isMegagroup()) {
 				channel->mgInfo->pinnedMsgId = d.vid.v;
 				if (App::api()) {
@@ -4613,13 +4612,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadChannelInbox: {
-		auto &d(update.c_updateReadChannelInbox());
-		auto channel = App::channelLoaded(d.vchannel_id.v);
+		auto &d = update.c_updateReadChannelInbox();
 		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
 	} break;
 
 	case mtpc_updateReadChannelOutbox: {
-		auto &d(update.c_updateReadChannelOutbox());
+		auto &d = update.c_updateReadChannelOutbox();
 		auto peerId = peerFromChannel(d.vchannel_id.v);
 		auto when = requestingDifference() ? 0 : unixtime();
 		App::feedOutboxRead(peerId, d.vmax_id.v, when);
@@ -4629,8 +4627,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {
-		const auto &d(update.c_updateDeleteChannelMessages());
-		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
+		auto &d = update.c_updateDeleteChannelMessages();
+		auto channel = App::channelLoaded(d.vchannel_id.v);
 
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
@@ -4650,8 +4648,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelTooLong: {
-		const auto &d(update.c_updateChannelTooLong());
-		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+		auto &d = update.c_updateChannelTooLong();
+		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			if (!d.has_pts() || channel->pts() < d.vpts.v) {
 				getChannelDifference(channel);
 			}
@@ -4659,8 +4657,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelMessageViews: {
-		const auto &d(update.c_updateChannelMessageViews());
-		if (HistoryItem *item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
+		auto &d = update.c_updateChannelMessageViews();
+		if (auto item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
 		}
 	} break;

@@ -48,6 +48,7 @@ public:
 	void step_typings(uint64 ms, bool timer);
 
 	History *find(const PeerId &peerId);
+	History *findOrInsert(const PeerId &peerId);
 	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
 
 	void clear();
