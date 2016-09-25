@@ -456,11 +456,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
 	if (!_emojiList.isEmpty()) {
 		int emojiCount = _emojiList.size();
-		int emojiWidth = emojiCount * _emojiSize + (emojiCount - 1) * st::stickerEmojiSkip;
+		int emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
 		int emojiLeft = (width() - emojiWidth) / 2;
-		int esize = _emojiSize * cIntRetinaFactor();
+		int esize = EmojiSizes[EIndex + 1];
 		for_const (auto emoji, _emojiList) {
-			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - _emojiSize * 2, width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
+			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}
