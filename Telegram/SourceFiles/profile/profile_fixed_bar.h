@@ -34,7 +34,7 @@ namespace Profile {
 
 class BackButton;
 
-class FixedBar final : public TWidget, public Notify::Observer {
+class FixedBar final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

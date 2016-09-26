@@ -39,9 +39,9 @@ ActionsWidget::ActionsWidget(QWidget *parent, PeerData *peer) : BlockWidget(pare
 		| UpdateFlag::UserIsBlocked
 		| UpdateFlag::BotCommandsChanged
 		| UpdateFlag::MembersChanged;
-	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
-	});
+	}));
 
 	validateBlockStatus();
 	refreshButtons();

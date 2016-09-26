@@ -262,11 +262,9 @@ ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
-
-	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
-	});
-
+	}));
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 

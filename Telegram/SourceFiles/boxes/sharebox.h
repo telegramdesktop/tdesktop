@@ -108,7 +108,7 @@ private:
 
 namespace internal {
 
-class ShareInner : public ScrolledWidget, public RPCSender, public Notify::Observer, private base::Subscriber {
+class ShareInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

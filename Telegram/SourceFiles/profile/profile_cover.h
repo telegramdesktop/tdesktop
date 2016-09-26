@@ -40,7 +40,7 @@ class BackButton;
 class UserpicButton;
 class CoverDropArea;
 
-class CoverWidget final : public TWidget, public Notify::Observer, private base::Subscriber {
+class CoverWidget final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
