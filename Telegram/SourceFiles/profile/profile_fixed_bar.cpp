@@ -83,7 +83,9 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::MigrationChanged;
-	Notify::registerPeerObserver(observeEvents, this, &FixedBar::notifyPeerUpdate);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdate(update);
+	});
 
 	refreshRightActions();
 }

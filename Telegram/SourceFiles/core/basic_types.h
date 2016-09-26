@@ -1064,7 +1064,7 @@ extern QAtomicInt ComponentIndexLast;
 template <typename Type>
 struct BaseComponent {
 	BaseComponent() {
-		static_assert(alignof(Type) <= sizeof(SmallestSizeType), "Components should align to a pointer!");
+		static_assert(alignof(Type) <= alignof(SmallestSizeType), "Components should align to a pointer!");
 	}
 	BaseComponent(const BaseComponent &other) = delete;
 	BaseComponent &operator=(const BaseComponent &other) = delete;

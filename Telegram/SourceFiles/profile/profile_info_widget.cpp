@@ -36,7 +36,9 @@ InfoWidget::InfoWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, pe
 		| UpdateFlag::UsernameChanged
 		| UpdateFlag::UserPhoneChanged
 		| UpdateFlag::UserCanShareContact;
-	Notify::registerPeerObserver(observeEvents, this, &InfoWidget::notifyPeerUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
 
 	refreshLabels();
 }

@@ -42,7 +42,7 @@ enum DialogsSearchRequestType {
 	DialogsSearchMigratedFromOffset,
 };
 
-class DialogsInner : public SplittedWidget, public RPCSender {
+class DialogsInner : public SplittedWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

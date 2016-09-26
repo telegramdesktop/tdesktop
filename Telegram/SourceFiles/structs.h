@@ -27,12 +27,11 @@ static const ChannelId NoChannel = 0;
 
 typedef int32 MsgId;
 struct FullMsgId {
-	FullMsgId() : channel(NoChannel), msg(0) {
-	}
+	FullMsgId() = default;
 	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
 	}
-	ChannelId channel;
-	MsgId msg;
+	ChannelId channel = NoChannel;
+	MsgId msg = 0;
 };
 
 typedef uint64 PeerId;

@@ -243,8 +243,6 @@ namespace internal {
 
 ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 , _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
-
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -264,7 +262,12 @@ ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
-	Notify::registerPeerObserver(observeEvents, this, &ShareInner::notifyPeerUpdated);
+
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 
 void ShareInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {

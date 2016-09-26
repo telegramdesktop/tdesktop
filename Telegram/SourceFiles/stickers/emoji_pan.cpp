@@ -801,7 +801,6 @@ StickerPanInner::StickerPanInner() : ScrolledWidget()
 	setFocusPolicy(Qt::NoFocus);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(onImageLoaded()));
 	connect(&_settings, SIGNAL(clicked()), this, SLOT(onSettings()));
 
 	_previewTimer.setSingleShot(true);
@@ -809,6 +808,11 @@ StickerPanInner::StickerPanInner() : ScrolledWidget()
 
 	_updateInlineItems.setSingleShot(true);
 	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
+
+	subscribe(FileDownload::ImageLoaded(), [this] {
+		update();
+		readVisibleSets();
+	});
 }
 
 void StickerPanInner::setMaxHeight(int32 h) {
@@ -853,11 +857,6 @@ void StickerPanInner::readVisibleSets() {
 			Stickers::markFeaturedAsRead(set.id);
 		}
 	}
-}
-
-void StickerPanInner::onImageLoaded() {
-	update();
-	readVisibleSets();
 }
 
 int StickerPanInner::featuredRowHeight() const {

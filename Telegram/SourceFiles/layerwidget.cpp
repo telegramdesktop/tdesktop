@@ -437,7 +437,7 @@ MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
 , _a_shown(animation(this, &MediaPreviewWidget::step_shown))
 , _emojiSize(EmojiSizes[EIndex + 1] / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {

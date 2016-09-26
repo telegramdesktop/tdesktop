@@ -33,7 +33,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 InviteLinkWidget::InviteLinkWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_invite_link_section)) {
 	auto observeEvents = UpdateFlag::InviteLinkChanged | UpdateFlag::UsernameChanged;
-	Notify::registerPeerObserver(observeEvents, this, &InviteLinkWidget::notifyPeerUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
 
 	refreshLink();
 	refreshVisibility();

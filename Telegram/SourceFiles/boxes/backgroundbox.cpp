@@ -29,13 +29,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 BackgroundInner::BackgroundInner() :
 _bgCount(0), _rows(0), _over(-1), _overDown(-1) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&BackgroundInner::gotWallpapers));
 	} else {
 		updateWallpapers();
 	}
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	setMouseTracking(true);
 }
 

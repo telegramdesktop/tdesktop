@@ -49,14 +49,12 @@ MembersWidget::MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility ti
 	auto observeEvents = UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged
 		| UpdateFlag::UserOnlineChanged;
-	Notify::registerPeerObserver(observeEvents, this, &MembersWidget::notifyPeerUpdated);
-	FileDownload::registerImageLoadedObserver(this, &MembersWidget::repaintCallback);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	refreshMembers();
-}
-
-void MembersWidget::repaintCallback() {
-	update();
 }
 
 void MembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -83,7 +81,7 @@ void MembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 			}
 		}
 	}
-	repaintCallback();
+	this->update();
 }
 
 void MembersWidget::refreshUserOnline(UserData *user) {
@@ -606,7 +604,9 @@ ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : Bl
 		| UpdateFlag::ChannelCanViewMembers
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged;
-	Notify::registerPeerObserver(observeEvents, this, &ChannelMembersWidget::notifyPeerUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
 
 	refreshButtons();
 }

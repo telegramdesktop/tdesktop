@@ -68,8 +68,12 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::NameChanged
 		| UpdateFlag::UserOnlineChanged;
-	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
-	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));

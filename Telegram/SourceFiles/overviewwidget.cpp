@@ -89,7 +89,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _touchAccelerationTime(0)
 , _touchTime(0)
 , _menu(0) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	resize(_width, st::wndMinHeight);
 

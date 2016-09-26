@@ -41,13 +41,14 @@ constexpr int kArchivedLimitPerPage = 30;
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : ScrolledWidget()
 , _input(set) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
 	case mtpc_inputStickerSetShortName: _setShortName = qs(set.c_inputStickerSetShortName().vshort_name); break;
 	}
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&StickerSetInner::gotSet), rpcFail(&StickerSetInner::failedSet));
 	App::main()->updateStickers();
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	setMouseTracking(true);
 
@@ -515,7 +516,7 @@ StickersInner::StickersInner(const Stickers::Order &archivedIds) : ScrolledWidge
 }
 
 void StickersInner::setup() {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(onImageLoaded()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	setMouseTracking(true);
 }
 

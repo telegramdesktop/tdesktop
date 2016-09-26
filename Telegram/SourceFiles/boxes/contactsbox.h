@@ -36,7 +36,7 @@ using MembersAlreadyIn = OrderedSet<UserData*>;
 QString cantInviteError();
 
 class ConfirmBox;
-class ContactsInner : public TWidget, public RPCSender {
+class ContactsInner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 private:
@@ -269,7 +269,7 @@ private:
 
 };
 
-class MembersInner : public TWidget, public RPCSender {
+class MembersInner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 private:

@@ -36,8 +36,15 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : Button(parent), 
 		_userpic = prepareUserpicPixmap();
 	}
 
-	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::PhotoChanged, this, &UserpicButton::notifyPeerUpdated);
-	FileDownload::registerImageLoadedObserver(this, &UserpicButton::notifyImageLoaded);
+	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::PhotoChanged, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
+	subscribe(FileDownload::ImageLoaded(), [this] {
+		if (_waiting && _peer->userpicLoaded()) {
+			_waiting = false;
+			startNewPhotoShowing();
+		}
+	});
 }
 
 void UserpicButton::showFinished() {
@@ -66,13 +73,6 @@ void UserpicButton::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 	processNewPeerPhoto();
 	this->update();
-}
-
-void UserpicButton::notifyImageLoaded() {
-	if (_waiting && _peer->userpicLoaded()) {
-		_waiting = false;
-		startNewPhotoShowing();
-	}
 }
 
 void UserpicButton::processPeerPhoto() {

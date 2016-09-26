@@ -57,8 +57,13 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
 	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged;
-	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
-	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
+
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));

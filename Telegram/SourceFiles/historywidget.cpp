@@ -3040,7 +3040,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	setAcceptDrops(true);
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));

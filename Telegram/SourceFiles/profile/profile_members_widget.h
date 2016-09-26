@@ -78,7 +78,6 @@ private slots:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void repaintCallback();
 
 	void preloadUserPhotos();
 

@@ -106,7 +106,7 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 }
 
 void ContactsInner::init() {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(&_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
 
@@ -1750,7 +1750,8 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _about(_aboutWidth)
 , _aboutHeight(0) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 

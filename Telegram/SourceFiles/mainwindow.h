@@ -292,8 +292,6 @@ signals:
 	void tempDirClearFailed(int task);
 	void newAuthorization();
 
-	void imageLoaded();
-
 private slots:
 	void onStateChanged(Qt::WindowState state);
 	void onSettingsDestroyed(QObject *was);

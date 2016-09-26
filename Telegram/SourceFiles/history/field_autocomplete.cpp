@@ -44,8 +44,6 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 	connect(_inner, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), _inner, SLOT(update()));
-
 	setFocusPolicy(Qt::NoFocus);
 	_scroll->setFocusPolicy(Qt::NoFocus);
 	_scroll->viewport()->setFocusPolicy(Qt::NoFocus);
@@ -539,6 +537,7 @@ FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, Mentio
 , _previewShown(false) {
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 
 void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
@@ -931,9 +930,6 @@ void FieldAutocompleteInner::onPreview() {
 		Ui::showMediaPreview(_srows->at(_down));
 		_previewShown = true;
 	}
-}
-
-FieldAutocompleteInner::~FieldAutocompleteInner() {
 }
 
 } // namespace internal

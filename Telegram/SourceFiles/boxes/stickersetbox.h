@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ConfirmBox;
 
-class StickerSetInner : public ScrolledWidget, public RPCSender {
+class StickerSetInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -207,7 +207,7 @@ int32 stickerPacksCount(bool includeDisabledOfficial = false);
 
 namespace internal {
 
-class StickersInner : public ScrolledWidget, public RPCSender {
+class StickersInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

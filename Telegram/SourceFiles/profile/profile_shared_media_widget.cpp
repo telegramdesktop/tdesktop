@@ -51,7 +51,9 @@ QString getButtonText(MediaOverviewType type, int count) {
 SharedMediaWidget::SharedMediaWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_shared_media))
 , _history(App::history(peer))
 , _migrated(peer->migrateFrom() ? App::history(peer->migrateFrom()) : nullptr) {
-	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::SharedMediaChanged, this, &SharedMediaWidget::notifyPeerUpdated);
+	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::SharedMediaChanged, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
 
 	App::main()->preloadOverviews(peer);
 	if (_migrated) {

@@ -34,7 +34,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 InfoWidget::InfoWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_info)) {
 	auto observeEvents = UpdateFlag::UsernameChanged | UpdateFlag::UserPhoneChanged;
-	Notify::registerPeerObserver(observeEvents, this, &InfoWidget::notifyPeerUpdated);
+	Notify::registerPeerObserver(observeEvents, this, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	});
 
 	createControls();
 }

@@ -163,9 +163,11 @@ void BackgroundRow::updateImage() {
 }
 
 BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_background)) {
-	FileDialog::registerObserver(this, &BackgroundWidget::notifyFileQueryUpdated);
 	createControls();
 
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
 		using Update = Window::ChatBackgroundUpdate;
 		if (update.type == Update::Type::New) {

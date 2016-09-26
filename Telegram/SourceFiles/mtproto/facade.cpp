@@ -206,7 +206,7 @@ namespace {
 				}
 				req = i.value();
 			}
-			if (internal::Session *session = internal::getSession(newdcWithShift)) {
+			if (auto session = internal::getSession(newdcWithShift)) {
 				internal::registerRequest(requestId, (dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 				session->sendPrepared(req);
 			}

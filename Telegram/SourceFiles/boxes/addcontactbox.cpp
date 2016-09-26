@@ -1362,8 +1362,8 @@ RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCal
 
 	updateMaxHeight();
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	prepare();
 }

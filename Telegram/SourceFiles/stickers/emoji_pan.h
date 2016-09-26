@@ -207,7 +207,7 @@ struct StickerIcon {
 	int pixh = 0;
 };
 
-class StickerPanInner : public ScrolledWidget {
+class StickerPanInner : public ScrolledWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -274,7 +274,6 @@ private slots:
 	void onPreview();
 	void onUpdateInlineItems();
 	void onSwitchPm();
-	void onImageLoaded();
 
 signals:
 	void selected(DocumentData *sticker);

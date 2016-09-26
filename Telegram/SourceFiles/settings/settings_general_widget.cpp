@@ -171,7 +171,9 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 , _changeLanguage(this, lang(lng_settings_change_lang), st::defaultBoxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
-	FileDialog::registerObserver(this, &GeneralWidget::notifyFileQueryUpdated);
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 	refreshControls();
 }
 
