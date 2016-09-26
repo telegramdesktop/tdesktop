@@ -48,6 +48,8 @@ void FinishCallback() {
 }
 ObservedEventRegistrator<PeerUpdate::Flags, PeerUpdateHandler> creator(StartCallback, FinishCallback);
 
+base::Observable<PeerUpdate, PeerUpdatedHandler> PeerUpdatedObservable;
+
 } // namespace
 
 namespace internal {
@@ -116,10 +118,20 @@ void peerUpdatedSendDelayed() {
 	for_const (auto &update, allList) {
 		creator.notify(update.flags, update);
 	}
+	for (auto &update : smallList) {
+		PeerUpdated().notify(std_::move(update), true);
+	}
+	for (auto &update : allList) {
+		PeerUpdated().notify(std_::move(update), true);
+	}
 	if (SmallUpdates->isEmpty()) {
 		std::swap(smallList, *SmallUpdates);
 		SmallUpdates->resize(0);
 	}
+}
+
+base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated() {
+	return PeerUpdatedObservable;
 }
 
 } // namespace Notify

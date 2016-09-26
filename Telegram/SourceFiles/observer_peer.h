@@ -102,4 +102,22 @@ void registerPeerObserver(PeerUpdate::Flags events, ObserverType *observer, Lamb
 	observerRegistered(observer, connection);
 }
 
+class PeerUpdatedHandler {
+public:
+	template <typename Lambda>
+	PeerUpdatedHandler(PeerUpdate::Flags events, Lambda &&handler) : _events(events), _handler(std_::move(handler)) {
+	}
+	void operator()(const PeerUpdate &update) const {
+		if (update.flags & _events) {
+			_handler(update);
+		}
+	}
+
+private:
+	PeerUpdate::Flags _events;
+	base::lambda_unique<void(const PeerUpdate&)> _handler;
+
+};
+base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();
+
 } // namespace Notify

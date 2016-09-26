@@ -271,10 +271,10 @@ using SubscriptionHandler = typename SubscriptionHandlerHelper<EventType>::type;
 class BaseObservableData {
 };
 
-template <typename EventType>
+template <typename EventType, typename Handler>
 class CommonObservableData;
 
-template <typename EventType>
+template <typename EventType, typename Handler>
 class ObservableData;
 
 } // namespace internal
@@ -317,43 +317,41 @@ private:
 	Node *_node = nullptr;
 	RemoveMethod _removeMethod;
 
-	template <typename EventType>
+	template <typename EventType, typename Handler>
 	friend class internal::CommonObservableData;
 
-	template <typename EventType>
+	template <typename EventType, typename Handler>
 	friend class internal::ObservableData;
 
 };
 
-template <typename EventType>
+template <typename EventType, typename Handler>
 class Observable;
 
 namespace internal {
 
-template <typename EventType>
+template <typename EventType, typename Handler>
 class CommonObservable {
 public:
-	using Handler = typename CommonObservableData<EventType>::Handler;
-
 	Subscription subscribe(Handler &&handler) {
 		if (!_data) {
-			_data = MakeShared<ObservableData<EventType>>(this);
+			_data = MakeShared<ObservableData<EventType, Handler>>(this);
 		}
 		return _data->append(std_::forward<Handler>(handler));
 	}
 
 private:
-	QSharedPointer<ObservableData<EventType>> _data;
+	QSharedPointer<ObservableData<EventType, Handler>> _data;
 
-	friend class CommonObservableData<EventType>;
-	friend class Observable<EventType>;
+	friend class CommonObservableData<EventType, Handler>;
+	friend class Observable<EventType, Handler>;
 
 };
 
 } // namespace internal
 
-template <typename EventType>
-class Observable : public internal::CommonObservable<EventType> {
+template <typename EventType, typename Handler = internal::SubscriptionHandler<EventType>>
+class Observable : public internal::CommonObservable<EventType, Handler> {
 public:
 	void notify(EventType &&event, bool sync = false) {
 		if (this->_data) {
@@ -365,12 +363,10 @@ public:
 
 namespace internal {
 
-template <typename EventType>
+template <typename EventType, typename Handler>
 class CommonObservableData : public BaseObservableData {
 public:
-	using Handler = SubscriptionHandler<EventType>;
-
-	CommonObservableData(CommonObservable<EventType> *observable) : _observable(observable) {
+	CommonObservableData(CommonObservable<EventType, Handler> *observable) : _observable(observable) {
 	}
 
 	Subscription append(Handler &&handler) {
@@ -441,20 +437,20 @@ private:
 		}
 	}
 
-	CommonObservable<EventType> *_observable = nullptr;
+	CommonObservable<EventType, Handler> *_observable = nullptr;
 	Node *_begin = nullptr;
 	Node *_current = nullptr;
 	Node *_end = nullptr;
 	ObservableCallHandlers _callHandlers;
 
-	friend class ObservableData<EventType>;
+	friend class ObservableData<EventType, Handler>;
 
 };
 
-template <typename EventType>
-class ObservableData : public CommonObservableData<EventType> {
+template <typename EventType, typename Handler>
+class ObservableData : public CommonObservableData<EventType, Handler> {
 public:
-	using CommonObservableData<EventType>::CommonObservableData;
+	using CommonObservableData<EventType, Handler>::CommonObservableData;
 
 	void notify(EventType &&event, bool sync) {
 		if (_handling) {
@@ -498,10 +494,10 @@ private:
 
 };
 
-template <>
-class ObservableData<void> : public CommonObservableData<void> {
+template <class Handler>
+class ObservableData<void, Handler> : public CommonObservableData<void, Handler> {
 public:
-	using CommonObservableData<void>::CommonObservableData;
+	using CommonObservableData<void, Handler>::CommonObservableData;
 
 	void notify(bool sync) {
 		if (_handling) {
@@ -547,8 +543,8 @@ private:
 
 } // namespace internal
 
-template <>
-class Observable<void> : public internal::CommonObservable<void> {
+template <typename Handler>
+class Observable<void, Handler> : public internal::CommonObservable<void, Handler> {
 public:
 	void notify(bool sync = false) {
 		if (_data) {
@@ -560,14 +556,14 @@ public:
 
 class Subscriber {
 protected:
-	template <typename EventType, typename Lambda>
-	int subscribe(base::Observable<EventType> &observable, Lambda &&handler) {
+	template <typename EventType, typename Handler, typename Lambda>
+	int subscribe(base::Observable<EventType, Handler> &observable, Lambda &&handler) {
 		_subscriptions.push_back(observable.subscribe(std_::forward<Lambda>(handler)));
 		return _subscriptions.size() - 1;
 	}
 
-	template <typename EventType, typename Lambda>
-	int subscribe(base::Observable<EventType> *observable, Lambda &&handler) {
+	template <typename EventType, typename Handler, typename Lambda>
+	int subscribe(base::Observable<EventType, Handler> *observable, Lambda &&handler) {
 		return subscribe(*observable, std_::forward<Lambda>(handler));
 	}
 
