@@ -59,6 +59,7 @@ void InnerWidget::selfUpdated() {
 void InnerWidget::refreshBlocks() {
 	_cover.destroyDelayed();
 	for_const (auto block, _blocks) {
+		block->hide();
 		block->deleteLater();
 	}
 	_blocks.clear();
