@@ -149,13 +149,11 @@ void InfoWidget::refreshAbout() {
 		textParseEntities(aboutText, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands, &aboutEntities);
 		_about->setMarkedText({ aboutText, aboutEntities });
 		_about->setSelectable(true);
-		_about->setClickHandlerHook(func(this, &InfoWidget::aboutClickHandlerHook));
+		_about->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			BotCommandClickHandler::setPeerForCommand(peer());
+			return true;
+		});
 	}
-}
-
-bool InfoWidget::aboutClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	BotCommandClickHandler::setPeerForCommand(peer());
-	return true;
 }
 
 void InfoWidget::refreshMobileNumber() {

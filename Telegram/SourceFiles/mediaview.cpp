@@ -1368,7 +1368,9 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mvDocIconSize, st::mvDocIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), mode);
+	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+		clipCallback(notification);
+	}, mode);
 
 	// Correct values will be set when gif gets inited.
 	_videoPaused = _videoIsSilent = _videoStopped = false;
@@ -1439,7 +1441,9 @@ void MediaView::restartVideoAtSeekPosition(int64 positionMs) {
 	if (_current.isNull()) {
 		_current = _gif->current(_gif->width(), _gif->height(), _gif->width(), _gif->height(), getms());
 	}
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), func(this, &MediaView::clipCallback), Media::Clip::Reader::Mode::Video, positionMs);
+	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+		clipCallback(notification);
+	}, Media::Clip::Reader::Mode::Video, positionMs);
 
 	// Correct values will be set when gif gets inited.
 	_videoPaused = _videoIsSilent = _videoStopped = false;

@@ -31,10 +31,10 @@ public:
 	bool paint(Painter &p);
 	void refreshCache();
 
-	using FinishedCallback = Function<void>;
+	using FinishedCallback = base::lambda_unique<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
-	using UpdatedCallback = Function<void, float64>;
+	using UpdatedCallback = base::lambda_unique<void(float64)>;
 	void setUpdatedCallback(UpdatedCallback &&callback);
 
 	void show();

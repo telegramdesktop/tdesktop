@@ -89,10 +89,6 @@ protected:
 	}
 
 private:
-	// QWidget::update() method is overloaded and we need template deduction.
-	void repaintCallback() {
-		update();
-	}
 	void showFinished();
 
 	std_::unique_ptr<SlideAnimation> _showAnimation;

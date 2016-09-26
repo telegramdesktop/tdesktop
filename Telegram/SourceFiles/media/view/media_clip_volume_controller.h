@@ -43,9 +43,6 @@ protected:
 	void leaveEvent(QEvent *e) override;
 
 private:
-	void updateCallback() {
-		update();
-	}
 	void setOver(bool over);
 	void changeVolume(float64 newVolume);
 

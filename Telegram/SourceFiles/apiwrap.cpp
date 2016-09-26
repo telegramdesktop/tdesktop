@@ -42,11 +42,10 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 void ApiWrap::init() {
 }
 
-void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback) {
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback) {
 	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
 	if (callback) {
-		MessageDataRequest::CallbackPtr pcallback(callback.release());
-		req.callbacks.append(pcallback);
+		req.callbacks.append(std_::move(callback));
 	}
 	if (!req.req) _messageDataResolveDelayed->call();
 }
@@ -138,7 +137,7 @@ void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &
 		for (auto i = requests->begin(); i != requests->cend();) {
 			if (i.value().req == req) {
 				for_const (auto &callback, i.value().callbacks) {
-					callback->call(channel, i.key());
+					callback(channel, i.key());
 				}
 				i = requests->erase(i);
 			} else {

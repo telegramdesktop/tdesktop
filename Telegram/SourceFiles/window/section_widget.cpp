@@ -50,8 +50,8 @@ void SectionWidget::showAnimated(SlideDirection direction, const SectionSlidePar
 
 	_showAnimation = std_::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
-	_showAnimation->setRepaintCallback(func(this, &SectionWidget::repaintCallback));
-	_showAnimation->setFinishedCallback(func(this, &SectionWidget::showFinished));
+	_showAnimation->setRepaintCallback([this] { update(); });
+	_showAnimation->setFinishedCallback([this] { showFinished(); });
 	_showAnimation->setPixmaps(params.oldContentCache, myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
 	_showAnimation->start();

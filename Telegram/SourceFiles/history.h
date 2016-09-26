@@ -935,17 +935,6 @@ private:
 	StylePtr _st;
 };
 
-class HistoryDependentItemCallback : public SharedCallback<void, ChannelData*, MsgId> {
-public:
-	HistoryDependentItemCallback(FullMsgId dependent) : _dependent(dependent) {
-	}
-	void call(ChannelData *channel, MsgId msgId) const override;
-
-private:
-	FullMsgId _dependent;
-
-};
-
 // any HistoryItem can have this Interface for
 // displaying the day mark above the message
 struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {

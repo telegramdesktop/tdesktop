@@ -62,8 +62,8 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_selected = -1;
 	setCursor(style::cur_default);
 	if (set.type() == mtpc_messages_stickerSet) {
-		auto &d(set.c_messages_stickerSet());
-		auto &v(d.vdocuments.c_vector().v);
+		auto &d = set.c_messages_stickerSet();
+		auto &v = d.vdocuments.c_vector().v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
@@ -247,13 +247,13 @@ void StickerSetInner::updateSelected() {
 
 void StickerSetInner::startOverAnimation(int index, float64 from, float64 to) {
 	if (index >= 0 && index < _packOvers.size()) {
-		START_ANIMATION(_packOvers[index], func([this, index]() {
+		_packOvers[index].start([this, index] {
 			int row = index / StickerPanPerRow;
 			int column = index % StickerPanPerRow;
 			int left = st::stickersPadding.left() + column * st::stickersSize.width();
 			int top = st::stickersPadding.top() + row * st::stickersSize.height();
 			rtlupdate(left, top, st::stickersSize.width(), st::stickersSize.height());
-		}), from, to, st::emojiPanDuration, anim::linear);
+		}, from, to, st::emojiPanDuration);
 	}
 }
 

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "core/lambda_wrap.h"
 #include "core/observer.h"
+#include "core/vector_of_moveable.h"
 
 namespace Dialogs {
 class Row;
@@ -163,7 +164,7 @@ private:
 			FloatAnimation fadeOut;
 			QPixmap wideCheckCache;
 		};
-		QList<Icon> icons;
+		std_::vector_of_moveable<Icon> icons;
 	};
 	void paintChat(Painter &p, Chat *chat, int index);
 	void updateChat(PeerData *peer);

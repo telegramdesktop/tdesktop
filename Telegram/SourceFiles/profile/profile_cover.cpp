@@ -285,7 +285,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 
 void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	if (_dropArea && !_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](CoverDropArea *area) { dropAreaHidden(area); });
 	}
 }
 
@@ -306,7 +306,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	}
 
 	if (!_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](CoverDropArea *area) { dropAreaHidden(area); });
 	}
 	e->acceptProposedAction();
 

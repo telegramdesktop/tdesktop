@@ -120,7 +120,7 @@ AnimationManager::AnimationManager() : _timer(this), _iterating(false) {
 
 void AnimationManager::start(Animation *obj) {
 	if (_iterating) {
-		_starting.insert(obj, NullType());
+		_starting.insert(obj);
 		if (!_stopping.isEmpty()) {
 			_stopping.remove(obj);
 		}
@@ -128,21 +128,21 @@ void AnimationManager::start(Animation *obj) {
 		if (_objects.isEmpty()) {
 			_timer.start(AnimationTimerDelta);
 		}
-		_objects.insert(obj, NullType());
+		_objects.insert(obj);
 	}
 }
 
 void AnimationManager::stop(Animation *obj) {
 	if (_iterating) {
-		_stopping.insert(obj, NullType());
+		_stopping.insert(obj);
 		if (!_starting.isEmpty()) {
 			_starting.remove(obj);
 		}
 	} else {
-		AnimatingObjects::iterator i = _objects.find(obj);
+		auto i = _objects.find(obj);
 		if (i != _objects.cend()) {
 			_objects.erase(i);
-			if (_objects.isEmpty()) {
+			if (_objects.empty()) {
 				_timer.stop();
 			}
 		}
@@ -152,26 +152,26 @@ void AnimationManager::stop(Animation *obj) {
 void AnimationManager::timeout() {
 	_iterating = true;
 	uint64 ms = getms();
-	for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
-		if (!_stopping.contains(i.key())) {
-			i.key()->step(ms, true);
+	for_const (auto object, _objects) {
+		if (!_stopping.contains(object)) {
+			object->step(ms, true);
 		}
 	}
 	_iterating = false;
 
 	if (!_starting.isEmpty()) {
-		for (AnimatingObjects::iterator i = _starting.begin(), e = _starting.end(); i != e; ++i) {
-			_objects.insert(i.key(), NullType());
+		for_const (auto object, _starting) {
+			_objects.insert(object);
 		}
 		_starting.clear();
 	}
 	if (!_stopping.isEmpty()) {
-		for (AnimatingObjects::iterator i = _stopping.begin(), e = _stopping.end(); i != e; ++i) {
-			_objects.remove(i.key());
+		for_const (auto object, _stopping) {
+			_objects.remove(object);
 		}
 		_stopping.clear();
 	}
-	if (!_objects.size()) {
+	if (_objects.empty()) {
 		_timer.stop();
 	}
 }

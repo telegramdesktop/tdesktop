@@ -908,11 +908,6 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	class ReplyEditMessageDataCallback : public SharedCallback<void, ChannelData*, MsgId> {
-	public:
-		void call(ChannelData *channel, MsgId msgId) const override;
-	};
-
 	bool sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 

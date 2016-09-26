@@ -45,7 +45,7 @@ void UserpicButton::showFinished() {
 		_notShownYet = false;
 		if (!_waiting) {
 			_a_appearance.finish();
-			START_ANIMATION(_a_appearance, func(this, &UserpicButton::refreshCallback), 0, 1, st::profilePhotoDuration, anim::linear);
+			_a_appearance.start([this] { update(); }, 0, 1, st::profilePhotoDuration);
 		}
 	}
 }
@@ -100,7 +100,7 @@ void UserpicButton::startNewPhotoShowing() {
 	}
 
 	_a_appearance.finish();
-	START_ANIMATION(_a_appearance, func(this, &UserpicButton::refreshCallback), 0, 1, st::profilePhotoDuration, anim::linear);
+	_a_appearance.start([this] { update(); }, 0, 1, st::profilePhotoDuration);
 	update();
 }
 

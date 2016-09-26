@@ -180,8 +180,8 @@ void Reader::moveToNextWrite() const {
 
 void Reader::callback(Reader *reader, int32 threadIndex, Notification notification) {
 	// check if reader is not deleted already
-	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader)) {
-		reader->_callback.call(notification);
+	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader) && reader->_callback) {
+		reader->_callback(notification);
 	}
 }
 

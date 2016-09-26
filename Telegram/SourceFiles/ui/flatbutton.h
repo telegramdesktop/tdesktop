@@ -147,11 +147,8 @@ private:
 
 	void step_loading(uint64 ms, bool timer) {
 		if (timer) {
-			updateCallback();
+			update();
 		}
-	}
-	void updateCallback() {
-		update();
 	}
 
 };

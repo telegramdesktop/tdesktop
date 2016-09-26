@@ -28,8 +28,8 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	using RequestMessageDataCallback = SharedCallback<void, ChannelData*, MsgId>;
-	void requestMessageData(ChannelData *channel, MsgId msgId, std_::unique_ptr<RequestMessageDataCallback> callback);
+	using RequestMessageDataCallback = base::lambda_wrap<void(ChannelData*, MsgId)>;
+	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -82,11 +82,8 @@ private:
 
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	struct MessageDataRequest {
-		MessageDataRequest() : req(0) {
-		}
-		typedef SharedCallback<void, ChannelData*, MsgId>::Ptr CallbackPtr;
-		typedef QList<CallbackPtr> Callbacks;
-		mtpRequestId req;
+		using Callbacks = QList<RequestMessageDataCallback>;
+		mtpRequestId req = 0;
 		Callbacks callbacks;
 	};
 	typedef QMap<MsgId, MessageDataRequest> MessageDataRequests;

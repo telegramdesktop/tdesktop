@@ -48,9 +48,6 @@ protected:
 
 private:
 	void step_progress(float64 ms, bool timer);
-	void updateCallback() {
-		update();
-	}
 	void setOver(bool over);
 
 	bool _over = false;

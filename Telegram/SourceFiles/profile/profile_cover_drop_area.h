@@ -28,7 +28,7 @@ public:
 
 	void showAnimated();
 
-	using HideFinishCallback = Function<void, CoverDropArea*>;
+	using HideFinishCallback = base::lambda_unique<void(CoverDropArea*)>;
 	void hideAnimated(HideFinishCallback &&callback);
 
 	bool hiding() const {
@@ -39,9 +39,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void refreshCallback() {
-		update();
-	}
 	void setupAnimation();
 
 	QString _title, _subtitle;

@@ -43,10 +43,6 @@ private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void notifyImageLoaded();
 
-	void refreshCallback() {
-		update();
-	}
-
 	void processPeerPhoto();
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();

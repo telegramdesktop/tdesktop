@@ -315,15 +315,13 @@ void MembersWidget::refreshLimitReached() {
 		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerHook(func(this, &MembersWidget::limitReachedHook));
+		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
+			return false;
+		});
 	} else if (!limitReachedShown && _limitReachedInfo) {
 		_limitReachedInfo.destroy();
 	}
-}
-
-bool MembersWidget::limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
-	return false;
 }
 
 void MembersWidget::checkSelfAdmin(ChatData *chat) {

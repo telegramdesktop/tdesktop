@@ -638,7 +638,9 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_document->loaded()) {
 				if (!_gif && _gif != Media::Clip::BadReader) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), func(that, &MediaPreviewWidget::clipCallback));
+					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), [this, that](Media::Clip::Notification notification) {
+						that->clipCallback(notification);
+					});
 					if (gif()) _gif->setAutoplay();
 				}
 			}

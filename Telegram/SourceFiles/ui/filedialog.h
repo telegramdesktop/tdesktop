@@ -65,14 +65,16 @@ bool processQuery();
 
 namespace internal {
 
-using QueryUpdateHandler = Function<void, const QueryUpdate&>;
+using QueryUpdateHandler = base::lambda_unique<void(const QueryUpdate&)>;
 Notify::ConnectionId plainRegisterObserver(QueryUpdateHandler &&handler);
 
 } // namespace internal
 
 template <typename ObserverType>
 void registerObserver(ObserverType *observer, void (ObserverType::*handler)(const QueryUpdate &)) {
-	auto connection = internal::plainRegisterObserver(func(observer, handler));
+	auto connection = internal::plainRegisterObserver([observer, handler](const QueryUpdate &update) {
+		(observer->*handler)(update);
+	});
 	Notify::observerRegistered(observer, connection);
 }
 

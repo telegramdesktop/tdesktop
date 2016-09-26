@@ -58,7 +58,7 @@ private:
 
 };
 
-// Handler is one of Function<> instantiations.
+// Handler is one of base::lambda_unique<> instantiations.
 template <typename Flags, typename Handler>
 struct ObserversList {
 	struct Entry {
@@ -109,8 +109,8 @@ public:
 		// entries list while the loop is still running.
 		for (int i = 0; i < entries.size(); ++i) {
 			auto &entry = entries[i];
-			if (!entry.handler.isNull() && (flags & entry.flags)) {
-				entry.handler.call(std_::forward<Args>(args)...);
+			if (entry.handler && (flags & entry.flags)) {
+				entry.handler(std_::forward<Args>(args)...);
 			}
 		}
 	}
@@ -140,7 +140,7 @@ private:
 		if (entries.size() <= connectionIndex) return;
 
 		if (entries.size() == connectionIndex + 1) {
-			for (entries.pop_back(); !entries.isEmpty() && entries.back().handler.isNull();) {
+			for (entries.pop_back(); !entries.isEmpty() && !entries.back().handler;) {
 				entries.pop_back();
 			}
 		} else {

@@ -65,7 +65,9 @@ void FadeAnimation::stopAnimation() {
 		_cache = QPixmap();
 		updateCallback();
 		_widget->showChildren();
-		_finishedCallback.call();
+		if (_finishedCallback) {
+			_finishedCallback();
+		}
 	}
 	if (_visible == _widget->isHidden()) {
 		_widget->setVisible(_visible);
@@ -91,7 +93,9 @@ void FadeAnimation::startAnimation(int duration) {
 		_cache = myGrab(_widget);
 		_widget->hideChildren();
 	}
-	START_ANIMATION(_animation, func(this, &FadeAnimation::updateCallback), _visible ? 0. : 1., _visible ? 1. : 0., duration, anim::linear);
+	auto from = _visible ? 0. : 1.;
+	auto to = _visible ? 1. : 0.;
+	_animation.start([this]() { updateCallback(); }, from, to, duration);
 	updateCallback();
 	if (_widget->isHidden()) {
 		_widget->show();
@@ -101,7 +105,9 @@ void FadeAnimation::startAnimation(int duration) {
 void FadeAnimation::updateCallback() {
 	if (_animation.animating(getms())) {
 		_widget->update();
-		_updatedCallback.call(_animation.current());
+		if (_updatedCallback) {
+			_updatedCallback(_animation.current(_visible ? 1. : 0.));
+		}
 	} else {
 		stopAnimation();
 	}

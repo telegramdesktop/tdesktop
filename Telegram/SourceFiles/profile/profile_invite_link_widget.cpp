@@ -99,19 +99,17 @@ void InviteLinkWidget::refreshLink() {
 		_link->setMarkedText(linkData);
 		_link->setSelectable(true);
 		_link->setContextCopyText(QString());
-		_link->setClickHandlerHook(func(this, &InviteLinkWidget::clickHandlerHook));
-	}
-}
+		_link->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			auto link = getInviteLink();
+			if (link.isEmpty()) {
+				return true;
+			}
 
-bool InviteLinkWidget::clickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	auto link = getInviteLink();
-	if (link.isEmpty()) {
-		return true;
+			QApplication::clipboard()->setText(link);
+			Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
+			return false;
+		});
 	}
-
-	QApplication::clipboard()->setText(link);
-	Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
-	return false;
 }
 
 } // namespace Profile

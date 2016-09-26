@@ -91,14 +91,16 @@ void peerUpdatedSendDelayed();
 
 namespace internal {
 
-using PeerUpdateHandler = Function<void, const PeerUpdate&>;
+using PeerUpdateHandler = base::lambda_unique<void(const PeerUpdate&)>;
 ConnectionId plainRegisterPeerObserver(PeerUpdate::Flags events, PeerUpdateHandler &&handler);
 
 } // namespace internal
 
 template <typename ObserverType>
 void registerPeerObserver(PeerUpdate::Flags events, ObserverType *observer, void (ObserverType::*handler)(const PeerUpdate &)) {
-	auto connection = internal::plainRegisterPeerObserver(events, func(observer, handler));
+	auto connection = internal::plainRegisterPeerObserver(events, [observer, handler](const PeerUpdate &update) {
+		(observer->*handler)(update);
+	});
 	observerRegistered(observer, connection);
 }
 

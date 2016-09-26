@@ -217,7 +217,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 
 void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	if (_dropArea && !_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](Profile::CoverDropArea *area) { dropAreaHidden(area); });
 	}
 }
 
@@ -228,7 +228,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	if (mimeData->hasImage()) {
 		img = qvariant_cast<QImage>(mimeData->imageData());
 	} else {
-		const auto &urls = mimeData->urls();
+		auto &urls = mimeData->urls();
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
@@ -238,7 +238,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	}
 
 	if (!_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](Profile::CoverDropArea *area) { dropAreaHidden(area); });
 	}
 	e->acceptProposedAction();
 

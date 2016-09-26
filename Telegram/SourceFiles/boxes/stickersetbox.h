@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "abstractbox.h"
+#include "core/vector_of_moveable.h"
 
 class ConfirmBox;
 
@@ -69,7 +70,7 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
-	QVector<FloatAnimation> _packOvers;
+	std_::vector_of_moveable<FloatAnimation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;

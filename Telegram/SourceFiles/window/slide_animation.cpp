@@ -92,7 +92,9 @@ void SlideAnimation::step(float64 ms, bool timer) {
 			a_coordUnder.finish();
 			a_coordOver.finish();
 
-			_finishedCallback.call();
+			if (_finishedCallback) {
+				_finishedCallback();
+			}
 			return;
 		}
 	}
@@ -100,8 +102,8 @@ void SlideAnimation::step(float64 ms, bool timer) {
 	a_coordUnder.update(dt, st::slideFunction);
 	a_coordOver.update(dt, st::slideFunction);
 	a_progress.update(dt, st::slideFunction);
-	if (timer) {
-		_repaintCallback.call();
+	if (timer && _repaintCallback) {
+		_repaintCallback();
 	}
 }
 

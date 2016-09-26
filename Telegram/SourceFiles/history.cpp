@@ -2644,10 +2644,12 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	}
 }
 
-void HistoryDependentItemCallback::call(ChannelData *channel, MsgId msgId) const {
-	if (HistoryItem *item = App::histItemById(_dependent)) {
-		item->updateDependencyItem();
-	}
+ApiWrap::RequestMessageDataCallback historyDependentItemCallback(const FullMsgId &msgId) {
+	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
+		if (HistoryItem *item = App::histItemById(dependent)) {
+			item->updateDependencyItem();
+		}
+	};
 }
 
 void HistoryMessageUnreadBar::init(int count) {
@@ -4910,7 +4912,9 @@ bool HistoryGif::playInline(bool autoplay) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
-		_gif = new Media::Clip::Reader(_data->location(), _data->data(), func(_parent, &HistoryItem::clipCallback));
+		_gif = new Media::Clip::Reader(_data->location(), _data->data(), [this](Media::Clip::Notification notification) {
+			_parent->clipCallback(notification);
+		});
 		App::regGifItem(_gif, _parent);
 		if (gif()) _gif->setAutoplay();
 	}
@@ -6837,7 +6841,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this) && App::api()) {
-			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, historyDependentItemCallback(fullId()));
 		}
 	}
 	if (auto via = Get<HistoryMessageVia>()) {
@@ -8388,7 +8392,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;
 			if (!updateDependent() && App::api()) {
-				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, historyDependentItemCallback(fullId()));
 			}
 		}
 	}

@@ -268,17 +268,13 @@ public:
 	void setMode(Mode mode);
 
 	bool isFullyShown() const {
-		return _shown && _a_opacity.isNull();
+		return _shown && !_a_opacity.animating();
 	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void repaintCallback() {
-		update();
-	}
-
 	const style::color &_color;
 	FloatAnimation _a_opacity;
 	bool _shown = true;
