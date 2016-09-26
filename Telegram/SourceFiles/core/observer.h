@@ -507,20 +507,20 @@ public:
 			++_eventsCount;
 			callHandlers();
 		} else {
-			if (!_callHandlers) {
-				_callHandlers = [this]() {
+			if (!this->_callHandlers) {
+				this->_callHandlers = [this]() {
 					callHandlers();
 				};
 			}
 			if (!_eventsCount) {
-				RegisterPendingObservable(&_callHandlers);
+				RegisterPendingObservable(&this->_callHandlers);
 			}
 			++_eventsCount;
 		}
 	}
 
 	~ObservableData() {
-		UnregisterObservable(&_callHandlers);
+		UnregisterObservable(&this->_callHandlers);
 	}
 
 private:
@@ -528,12 +528,12 @@ private:
 		_handling = true;
 		auto eventsCount = createAndSwap(_eventsCount);
 		for (int i = 0; i != eventsCount; ++i) {
-			notifyEnumerate([this]() {
-				_current->handler();
+			this->notifyEnumerate([this]() {
+				this->_current->handler();
 			});
 		}
 		_handling = false;
-		UnregisterActiveObservable(&_callHandlers);
+		UnregisterActiveObservable(&this->_callHandlers);
 	}
 
 	int _eventsCount = 0;
@@ -547,8 +547,8 @@ template <typename Handler>
 class Observable<void, Handler> : public internal::CommonObservable<void, Handler> {
 public:
 	void notify(bool sync = false) {
-		if (_data) {
-			_data->notify(sync);
+		if (this->_data) {
+			this->_data->notify(sync);
 		}
 	}
 
