@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "observer_peer.h"
-#include "history.h"
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"

@@ -77,11 +77,19 @@ const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
 	return _historyTextOptions;
 }
 
+const TextParseOptions &itemTextOptions(const HistoryItem *item) {
+	return itemTextOptions(item->history(), item->author());
+}
+
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
 	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
 		return _historyBotNoMonoOptions;
 	}
 	return _historyTextNoMonoOptions;
+}
+
+const TextParseOptions &itemTextNoMonoOptions(const HistoryItem *item) {
+	return itemTextNoMonoOptions(item->history(), item->author());
 }
 
 QString formatSizeText(qint64 size) {

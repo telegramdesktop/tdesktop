@@ -21,15 +21,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include "history.h"
+#include "history/history_item.h"
+#include "history/history_media.h"
+#include "history/history_message.h"
+#include "layout.h"
 
 class AppClass;
 class MainWindow;
 class MainWidget;
 class ApiWrap;
 class FileUploader;
-
-#include "history.h"
-#include "layout.h"
 
 using HistoryItemsMap = OrderedSet<HistoryItem*>;
 using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;

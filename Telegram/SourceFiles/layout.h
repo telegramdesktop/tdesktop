@@ -26,7 +26,9 @@ extern TextParseOptions _textNameOptions, _textDlgOptions;
 extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
 
 const TextParseOptions &itemTextOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextOptions(const HistoryItem *item);
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextNoMonoOptions(const HistoryItem *item);
 
 enum RoundCorners {
 	SmallMaskCorners = 0x00, // for images
