@@ -102,8 +102,8 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
 
-	_webPageUpdater.setSingleShot(true);
-	connect(&_webPageUpdater, SIGNAL(timeout()), this, SLOT(webPagesUpdate()));
+	_webPageOrGameUpdater.setSingleShot(true);
+	connect(&_webPageOrGameUpdater, SIGNAL(timeout()), this, SLOT(webPagesOrGamesUpdate()));
 
 	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
 		using Update = Window::ChatBackgroundUpdate;
@@ -341,24 +341,41 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 }
 
 void MainWidget::webPageUpdated(WebPageData *data) {
-	_webPagesUpdated.insert(data->id, true);
-	_webPageUpdater.start(0);
+	_webPagesUpdated.insert(data->id);
+	_webPageOrGameUpdater.start(0);
 }
 
-void MainWidget::webPagesUpdate() {
-	if (_webPagesUpdated.isEmpty()) return;
+void MainWidget::gameUpdated(GameData *data) {
+	_gamesUpdated.insert(data->id);
+	_webPageOrGameUpdater.start(0);
+}
 
-	_webPageUpdater.stop();
-	const WebPageItems &items(App::webPageItems());
-	for (QMap<WebPageId, bool>::const_iterator i = _webPagesUpdated.cbegin(), e = _webPagesUpdated.cend(); i != e; ++i) {
-		WebPageItems::const_iterator j = items.constFind(App::webPage(i.key()));
-		if (j != items.cend()) {
-			for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->setPendingInitDimensions();
+void MainWidget::webPagesOrGamesUpdate() {
+	_webPageOrGameUpdater.stop();
+	if (!_webPagesUpdated.isEmpty()) {
+		auto &items = App::webPageItems();
+		for_const (auto webPageId, _webPagesUpdated) {
+			auto j = items.constFind(App::webPage(webPageId));
+			if (j != items.cend()) {
+				for_const (auto item, j.value()) {
+					item->setPendingInitDimensions();
+				}
 			}
 		}
+		_webPagesUpdated.clear();
 	}
-	_webPagesUpdated.clear();
+	if (!_gamesUpdated.isEmpty()) {
+		auto &items = App::gameItems();
+		for_const (auto gameId, _gamesUpdated) {
+			auto j = items.constFind(App::game(gameId));
+			if (j != items.cend()) {
+				for_const (auto item, j.value()) {
+					item->setPendingInitDimensions();
+				}
+			}
+		}
+		_gamesUpdated.clear();
+	}
 }
 
 void MainWidget::updateMutedIn(int32 seconds) {
@@ -470,8 +487,8 @@ void MainWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
 	const SharedContactItems &items(App::sharedContactItems());
 	SharedContactItems::const_iterator i = items.constFind(peerToUser(user->id));
 	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			j.key()->setPendingInitDimensions();
+		for_const (auto item, i.value()) {
+			item->setPendingInitDimensions();
 		}
 	}
 
@@ -1151,7 +1168,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		if (message.webPageId == CancelledWebPageId) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
 		} else if (message.webPageId) {
-			WebPageData *page = App::webPage(message.webPageId);
+			auto page = App::webPage(message.webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
@@ -1612,8 +1629,8 @@ void MainWidget::documentLoadProgress(FileLoader *loader) {
 	const DocumentItems &items(App::documentItems());
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::repaintHistoryItem(j.key());
+		for_const (auto item, i.value()) {
+			Ui::repaintHistoryItem(item);
 		}
 	}
 	App::wnd()->documentUpdated(document);
@@ -1674,11 +1691,11 @@ void MainWidget::mediaMarkRead(DocumentData *data) {
 void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
 	QVector<MTPint> markedIds;
 	markedIds.reserve(items.size());
-	for (HistoryItemsMap::const_iterator j = items.cbegin(), e = items.cend(); j != e; ++j) {
-		if (!j.key()->out() && j.key()->isMediaUnread()) {
-			j.key()->markMediaRead();
-			if (j.key()->id > 0) {
-				markedIds.push_back(MTP_int(j.key()->id));
+	for_const (auto item, items) {
+		if (!item->out() && item->isMediaUnread()) {
+			item->markMediaRead();
+			if (item->id > 0) {
+				markedIds.push_back(MTP_int(item->id));
 			}
 		}
 	}
@@ -4179,8 +4196,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
-			if (item) {
+			if (auto item = App::histories().addNewMessage(d.vmessage, NewMessageUnread)) {
 				_history->peerMessagesUpdated(item->history()->peer->id);
 			}
 		}
@@ -4188,11 +4204,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateMessageID: {
-		const auto &d(update.c_updateMessageID());
-		FullMsgId msg = App::histItemByRandom(d.vrandom_id.v);
+		auto &d = update.c_updateMessageID();
+		auto msg = App::histItemByRandom(d.vrandom_id.v);
 		if (msg.msg) {
-			HistoryItem *msgRow = App::histItemById(msg);
-			if (msgRow) {
+			if (auto msgRow = App::histItemById(msg)) {
 				if (App::histItemById(msg.channel, d.vid.v)) {
 					History *h = msgRow->history();
 					bool wasLast = (h->lastMsg == msgRow);
@@ -4218,14 +4233,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadMessagesContents: {
-		const auto &d(update.c_updateReadMessagesContents());
+		auto &d = update.c_updateReadMessagesContents();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
 
 		// update before applying skipped
-		const auto &v(d.vmessages.c_vector().v);
+		auto &v = d.vmessages.c_vector().v;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
@@ -4244,7 +4259,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
-		const auto &d(update.c_updateReadHistoryInbox());
+		auto &d = update.c_updateReadHistoryInbox();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4257,7 +4272,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadHistoryOutbox: {
-		const auto &d(update.c_updateReadHistoryOutbox());
+		auto &d = update.c_updateReadHistoryOutbox();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4275,7 +4290,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateWebPage: {
-		const auto &d(update.c_updateWebPage());
+		auto &d = update.c_updateWebPage();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4284,13 +4299,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// update before applying skipped
 		App::feedWebPage(d.vwebpage);
 		_history->updatePreview();
-		webPagesUpdate();
+		webPagesOrGamesUpdate();
 
 		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateDeleteMessages: {
-		const auto &d(update.c_updateDeleteMessages());
+		auto &d = update.c_updateDeleteMessages();
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4304,9 +4319,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserTyping: {
-		const auto &d(update.c_updateUserTyping());
-		History *history = App::historyLoaded(peerFromUser(d.vuser_id));
-		UserData *user = App::userLoaded(d.vuser_id.v);
+		auto &d = update.c_updateUserTyping();
+		auto history = App::historyLoaded(peerFromUser(d.vuser_id));
+		auto user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			auto when = requestingDifference() ? 0 : unixtime();
 			App::histories().regSendAction(history, user, d.vaction, when);
@@ -4314,14 +4329,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChatUserTyping: {
-		const auto &d(update.c_updateChatUserTyping());
+		auto &d = update.c_updateChatUserTyping();
 		History *history = 0;
-		if (PeerData *chat = App::chatLoaded(d.vchat_id.v)) {
+		if (auto chat = App::chatLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(chat->id);
-		} else if (PeerData *channel = App::channelLoaded(d.vchat_id.v)) {
+		} else if (auto channel = App::channelLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(channel->id);
 		}
-		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);
+		auto user = (d.vuser_id.v == MTP::authedId()) ? nullptr : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			auto when = requestingDifference() ? 0 : unixtime();
 			App::histories().regSendAction(history, user, d.vaction, when);
@@ -4349,9 +4364,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserStatus: {
-		const auto &d(update.c_updateUserStatus());
-		UserData *user = App::userLoaded(d.vuser_id.v);
-		if (user) {
+		auto &d = update.c_updateUserStatus();
+		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			switch (d.vstatus.type()) {
 			case mtpc_userStatusEmpty: user->onlineTill = 0; break;
 			case mtpc_userStatusRecently:
@@ -4380,7 +4394,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserName: {
-		auto &d(update.c_updateUserName());
+		auto &d = update.c_updateUserName();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			if (user->contact <= 0) {
 				user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone, textOneLine(qs(d.vusername)));
@@ -4392,9 +4406,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserPhoto: {
-		const auto &d(update.c_updateUserPhoto());
-		UserData *user = App::userLoaded(d.vuser_id.v);
-		if (user) {
+		auto &d = update.c_updateUserPhoto();
+		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			user->setPhoto(d.vphoto);
 			user->loadUserpic();
 			if (mtpIsTrue(d.vprevious)) {
@@ -4415,9 +4428,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateContactRegistered: {
-		const auto &d(update.c_updateContactRegistered());
-		UserData *user = App::userLoaded(d.vuser_id.v);
-		if (user) {
+		auto &d = update.c_updateContactRegistered();
+		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			if (App::history(user->id)->loadedAtBottom()) {
 				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), 0);
 			}
@@ -4425,22 +4437,22 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateContactLink: {
-		const auto &d(update.c_updateContactLink());
+		auto &d = update.c_updateContactLink();
 		App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
 	} break;
 
 	case mtpc_updateNotifySettings: {
-		const auto &d(update.c_updateNotifySettings());
+		auto &d = update.c_updateNotifySettings();
 		applyNotifySetting(d.vpeer, d.vnotify_settings);
 	} break;
 
 	case mtpc_updateDcOptions: {
-		const auto &d(update.c_updateDcOptions());
+		auto &d = update.c_updateDcOptions();
 		MTP::updateDcOptions(d.vdc_options.c_vector().v);
 	} break;
 
 	case mtpc_updateUserPhone: {
-		auto &d(update.c_updateUserPhone());
+		auto &d = update.c_updateUserPhone();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			auto newPhone = qs(d.vphone);
 			if (newPhone != user->phone()) {
@@ -4454,31 +4466,31 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {
-		const auto &d(update.c_updateNewEncryptedMessage());
+		auto &d = update.c_updateNewEncryptedMessage();
 	} break;
 
 	case mtpc_updateEncryptedChatTyping: {
-		const auto &d(update.c_updateEncryptedChatTyping());
+		auto &d = update.c_updateEncryptedChatTyping();
 	} break;
 
 	case mtpc_updateEncryption: {
-		const auto &d(update.c_updateEncryption());
+		auto &d = update.c_updateEncryption();
 	} break;
 
 	case mtpc_updateEncryptedMessagesRead: {
-		const auto &d(update.c_updateEncryptedMessagesRead());
+		auto &d = update.c_updateEncryptedMessagesRead();
 	} break;
 
 	case mtpc_updateUserBlocked: {
-		const auto &d(update.c_updateUserBlocked());
-		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
+		auto &d = update.c_updateUserBlocked();
+		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			user->setBlockStatus(mtpIsTrue(d.vblocked) ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 			App::markPeerUpdated(user);
 		}
 	} break;
 
 	case mtpc_updateNewAuthorization: {
-		const auto &d(update.c_updateNewAuthorization());
+		auto &d = update.c_updateNewAuthorization();
 		QDateTime datetime = date(d.vdate);
 
 		QString name = App::self()->firstName;
@@ -4491,7 +4503,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateServiceNotification: {
-		const auto &d(update.c_updateServiceNotification());
+		auto &d = update.c_updateServiceNotification();
 		if (mtpIsTrue(d.vpopup)) {
 			Ui::showLayer(new InformBox(qs(d.vmessage)));
 		} else {

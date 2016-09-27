@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_overview.h"
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_clip_reader.h"
+#include "history/history_location_manager.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"

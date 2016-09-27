@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "connectionbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "history/history_location_manager.h"
 
 ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
 , _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), Global::ConnectionProxy().host)
@@ -207,7 +208,7 @@ void ConnectionBox::onSave() {
 		Global::RefConnectionTypeChanged().notify();
 
 		MTP::restart();
-		reinitImageLinkManager();
+		reinitLocationManager();
 		reinitWebLoadManager();
 		onClose();
 	}

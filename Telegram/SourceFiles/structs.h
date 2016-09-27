@@ -137,11 +137,12 @@ inline TimeId dateFromMessage(const MTPmessage &msg) {
 	return 0;
 }
 
-typedef uint64 PhotoId;
-typedef uint64 VideoId;
-typedef uint64 AudioId;
-typedef uint64 DocumentId;
-typedef uint64 WebPageId;
+using PhotoId = uint64;
+using VideoId = uint64;
+using AudioId = uint64;
+using DocumentId = uint64;
+using WebPageId = uint64;
+using GameId = uint64;
 static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
 
 inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
@@ -1351,6 +1352,7 @@ struct WebPageData {
 	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), DocumentData *doc = nullptr, PhotoData *photo = nullptr, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
 
 	void forget() {
+		if (document) document->forget();
 		if (photo) photo->forget();
 	}
 
@@ -1362,6 +1364,22 @@ struct WebPageData {
 	PhotoData *photo;
 	DocumentData *document;
 	int32 pendingTill;
+
+};
+
+struct GameData {
+	GameData(const GameId &id, const uint64 &accessHash = 0, const QString &shortName = QString(), const QString &title = QString(), const QString &description = QString(), const QString &url = QString(), PhotoData *photo = nullptr, DocumentData *doc = nullptr);
+
+	void forget() {
+		if (document) document->forget();
+		if (photo) photo->forget();
+	}
+
+	GameId id;
+	uint64 accessHash;
+	QString shortName, title, description, url;
+	PhotoData *photo;
+	DocumentData *document;
 
 };
 
@@ -1397,70 +1415,3 @@ struct MessageCursor {
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
 	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
 }
-
-struct LocationCoords {
-	LocationCoords() : lat(0), lon(0) {
-	}
-	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
-	}
-	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
-	}
-	float64 lat, lon;
-};
-inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
-	return (a.lat == b.lat) && (a.lon == b.lon);
-}
-inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
-	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
-}
-inline uint qHash(const LocationCoords &t, uint seed = 0) {
-#ifndef OS_MAC_OLD
-	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
-#else // OS_MAC_OLD
-	uint h1 = qHash(t.lat, seed);
-	uint h2 = qHash(t.lon, seed);
-	return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
-#endif // OS_MAC_OLD
-}
-
-struct LocationData {
-	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
-	}
-
-	LocationCoords coords;
-	ImagePtr thumb;
-	bool loading;
-
-	void load();
-};
-
-class LocationClickHandler : public ClickHandler {
-public:
-	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
-		setup();
-	}
-
-	void onClick(Qt::MouseButton button) const override;
-
-	QString tooltip() const override {
-		return QString();
-	}
-
-	QString dragText() const override {
-		return _text;
-	}
-
-	void copyToClipboard() const override {
-		if (!_text.isEmpty()) {
-			QApplication::clipboard()->setText(_text);
-		}
-	}
-	QString copyToClipboardContextItemText() const override;
-
-private:
-
-	void setup();
-	LocationCoords _coords;
-	QString _text;
-
-};

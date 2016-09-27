@@ -33,8 +33,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "core/observer.h"
 #include "observer_peer.h"
-#include "core/observer.h"
 #include "window/chat_background.h"
+#include "history/history_location_manager.h"
 
 namespace {
 	void mtpStateChanged(int32 dc, int32 state) {
@@ -744,7 +744,7 @@ AppClass::AppClass() : QObject()
 
 	Shortcuts::start();
 
-	initImageLinkManager();
+	initLocationManager();
 	App::initMedia();
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
@@ -1095,7 +1095,7 @@ AppClass::~AppClass() {
 
 	stopWebLoadManager();
 	App::deinitMedia();
-	deinitImageLinkManager();
+	deinitLocationManager();
 
 	MTP::finish();
 

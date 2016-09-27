@@ -100,6 +100,7 @@ enum HistoryMediaType {
 	MediaTypeWebPage,
 	MediaTypeMusicFile,
 	MediaTypeVoiceFile,
+	MediaTypeGame,
 
 	MediaTypeCount
 };
@@ -1617,6 +1618,9 @@ public:
 	virtual bool isDisplayed() const {
 		return true;
 	}
+	virtual bool isAboveMessage() const {
+		return false;
+	}
 	virtual bool hasTextForCopy() const {
 		return false;
 	}
@@ -2408,10 +2412,8 @@ public:
 	}
 
 	HistoryMedia *attach() const {
-		return _attach;
+		return _attach.get();
 	}
-
-	~HistoryWebPage();
 
 private:
 	TextSelection toDescriptionSelection(TextSelection selection) const {
@@ -2423,51 +2425,114 @@ private:
 
 	WebPageData *_data;
 	ClickHandlerPtr _openl;
-	HistoryMedia *_attach;
+	std_::unique_ptr<HistoryMedia> _attach;
 
-	bool _asArticle;
+	bool _asArticle = false;
 	int32 _titleLines, _descriptionLines;
 
 	Text _title, _description;
-	int32 _siteNameWidth;
+	int32 _siteNameWidth = 0;
 
 	QString _duration;
-	int32 _durationWidth;
+	int32 _durationWidth = 0;
 
-	int16 _pixw, _pixh;
+	int16 _pixw = 0;
+	int16 _pixh = 0;
 };
 
-void initImageLinkManager();
-void reinitImageLinkManager();
-void deinitImageLinkManager();
+class HistoryGame : public HistoryMedia {
+public:
+	HistoryGame(HistoryItem *parent, GameData *data);
+	HistoryGame(HistoryItem *parent, const HistoryGame &other);
+	HistoryMediaType type() const override {
+		return MediaTypeGame;
+	}
+	HistoryGame *clone(HistoryItem *newParent) const override {
+		return new HistoryGame(newParent, *this);
+	}
+
+	void initDimensions() override;
+	int resizeGetHeight(int width) override;
+
+	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool isAboveMessage() const override {
+		return true;
+	}
+	bool hasTextForCopy() const override {
+		return false; // we do not add _title and _description in FullSelection text copy.
+	}
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->toggleSelectionByHandlerClick(p);
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->dragItemByHandler(p);
+	}
+
+	TextWithEntities selectedText(TextSelection selection) const override;
+
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+	DocumentData *getDocument() override {
+		return _attach ? _attach->getDocument() : nullptr;
+	}
+	Media::Clip::Reader *getClipReader() override {
+		return _attach ? _attach->getClipReader() : nullptr;
+	}
+	bool playInline(bool autoplay) override {
+		return _attach ? _attach->playInline(autoplay) : false;
+	}
+	void stopInline() override {
+		if (_attach) _attach->stopInline();
+	}
+
+	void attachToParent() override;
+	void detachFromParent() override;
+
+	bool hasReplyPreview() const override {
+		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
+	}
+	ImagePtr replyPreview() override;
+
+	GameData *game() {
+		return _data;
+	}
+
+	bool needsBubble() const override {
+		return true;
+	}
+	bool customInfoLayout() const override {
+		return false;
+	}
+
+	HistoryMedia *attach() const {
+		return _attach.get();
+	}
+
+private:
+	TextSelection toDescriptionSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, _title);
+	}
+	TextSelection fromDescriptionSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, _title);
+	}
+
+	GameData *_data;
+	ClickHandlerPtr _openl;
+	std_::unique_ptr<HistoryMedia> _attach;
+
+	int32 _titleLines, _descriptionLines;
+
+	Text _title, _description;
+
+};
 
 struct LocationCoords;
 struct LocationData;
-class LocationManager : public QObject {
-	Q_OBJECT
-public:
-	void init();
-	void reinit();
-	void deinit();
-
-	void getData(LocationData *data);
-
-	~LocationManager() {
-		deinit();
-	}
-
-public slots:
-	void onFinished(QNetworkReply *reply);
-	void onFailed(QNetworkReply *reply);
-
-private:
-	void failed(LocationData *data);
-
-	QNetworkAccessManager *manager = nullptr;
-	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
-	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *black = nullptr;
-};
 
 class HistoryLocation : public HistoryMedia {
 public:
@@ -2703,12 +2768,14 @@ private:
 		}
 		return false;
 	}
-
+	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintReplyInfo(Painter &p, QRect &trect, bool selected) const;
 
 	// this method draws "via @bot" if it is not painted in forwarded info or in from name
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
+
+	void paintText(Painter &p, QRect &trect, TextSelection selection) const;
 
 	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);

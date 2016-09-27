@@ -31,15 +31,16 @@ class FileUploader;
 #include "history.h"
 #include "layout.h"
 
-typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
-typedef QHash<PhotoData*, HistoryItemsMap> PhotoItems;
-typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
-typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
-typedef QHash<int32, HistoryItemsMap> SharedContactItems;
-typedef QHash<Media::Clip::Reader*, HistoryItem*> GifItems;
+using HistoryItemsMap = OrderedSet<HistoryItem*>;
+using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
+using DocumentItems = QHash<DocumentData*, HistoryItemsMap>;
+using WebPageItems = QHash<WebPageData*, HistoryItemsMap>;
+using GameItems = QHash<GameData*, HistoryItemsMap>;
+using SharedContactItems = QHash<int32, HistoryItemsMap>;
+using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
-typedef QHash<PhotoId, PhotoData*> PhotosData;
-typedef QHash<DocumentId, DocumentData*> DocumentsData;
+using PhotosData = QHash<PhotoId, PhotoData*>;
+using DocumentsData = QHash<DocumentId, DocumentData*>;
 
 namespace App {
 	AppClass *app();
@@ -90,14 +91,15 @@ namespace App {
 	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
-	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
-	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
+	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = nullptr);
+	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = nullptr);
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
-	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
-	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
-	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = 0);
-	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
+	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = nullptr);
+	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = nullptr);
+	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = nullptr);
+	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = nullptr);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
+	GameData *feedGame(const MTPDgame &game, GameData *convert = nullptr);
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
 	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
@@ -148,7 +150,9 @@ namespace App {
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
+	GameData *game(const GameId &game);
+	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, const QString &url, PhotoData *photo, DocumentData *doc);
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
@@ -246,6 +250,10 @@ namespace App {
 	void regWebPageItem(WebPageData *data, HistoryItem *item);
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
+
+	void regGameItem(GameData *data, HistoryItem *item);
+	void unregGameItem(GameData *data, HistoryItem *item);
+	const GameItems &gameItems();
 
 	void regSharedContactItem(int32 userId, HistoryItem *item);
 	void unregSharedContactItem(int32 userId, HistoryItem *item);

@@ -717,11 +717,11 @@ void PhotoData::cancel() {
 }
 
 void PhotoData::notifyLayoutChanged() const {
-	const PhotoItems &items(App::photoItems());
-	PhotoItems::const_iterator i = items.constFind(const_cast<PhotoData*>(this));
+	auto &items = App::photoItems();
+	auto i = items.constFind(const_cast<PhotoData*>(this));
 	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::historyItemLayoutChanged(j.key());
+		for_const (auto item, i.value()) {
+			Notify::historyItemLayoutChanged(item);
 		}
 	}
 }
@@ -1441,12 +1441,9 @@ void DocumentData::cancel() {
 }
 
 void DocumentData::notifyLayoutChanged() const {
-	const DocumentItems &items(App::documentItems());
-	DocumentItems::const_iterator i = items.constFind(const_cast<DocumentData*>(this));
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::historyItemLayoutChanged(j.key());
-		}
+	auto &items = App::documentItems();
+	for (auto item : items.value(const_cast<DocumentData*>(this))) {
+		Notify::historyItemLayoutChanged(item);
 	}
 
 	if (auto items = InlineBots::Layout::documentItems()) {
@@ -1632,6 +1629,16 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , pendingTill(pendingTill) {
 }
 
+GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, const QString &url, PhotoData *photo, DocumentData *document) : id(id)
+, accessHash(accessHash)
+, shortName(shortName)
+, title(title)
+, description(description)
+, url(url)
+, photo(photo)
+, document(document) {
+}
+
 void PeerOpenClickHandler::onClickImpl() const {
 	if (App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
@@ -1650,19 +1657,4 @@ MsgId clientMsgId() {
 	static MsgId currentClientMsgId = StartClientMsgId;
 	Q_ASSERT(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
-}
-
-QString LocationClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_link);
-}
-
-void LocationClickHandler::onClick(Qt::MouseButton button) const {
-	if (!psLaunchMaps(_coords)) {
-		QDesktopServices::openUrl(_text);
-	}
-}
-
-void LocationClickHandler::setup() {
-	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
-	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }

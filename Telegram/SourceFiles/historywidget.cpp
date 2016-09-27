@@ -5797,16 +5797,13 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 	BotCallbackInfo info = { bot, msg->fullId(), row, col, (button->type == ButtonType::Game) };
 	MTPmessages_GetBotCallbackAnswer::Flags flags = 0;
 	QByteArray sendData;
-	int32 sendGameId = 0;
 	if (info.game) {
-		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_game_id;
-		auto strData = QString::fromUtf8(button->data);
-		sendGameId = strData.midRef(0, strData.indexOf(',')).toInt();
+		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_game;
 	} else if (button->type == ButtonType::Callback) {
 		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_data;
 		sendData = button->data;
 	}
-	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData), MTP_int(sendGameId)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
+	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
 	Ui::repaintHistoryItem(msg);
 
 	if (_replyToId == msg->id) {
@@ -8138,7 +8135,7 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 		_previewRequest = 0;
 	}
 	if (result.type() == mtpc_messageMediaWebPage) {
-		WebPageData *data = App::feedWebPage(result.c_messageMediaWebPage().vwebpage);
+		auto data = App::feedWebPage(result.c_messageMediaWebPage().vwebpage);
 		_previewCache.insert(links, data->id);
 		if (data->pendingTill > 0 && data->pendingTill <= unixtime()) {
 			data->pendingTill = -1;
@@ -8147,7 +8144,7 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 			_previewData = (data->id && data->pendingTill >= 0) ? data : 0;
 			updatePreview();
 		}
-		if (App::main()) App::main()->webPagesUpdate();
+		if (App::main()) App::main()->webPagesOrGamesUpdate();
 	} else if (result.type() == mtpc_messageMediaEmpty) {
 		_previewCache.insert(links, 0);
 		if (links == _previewLinks && !_previewCancelled) {

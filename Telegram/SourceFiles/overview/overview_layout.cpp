@@ -888,13 +888,13 @@ bool Document::updateStatusText() const {
 Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
-	const auto textWithEntities = _parent->originalText();
+	auto textWithEntities = _parent->originalText();
 	QString mainUrl;
 
 	auto text = textWithEntities.text;
 	auto &entities = textWithEntities.entities;
 	int32 from = 0, till = text.size(), lnk = entities.size();
-	for_const (const auto &entity, entities) {
+	for_const (auto &entity, entities) {
 		auto type = entity.type();
 		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			continue;
@@ -908,7 +908,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		const auto &entity = entities.at(lnk);
+		auto &entity = entities.at(lnk);
 		auto type = entity.type();
 		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			++lnk;
