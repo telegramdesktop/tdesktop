@@ -41,7 +41,7 @@ public:
 	}
 
 	void initTime();
-	void initMedia(const MTPMessageMedia *media, QString &currentText);
+	void initMedia(const MTPMessageMedia *media);
 	void initMediaFromDocument(DocumentData *doc, const QString &caption);
 	void fromNameUpdated(int32 width) const;
 

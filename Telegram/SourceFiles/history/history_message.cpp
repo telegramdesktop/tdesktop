@@ -347,8 +347,8 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
 	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
-		//case Button::Type::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
-		//case Button::Type::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	//case Button::Type::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
+	//case Button::Type::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
 	case Button::Type::SwitchInlineSame:
 	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
 	case Button::Type::Callback:
@@ -380,13 +380,12 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	createComponents(config);
 
-	QString text(textClean(qs(msg.vmessage)));
-	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr, text);
+	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr);
 
-	TextWithEntities textWithEntities = { text, EntitiesInText() };
-	if (msg.has_entities()) {
-		textWithEntities.entities = entitiesFromMTP(msg.ventities.c_vector().v);
-	}
+	TextWithEntities textWithEntities = {
+		textClean(qs(msg.vmessage)),
+		msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText(),
+	};
 	setText(textWithEntities);
 }
 
@@ -620,7 +619,7 @@ void HistoryMessage::initTime() {
 	}
 }
 
-void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentText) {
+void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	switch (media ? media->type() : mtpc_messageMediaEmpty) {
 	case mtpc_messageMediaContact: {
 		auto &d = media->c_messageMediaContact();
@@ -961,16 +960,16 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 
 	bool mediaRemovedSkipBlock = false;
 	if (_media) {
-		mediaRemovedSkipBlock = _media->isDisplayed() && !_media->isAboveMessage();
+		mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
 		_media.clear();
 	}
-	QString t;
-	initMedia(media, t);
-	if (_media && _media->isDisplayed() && !_media->isAboveMessage() && !mediaRemovedSkipBlock) {
+	initMedia(media);
+	auto mediaDisplayed = _media && _media->isDisplayed();
+	if (mediaDisplayed && _media->isBubbleBottom() && !mediaRemovedSkipBlock) {
 		_text.removeSkipBlock();
 		_textWidth = -1;
 		_textHeight = 0;
-	} else if (mediaRemovedSkipBlock && (!_media || !_media->isDisplayed() || _media->isAboveMessage())) {
+	} else if (mediaRemovedSkipBlock && (!mediaDisplayed || !_media->isBubbleBottom())) {
 		_text.setSkipBlock(skipBlockWidth(), skipBlockHeight());
 		_textWidth = -1;
 		_textHeight = 0;
@@ -978,14 +977,6 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 }
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
-	textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
-	if (_media && _media->isDisplayed() && !_media->isAboveMessage()) {
-		_text.setMarkedText(st::msgFont, textWithEntities, itemTextOptions(this));
-	} else {
-		_text.setMarkedText(st::msgFont, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
-	}
-	textstyleRestore();
-
 	for_const (auto &entity, textWithEntities.entities) {
 		auto type = entity.type();
 		if (type == EntityInTextUrl || type == EntityInTextCustomUrl || type == EntityInTextEmail) {
@@ -993,8 +984,21 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			break;
 		}
 	}
-	_textWidth = -1;
-	_textHeight = 0;
+
+	auto mediaDisplayed = _media && _media->isDisplayed();
+	if (mediaDisplayed && _media->consumeMessageText(textWithEntities)) {
+		setEmptyText();
+	} else {
+		textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
+		if (_media && _media->isDisplayed() && !_media->isAboveMessage()) {
+			_text.setMarkedText(st::msgFont, textWithEntities, itemTextOptions(this));
+		} else {
+			_text.setMarkedText(st::msgFont, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
+		}
+		textstyleRestore();
+		_textWidth = -1;
+		_textHeight = 0;
+	}
 }
 
 void HistoryMessage::setEmptyText() {

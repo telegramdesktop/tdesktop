@@ -752,6 +752,7 @@ public:
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
+	bool consumeMessageText(const TextWithEntities &textWithEntities) override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
@@ -760,6 +761,8 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
+	QString notificationText() const override;
+	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -818,6 +821,8 @@ private:
 	int32 _titleLines, _descriptionLines;
 
 	Text _title, _description;
+
+	int _gameTagWidth = 0;
 
 };
 

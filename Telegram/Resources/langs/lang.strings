@@ -808,6 +808,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Choose images";
+"lng_game_tag" = "Game";
 
 "lng_context_view_profile" = "View profile";
 "lng_context_view_group" = "View group info";

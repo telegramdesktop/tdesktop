@@ -1791,15 +1791,15 @@ namespace {
 			}
 			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
 				convert->type = toWebPageType(type);
-				convert->url = url;
-				convert->displayUrl = displayUrl;
-				convert->siteName = siteName;
-				convert->title = title;
-				convert->description = description;
+				convert->url = textClean(url);
+				convert->displayUrl = textClean(displayUrl);
+				convert->siteName = textClean(siteName);
+				convert->title = textOneLine(textClean(title));
+				convert->description = textClean(description);
 				convert->photo = photo;
 				convert->document = document;
 				convert->duration = duration;
-				convert->author = author;
+				convert->author = textClean(author);
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
 				convert->pendingTill = pendingTill;
 				if (App::main()) App::main()->webPageUpdated(convert);
@@ -1822,15 +1822,15 @@ namespace {
 			if (result != convert) {
 				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
 					result->type = toWebPageType(type);
-					result->url = url;
-					result->displayUrl = displayUrl;
-					result->siteName = siteName;
-					result->title = title;
-					result->description = description;
+					result->url = textClean(url);
+					result->displayUrl = textClean(displayUrl);
+					result->siteName = textClean(siteName);
+					result->title = textOneLine(textClean(title));
+					result->description = textClean(description);
 					result->photo = photo;
 					result->document = document;
 					result->duration = duration;
-					result->author = author;
+					result->author = textClean(author);
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
 					result->pendingTill = pendingTill;
 					if (App::main()) App::main()->webPageUpdated(result);
@@ -1859,9 +1859,9 @@ namespace {
 			}
 			if (convert->shortName.isEmpty() && !shortName.isEmpty()) {
 				convert->accessHash = accessHash;
-				convert->shortName = shortName;
-				convert->title = title;
-				convert->description = description;
+				convert->shortName = textClean(shortName);
+				convert->title = textOneLine(textClean(title));
+				convert->description = textClean(description);
 				convert->photo = photo;
 				convert->document = document;
 				if (App::main()) App::main()->gameUpdated(convert);
@@ -1881,9 +1881,9 @@ namespace {
 			if (result != convert) {
 				if (result->shortName.isEmpty() && !shortName.isEmpty()) {
 					result->accessHash = accessHash;
-					result->shortName = shortName;
-					result->title = title;
-					result->description = description;
+					result->shortName = textClean(shortName);
+					result->title = textOneLine(textClean(title));
+					result->description = textClean(description);
 					result->photo = photo;
 					result->document = document;
 					if (App::main()) App::main()->gameUpdated(result);

@@ -4507,6 +4507,7 @@ void HistoryWidget::updateControlsVisibility() {
 	if (!_a_show.animating()) {
 		_topShadow.setVisible(_peer ? true : false);
 	}
+	updateToEndVisibility();
 	if (!_history || _a_show.animating()) {
 		_reportSpamPanel.hide();
 		_scroll.hide();
@@ -4537,7 +4538,6 @@ void HistoryWidget::updateControlsVisibility() {
 		return;
 	}
 
-	updateToEndVisibility();
 	if (_pinnedBar) {
 		_pinnedBar->cancel.show();
 		_pinnedBar->shadow.show();
@@ -7380,6 +7380,8 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 }
 
 void HistoryWidget::updateToEndVisibility() {
+	if (_a_show.animating()) return;
+
 	auto haveUnreadBelowBottom = [this](History *history) {
 		if (!_list || !history || history->unreadCount() <= 0) {
 			return false;
@@ -7390,7 +7392,7 @@ void HistoryWidget::updateToEndVisibility() {
 		return (_list->itemTop(history->showFrom) >= _scroll.scrollTop() + _scroll.height());
 	};
 	auto isToEndVisible = [this, &haveUnreadBelowBottom]() {
-		if (!_history || _a_show.animating() || _firstLoadRequest) {
+		if (!_history || _firstLoadRequest) {
 			return false;
 		}
 		if (!_history->loadedAtBottom() || _replyReturn) {

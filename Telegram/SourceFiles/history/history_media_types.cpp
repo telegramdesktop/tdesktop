@@ -2481,36 +2481,24 @@ void HistoryWebPage::initDimensions() {
 
 	// init strings
 	if (_description.isEmpty() && !_data->description.isEmpty()) {
-		QString text = textClean(_data->description);
-		if (text.isEmpty()) {
-			_data->description = QString();
-		} else {
-			if (!_asArticle && !_attach) {
-				text += _parent->skipBlock();
-			}
-			const TextParseOptions *opts = &_webpageDescriptionOptions;
-			if (_data->siteName == qstr("Twitter")) {
-				opts = &_twitterDescriptionOptions;
-			} else if (_data->siteName == qstr("Instagram")) {
-				opts = &_instagramDescriptionOptions;
-			}
-			_description.setText(st::webPageDescriptionFont, text, *opts);
+		auto text = _data->description;
+
+		if (!_asArticle && !_attach) {
+			text += _parent->skipBlock();
 		}
+		const TextParseOptions *opts = &_webpageDescriptionOptions;
+		if (_data->siteName == qstr("Twitter")) {
+			opts = &_twitterDescriptionOptions;
+		} else if (_data->siteName == qstr("Instagram")) {
+			opts = &_instagramDescriptionOptions;
+		}
+		_description.setText(st::webPageDescriptionFont, text, *opts);
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
-		title = textOneLine(textClean(title));
-		if (title.isEmpty()) {
-			if (_data->title.isEmpty()) {
-				_data->author = QString();
-			} else {
-				_data->title = QString();
-			}
-		} else {
-			if (!_asArticle && !_attach && _description.isEmpty()) {
-				title += _parent->skipBlock();
-			}
-			_title.setText(st::webPageTitleFont, title, _webpageTitleOptions);
+		if (!_asArticle && !_attach && _description.isEmpty()) {
+			title += _parent->skipBlock();
 		}
+		_title.setText(st::webPageTitleFont, title, _webpageTitleOptions);
 	}
 	if (!_siteNameWidth && !_data->siteName.isEmpty()) {
 		_siteNameWidth = st::webPageTitleFont->width(_data->siteName);
@@ -2964,20 +2952,13 @@ void HistoryGame::initDimensions() {
 
 	// init strings
 	if (_description.isEmpty() && !_data->description.isEmpty()) {
-		auto text = textClean(_data->description);
-		if (text.isEmpty()) {
-			_data->description = QString();
-		} else {
+		auto text = _data->description;
+		if (!text.isEmpty()) {
 			_description.setText(st::webPageDescriptionFont, text, _webpageDescriptionOptions);
 		}
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
-		title = textOneLine(textClean(title));
-		if (title.isEmpty()) {
-			_data->title = QString();
-		} else {
-			_title.setText(st::webPageTitleFont, title, _webpageTitleOptions);
-		}
+		_title.setText(st::webPageTitleFont, title, _webpageTitleOptions);
 	}
 
 	// init dimensions
@@ -3014,13 +2995,18 @@ void HistoryGame::initDimensions() {
 	_maxw += st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 	auto padding = inBubblePadding();
 	_minh += padding.top() + padding.bottom();
+
+	if (!_gameTagWidth) {
+		_gameTagWidth = st::msgDateFont->width(lang(lng_game_tag).toUpper());
+	}
 }
 
 int HistoryGame::resizeGetHeight(int width) {
 	_width = qMin(width, _maxw);
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
-	int linesMax = 5;
+	// enable any count of lines in game description / message
+	int linesMax = 4096;
 	_height = 0;
 	if (_title.isEmpty()) {
 		_titleLines = 0;
@@ -3116,6 +3102,19 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
+		auto pixwidth = _attach->currentWidth();
+
+		auto gameX = st::msgDateImgDelta;
+		auto gameY = st::msgDateImgDelta;
+		auto gameW = _gameTagWidth + 2 * st::msgDateImgPadding.x();
+		auto gameH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+
+		App::roundRect(p, rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
+		p.setFont(st::msgDateFont);
+		p.setPen(st::msgDateImgColor);
+		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, lang(lng_game_tag).toUpper());
+
 		p.translate(-attachLeft, -attachTop);
 	}
 }
@@ -3188,6 +3187,11 @@ TextSelection HistoryGame::adjustSelection(TextSelection selection, TextSelectTy
 	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
+bool HistoryGame::consumeMessageText(const TextWithEntities &textWithEntities) {
+	_description.setMarkedText(st::webPageDescriptionFont, textWithEntities, itemTextOptions(_parent));
+	return true;
+}
+
 void HistoryGame::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (_attach) {
 		_attach->clickHandlerActiveChanged(p, active);
@@ -3208,6 +3212,14 @@ void HistoryGame::attachToParent() {
 void HistoryGame::detachFromParent() {
 	App::unregGameItem(_data, _parent);
 	if (_attach) _attach->detachFromParent();
+}
+
+QString HistoryGame::notificationText() const {
+	return _data->title;
+}
+
+QString HistoryGame::inDialogsText() const {
+	return textcmdLink(1, _data->title);
 }
 
 TextWithEntities HistoryGame::selectedText(TextSelection selection) const {

@@ -79,6 +79,9 @@ public:
 	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
 		return selection;
 	}
+	virtual bool consumeMessageText(const TextWithEntities &textWithEntities) {
+		return false;
+	}
 
 	// if we press and drag this link should we drag the item
 	virtual bool dragItemByHandler(const ClickHandlerPtr &p) const = 0;
