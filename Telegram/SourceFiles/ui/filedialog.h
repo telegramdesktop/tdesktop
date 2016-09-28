@@ -63,17 +63,6 @@ QueryId queryReadFolder(const QString &caption);
 // NB! This function enters an event loop.
 bool processQuery();
 
-namespace internal {
-
-using QueryUpdateHandler = Function<void, const QueryUpdate&>;
-Notify::ConnectionId plainRegisterObserver(QueryUpdateHandler &&handler);
-
-} // namespace internal
-
-template <typename ObserverType>
-void registerObserver(ObserverType *observer, void (ObserverType::*handler)(const QueryUpdate &)) {
-	auto connection = internal::plainRegisterObserver(func(observer, handler));
-	Notify::observerRegistered(observer, connection);
-}
+base::Observable<QueryUpdate> &QueryDone();
 
 } // namespace FileDialog

@@ -21,10 +21,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "abstractbox.h"
+#include "core/vector_of_moveable.h"
 
 class ConfirmBox;
 
-class StickerSetInner : public ScrolledWidget, public RPCSender {
+class StickerSetInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -69,7 +70,7 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
-	QVector<FloatAnimation> _packOvers;
+	std_::vector_of_moveable<FloatAnimation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;
@@ -206,7 +207,7 @@ int32 stickerPacksCount(bool includeDisabledOfficial = false);
 
 namespace internal {
 
-class StickersInner : public ScrolledWidget, public RPCSender {
+class StickersInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

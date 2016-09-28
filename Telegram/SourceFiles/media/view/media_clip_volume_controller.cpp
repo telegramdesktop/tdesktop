@@ -100,7 +100,7 @@ void VolumeController::setOver(bool over) {
 
 	_over = over;
 	auto from = _over ? 0. : 1., to = _over ? 1. : 0.;
-	START_ANIMATION(_a_over, func(this, &VolumeController::updateCallback), from, to, st::mediaviewOverDuration, anim::linear);
+	_a_over.start([this] { update(); }, from, to, st::mediaviewOverDuration);
 }
 
 } // namespace Clip

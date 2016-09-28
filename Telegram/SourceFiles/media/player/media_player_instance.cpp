@@ -56,7 +56,10 @@ Instance::Instance() {
 			handleSongUpdate(audioId);
 		}
 	});
-	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::SharedMediaChanged, this, &Instance::notifyPeerUpdated);
+	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 }
 
 void Instance::notifyPeerUpdated(const Notify::PeerUpdate &update) {

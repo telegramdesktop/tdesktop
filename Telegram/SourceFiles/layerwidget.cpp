@@ -437,7 +437,7 @@ MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
 , _a_shown(animation(this, &MediaPreviewWidget::step_shown))
 , _emojiSize(EmojiSizes[EIndex + 1] / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
@@ -456,11 +456,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
 	if (!_emojiList.isEmpty()) {
 		int emojiCount = _emojiList.size();
-		int emojiWidth = emojiCount * _emojiSize + (emojiCount - 1) * st::stickerEmojiSkip;
+		int emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
 		int emojiLeft = (width() - emojiWidth) / 2;
-		int esize = _emojiSize * cIntRetinaFactor();
+		int esize = EmojiSizes[EIndex + 1];
 		for_const (auto emoji, _emojiList) {
-			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - _emojiSize * 2, width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
+			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}
@@ -638,7 +638,9 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_document->loaded()) {
 				if (!_gif && _gif != Media::Clip::BadReader) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), func(that, &MediaPreviewWidget::clipCallback));
+					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), [this, that](Media::Clip::Notification notification) {
+						that->clipCallback(notification);
+					});
 					if (gif()) _gif->setAutoplay();
 				}
 			}

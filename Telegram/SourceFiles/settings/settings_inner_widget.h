@@ -65,6 +65,7 @@ private:
 	UserData *_self = nullptr;
 
 	int _contentLeft = 0;
+	bool _showFinished = false;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

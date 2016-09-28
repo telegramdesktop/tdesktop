@@ -101,6 +101,14 @@ public:
 
 constexpr int ScrollDateHideTimeout = 1000;
 
+ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
+	return [](ChannelData *channel, MsgId msgId) {
+		if (App::main()) {
+			App::main()->messageDataReceived(channel, msgId);
+		}
+	};
+}
+
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -1684,7 +1692,7 @@ void HistoryInner::toggleScrollDateShown() {
 	_scrollDateShown = !_scrollDateShown;
 	auto from = _scrollDateShown ? 0. : 1.;
 	auto to = _scrollDateShown ? 1. : 0.;
-	START_ANIMATION(_scrollDateOpacity, func(this, &HistoryInner::repaintScrollDateCallback), from, to, st::btnAttachEmoji.duration, anim::linear);
+	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::btnAttachEmoji.duration);
 }
 
 void HistoryInner::repaintScrollDateCallback() {
@@ -3032,7 +3040,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	setAcceptDrops(true);
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -4117,7 +4125,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, std_::make_unique<ReplyEditMessageDataCallback>());
+			App::api()->requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, replyEditMessageDataCallback());
 		}
 	}
 }
@@ -7633,7 +7641,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			update();
 		}
 		if (!_pinnedBar->msg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, std_::make_unique<ReplyEditMessageDataCallback>());
+			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, replyEditMessageDataCallback());
 		}
 	} else if (_pinnedBar) {
 		destroyPinnedBar();
@@ -7650,12 +7658,6 @@ void HistoryWidget::destroyPinnedBar() {
 	delete _pinnedBar;
 	_pinnedBar = nullptr;
 	_inPinnedMsg = false;
-}
-
-void HistoryWidget::ReplyEditMessageDataCallback::call(ChannelData *channel, MsgId msgId) const {
-	if (App::main()) {
-		App::main()->messageDataReceived(channel, msgId);
-	}
 }
 
 bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {

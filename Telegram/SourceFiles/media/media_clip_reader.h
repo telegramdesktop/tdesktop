@@ -52,7 +52,7 @@ enum ReaderSteps {
 class ReaderPrivate;
 class Reader {
 public:
-	using Callback = Function<void, Notification>;
+	using Callback = base::lambda_unique<void(Notification)>;
 	enum class Mode {
 		Gif,
 		Video,
@@ -211,14 +211,9 @@ private:
 	void clear();
 
 	QAtomicInt _loadLevel;
-	struct MutableAtomicInt {
-		MutableAtomicInt(int value) : v(value) {
-		}
-		mutable QAtomicInt v;
-	};
-	typedef QMap<Reader*, MutableAtomicInt> ReaderPointers;
+	using ReaderPointers = QMap<Reader*, QAtomicInt>;
 	ReaderPointers _readerPointers;
-	mutable QReadWriteLock _readerPointersMutex;
+	mutable QMutex _readerPointersMutex;
 
 	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ReaderPrivate *reader) const;
 	ReaderPointers::iterator unsafeFindReaderPointer(ReaderPrivate *reader);

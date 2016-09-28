@@ -33,9 +33,10 @@ LocalStorageBox::LocalStorageBox() : AbstractBox()
 	connect(_clear, SIGNAL(clicked()), this, SLOT(onClear()));
 	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	checkLocalStoredCounts();
 	prepare();

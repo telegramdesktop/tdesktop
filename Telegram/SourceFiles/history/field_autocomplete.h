@@ -138,7 +138,7 @@ private:
 
 namespace internal {
 
-class FieldAutocompleteInner final : public TWidget {
+class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -149,8 +149,6 @@ public:
 	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
-
-	~FieldAutocompleteInner();
 
 signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;

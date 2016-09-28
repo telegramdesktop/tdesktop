@@ -33,7 +33,7 @@ class Date;
 } // namespace Overview
 
 class OverviewWidget;
-class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender {
+class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

@@ -59,6 +59,7 @@ void InnerWidget::selfUpdated() {
 void InnerWidget::refreshBlocks() {
 	_cover.destroyDelayed();
 	for_const (auto block, _blocks) {
+		block->hide();
 		block->deleteLater();
 	}
 	_blocks.clear();
@@ -81,6 +82,9 @@ void InnerWidget::refreshBlocks() {
 
 	if (_cover) {
 		_cover->show();
+		if (_showFinished) {
+			_cover->showFinished();
+		}
 	}
 	for_const (auto block, _blocks) {
 		block->show();
@@ -89,6 +93,7 @@ void InnerWidget::refreshBlocks() {
 }
 
 void InnerWidget::showFinished() {
+	_showFinished = true;
 	if (_cover) {
 		_cover->showFinished();
 	}

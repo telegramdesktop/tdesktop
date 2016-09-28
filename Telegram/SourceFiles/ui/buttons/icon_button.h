@@ -37,10 +37,6 @@ protected:
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 private:
-	void updateCallback() {
-		update();
-	}
-
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
 

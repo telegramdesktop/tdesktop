@@ -71,6 +71,17 @@ private:
 	int64 countPacketMs(AVPacket *packet) const;
 	PacketResult readAndProcessPacket();
 
+	enum class Rotation {
+		None,
+		Degrees90,
+		Degrees180,
+		Degrees270,
+	};
+	Rotation rotationFromDegrees(int degrees) const;
+	bool rotationSwapWidthHeight() const {
+		return (_rotation == Rotation::Degrees90) || (_rotation == Rotation::Degrees270);
+	}
+
 	void startPacket();
 	void finishPacket();
 	void clearPacketQueue();
@@ -79,6 +90,8 @@ private:
 	static int64_t _seek(void *opaque, int64_t offset, int whence);
 
 	Mode _mode = Mode::Normal;
+
+	Rotation _rotation = Rotation::None;
 
 	uchar *_ioBuffer = nullptr;
 	AVIOContext *_ioContext = nullptr;

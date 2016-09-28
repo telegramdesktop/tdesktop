@@ -135,7 +135,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded && !gif() && _gif != Media::Clip::BadReader) {
 		Gif *that = const_cast<Gif*>(this);
-		that->_gif = new Media::Clip::Reader(document->location(), document->data(), func(that, &Gif::clipCallback));
+		that->_gif = new Media::Clip::Reader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+			that->clipCallback(notification);
+		});
 		if (gif()) _gif->setAutoplay();
 	}
 
@@ -165,9 +167,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	}
 
 	if (radial || (!_gif && !loaded && !loading) || (_gif == Media::Clip::BadReader)) {
-		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
+		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
-			float64 over = _animation->_a_over.current();
+			auto over = _animation->_a_over.current();
 			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
 			p.fillRect(r, st::black);
 		} else {
@@ -219,7 +221,7 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		bool wasactive = (_state & StateFlag::DeleteOver);
 		if (active != wasactive) {
 			auto from = active ? 0. : 1., to = active ? 1. : 0.;
-			START_ANIMATION(_a_deleteOver, func(this, &Gif::update), from, to, st::stickersRowDuration, anim::linear);
+			_a_deleteOver.start([this] { update(); }, from, to, st::stickersRowDuration);
 			if (active) {
 				_state |= StateFlag::DeleteOver;
 			} else {
@@ -233,7 +235,7 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 			if (!getShownDocument()->loaded()) {
 				ensureAnimation();
 				auto from = active ? 0. : 1., to = active ? 1. : 0.;
-				START_ANIMATION(_animation->_a_over, func(this, &Gif::update), from, to, st::stickersRowDuration, anim::linear);
+				_animation->_a_over.start([this] { update(); }, from, to, st::stickersRowDuration);
 			}
 			if (active) {
 				_state |= StateFlag::Over;
@@ -386,7 +388,7 @@ void Sticker::preload() const {
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	bool loaded = getShownDocument()->loaded();
 
-	float64 over = _a_over.isNull() ? (_active ? 1 : 0) : _a_over.current();
+	auto over = _a_over.current(_active ? 1. : 0.);
 	if (over > 0) {
 		p.setOpacity(over);
 		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
@@ -415,7 +417,7 @@ void Sticker::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 			_active = active;
 
 			auto from = active ? 0. : 1., to = active ? 1. : 0.;
-			START_ANIMATION(_a_over, func(this, &Sticker::update), from, to, st::stickersRowDuration, anim::linear);
+			_a_over.start([this] { update(); }, from, to, st::stickersRowDuration);
 		}
 	}
 	ItemBase::clickHandlerActiveChanged(p, active);

@@ -49,7 +49,7 @@ void IconButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	if (over != (oldState & StateOver)) {
 		auto from = over ? 0. : 1.;
 		auto to = over ? 1. : 0.;
-		START_ANIMATION(_a_over, func(this, &IconButton::updateCallback), from, to, _st.duration, anim::linear);
+		_a_over.start([this] { update(); }, from, to, _st.duration);
 	}
 }
 

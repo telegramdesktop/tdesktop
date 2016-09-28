@@ -47,9 +47,6 @@ protected:
 
 private:
 	void toggleAnimated();
-	void repaintCallback() {
-		update();
-	}
 	void step_arrowOver(float64 ms, bool timer);
 
 	QPixmap _cache;

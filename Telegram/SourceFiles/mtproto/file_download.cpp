@@ -207,9 +207,8 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 		_fileIsOpen = false;
 		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
 	}
-	emit App::wnd()->imageLoaded();
 	emit progress(this);
-	FileDownload::internal::notifyImageLoaded();
+	FileDownload::ImageLoaded().notify();
 	loadNext();
 }
 
@@ -516,8 +515,6 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		}
 		removeFromQueue();
 
-		emit App::wnd()->imageLoaded();
-
 		if (!_queue->queries) {
 			App::app()->killDownloadSessionsStart(_dc);
 		}
@@ -544,7 +541,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	}
 	emit progress(this);
 	if (_complete) {
-		FileDownload::internal::notifyImageLoaded();
+		FileDownload::ImageLoaded().notify();
 	}
 	loadNext();
 }
@@ -669,13 +666,11 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	}
 	removeFromQueue();
 
-	emit App::wnd()->imageLoaded();
-
 	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
 		Local::writeWebFile(_url, _data);
 	}
 	emit progress(this);
-	FileDownload::internal::notifyImageLoaded();
+	FileDownload::ImageLoaded().notify();
 	loadNext();
 }
 
@@ -1093,21 +1088,12 @@ namespace MTP {
 namespace FileDownload {
 namespace {
 
-using internal::ImageLoadedHandler;
-
-Notify::SimpleObservedEventRegistrator<ImageLoadedHandler> creator(nullptr, nullptr);
+base::Observable<void> ImageLoadedObservable;
 
 } // namespace
 
-namespace internal {
-
-Notify::ConnectionId plainRegisterImageLoadedObserver(ImageLoadedHandler &&handler) {
-	return creator.registerObserver(std_::forward<ImageLoadedHandler>(handler));
+base::Observable<void> &ImageLoaded() {
+	return ImageLoadedObservable;
 }
 
-void notifyImageLoaded() {
-	creator.notify();
-}
-
-} // namespace internal
-}
+} // namespace FileDownload

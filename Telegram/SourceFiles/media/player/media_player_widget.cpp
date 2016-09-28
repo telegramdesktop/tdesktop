@@ -51,7 +51,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 }
 
 bool Widget::overlaps(const QRect &globalRect) {
-	if (isHidden() || !_a_appearance.isNull()) return false;
+	if (isHidden() || _a_appearance.animating()) return false;
 
 	auto marginLeft = rtl() ? 0 : contentLeft();
 	auto marginRight = rtl() ? contentLeft() : 0;
@@ -171,18 +171,18 @@ void Widget::onHideStart() {
 void Widget::startAnimation() {
 	auto from = _hiding ? 1. : 0.;
 	auto to = _hiding ? 0. : 1.;
-	if (_a_appearance.isNull()) {
+	if (!_a_appearance.animating()) {
 		showChildren();
 		_cache = myGrab(this);
 	}
 	hideChildren();
-	START_ANIMATION(_a_appearance, func([this]() {
+	_a_appearance.start([this]() {
 		update();
 		if (!_a_appearance.animating(getms()) && _hiding) {
 			_hiding = false;
 			hidingFinished();
 		}
-	}), from, to, st::defaultInnerDropdown.duration, anim::linear);
+	}, from, to, st::defaultInnerDropdown.duration);
 }
 
 void Widget::hidingFinished() {

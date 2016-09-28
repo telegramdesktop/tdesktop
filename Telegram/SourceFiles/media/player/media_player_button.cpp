@@ -66,9 +66,7 @@ void TitleButton::updatePauseState() {
 void TitleButton::setShowPause(bool showPause) {
 	if (_showPause != showPause) {
 		_showPause = showPause;
-		START_ANIMATION(_iconTransformToPause, func([this]() {
-			update();
-		}), _showPause ? 0. : 1., _showPause ? 1. : 0., st::mediaPlayerTitleButtonTransformDuration, anim::linear);
+		_iconTransformToPause.start([this] { update(); }, _showPause ? 0. : 1., _showPause ? 1. : 0., st::mediaPlayerTitleButtonTransformDuration);
 		update();
 	}
 }
@@ -97,9 +95,7 @@ void TitleButton::paintEvent(QPaintEvent *e) {
 void TitleButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	if ((oldState & StateOver) != (_state & StateOver)) {
 		auto over = (_state & StateOver);
-		START_ANIMATION(_iconFg, func([this]() {
-			update();
-		}), over ? st::titleButtonFg->c : st::titleButtonActiveFg->c, over ? st::titleButtonActiveFg->c : st::titleButtonFg->c, st::titleButtonDuration, anim::linear);
+		_iconFg.start([this] { update(); }, over ? st::titleButtonFg->c : st::titleButtonActiveFg->c, over ? st::titleButtonActiveFg->c : st::titleButtonFg->c, st::titleButtonDuration);
 	}
 }
 

@@ -41,13 +41,14 @@ constexpr int kArchivedLimitPerPage = 30;
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : ScrolledWidget()
 , _input(set) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
 	case mtpc_inputStickerSetShortName: _setShortName = qs(set.c_inputStickerSetShortName().vshort_name); break;
 	}
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&StickerSetInner::gotSet), rpcFail(&StickerSetInner::failedSet));
 	App::main()->updateStickers();
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	setMouseTracking(true);
 
@@ -62,8 +63,8 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_selected = -1;
 	setCursor(style::cur_default);
 	if (set.type() == mtpc_messages_stickerSet) {
-		auto &d(set.c_messages_stickerSet());
-		auto &v(d.vdocuments.c_vector().v);
+		auto &d = set.c_messages_stickerSet();
+		auto &v = d.vdocuments.c_vector().v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
@@ -247,13 +248,13 @@ void StickerSetInner::updateSelected() {
 
 void StickerSetInner::startOverAnimation(int index, float64 from, float64 to) {
 	if (index >= 0 && index < _packOvers.size()) {
-		START_ANIMATION(_packOvers[index], func([this, index]() {
+		_packOvers[index].start([this, index] {
 			int row = index / StickerPanPerRow;
 			int column = index % StickerPanPerRow;
 			int left = st::stickersPadding.left() + column * st::stickersSize.width();
 			int top = st::stickersPadding.top() + row * st::stickersSize.height();
 			rtlupdate(left, top, st::stickersSize.width(), st::stickersSize.height());
-		}), from, to, st::emojiPanDuration, anim::linear);
+		}, from, to, st::emojiPanDuration);
 	}
 }
 
@@ -515,7 +516,7 @@ StickersInner::StickersInner(const Stickers::Order &archivedIds) : ScrolledWidge
 }
 
 void StickersInner::setup() {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(onImageLoaded()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	setMouseTracking(true);
 }
 

@@ -1874,7 +1874,7 @@ namespace {
 	}
 
 	History *history(const PeerId &peer) {
-		return ::histories.findOrInsert(peer, 0, 0, 0);
+		return ::histories.findOrInsert(peer);
 	}
 
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {

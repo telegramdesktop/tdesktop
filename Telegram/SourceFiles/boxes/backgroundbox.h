@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "core/lambda_wrap.h"
 
-class BackgroundInner : public QWidget, public RPCSender {
+class BackgroundInner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

@@ -46,8 +46,6 @@ private:
 	void refreshLink();
 	void refreshVisibility();
 
-	bool clickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
-
 	ChildWidget<FlatLabel> _link = { nullptr };
 
 };

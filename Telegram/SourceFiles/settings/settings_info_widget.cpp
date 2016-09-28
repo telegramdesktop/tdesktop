@@ -34,7 +34,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 InfoWidget::InfoWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_info)) {
 	auto observeEvents = UpdateFlag::UsernameChanged | UpdateFlag::UserPhoneChanged;
-	Notify::registerPeerObserver(observeEvents, this, &InfoWidget::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 
 	createControls();
 }
@@ -81,7 +83,10 @@ void InfoWidget::refreshUsername() {
 	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), qsl("https://telegram.me/") + self()->username));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
-		text->setClickHandlerHook(func(this, &InfoWidget::usernameClickHandlerHook));
+		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			Ui::showLayer(new UsernameBox());
+			return false;
+		});
 	}
 }
 
@@ -96,17 +101,18 @@ void InfoWidget::refreshLink() {
 	}
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {
-		text->setClickHandlerHook(func(this, &InfoWidget::usernameClickHandlerHook));
+		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			Ui::showLayer(new UsernameBox());
+			return false;
+		});
 	}
 	if (auto shortText = _link->entity()->shortTextLabel()) {
 		shortText->setExpandLinksMode(ExpandLinksUrlOnly);
-		shortText->setClickHandlerHook(func(this, &InfoWidget::usernameClickHandlerHook));
+		shortText->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			Ui::showLayer(new UsernameBox());
+			return false;
+		});
 	}
-}
-
-bool InfoWidget::usernameClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	Ui::showLayer(new UsernameBox());
-	return false;
 }
 
 void InfoWidget::setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {

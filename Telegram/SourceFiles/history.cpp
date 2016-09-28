@@ -574,6 +574,15 @@ History *Histories::find(const PeerId &peerId) {
 	return (i == map.cend()) ? 0 : i.value();
 }
 
+History *Histories::findOrInsert(const PeerId &peerId) {
+	auto i = map.constFind(peerId);
+	if (i == map.cend()) {
+		auto history = peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId));
+		i = map.insert(peerId, history);
+	}
+	return i.value();
+}
+
 History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
@@ -584,10 +593,10 @@ History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 
 		history->outboxReadBefore = maxOutboxRead + 1;
 	} else {
 		auto history = i.value();
-		if (unreadCount >= history->unreadCount()) {
+		if (unreadCount > history->unreadCount()) {
 			history->setUnreadCount(unreadCount);
-			history->inboxReadBefore = maxInboxRead + 1;
 		}
+		accumulate_max(history->inboxReadBefore, maxInboxRead + 1);
 		accumulate_max(history->outboxReadBefore, maxOutboxRead + 1);
 	}
 	return i.value();
@@ -1442,8 +1451,8 @@ MsgId History::inboxRead(MsgId upTo) {
 
 	updateChatListEntry();
 	if (peer->migrateTo()) {
-		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-			h->updateChatListEntry();
+		if (auto migrateTo = App::historyLoaded(peer->migrateTo()->id)) {
+			migrateTo->updateChatListEntry();
 		}
 	}
 
@@ -2635,10 +2644,12 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	}
 }
 
-void HistoryDependentItemCallback::call(ChannelData *channel, MsgId msgId) const {
-	if (HistoryItem *item = App::histItemById(_dependent)) {
-		item->updateDependencyItem();
-	}
+ApiWrap::RequestMessageDataCallback historyDependentItemCallback(const FullMsgId &msgId) {
+	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
+		if (HistoryItem *item = App::histItemById(dependent)) {
+			item->updateDependencyItem();
+		}
+	};
 }
 
 void HistoryMessageUnreadBar::init(int count) {
@@ -4901,7 +4912,9 @@ bool HistoryGif::playInline(bool autoplay) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
-		_gif = new Media::Clip::Reader(_data->location(), _data->data(), func(_parent, &HistoryItem::clipCallback));
+		_gif = new Media::Clip::Reader(_data->location(), _data->data(), [this](Media::Clip::Notification notification) {
+			_parent->clipCallback(notification);
+		});
 		App::regGifItem(_gif, _parent);
 		if (gif()) _gif->setAutoplay();
 	}
@@ -6828,7 +6841,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this) && App::api()) {
-			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, historyDependentItemCallback(fullId()));
 		}
 	}
 	if (auto via = Get<HistoryMessageVia>()) {
@@ -8379,7 +8392,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;
 			if (!updateDependent() && App::api()) {
-				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, std_::make_unique<HistoryDependentItemCallback>(fullId()));
+				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, historyDependentItemCallback(fullId()));
 			}
 		}
 	}

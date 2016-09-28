@@ -36,8 +36,16 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : Button(parent), 
 		_userpic = prepareUserpicPixmap();
 	}
 
-	Notify::registerPeerObserver(Notify::PeerUpdate::Flag::PhotoChanged, this, &UserpicButton::notifyPeerUpdated);
-	FileDownload::registerImageLoadedObserver(this, &UserpicButton::notifyImageLoaded);
+	auto observeEvents = Notify::PeerUpdate::Flag::PhotoChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
+	subscribe(FileDownload::ImageLoaded(), [this] {
+		if (_waiting && _peer->userpicLoaded()) {
+			_waiting = false;
+			startNewPhotoShowing();
+		}
+	});
 }
 
 void UserpicButton::showFinished() {
@@ -45,7 +53,7 @@ void UserpicButton::showFinished() {
 		_notShownYet = false;
 		if (!_waiting) {
 			_a_appearance.finish();
-			START_ANIMATION(_a_appearance, func(this, &UserpicButton::refreshCallback), 0, 1, st::profilePhotoDuration, anim::linear);
+			_a_appearance.start([this] { update(); }, 0, 1, st::profilePhotoDuration);
 		}
 	}
 }
@@ -66,13 +74,6 @@ void UserpicButton::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 	processNewPeerPhoto();
 	this->update();
-}
-
-void UserpicButton::notifyImageLoaded() {
-	if (_waiting && _peer->userpicLoaded()) {
-		_waiting = false;
-		startNewPhotoShowing();
-	}
 }
 
 void UserpicButton::processPeerPhoto() {
@@ -100,7 +101,7 @@ void UserpicButton::startNewPhotoShowing() {
 	}
 
 	_a_appearance.finish();
-	START_ANIMATION(_a_appearance, func(this, &UserpicButton::refreshCallback), 0, 1, st::profilePhotoDuration, anim::linear);
+	_a_appearance.start([this] { update(); }, 0, 1, st::profilePhotoDuration);
 	update();
 }
 

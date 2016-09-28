@@ -46,13 +46,15 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	if (Global::DialogsModeEnabled()) {
 		importantDialogs = std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 	}
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*,Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*,Dialogs::Row*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
 	_cancelSearchInPeer.hide();
+
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+
 	refresh();
 }
 

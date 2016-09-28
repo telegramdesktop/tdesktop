@@ -180,8 +180,8 @@ void Reader::moveToNextWrite() const {
 
 void Reader::callback(Reader *reader, int32 threadIndex, Notification notification) {
 	// check if reader is not deleted already
-	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader)) {
-		reader->_callback.call(notification);
+	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader) && reader->_callback) {
+		reader->_callback(notification);
 	}
 }
 
@@ -588,15 +588,12 @@ void Manager::start(Reader *reader) {
 }
 
 void Manager::update(Reader *reader) {
-	QReadLocker lock(&_readerPointersMutex);
-	auto i = _readerPointers.constFind(reader);
+	QMutexLocker lock(&_readerPointersMutex);
+	auto i = _readerPointers.find(reader);
 	if (i == _readerPointers.cend()) {
-		lock.unlock();
-
-		QWriteLocker lock(&_readerPointersMutex);
-		_readerPointers.insert(reader, MutableAtomicInt(1));
+		_readerPointers.insert(reader, QAtomicInt(1));
 	} else {
-		i->v.storeRelease(1);
+		i->storeRelease(1);
 	}
 	emit processDelayed();
 }
@@ -604,13 +601,13 @@ void Manager::update(Reader *reader) {
 void Manager::stop(Reader *reader) {
 	if (!carries(reader)) return;
 
-	QWriteLocker lock(&_readerPointersMutex);
+	QMutexLocker lock(&_readerPointersMutex);
 	_readerPointers.remove(reader);
 	emit processDelayed();
 }
 
 bool Manager::carries(Reader *reader) const {
-	QReadLocker lock(&_readerPointersMutex);
+	QMutexLocker lock(&_readerPointersMutex);
 	return _readerPointers.contains(reader);
 }
 
@@ -629,19 +626,13 @@ Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(Re
 }
 
 bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, uint64 ms) {
-	QReadLocker lock(&_readerPointersMutex);
-	auto it = constUnsafeFindReaderPointer(reader);
+	QMutexLocker lock(&_readerPointersMutex);
+	auto it = unsafeFindReaderPointer(reader);
 	if (result == ProcessResult::Error) {
 		if (it != _readerPointers.cend()) {
-			lock.unlock();
-			QWriteLocker lock(&_readerPointersMutex);
-
-			auto i = unsafeFindReaderPointer(reader);
-			if (i != _readerPointers.cend()) {
-				i.key()->error();
-				emit callback(i.key(), i.key()->threadIndex(), NotificationReinit);
-				_readerPointers.erase(i);
-			}
+			it.key()->error();
+			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+			_readerPointers.erase(it);
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {
@@ -663,8 +654,8 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 	// See if we need to pause GIF because it is not displayed right now.
 	if (!reader->_autoPausedGif && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
-		Reader::Frame *showing = it.key()->frameToShow(&ishowing), *previous = it.key()->frameToWriteNext(false, &iprevious);
-		t_assert(previous != 0 && showing != 0 && ishowing >= 0 && iprevious >= 0);
+		auto showing = it.key()->frameToShow(&ishowing), previous = it.key()->frameToWriteNext(false, &iprevious);
+		t_assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
 		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
 			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
 				reader->_autoPausedGif = true;
@@ -675,7 +666,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, u
 	}
 	if (result == ProcessResult::Started || result == ProcessResult::CopyFrame) {
 		t_assert(reader->_frame >= 0);
-		Reader::Frame *frame = it.key()->_frames + reader->_frame;
+		auto frame = it.key()->_frames + reader->_frame;
 		frame->clear();
 		frame->pix = reader->frame()->pix;
 		frame->original = reader->frame()->original;
@@ -710,8 +701,8 @@ Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessR
 
 	if (result == ProcessResult::Repaint) {
 		{
-			QReadLocker lock(&_readerPointersMutex);
-			ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(reader);
+			QMutexLocker lock(&_readerPointersMutex);
+			auto it = constUnsafeFindReaderPointer(reader);
 			if (it != _readerPointers.cend()) {
 				int32 index = 0;
 				Reader *r = it.key();
@@ -742,9 +733,9 @@ void Manager::process() {
 	bool checkAllReaders = false;
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
 	{
-		QReadLocker lock(&_readerPointersMutex);
+		QMutexLocker lock(&_readerPointersMutex);
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
-			if (it->v.loadAcquire() && it.key()->_private != nullptr) {
+			if (it->loadAcquire() && it.key()->_private != nullptr) {
 				auto i = _readers.find(it.key()->_private);
 				if (i == _readers.cend()) {
 					_readers.insert(it.key()->_private, 0);
@@ -759,9 +750,9 @@ void Manager::process() {
 						i.key()->resumeVideo(ms);
 					}
 				}
-				Reader::Frame *frame = it.key()->frameToWrite();
+				auto frame = it.key()->frameToWrite();
 				if (frame) it.key()->_private->_request = frame->request;
-				it->v.storeRelease(0);
+				it->storeRelease(0);
 			}
 		}
 		checkAllReaders = (_readers.size() > _readerPointers.size());
@@ -787,8 +778,8 @@ void Manager::process() {
 				i.value() = (ms + 86400 * 1000ULL);
 			}
 		} else if (checkAllReaders) {
-			QReadLocker lock(&_readerPointersMutex);
-			ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(reader);
+			QMutexLocker lock(&_readerPointersMutex);
+			auto it = constUnsafeFindReaderPointer(reader);
 			if (it == _readerPointers.cend()) {
 				_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : AverageGifSize));
 				delete reader;
@@ -820,8 +811,8 @@ void Manager::finish() {
 
 void Manager::clear() {
 	{
-		QWriteLocker lock(&_readerPointersMutex);
-		for (ReaderPointers::iterator it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
+		QMutexLocker lock(&_readerPointersMutex);
+		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
 			it.key()->_private = nullptr;
 		}
 		_readerPointers.clear();

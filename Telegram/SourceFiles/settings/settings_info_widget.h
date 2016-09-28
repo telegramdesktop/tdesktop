@@ -38,8 +38,6 @@ private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	bool usernameClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
-
 	void createControls();
 	void refreshControls();
 	void refreshMobileNumber();

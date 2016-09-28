@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "ui/scrollarea.h"
 #include "mainwindow.h"
+#include "mainwidget.h"
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
@@ -79,6 +80,11 @@ void fillCodes() {
 			Ui::hideLayer();
 		});
 		Ui::showLayer(box.release());
+	});
+	Codes.insert(qsl("getdifference"), []() {
+		if (auto main = App::main()) {
+			main->getDifference();
+		}
 	});
 }
 

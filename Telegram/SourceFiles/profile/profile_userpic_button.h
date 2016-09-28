@@ -28,7 +28,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class UserpicButton final : public Button, public Notify::Observer {
+class UserpicButton final : public Button, private base::Subscriber {
 public:
 	UserpicButton(QWidget *parent, PeerData *peer);
 
@@ -41,11 +41,6 @@ protected:
 
 private:
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void notifyImageLoaded();
-
-	void refreshCallback() {
-		update();
-	}
 
 	void processPeerPhoto();
 	void processNewPeerPhoto();

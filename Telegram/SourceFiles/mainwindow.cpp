@@ -406,8 +406,7 @@ MainWindow::MainWindow() {
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
-	connect(this, SIGNAL(imageLoaded()), this, SLOT(notifyUpdateAllPhotos()));
-
+	subscribe(FileDownload::ImageLoaded(), [this] { notifyUpdateAllPhotos(); });
 	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
 
 	setAttribute(Qt::WA_NoSystemBackground);

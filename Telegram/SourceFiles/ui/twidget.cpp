@@ -86,7 +86,7 @@ enum class Mode {
 };
 void ToggleableShadow::setMode(Mode mode) {
 	if (mode == Mode::ShownFast || mode == Mode::HiddenFast) {
-		if (!_a_opacity.isNull()) {
+		if (!_a_opacity.animating()) {
 			_a_opacity.finish();
 			update();
 		}
@@ -94,18 +94,12 @@ void ToggleableShadow::setMode(Mode mode) {
 	if (_shown && (mode == Mode::Hidden || mode == Mode::HiddenFast)) {
 		_shown = false;
 		if (mode == Mode::Hidden) {
-			if (_a_opacity.isNull()) {
-				_a_opacity.setup(1., func(this, &ToggleableShadow::repaintCallback));
-			}
-			_a_opacity.start(0., st::shadowToggleDuration);
+			_a_opacity.start([this] { update(); }, 1., 0., st::shadowToggleDuration);
 		}
 	} else if (!_shown && (mode == Mode::Shown || mode == Mode::ShownFast)) {
 		_shown = true;
 		if (mode == Mode::Shown) {
-			if (_a_opacity.isNull()) {
-				_a_opacity.setup(0., func(this, &ToggleableShadow::repaintCallback));
-			}
-			_a_opacity.start(1., st::shadowToggleDuration);
+			_a_opacity.start([this] { update(); }, 0., 1., st::shadowToggleDuration);
 		}
 	}
 }

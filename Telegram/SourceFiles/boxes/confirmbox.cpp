@@ -546,7 +546,7 @@ ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &pho
 		if (!location.isNull()) {
 			_photo = ImagePtr(location);
 			if (!_photo->loaded()) {
-				connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+				subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 				_photo->load();
 			}
 		}

@@ -51,7 +51,9 @@ SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(pa
 			observeEvents |= UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged;
 		}
 	}
-	Notify::registerPeerObserver(observeEvents, this, &SettingsWidget::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 
 	refreshButtons();
 	_enableNotifications->finishAnimations();

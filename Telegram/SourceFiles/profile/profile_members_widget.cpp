@@ -49,14 +49,12 @@ MembersWidget::MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility ti
 	auto observeEvents = UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged
 		| UpdateFlag::UserOnlineChanged;
-	Notify::registerPeerObserver(observeEvents, this, &MembersWidget::notifyPeerUpdated);
-	FileDownload::registerImageLoadedObserver(this, &MembersWidget::repaintCallback);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	refreshMembers();
-}
-
-void MembersWidget::repaintCallback() {
-	update();
 }
 
 void MembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -83,7 +81,7 @@ void MembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 			}
 		}
 	}
-	repaintCallback();
+	this->update();
 }
 
 void MembersWidget::refreshUserOnline(UserData *user) {
@@ -315,15 +313,13 @@ void MembersWidget::refreshLimitReached() {
 		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerHook(func(this, &MembersWidget::limitReachedHook));
+		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
+			return false;
+		});
 	} else if (!limitReachedShown && _limitReachedInfo) {
 		_limitReachedInfo.destroy();
 	}
-}
-
-bool MembersWidget::limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
-	return false;
 }
 
 void MembersWidget::checkSelfAdmin(ChatData *chat) {
@@ -608,7 +604,9 @@ ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : Bl
 		| UpdateFlag::ChannelCanViewMembers
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged;
-	Notify::registerPeerObserver(observeEvents, this, &ChannelMembersWidget::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 
 	refreshButtons();
 }

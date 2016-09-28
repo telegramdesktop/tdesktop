@@ -34,7 +34,7 @@ public:
 	void updateLink();
 
 	// You can use this instead of connecting to "confirmed()" signal.
-	void setConfirmedCallback(base::lambda_wrap<void()> &&callback) {
+	void setConfirmedCallback(base::lambda_unique<void()> &&callback) {
 		_confirmedCallback = std_::move(callback);
 	}
 

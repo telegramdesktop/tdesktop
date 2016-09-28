@@ -129,7 +129,7 @@ private:
 
 };
 
-class MediaPreviewWidget : public TWidget {
+class MediaPreviewWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

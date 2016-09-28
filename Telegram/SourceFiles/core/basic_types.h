@@ -20,6 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <string>
+#include <exception>
+
+#include <QtCore/QReadWriteLock>
+
+#include <ctime>
+
+#ifndef OS_MAC_OLD
+#include <memory>
+#endif // OS_MAC_OLD
+
 template <typename T>
 void deleteAndMark(T *&link) {
 	delete link;
@@ -258,13 +269,6 @@ typedef double float64;
 typedef float float32;
 typedef double float64;
 #endif
-
-#include <string>
-#include <exception>
-
-#include <QtCore/QReadWriteLock>
-
-#include <ctime>
 
 using std::string;
 using std::exception;
@@ -1035,13 +1039,15 @@ struct ComponentWrapStruct {
 	// global scope, so it will be filled by zeros from the start
 	ComponentWrapStruct() {
 	}
-	ComponentWrapStruct(int size, ComponentConstruct construct, ComponentDestruct destruct, ComponentMove move)
+	ComponentWrapStruct(std::size_t size, std::size_t align, ComponentConstruct construct, ComponentDestruct destruct, ComponentMove move)
 	: Size(size)
+	, Align(align)
 	, Construct(construct)
 	, Destruct(destruct)
 	, Move(move) {
 	}
-	int Size;
+	std::size_t Size;
+	std::size_t Align;
 	ComponentConstruct Construct;
 	ComponentDestruct Destruct;
 	ComponentMove Move;
@@ -1058,6 +1064,7 @@ extern QAtomicInt ComponentIndexLast;
 template <typename Type>
 struct BaseComponent {
 	BaseComponent() {
+		static_assert(alignof(Type) <= alignof(SmallestSizeType), "Components should align to a pointer!");
 	}
 	BaseComponent(const BaseComponent &other) = delete;
 	BaseComponent &operator=(const BaseComponent &other) = delete;
@@ -1075,8 +1082,11 @@ struct BaseComponent {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
 					ComponentWraps[last] = ComponentWrapStruct(
-						CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64),
-						Type::ComponentConstruct, Type::ComponentDestruct, Type::ComponentMove);
+						CeilDivideMinimumOne<sizeof(Type), sizeof(SmallestSizeType)>::Result * sizeof(SmallestSizeType),
+						alignof(Type),
+						Type::ComponentConstruct,
+						Type::ComponentDestruct,
+						Type::ComponentMove);
 				}
 				break;
 			}
@@ -1088,6 +1098,8 @@ struct BaseComponent {
 	}
 
 protected:
+	using SmallestSizeType = void*;
+
 	static void ComponentConstruct(void *location, Composer *composer) {
 		new (location) Type();
 	}
@@ -1102,7 +1114,6 @@ protected:
 
 class ComposerMetadata {
 public:
-
 	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
 			uint64 m = (1ULL << i);
@@ -1147,15 +1158,13 @@ const ComposerMetadata *GetComposerMetadata(uint64 mask);
 
 class Composer {
 public:
-
 	Composer(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
 			const ComposerMetadata *meta = GetComposerMetadata(mask);
 			int size = sizeof(meta) + meta->size;
-			void *data = operator new(size);
-			if (!data) { // terminate if we can't allocate memory
-				throw "Can't allocate memory!";
-			}
+
+			auto data = operator new(size);
+			t_assert(data != nullptr);
 
 			_data = data;
 			_meta() = meta;
@@ -1163,7 +1172,13 @@ public:
 				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					try {
-						ComponentWraps[i].Construct(_dataptrunsafe(offset), this);
+						auto constructAt = _dataptrunsafe(offset);
+#ifndef OS_MAC_OLD
+						auto space = ComponentWraps[i].Size;
+						auto alignedAt = std::align(ComponentWraps[i].Align, space, constructAt, space);
+						t_assert(alignedAt == constructAt);
+#endif // OS_MAC_OLD
+						ComponentWraps[i].Construct(constructAt, this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
@@ -1182,7 +1197,7 @@ public:
 	Composer &operator=(const Composer &other) = delete;
 	~Composer() {
 		if (_data != zerodata()) {
-			const ComposerMetadata *meta = _meta();
+			auto meta = _meta();
 			for (int i = 0; i < meta->last; ++i) {
 				int offset = meta->offsets[i];
 				if (offset >= 0) {
@@ -1213,7 +1228,7 @@ protected:
 			Composer tmp(mask);
 			tmp.swap(*this);
 			if (_data != zerodata() && tmp._data != zerodata()) {
-				const ComposerMetadata *meta = _meta(), *wasmeta = tmp._meta();
+				auto meta = _meta(), wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
@@ -1252,103 +1267,3 @@ private:
 	}
 
 };
-
-template <typename R, typename... Args>
-class SharedCallback {
-public:
-	virtual R call(Args... args) const = 0;
-	virtual ~SharedCallback() {
-	}
-	using Ptr = QSharedPointer<SharedCallback<R, Args...>>;
-
-};
-
-template <typename R, typename... Args>
-class FunctionImplementation {
-public:
-	virtual R call(Args... args) = 0;
-	virtual void destroy() { delete this; }
-	virtual ~FunctionImplementation() {}
-
-};
-
-template <typename R, typename... Args>
-class NullFunctionImplementation : public FunctionImplementation<R, Args...> {
-public:
-	R call(Args... args) override { return R(); }
-	void destroy() override {}
-	static NullFunctionImplementation<R, Args...> SharedInstance;
-
-};
-template <typename R, typename... Args>
-NullFunctionImplementation<R, Args...> NullFunctionImplementation<R, Args...>::SharedInstance;
-
-template <typename R, typename... Args>
-class Function {
-public:
-	Function() : _implementation(nullImpl()) {}
-	Function(FunctionImplementation<R, Args...> *implementation) : _implementation(implementation) {}
-	Function(const Function<R, Args...> &other) = delete;
-	Function<R, Args...> &operator=(const Function<R, Args...> &other) = delete;
-	Function(Function<R, Args...> &&other) : _implementation(other._implementation) {
-		other._implementation = nullImpl();
-	}
-	Function<R, Args...> &operator=(Function<R, Args...> &&other) {
-		std::swap(_implementation, other._implementation);
-		return *this;
-	}
-
-	bool isNull() const {
-		return (_implementation == nullImpl());
-	}
-
-	R call(Args... args) { return _implementation->call(args...); }
-	~Function() {
-		if (_implementation) {
-			_implementation->destroy();
-			_implementation = nullptr;
-		}
-		deleteAndMark(_implementation);
-	}
-
-private:
-	static FunctionImplementation<R, Args...> *nullImpl() {
-		return &NullFunctionImplementation<R, Args...>::SharedInstance;
-	}
-
-	FunctionImplementation<R, Args...> *_implementation;
-
-};
-
-template <typename R, typename... Args>
-class WrappedFunction : public FunctionImplementation<R, Args...> {
-public:
-	using Method = R(*)(Args... args);
-	WrappedFunction(Method method) : _method(method) {}
-	R call(Args... args) override { return (*_method)(args...); }
-
-private:
-	Method _method;
-
-};
-template <typename R, typename... Args>
-inline Function<R, Args...> func(R(*method)(Args... args)) {
-	return Function<R, Args...>(new WrappedFunction<R, Args...>(method));
-}
-
-template <typename O, typename I, typename R, typename... Args>
-class ObjectFunction : public FunctionImplementation<R, Args...> {
-public:
-	using Method = R(I::*)(Args... args);
-	ObjectFunction(O *obj, Method method) : _obj(obj), _method(method) {}
-	R call(Args... args) override { return (_obj->*_method)(args...); }
-
-private:
-	O *_obj;
-	Method _method;
-
-};
-template <typename O, typename I, typename R, typename... Args>
-inline Function<R, Args...> func(O *obj, R(I::*method)(Args...)) {
-	return Function<R, Args...>(new ObjectFunction<O, I, R, Args...>(obj, method));
-}

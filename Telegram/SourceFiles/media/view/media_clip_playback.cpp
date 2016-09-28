@@ -55,6 +55,7 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 		_position = position;
 		_duration = duration;
 	}
+	_slider->update();
 }
 
 } // namespace Clip

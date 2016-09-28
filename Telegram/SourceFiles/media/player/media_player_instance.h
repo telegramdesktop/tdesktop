@@ -53,7 +53,7 @@ struct UpdatedEvent {
 	const AudioPlaybackState *playbackState;
 };
 
-class Instance : private base::Subscriber, public Notify::Observer {
+class Instance : private base::Subscriber {
 public:
 	void play();
 	void pause();

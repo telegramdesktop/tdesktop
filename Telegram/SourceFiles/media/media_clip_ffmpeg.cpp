@@ -209,6 +209,9 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 	}
 
 	QSize toSize(size.isEmpty() ? QSize(_width, _height) : size);
+	if (!size.isEmpty() && rotationSwapWidthHeight()) {
+		toSize.transpose();
+	}
 	if (to.isNull() || to.size() != toSize) {
 		to = QImage(toSize, QImage::Format_ARGB32);
 	}
@@ -231,6 +234,15 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 			return false;
 		}
 	}
+	if (_rotation != Rotation::None) {
+		QTransform rotationTransform;
+		switch (_rotation) {
+		case Rotation::Degrees90: rotationTransform.rotate(90); break;
+		case Rotation::Degrees180: rotationTransform.rotate(180); break;
+		case Rotation::Degrees270: rotationTransform.rotate(270); break;
+		}
+		to = to.transformed(rotationTransform);
+	}
 
 	// Read some future packets for audio stream.
 	if (_audioStreamId >= 0) {
@@ -245,6 +257,15 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 
 	av_frame_unref(_frame);
 	return true;
+}
+
+FFMpegReaderImplementation::Rotation FFMpegReaderImplementation::rotationFromDegrees(int degrees) const {
+	switch (degrees) {
+	case 90: return Rotation::Degrees90;
+	case 180: return Rotation::Degrees180;
+	case 270: return Rotation::Degrees270;
+	}
+	return Rotation::None;
 }
 
 bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
@@ -285,6 +306,16 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 		return false;
 	}
 	_packetNull.stream_index = _streamId;
+
+	auto rotateTag = av_dict_get(_fmtContext->streams[_streamId]->metadata, "rotate", NULL, 0);
+	if (rotateTag && *rotateTag->value) {
+		auto stringRotateTag = QString::fromUtf8(rotateTag->value);
+		auto toIntSucceeded = false;
+		auto rotateDegrees = stringRotateTag.toInt(&toIntSucceeded);
+		if (toIntSucceeded) {
+			_rotation = rotationFromDegrees(rotateDegrees);
+		}
+	}
 
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {

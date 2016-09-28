@@ -1362,8 +1362,8 @@ RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCal
 
 	updateMaxHeight();
 
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	prepare();
 }
@@ -1410,10 +1410,16 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, qsl("telegram.me/") + pressed->userName(), lt_group, pressed->name);
 		weakRevokeConfirmBox = new ConfirmBox(text, lang(lng_channels_too_much_public_revoke));
-		weakRevokeConfirmBox->setConfirmedCallback([this, weak_this = weakThis(), pressed]() {
-			if (!weak_this) return;
+		struct Data {
+			Data(QPointer<TWidget> &&weakThis, PeerData *pressed) : weakThis(std_::move(weakThis)), pressed(pressed) {
+			}
+			QPointer<TWidget> weakThis;
+			PeerData *pressed;
+		};
+		weakRevokeConfirmBox->setConfirmedCallback([this, data = std_::make_unique<Data>(weakThis(), pressed)]() {
+			if (!data->weakThis) return;
 			if (_revokeRequestId) return;
-			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
+			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(data->pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
 		});
 		Ui::showLayer(weakRevokeConfirmBox, KeepOtherLayers);
 	}

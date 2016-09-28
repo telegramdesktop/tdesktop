@@ -51,8 +51,6 @@ private:
 	void refreshChannelLink();
 	void refreshVisibility();
 
-	bool aboutClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
-
 	// labelWidget may be nullptr.
 	void setLabeledText(ChildWidget<FlatLabel> *labelWidget, const QString &label,
 		ChildWidget<FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);

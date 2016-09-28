@@ -160,12 +160,12 @@ void InnerDropdown::onHideStart() {
 void InnerDropdown::startAnimation() {
 	auto from = _hiding ? 1. : 0.;
 	auto to = _hiding ? 0. : 1.;
-	if (_a_appearance.isNull()) {
+	if (!_a_appearance.animating()) {
 		showChildren();
 		_cache = myGrab(this);
 	}
 	hideChildren();
-	START_ANIMATION(_a_appearance, func(this, &InnerDropdown::repaintCallback), from, to, _st.duration, anim::linear);
+	_a_appearance.start([this] { repaintCallback(); }, from, to, _st.duration);
 }
 
 void InnerDropdown::hidingFinished() {
@@ -186,7 +186,7 @@ void InnerDropdown::showingStarted() {
 
 void InnerDropdown::repaintCallback() {
 	update();
-	if (!_a_appearance.animating(getms()) && _hiding) {
+	if (!_a_appearance.animating() && _hiding) {
 		_hiding = false;
 		hidingFinished();
 	}

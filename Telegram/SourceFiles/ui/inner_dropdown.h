@@ -35,7 +35,7 @@ public:
 	void setOwnedWidget(ScrolledWidget *widget);
 
 	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || !_a_appearance.isNull()) return false;
+		if (isHidden() || _a_appearance.animating()) return false;
 
 		return rect().marginsRemoved(_st.padding).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}

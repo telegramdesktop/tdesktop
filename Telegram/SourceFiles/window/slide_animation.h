@@ -37,10 +37,10 @@ public:
 	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
 	void setTopBarShadow(bool enabled);
 
-	using RepaintCallback = Function<void>;
+	using RepaintCallback = base::lambda_unique<void()>;
 	void setRepaintCallback(RepaintCallback &&callback);
 
-	using FinishedCallback = Function<void>;
+	using FinishedCallback = base::lambda_unique<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
 	void start();

@@ -47,7 +47,7 @@ private:
 
 };
 
-class AbstractBox : public LayerWidget {
+class AbstractBox : public LayerWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:

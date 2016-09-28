@@ -48,6 +48,7 @@ public:
 	void step_typings(uint64 ms, bool timer);
 
 	History *find(const PeerId &peerId);
+	History *findOrInsert(const PeerId &peerId);
 	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
 
 	void clear();
@@ -932,17 +933,6 @@ private:
 	void step_selected(uint64 ms, bool timer);
 
 	StylePtr _st;
-};
-
-class HistoryDependentItemCallback : public SharedCallback<void, ChannelData*, MsgId> {
-public:
-	HistoryDependentItemCallback(FullMsgId dependent) : _dependent(dependent) {
-	}
-	void call(ChannelData *channel, MsgId msgId) const override;
-
-private:
-	FullMsgId _dependent;
-
 };
 
 // any HistoryItem can have this Interface for

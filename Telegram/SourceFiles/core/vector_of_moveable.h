@@ -93,6 +93,7 @@ public:
 			*prev = std_::move(*next);
 		}
 		--_size;
+		end()->~T();
 		return it;
 	}
 
@@ -143,13 +144,19 @@ public:
 	}
 	inline const T &at(int index) const {
 		if (index < 0 || index >= _size) {
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-			throw std::exception();
-#else // QT_VERSION < 5.5.0
+#ifndef OS_MAC_OLD
 			throw std::out_of_range("");
-#endif // QT_VERSION < 5.5.0
+#else // OS_MAC_OLD
+			throw std::exception();
+#endif // OS_MAC_OLD
 		}
 		return data()[index];
+	}
+
+	void reserve(int newCapacity) {
+		if (newCapacity > _capacity) {
+			reallocate(newCapacity);
+		}
 	}
 
 	inline ~vector_of_moveable() {

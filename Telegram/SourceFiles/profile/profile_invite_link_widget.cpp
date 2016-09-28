@@ -33,7 +33,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 InviteLinkWidget::InviteLinkWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_invite_link_section)) {
 	auto observeEvents = UpdateFlag::InviteLinkChanged | UpdateFlag::UsernameChanged;
-	Notify::registerPeerObserver(observeEvents, this, &InviteLinkWidget::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 
 	refreshLink();
 	refreshVisibility();
@@ -99,19 +101,17 @@ void InviteLinkWidget::refreshLink() {
 		_link->setMarkedText(linkData);
 		_link->setSelectable(true);
 		_link->setContextCopyText(QString());
-		_link->setClickHandlerHook(func(this, &InviteLinkWidget::clickHandlerHook));
-	}
-}
+		_link->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			auto link = getInviteLink();
+			if (link.isEmpty()) {
+				return true;
+			}
 
-bool InviteLinkWidget::clickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	auto link = getInviteLink();
-	if (link.isEmpty()) {
-		return true;
+			QApplication::clipboard()->setText(link);
+			Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
+			return false;
+		});
 	}
-
-	QApplication::clipboard()->setText(link);
-	Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
-	return false;
 }
 
 } // namespace Profile

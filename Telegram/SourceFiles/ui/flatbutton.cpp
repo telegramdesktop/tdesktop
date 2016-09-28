@@ -332,7 +332,7 @@ void EmojiButton::setLoading(bool loading) {
 	if (_loading != loading) {
 		_loading = loading;
 		auto from = loading ? 0. : 1., to = loading ? 1. : 0.;
-		START_ANIMATION(a_loading, func(this, &EmojiButton::updateCallback), from, to, st::emojiCircleDuration, anim::linear);
+		a_loading.start([this] { update(); }, from, to, st::emojiCircleDuration);
 		if (loading) {
 			_a_loading.start();
 		} else {

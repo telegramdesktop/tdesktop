@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include "core/lambda_wrap.h"
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
@@ -57,6 +58,7 @@ namespace anim {
 
 	class fvalue { // float animated value
 	public:
+		using ValueType = float64;
 
 		fvalue() {
 		}
@@ -88,15 +90,14 @@ namespace anim {
 			_delta = 0;
 		}
 
-		typedef float64 Type;
-
 	private:
-
 		float64 _cur, _from, _delta;
+
 	};
 
 	class ivalue { // int animated value
 	public:
+		using ValueType = int32;
 
 		ivalue() {
 		}
@@ -128,16 +129,15 @@ namespace anim {
 			_delta = 0;
 		}
 
-		typedef int32 Type;
-
 	private:
-
 		int32 _cur;
 		float64 _from, _delta;
+
 	};
 
 	class cvalue { // QColor animated value
 	public:
+		using ValueType = QColor;
 
 		cvalue() {
 		}
@@ -199,12 +199,10 @@ namespace anim {
 			_delta_r = _delta_g = _delta_b = _delta_a = 0;
 		}
 
-		typedef QColor Type;
-
 	private:
-
 		QColor _cur;
 		float64 _from_r, _from_g, _from_b, _from_a, _delta_r, _delta_g, _delta_b, _delta_a;
+
 	};
 
 	void startManager();
@@ -380,105 +378,81 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 template <typename AnimType>
 class SimpleAnimation {
 public:
-	using Callback = Function<void>;
+	using ValueType = typename AnimType::ValueType;
+	using Callback = base::lambda_unique<void()>;
 
-	SimpleAnimation() {
+	bool animating() const {
+		if (_data) {
+			if (_data->a_animation.animating()) {
+				return true;
+			}
+			_data.reset();
+		}
+		return false;
 	}
-
 	bool animating(uint64 ms) {
-		if (_data && _data->_a.animating()) {
-			_data->_a.step(ms);
-			return _data && _data->_a.animating();
+		if (animating()) {
+			_data->a_animation.step(ms);
+			return animating();
 		}
 		return false;
 	}
 
-	bool isNull() const {
-		return !_data;
+	ValueType current() const {
+		t_assert(_data != nullptr);
+		return _data->value.current();
 	}
-
-	typename AnimType::Type current() {
-		return _data ? _data->a.current() : typename AnimType::Type();
+	ValueType current(const ValueType &def) const {
+		return _data ? current() : def;
 	}
-
-	typename AnimType::Type current(const typename AnimType::Type &def) {
-		return _data ? _data->a.current() : def;
-	}
-
-	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
+	ValueType current(uint64 ms, const ValueType &def) {
 		return animating(ms) ? current() : def;
 	}
 
-	void setup(const typename AnimType::Type &from, Callback &&update) {
+	template <typename Lambda>
+	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, anim::transition transition = anim::linear) {
 		if (!_data) {
-			_data = new Data(from, std_::move(update), animation(this, &SimpleAnimation<AnimType>::step));
-		} else {
-			_data->a = AnimType(from, from);
+			_data = std_::make_unique<Data>(from, std_::move(updateCallback));
 		}
-	}
-
-	void start(const typename AnimType::Type &to, float64 duration, anim::transition transition = anim::linear) {
-		if (_data) {
-			_data->a.start(to);
-			_data->_a.start();
-			_data->duration = duration;
-			_data->transition = transition;
-		}
+		_data->value.start(to);
+		_data->duration = duration;
+		_data->transition = transition;
+		_data->a_animation.start();
 	}
 
 	void finish() {
-		if (isNull()) {
-			return;
+		if (_data) {
+			_data->value.finish();
+			_data->a_animation.stop();
+			_data.reset();
 		}
-
-		_data->a.finish();
-		_data->_a.stop();
-		delete _data;
-		_data = nullptr;
-	}
-
-	~SimpleAnimation() {
-		deleteAndMark(_data);
 	}
 
 private:
 	struct Data {
-		Data(const typename AnimType::Type &from, Callback &&update, AnimationCallbacks &&acb)
-			: a(from, from)
-			, _a(std_::move(acb))
-			, update(std_::move(update))
-			, duration(0)
-			, transition(anim::linear) {
+		Data(const ValueType &from, Callback &&updateCallback)
+			: value(from, from)
+			, a_animation(animation(this, &Data::step))
+			, updateCallback(std_::move(updateCallback)) {
 		}
-		AnimType a;
-		Animation _a;
-		Callback update;
-		float64 duration;
-		anim::transition transition;
+		void step(float64 ms, bool timer) {
+			auto dt = (ms >= duration) ? 1. : (ms / duration);
+			if (dt >= 1) {
+				value.finish();
+				a_animation.stop();
+			} else {
+				value.update(dt, transition);
+			}
+			updateCallback();
+		}
+
+		AnimType value;
+		Animation a_animation;
+		Callback updateCallback;
+		float64 duration = 0.;
+		anim::transition transition = anim::linear;
 	};
-	Data *_data = nullptr;
-
-	void step(float64 ms, bool timer) {
-		float64 dt = (ms >= _data->duration) ? 1 : (ms / _data->duration);
-		if (dt >= 1) {
-			_data->a.finish();
-			_data->_a.stop();
-		} else {
-			_data->a.update(dt, _data->transition);
-		}
-
-		Callback callbackCache, *toCall = &_data->update;
-		if (!_data->_a.animating()) {
-			callbackCache = std_::move(_data->update);
-			toCall = &callbackCache;
-
-			delete _data;
-			_data = nullptr;
-		}
-		if (timer) {
-			toCall->call();
-		}
-	}
+	mutable std_::unique_ptr<Data> _data;
 
 };
 
@@ -486,18 +460,8 @@ using FloatAnimation = SimpleAnimation<anim::fvalue>;
 using IntAnimation = SimpleAnimation<anim::ivalue>;
 using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
-// Macro allows us to lazily create updateCallback.
-#define ENSURE_ANIMATION(animation, updateCallback, from) \
-if ((animation).isNull()) { \
-	(animation).setup((from), (updateCallback)); \
-}
-
-#define START_ANIMATION(animation, updateCallback, from, to, duration, transition) \
-ENSURE_ANIMATION(animation, updateCallback, from); \
-(animation).start((to), (duration), (transition))
-
 class AnimationManager : public QObject {
-Q_OBJECT
+	Q_OBJECT
 
 public:
 	AnimationManager();
@@ -511,7 +475,7 @@ public slots:
 	void clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification);
 
 private:
-	typedef QMap<Animation*, NullType> AnimatingObjects;
+	using AnimatingObjects = OrderedSet<Animation*>;
 	AnimatingObjects _objects, _starting, _stopping;
 	QTimer _timer;
 	bool _iterating;

@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-class BlockWidget : public ScrolledWidget, public Notify::Observer {
+class BlockWidget : public ScrolledWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:

@@ -89,17 +89,22 @@ inline void peerUpdatedDelayed(PeerData *peer, PeerUpdate::Flags events) {
 }
 void peerUpdatedSendDelayed();
 
-namespace internal {
+class PeerUpdatedHandler {
+public:
+	template <typename Lambda>
+	PeerUpdatedHandler(PeerUpdate::Flags events, Lambda &&handler) : _events(events), _handler(std_::move(handler)) {
+	}
+	void operator()(const PeerUpdate &update) const {
+		if (update.flags & _events) {
+			_handler(update);
+		}
+	}
 
-using PeerUpdateHandler = Function<void, const PeerUpdate&>;
-ConnectionId plainRegisterPeerObserver(PeerUpdate::Flags events, PeerUpdateHandler &&handler);
+private:
+	PeerUpdate::Flags _events;
+	base::lambda_unique<void(const PeerUpdate&)> _handler;
 
-} // namespace internal
-
-template <typename ObserverType>
-void registerPeerObserver(PeerUpdate::Flags events, ObserverType *observer, void (ObserverType::*handler)(const PeerUpdate &)) {
-	auto connection = internal::plainRegisterPeerObserver(events, func(observer, handler));
-	observerRegistered(observer, connection);
-}
+};
+base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();
 
 } // namespace Notify

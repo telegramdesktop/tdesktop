@@ -41,8 +41,8 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
 , _fadeAnimation(std_::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
-	_fadeAnimation->setFinishedCallback(func(this, &Controller::fadeFinished));
-	_fadeAnimation->setUpdatedCallback(func(this, &Controller::fadeUpdated));
+	_fadeAnimation->setFinishedCallback([this] { fadeFinished(); });
+	_fadeAnimation->setUpdatedCallback([this](float64 opacity) { fadeUpdated(opacity); });
 
 	_volumeController->setVolume(Global::VideoVolume());
 

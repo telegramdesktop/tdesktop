@@ -57,8 +57,12 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
 	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged;
-	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
-	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
@@ -217,7 +221,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 
 void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	if (_dropArea && !_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](Profile::CoverDropArea *area) { dropAreaHidden(area); });
 	}
 }
 
@@ -228,7 +232,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	if (mimeData->hasImage()) {
 		img = qvariant_cast<QImage>(mimeData->imageData());
 	} else {
-		const auto &urls = mimeData->urls();
+		auto urls = mimeData->urls();
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
@@ -238,7 +242,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	}
 
 	if (!_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](Profile::CoverDropArea *area) { dropAreaHidden(area); });
 	}
 	e->acceptProposedAction();
 

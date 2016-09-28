@@ -36,7 +36,9 @@ InfoWidget::InfoWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, pe
 		| UpdateFlag::UsernameChanged
 		| UpdateFlag::UserPhoneChanged
 		| UpdateFlag::UserCanShareContact;
-	Notify::registerPeerObserver(observeEvents, this, &InfoWidget::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
 
 	refreshLabels();
 }
@@ -149,13 +151,11 @@ void InfoWidget::refreshAbout() {
 		textParseEntities(aboutText, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands, &aboutEntities);
 		_about->setMarkedText({ aboutText, aboutEntities });
 		_about->setSelectable(true);
-		_about->setClickHandlerHook(func(this, &InfoWidget::aboutClickHandlerHook));
+		_about->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+			BotCommandClickHandler::setPeerForCommand(peer());
+			return true;
+		});
 	}
-}
-
-bool InfoWidget::aboutClickHandlerHook(const ClickHandlerPtr &handler, Qt::MouseButton button) {
-	BotCommandClickHandler::setPeerForCommand(peer());
-	return true;
 }
 
 void InfoWidget::refreshMobileNumber() {

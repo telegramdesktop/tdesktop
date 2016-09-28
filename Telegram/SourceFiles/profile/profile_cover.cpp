@@ -68,8 +68,12 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::NameChanged
 		| UpdateFlag::UserOnlineChanged;
-	Notify::registerPeerObserver(observeEvents, this, &CoverWidget::notifyPeerUpdated);
-	FileDialog::registerObserver(this, &CoverWidget::notifyFileQueryUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
@@ -285,7 +289,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 
 void CoverWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	if (_dropArea && !_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](CoverDropArea *area) { dropAreaHidden(area); });
 	}
 }
 
@@ -306,7 +310,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	}
 
 	if (!_dropArea->hiding()) {
-		_dropArea->hideAnimated(func(this, &CoverWidget::dropAreaHidden));
+		_dropArea->hideAnimated([this](CoverDropArea *area) { dropAreaHidden(area); });
 	}
 	e->acceptProposedAction();
 

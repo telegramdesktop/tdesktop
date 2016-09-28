@@ -236,7 +236,7 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 	_selectionType = TextSelectType::Letters;
 
 	if (activated) {
-		if (_clickHandlerHook.isNull() || _clickHandlerHook.call(activated, button)) {
+		if (!_clickHandlerHook || _clickHandlerHook(activated, button)) {
 			App::activateClickHandler(activated, button);
 		}
 	}

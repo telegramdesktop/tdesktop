@@ -218,7 +218,6 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
-	Notify::startObservers();
 	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
@@ -357,8 +356,6 @@ void Application::closeApplication() {
 	}
 	_updateThread = 0;
 #endif
-
-	Notify::finishObservers();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

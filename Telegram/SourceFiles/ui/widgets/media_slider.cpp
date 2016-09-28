@@ -158,7 +158,7 @@ void MediaSlider::setOver(bool over) {
 
 	_over = over;
 	auto from = _over ? 0. : 1., to = _over ? 1. : 0.;
-	START_ANIMATION(_a_over, func([this]() { update(); }), from, to, _st.duration, anim::linear);
+	_a_over.start([this] { update(); }, from, to, _st.duration);
 }
 
 } // namespace Ui

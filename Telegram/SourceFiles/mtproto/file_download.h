@@ -396,19 +396,7 @@ void reinitWebLoadManager();
 void stopWebLoadManager();
 
 namespace FileDownload {
-namespace internal {
 
-using ImageLoadedHandler = Function<void>;
-Notify::ConnectionId plainRegisterImageLoadedObserver(ImageLoadedHandler &&handler);
-
-void notifyImageLoaded();
-
-} // namespace internal
-
-template <typename ObserverType>
-void registerImageLoadedObserver(ObserverType *observer, void (ObserverType::*handler)()) {
-	auto connection = internal::plainRegisterImageLoadedObserver(func(observer, handler));
-	Notify::observerRegistered(observer, connection);
-}
+base::Observable<void> &ImageLoaded();
 
 } // namespace FileDownload

@@ -227,9 +227,9 @@ void ShareBox::onMustScrollTo(int top, int bottom) {
 		to = bottom - (scrollBottom - scrollTop);
 	}
 	if (from != to) {
-		START_ANIMATION(_scrollAnimation, func([this]() {
+		_scrollAnimation.start([this]() {
 			scrollArea()->scrollToY(_scrollAnimation.current(scrollArea()->scrollTop()));
-		}), from, to, st::shareScrollDuration, anim::sineInOut);
+		}, from, to, st::shareScrollDuration, anim::sineInOut);
 	}
 }
 
@@ -243,8 +243,6 @@ namespace internal {
 
 ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 , _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
-
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -264,7 +262,10 @@ ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
-	Notify::registerPeerObserver(observeEvents, this, &ShareInner::notifyPeerUpdated);
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		notifyPeerUpdated(update);
+	}));
+	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
 
 void ShareInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -437,9 +438,9 @@ void ShareInner::setActive(int active) {
 	if (active != _active) {
 		auto changeNameFg = [this](int index, style::color from, style::color to) {
 			if (auto chat = getChatAtIndex(index)) {
-				START_ANIMATION(chat->nameFg, func([this, chat] {
+				chat->nameFg.start([this, chat] {
 					repaintChat(chat->peer);
-				}), from->c, to->c, st::shareActivateDuration, anim::linear);
+				}, from->c, to->c, st::shareActivateDuration);
 			}
 		};
 		changeNameFg(_active, st::shareNameActiveFg, st::shareNameFg);
@@ -459,16 +460,7 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 	auto w = width();
 	auto photoLeft = (_rowWidth - (st::sharePhotoRadius * 2)) / 2;
 	auto photoTop = st::sharePhotoTop;
-	if (chat->selection.isNull()) {
-		if (!chat->wideUserpicCache.isNull()) {
-			chat->wideUserpicCache = QPixmap();
-		}
-		auto userpicRadius = chat->selected ? st::sharePhotoSmallRadius : st::sharePhotoRadius;
-		auto userpicShift = st::sharePhotoRadius - userpicRadius;
-		auto userpicLeft = x + photoLeft + userpicShift;
-		auto userpicTop = y + photoTop + userpicShift;
-		chat->peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, w);
-	} else {
+	if (chat->selection.animating()) {
 		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 		auto userpicRadius = qRound(WideCacheScale * (st::sharePhotoRadius + (st::sharePhotoSmallRadius - st::sharePhotoRadius) * selectionLevel));
 		auto userpicShift = WideCacheScale * st::sharePhotoRadius - userpicRadius;
@@ -478,6 +470,15 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 		auto from = QRect(QPoint(0, 0), chat->wideUserpicCache.size());
 		p.drawPixmapLeft(to, w, chat->wideUserpicCache, from);
 		p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+	} else {
+		if (!chat->wideUserpicCache.isNull()) {
+			chat->wideUserpicCache = QPixmap();
+		}
+		auto userpicRadius = chat->selected ? st::sharePhotoSmallRadius : st::sharePhotoRadius;
+		auto userpicShift = st::sharePhotoRadius - userpicRadius;
+		auto userpicLeft = x + photoLeft + userpicShift;
+		auto userpicTop = y + photoTop + userpicShift;
+		chat->peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, w);
 	}
 
 	if (selectionLevel > 0) {
@@ -516,11 +517,12 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 	p.setOpacity(1.);
 
-	if (chat->nameFg.isNull()) {
-		p.setPen((index == _active) ? st::shareNameActiveFg : st::shareNameFg);
-	} else {
+	if (chat->nameFg.animating()) {
 		p.setPen(chat->nameFg.current());
+	} else {
+		p.setPen((index == _active) ? st::shareNameActiveFg : st::shareNameFg);
 	}
+
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
 	auto nameLeft = st::shareColumnSkip / 2;
 	auto nameTop = photoTop + st::sharePhotoRadius * 2 + st::shareNameTop;
@@ -670,21 +672,21 @@ void ShareInner::changeCheckState(Chat *chat) {
 	if (chat->selected) {
 		_selected.insert(chat->peer);
 		chat->icons.push_back(Chat::Icon());
-		START_ANIMATION(chat->icons.back().fadeIn, func([this, chat] {
+		chat->icons.back().fadeIn.start([this, chat] {
 			repaintChat(chat->peer);
-		}), 0, 1, st::shareSelectDuration, anim::linear);
+		}, 0, 1, st::shareSelectDuration);
 	} else {
 		_selected.remove(chat->peer);
 		prepareWideCheckIconCache(&chat->icons.back());
-		START_ANIMATION(chat->icons.back().fadeOut, func([this, chat] {
-			removeFadeOutedIcons(chat);
+		chat->icons.back().fadeOut.start([this, chat] {
 			repaintChat(chat->peer);
-		}), 1, 0, st::shareSelectDuration, anim::linear);
+			removeFadeOutedIcons(chat); // this call can destroy current lambda
+		}, 1, 0, st::shareSelectDuration);
 	}
 	prepareWideUserpicCache(chat);
-	START_ANIMATION(chat->selection, func([this, chat] {
+	chat->selection.start([this, chat] {
 		repaintChat(chat->peer);
-	}), chat->selected ? 0 : 1, chat->selected ? 1 : 0, st::shareSelectDuration, anim_bumpy);
+	}, chat->selected ? 0 : 1, chat->selected ? 1 : 0, st::shareSelectDuration, anim_bumpy);
 	if (chat->selected) {
 		setActive(chatIndex(chat->peer));
 	}
@@ -692,9 +694,9 @@ void ShareInner::changeCheckState(Chat *chat) {
 }
 
 void ShareInner::removeFadeOutedIcons(Chat *chat) {
-	while (!chat->icons.empty() && chat->icons.front().fadeIn.isNull() && chat->icons.front().fadeOut.isNull()) {
+	while (!chat->icons.empty() && !chat->icons.front().fadeIn.animating() && !chat->icons.front().fadeOut.animating()) {
 		if (chat->icons.size() > 1 || !chat->selected) {
-			chat->icons.pop_front();
+			chat->icons.erase(chat->icons.begin());
 		} else {
 			break;
 		}
@@ -1016,18 +1018,6 @@ void shareGameScoreFromItem(HistoryItem *item) {
 	Ui::showLayer(new ShareBox(std_::move(copyCallback), std_::move(submitCallback)));
 }
 
-class GameMessageResolvedCallback : public SharedCallback<void, ChannelData*, MsgId> {
-public:
-	void call(ChannelData *channel, MsgId msgId) const override {
-		if (auto item = App::histItemById(channel, msgId)) {
-			shareGameScoreFromItem(item);
-		} else {
-			Ui::showLayer(new InformBox(lang(lng_edit_deleted)));
-		}
-	}
-
-};
-
 } // namespace
 
 void shareGameScoreByHash(const QString &hash) {
@@ -1062,7 +1052,13 @@ void shareGameScoreByHash(const QString &hash) {
 	} else if (App::api()) {
 		auto channel = channelId ? App::channelLoaded(channelId) : nullptr;
 		if (channel || !channelId) {
-			App::api()->requestMessageData(channel, msgId, std_::make_unique<GameMessageResolvedCallback>());
+			App::api()->requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
+				if (auto item = App::histItemById(channel, msgId)) {
+					shareGameScoreFromItem(item);
+				} else {
+					Ui::showLayer(new InformBox(lang(lng_edit_deleted)));
+				}
+			});
 		}
 	}
 }
