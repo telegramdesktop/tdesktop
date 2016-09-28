@@ -112,8 +112,7 @@ void Gif::initDimensions() {
 void Gif::setPosition(int32 position) {
 	ItemBase::setPosition(position);
 	if (_position < 0) {
-		if (gif()) delete _gif;
-		_gif = 0;
+		_gif.reset();
 	}
 }
 
@@ -133,15 +132,15 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	document->automaticLoad(nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
-	if (loaded && !gif() && _gif != Media::Clip::BadReader) {
+	if (loaded && !_gif && !_gif.isBad()) {
 		auto that = const_cast<Gif*>(this);
-		that->_gif = new Media::Clip::Reader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+		that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
 		});
-		if (gif()) _gif->setAutoplay();
+		if (_gif) _gif->setAutoplay();
 	}
 
-	bool animating = (gif() && _gif->started());
+	bool animating = (_gif && _gif->started());
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
@@ -166,7 +165,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		}
 	}
 
-	if (radial || (!_gif && !loaded && !loading) || (_gif == Media::Clip::BadReader)) {
+	if (radial || _gif.isBad() || (!_gif && !loaded && !loading)) {
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			auto over = _animation->_a_over.current();
@@ -248,7 +247,7 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 }
 
 QSize Gif::countFrameSize() const {
-	bool animating = (gif() && _gif->ready());
+	bool animating = (_gif && _gif->ready());
 	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
@@ -272,10 +271,6 @@ QSize Gif::countFrameSize() const {
 		}
 	}
 	return QSize(framew, frameh);
-}
-
-Gif::~Gif() {
-	if (gif()) deleteAndMark(_gif);
 }
 
 void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
@@ -332,18 +327,16 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
 	case NotificationReinit: {
-		if (gif()) {
+		if (_gif) {
 			if (_gif->state() == State::Error) {
-				delete _gif;
-				_gif = BadReader;
+				_gif.setBad();
 				getShownDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
 				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
-				delete _gif;
-				_gif = nullptr;
+				_gif.reset();
 				getShownDocument()->forget();
 			}
 		}
@@ -352,7 +345,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case NotificationRepaint: {
-		if (gif() && !_gif->currentDisplayed()) {
+		if (_gif && !_gif->currentDisplayed()) {
 			update();
 		}
 	} break;
@@ -1193,8 +1186,7 @@ void Game::initDimensions() {
 void Game::setPosition(int32 position) {
 	ItemBase::setPosition(position);
 	if (_position < 0) {
-		if (gif()) delete _gif;
-		_gif = 0;
+		_gif.reset();
 	}
 }
 
@@ -1212,15 +1204,15 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		document->automaticLoad(nullptr);
 
 		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
-		if (loaded && !gif() && _gif != Media::Clip::BadReader) {
+		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = new Media::Clip::Reader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+			that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
 				that->clipCallback(notification);
 			});
-			if (gif()) _gif->setAutoplay();
+			if (_gif) _gif->setAutoplay();
 		}
 
-		bool animating = (gif() && _gif->started());
+		bool animating = (_gif && _gif->started());
 		if (displayLoading) {
 			if (!_radial) {
 				_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<Game*>(this), &Game::step_radial));
@@ -1342,16 +1334,14 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
 	case NotificationReinit: {
-		if (gif()) {
+		if (_gif) {
 			if (_gif->state() == State::Error) {
-				delete _gif;
-				_gif = BadReader;
+				_gif.setBad();
 				getResultDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
 				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
-				delete _gif;
-				_gif = nullptr;
+				_gif.reset();
 				getResultDocument()->forget();
 			}
 		}
@@ -1360,15 +1350,11 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case NotificationRepaint: {
-		if (gif() && !_gif->currentDisplayed()) {
+		if (_gif && !_gif->currentDisplayed()) {
 			update();
 		}
 	} break;
 	}
-}
-
-Game::~Game() {
-	if (gif()) deleteAndMark(_gif);
 }
 
 } // namespace internal

@@ -1522,10 +1522,7 @@ ImagePtr HistoryDocument::replyPreview() {
 
 HistoryGif::HistoryGif(HistoryItem *parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
 , _data(document)
-, _thumbw(1)
-, _thumbh(1)
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
-, _gif(nullptr) {
+, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setDocumentLinks(_data, true);
 
 	setStatusSize(FileStatusSizeReady);
@@ -1541,8 +1538,7 @@ HistoryGif::HistoryGif(HistoryItem *parent, const HistoryGif &other) : HistoryFi
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
-, _caption(other._caption)
-, _gif(nullptr) {
+, _caption(other._caption) {
 	setDocumentLinks(_data, true);
 
 	setStatusSize(other._statusSize);
@@ -1555,16 +1551,15 @@ void HistoryGif::initDimensions() {
 
 	bool bubble = _parent->hasBubble();
 	int32 tw = 0, th = 0;
-	if (gif() && _gif->state() == Media::Clip::State::Error) {
+	if (_gif && _gif->state() == Media::Clip::State::Error) {
 		if (!_gif->autoplay()) {
 			Ui::showLayer(new InformBox(lang(lng_gif_error)));
 		}
-		App::unregGifItem(_gif);
-		delete _gif;
-		_gif = Media::Clip::BadReader;
+		App::unregGifItem(_gif.get());
+		_gif.setBad();
 	}
 
-	if (gif() && _gif->ready()) {
+	if (_gif && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
 	} else {
@@ -1590,7 +1585,7 @@ void HistoryGif::initDimensions() {
 	_maxw = qMax(tw, int32(st::minPhotoSize));
 	_minh = qMax(th, int32(st::minPhotoSize));
 	_maxw = qMax(_maxw, _parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	if (!gif() || !_gif->ready()) {
+	if (!_gif || !_gif->ready()) {
 		_maxw = qMax(_maxw, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (bubble) {
@@ -1610,7 +1605,7 @@ int HistoryGif::resizeGetHeight(int width) {
 	bool bubble = _parent->hasBubble();
 
 	int tw = 0, th = 0;
-	if (gif() && _gif->ready()) {
+	if (_gif && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
 	} else {
@@ -1645,7 +1640,7 @@ int HistoryGif::resizeGetHeight(int width) {
 	_width = qMax(tw, int32(st::minPhotoSize));
 	_height = qMax(th, int32(st::minPhotoSize));
 	_width = qMax(_width, _parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	if (gif() && _gif->ready()) {
+	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
 			auto inWebPage = (_parent->getMedia() != this);
 			auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
@@ -1676,7 +1671,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 	bool loaded = _data->loaded(), displayLoading = (_parent->id < 0) || _data->displayLoading();
 	bool selected = (selection == FullSelection);
 
-	if (loaded && !gif() && _gif != Media::Clip::BadReader && cAutoPlayGif()) {
+	if (loaded && !_gif && !_gif.isBad() && cAutoPlayGif()) {
 		Ui::autoplayMediaInlineAsync(_parent->fullId());
 	}
 
@@ -1686,7 +1681,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 
 	int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
-	bool animating = (gif() && _gif->started());
+	bool animating = (_gif && _gif->started());
 
 	if (!animating || _parent->id < 0) {
 		if (displayLoading) {
@@ -1730,7 +1725,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, overlayCorners);
 	}
 
-	if (radial || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif())) || (_gif == Media::Clip::BadReader)) {
+	if (radial || _gif.isBad() || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif()))) {
 		float64 radialOpacity = (radial && loaded && _parent->id > 0) ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -1818,7 +1813,7 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		if (_data->uploading()) {
 			result.link = _cancell;
-		} else if (!gif() || !cAutoPlayGif()) {
+		} else if (!_gif || !cAutoPlayGif()) {
 			result.link = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
 		}
 		if (_parent->getMedia() == this) {
@@ -1891,36 +1886,34 @@ ImagePtr HistoryGif::replyPreview() {
 }
 
 bool HistoryGif::playInline(bool autoplay) {
-	if (gif()) {
+	if (_gif) {
 		stopInline();
 	} else if (_data->loaded(DocumentData::FilePathResolveChecked)) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
-		_gif = new Media::Clip::Reader(_data->location(), _data->data(), [this](Media::Clip::Notification notification) {
+		_gif = Media::Clip::MakeReader(_data->location(), _data->data(), [this](Media::Clip::Notification notification) {
 			_parent->clipCallback(notification);
 		});
-		App::regGifItem(_gif, _parent);
-		if (gif()) _gif->setAutoplay();
+		App::regGifItem(_gif.get(), _parent);
+		if (_gif) _gif->setAutoplay();
 	}
 	return true;
 }
 
 void HistoryGif::stopInline() {
-	if (gif()) {
-		App::unregGifItem(_gif);
-		delete _gif;
-		_gif = 0;
+	if (_gif) {
+		App::unregGifItem(_gif.get());
 	}
+	_gif.reset();
 
 	_parent->setPendingInitDimensions();
 	Notify::historyItemLayoutChanged(_parent);
 }
 
 HistoryGif::~HistoryGif() {
-	if (gif()) {
-		App::unregGifItem(_gif);
-		deleteAndMark(_gif);
+	if (_gif) {
+		App::unregGifItem(_gif.get());
 	}
 }
 
@@ -3071,7 +3064,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 	p.fillRect(bar, barfg);
 
 	if (_titleLines) {
-		p.setPen(st::black);
+		p.setPen(semibold);
 		int32 endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();

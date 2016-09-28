@@ -157,10 +157,7 @@ private:
 	Animation _a_shown;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
-	Media::Clip::Reader *_gif = nullptr;
-	bool gif() const {
-		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
-	}
+	Media::Clip::ReaderPointer _gif;
 
 	int _emojiSize;
 	QList<EmojiPtr> _emojiList;

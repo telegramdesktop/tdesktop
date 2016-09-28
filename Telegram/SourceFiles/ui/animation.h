@@ -29,7 +29,58 @@ namespace Media {
 namespace Clip {
 
 class Reader;
-static Reader * const BadReader = SharedMemoryLocation<Reader, 0>();
+class ReaderPointer {
+public:
+	ReaderPointer(std::nullptr_t = nullptr) {
+	}
+	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
+	}
+	ReaderPointer(const ReaderPointer &other) = delete;
+	ReaderPointer &operator=(const ReaderPointer &other) = delete;
+	ReaderPointer(ReaderPointer &&other) : _pointer(createAndSwap(other._pointer)) {
+	}
+	ReaderPointer &operator=(ReaderPointer &&other) {
+		swap(other);
+		return *this;
+	}
+	void swap(ReaderPointer &other) {
+		qSwap(_pointer, other._pointer);
+	}
+	Reader *get() const {
+		return valid() ? _pointer : nullptr;
+	}
+	Reader *operator->() const {
+		return get();
+	}
+	void setBad() {
+		reset();
+		_pointer = BadPointer;
+	}
+	void reset() {
+		ReaderPointer temp;
+		swap(temp);
+	}
+	bool isBad() const {
+		return (_pointer == BadPointer);
+	}
+	bool valid() const {
+		return _pointer && !isBad();
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	~ReaderPointer();
+
+private:
+	Reader *_pointer = nullptr;
+	static Reader *const BadPointer;
+
+};
+
+template <typename ...Args>
+inline ReaderPointer MakeReader(Args&&... args) {
+	return ReaderPointer(new Reader(std_::forward<Args>(args)...));
+}
 
 class Manager;
 

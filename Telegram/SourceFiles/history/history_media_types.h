@@ -446,7 +446,7 @@ public:
 		return _data;
 	}
 	Media::Clip::Reader *getClipReader() override {
-		return gif();
+		return _gif.get();
 	}
 
 	bool playInline(bool autoplay) override;
@@ -491,16 +491,11 @@ protected:
 
 private:
 	DocumentData *_data;
-	int32 _thumbw, _thumbh;
+	int32 _thumbw = 1;
+	int32 _thumbh = 1;
 	Text _caption;
 
-	Media::Clip::Reader *_gif;
-	Media::Clip::Reader *gif() {
-		return (_gif == Media::Clip::BadReader) ? nullptr : _gif;
-	}
-	const Media::Clip::Reader *gif() const {
-		return (_gif == Media::Clip::BadReader) ? nullptr : _gif;
-	}
+	Media::Clip::ReaderPointer _gif;
 
 	void setStatusSize(int32 newSize) const;
 	void updateStatusText() const;

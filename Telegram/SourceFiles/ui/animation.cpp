@@ -23,6 +23,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "media/media_clip_reader.h"
 
+namespace Media {
+namespace Clip {
+
+Reader *const ReaderPointer::BadPointer = SharedMemoryLocation<Reader, 0>();
+
+ReaderPointer::~ReaderPointer() {
+	if (valid()) {
+		delete _pointer;
+	}
+	_pointer = nullptr;
+}
+
+class Tmp;
+void f(Tmp *t) {
+	delete t;
+}
+
+} // namespace Clip
+} // namespace Media
+
 namespace {
 
 AnimationManager *_manager = nullptr;

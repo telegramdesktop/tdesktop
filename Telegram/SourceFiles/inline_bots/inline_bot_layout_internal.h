@@ -77,10 +77,7 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
-	~Gif();
-
 private:
-
 	QSize countFrameSize() const;
 
 	enum class StateFlag {
@@ -93,11 +90,8 @@ private:
 		return ~StateFlags(flag);
 	}
 
-	Media::Clip::Reader *_gif = nullptr;
+	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;
-	bool gif() const {
-		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
-	}
 	mutable QPixmap _thumb;
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
@@ -349,14 +343,9 @@ public:
 	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
-	~Game();
-
 private:
 	void countFrameSize();
 
-	bool gif() const {
-		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
-	}
 	void prepareThumb(int32 width, int32 height) const;
 
 	bool isRadialAnimation(uint64 ms) const;
@@ -364,7 +353,7 @@ private:
 
 	void clipCallback(Media::Clip::Notification notification);
 
-	Media::Clip::Reader *_gif = nullptr;
+	Media::Clip::ReaderPointer _gif;
 	mutable QPixmap _thumb;
 	mutable std_::unique_ptr<Ui::RadialAnimation> _radial;
 	Text _title, _description;
