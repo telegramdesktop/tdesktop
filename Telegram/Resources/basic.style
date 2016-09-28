@@ -1232,7 +1232,7 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 
 mediaPadding: margins(0px, 0px, 0px, 0px);//1px, 1px, 1px, 1px);//2px, 2px, 2px, 2px);
 mediaCaptionSkip: 5px;
-mediaHeaderSkip: 5px;
+mediaInBubbleSkip: 5px;
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
@@ -2285,7 +2285,6 @@ webPageLeft: 10px;
 webPageBar: 2px;
 webPageTitleFont: semiboldFont;
 webPageDescriptionFont: normalFont;
-webPagePhotoSkip: 5px;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
 

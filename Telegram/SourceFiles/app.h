@@ -44,6 +44,9 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
 
+struct LocationCoords;
+struct LocationData;
+
 namespace App {
 	AppClass *app();
 	MainWindow *wnd();
@@ -154,7 +157,7 @@ namespace App {
 	WebPageData *webPage(const WebPageId &webPage);
 	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	GameData *game(const GameId &game);
-	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, const QString &url, PhotoData *photo, DocumentData *doc);
+	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc);
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 

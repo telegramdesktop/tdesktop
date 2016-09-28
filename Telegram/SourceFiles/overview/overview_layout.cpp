@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "media/media_audio.h"
 #include "localstorage.h"
+#include "history/history_media_types.h"
 
 namespace Overview {
 namespace Layout {
@@ -91,7 +92,7 @@ void RadialProgressItem::step_radial(uint64 ms, bool timer) {
 
 void RadialProgressItem::ensureRadial() const {
 	if (!_radial) {
-		_radial = new RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = new Ui::RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
 }
 

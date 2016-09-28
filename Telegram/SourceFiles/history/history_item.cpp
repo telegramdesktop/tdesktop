@@ -28,84 +28,64 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "fileuploader.h"
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
-public:
-	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col) : _itemId(item->fullId()), _row(row), _col(col) {
-	}
+ReplyMarkupClickHandler::ReplyMarkupClickHandler(const HistoryItem *item, int row, int col)
+: _itemId(item->fullId())
+, _row(row)
+, _col(col) {
+}
 
-	QString tooltip() const override {
-		return _fullDisplayed ? QString() : buttonText();
+// Copy to clipboard support.
+void ReplyMarkupClickHandler::copyToClipboard() const {
+	if (auto button = getButton()) {
+		if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
+			auto url = QString::fromUtf8(button->data);
+			if (!url.isEmpty()) {
+				QApplication::clipboard()->setText(url);
+			}
+		}
 	}
+}
 
-	void setFullDisplayed(bool full) {
-		_fullDisplayed = full;
+QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
+	if (auto button = getButton()) {
+		if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
+			return lang(lng_context_copy_link);
+		}
 	}
+	return QString();
+}
 
-	// Copy to clipboard support.
-	void copyToClipboard() const override {
-		if (auto button = getButton()) {
-			if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
-				auto url = QString::fromUtf8(button->data);
-				if (!url.isEmpty()) {
-					QApplication::clipboard()->setText(url);
+// Finds the corresponding button in the items markup struct.
+// If the button is not found it returns nullptr.
+// Note: it is possible that we will point to the different button
+// than the one was used when constructing the handler, but not a big deal.
+const HistoryMessageReplyMarkup::Button *ReplyMarkupClickHandler::getButton() const {
+	if (auto item = App::histItemById(_itemId)) {
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (_row < markup->rows.size()) {
+				auto &row = markup->rows.at(_row);
+				if (_col < row.size()) {
+					return &row.at(_col);
 				}
 			}
 		}
 	}
-	QString copyToClipboardContextItemText() const override {
-		if (auto button = getButton()) {
-			if (button->type == HistoryMessageReplyMarkup::Button::Type::Url) {
-				return lang(lng_context_copy_link);
-			}
-		}
-		return QString();
+	return nullptr;
+}
+
+void ReplyMarkupClickHandler::onClickImpl() const {
+	if (auto item = App::histItemById(_itemId)) {
+		App::activateBotCommand(item, _row, _col);
 	}
+}
 
-	// Finds the corresponding button in the items markup struct.
-	// If the button is not found it returns nullptr.
-	// Note: it is possible that we will point to the different button
-	// than the one was used when constructing the handler, but not a big deal.
-	const HistoryMessageReplyMarkup::Button *getButton() const {
-		if (auto item = App::histItemById(_itemId)) {
-			if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-				if (_row < markup->rows.size()) {
-					auto &row = markup->rows.at(_row);
-					if (_col < row.size()) {
-						return &row.at(_col);
-					}
-				}
-			}
-		}
-		return nullptr;
+// Returns the full text of the corresponding button.
+QString ReplyMarkupClickHandler::buttonText() const {
+	if (auto button = getButton()) {
+		return button->text;
 	}
-
-	// We hold only FullMsgId, not HistoryItem*, because all click handlers
-	// are activated async and the item may be already destroyed.
-	void setMessageId(const FullMsgId &msgId) {
-		_itemId = msgId;
-	}
-
-protected:
-	void onClickImpl() const override {
-		if (auto item = App::histItemById(_itemId)) {
-			App::activateBotCommand(item, _row, _col);
-		}
-	}
-
-private:
-	FullMsgId _itemId;
-	int _row, _col;
-	bool _fullDisplayed = true;
-
-	// Returns the full text of the corresponding button.
-	QString buttonText() const {
-		if (auto button = getButton()) {
-			return button->text;
-		}
-		return QString();
-	}
-
-};
+	return QString();
+}
 
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 	: _item(item)

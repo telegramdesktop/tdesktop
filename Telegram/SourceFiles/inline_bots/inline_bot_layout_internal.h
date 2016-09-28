@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "inline_bots/inline_bot_layout_item.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
 
 namespace InlineBots {
@@ -113,7 +114,7 @@ private:
 		}
 		bool over;
 		FloatAnimation _a_over;
-		RadialAnimation radial;
+		Ui::RadialAnimation radial;
 	};
 	mutable AnimationData *_animation = nullptr;
 	mutable FloatAnimation _a_deleteOver;
@@ -275,7 +276,7 @@ private:
 		anim::fvalue a_thumbOver;
 		Animation _a_thumbOver;
 
-		RadialAnimation radial;
+		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;
 

@@ -173,9 +173,7 @@ public:
 		return (selection.from == 0) && (selection.to >= _text.size());
 	}
 
-	bool isEmpty() const {
-		return _text.isEmpty();
-	}
+	bool isEmpty() const;
 	bool isNull() const {
 		return !_font;
 	}

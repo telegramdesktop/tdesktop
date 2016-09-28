@@ -2891,6 +2891,10 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 	return { from, to };
 }
 
+bool Text::isEmpty() const {
+	return _blocks.empty() || _blocks[0]->type() == TextBlockTSkip;
+}
+
 template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
 void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const {
 	if (isEmpty() || selection.empty()) {

@@ -478,7 +478,7 @@ enum {
 	mtpc_inputBotInlineResult = 0x2cbbe15a,
 	mtpc_inputBotInlineResultPhoto = 0xa8d864a7,
 	mtpc_inputBotInlineResultDocument = 0xfff8fdc4,
-	mtpc_inputBotInlineResultGame = 0xefff34f9,
+	mtpc_inputBotInlineResultGame = 0x4fa417f2,
 	mtpc_botInlineMessageMediaAuto = 0xa74b15b,
 	mtpc_botInlineMessageText = 0x8c7f65e2,
 	mtpc_botInlineMessageMediaGeo = 0x3a8fd8b8,
@@ -524,7 +524,7 @@ enum {
 	mtpc_maskCoords = 0xaed6dbb2,
 	mtpc_inputStickeredMediaPhoto = 0x4a992157,
 	mtpc_inputStickeredMediaDocument = 0x438865b,
-	mtpc_game = 0xb351c590,
+	mtpc_game = 0xbdf9653b,
 	mtpc_inputGameID = 0x32c3e77,
 	mtpc_inputGameShortName = 0xc331e80a,
 	mtpc_highScore = 0x58fffcd0,
@@ -14738,18 +14738,11 @@ public:
 
 class MTPDinputBotInlineResultGame : public mtpDataImpl<MTPDinputBotInlineResultGame> {
 public:
-	enum class Flag : int32 {
-		MAX_FIELD = (1 << 0),
-	};
-	Q_DECLARE_FLAGS(Flags, Flag);
-	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
-
 	MTPDinputBotInlineResultGame() {
 	}
-	MTPDinputBotInlineResultGame(const MTPflags<MTPDinputBotInlineResultGame::Flags> &_flags, const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) : vflags(_flags), vid(_id), vshort_name(_short_name), vsend_message(_send_message) {
+	MTPDinputBotInlineResultGame(const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) : vid(_id), vshort_name(_short_name), vsend_message(_send_message) {
 	}
 
-	MTPflags<MTPDinputBotInlineResultGame::Flags> vflags;
 	MTPstring vid;
 	MTPstring vshort_name;
 	MTPInputBotInlineMessage vsend_message;
@@ -15322,7 +15315,7 @@ public:
 
 	MTPDgame() {
 	}
-	MTPDgame(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPPhoto &_photo, const MTPDocument &_document) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vshort_name(_short_name), vtitle(_title), vdescription(_description), vurl(_url), vphoto(_photo), vdocument(_document) {
+	MTPDgame(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPDocument &_document) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vshort_name(_short_name), vtitle(_title), vdescription(_description), vphoto(_photo), vdocument(_document) {
 	}
 
 	MTPflags<MTPDgame::Flags> vflags;
@@ -15331,7 +15324,6 @@ public:
 	MTPstring vshort_name;
 	MTPstring vtitle;
 	MTPstring vdescription;
-	MTPstring vurl;
 	MTPPhoto vphoto;
 	MTPDocument vdocument;
 };
@@ -25161,8 +25153,8 @@ public:
 	inline static MTPinputBotInlineResult new_inputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) {
 		return MTPinputBotInlineResult(new MTPDinputBotInlineResultDocument(_flags, _id, _type, _title, _description, _document, _send_message));
 	}
-	inline static MTPinputBotInlineResult new_inputBotInlineResultGame(const MTPflags<MTPDinputBotInlineResultGame::Flags> &_flags, const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) {
-		return MTPinputBotInlineResult(new MTPDinputBotInlineResultGame(_flags, _id, _short_name, _send_message));
+	inline static MTPinputBotInlineResult new_inputBotInlineResultGame(const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) {
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultGame(_id, _short_name, _send_message));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaAuto(const MTPflags<MTPDbotInlineMessageMediaAuto::Flags> &_flags, const MTPstring &_caption, const MTPReplyMarkup &_reply_markup) {
 		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaAuto(_flags, _caption, _reply_markup));
@@ -25299,8 +25291,8 @@ public:
 	inline static MTPinputStickeredMedia new_inputStickeredMediaDocument(const MTPInputDocument &_id) {
 		return MTPinputStickeredMedia(new MTPDinputStickeredMediaDocument(_id));
 	}
-	inline static MTPgame new_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPPhoto &_photo, const MTPDocument &_document) {
-		return MTPgame(new MTPDgame(_flags, _id, _access_hash, _short_name, _title, _description, _url, _photo, _document));
+	inline static MTPgame new_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPDocument &_document) {
+		return MTPgame(new MTPDgame(_flags, _id, _access_hash, _short_name, _title, _description, _photo, _document));
 	}
 	inline static MTPinputGame new_inputGameID(const MTPlong &_id, const MTPlong &_access_hash) {
 		return MTPinputGame(new MTPDinputGameID(_id, _access_hash));
@@ -35831,7 +35823,7 @@ inline uint32 MTPinputBotInlineResult::innerLength() const {
 		}
 		case mtpc_inputBotInlineResultGame: {
 			const MTPDinputBotInlineResultGame &v(c_inputBotInlineResultGame());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vshort_name.innerLength() + v.vsend_message.innerLength();
+			return v.vid.innerLength() + v.vshort_name.innerLength() + v.vsend_message.innerLength();
 		}
 	}
 	return 0;
@@ -35882,7 +35874,6 @@ inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime 
 		case mtpc_inputBotInlineResultGame: _type = cons; {
 			if (!data) setData(new MTPDinputBotInlineResultGame());
 			MTPDinputBotInlineResultGame &v(_inputBotInlineResultGame());
-			v.vflags.read(from, end);
 			v.vid.read(from, end);
 			v.vshort_name.read(from, end);
 			v.vsend_message.read(from, end);
@@ -35927,7 +35918,6 @@ inline void MTPinputBotInlineResult::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_inputBotInlineResultGame: {
 			const MTPDinputBotInlineResultGame &v(c_inputBotInlineResultGame());
-			v.vflags.write(to);
 			v.vid.write(to);
 			v.vshort_name.write(to);
 			v.vsend_message.write(to);
@@ -35962,8 +35952,8 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineResultDocument::Flags)
 inline MTPinputBotInlineResult MTP_inputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) {
 	return MTP::internal::TypeCreator::new_inputBotInlineResultDocument(_flags, _id, _type, _title, _description, _document, _send_message);
 }
-inline MTPinputBotInlineResult MTP_inputBotInlineResultGame(const MTPflags<MTPDinputBotInlineResultGame::Flags> &_flags, const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) {
-	return MTP::internal::TypeCreator::new_inputBotInlineResultGame(_flags, _id, _short_name, _send_message);
+inline MTPinputBotInlineResult MTP_inputBotInlineResultGame(const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) {
+	return MTP::internal::TypeCreator::new_inputBotInlineResultGame(_id, _short_name, _send_message);
 }
 
 inline uint32 MTPbotInlineMessage::innerLength() const {
@@ -37184,7 +37174,7 @@ inline MTPgame::MTPgame() : mtpDataOwner(new MTPDgame()) {
 
 inline uint32 MTPgame::innerLength() const {
 	const MTPDgame &v(c_game());
-	return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vshort_name.innerLength() + v.vtitle.innerLength() + v.vdescription.innerLength() + v.vurl.innerLength() + v.vphoto.innerLength() + (v.has_document() ? v.vdocument.innerLength() : 0);
+	return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vshort_name.innerLength() + v.vtitle.innerLength() + v.vdescription.innerLength() + v.vphoto.innerLength() + (v.has_document() ? v.vdocument.innerLength() : 0);
 }
 inline mtpTypeId MTPgame::type() const {
 	return mtpc_game;
@@ -37200,7 +37190,6 @@ inline void MTPgame::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 	v.vshort_name.read(from, end);
 	v.vtitle.read(from, end);
 	v.vdescription.read(from, end);
-	v.vurl.read(from, end);
 	v.vphoto.read(from, end);
 	if (v.has_document()) { v.vdocument.read(from, end); } else { v.vdocument = MTPDocument(); }
 }
@@ -37212,15 +37201,14 @@ inline void MTPgame::write(mtpBuffer &to) const {
 	v.vshort_name.write(to);
 	v.vtitle.write(to);
 	v.vdescription.write(to);
-	v.vurl.write(to);
 	v.vphoto.write(to);
 	if (v.has_document()) v.vdocument.write(to);
 }
 inline MTPgame::MTPgame(MTPDgame *_data) : mtpDataOwner(_data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDgame::Flags)
-inline MTPgame MTP_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPPhoto &_photo, const MTPDocument &_document) {
-	return MTP::internal::TypeCreator::new_game(_flags, _id, _access_hash, _short_name, _title, _description, _url, _photo, _document);
+inline MTPgame MTP_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPDocument &_document) {
+	return MTP::internal::TypeCreator::new_game(_flags, _id, _access_hash, _short_name, _title, _description, _photo, _document);
 }
 
 inline uint32 MTPinputGame::innerLength() const {

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/filedialog.h"
 
 class LinkButton;
@@ -61,7 +62,7 @@ private:
 	ChildWidget<LinkButton> _chooseFromGallery;
 	ChildWidget<LinkButton> _chooseFromFile;
 
-	RadialAnimation _radial;
+	Ui::RadialAnimation _radial;
 
 };
 

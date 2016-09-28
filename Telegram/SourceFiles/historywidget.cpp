@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "history/history_service_layout.h"
+#include "history/history_media_types.h"
 #include "profile/profile_members_widget.h"
 #include "core/click_handler_types.h"
 #include "stickers/emoji_pan.h"

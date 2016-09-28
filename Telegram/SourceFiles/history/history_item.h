@@ -230,7 +230,47 @@ private:
 
 };
 
-class ReplyMarkupClickHandler;
+class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+public:
+	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col);
+
+	QString tooltip() const override {
+		return _fullDisplayed ? QString() : buttonText();
+	}
+
+	void setFullDisplayed(bool full) {
+		_fullDisplayed = full;
+	}
+
+	// Copy to clipboard support.
+	void copyToClipboard() const override;
+	QString copyToClipboardContextItemText() const override;
+
+	// Finds the corresponding button in the items markup struct.
+	// If the button is not found it returns nullptr.
+	// Note: it is possible that we will point to the different button
+	// than the one was used when constructing the handler, but not a big deal.
+	const HistoryMessageReplyMarkup::Button *getButton() const;
+
+	// We hold only FullMsgId, not HistoryItem*, because all click handlers
+	// are activated async and the item may be already destroyed.
+	void setMessageId(const FullMsgId &msgId) {
+		_itemId = msgId;
+	}
+
+protected:
+	void onClickImpl() const override;
+
+private:
+	FullMsgId _itemId;
+	int _row, _col;
+	bool _fullDisplayed = true;
+
+	// Returns the full text of the corresponding button.
+	QString buttonText() const;
+
+};
+
 class ReplyKeyboard {
 private:
 	struct Button;

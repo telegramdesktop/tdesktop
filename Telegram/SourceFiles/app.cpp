@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
 #include "history/history_location_manager.h"
+#include "history/history_media_types.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "application.h"
@@ -1523,7 +1524,7 @@ namespace {
 	}
 
 	GameData *feedGame(const MTPDgame &game, GameData *convert) {
-		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), qs(game.vurl), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
+		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
 	}
 
 	UserData *curUser() {
@@ -1847,7 +1848,7 @@ namespace {
 		return i.value();
 	}
 
-	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, const QString &url, PhotoData *photo, DocumentData *document) {
+	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document) {
 		if (convert) {
 			if (convert->id != game) {
 				auto i = gamesData.find(convert->id);
@@ -1856,12 +1857,11 @@ namespace {
 				}
 				convert->id = game;
 			}
-			if (convert->url.isEmpty() && !url.isEmpty()) {
+			if (convert->shortName.isEmpty() && !shortName.isEmpty()) {
 				convert->accessHash = accessHash;
 				convert->shortName = shortName;
 				convert->title = title;
 				convert->description = description;
-				convert->url = url;
 				convert->photo = photo;
 				convert->document = document;
 				if (App::main()) App::main()->gameUpdated(convert);
@@ -1873,18 +1873,17 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new GameData(game, accessHash, shortName, title, description, url, photo, document);
+				result = new GameData(game, accessHash, shortName, title, description, photo, document);
 			}
 			gamesData.insert(game, result);
 		} else {
 			result = i.value();
 			if (result != convert) {
-				if (result->url.isEmpty() && !url.isEmpty()) {
+				if (result->shortName.isEmpty() && !shortName.isEmpty()) {
 					result->accessHash = accessHash;
 					result->shortName = shortName;
 					result->title = title;
 					result->description = description;
-					result->url = url;
 					result->photo = photo;
 					result->document = document;
 					if (App::main()) App::main()->gameUpdated(result);

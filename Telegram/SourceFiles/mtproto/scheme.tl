@@ -654,7 +654,7 @@ inputBotInlineMessageGame#3c00f8aa reply_markup:ReplyMarkup = InputBotInlineMess
 inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultPhoto#a8d864a7 id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultDocument#fff8fdc4 flags:# id:string type:string title:flags.1?string description:flags.2?string document:InputDocument send_message:InputBotInlineMessage = InputBotInlineResult;
-inputBotInlineResultGame#efff34f9 flags:# id:string short_name:string send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResultGame#4fa417f2 id:string short_name:string send_message:InputBotInlineMessage = InputBotInlineResult;
 
 botInlineMessageMediaAuto#a74b15b flags:# caption:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
 botInlineMessageText#8c7f65e2 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
@@ -725,7 +725,7 @@ maskCoords#aed6dbb2 n:int x:double y:double zoom:double = MaskCoords;
 inputStickeredMediaPhoto#4a992157 id:InputPhoto = InputStickeredMedia;
 inputStickeredMediaDocument#438865b id:InputDocument = InputStickeredMedia;
 
-game#b351c590 flags:# id:long access_hash:long short_name:string title:string description:string url:string photo:Photo document:flags.0?Document = Game;
+game#bdf9653b flags:# id:long access_hash:long short_name:string title:string description:string photo:Photo document:flags.0?Document = Game;
 
 inputGameID#32c3e77 id:long access_hash:long = InputGame;
 inputGameShortName#c331e80a bot_id:InputUser short_name:string = InputGame;

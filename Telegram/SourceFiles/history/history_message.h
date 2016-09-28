@@ -174,7 +174,7 @@ private:
 	void applyEditionToEmpty();
 
 	bool displayForwardedFrom() const {
-		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {
+		if (auto fwd = Get<HistoryMessageForwarded>()) {
 			return Has<HistoryMessageVia>() || !_media || !_media->isDisplayed() || fwd->_authorOriginal->isChannel() || !_media->hideForwardedFrom();
 		}
 		return false;
@@ -182,11 +182,15 @@ private:
 	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintReplyInfo(Painter &p, QRect &trect, bool selected) const;
-
 	// this method draws "via @bot" if it is not painted in forwarded info or in from name
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
-
 	void paintText(Painter &p, QRect &trect, TextSelection selection) const;
+
+	bool getStateFromName(int x, int y, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateForwardedInfo(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
+	bool getStateReplyInfo(int x, int y, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateViaBotIdInfo(int x, int y, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateText(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
 
 	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);
@@ -222,6 +226,8 @@ private:
 		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
 
 	};
+
+	void updateMediaInBubbleState();
 
 };
 

@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "media/media_audio.h"
 #include "localstorage.h"
+#include "history/history_media_types.h"
 
 namespace {
 	int peerColorIndex(const PeerId &peer) {
@@ -1628,12 +1629,11 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , pendingTill(pendingTill) {
 }
 
-GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, const QString &url, PhotoData *photo, DocumentData *document) : id(id)
+GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document) : id(id)
 , accessHash(accessHash)
 , shortName(shortName)
 , title(title)
 , description(description)
-, url(url)
 , photo(photo)
 , document(document) {
 }

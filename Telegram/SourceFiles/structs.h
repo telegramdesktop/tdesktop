@@ -1368,7 +1368,7 @@ struct WebPageData {
 };
 
 struct GameData {
-	GameData(const GameId &id, const uint64 &accessHash = 0, const QString &shortName = QString(), const QString &title = QString(), const QString &description = QString(), const QString &url = QString(), PhotoData *photo = nullptr, DocumentData *doc = nullptr);
+	GameData(const GameId &id, const uint64 &accessHash = 0, const QString &shortName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = nullptr, DocumentData *doc = nullptr);
 
 	void forget() {
 		if (document) document->forget();
@@ -1377,7 +1377,7 @@ struct GameData {
 
 	GameId id;
 	uint64 accessHash;
-	QString shortName, title, description, url;
+	QString shortName, title, description;
 	PhotoData *photo;
 	DocumentData *document;
 
