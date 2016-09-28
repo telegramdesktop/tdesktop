@@ -113,6 +113,7 @@ std_::unique_ptr<ItemBase> ItemBase::createLayout(Result *result, bool forceThum
 	case Type::Article:
 	case Type::Geo:
 	case Type::Venue: return std_::make_unique<internal::Article>(result, forceThumb); break;
+	case Type::Game: return std_::make_unique<internal::Game>(result); break;
 	case Type::Contact: return std_::make_unique<internal::Contact>(result); break;
 	}
 	return std_::unique_ptr<ItemBase>();

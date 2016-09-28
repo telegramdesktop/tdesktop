@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "inline_bots/inline_bot_layout_item.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
 
 namespace InlineBots {
@@ -76,10 +77,7 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
-	~Gif();
-
 private:
-
 	QSize countFrameSize() const;
 
 	enum class StateFlag {
@@ -92,11 +90,8 @@ private:
 		return ~StateFlags(flag);
 	}
 
-	Media::Clip::Reader *_gif = nullptr;
+	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;
-	bool gif() const {
-		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
-	}
 	mutable QPixmap _thumb;
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
@@ -113,9 +108,9 @@ private:
 		}
 		bool over;
 		FloatAnimation _a_over;
-		RadialAnimation radial;
+		Ui::RadialAnimation radial;
 	};
-	mutable AnimationData *_animation = nullptr;
+	mutable std_::unique_ptr<AnimationData> _animation;
 	mutable FloatAnimation _a_deleteOver;
 
 };
@@ -275,7 +270,7 @@ private:
 		anim::fvalue a_thumbOver;
 		Animation _a_thumbOver;
 
-		RadialAnimation radial;
+		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;
 
@@ -335,6 +330,35 @@ private:
 	int32 _urlWidth;
 
 	void prepareThumb(int width, int height) const;
+
+};
+
+class Game : public ItemBase {
+public:
+	Game(Result *result);
+
+	void setPosition(int32 position) override;
+	void initDimensions() override;
+
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+
+private:
+	void countFrameSize();
+
+	void prepareThumb(int32 width, int32 height) const;
+
+	bool isRadialAnimation(uint64 ms) const;
+	void step_radial(uint64 ms, bool timer);
+
+	void clipCallback(Media::Clip::Notification notification);
+
+	Media::Clip::ReaderPointer _gif;
+	mutable QPixmap _thumb;
+	mutable std_::unique_ptr<Ui::RadialAnimation> _radial;
+	Text _title, _description;
+
+	QSize _frameSize;
 
 };
 

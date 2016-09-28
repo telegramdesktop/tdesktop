@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
 #include "media/media_audio.h"
+#include "history/history_media_types.h"
 
 namespace {
 

@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "layout.h"
 #include "core/click_handler_types.h"
+#include "ui/effects/radial_animation.h"
 
 namespace Overview {
 namespace Layout {
@@ -130,7 +131,7 @@ protected:
 		return false;
 	}
 
-	mutable RadialAnimation *_radial;
+	mutable Ui::RadialAnimation *_radial;
 	anim::fvalue a_iconOver;
 	mutable Animation _a_iconOver;
 

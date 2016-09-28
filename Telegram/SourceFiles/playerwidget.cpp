@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "localstorage.h"
 #include "media/media_audio.h"
+#include "history/history_media_types.h"
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _a_state(animation(this, &PlayerWidget::step_state))

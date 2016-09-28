@@ -78,6 +78,8 @@ public:
 	UserData *bot() const;
 	CreatingGroupType creating() const;
 
+	bool sharingBotGame() const;
+
 	int32 selectedCount() const;
 	bool hasAlreadyMembersInChannel() const {
 		return !_already.isEmpty();
@@ -120,6 +122,9 @@ private:
 	void updateSelectedRow();
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
+
+	template <typename FilterCallback>
+	void addDialogsToList(FilterCallback callback);
 
 	int32 _rowHeight;
 	int _newItemHeight = 0;

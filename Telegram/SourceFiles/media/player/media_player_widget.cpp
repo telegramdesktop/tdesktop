@@ -176,11 +176,14 @@ void Widget::startAnimation() {
 		_cache = myGrab(this);
 	}
 	hideChildren();
-	_a_appearance.start([this]() {
+	_a_appearance.start([this] {
 		update();
-		if (!_a_appearance.animating(getms()) && _hiding) {
-			_hiding = false;
-			hidingFinished();
+
+		// hack, animating() call destroys lambda :(
+		auto that = this;
+		if (!_a_appearance.animating() && that->_hiding) {
+			that->_hiding = false;
+			that->hidingFinished();
 		}
 	}, from, to, st::defaultInnerDropdown.duration);
 }

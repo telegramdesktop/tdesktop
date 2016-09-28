@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/basic_types.h"
 #include "structs.h"
 #include "mtproto/core_types.h"
+#include "history/history_location_manager.h"
 
 namespace InlineBots {
 
@@ -62,7 +63,6 @@ public:
 // Only SendFile and SendPhoto work by their own.
 class SendDataCommon : public SendData {
 public:
-
 	struct SentMTPMessageFields {
 		MTPString text = MTP_string("");
 		MTPVector<MTPMessageEntity> entities = MTPnullEntities;
@@ -99,7 +99,7 @@ private:
 // Message with geo location point media.
 class SendGeo : public SendDataCommon {
 public:
-	SendGeo(const MTPDgeoPoint &point) : _location(point) {
+	explicit SendGeo(const MTPDgeoPoint &point) : _location(point) {
 	}
 
 	bool isValid() const override {
@@ -218,6 +218,26 @@ public:
 private:
 	DocumentData *_document;
 	QString _caption;
+
+};
+
+// Message with game.
+class SendGame : public SendData {
+public:
+	SendGame(GameData *game)
+		: _game(game) {
+	}
+
+	bool isValid() const override {
+		return _game != nullptr;
+	}
+
+	void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+
+private:
+	GameData *_game;
 
 };
 

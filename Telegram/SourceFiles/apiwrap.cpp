@@ -1046,26 +1046,25 @@ void ApiWrap::clearWebPageRequests() {
 
 void ApiWrap::resolveWebPages() {
 	MessageIds ids; // temp_req_id = -1
-	typedef QPair<int32, MessageIds> IndexAndMessageIds;
-	typedef QMap<ChannelData*, IndexAndMessageIds> MessageIdsByChannel;
+	using IndexAndMessageIds = QPair<int32, MessageIds>;
+	using MessageIdsByChannel = QMap<ChannelData*, IndexAndMessageIds>;
 	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
 
-	const WebPageItems &items(App::webPageItems());
+	auto &items = App::webPageItems();
 	ids.reserve(_webPagesPending.size());
 	int32 t = unixtime(), m = INT_MAX;
-	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
 		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
-			WebPageItems::const_iterator j = items.constFind(i.key());
+			auto j = items.constFind(i.key());
 			if (j != items.cend() && !j.value().isEmpty()) {
-				for (HistoryItemsMap::const_iterator it = j.value().cbegin(); it != j.value().cend(); ++it) {
-					HistoryItem *item = j.value().begin().key();
+				for_const (auto item, j.value()) {
 					if (item->id > 0) {
 						if (item->channelId() == NoChannel) {
 							ids.push_back(MTP_int(item->id));
 							i.value() = -1;
 						} else {
-							ChannelData *channel = item->history()->peer->asChannel();
+							auto channel = item->history()->peer->asChannel();
 							MessageIdsByChannel::iterator channelMap = idsByChannel.find(channel);
 							if (channelMap == idsByChannel.cend()) {
 								channelMap = idsByChannel.insert(channel, IndexAndMessageIds(idsByChannel.size(), MessageIds(1, MTP_int(item->id))));
@@ -1083,20 +1082,20 @@ void ApiWrap::resolveWebPages() {
 		}
 	}
 
-	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
-	typedef QVector<mtpRequestId> RequestIds;
+	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages, (ChannelData*)nullptr), RPCFailHandlerPtr(), 0, 5);
+	using RequestIds = QVector<mtpRequestId>;
 	RequestIds reqsByIndex(idsByChannel.size(), 0);
-	for (MessageIdsByChannel::const_iterator i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
+	for (auto i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
 		reqsByIndex[i.value().first] = MTP::send(MTPchannels_GetMessages(i.key()->inputChannel, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages, i.key()), RPCFailHandlerPtr(), 0, 5);
 	}
 	if (req || !reqsByIndex.isEmpty()) {
-		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
-			if (i.value() > 0) continue;
-			if (i.value() < 0) {
-				if (i.value() == -1) {
-					i.value() = req;
+		for (auto &requestId : _webPagesPending) {
+			if (requestId > 0) continue;
+			if (requestId < 0) {
+				if (requestId == -1) {
+					requestId = req;
 				} else {
-					i.value() = reqsByIndex[-i.value() - 2];
+					requestId = reqsByIndex[-requestId - 2];
 				}
 			}
 		}
@@ -1115,21 +1114,21 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	const QVector<MTPMessage> *v = 0;
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const auto &d(msgs.c_messages_messages());
+		auto &d = msgs.c_messages_messages();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const auto &d(msgs.c_messages_messagesSlice());
+		auto &d = msgs.c_messages_messagesSlice();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		auto &d(msgs.c_messages_channelMessages());
+		auto &d = msgs.c_messages_channelMessages();
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
@@ -1152,21 +1151,21 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		}
 	}
 
-	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		if (HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting)) {
+	for_const (auto msgId, msgsIds) {
+		if (auto item = App::histories().addNewMessage(v->at(msgId), NewMessageExisting)) {
 			item->setPendingInitDimensions();
 		}
 	}
 
-	const WebPageItems &items(App::webPageItems());
-	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
+	auto &items = App::webPageItems();
+	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i.value() == req) {
 			if (i.key()->pendingTill > 0) {
 				i.key()->pendingTill = -1;
-				WebPageItems::const_iterator j = items.constFind(i.key());
+				auto j = items.constFind(i.key());
 				if (j != items.cend()) {
-					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-						k.key()->setPendingInitDimensions();
+					for_const (auto item, j.value()) {
+						item->setPendingInitDimensions();
 					}
 				}
 			}

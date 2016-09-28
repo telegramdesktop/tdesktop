@@ -90,5 +90,11 @@ UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
 	history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _document, _caption, markup);
 }
 
+void SendGame::addToHistory(const Result *owner, History *history,
+	MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+	UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
+	history->addNewGame(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _game, markup);
+}
+
 } // namespace internal
 } // namespace InlineBots

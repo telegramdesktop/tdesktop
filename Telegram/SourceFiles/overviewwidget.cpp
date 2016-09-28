@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "playerwidget.h"
 #include "overview/overview_layout.h"
+#include "history/history_media_types.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 

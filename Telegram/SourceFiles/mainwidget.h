@@ -345,6 +345,7 @@ public:
 	void mediaMarkRead(const HistoryItemsMap &items);
 
 	void webPageUpdated(WebPageData *page);
+	void gameUpdated(GameData *game);
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
@@ -419,7 +420,7 @@ signals:
 	void savedGifsUpdated();
 
 public slots:
-	void webPagesUpdate();
+	void webPagesOrGamesUpdate();
 
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
@@ -516,8 +517,9 @@ private:
 	Text _toForwardFrom, _toForwardText;
 	int32 _toForwardNameVersion = 0;
 
-	QMap<WebPageId, bool> _webPagesUpdated;
-	QTimer _webPageUpdater;
+	OrderedSet<WebPageId> _webPagesUpdated;
+	OrderedSet<GameId> _gamesUpdated;
+	QTimer _webPageOrGameUpdater;
 
 	SingleTimer _updateMutedTimer;
 

@@ -74,11 +74,10 @@ public:
 	QString getLayoutTitle() const;
 	QString getLayoutDescription() const;
 
-	~Result();
-
 private:
 	void createPhoto();
 	void createDocument();
+	void createGame();
 
 	enum class Type {
 		Unknown,
@@ -92,6 +91,7 @@ private:
 		Contact,
 		Geo,
 		Venue,
+		Game,
 	};
 
 	friend class internal::SendData;
@@ -112,6 +112,7 @@ private:
 
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
+	GameData *_game = nullptr;
 
 	std_::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
 

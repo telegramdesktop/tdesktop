@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "localstorage.h"
+#include "history/history_media_types.h"
 
 namespace Overview {
 namespace Layout {
@@ -92,7 +93,7 @@ void RadialProgressItem::step_radial(uint64 ms, bool timer) {
 
 void RadialProgressItem::ensureRadial() const {
 	if (!_radial) {
-		_radial = new RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = new Ui::RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
 }
 
@@ -889,13 +890,13 @@ bool Document::updateStatusText() const {
 Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
-	const auto textWithEntities = _parent->originalText();
+	auto textWithEntities = _parent->originalText();
 	QString mainUrl;
 
 	auto text = textWithEntities.text;
 	auto &entities = textWithEntities.entities;
 	int32 from = 0, till = text.size(), lnk = entities.size();
-	for_const (const auto &entity, entities) {
+	for_const (auto &entity, entities) {
 		auto type = entity.type();
 		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			continue;
@@ -909,7 +910,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		const auto &entity = entities.at(lnk);
+		auto &entity = entities.at(lnk);
 		auto type = entity.type();
 		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
 			++lnk;

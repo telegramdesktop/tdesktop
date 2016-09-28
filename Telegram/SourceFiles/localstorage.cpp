@@ -2978,11 +2978,11 @@ public:
 				voice->waveform[0] = -2;
 				voice->wavemax = 0;
 			}
-			const DocumentItems &items(App::documentItems());
-			DocumentItems::const_iterator i = items.constFind(_doc);
+			auto &items = App::documentItems();
+			auto i = items.constFind(_doc);
 			if (i != items.cend()) {
-				for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-					Ui::repaintHistoryItem(j.key());
+				for_const (auto item, i.value()) {
+					Ui::repaintHistoryItem(item);
 				}
 			}
 		}

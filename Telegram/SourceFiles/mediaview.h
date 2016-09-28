@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "dropdown.h"
+#include "ui/effects/radial_animation.h"
 
 namespace Media {
 namespace Clip {
@@ -237,7 +238,7 @@ private:
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
 	QRect _photoRadialRect;
-	RadialAnimation _radial;
+	Ui::RadialAnimation _radial;
 
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview

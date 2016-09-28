@@ -567,12 +567,7 @@ void MediaPreviewWidget::fillEmojiString() {
 }
 
 void MediaPreviewWidget::resetGifAndCache() {
-	if (_gif) {
-		if (gif()) {
-			delete _gif;
-		}
-		_gif = nullptr;
-	}
+	_gif.reset();
 	_cacheStatus = CacheNotLoaded;
 	_cachedSize = QSize();
 }
@@ -592,7 +587,7 @@ QSize MediaPreviewWidget::currentDimensions() const {
 		box = QSize(width() - 2 * st::boxVerticalMargin, height() - 2 * st::boxVerticalMargin);
 	} else {
 		result = _document->dimensions;
-		if (gif() && _gif->ready()) {
+		if (_gif && _gif->ready()) {
 			result = QSize(_gif->width(), _gif->height());
 		}
 		if (_document->sticker()) {
@@ -636,15 +631,15 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		} else {
 			_document->automaticLoad(nullptr);
 			if (_document->loaded()) {
-				if (!_gif && _gif != Media::Clip::BadReader) {
+				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = new Media::Clip::Reader(_document->location(), _document->data(), [this, that](Media::Clip::Notification notification) {
+					that->_gif = Media::Clip::MakeReader(_document->location(), _document->data(), [this, that](Media::Clip::Notification notification) {
 						that->clipCallback(notification);
 					});
-					if (gif()) _gif->setAutoplay();
+					if (_gif) _gif->setAutoplay();
 				}
 			}
-			if (gif() && _gif->started()) {
+			if (_gif && _gif->started()) {
 				QSize s = currentDimensions();
 				return _gif->current(s.width(), s.height(), s.width(), s.height(), getms());
 			}
@@ -681,12 +676,11 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
 	case NotificationReinit: {
-		if (gif() && _gif->state() == State::Error) {
-			delete _gif;
-			_gif = BadReader;
+		if (_gif && _gif->state() == State::Error) {
+			_gif.setBad();
 		}
 
-		if (gif() && _gif->ready() && !_gif->started()) {
+		if (_gif && _gif->ready() && !_gif->started()) {
 			QSize s = currentDimensions();
 			_gif->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None);
 		}
@@ -695,7 +689,7 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case NotificationRepaint: {
-		if (gif() && !_gif->currentDisplayed()) {
+		if (_gif && !_gif->currentDisplayed()) {
 			update();
 		}
 	} break;

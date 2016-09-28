@@ -30,6 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
+#include "history/history_location_manager.h"
+#include "history/history_media_types.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "application.h"
@@ -44,47 +46,51 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace {
 	App::LaunchState _launchState = App::Launched;
 
-	UserData *self = 0;
+	UserData *self = nullptr;
 
-	typedef QHash<PeerId, PeerData*> PeersData;
+	using PeersData = QHash<PeerId, PeerData*>;
 	PeersData peersData;
 
-	typedef QMap<PeerData*, bool> MutedPeers;
+	using MutedPeers = QMap<PeerData*, bool>;
 	MutedPeers mutedPeers;
 
-	typedef QMap<PeerData*, bool> UpdatedPeers;
+	using UpdatedPeers = QMap<PeerData*, bool>;
 	UpdatedPeers updatedPeers;
 
 	PhotosData photosData;
 	DocumentsData documentsData;
 
-	typedef QHash<LocationCoords, LocationData*> LocationsData;
+	using LocationsData = QHash<LocationCoords, LocationData*>;
 	LocationsData locationsData;
 
-	typedef QHash<WebPageId, WebPageData*> WebPagesData;
+	using WebPagesData = QHash<WebPageId, WebPageData*>;
 	WebPagesData webPagesData;
+
+	using GamesData = QHash<GameId, GameData*>;
+	GamesData gamesData;
 
 	PhotoItems photoItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
+	GameItems gameItems;
 	SharedContactItems sharedContactItems;
 	GifItems gifItems;
 
-	typedef OrderedSet<HistoryItem*> DependentItemsSet;
-	typedef QMap<HistoryItem*, DependentItemsSet> DependentItems;
+	using DependentItemsSet = OrderedSet<HistoryItem*>;
+	using DependentItems = QMap<HistoryItem*, DependentItemsSet>;
 	DependentItems dependentItems;
 
 	Histories histories;
 
-	typedef QHash<MsgId, HistoryItem*> MsgsData;
+	using MsgsData = QHash<MsgId, HistoryItem*>;
 	MsgsData msgsData;
-	typedef QMap<ChannelId, MsgsData> ChannelMsgsData;
+	using ChannelMsgsData = QMap<ChannelId, MsgsData>;
 	ChannelMsgsData channelMsgsData;
 
-	typedef QMap<uint64, FullMsgId> RandomData;
+	using RandomData = QMap<uint64, FullMsgId>;
 	RandomData randomData;
 
-	typedef QMap<uint64, QPair<PeerId, QString> > SentData;
+	using SentData = QMap<uint64, QPair<PeerId, QString>>;
 	SentData sentData;
 
 	HistoryItem *hoveredItem = nullptr,
@@ -94,7 +100,7 @@ namespace {
 		*contextItem = nullptr,
 		*mousedItem = nullptr;
 
-	QPixmap *emoji = 0, *emojiLarge = 0;
+	QPixmap *emoji = nullptr, *emojiLarge = nullptr;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -104,19 +110,19 @@ namespace {
 		QPixmap *p[4];
 	};
 	CornersPixmaps corners[RoundCornersCount];
-	typedef QMap<uint32, CornersPixmaps> CornersMap;
+	using CornersMap = QMap<uint32, CornersPixmaps>;
 	CornersMap cornersMap;
-	QImage *cornersMaskLarge[4] = { 0 }, *cornersMaskSmall[4] = { 0 };
+	QImage *cornersMaskLarge[4] = { nullptr }, *cornersMaskSmall[4] = { nullptr };
 
-	typedef QMap<uint64, QPixmap> EmojiMap;
+	using EmojiMap = QMap<uint64, QPixmap>;
 	EmojiMap mainEmojiMap;
 	QMap<int32, EmojiMap> otherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
-	typedef QLinkedList<PhotoData*> LastPhotosList;
+	using LastPhotosList = QLinkedList<PhotoData*>;
 	LastPhotosList lastPhotos;
-	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
+	using LastPhotosMap = QHash<PhotoData*, LastPhotosList::iterator>;
 	LastPhotosMap lastPhotosMap;
 
 	style::color _msgServiceBg;
@@ -1471,7 +1477,7 @@ namespace {
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
-			const auto &d(document.c_document());
+			auto &d = document.c_document();
 			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
@@ -1513,7 +1519,11 @@ namespace {
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
 		}
-		return 0;
+		return nullptr;
+	}
+
+	GameData *feedGame(const MTPDgame &game, GameData *convert) {
+		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
 	}
 
 	UserData *curUser() {
@@ -1753,8 +1763,8 @@ namespace {
 			auto &items = App::documentItems();
 			auto i = items.constFind(result);
 			if (i != items.cend()) {
-				for (auto j = i->cbegin(), e = i->cend(); j != e; ++j) {
-					j.key()->setPendingInitDimensions();
+				for_const (auto item, i.value()) {
+					item->setPendingInitDimensions();
 				}
 			}
 		}
@@ -1762,7 +1772,7 @@ namespace {
 	}
 
 	WebPageData *webPage(const WebPageId &webPage) {
-		WebPagesData::const_iterator i = webPagesData.constFind(webPage);
+		auto i = webPagesData.constFind(webPage);
 		if (i == webPagesData.cend()) {
 			i = webPagesData.insert(webPage, new WebPageData(webPage));
 		}
@@ -1772,7 +1782,7 @@ namespace {
 	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
-				WebPagesData::iterator i = webPagesData.find(convert->id);
+				auto i = webPagesData.find(convert->id);
 				if (i != webPagesData.cend() && i.value() == convert) {
 					webPagesData.erase(i);
 				}
@@ -1780,21 +1790,21 @@ namespace {
 			}
 			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
 				convert->type = toWebPageType(type);
-				convert->url = url;
-				convert->displayUrl = displayUrl;
-				convert->siteName = siteName;
-				convert->title = title;
-				convert->description = description;
+				convert->url = textClean(url);
+				convert->displayUrl = textClean(displayUrl);
+				convert->siteName = textClean(siteName);
+				convert->title = textOneLine(textClean(title));
+				convert->description = textClean(description);
 				convert->photo = photo;
 				convert->document = document;
 				convert->duration = duration;
-				convert->author = author;
+				convert->author = textClean(author);
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
 				convert->pendingTill = pendingTill;
 				if (App::main()) App::main()->webPageUpdated(convert);
 			}
 		}
-		WebPagesData::const_iterator i = webPagesData.constFind(webPage);
+		auto i = webPagesData.constFind(webPage);
 		WebPageData *result;
 		if (i == webPagesData.cend()) {
 			if (convert) {
@@ -1811,15 +1821,15 @@ namespace {
 			if (result != convert) {
 				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
 					result->type = toWebPageType(type);
-					result->url = url;
-					result->displayUrl = displayUrl;
-					result->siteName = siteName;
-					result->title = title;
-					result->description = description;
+					result->url = textClean(url);
+					result->displayUrl = textClean(displayUrl);
+					result->siteName = textClean(siteName);
+					result->title = textOneLine(textClean(title));
+					result->description = textClean(description);
 					result->photo = photo;
 					result->document = document;
 					result->duration = duration;
-					result->author = author;
+					result->author = textClean(author);
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
 					result->pendingTill = pendingTill;
 					if (App::main()) App::main()->webPageUpdated(result);
@@ -1829,8 +1839,62 @@ namespace {
 		return result;
 	}
 
+	GameData *game(const GameId &game) {
+		auto i = gamesData.constFind(game);
+		if (i == gamesData.cend()) {
+			i = gamesData.insert(game, new GameData(game));
+		}
+		return i.value();
+	}
+
+	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document) {
+		if (convert) {
+			if (convert->id != game) {
+				auto i = gamesData.find(convert->id);
+				if (i != gamesData.cend() && i.value() == convert) {
+					gamesData.erase(i);
+				}
+				convert->id = game;
+				convert->accessHash = 0;
+			}
+			if (!convert->accessHash && accessHash) {
+				convert->accessHash = accessHash;
+				convert->shortName = textClean(shortName);
+				convert->title = textOneLine(textClean(title));
+				convert->description = textClean(description);
+				convert->photo = photo;
+				convert->document = document;
+				if (App::main()) App::main()->gameUpdated(convert);
+			}
+		}
+		auto i = gamesData.constFind(game);
+		GameData *result;
+		if (i == gamesData.cend()) {
+			if (convert) {
+				result = convert;
+			} else {
+				result = new GameData(game, accessHash, shortName, title, description, photo, document);
+			}
+			gamesData.insert(game, result);
+		} else {
+			result = i.value();
+			if (result != convert) {
+				if (!result->accessHash && accessHash) {
+					result->accessHash = accessHash;
+					result->shortName = textClean(shortName);
+					result->title = textOneLine(textClean(title));
+					result->description = textClean(description);
+					result->photo = photo;
+					result->document = document;
+					if (App::main()) App::main()->gameUpdated(result);
+				}
+			}
+		}
+		return result;
+	}
+
 	LocationData *location(const LocationCoords &coords) {
-		LocationsData::const_iterator i = locationsData.constFind(coords);
+		auto i = locationsData.constFind(coords);
 		if (i == locationsData.cend()) {
 			i = locationsData.insert(coords, new LocationData(coords));
 		}
@@ -1840,14 +1904,14 @@ namespace {
 	void forgetMedia() {
 		lastPhotos.clear();
 		lastPhotosMap.clear();
-		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
-			i.value()->forget();
+		for_const (auto photo, ::photosData) {
+			photo->forget();
 		}
-		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
-			i.value()->forget();
+		for_const (auto document, ::documentsData) {
+			document->forget();
 		}
-		for (LocationsData::const_iterator i = ::locationsData.cbegin(), e = ::locationsData.cend(); i != e; ++i) {
-			i.value()->thumb->forget();
+		for_const (auto location, ::locationsData) {
+			location->thumb->forget();
 		}
 	}
 
@@ -2040,6 +2104,7 @@ namespace {
 		::photoItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
+		::gameItems.clear();
 		::sharedContactItems.clear();
 		::gifItems.clear();
 		lastPhotos.clear();
@@ -2459,7 +2524,7 @@ namespace {
 	}
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {
-		::photoItems[data].insert(item, NullType());
+		::photoItems[data].insert(item);
 	}
 
 	void unregPhotoItem(PhotoData *data, HistoryItem *item) {
@@ -2475,7 +2540,7 @@ namespace {
 	}
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data].insert(item, NullType());
+		::documentItems[data].insert(item);
 	}
 
 	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
@@ -2491,7 +2556,7 @@ namespace {
 	}
 
 	void regWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data].insert(item, NullType());
+		::webPageItems[data].insert(item);
 	}
 
 	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
@@ -2502,10 +2567,22 @@ namespace {
 		return ::webPageItems;
 	}
 
+	void regGameItem(GameData *data, HistoryItem *item) {
+		::gameItems[data].insert(item);
+	}
+
+	void unregGameItem(GameData *data, HistoryItem *item) {
+		::gameItems[data].remove(item);
+	}
+
+	const GameItems &gameItems() {
+		return ::gameItems;
+	}
+
 	void regSharedContactItem(int32 userId, HistoryItem *item) {
 		auto user = App::userLoaded(userId);
 		auto canShareThisContact = user ? user->canShareThisContact() : false;
-		::sharedContactItems[userId].insert(item, NullType());
+		::sharedContactItems[userId].insert(item);
 		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
 			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserCanShareContact);
 		}
@@ -2544,11 +2621,12 @@ namespace {
 	}
 
 	QString phoneFromSharedContact(int32 userId) {
-		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
+		auto i = ::sharedContactItems.constFind(userId);
 		if (i != ::sharedContactItems.cend() && !i->isEmpty()) {
-			HistoryMedia *media = i->cbegin().key()->getMedia();
-			if (media && media->type() == MediaTypeContact) {
-				return static_cast<HistoryContact*>(media)->phone();
+			if (auto media = (*i->cbegin())->getMedia()) {
+				if (media->type() == MediaTypeContact) {
+					return static_cast<HistoryContact*>(media)->phone();
+				}
 			}
 		}
 		return QString();

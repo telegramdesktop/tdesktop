@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
+#include "history/history_location_manager.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
@@ -112,8 +113,7 @@ void Gif::initDimensions() {
 void Gif::setPosition(int32 position) {
 	ItemBase::setPosition(position);
 	if (_position < 0) {
-		if (gif()) delete _gif;
-		_gif = 0;
+		_gif.reset();
 	}
 }
 
@@ -133,15 +133,15 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	document->automaticLoad(nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
-	if (loaded && !gif() && _gif != Media::Clip::BadReader) {
-		Gif *that = const_cast<Gif*>(this);
-		that->_gif = new Media::Clip::Reader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+	if (loaded && !_gif && !_gif.isBad()) {
+		auto that = const_cast<Gif*>(this);
+		that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
 		});
-		if (gif()) _gif->setAutoplay();
+		if (_gif) _gif->setAutoplay();
 	}
 
-	bool animating = (gif() && _gif->started());
+	bool animating = (_gif && _gif->started());
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
@@ -166,7 +166,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		}
 	}
 
-	if (radial || (!_gif && !loaded && !loading) || (_gif == Media::Clip::BadReader)) {
+	if (radial || _gif.isBad() || (!_gif && !loaded && !loading)) {
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			auto over = _animation->_a_over.current();
@@ -248,7 +248,7 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 }
 
 QSize Gif::countFrameSize() const {
-	bool animating = (gif() && _gif->ready());
+	bool animating = (_gif && _gif->ready());
 	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
@@ -272,11 +272,6 @@ QSize Gif::countFrameSize() const {
 		}
 	}
 	return QSize(framew, frameh);
-}
-
-Gif::~Gif() {
-	if (gif()) deleteAndMark(_gif);
-	deleteAndMark(_animation);
 }
 
 void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
@@ -306,7 +301,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 
 void Gif::ensureAnimation() const {
 	if (!_animation) {
-		_animation = new AnimationData(animation(const_cast<Gif*>(this), &Gif::step_radial));
+		_animation = std_::make_unique<AnimationData>(animation(const_cast<Gif*>(this), &Gif::step_radial));
 	}
 }
 
@@ -324,8 +319,7 @@ void Gif::step_radial(uint64 ms, bool timer) {
 		DocumentData *document = getShownDocument();
 		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
 		if (!_animation->radial.animating() && document->loaded()) {
-			delete _animation;
-			_animation = nullptr;
+			_animation.reset();
 		}
 	}
 }
@@ -334,18 +328,16 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
 	case NotificationReinit: {
-		if (gif()) {
+		if (_gif) {
 			if (_gif->state() == State::Error) {
-				delete _gif;
-				_gif = BadReader;
+				_gif.setBad();
 				getShownDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
 				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
-				delete _gif;
-				_gif = nullptr;
+				_gif.reset();
 				getShownDocument()->forget();
 			}
 		}
@@ -354,7 +346,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case NotificationRepaint: {
-		if (gif() && !_gif->currentDisplayed()) {
+		if (_gif && !_gif->currentDisplayed()) {
 			update();
 		}
 	} break;
@@ -1137,6 +1129,232 @@ void Article::prepareThumb(int width, int height) const {
 		}
 	} else {
 		thumb->load();
+	}
+}
+
+Game::Game(Result *result) : ItemBase(result)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	countFrameSize();
+}
+
+void Game::countFrameSize() {
+	if (auto document = getResultDocument()) {
+		if (document->isAnimation()) {
+			auto documentSize = document->dimensions;
+			if (documentSize.isEmpty()) {
+				documentSize = QSize(st::inlineThumbSize, st::inlineThumbSize);
+			}
+			auto resizeByHeight1 = (documentSize.width() > documentSize.height()) && (documentSize.height() >= st::inlineThumbSize);
+			auto resizeByHeight2 = (documentSize.height() >= documentSize.width()) && (documentSize.width() < st::inlineThumbSize);
+			if (resizeByHeight1 || resizeByHeight2) {
+				if (documentSize.height() > st::inlineThumbSize) {
+					_frameSize = QSize((documentSize.width() * st::inlineThumbSize) / documentSize.height(), st::inlineThumbSize);
+				}
+			} else {
+				if (documentSize.width() > st::inlineThumbSize) {
+					_frameSize = QSize(st::inlineThumbSize, (documentSize.height() * st::inlineThumbSize) / documentSize.width());
+				}
+			}
+			if (!_frameSize.width()) {
+				_frameSize.setWidth(1);
+			}
+			if (!_frameSize.height()) {
+				_frameSize.setHeight(1);
+			}
+		}
+	}
+}
+
+void Game::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (st::inlineThumbSize + st::inlineThumbSkip);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = 2;
+	QString description = _result->getLayoutDescription();
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = titleHeight + descriptionHeight;
+	accumulate_max(_minh, st::inlineThumbSize);
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void Game::setPosition(int32 position) {
+	ItemBase::setPosition(position);
+	if (_position < 0) {
+		_gif.reset();
+	}
+}
+
+void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
+	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
+
+	left = st::inlineThumbSize + st::inlineThumbSkip;
+	auto rthumb = rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width);
+
+	// Gif thumb
+	auto thumbDisplayed = false, radial = false;
+	auto document = getResultDocument();
+	auto animatedThumb = document && document->isAnimation();
+	if (animatedThumb) {
+		document->automaticLoad(nullptr);
+
+		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
+		if (loaded && !_gif && !_gif.isBad()) {
+			auto that = const_cast<Game*>(this);
+			that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+				that->clipCallback(notification);
+			});
+			if (_gif) _gif->setAutoplay();
+		}
+
+		bool animating = (_gif && _gif->started());
+		if (displayLoading) {
+			if (!_radial) {
+				_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<Game*>(this), &Game::step_radial));
+			}
+			if (!_radial->animating()) {
+				_radial->start(document->progress());
+			}
+		}
+		radial = isRadialAnimation(context->ms);
+
+		if (animating) {
+			if (!_thumb.isNull()) _thumb = QPixmap();
+			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, context->paused ? 0 : context->ms);
+			p.drawPixmapLeft(rthumb.topLeft(), _width, animationThumb);
+			thumbDisplayed = true;
+		}
+	}
+
+	if (!thumbDisplayed) {
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		if (_thumb.isNull()) {
+			p.fillRect(rthumb, st::overviewPhotoBg);
+		} else {
+			p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
+		}
+	}
+
+	if (radial) {
+		p.fillRect(rthumb, st::msgDateImgBg);
+		QRect inner((st::inlineThumbSize - st::msgFileSize) / 2, (st::inlineThumbSize - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		if (radial) {
+			p.setOpacity(1);
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_radial->draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
+		}
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = 2;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	if (!context->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void Game::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+	int left = st::inlineThumbSize + st::inlineThumbSkip;
+	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _send;
+		return;
+	}
+	if (x >= left && x < _width && y >= 0 && y < _height) {
+		link = _send;
+		return;
+	}
+}
+
+void Game::prepareThumb(int width, int height) const {
+	auto thumb = ([this]() {
+		if (auto photo = getResultPhoto()) {
+			return photo->medium;
+		} else if (auto document = getResultDocument()) {
+			return document->thumb;
+		}
+		return ImagePtr();
+	})();
+	if (thumb->isNull()) {
+		return;
+	}
+
+	if (thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			auto resizeByHeight1 = (w * height > h * width) && (h >= height);
+			auto resizeByHeight2 = (h * width >= w * height) && (w < width);
+			if (resizeByHeight1 || resizeByHeight2) {
+				if (h > height) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (w > width) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+		}
+	} else {
+		thumb->load();
+	}
+}
+
+bool Game::isRadialAnimation(uint64 ms) const {
+	if (!_radial || !_radial->animating()) return false;
+
+	_radial->step(ms);
+	return _radial && _radial->animating();
+}
+
+void Game::step_radial(uint64 ms, bool timer) {
+	if (timer) {
+		update();
+	} else {
+		auto document = getResultDocument();
+		_radial->update(document->progress(), !document->loading() || document->loaded(), ms);
+		if (!_radial->animating() && document->loaded()) {
+			_radial.reset();
+		}
+	}
+}
+
+void Game::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+	switch (notification) {
+	case NotificationReinit: {
+		if (_gif) {
+			if (_gif->state() == State::Error) {
+				_gif.setBad();
+				getResultDocument()->forget();
+			} else if (_gif->ready() && !_gif->started()) {
+				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None);
+			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
+				_gif.reset();
+				getResultDocument()->forget();
+			}
+		}
+
+		update();
+	} break;
+
+	case NotificationRepaint: {
+		if (_gif && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
 	}
 }
 

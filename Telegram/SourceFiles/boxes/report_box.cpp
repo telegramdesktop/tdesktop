@@ -87,7 +87,7 @@ void ReportBox::onChange() {
 		_reasonOtherText.destroy();
 		updateMaxHeight();
 	}
-	if (App::wnd()) App::wnd()->setInnerFocus();
+	_reasonOtherText->setFocus();
 }
 
 void ReportBox::doSetInnerFocus() {
