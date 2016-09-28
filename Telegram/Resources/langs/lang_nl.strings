@@ -580,6 +580,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "een contact";
 "lng_action_pinned_media_location" = "een locatie";
 "lng_action_pinned_media_sticker" = "een sticker";
+"lng_action_pinned_media_emoji_sticker" = "een {emoji} sticker";
+"lng_action_pinned_media_game" = "een spel «{game}»";
 "lng_action_game_score" = "{from} heeft met {game} {count:#punten|#punt|#punten} behaald";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
@@ -774,6 +776,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_bot_groups_not_found" = "Geen groepen gevonden";
 "lng_bot_sure_invite" = "De bot toevoegen aan  \"{group}\"?";
 "lng_bot_already_in_group" = "Deze bot is al een groepslid.";
+"lng_bot_choose_chat" = "Kies chat";
+"lng_bot_no_chats" = "Je hebt nog geen chats";
+"lng_bot_chats_not_found" = "Geen chats gevonden";
+"lng_bot_sure_share_game" = "Spel met {user} delen?";
+"lng_bot_sure_share_game_group" = "Spel met «{group}» delen?";
 
 "lng_typing" = "aan het typen";
 "lng_user_typing" = "{user} is aan het typen";
@@ -808,6 +815,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Afbeeldingen kiezen";
+"lng_game_tag" = "Spel";
 
 "lng_context_view_profile" = "Profiel weergeven";
 "lng_context_view_group" = "Groepsinformatie weergeven";

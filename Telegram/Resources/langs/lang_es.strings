@@ -580,6 +580,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "un contacto";
 "lng_action_pinned_media_location" = "una ubicación";
 "lng_action_pinned_media_sticker" = "un sticker";
+"lng_action_pinned_media_emoji_sticker" = "un {emoji} sticker";
+"lng_action_pinned_media_game" = "un juego «{game}»";
 "lng_action_game_score" = "{from} ha conseguido {count:# puntos|# punto|# puntos} en {game}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
@@ -774,6 +776,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_bot_groups_not_found" = "No se encontraron grupos";
 "lng_bot_sure_invite" = "¿Añadir el bot a «{group}»?";
 "lng_bot_already_in_group" = "El bot ya es un miembro del grupo.";
+"lng_bot_choose_chat" = "Elige un chat";
+"lng_bot_no_chats" = "No tienes chats";
+"lng_bot_chats_not_found" = "No se encontraron chats";
+"lng_bot_sure_share_game" = "¿Compartir el juego con {user}?";
+"lng_bot_sure_share_game_group" = "¿Compartir el juego en «{group}»?";
 
 "lng_typing" = "escribiendo";
 "lng_user_typing" = "{user} está escribiendo";
@@ -808,6 +815,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Elegir imágenes";
+"lng_game_tag" = "Juego";
 
 "lng_context_view_profile" = "Ver información";
 "lng_context_view_group" = "Ver información";

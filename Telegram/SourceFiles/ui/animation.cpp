@@ -35,11 +35,6 @@ ReaderPointer::~ReaderPointer() {
 	_pointer = nullptr;
 }
 
-class Tmp;
-void f(Tmp *t) {
-	delete t;
-}
-
 } // namespace Clip
 } // namespace Media
 

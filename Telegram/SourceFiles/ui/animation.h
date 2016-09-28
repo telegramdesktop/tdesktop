@@ -77,11 +77,6 @@ private:
 
 };
 
-template <typename ...Args>
-inline ReaderPointer MakeReader(Args&&... args) {
-	return ReaderPointer(new Reader(std_::forward<Args>(args)...));
-}
-
 class Manager;
 
 enum Notification {

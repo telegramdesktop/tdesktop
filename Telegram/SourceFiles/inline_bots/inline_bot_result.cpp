@@ -303,6 +303,10 @@ QString Result::getLayoutDescription() const {
 	return sendData->getLayoutDescription(this);
 }
 
+// just to make unique_ptr see the destructors.
+Result::~Result() {
+}
+
 void Result::createPhoto() {
 	if (_photo) return;
 

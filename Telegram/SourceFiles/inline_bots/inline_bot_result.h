@@ -74,6 +74,8 @@ public:
 	QString getLayoutTitle() const;
 	QString getLayoutDescription() const;
 
+	~Result();
+
 private:
 	void createPhoto();
 	void createDocument();
