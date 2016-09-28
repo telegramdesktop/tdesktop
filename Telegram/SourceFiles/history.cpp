@@ -881,6 +881,10 @@ HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 
 	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, photo, caption, markup);
 }
 
+HistoryItem *History::createItemGame(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, game, markup);
+}
+
 HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, bool newMsg) {
 	return addNewItem(HistoryService::create(this, msgId, date, text, flags), newMsg);
 }
@@ -926,6 +930,10 @@ HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 v
 
 HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
 	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption, markup), true);
+}
+
+HistoryItem *History::addNewGame(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemGame(id, flags, viaBotId, replyTo, date, from, game, markup), true);
 }
 
 bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method) {

@@ -552,6 +552,9 @@ public:
 	bool customInfoLayout() const override {
 		return true;
 	}
+	QString emoji() const {
+		return _emoji;
+	}
 
 private:
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
@@ -560,7 +563,8 @@ private:
 	}
 	QString toString() const;
 
-	int16 _pixw, _pixh;
+	int16 _pixw = 1;
+	int16 _pixh = 1;
 	ClickHandlerPtr _packLink;
 	DocumentData *_data;
 	QString _emoji;
@@ -762,7 +766,6 @@ public:
 	}
 
 	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -792,6 +795,9 @@ public:
 	GameData *game() {
 		return _data;
 	}
+
+	void updateSentMedia(const MTPMessageMedia &media) override;
+	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool needsBubble() const override {
 		return true;

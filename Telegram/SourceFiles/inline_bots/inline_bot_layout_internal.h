@@ -116,7 +116,7 @@ private:
 		FloatAnimation _a_over;
 		Ui::RadialAnimation radial;
 	};
-	mutable AnimationData *_animation = nullptr;
+	mutable std_::unique_ptr<AnimationData> _animation;
 	mutable FloatAnimation _a_deleteOver;
 
 };
@@ -336,6 +336,40 @@ private:
 	int32 _urlWidth;
 
 	void prepareThumb(int width, int height) const;
+
+};
+
+class Game : public ItemBase {
+public:
+	Game(Result *result);
+
+	void setPosition(int32 position) override;
+	void initDimensions() override;
+
+	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+
+	~Game();
+
+private:
+	void countFrameSize();
+
+	bool gif() const {
+		return (!_gif || _gif == Media::Clip::BadReader) ? false : true;
+	}
+	void prepareThumb(int32 width, int32 height) const;
+
+	bool isRadialAnimation(uint64 ms) const;
+	void step_radial(uint64 ms, bool timer);
+
+	void clipCallback(Media::Clip::Notification notification);
+
+	Media::Clip::Reader *_gif = nullptr;
+	mutable QPixmap _thumb;
+	mutable std_::unique_ptr<Ui::RadialAnimation> _radial;
+	Text _title, _description;
+
+	QSize _frameSize;
 
 };
 

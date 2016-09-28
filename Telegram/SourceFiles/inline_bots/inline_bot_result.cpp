@@ -47,6 +47,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		result->insert(qsl("contact"), Result::Type::Contact);
 		result->insert(qsl("venue"), Result::Type::Venue);
 		result->insert(qsl("geo"), Result::Type::Geo);
+		result->insert(qsl("game"), Result::Type::Game);
 		return result.release();
 	})() };
 
@@ -122,6 +123,9 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
 			result->sendData.reset(new internal::SendPhoto(result->_photo, qs(r.vcaption)));
+		} else if (result->_type == Type::Game) {
+			result->createGame();
+			result->sendData.reset(new internal::SendGame(result->_game));
 		} else {
 			result->createDocument();
 			result->sendData.reset(new internal::SendFile(result->_document, qs(r.vcaption)));
@@ -313,15 +317,13 @@ void Result::createPhoto() {
 	ImagePtr medium = ImagePtr(mediumsize.width(), mediumsize.height());
 
 	ImagePtr full = ImagePtr(_content_url, _width, _height);
-	uint64 photoId = rand_value<uint64>();
+	auto photoId = rand_value<PhotoId>();
 	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, full);
 	_photo->thumb = _thumb;
 }
 
 void Result::createDocument() {
 	if (_document) return;
-
-	uint64 docId = rand_value<uint64>();
 
 	if (!_thumb_url.isEmpty()) {
 		_thumb = ImagePtr(_thumb_url, QSize(90, 90));
@@ -352,16 +354,16 @@ void Result::createDocument() {
 		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTPbytes()));
 	}
 
-	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(0), MTP_photoSizeEmpty(MTP_string("")), MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
-
-	_document = App::feedDocument(document);
+	auto documentId = rand_value<DocumentId>();
+	_document = App::documentSet(documentId, nullptr, 0, 0, unixtime(), attributes, mime, _thumb, MTP::maindc(), 0, StorageImageLocation());
 	_document->setContentUrl(_content_url);
-	if (!_thumb->isNull()) {
-		_document->thumb = _thumb;
-	}
 }
 
-Result::~Result() {
+void Result::createGame() {
+	if (_game) return;
+
+	auto gameId = rand_value<GameId>();
+	_game = App::gameSet(gameId, nullptr, 0, QString(), _title, _description, _photo, _document);
 }
 
 } // namespace InlineBots

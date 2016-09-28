@@ -47,7 +47,8 @@ class ShareBox : public ItemListBox, public RPCSender {
 public:
 	using CopyCallback = base::lambda_unique<void()>;
 	using SubmitCallback = base::lambda_unique<void(const QVector<PeerData*> &)>;
-	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback);
+	using FilterCallback = base::lambda_unique<bool(PeerData*)>;
+	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
 
 private slots:
 	void onFilterUpdate();
@@ -112,7 +113,7 @@ class ShareInner : public ScrolledWidget, public RPCSender, private base::Subscr
 	Q_OBJECT
 
 public:
-	ShareInner(QWidget *parent);
+	ShareInner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
@@ -197,6 +198,7 @@ private:
 	int _active = -1;
 	int _upon = -1;
 
+	ShareBox::FilterCallback _filterCallback;
 	std_::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;

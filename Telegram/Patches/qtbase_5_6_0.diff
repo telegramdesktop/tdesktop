@@ -47,6 +47,20 @@ index 14e4fd1..c31c62b 100644
      { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
+diff --git a/src/gui/kernel/qhighdpiscaling.cpp b/src/gui/kernel/qhighdpiscaling.cpp
+index b0ef2a2..7d5f7bc 100644
+--- a/src/gui/kernel/qhighdpiscaling.cpp
++++ b/src/gui/kernel/qhighdpiscaling.cpp
+@@ -51,6 +51,9 @@ static const char screenFactorsEnvVar[] = "QT_SCREEN_SCALE_FACTORS";
+ 
+ static inline qreal initialGlobalScaleFactor()
+ {
++    // Disable environment variable dpi scaling changing.
++    // It is not supported by Telegram Desktop :(
++    return 1.;
+ 
+     qreal result = 1;
+     if (qEnvironmentVariableIsSet(scaleFactorEnvVar)) {
 diff --git a/src/gui/kernel/qplatformdialoghelper.h b/src/gui/kernel/qplatformdialoghelper.h
 index 5b2f4ec..346a26f 100644
 --- a/src/gui/kernel/qplatformdialoghelper.h

@@ -69,7 +69,7 @@ inline void initTextOptions() {
 
 bool needReSetInlineResultDocument(const MTPMessageMedia &media, DocumentData *existing) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		if (DocumentData *document = App::feedDocument(media.c_messageMediaDocument().vdocument)) {
+		if (auto document = App::feedDocument(media.c_messageMediaDocument().vdocument)) {
 			if (document == existing) {
 				return false;
 			} else {
@@ -1964,8 +1964,6 @@ private:
 } // namespace
 
 HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : HistoryMedia(parent)
-, _pixw(1)
-, _pixh(1)
 , _data(document)
 , _emoji(_data->sticker()->alt) {
 	_data->thumb->load();
@@ -3103,11 +3101,12 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
 		auto pixwidth = _attach->currentWidth();
+		auto pixheight = _attach->height();
 
-		auto gameX = st::msgDateImgDelta;
-		auto gameY = st::msgDateImgDelta;
 		auto gameW = _gameTagWidth + 2 * st::msgDateImgPadding.x();
 		auto gameH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+		auto gameX = pixwidth - st::msgDateImgDelta - gameW;
+		auto gameY = pixheight - st::msgDateImgDelta - gameH;
 
 		App::roundRect(p, rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 
@@ -3214,12 +3213,25 @@ void HistoryGame::detachFromParent() {
 	if (_attach) _attach->detachFromParent();
 }
 
-QString HistoryGame::notificationText() const {
-	return _data->title;
+void HistoryGame::updateSentMedia(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaGame) {
+		auto &game = media.c_messageMediaGame().vgame;
+		if (game.type() == mtpc_game) {
+			App::feedGame(game.c_game(), _data);
+		}
+	}
 }
 
-QString HistoryGame::inDialogsText() const {
-	return textcmdLink(1, _data->title);
+bool HistoryGame::needReSetInlineResultMedia(const MTPMessageMedia &media) {
+	updateSentMedia(media);
+	return false;
+}
+
+QString HistoryGame::notificationText() const {
+	QString result; // add a game controller emoji before game title
+	result.reserve(_data->title.size() + 3);
+	result.append(QChar(0xD83C)).append(QChar(0xDFAE)).append(QChar(' ')).append(_data->title);
+	return result;
 }
 
 TextWithEntities HistoryGame::selectedText(TextSelection selection) const {

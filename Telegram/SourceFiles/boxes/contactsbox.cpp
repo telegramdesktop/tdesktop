@@ -86,6 +86,17 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 	init();
 }
 
+template <typename FilterCallback>
+void ContactsInner::addDialogsToList(FilterCallback callback) {
+	auto v = App::main()->dialogsList();
+	for_const (auto row, *v) {
+		auto peer = row->history()->peer;
+		if (callback(peer)) {
+			_contacts->addToEnd(row->history());
+		}
+	}
+}
+
 ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
@@ -93,14 +104,25 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
-	auto v = App::main()->dialogsList();
-	for_const (auto row, *v) {
-		auto peer = row->history()->peer;
-		if (peer->isChat() && peer->asChat()->canEdit()) {
-			_contacts->addToEnd(row->history());
-		} else if (peer->isMegagroup() && (peer->asChannel()->amCreator() || peer->asChannel()->amEditor())) {
-			_contacts->addToEnd(row->history());
-		}
+	if (sharingBotGame()) {
+		addDialogsToList([](PeerData *peer) {
+			if (peer->canWrite()) {
+				if (auto channel = peer->asChannel()) {
+					return !channel->isBroadcast();
+				}
+				return true;
+			}
+			return false;
+		});
+	} else {
+		addDialogsToList([](PeerData *peer) {
+			if (peer->isChat() && peer->asChat()->canEdit()) {
+				return true;
+			} else if (peer->isMegagroup() && (peer->asChannel()->amCreator() || peer->asChannel()->amEditor())) {
+				return true;
+			}
+			return false;
+		});
 	}
 	init();
 }
@@ -166,8 +188,22 @@ void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &old
 }
 
 void ContactsInner::onAddBot() {
-	if (_bot->botInfo && !_bot->botInfo->startGroupToken.isEmpty()) {
-		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+	if (auto &info = _bot->botInfo) {
+		if (!info->shareGameShortName.isEmpty()) {
+			MTPmessages_SendMedia::Flags sendFlags = 0;
+
+			auto history = App::historyLoaded(_addToPeer);
+			auto afterRequestId = history ? history->sendRequestId : 0;
+			auto randomId = rand_value<uint64>();
+			auto requestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _addToPeer->input, MTP_int(0), MTP_inputMediaGame(MTP_inputGameShortName(_bot->inputUser, MTP_string(info->shareGameShortName))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, afterRequestId);
+			if (history) {
+				history->sendRequestId = requestId;
+			}
+		} else if (!info->startGroupToken.isEmpty()) {
+			MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(info->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+		} else {
+			App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
+		}
 	} else {
 		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}
@@ -511,7 +547,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 			QString text;
 			int32 skip = 0;
 			if (bot()) {
-				text = lang(cDialogsReceived() ? lng_bot_no_groups : lng_contacts_loading);
+				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilterAdmins) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
@@ -538,7 +574,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::noContactsColor->p);
 			QString text;
 			if (bot()) {
-				text = lang(cDialogsReceived() ? lng_bot_groups_not_found : lng_contacts_loading);
+				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilterAdmins) {
 				text = lang(_chat->participants.isEmpty() ? lng_contacts_loading : lng_contacts_not_found);
 			} else {
@@ -702,11 +738,22 @@ void ContactsInner::chooseParticipant() {
 				connect(_addAdminBox, SIGNAL(confirmed()), this, SLOT(onAddAdmin()));
 				connect(_addAdminBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoAddAdminBox(QObject*)));
 				Ui::showLayer(_addAdminBox, KeepOtherLayers);
+			} else if (sharingBotGame()) {
+				_addToPeer = peer;
+				auto confirmText = [peer] {
+					if (peer->isUser()) {
+						return lng_bot_sure_share_game(lt_user, App::peerName(peer));
+					}
+					return lng_bot_sure_share_game_group(lt_group, peer->name);
+				};
+				auto box = std_::make_unique<ConfirmBox>(confirmText());
+				connect(box.get(), SIGNAL(confirmed()), this, SLOT(onAddBot()));
+				Ui::showLayer(box.release(), KeepOtherLayers);
 			} else if (bot() && (peer->isChat() || peer->isMegagroup())) {
 				_addToPeer = peer;
-				ConfirmBox *box = new ConfirmBox(lng_bot_sure_invite(lt_group, peer->name));
-				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
-				Ui::showLayer(box, KeepOtherLayers);
+				auto box = std_::make_unique<ConfirmBox>(lng_bot_sure_invite(lt_group, peer->name));
+				connect(box.get(), SIGNAL(confirmed()), this, SLOT(onAddBot()));
+				Ui::showLayer(box.release(), KeepOtherLayers);
 			} else {
 				Ui::hideSettingsAndLayer(true);
 				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
@@ -899,7 +946,7 @@ void ContactsInner::updateFilter(QString filter) {
 			_mouseSel = false;
 			refresh();
 
-			if (!bot() && (!_chat || _membersFilter != MembersFilterAdmins)) {
+			if ((!bot() || sharingBotGame()) && (!_chat || _membersFilter != MembersFilterAdmins)) {
 				_searching = true;
 				emit searchByUsername();
 			}
@@ -965,6 +1012,15 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 					}
 				} else {
 					continue; // skip
+				}
+			} else if (sharingBotGame()) {
+				if (!p->canWrite()) {
+					continue;
+				}
+				if (auto channel = p->asChannel()) {
+					if (channel->isBroadcast()) {
+						continue;
+					}
 				}
 			}
 
@@ -1032,6 +1088,10 @@ UserData *ContactsInner::bot() const {
 	return _bot;
 }
 
+bool ContactsInner::sharingBotGame() const {
+	return (_bot && _bot->botInfo) ? !_bot->botInfo->shareGameShortName.isEmpty() : false;
+}
+
 CreatingGroupType ContactsInner::creating() const {
 	return _creating;
 }
@@ -1040,8 +1100,11 @@ ContactsInner::~ContactsInner() {
 	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 		delete *i;
 	}
-	if (_bot || (_chat && _membersFilter == MembersFilterAdmins)) {
-		if (_bot && _bot->botInfo) _bot->botInfo->startGroupToken = QString();
+	if (_bot) {
+		if (auto &info = _bot->botInfo) {
+			info->startGroupToken = QString();
+			info->shareGameShortName = QString();
+		}
 	}
 }
 
@@ -1499,6 +1562,8 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
 		QString additional((addingAdmin || (_inner.channel() && !_inner.channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
 		paintTitle(p, title, additional);
+	} else if (_inner.sharingBotGame()) {
+		paintTitle(p, lang(lng_bot_choose_chat));
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group));
 	} else {

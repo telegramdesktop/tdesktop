@@ -32,11 +32,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
+#include "history/history_media_types.h"
 
-ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback) : ItemListBox(st::boxScroll)
+ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback) : ItemListBox(st::boxScroll)
 , _copyCallback(std_::move(copyCallback))
 , _submitCallback(std_::move(submitCallback))
-, _inner(this)
+, _inner(this, std_::move(filterCallback))
 , _filter(this, st::boxSearchField, lang(lng_participant_filter))
 , _filterCancel(this, st::boxSearchCancel)
 , _copy(this, lang(lng_share_copy_link), st::defaultBoxButton)
@@ -241,7 +242,8 @@ void ShareBox::onScroll() {
 
 namespace internal {
 
-ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
+ShareInner::ShareInner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : ScrolledWidget(parent)
+, _filterCallback(std_::move(filterCallback))
 , _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
@@ -250,7 +252,7 @@ ShareInner::ShareInner(QWidget *parent) : ScrolledWidget(parent)
 	auto dialogs = App::main()->dialogsList();
 	for_const (auto row, dialogs->all()) {
 		auto history = row->history();
-		if (history->peer->canWrite()) {
+		if (_filterCallback(history->peer)) {
 			_chatsIndexed->addToEnd(history);
 		}
 	}
@@ -863,7 +865,7 @@ void ShareInner::peopleReceived(const QString &query, const QVector<MTPPeer> &pe
 		}
 		if (j == already) {
 			auto *peer = App::peer(peerId);
-			if (!peer || !peer->canWrite()) continue;
+			if (!peer || !_filterCallback(peer)) continue;
 
 			auto chat = new Chat(peer);
 			updateChatName(chat, peer);
@@ -958,24 +960,15 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		if (auto main = App::main()) {
 			if (auto item = App::histItemById(data->msgId)) {
 				if (auto bot = item->getMessageBot()) {
-					if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-						for (int i = 0, rowsCount = markup->rows.size(); i != rowsCount; ++i) {
-							auto &row = markup->rows[i];
-							for (int j = 0, buttonsCount = row.size(); j != buttonsCount; ++j) {
-								auto &button = row[j];
-								if (button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
-									auto strData = QString::fromUtf8(button.data);
-									auto parts = strData.split(',');
-									t_assert(parts.size() > 1);
+					if (auto media = item->getMedia()) {
+						if (media->type() == MediaTypeGame) {
+							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
 
-									QApplication::clipboard()->setText(qsl("https://telegram.me/") + bot->username + qsl("?start=") + parts[1]);
+							QApplication::clipboard()->setText(qsl("https://telegram.me/") + bot->username + qsl("?game=") + shortName);
 
-									Ui::Toast::Config toast;
-									toast.text = lang(lng_share_game_link_copied);
-									Ui::Toast::Show(App::wnd(), toast);
-									return;
-								}
-							}
+							Ui::Toast::Config toast;
+							toast.text = lang(lng_share_game_link_copied);
+							Ui::Toast::Show(App::wnd(), toast);
 						}
 					}
 				}
@@ -1015,7 +1008,16 @@ void shareGameScoreFromItem(HistoryItem *item) {
 			}
 		}
 	};
-	Ui::showLayer(new ShareBox(std_::move(copyCallback), std_::move(submitCallback)));
+	auto filterCallback = [](PeerData *peer) {
+		if (peer->canWrite()) {
+			if (auto channel = peer->asChannel()) {
+				return !channel->isBroadcast();
+			}
+			return true;
+		}
+		return false;
+	};
+	Ui::showLayer(new ShareBox(std_::move(copyCallback), std_::move(submitCallback), std_::move(filterCallback)));
 }
 
 } // namespace

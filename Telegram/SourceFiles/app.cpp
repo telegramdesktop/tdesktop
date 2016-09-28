@@ -1856,8 +1856,9 @@ namespace {
 					gamesData.erase(i);
 				}
 				convert->id = game;
+				convert->accessHash = 0;
 			}
-			if (convert->shortName.isEmpty() && !shortName.isEmpty()) {
+			if (!convert->accessHash && accessHash) {
 				convert->accessHash = accessHash;
 				convert->shortName = textClean(shortName);
 				convert->title = textOneLine(textClean(title));
@@ -1879,7 +1880,7 @@ namespace {
 		} else {
 			result = i.value();
 			if (result != convert) {
-				if (result->shortName.isEmpty() && !shortName.isEmpty()) {
+				if (!result->accessHash && accessHash) {
 					result->accessHash = accessHash;
 					result->shortName = textClean(shortName);
 					result->title = textOneLine(textClean(title));

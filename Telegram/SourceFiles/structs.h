@@ -163,6 +163,7 @@ constexpr const MsgId ShowAtTheEndMsgId = -0x40000000;
 constexpr const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
 constexpr const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
 constexpr const MsgId ShowAndStartBotMsgId = -0x3FFFFFD;
+constexpr const MsgId ShowAtGameShareMsgId = -0x3FFFFFC;
 constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 constexpr const MsgId ShowAtUnreadMsgId = 0;
 
@@ -385,7 +386,7 @@ struct BotInfo {
 	QList<BotCommand> commands;
 	Text text = Text{ int(st::msgMinWidth) }; // description
 
-	QString startToken, startGroupToken;
+	QString startToken, startGroupToken, shareGameShortName;
 	PeerId inlineReturnPeerId = 0;
 };
 
@@ -1141,7 +1142,7 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
-		return (type == SongDocument) ? !static_cast<SongData*>(_additional.get())->title.isEmpty() : false;
+		return (type == SongDocument) ? (static_cast<SongData*>(_additional.get())->duration != 0) : false;
 	}
 	bool isVideo() const {
 		return (type == VideoDocument);

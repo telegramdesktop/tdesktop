@@ -221,5 +221,25 @@ private:
 
 };
 
+// Message with game.
+class SendGame : public SendData {
+public:
+	SendGame(GameData *game)
+		: _game(game) {
+	}
+
+	bool isValid() const override {
+		return _game != nullptr;
+	}
+
+	void addToHistory(const Result *owner, History *history,
+		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
+		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+
+private:
+	GameData *_game;
+
+};
+
 } // namespace internal
 } // namespace InlineBots

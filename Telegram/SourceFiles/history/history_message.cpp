@@ -49,7 +49,7 @@ MediaOverviewType messageMediaToOverviewType(HistoryMedia *media) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
 	case MediaTypeFile: return OverviewFiles;
-	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewFiles;
+	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewCount;
 	case MediaTypeVoiceFile: return OverviewVoiceFiles;
 	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
 	default: break;
@@ -462,6 +462,14 @@ HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags
 	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
 	_media.reset(new HistoryPhoto(this, photo, caption));
+	setText(TextWithEntities());
+}
+
+HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup)
+	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+	createComponentsHelper(flags, replyTo, viaBotId, markup);
+
+	_media.reset(new HistoryGame(this, game));
 	setText(TextWithEntities());
 }
 
@@ -1899,7 +1907,7 @@ bool HistoryService::preparePinnedText(const QString &from, QString *outText, Li
 	ClickHandlerPtr second;
 	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
-		HistoryMedia *media = pinned->msg->getMedia();
+		auto media = pinned->msg->getMedia();
 		QString mediaText;
 		switch (media ? media->type() : MediaTypeCount) {
 		case MediaTypePhoto: mediaText = lang(lng_action_pinned_media_photo); break;
@@ -1907,10 +1915,21 @@ bool HistoryService::preparePinnedText(const QString &from, QString *outText, Li
 		case MediaTypeContact: mediaText = lang(lng_action_pinned_media_contact); break;
 		case MediaTypeFile: mediaText = lang(lng_action_pinned_media_file); break;
 		case MediaTypeGif: mediaText = lang(lng_action_pinned_media_gif); break;
-		case MediaTypeSticker: mediaText = lang(lng_action_pinned_media_sticker); break;
+		case MediaTypeSticker: {
+			auto emoji = static_cast<HistorySticker*>(media)->emoji();
+			if (emoji.isEmpty()) {
+				mediaText = lang(lng_action_pinned_media_sticker);
+			} else {
+				mediaText = lng_action_pinned_media_emoji_sticker(lt_emoji, emoji);
+			}
+		} break;
 		case MediaTypeLocation: mediaText = lang(lng_action_pinned_media_location); break;
 		case MediaTypeMusicFile: mediaText = lang(lng_action_pinned_media_audio); break;
 		case MediaTypeVoiceFile: mediaText = lang(lng_action_pinned_media_voice); break;
+		case MediaTypeGame: {
+			auto title = static_cast<HistoryGame*>(media)->game()->title;
+			mediaText = lng_action_pinned_media_game(lt_game, title);
+		} break;
 		}
 		if (mediaText.isEmpty()) {
 			QString original = pinned->msg->originalText().text;

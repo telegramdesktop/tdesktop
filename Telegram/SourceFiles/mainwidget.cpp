@@ -3349,7 +3349,7 @@ void MainWidget::openLocalUrl(const QString &url) {
 	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
 		auto domain = params.value(qsl("domain"));
-		if (auto domainMatch = regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+		if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
 			auto start = qsl("start");
 			auto startToken = params.value(start);
 			if (startToken.isEmpty()) {
@@ -3364,6 +3364,11 @@ void MainWidget::openLocalUrl(const QString &url) {
 			if (auto postId = postParam.toInt()) {
 				post = postId;
 			}
+			auto gameParam = params.value(qsl("game"));
+			if (!gameParam.isEmpty() && regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), gameParam, matchOptions)) {
+				startToken = gameParam;
+				post = ShowAtGameShareMsgId;
+			}
 			openPeerByName(domain, post, startToken);
 		}
 	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
@@ -3377,7 +3382,14 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 
 	PeerData *peer = App::peerByName(username);
 	if (peer) {
-		if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
+		if (msgId == ShowAtGameShareMsgId) {
+			if (peer->isUser() && peer->asUser()->botInfo && !startToken.isEmpty()) {
+				peer->asUser()->botInfo->shareGameShortName = startToken;
+				Ui::showLayer(new ContactsBox(peer->asUser()));
+			} else {
+				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+			}
+		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
 				Ui::showLayer(new ContactsBox(peer->asUser()));

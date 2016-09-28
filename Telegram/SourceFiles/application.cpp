@@ -650,9 +650,17 @@ namespace Sandbox {
 			cSetScreenScale(dbisTwo);
 		}
 
-		if (application()->devicePixelRatio() > 1) {
+		auto devicePixelRatio = application()->devicePixelRatio();
+		if (devicePixelRatio > 1.) {
+			if ((cPlatform() != dbipMac && cPlatform() != dbipMacOld) || (devicePixelRatio != 2.)) {
+				LOG(("Found non-trivial Device Pixel Ratio: %1").arg(devicePixelRatio));
+				LOG(("Environmental variables: QT_DEVICE_PIXEL_RATIO='%1'").arg(QString::fromLatin1(qgetenv("QT_DEVICE_PIXEL_RATIO"))));
+				LOG(("Environmental variables: QT_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_SCALE_FACTOR"))));
+				LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
+				LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
+			}
 			cSetRetina(true);
-			cSetRetinaFactor(application()->devicePixelRatio());
+			cSetRetinaFactor(devicePixelRatio);
 			cSetIntRetinaFactor(int32(cRetinaFactor()));
 			cSetConfigScale(dbisOne);
 			cSetRealScale(dbisOne);
