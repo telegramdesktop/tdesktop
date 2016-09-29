@@ -581,8 +581,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_location" = "una posizione";
 "lng_action_pinned_media_sticker" = "uno sticker";
 "lng_action_pinned_media_emoji_sticker" = "uno {emoji} sticker";
-"lng_action_pinned_media_game" = "un gioco «{game}»";
-"lng_action_game_score" = "{from} ha segnato {count:# punti|# punto|# punti} a {game}";
+"lng_action_pinned_media_game" = "il gioco «{game}»";
+"lng_action_game_score" = "{from} ha totalizzato {count:# punti|# punto|# punti} a {game}";
+"lng_action_game_you_scored" = "Hai totalizzato {count:# punti|# punto|# punti} a {game}";
 
 "lng_profile_migrate_reached" = "Limite di {count:_not_used_|# membro|# membri} raggiunto";
 "lng_profile_migrate_body" = "Per superare questo limite, puoi aggiornare il gruppo a supergruppo.";

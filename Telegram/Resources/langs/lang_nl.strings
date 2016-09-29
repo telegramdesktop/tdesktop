@@ -581,8 +581,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_location" = "een locatie";
 "lng_action_pinned_media_sticker" = "een sticker";
 "lng_action_pinned_media_emoji_sticker" = "een {emoji} sticker";
-"lng_action_pinned_media_game" = "een spel «{game}»";
-"lng_action_game_score" = "{from} heeft met {game} {count:#punten|#punt|#punten} behaald";
+"lng_action_pinned_media_game" = "het spel «{game}»";
+"lng_action_game_score" = "{from} heeft met {game} {count:# punten|# punt|# punten} behaald";
+"lng_action_game_you_scored" = "Je hebt met {game} {count:# punten|# punt|# punten} behaald";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
 "lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
