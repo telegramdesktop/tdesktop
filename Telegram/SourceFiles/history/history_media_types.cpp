@@ -2560,7 +2560,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 		return _height;
 	}
 
-	_width = qMin(width, _maxw);
+	_width = width = qMin(width, _maxw);
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	int32 linesMax = 5;
@@ -2659,10 +2659,10 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
+	width -= padding.left() + padding.right();
 	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right())) {
 		bshift += bottomInfoPadding();
 	}
-	width -= padding.left() + padding.right();
 
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);
@@ -2994,7 +2994,7 @@ void HistoryGame::initDimensions() {
 }
 
 int HistoryGame::resizeGetHeight(int width) {
-	_width = qMin(width, _maxw);
+	_width = width = qMin(width, _maxw);
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	// enable any count of lines in game description / message
@@ -3056,10 +3056,10 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
+	width -= padding.left() + padding.right();
 	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
-	width -= padding.left() + padding.right();
 
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);

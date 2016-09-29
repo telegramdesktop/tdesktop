@@ -1007,7 +1007,7 @@ msgInvDblCheckImg: sprite(300px, 65px, 20px, 20px);
 msgInvViewsImg: sprite(104px, 59px, 16px, 11px);
 msgInvSendingViewsImg: sprite(104px, 114px, 16px, 11px);
 
-msgDateSpace: 19px;
+msgDateSpace: 12px;
 msgDateCheckSpace: 4px;
 msgDateViewsSpace: 11px;
 msgDateDelta: point(2px, 5px);

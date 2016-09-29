@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <stdint.h>
+
 // we copy some parts of C++11/14/17 std:: library, because on OS X 10.6+
 // version we can use C++11/14/17, but we can not use its library :(
 namespace std_ {
@@ -204,11 +206,13 @@ public:
 	}
 
 	T *release() noexcept {
-		return getPointerAndReset(_p);
+		auto old = _p;
+		_p = nullptr;
+		return old;
 	}
 
 	void reset(T *p = nullptr) noexcept {
-		T *old = _p;
+		auto old = _p;
 		_p = p;
 		if (old) {
 			delete old;
@@ -260,9 +264,12 @@ struct is_base_of {
 	static constexpr bool value = sizeof(check(_host<Base, Derived>(), int())) == sizeof(_yes);
 };
 
-#ifndef OS_MAC_OLD
 inline void *align(size_t alignment, size_t size, void*& ptr, size_t& space) noexcept {
-	auto p = reinterpret_cast<std::uintptr_t>(ptr);
+#ifndef OS_MAC_OLD
+	using std::uintptr_t;
+#endif // OS_MAC_OLD
+
+	auto p = reinterpret_cast<uintptr_t>(ptr);
 	auto a = (p - 1u + alignment) & -alignment;
 	auto d = a - p;
 	if ((size + d) > space) {
@@ -271,6 +278,5 @@ inline void *align(size_t alignment, size_t size, void*& ptr, size_t& space) noe
 	space -= d;
 	return ptr = reinterpret_cast<void*>(a);
 }
-#endif // OS_MAC_OLD
 
 } // namespace std_

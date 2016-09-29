@@ -1976,7 +1976,8 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 		auto getGameTitle = [item = gamescore->msg, &second]()->QString {
 			if (auto media = item->getMedia()) {
 				if (media->type() == MediaTypeGame) {
-					return static_cast<HistoryGame*>(media)->game()->title;
+					second = MakeShared<ReplyMarkupClickHandler>(item, 0, 0);
+					return textcmdLink(2, static_cast<HistoryGame*>(media)->game()->title);
 				}
 			}
 			return lang(lng_deleted_message);
