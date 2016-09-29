@@ -431,9 +431,9 @@ public:
 		return result;
 	}
 	MsgId overviewMinId(int32 overviewIndex) const {
-		for (MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
-			if (i.key() > 0) {
-				return i.key();
+		for_const (auto msgId, overviewIds[overviewIndex]) {
+			if (msgId > 0) {
+				return msgId;
 			}
 		}
 		return 0;
@@ -525,7 +525,7 @@ private:
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
 
-	typedef QMap<MsgId, NullType> MediaOverviewIds;
+	using MediaOverviewIds = OrderedSet<MsgId>;
 	MediaOverviewIds overviewIds[OverviewCount];
 	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 

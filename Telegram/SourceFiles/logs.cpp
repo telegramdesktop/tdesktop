@@ -19,10 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "logs.h"
 
 #include <signal.h>
+#include <new>
+
 #include "pspecific.h"
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
@@ -736,6 +737,22 @@ namespace internal {
 
 namespace internal {
 
+	struct SomeAllocatedMemoryChunk {
+		char data[1024 * 1024];
+	};
+	std_::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
+
+	void OperatorNewHandler() {
+		std::set_new_handler(nullptr);
+		SomeAllocatedMemory.reset();
+		t_assert(!"Could not allocate!");
+	}
+
+	void InstallOperatorNewHandler() {
+		SomeAllocatedMemory = std_::make_unique<SomeAllocatedMemoryChunk>();
+		std::set_new_handler(OperatorNewHandler);
+	}
+
 	Qt::HANDLE ReportingThreadId = nullptr;
 	bool ReportingHeaderWritten = false;
 	QMutex ReportingMutex;
@@ -1078,6 +1095,9 @@ namespace internal {
 				signal(SIGFPE, SignalHandlers::internal::Handler);
 #endif // else for !Q_OS_WIN
 			}
+
+			SignalHandlers::internal::InstallOperatorNewHandler();
+
 			return Started;
 		}
 

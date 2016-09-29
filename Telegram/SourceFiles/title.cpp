@@ -360,22 +360,22 @@ void TitleWidget::maximizedChanged(bool maximized, bool force) {
 }
 
 HitTestType TitleWidget::hitTest(const QPoint &p) {
-	if (App::wnd() && Ui::isLayerShown()) return HitTestNone;
+	if (App::wnd() && Ui::isLayerShown()) return HitTestType::None;
 
 	int x(p.x()), y(p.y()), w(width()), h(height());
-	if (!Adaptive::OneColumn() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
+	if (!Adaptive::OneColumn() && hider && x >= App::main()->dlgsWidth()) return HitTestType::None;
 
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
-		return HitTestIcon;
+		return HitTestType::Icon;
 	} else if (false
-		|| (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestSysButton && _lock.isVisible())
-        || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())
-		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestSysButton)
-		|| (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestSysButton)
-		|| (_restore.hitTest(p - _restore.geometry().topLeft()) == HitTestSysButton)
-		|| (_close.hitTest(p - _close.geometry().topLeft()) == HitTestSysButton)
+		|| (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestType::SysButton && _lock.isVisible())
+        || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestType::SysButton && _update.isVisible())
+		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestType::SysButton)
+		|| (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestType::SysButton)
+		|| (_restore.hitTest(p - _restore.geometry().topLeft()) == HitTestType::SysButton)
+		|| (_close.hitTest(p - _close.geometry().topLeft()) == HitTestType::SysButton)
 	) {
-		return HitTestSysButton;
+		return HitTestType::SysButton;
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
 		if (false
 			|| (!_cancel.isHidden() && _cancel.geometry().contains(x, y))
@@ -383,9 +383,9 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 			|| (!_contacts.isHidden() && _contacts.geometry().contains(x, y))
 			|| (!_about.isHidden() && _about.geometry().contains(x, y))
 		) {
-			return HitTestClient;
+			return HitTestType::Client;
 		}
-		return HitTestCaption;
+		return HitTestType::Caption;
 	}
-	return HitTestNone;
+	return HitTestType::None;
 }

@@ -156,7 +156,7 @@ protected:
 
 };
 
-struct Info : public BaseComponent<Info> {
+struct Info : public RuntimeComponent<Info> {
 	int top = 0;
 };
 

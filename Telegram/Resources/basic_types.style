@@ -202,14 +202,6 @@ countryInput {
 	align: align;
 }
 
-slider {
-	color: color;
-	thickness: pixels;
-
-	width: pixels;
-	bar: sprite;
-}
-
 flatLabel {
 	font: font;
 	margin: margins;

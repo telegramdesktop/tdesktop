@@ -198,12 +198,12 @@ void setKey(int32 dc, AuthKeyPtr key);
 QReadWriteLock *dcOptionsMutex();
 
 struct DcOption {
-	DcOption(int id, MTPDdcOption::Flags flags, const string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
+	DcOption(int id, MTPDdcOption::Flags flags, const std::string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
 	}
 
 	int id;
 	MTPDdcOption::Flags flags;
-	string ip;
+	std::string ip;
 	int port;
 };
 typedef QMap<int, DcOption> DcOptions;

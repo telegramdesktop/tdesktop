@@ -310,7 +310,7 @@ private:
 template <typename T>
 class ChildWidget {
 public:
-	ChildWidget(std::nullptr_t) : _widget(nullptr) {
+	ChildWidget(std_::nullptr_t) : _widget(nullptr) {
 	}
 
 	// No default constructor, but constructors with at least
@@ -322,7 +322,7 @@ public:
 	ChildWidget(const ChildWidget<T> &other) = delete;
 	ChildWidget<T> &operator=(const ChildWidget<T> &other) = delete;
 
-	ChildWidget<T> &operator=(std::nullptr_t) {
+	ChildWidget<T> &operator=(std_::nullptr_t) {
 		_widget = nullptr;
 		return *this;
 	}

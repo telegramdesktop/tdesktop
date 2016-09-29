@@ -186,7 +186,7 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.setOpacity(a_shadow.current());
 		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
 	} else {
-		p.fillRect(rect(), st::setBG->b);
+		p.fillRect(rect(), st::windowBg);
 
 		p.setFont(st::passcodeHeaderFont->f);
 		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);

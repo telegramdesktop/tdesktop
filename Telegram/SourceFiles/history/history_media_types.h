@@ -278,17 +278,17 @@ private:
 
 };
 
-struct HistoryDocumentThumbed : public BaseComponent<HistoryDocumentThumbed> {
+struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> {
 	ClickHandlerPtr _linksavel, _linkcancell;
 	int _thumbw = 0;
 
 	mutable int _linkw = 0;
 	mutable QString _link;
 };
-struct HistoryDocumentCaptioned : public BaseComponent<HistoryDocumentCaptioned> {
+struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
 	Text _caption = { int(st::msgFileMinWidth) - st::msgPadding.left() - st::msgPadding.right() };
 };
-struct HistoryDocumentNamed : public BaseComponent<HistoryDocumentNamed> {
+struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
 	QString _name;
 	int _namew = 0;
 };
@@ -300,7 +300,7 @@ struct HistoryDocumentVoicePlayback {
 	anim::fvalue a_progress;
 	Animation _a_progress;
 };
-struct HistoryDocumentVoice : public BaseComponent<HistoryDocumentVoice> {
+struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
 	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other) {
 		std::swap(_playback, other._playback);
 		return *this;
@@ -313,7 +313,7 @@ struct HistoryDocumentVoice : public BaseComponent<HistoryDocumentVoice> {
 	mutable HistoryDocumentVoicePlayback *_playback = nullptr;
 };
 
-class HistoryDocument : public HistoryFileMedia, public Composer {
+class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
 public:
 	HistoryDocument(HistoryItem *parent, DocumentData *document, const QString &caption);
 	HistoryDocument(HistoryItem *parent, const HistoryDocument &other);

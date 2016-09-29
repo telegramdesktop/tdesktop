@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/basic_types.h"
+#include "core/utils.h"
 
 #define BETA_VERSION_MACRO (10008002ULL)
 

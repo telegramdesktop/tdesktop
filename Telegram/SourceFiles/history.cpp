@@ -945,7 +945,7 @@ bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMe
 	}
 	if (!adding) return false;
 
-	overviewIds[type].insert(msgId, NullType());
+	overviewIds[type].insert(msgId);
 	switch (method) {
 	case AddToOverviewNew:
 	case AddToOverviewBack: overview[type].push_back(msgId); break;
@@ -963,11 +963,11 @@ bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMe
 void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 	if (overviewIds[type].isEmpty()) return;
 
-	History::MediaOverviewIds::iterator i = overviewIds[type].find(msgId);
+	auto i = overviewIds[type].find(msgId);
 	if (i == overviewIds[type].cend()) return;
 
 	overviewIds[type].erase(i);
-	for (History::MediaOverview::iterator i = overview[type].begin(), e = overview[type].end(); i != e; ++i) {
+	for (auto i = overview[type].begin(), e = overview[type].end(); i != e; ++i) {
 		if ((*i) == msgId) {
 			overview[type].erase(i);
 			if (overviewCountData[type] > 0) {
@@ -2011,8 +2011,8 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	if (!onlyCounts && v->isEmpty()) {
 		overviewCountData[overviewIndex] = 0;
 	} else if (overviewCountData[overviewIndex] > 0) {
-		for (History::MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
-			if (i.key() < 0) {
+		for_const (auto msgId, overviewIds[overviewIndex]) {
+			if (msgId < 0) {
 				++overviewCountData[overviewIndex];
 			} else {
 				break;
@@ -2023,7 +2023,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	for (QVector<MTPMessage>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
 		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
 		if (item && overviewIds[overviewIndex].constFind(item->id) == overviewIds[overviewIndex].cend()) {
-			overviewIds[overviewIndex].insert(item->id, NullType());
+			overviewIds[overviewIndex].insert(item->id);
 			overview[overviewIndex].push_front(item->id);
 		}
 	}
@@ -2031,12 +2031,12 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 
 void History::changeMsgId(MsgId oldId, MsgId newId) {
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		History::MediaOverviewIds::iterator j = overviewIds[i].find(oldId);
+		auto j = overviewIds[i].find(oldId);
 		if (j != overviewIds[i].cend()) {
 			overviewIds[i].erase(j);
 			int32 index = overview[i].indexOf(oldId);
 			if (overviewIds[i].constFind(newId) == overviewIds[i].cend()) {
-				overviewIds[i].insert(newId, NullType());
+				overviewIds[i].insert(newId);
 				if (index >= 0) {
 					overview[i][index] = newId;
 				} else {

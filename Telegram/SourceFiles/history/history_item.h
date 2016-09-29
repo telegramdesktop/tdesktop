@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/runtime_composer.h"
+
 class HistoryElement {
 public:
 	HistoryElement() = default;
@@ -95,7 +97,7 @@ enum HistoryItemType {
 	HistoryItemJoined
 };
 
-struct HistoryMessageVia : public BaseComponent<HistoryMessageVia> {
+struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
 	void create(int32 userId);
 	void resize(int32 availw) const;
 
@@ -106,20 +108,20 @@ struct HistoryMessageVia : public BaseComponent<HistoryMessageVia> {
 	ClickHandlerPtr _lnk;
 };
 
-struct HistoryMessageViews : public BaseComponent<HistoryMessageViews> {
+struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews> {
 	QString _viewsText;
 	int _views = 0;
 	int _viewsWidth = 0;
 };
 
-struct HistoryMessageSigned : public BaseComponent<HistoryMessageSigned> {
+struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
 	void create(UserData *from, const QDateTime &date);
 	int maxWidth() const;
 
 	Text _signature;
 };
 
-struct HistoryMessageEdited : public BaseComponent<HistoryMessageEdited> {
+struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
 	void create(const QDateTime &editDate, const QDateTime &date);
 	int maxWidth() const;
 
@@ -127,7 +129,7 @@ struct HistoryMessageEdited : public BaseComponent<HistoryMessageEdited> {
 	Text _edited;
 };
 
-struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
+struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded> {
 	void create(const HistoryMessageVia *via) const;
 
 	PeerData *_authorOriginal = nullptr;
@@ -136,7 +138,7 @@ struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
 	mutable Text _text = { 1 };
 };
 
-struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
+struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
@@ -191,7 +193,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
 class ReplyKeyboard;
-struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarkup> {
+struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup> {
 	HistoryMessageReplyMarkup() = default;
 	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) : flags(f) {
 	}
@@ -362,7 +364,7 @@ private:
 
 // any HistoryItem can have this Interface for
 // displaying the day mark above the message
-struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {
+struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
 	void init(const QDateTime &date);
 
 	int height() const;
@@ -374,7 +376,7 @@ struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {
 
 // any HistoryItem can have this Interface for
 // displaying the unread messages bar above the message
-struct HistoryMessageUnreadBar : public BaseComponent<HistoryMessageUnreadBar> {
+struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar> {
 	void init(int count);
 
 	static int height();
@@ -439,7 +441,7 @@ namespace internal {
 
 } // namespace internal
 
-class HistoryItem : public HistoryElement, public Composer, public ClickHandlerHost {
+class HistoryItem : public HistoryElement, public RuntimeComposer, public ClickHandlerHost {
 public:
 	int resizeGetHeight(int width) {
 		if (_flags & MTPDmessage_ClientFlag::f_pending_init_dimensions) {

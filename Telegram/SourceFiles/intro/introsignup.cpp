@@ -96,7 +96,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 void IntroSignup::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 
-	QPainter p(this);
+	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
@@ -123,20 +123,22 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_photoSmall.isNull()) {
-		if (a_photoOver.current() < 1) {
-			QRect pix(st::setPhotoImg.rect());
-			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
-			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
-			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
+		float64 o = a_photoOver.current();
+		QRect phRect(_phLeft, _phTop, st::introPhotoSize, st::introPhotoSize);
+		if (o > 0) {
+			if (o < 1) {
+				QColor c;
+				c.setRedF(st::newGroupPhotoBg->c.redF() * (1. - o) + st::newGroupPhotoBgOver->c.redF() * o);
+				c.setGreenF(st::newGroupPhotoBg->c.greenF() * (1. - o) + st::newGroupPhotoBgOver->c.greenF() * o);
+				c.setBlueF(st::newGroupPhotoBg->c.blueF() * (1. - o) + st::newGroupPhotoBgOver->c.blueF() * o);
+				p.fillRect(phRect, c);
+			} else {
+				p.fillRect(phRect, st::newGroupPhotoBgOver);
+			}
+		} else {
+			p.fillRect(phRect, st::newGroupPhotoBg);
 		}
-		if (a_photoOver.current() > 0) {
-			QRect pix(st::setOverPhotoImg.rect());
-			pix.moveTo(pix.x() + (pix.width() - (st::introPhotoSize * cIntRetinaFactor())) / 2, pix.y() + (pix.height() - (st::introPhotoSize * cIntRetinaFactor())) / 2);
-			pix.setSize(QSize(st::introPhotoSize * cIntRetinaFactor(), st::introPhotoSize * cIntRetinaFactor()));
-			p.setOpacity(a_photoOver.current());
-			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
-			p.setOpacity(1);
-		}
+		p.drawSpriteCenter(phRect, st::newGroupPhotoIcon);
 	} else {
 		p.drawPixmap(_phLeft, _phTop, _photoSmall);
 	}

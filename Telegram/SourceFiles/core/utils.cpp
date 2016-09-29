@@ -19,8 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
-#include "basic_types.h"
+#include "core/utils.h"
 
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
@@ -1020,33 +1019,3 @@ MimeType mimeTypeForData(const QByteArray &data) {
 	}
 	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }
-
-struct ComposerMetadatasMap {
-	QMap<uint64, ComposerMetadata*> data;
-	~ComposerMetadatasMap() {
-		for_const (const ComposerMetadata *p, data) {
-			delete p;
-		}
-	}
-};
-
-const ComposerMetadata *GetComposerMetadata(uint64 mask) {
-	static ComposerMetadatasMap ComposerMetadatas;
-	static QMutex ComposerMetadatasMutex;
-
-	QMutexLocker lock(&ComposerMetadatasMutex);
-	auto i = ComposerMetadatas.data.constFind(mask);
-	if (i == ComposerMetadatas.data.cend()) {
-		ComposerMetadata *meta = new ComposerMetadata(mask);
-		t_assert(meta != nullptr);
-
-		i = ComposerMetadatas.data.insert(mask, meta);
-	}
-	return i.value();
-}
-
-const ComposerMetadata *Composer::ZeroComposerMetadata = GetComposerMetadata(0);
-
-ComponentWrapStruct ComponentWraps[64];
-
-QAtomicInt ComponentIndexLast;

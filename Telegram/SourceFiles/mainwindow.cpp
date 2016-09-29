@@ -966,31 +966,31 @@ HitTestType MainWindow::hitTest(const QPoint &p) const {
 	if (!windowState().testFlag(Qt::WindowMaximized)) {
 		if (y < raw) {
 			if (x < raw) {
-				return HitTestTopLeft;
+				return HitTestType::TopLeft;
 			} else if (x > w - raw - 1) {
-				return HitTestTopRight;
+				return HitTestType::TopRight;
 			}
-			return HitTestTop;
+			return HitTestType::Top;
 		} else if (y > h - raw - 1) {
 			if (x < raw) {
-				return HitTestBottomLeft;
+				return HitTestType::BottomLeft;
 			} else if (x > w - raw - 1) {
-				return HitTestBottomRight;
+				return HitTestType::BottomRight;
 			}
-			return HitTestBottom;
+			return HitTestType::Bottom;
 		} else if (x < raw) {
-			return HitTestLeft;
+			return HitTestType::Left;
 		} else if (x > w - raw - 1) {
-			return HitTestRight;
+			return HitTestType::Right;
 		}
 	}
-	HitTestType titleTest = title->hitTest(p - title->geometry().topLeft());
-	if (titleTest) {
+	auto titleTest = title->hitTest(p - title->geometry().topLeft());
+	if (titleTest != HitTestType::None) {
 		return titleTest;
 	} else if (x >= 0 && y >= 0 && x < w && y < h) {
-		return HitTestClient;
+		return HitTestType::Client;
 	}
-	return HitTestNone;
+	return HitTestType::None;
 }
 
 QRect MainWindow::iconRect() const {

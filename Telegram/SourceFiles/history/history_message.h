@@ -252,10 +252,10 @@ struct HistoryServiceDependentData {
 	ClickHandlerPtr lnk;
 };
 
-struct HistoryServicePinned : public BaseComponent<HistoryServicePinned>, public HistoryServiceDependentData {
+struct HistoryServicePinned : public RuntimeComponent<HistoryServicePinned>, public HistoryServiceDependentData {
 };
 
-struct HistoryServiceGameScore : public BaseComponent<HistoryServiceGameScore>, public HistoryServiceDependentData {
+struct HistoryServiceGameScore : public RuntimeComponent<HistoryServiceGameScore>, public HistoryServiceDependentData {
 	int score = 0;
 };
 

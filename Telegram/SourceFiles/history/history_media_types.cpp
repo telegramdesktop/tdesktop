@@ -527,13 +527,13 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 				const MTPFileLocation *loc = 0;
 				switch (sizes.at(i).type()) {
 				case mtpc_photoSize: {
-					const string &s(sizes.at(i).c_photoSize().vtype.c_string().v);
+					auto &s = sizes.at(i).c_photoSize().vtype.c_string().v;
 					loc = &sizes.at(i).c_photoSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
 
 				case mtpc_photoCachedSize: {
-					const string &s(sizes.at(i).c_photoCachedSize().vtype.c_string().v);
+					auto &s = sizes.at(i).c_photoCachedSize().vtype.c_string().v;
 					loc = &sizes.at(i).c_photoCachedSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
@@ -942,7 +942,7 @@ HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, co
 }
 
 HistoryDocument::HistoryDocument(HistoryItem *parent, const HistoryDocument &other) : HistoryFileMedia(parent)
-, Composer()
+, RuntimeComposer()
 , _data(other._data) {
 	auto captioned = other.Get<HistoryDocumentCaptioned>();
 	createComponents(captioned != 0);

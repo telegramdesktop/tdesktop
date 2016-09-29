@@ -31,7 +31,7 @@ namespace Clip {
 class Reader;
 class ReaderPointer {
 public:
-	ReaderPointer(std::nullptr_t = nullptr) {
+	ReaderPointer(std_::nullptr_t = nullptr) {
 	}
 	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
 	}

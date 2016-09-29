@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/runtime_composer.h"
+
 static constexpr TextSelection FullSelection = { 0xFFFF, 0xFFFF };
 
 extern TextParseOptions _textNameOptions, _textDlgOptions;
@@ -96,7 +98,7 @@ public:
 
 };
 
-class LayoutItemBase : public Composer, public ClickHandlerHost {
+class LayoutItemBase : public RuntimeComposer, public ClickHandlerHost {
 public:
 	LayoutItemBase() {
 	}

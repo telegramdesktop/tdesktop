@@ -34,7 +34,7 @@ public:
 	uint64 getFingerPrint() const;
 
 	// data has exactly 256 chars to be encrypted
-	bool encrypt(const void *data, string &result) const;
+	bool encrypt(const void *data, std::string &result) const;
 
 private:
 

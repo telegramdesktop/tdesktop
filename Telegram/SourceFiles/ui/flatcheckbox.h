@@ -26,8 +26,7 @@ class FlatCheckbox : public Button {
 	Q_OBJECT
 
 public:
-
-	FlatCheckbox(QWidget *parent, const QString &text, bool checked = false, const style::flatCheckbox &st = st::cbDefFlat);
+	FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st);
 
 	bool checked() const;
 	void setChecked(bool checked);
@@ -38,16 +37,13 @@ public:
 	void setOpacity(float64 o);
 
 public slots:
-
 	void onClicked();
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 signals:
-
 	void changed();
 
 private:
-
 	style::flatCheckbox _st;
 	anim::fvalue a_over;
 	Animation _a_appearance;
@@ -66,7 +62,7 @@ class FlatRadiobutton : public FlatCheckbox {
 
 public:
 
-	FlatRadiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::flatCheckbox &st = st::rbDefFlat);
+	FlatRadiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::flatCheckbox &st);
 	int32 val() const {
 		return _value;
 	}
@@ -130,7 +126,6 @@ class Radiobutton : public Button {
 	Q_OBJECT
 
 public:
-
 	Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::Radiobutton &st = st::defaultRadiobutton);
 
 	bool checked() const;
@@ -148,16 +143,13 @@ public:
 	~Radiobutton();
 
 public slots:
-
 	void onClicked();
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 signals:
-
 	void changed();
 
 private:
-
 	void onChanged();
 
 	const style::Radiobutton &_st;
