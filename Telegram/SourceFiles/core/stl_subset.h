@@ -90,7 +90,7 @@ inline constexpr typename remove_reference<T>::type &&move(T &&value) noexcept {
 }
 
 template <typename T>
-void swap(T &a, T &b) {
+void swap_moveable(T &a, T &b) {
 	T tmp = move(a);
 	a = move(b);
 	b = move(tmp);

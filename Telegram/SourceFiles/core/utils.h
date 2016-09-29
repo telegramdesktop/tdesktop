@@ -90,7 +90,7 @@ inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
 template <typename T>
 T createAndSwap(T &value) {
 	T result = T();
-	std_::swap(result, value);
+	std_::swap_moveable(result, value);
 	return std_::move(result);
 }
 

@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/stl_subset.h"
+
 // some minimal implementation of std::vector() for moveable (but not copiable) types.
 namespace std_ {
 
