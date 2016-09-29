@@ -30,7 +30,6 @@ class FlatTextarea : public QTextEdit {
 	T_WIDGET
 
 public:
-
 	struct Tag {
 		int offset, length;
 		QString id;
@@ -122,7 +121,6 @@ public:
 	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
 
 public slots:
-
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -132,7 +130,6 @@ public slots:
 	void onRedoAvailable(bool avail);
 
 signals:
-
 	void resized();
 	void changed();
 	void submitted(bool ctrlShiftEnter);
@@ -170,7 +167,6 @@ protected:
 	void checkContentHeight();
 
 private:
-
 	// "start" and "end" are in coordinates of text where emoji are replaced
 	// by ObjectReplacementCharacter. If "end" = -1 means get text till the end.
 	QString getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged = nullptr) const;
@@ -187,6 +183,8 @@ private:
 	void processFormatting(int changedPosition, int changedEnd);
 
 	bool heightAutoupdated();
+
+	int placeholderSkipWidth() const;
 
 	int _minHeight = -1; // < 0 - no autosize
 	int _maxHeight = -1;

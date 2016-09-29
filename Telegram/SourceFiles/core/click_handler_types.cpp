@@ -117,7 +117,7 @@ void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
 
 	if (u.startsWith(qstr("tg://"))) {
 		App::openLocalUrl(u);
-	} else if (!_bot || Local::isBotTrusted(_bot)) {
+	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
 		doOpen(u);
 	} else {
 		Ui::showLayer(new ConfirmBotGameBox(_bot, u));
