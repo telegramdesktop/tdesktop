@@ -1968,7 +1968,7 @@ bool HistoryService::preparePinnedText(const QString &from, QString *outText, Li
 
 bool HistoryService::prepareGameScoreText(const QString &from, QString *outText, Links *outLinks) {
 	bool result = false;
-	QString text;
+	QString gameTitle;
 
 	ClickHandlerPtr second;
 	auto gamescore = Get<HistoryServiceGameScore>();
@@ -1981,15 +1981,19 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 			}
 			return lang(lng_deleted_message);
 		};
-		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, getGameTitle());
+		gameTitle = getGameTitle();
 		result = true;
 	} else if (gamescore && gamescore->msgId) {
-		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, lang(lng_contacts_loading));
+		gameTitle = lang(lng_contacts_loading);
 		result = true;
 	} else {
-		text = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, lang(lng_deleted_message));
+		gameTitle = lang(lng_deleted_message);
 	}
-	*outText = text;
+	if (_from->isSelf()) {
+		*outText = lng_action_game_you_scored(lt_count, gamescore->score, lt_game, gameTitle);
+	} else {
+		*outText = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, gameTitle);
+	}
 	if (second) {
 		outLinks->push_back(second);
 	}

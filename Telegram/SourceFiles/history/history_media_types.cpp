@@ -2959,7 +2959,8 @@ void HistoryGame::initDimensions() {
 	_minh = 0;
 
 	int32 titleMinHeight = _title.isEmpty() ? 0 : _lineHeight;
-	int32 descMaxLines = (4 + (titleMinHeight ? 0 : 1));
+	// enable any count of lines in game description / message
+	int descMaxLines = 4096;
 	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * _lineHeight);
 
 	if (!_title.isEmpty()) {
