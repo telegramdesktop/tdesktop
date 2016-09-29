@@ -114,7 +114,6 @@ void CoverWidget::handleSeekFinished(float64 progress) {
 		audioPlayer()->seek(qRound(progress * playbackState.duration));
 	}
 
-	updateTimeLabel();
 	if (exists()) {
 		instance()->stopSeeking();
 	}

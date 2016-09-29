@@ -489,6 +489,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 				onError(audio);
 			}
 		} else {
+			current->playbackState.position = position;
 			current->playbackState.state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
 			current->loading = true;
 			emit loaderOnStart(audio, position);
