@@ -665,7 +665,7 @@ class MTPDstring : public mtpDataImpl<MTPDstring> {
 public:
 	MTPDstring() {
 	}
-	MTPDstring(const string &val) : v(val) {
+	MTPDstring(const std::string &val) : v(val) {
 	}
 	MTPDstring(const QString &val) : v(val.toUtf8().constData()) {
 	}
@@ -674,7 +674,7 @@ public:
 	MTPDstring(const char *val) : v(val) {
 	}
 
-	string v;
+	std::string v;
 };
 
 class MTPstring : private mtpDataOwner {
@@ -755,13 +755,13 @@ private:
 	explicit MTPstring(MTPDstring *_data) : mtpDataOwner(_data) {
 	}
 
-	friend MTPstring MTP_string(const string &v);
+	friend MTPstring MTP_string(const std::string &v);
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
 
 	friend MTPstring MTP_bytes(const QByteArray &v);
 };
-inline MTPstring MTP_string(const string &v) {
+inline MTPstring MTP_string(const std::string &v) {
 	return MTPstring(new MTPDstring(v));
 }
 inline MTPstring MTP_string(const QString &v) {
@@ -788,12 +788,12 @@ inline bool operator!=(const MTPstring &a, const MTPstring &b) {
 }
 
 inline QString qs(const MTPstring &v) {
-	const string &d(v.c_string().v);
+	auto &d = v.c_string().v;
 	return QString::fromUtf8(d.data(), d.length());
 }
 
 inline QByteArray qba(const MTPstring &v) {
-	const string &d(v.c_string().v);
+	auto &d = v.c_string().v;
 	return QByteArray(d.data(), d.length());
 }
 
@@ -981,8 +981,6 @@ inline bool mtpIsFalse(const MTPBool &v) {
 	return !mtpIsTrue(v);
 }
 
-#define CHECK_MTP_SCHEME_AND_CLIENT_FLAGS_CONFLICT(Type) \
-
 // we must validate that MTProto scheme flags don't intersect with client side flags
 // and define common bit operators which allow use Type_ClientFlag together with Type::Flag
 #define DEFINE_MTP_CLIENT_FLAGS(Type) \
@@ -990,12 +988,10 @@ static_assert(static_cast<int32>(Type::Flag::MAX_FIELD) < static_cast<int32>(Typ
 	"MTProto flags conflict with client side flags!"); \
 inline Type::Flags qFlags(Type##_ClientFlag v) { return Type::Flags(static_cast<int32>(v)); } \
 inline Type::Flags operator&(Type::Flags i, Type##_ClientFlag v) { return i & qFlags(v); } \
-inline Type::Flags operator&(Type::Flag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
 inline Type::Flags operator&(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
-inline Type::Flags operator&(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) & v; } \
 inline Type::Flags &operator&=(Type::Flags &i, Type##_ClientFlag v) { return i &= qFlags(v); } \
 inline Type::Flags operator|(Type::Flags i, Type##_ClientFlag v) { return i | qFlags(v); } \
-inline Type::Flags operator|(Type::Flag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
+inline Type::Flags operator|(Type::Flag i, Type##_ClientFlag v) { return i | qFlags(v); } \
 inline Type::Flags operator|(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
 inline Type::Flags operator|(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) | v; } \
 inline Type::Flags &operator|=(Type::Flags &i, Type##_ClientFlag v) { return i |= qFlags(v); } \

@@ -172,7 +172,7 @@ struct NotifySettings {
 	}
 	MTPDpeerNotifySettings::Flags flags;
 	TimeId mute;
-	string sound;
+	std::string sound;
 	bool previews() const {
 		return flags & MTPDpeerNotifySettings::Flag::f_show_previews;
 	}
@@ -288,9 +288,9 @@ public:
 
 	QString name;
 	Text nameText;
-	typedef QSet<QString> Names;
+	using Names = OrderedSet<QString>;
 	Names names; // for filtering
-	typedef QSet<QChar> NameFirstChars;
+	using NameFirstChars = OrderedSet<QChar>;
 	NameFirstChars chars;
 
 	enum LoadedStatus {

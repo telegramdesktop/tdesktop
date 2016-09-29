@@ -151,7 +151,7 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 			tagReplacer[1] = TextCommandLangTag;
 			tagReplacer[2] = QChar(0x0020 + index);
 			varValue.append(tagReplacer.toUtf8());
-			
+
 			if (*from == ':') {
 				start = ++from;
 
@@ -306,7 +306,7 @@ LangLoaderPlain::LangLoaderPlain(const QString &file, const LangLoaderRequest &r
 				break;
 			}
 		}
-	} catch (exception &e) {
+	} catch (std::exception &e) {
 		error(QString::fromUtf8(e.what()));
 		return;
 	}

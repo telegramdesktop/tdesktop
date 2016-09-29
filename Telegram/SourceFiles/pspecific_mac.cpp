@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 #include "passcodewidget.h"
+#include "history/history_location_manager.h"
 
 #include <execinfo.h>
 

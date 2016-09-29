@@ -527,13 +527,13 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 				const MTPFileLocation *loc = 0;
 				switch (sizes.at(i).type()) {
 				case mtpc_photoSize: {
-					const string &s(sizes.at(i).c_photoSize().vtype.c_string().v);
+					auto &s = sizes.at(i).c_photoSize().vtype.c_string().v;
 					loc = &sizes.at(i).c_photoSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
 
 				case mtpc_photoCachedSize: {
-					const string &s(sizes.at(i).c_photoCachedSize().vtype.c_string().v);
+					auto &s = sizes.at(i).c_photoCachedSize().vtype.c_string().v;
 					loc = &sizes.at(i).c_photoCachedSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
@@ -942,7 +942,7 @@ HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, co
 }
 
 HistoryDocument::HistoryDocument(HistoryItem *parent, const HistoryDocument &other) : HistoryFileMedia(parent)
-, Composer()
+, RuntimeComposer()
 , _data(other._data) {
 	auto captioned = other.Get<HistoryDocumentCaptioned>();
 	createComponents(captioned != 0);
@@ -2560,7 +2560,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 		return _height;
 	}
 
-	_width = qMin(width, _maxw);
+	_width = width = qMin(width, _maxw);
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	int32 linesMax = 5;
@@ -2659,10 +2659,10 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
+	width -= padding.left() + padding.right();
 	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right())) {
 		bshift += bottomInfoPadding();
 	}
-	width -= padding.left() + padding.right();
 
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);
@@ -2959,7 +2959,8 @@ void HistoryGame::initDimensions() {
 	_minh = 0;
 
 	int32 titleMinHeight = _title.isEmpty() ? 0 : _lineHeight;
-	int32 descMaxLines = (4 + (titleMinHeight ? 0 : 1));
+	// enable any count of lines in game description / message
+	int descMaxLines = 4096;
 	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * _lineHeight);
 
 	if (!_title.isEmpty()) {
@@ -2993,7 +2994,7 @@ void HistoryGame::initDimensions() {
 }
 
 int HistoryGame::resizeGetHeight(int width) {
-	_width = qMin(width, _maxw);
+	_width = width = qMin(width, _maxw);
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	// enable any count of lines in game description / message
@@ -3055,10 +3056,10 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
+	width -= padding.left() + padding.right();
 	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
-	width -= padding.left() + padding.right();
 
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);

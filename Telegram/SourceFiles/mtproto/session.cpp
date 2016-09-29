@@ -222,7 +222,7 @@ void Session::sendPong(quint64 msgId, quint64 pingId) {
 
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
-	string &info(req._msgs_state_info().vinfo._string().v);
+	auto &info = req._msgs_state_info().vinfo._string().v;
 	info.resize(data.size());
 	if (!data.isEmpty()) {
 		memcpy(&info[0], data.constData(), data.size());
@@ -391,7 +391,7 @@ mtpRequestId Session::resend(quint64 msgId, quint64 msCanWait, bool forceContain
 				char cantResend[2] = {1, 0};
 				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
 
-				return send(MTP_msgs_state_info(MTP_long(msgId), MTP_string(string(cantResend, cantResend + 1))));
+				return send(MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::string(cantResend, cantResend + 1))));
 			}
 			return 0;
 		}

@@ -580,7 +580,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "연락처 정보";
 "lng_action_pinned_media_location" = "위치 마크";
 "lng_action_pinned_media_sticker" = "스티커";
+"lng_action_pinned_media_emoji_sticker" = " {emoji} 스티커";
+"lng_action_pinned_media_game" = " «{game}» 게임";
 "lng_action_game_score" = "{game} 에서 {from} 님이 {count:#|#|#} 점 획득";
+"lng_action_game_you_scored" = "{game} 에서 {count:#|#|#} 점 획득";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# 명|# 명} 한계치에 도달 되었습니다.";
 "lng_profile_migrate_body" = "제한을 초과하고 싶으실 경우, 슈퍼그룹으로 그룹 업그레이드가 가능합니다.";
@@ -774,6 +777,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_bot_groups_not_found" = "그룹을 찾을 수 없습니다.";
 "lng_bot_sure_invite" = "<<{group}>>에 봇을 추가 하시겠습니까?";
 "lng_bot_already_in_group" = "봇이 이미 그룹의 멤버입니다.";
+"lng_bot_choose_chat" = "채팅방 선택";
+"lng_bot_no_chats" = "채팅방이 없습니다.";
+"lng_bot_chats_not_found" = "채팅방을 찾 을 수 없음";
+"lng_bot_sure_share_game" = "{user}에게 게임을 공유하겠습니까?";
+"lng_bot_sure_share_game_group" = " «{group}»에게 게임을 공유하겠습니까?";
 
 "lng_typing" = "입력중";
 "lng_user_typing" = "{user}님이 입력중입니다.";
@@ -808,6 +816,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "이미지 선택";
+"lng_game_tag" = "게임";
 
 "lng_context_view_profile" = "프로필 보기";
 "lng_context_view_group" = "그룹 정보 보기";

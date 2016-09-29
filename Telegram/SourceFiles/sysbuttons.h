@@ -23,6 +23,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/animation.h"
 #include "ui/button.h"
 
+enum class HitTestType {
+	None = 0,
+	Client,
+	SysButton,
+	Icon,
+	Caption,
+	Top,
+	TopRight,
+	Right,
+	BottomRight,
+	Bottom,
+	BottomLeft,
+	Left,
+	TopLeft,
+};
+
 class SysBtn : public Button {
 public:
 	SysBtn(QWidget *parent, const style::sysButton &st, const QString &text = QString());

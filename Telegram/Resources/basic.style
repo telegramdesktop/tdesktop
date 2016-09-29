@@ -558,37 +558,6 @@ btnDefLink: linkButton {
 	overFont: linkOverFont;
 }
 
-cbDefFlat: flatCheckbox {
-	textColor: #000;
-	bgColor: transparent;
-	disColor: #999;
-
-	height: 22px;
-	textTop: 1px;
-	textLeft: 34px;
-	font: font(fsize);
-	duration: 200;
-	bgFunc: transition(easeOutCirc);
-	cursor: cursor(pointer);
-
-	disabledCursor: cursor(default);
-
-	imageRect: sprite(142px, 43px, 22px, 22px);
-	chkImageRect: sprite(120px, 68px, 22px, 22px);
-	overImageRect: sprite(142px, 68px, 22px, 22px);
-	chkOverImageRect: sprite(120px, 68px, 22px, 22px);
-	disImageRect: sprite(142px, 43px, 22px, 22px);
-	chkDisImageRect: sprite(120px, 43px, 22px, 22px);
-
-	imagePos: point(0px, 0px);
-}
-
-rbDefFlat: flatCheckbox(cbDefFlat) {
-	chkImageRect: sprite(165px, 68px, 22px, 22px);
-	chkOverImageRect: sprite(165px, 68px, 22px, 22px);
-	chkDisImageRect: sprite(165px, 43px, 22px, 22px);
-}
-
 inpDefFont: font(17px);
 inpDefFlat: flatInput {
 	textColor: #000;
@@ -816,28 +785,7 @@ introErrLabel: flatLabel(labelDefFlat) {
 	align: align(center);
 }
 
-setWidth: 356px;
-setTop: 26px;
-setNameLeft: 3px;
-setNameTop: 5px;
-setNameFont: font(18px);
-setStatusTop: 35px;
-setStatusLeft: 3px;
-setStatusFont: font(14px);
-setPhotoSize: 120px;
-setHeaderFont: font(17px);
-setHeaderColor: black;
-setHeaderSkip: 60px;
-setHeaderLeft: -1px;
-setHeaderTop: 26px;
 setLittleSkip: 9px;
-setSectionSkip: 25px;
-setContactInfoLeft: 150px;
-setVersionHeight: 41px;
-setVersionLeft: 36px;
-setVersionTop: 3px;
-setVersionColor: #999;
-setBottom: 130px;
 setScroll: flatScroll(scrollDef) {
 	bottomsh: 0px;
 	topsh: 0px;
@@ -854,91 +802,10 @@ setClose: iconedButton(btnDefIconed) {
 	height: 43px;
 }
 setClosePos: point(32px, 32px);
-setPhotoImg: sprite(0px, 218px, 120px, 120px);
-setOverPhotoImg: sprite(122px, 218px, 120px, 120px);
 setPhotoDuration: 150;
 
-setPadding: 26px;
-setBG: #FFF;
-setSh: #000;
-setTitleFrom: point(20px, 20px);
-setTitleFont: font(24px);
-setTitleColor: #000;
-setNameInput: flatInput(inpDefFlat) {
-	font: font(fsize);
-	height: 25px;
-	width: 170px;
-	textMrg: margins(3px, 3px, 3px, 3px);
-}
-setErrBG: #ffa5a5;
 setErrColor: #d84d4d;
-setErrHeight: 30px;
-setErrFont: font(fsize);
 setGoodColor: #4ab44a;
-
-setBackgroundSize: 120px;
-
-btnSetUpload: flatButton(btnDefNext, btnDefBig) {
-	width: 206px;
-	height: 42px;
-	font: font(18px);
-	overFont: font(18px);
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-}
-
-btnEditSave: flatButton(btnSetUpload) {
-	width: 115px;
-}
-btnEditCancel: flatButton(btnDefFlat, btnDefBig) {
-	color: #666d78;
-	overColor: #666d78;
-	downColor: #50565e;
-
-	bgColor: rgba(0, 0, 0, 63);
-	overBgColor: rgba(0, 0, 0, 47);
-	downBgColor: rgba(0, 0, 0, 95);
-
-	width: 115px;
-	height: 40px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(18px);
-	overFont: font(18px);
-}
-
-btnLogout: flatButton(btnDefFlat, btnDefBig) {
-	color: white;
-	overColor: white;
-	downColor: white;
-
-	bgColor: #db6352;
-	overBgColor: #d15948;
-	downBgColor: #c74d3b;
-
-	width: 148px;
-	height: 42px;
-
-	textTop: 8px;
-	overTextTop: 8px;
-	downTextTop: 9px;
-
-	font: font(18px);
-	overFont: font(18px);
-}
-
-searchFlatInput: flatInput(inpDefGray) {
-	font: font(fsize);
-	bgColor: #f2f2f2;
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
-	imgRect: sprite(227px, 21px, 24px, 24px);
-}
 
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
@@ -956,7 +823,13 @@ dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
 dlgChannelImg: sprite(105px, 1px, 12px, 11px);
 dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
 
-dlgFilter: flatInput(searchFlatInput) {
+dlgFilter: flatInput(inpDefGray) {
+	font: font(fsize);
+	bgColor: #f2f2f2;
+	phColor: #949494;
+	phFocusColor: #a4a4a4;
+	imgRect: sprite(227px, 21px, 24px, 24px);
+
 	width: 240px;
 	height: 34px;
 	textMrg: margins(34px, 2px, 34px, 4px);
@@ -1136,7 +1009,7 @@ msgInvDblCheckImg: sprite(300px, 65px, 20px, 20px);
 msgInvViewsImg: sprite(104px, 59px, 16px, 11px);
 msgInvSendingViewsImg: sprite(104px, 114px, 16px, 11px);
 
-msgDateSpace: 19px;
+msgDateSpace: 12px;
 msgDateCheckSpace: 4px;
 msgDateViewsSpace: 11px;
 msgDateDelta: point(2px, 5px);
@@ -1818,13 +1691,6 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
 
-dpiSlider: slider {
-	color: #ccc;
-	thickness: 2px;
-
-	width: 260px;
-	bar: sprite(0px, 104px, 9px, 22px);
-}
 dpiActive: black;
 dpiInactive: #999;
 dpiFont1: linkFont;

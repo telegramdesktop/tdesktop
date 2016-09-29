@@ -162,7 +162,7 @@ private:
 
 	int32 handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
-	void handleMsgsStates(const QVector<MTPlong> &ids, const string &states, QVector<MTPlong> &acked);
+	void handleMsgsStates(const QVector<MTPlong> &ids, const std::string &states, QVector<MTPlong> &acked);
 
 	void clearMessages();
 

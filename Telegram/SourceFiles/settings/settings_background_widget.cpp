@@ -59,8 +59,8 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 		if (backThumb->isNull()) {
 			p.drawPixmap(0, 0, _background);
 		} else {
-			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
-			p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::settingsBackgroundSize);
+			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize) / 2, st::settingsBackgroundSize, st::settingsBackgroundSize);
 		}
 
 		auto outer = radialRect();
@@ -115,7 +115,7 @@ bool BackgroundRow::radialLoading() const {
 }
 
 QRect BackgroundRow::radialRect() const {
-	return QRect(0, 0, st::setBackgroundSize, st::setBackgroundSize);
+	return QRect(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize);
 }
 
 void BackgroundRow::radialStart() {
@@ -139,7 +139,7 @@ void BackgroundRow::step_radial(uint64 ms, bool timer) {
 }
 
 void BackgroundRow::updateImage() {
-	int32 size = st::setBackgroundSize * cIntRetinaFactor();
+	int32 size = st::settingsBackgroundSize * cIntRetinaFactor();
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
@@ -149,7 +149,7 @@ void BackgroundRow::updateImage() {
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
-		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
+		p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, sx, sy, s, s);
 	}
 	imageRound(back, ImageRoundRadius::Small);
 	_background = App::pixmapFromImageInPlace(std_::move(back));

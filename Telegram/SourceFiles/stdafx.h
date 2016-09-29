@@ -57,6 +57,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtNetwork/QtNetwork>
 
 #include "core/basic_types.h"
+#include "logs.h"
+#include "core/utils.h"
 #include "config.h"
 
 #include "mtproto/facade.h"

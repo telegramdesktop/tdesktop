@@ -186,7 +186,7 @@ private:
 	ChildWidget<internal::StickersInner> _inner;
 	ChildWidget<BoxButton> _save = { nullptr };
 	ChildWidget<BoxButton> _cancel = { nullptr };
-	QMap<mtpRequestId, NullType> _disenableRequests;
+	OrderedSet<mtpRequestId> _disenableRequests;
 	mtpRequestId _reorderRequest = 0;
 	ChildWidget<PlainShadow> _topShadow = { nullptr };
 	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };

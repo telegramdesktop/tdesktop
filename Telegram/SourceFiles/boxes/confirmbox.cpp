@@ -285,8 +285,8 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	p.drawText(_invitationLink, _link, option);
 	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 		p.setOpacity(a_goodOpacity.current());
-		p.setPen(st::setGoodColor->p);
-		p.setFont(st::boxTextFont->f);
+		p.setPen(st::setGoodColor);
+		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close.height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 		p.setOpacity(1);
 	}

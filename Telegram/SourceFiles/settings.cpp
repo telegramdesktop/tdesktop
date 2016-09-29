@@ -185,39 +185,39 @@ void settingsParseArgs(int argc, char *argv[]) {
 		gStartUrl = fromUtf8Safe(argv[1]);
 	}
     for (int32 i = 0; i < argc; ++i) {
-		if (string("-testmode") == argv[i]) {
+		if (qstr("-testmode") == argv[i]) {
 			gTestMode = true;
-		} else if (string("-debug") == argv[i]) {
+		} else if (qstr("-debug") == argv[i]) {
 			gDebug = true;
-		} else if (string("-many") == argv[i]) {
+		} else if (qstr("-many") == argv[i]) {
 			gManyInstance = true;
-		} else if (string("-key") == argv[i] && i + 1 < argc) {
+		} else if (qstr("-key") == argv[i] && i + 1 < argc) {
 			gKeyFile = fromUtf8Safe(argv[++i]);
-		} else if (string("-autostart") == argv[i]) {
+		} else if (qstr("-autostart") == argv[i]) {
 			gLaunchMode = LaunchModeAutoStart;
-		} else if (string("-fixprevious") == argv[i]) {
+		} else if (qstr("-fixprevious") == argv[i]) {
 			gLaunchMode = LaunchModeFixPrevious;
-		} else if (string("-cleanup") == argv[i]) {
+		} else if (qstr("-cleanup") == argv[i]) {
 			gLaunchMode = LaunchModeCleanup;
-		} else if (string("-crash") == argv[i] && i + 1 < argc) {
+		} else if (qstr("-crash") == argv[i] && i + 1 < argc) {
 			gLaunchMode = LaunchModeShowCrash;
 			gStartUrl = fromUtf8Safe(argv[++i]);
-		} else if (string("-noupdate") == argv[i]) {
+		} else if (qstr("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
-		} else if (string("-tosettings") == argv[i]) {
+		} else if (qstr("-tosettings") == argv[i]) {
 			gStartToSettings = true;
-		} else if (string("-startintray") == argv[i]) {
+		} else if (qstr("-startintray") == argv[i]) {
 			gStartInTray = true;
-		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
+		} else if (qstr("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(fromUtf8Safe(argv[i]));
 			}
-		} else if (string("-workdir") == argv[i] && i + 1 < argc) {
+		} else if (qstr("-workdir") == argv[i] && i + 1 < argc) {
 			QString dir = fromUtf8Safe(argv[++i]);
 			if (QDir().exists(dir)) {
 				gWorkingDir = dir;
 			}
-		} else if (string("--") == argv[i] && i + 1 < argc) {
+		} else if (qstr("--") == argv[i] && i + 1 < argc) {
 			gStartUrl = fromUtf8Safe(argv[++i]).mid(0, 8192);
 		}
 	}

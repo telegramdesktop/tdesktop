@@ -1196,22 +1196,20 @@ namespace {
 	ImagePtr image(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
-			const auto &d(size.c_photoSize());
+			auto &d = size.c_photoSize();
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const auto &l(d.vlocation.c_fileLocation());
+				auto &l = d.vlocation.c_fileLocation();
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {
-			const auto &d(size.c_photoCachedSize());
+			auto &d = size.c_photoCachedSize();
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const auto &l(d.vlocation.c_fileLocation());
-				const auto &s(d.vbytes.c_string().v);
-				QByteArray bytes(s.data(), s.size());
+				auto &l = d.vlocation.c_fileLocation();
+				auto bytes = qba(d.vbytes);
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
-				const string &s(d.vbytes.c_string().v);
-				QByteArray bytes(s.data(), s.size());
+				auto bytes = qba(d.vbytes);
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0), bytes);
 			}
 		} break;
@@ -1429,12 +1427,12 @@ namespace {
 			char size = 0;
 			switch (i->type()) {
 			case mtpc_photoSize: {
-				const string &s(i->c_photoSize().vtype.c_string().v);
+				auto &s = i->c_photoSize().vtype.c_string().v;
 				if (s.size()) size = s[0];
 			} break;
 
 			case mtpc_photoCachedSize: {
-				const string &s(i->c_photoCachedSize().vtype.c_string().v);
+				auto &s = i->c_photoCachedSize().vtype.c_string().v;
 				if (s.size()) size = s[0];
 			} break;
 			}
@@ -2069,22 +2067,28 @@ namespace {
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
-		for_const (PeerData *peer, peersData) {
+
+		for_const (auto peer, ::peersData) {
 			delete peer;
 		}
-		peersData.clear();
-		for_const (PhotoData *photo, ::photosData) {
+		::peersData.clear();
+		for_const (auto game, ::gamesData) {
+			delete game;
+		}
+		::gamesData.clear();
+		for_const (auto webpage, ::webPagesData) {
+			delete webpage;
+		}
+		::webPagesData.clear();
+		for_const (auto photo, ::photosData) {
 			delete photo;
 		}
 		::photosData.clear();
-		for_const (DocumentData *document, ::documentsData) {
+		for_const (auto document, ::documentsData) {
 			delete document;
 		}
 		::documentsData.clear();
-		for_const (WebPageData *webpage, webPagesData) {
-			delete webpage;
-		}
-		webPagesData.clear();
+
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
 		Global::SetStickerSets(Stickers::Sets());

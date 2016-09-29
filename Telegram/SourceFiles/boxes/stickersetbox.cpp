@@ -1508,8 +1508,8 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 
 void StickersBox::closePressed() {
 	if (!_disenableRequests.isEmpty()) {
-		for (QMap<mtpRequestId, NullType>::const_iterator i = _disenableRequests.cbegin(), e = _disenableRequests.cend(); i != e; ++i) {
-			MTP::cancel(i.key());
+		for_const (auto requestId, _disenableRequests) {
+			MTP::cancel(requestId);
 		}
 		_disenableRequests.clear();
 		Global::SetLastStickersUpdate(0);
@@ -1607,7 +1607,7 @@ void StickersBox::onSave() {
 			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
 				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
 				if (it->flags & MTPDstickerSet::Flag::f_official) {
-					_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolTrue()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
+					_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolTrue()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5));
 					it->flags |= MTPDstickerSet::Flag::f_archived;
 					auto index = Global::RefArchivedStickerSetsOrder().indexOf(it->id);
 					if (index < 0) {
@@ -1615,7 +1615,7 @@ void StickersBox::onSave() {
 						writeArchived = true;
 					}
 				} else {
-					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
+					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5));
 					int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
 					if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
 					if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
@@ -1645,7 +1645,7 @@ void StickersBox::onSave() {
 		if (it != sets.cend()) {
 			if ((it->flags & MTPDstickerSet::Flag::f_archived) && !disabled.contains(it->id)) {
 				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
-				_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolFalse()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
+				_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolFalse()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5));
 				it->flags &= ~MTPDstickerSet::Flag::f_archived;
 				writeArchived = true;
 			}

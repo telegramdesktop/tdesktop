@@ -92,9 +92,9 @@ void SysBtn::setSysBtnStyle(const style::sysButton &st) {
 HitTestType SysBtn::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
 	if (x >= 0 && y >= 0 && x < w && y < h && isVisible()) {
-		return HitTestSysButton;
+		return HitTestType::SysButton;
 	}
-	return HitTestNone;
+	return HitTestType::None;
 }
 
 void SysBtn::step_color(float64 ms, bool timer) {

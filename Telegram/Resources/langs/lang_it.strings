@@ -580,7 +580,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_contact" = "un contatto";
 "lng_action_pinned_media_location" = "una posizione";
 "lng_action_pinned_media_sticker" = "uno sticker";
-"lng_action_game_score" = "{from} ha segnato {count:# punti|# punto|# punti} in {game}";
+"lng_action_pinned_media_emoji_sticker" = "uno {emoji} sticker";
+"lng_action_pinned_media_game" = "il gioco «{game}»";
+"lng_action_game_score" = "{from} ha totalizzato {count:# punti|# punto|# punti} a {game}";
+"lng_action_game_you_scored" = "Hai totalizzato {count:# punti|# punto|# punti} a {game}";
 
 "lng_profile_migrate_reached" = "Limite di {count:_not_used_|# membro|# membri} raggiunto";
 "lng_profile_migrate_body" = "Per superare questo limite, puoi aggiornare il gruppo a supergruppo.";
@@ -774,6 +777,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_bot_groups_not_found" = "Nessun gruppo trovato";
 "lng_bot_sure_invite" = "Aggiungere il bot a «{group}»?";
 "lng_bot_already_in_group" = "Questo bot è già membro del gruppo.";
+"lng_bot_choose_chat" = "Scegli chat";
+"lng_bot_no_chats" = "Non hai chat";
+"lng_bot_chats_not_found" = "Nessuna chat trovata";
+"lng_bot_sure_share_game" = "Condividere questo gioco con {user}?";
+"lng_bot_sure_share_game_group" = "Condividere questo gioco con «{group}»?";
 
 "lng_typing" = "sta scrivendo";
 "lng_user_typing" = "{user} sta scrivendo";
@@ -808,6 +816,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Scegli immagini";
+"lng_game_tag" = "Gioco";
 
 "lng_context_view_profile" = "Visualizza profilo";
 "lng_context_view_group" = "Visualizza info gruppo";

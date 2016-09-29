@@ -459,8 +459,8 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	--_queue->queries;
 	_requests.erase(i);
 
-	const auto &d(result.c_upload_file());
-	const string &bytes(d.vbytes.c_string().v);
+	auto &d = result.c_upload_file();
+	auto &bytes = d.vbytes.c_string().v;
 
 	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
 
