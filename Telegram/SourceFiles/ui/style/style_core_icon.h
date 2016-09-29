@@ -90,7 +90,7 @@ public:
 		_parts.reserve(makeCopy.copyFrom._parts.size());
 		auto colorIt = makeCopy.colors.cbegin(), colorsEnd = makeCopy.colors.cend();
 		for_const (auto &part, makeCopy.copyFrom._parts) {
-			auto &newPart = part.clone((colorIt == colorsEnd) ? Color(Qt::Uninitialized) : *(colorIt++));
+			auto newPart = part.clone((colorIt == colorsEnd) ? Color(Qt::Uninitialized) : *(colorIt++));
 			_parts.push_back(newPart);
 		}
 	}
