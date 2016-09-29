@@ -494,7 +494,7 @@ void HistoryMessage::updateMediaInBubbleState() {
 		return;
 	}
 
-	bool hasSomethingAbove = displayFromName() || displayForwardedFrom() || Has<HistoryMessageVia>();
+	bool hasSomethingAbove = displayFromName() || displayForwardedFrom() || Has<HistoryMessageReply>() || Has<HistoryMessageVia>();
 	bool hasSomethingBelow = false;
 	if (!emptyText()) {
 		if (_media->isAboveMessage()) {

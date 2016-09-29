@@ -172,6 +172,9 @@ public:
 	bool hideFromName() const override {
 		return true;
 	}
+	bool isReadyForOpen() const override {
+		return _data->loaded();
+	}
 
 protected:
 	float64 dataProgress() const override {
@@ -480,6 +483,9 @@ public:
 	}
 	bool hideFromName() const override {
 		return true;
+	}
+	bool isReadyForOpen() const override {
+		return _data->loaded();
 	}
 
 	~HistoryGif();

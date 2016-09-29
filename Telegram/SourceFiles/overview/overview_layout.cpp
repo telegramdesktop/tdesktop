@@ -333,15 +333,15 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
-		style::sprite icon;
-		if (radial) {
-			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-		} else if (loaded) {
-			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
-		} else {
-			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-		}
-		p.drawSpriteCenter(inner, icon);
+		auto icon = ([radial, loaded, selected] {
+			if (radial) {
+				return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			} else if (loaded) {
+				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+			}
+			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		})();
+		icon->paintInCenter(p, inner);
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
@@ -461,17 +461,17 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
-		style::sprite icon;
-		if (showPause) {
-			icon = selected ? st::msgFileInPauseSelected : st::msgFileInPause;
-		} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
-			icon = selected ? st::msgFileInPlaySelected : st::msgFileInPlay;
-		} else if (_data->loading()) {
-			icon = selected ? st::msgFileInCancelSelected : st::msgFileInCancel;
-		} else {
-			icon = selected ? st::msgFileInDownloadSelected : st::msgFileInDownload;
-		}
-		p.drawSpriteCenter(inner, icon);
+		auto icon = ([showPause, this, selected] {
+			if (showPause) {
+				return &(selected ? st::msgFileInPauseSelected : st::msgFileInPause);
+			} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
+				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+			} else if (_data->loading()) {
+				return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			}
+			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		})();
+		icon->paintInCenter(p, inner);
 	}
 
 	int32 namewidth = _width - nameleft - nameright;
@@ -672,17 +672,17 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
-			style::sprite icon;
-			if (showPause) {
-				icon = selected ? st::msgFileInPauseSelected : st::msgFileInPause;
-			} else if (loaded) {
-				icon = selected ? st::msgFileInPlaySelected : st::msgFileInPlay;
-			} else if (_data->loading()) {
-				icon = selected ? st::msgFileInCancelSelected : st::msgFileInCancel;
-			} else {
-				icon = selected ? st::msgFileInDownloadSelected : st::msgFileInDownload;
-			}
-			p.drawSpriteCenter(inner, icon);
+			auto icon = ([showPause, loaded, this, selected] {
+				if (showPause) {
+					return &(selected ? st::msgFileInPauseSelected : st::msgFileInPause);
+				} else if (loaded) {
+					return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+				} else if (_data->loading()) {
+					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				}
+				return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			})();
+			icon->paintInCenter(p, inner);
 		}
 	} else {
 		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
@@ -748,13 +748,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 					p.setOpacity(radialOpacity);
-					style::sprite icon;
-					if (loaded || _data->loading()) {
-						icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-					} else {
-						icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-					}
-					p.drawSpriteCenter(inner, icon);
+					auto icon = ([loaded, this, selected] {
+						if (loaded || _data->loading()) {
+							return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+						}
+						return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+					})();
+					icon->paintInCenter(p, inner);
 					if (radial) {
 						p.setOpacity(1);
 

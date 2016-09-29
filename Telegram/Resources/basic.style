@@ -1169,30 +1169,78 @@ msgFileOutBg: #78c67f;
 msgFileOutBgOver: #6bc272;
 msgFileOutBgSelected: #5fb389;
 
-msgFileOutImage: sprite(0px, 146px, 18px, 18px);
-msgFileOutImageSelected: sprite(18px, 146px, 18px, 18px);
-msgFileInImage: sprite(0px, 164px, 18px, 18px);
-msgFileInImageSelected: sprite(18px, 164px, 18px, 18px);
-msgFileOutFile: sprite(36px, 146px, 18px, 18px);
-msgFileOutFileSelected: sprite(54px, 146px, 18px, 18px);
-msgFileInFile: sprite(36px, 164px, 18px, 18px);
-msgFileInFileSelected: sprite(54px, 164px, 18px, 18px);
-msgFileOutDownload: sprite(72px, 142px, 14px, 20px);
-msgFileOutDownloadSelected: sprite(86px, 142px, 14px, 20px);
-msgFileInDownload: sprite(72px, 162px, 14px, 20px);
-msgFileInDownloadSelected: sprite(86px, 162px, 14px, 20px);
-msgFileOutCancel: sprite(100px, 147px, 16px, 16px);
-msgFileOutCancelSelected: sprite(116px, 147px, 16px, 16px);
-msgFileInCancel: sprite(100px, 165px, 16px, 16px);
-msgFileInCancelSelected: sprite(116px, 165px, 16px, 16px);
-msgFileOutPause: sprite(132px, 147px, 14px, 16px);
-msgFileOutPauseSelected: sprite(146px, 147px, 14px, 16px);
-msgFileInPause: sprite(132px, 165px, 14px, 16px);
-msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
-msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
-msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
-msgFileInPlay: sprite(160px, 164px, 20px, 18px);
-msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
+msgFileOutImage: icon {
+	{ "msg_file_image", msgOutBg },
+};
+msgFileOutImageSelected: icon {
+	{ "msg_file_image", msgOutBgSelected },
+};
+msgFileInImage: icon {
+	{ "msg_file_image", msgInBg },
+};
+msgFileInImageSelected: icon {
+	{ "msg_file_image", msgInBgSelected },
+};
+msgFileOutDocument: icon {
+	{ "msg_file_document", msgOutBg },
+};
+msgFileOutDocumentSelected: icon {
+	{ "msg_file_document", msgOutBgSelected },
+};
+msgFileInDocument: icon {
+	{ "msg_file_document", msgInBg },
+};
+msgFileInDocumentSelected: icon {
+	{ "msg_file_document", msgInBgSelected },
+};
+msgFileOutDownload: icon {
+	{ "msg_file_download", msgOutBg },
+};
+msgFileOutDownloadSelected: icon {
+	{ "msg_file_download", msgOutBgSelected },
+};
+msgFileInDownload: icon {
+	{ "msg_file_download", msgInBg },
+};
+msgFileInDownloadSelected: icon {
+	{ "msg_file_download", msgInBgSelected },
+};
+msgFileOutCancel: icon {
+	{ "msg_file_cancel", msgOutBg },
+};
+msgFileOutCancelSelected: icon {
+	{ "msg_file_cancel", msgOutBgSelected },
+};
+msgFileInCancel: icon {
+	{ "msg_file_cancel", msgInBg },
+};
+msgFileInCancelSelected: icon {
+	{ "msg_file_cancel", msgInBgSelected },
+};
+msgFileOutPause: icon {
+	{ "msg_file_pause", msgOutBg },
+};
+msgFileOutPauseSelected: icon {
+	{ "msg_file_pause", msgOutBgSelected },
+};
+msgFileInPause: icon {
+	{ "msg_file_pause", msgInBg },
+};
+msgFileInPauseSelected: icon {
+	{ "msg_file_pause", msgInBgSelected },
+};
+msgFileOutPlay: icon {
+	{ "msg_file_play", msgOutBg },
+};
+msgFileOutPlaySelected: icon {
+	{ "msg_file_play", msgOutBgSelected },
+};
+msgFileInPlay: icon {
+	{ "msg_file_play", msgInBg },
+};
+msgFileInPlaySelected: icon {
+	{ "msg_file_play", msgInBgSelected },
+};
 
 msgFileRed: sprite(0px, 425px, 20px, 20px);
 msgFileYellow: sprite(20px, 425px, 20px, 20px);

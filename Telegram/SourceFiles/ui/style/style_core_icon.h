@@ -89,8 +89,8 @@ public:
 	Icon(const ColoredCopy &makeCopy) {
 		_parts.reserve(makeCopy.copyFrom._parts.size());
 		auto colorIt = makeCopy.colors.cbegin(), colorsEnd = makeCopy.colors.cend();
-		for_const (const auto &part, makeCopy.copyFrom._parts) {
-			const auto &newPart = part.clone((colorIt == colorsEnd) ? Color(Qt::Uninitialized) : *(colorIt++));
+		for_const (auto &part, makeCopy.copyFrom._parts) {
+			auto &newPart = part.clone((colorIt == colorsEnd) ? Color(Qt::Uninitialized) : *(colorIt++));
 			_parts.push_back(newPart);
 		}
 	}
@@ -106,6 +106,12 @@ public:
 	}
 
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
+	void paint(QPainter &p, int x, int y, int outerw) const {
+		paint(p, QPoint(x, y), outerw);
+	}
+	void paintInCenter(QPainter &p, const QRect &outer) const {
+		paint(p, outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2, outer.x() * 2 + outer.width());
+	}
 	void fill(QPainter &p, const QRect &rect) const;
 	int width() const;
 	int height() const;

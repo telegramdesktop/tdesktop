@@ -408,7 +408,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, overlayCorners);
 	}
 
-	if (notChild && (radial || (!loaded && !_data->loading()))) {
+	if (radial || (!loaded && !_data->loading())) {
 		float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -432,17 +432,18 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		p.setOpacity(radial ? _animation->radial.opacity() : 1);
 
 		p.setOpacity(radialOpacity);
-		style::sprite icon;
-		if (radial || _data->loading()) {
-			DelayedStorageImage *delayed = _data->full->toDelayedStorageImage();
-			if (!delayed || !delayed->location().isNull()) {
-				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		auto icon = ([radial, this, selected]() -> const style::icon* {
+			if (radial || _data->loading()) {
+				auto delayed = _data->full->toDelayedStorageImage();
+				if (!delayed || !delayed->location().isNull()) {
+					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				}
+				return nullptr;
 			}
-		} else {
-			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-		}
-		if (!icon.isEmpty()) {
-			p.drawSpriteCenter(inner, icon);
+			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		})();
+		if (icon) {
+			icon->paintInCenter(p, inner);
 		}
 		if (radial) {
 			p.setOpacity(1);
@@ -769,15 +770,15 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		p.setOpacity(1);
 	}
 
-	style::sprite icon;
-	if (loaded) {
-		icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
-	} else if (radial || _data->loading()) {
-		icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-	} else {
-		icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-	}
-	p.drawSpriteCenter(inner, icon);
+	auto icon = ([loaded, radial, this, selected] {
+		if (loaded) {
+			return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+		} else if (radial || _data->loading()) {
+			return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		}
+		return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+	})();
+	icon->paintInCenter(p, inner);
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
@@ -1122,14 +1123,14 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 			p.setOpacity(radialOpacity);
-			style::sprite icon;
-			if (radial || _data->loading()) {
-				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-			} else {
-				icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-			}
+			auto icon = ([radial, this, selected] {
+				if (radial || _data->loading()) {
+					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				}
+				return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			})();
 			p.setOpacity((radial && loaded) ? _animation->radial.opacity() : 1);
-			p.drawSpriteCenter(inner, icon);
+			icon->paintInCenter(p, inner);
 			if (radial) {
 				p.setOpacity(1);
 
@@ -1174,23 +1175,22 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
-		style::sprite icon;
-		if (showPause) {
-			icon = outbg ? (selected ? st::msgFileOutPauseSelected : st::msgFileOutPause) : (selected ? st::msgFileInPauseSelected : st::msgFileInPause);
-		} else if (radial || _data->loading()) {
-			icon = outbg ? (selected ? st::msgFileOutCancelSelected : st::msgFileOutCancel) : (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-		} else if (loaded) {
-			if (_data->song() || _data->voice()) {
-				icon = outbg ? (selected ? st::msgFileOutPlaySelected : st::msgFileOutPlay) : (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
-			} else if (_data->isImage()) {
-				icon = outbg ? (selected ? st::msgFileOutImageSelected : st::msgFileOutImage) : (selected ? st::msgFileInImageSelected : st::msgFileInImage);
-			} else {
-				icon = outbg ? (selected ? st::msgFileOutFileSelected : st::msgFileOutFile) : (selected ? st::msgFileInFileSelected : st::msgFileInFile);
+		auto icon = ([showPause, radial, this, loaded, outbg, selected] {
+			if (showPause) {
+				return &(outbg ? (selected ? st::msgFileOutPauseSelected : st::msgFileOutPause) : (selected ? st::msgFileInPauseSelected : st::msgFileInPause));
+			} else if (radial || _data->loading()) {
+				return &(outbg ? (selected ? st::msgFileOutCancelSelected : st::msgFileOutCancel) : (selected ? st::msgFileInCancelSelected : st::msgFileInCancel));
+			} else if (loaded) {
+				if (_data->song() || _data->voice()) {
+					return &(outbg ? (selected ? st::msgFileOutPlaySelected : st::msgFileOutPlay) : (selected ? st::msgFileInPlaySelected : st::msgFileInPlay));
+				} else if (_data->isImage()) {
+					return &(outbg ? (selected ? st::msgFileOutImageSelected : st::msgFileOutImage) : (selected ? st::msgFileInImageSelected : st::msgFileInImage));
+				}
+				return &(outbg ? (selected ? st::msgFileOutDocumentSelected : st::msgFileOutDocument) : (selected ? st::msgFileInDocumentSelected : st::msgFileInDocument));
 			}
-		} else {
-			icon = outbg ? (selected ? st::msgFileOutDownloadSelected : st::msgFileOutDownload) : (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-		}
-		p.drawSpriteCenter(inner, icon);
+			return &(outbg ? (selected ? st::msgFileOutDownloadSelected : st::msgFileOutDownload) : (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload));
+		})();
+		icon->paintInCenter(p, inner);
 	}
 	int32 namewidth = _width - nameleft - nameright;
 
@@ -1746,18 +1746,19 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 		p.setOpacity(radialOpacity);
-		style::sprite icon;
-		if (_data->loaded() && !radial) {
-			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
-		} else if (radial || _data->loading()) {
-			if (_parent->id > 0 || _data->uploading()) {
-				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		auto icon = ([this, radial, selected]() -> const style::icon * {
+			if (_data->loaded() && !radial) {
+				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+			} else if (radial || _data->loading()) {
+				if (_parent->id > 0 || _data->uploading()) {
+					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				}
+				return nullptr;
 			}
-		} else {
-			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-		}
-		if (!icon.isEmpty()) {
-			p.drawSpriteCenter(inner, icon);
+			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		})();
+		if (icon) {
+			icon->paintInCenter(p, inner);
 		}
 		if (radial) {
 			p.setOpacity(1);
@@ -2729,10 +2730,12 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		int32 pixwidth = _attach->currentWidth(), pixheight = _attach->height();
 
 		if (_data->type == WebPageVideo && _attach->type() == MediaTypePhoto) {
-			if (_data->siteName == qstr("YouTube")) {
-				p.drawSprite(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), st::youtubeIcon);
-			} else {
-				p.drawSprite(QPoint((pixwidth - st::videoIcon.pxWidth()) / 2, (pixheight - st::videoIcon.pxHeight()) / 2), st::videoIcon);
+			if (_attach->isReadyForOpen()) {
+				if (_data->siteName == qstr("YouTube")) {
+					p.drawSprite(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), st::youtubeIcon);
+				} else {
+					p.drawSprite(QPoint((pixwidth - st::videoIcon.pxWidth()) / 2, (pixheight - st::videoIcon.pxHeight()) / 2), st::videoIcon);
+				}
 			}
 			if (_durationWidth) {
 				int32 dateX = pixwidth - _durationWidth - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
@@ -2811,7 +2814,7 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 			if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 			result = _attach->getState(x - attachLeft, y - attachTop, request);
 
-			if (result.link && !_data->document && _data->photo) {
+			if (result.link && !_data->document && _data->photo && _attach->isReadyForOpen()) {
 				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
 					result.link = _openl;
 				} else if (_data->type == WebPagePhoto || _data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
@@ -3160,7 +3163,11 @@ HistoryTextState HistoryGame::getState(int x, int y, HistoryStateRequest request
 		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 
 		if (x >= attachLeft && x < attachLeft + _attach->currentWidth() && y >= tshift && y < _height - bshift) {
-			result.link = _openl;
+			if (_attach->isReadyForOpen()) {
+				result.link = _openl;
+			} else {
+				result = _attach->getState(x - attachLeft, y - attachTop, request);
+			}
 		}
 	}
 

@@ -233,7 +233,8 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.drawEllipse(inner);
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			p.drawSpriteCenter(inner, st::msgFileInPlay);
+			auto icon = &st::msgFileInPlay;
+			icon->paintInCenter(p, inner);
 		}
 	} else {
 		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
@@ -272,7 +273,8 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.drawEllipse(inner);
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			p.drawSpriteCenter(inner, _isImage ? st::msgFileOutImage : st::msgFileOutFile);
+			auto icon = &(_isImage ? st::msgFileOutImage : st::msgFileOutDocument);
+			icon->paintInCenter(p, inner);
 		} else {
 			p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
 		}
@@ -553,7 +555,8 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			p.drawEllipse(inner);
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			p.drawSpriteCenter(inner, st::msgFileInPlay);
+			auto icon = &st::msgFileInPlay;
+			icon->paintInCenter(p, inner);
 		}
 	} else if (_doc) {
 		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
@@ -591,7 +594,8 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			p.drawEllipse(inner);
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			p.drawSpriteCenter(inner, _isImage ? st::msgFileInImage : st::msgFileInFile);
+			auto icon = &(_isImage ? st::msgFileInImage : st::msgFileInDocument);
+			icon->paintInCenter(p, inner);
 		}
 		p.setFont(st::semiboldFont);
 		p.setPen(st::black);
