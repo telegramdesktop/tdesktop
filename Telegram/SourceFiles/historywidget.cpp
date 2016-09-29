@@ -6027,7 +6027,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 
 	UserData *bot = nullptr;
 	QString inlineBotUsername;
-	QString query = _field.getInlineBotQuery(&bot, &inlineBotUsername);
+	auto query = _field.getInlineBotQuery(&bot, &inlineBotUsername);
 	if (inlineBotUsername == _inlineBotUsername) {
 		if (bot == LookingUpInlineBot) {
 			bot = resolvedBot;
@@ -6567,7 +6567,7 @@ void HistoryWidget::uploadImage(const QImage &img, PrepareMediaType type, FileLo
 	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	FileLoadTask *task = new FileLoadTask(img, type, FileLoadTo(_peer->id, _silent.checked(), replyToId()), confirm, source);
+	auto task = new FileLoadTask(img, type, FileLoadTo(_peer->id, _silent.checked(), replyToId()), confirm, source);
 	if (withText) {
 		_confirmWithTextId = task->fileid();
 	}

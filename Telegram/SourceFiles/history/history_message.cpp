@@ -968,6 +968,9 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 
 	bool mediaRemovedSkipBlock = false;
 	if (_media) {
+		// Don't update Game media because we loose the consumed text of the message.
+		if (_media->type() == MediaTypeGame) return;
+
 		mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
 		_media.clear();
 	}
@@ -2180,7 +2183,7 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 		result = _text.getState(x - trect.x(), y - trect.y(), trect.width(), textRequest);
 		textstyleRestore();
 		if (auto gamescore = Get<HistoryServiceGameScore>()) {
-			if (!result.link && outer.contains(x, y)) {
+			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
 				result.link = gamescore->lnk;
 			}
 		}

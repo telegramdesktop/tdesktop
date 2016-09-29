@@ -286,7 +286,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.setFont(_st.font);
 		p.setPen(a_phColor.current());
 		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
-			int skipWidth = _st.font->width(getTextWithTags().text.mid(0, _phAfter));
+			int skipWidth = placeholderSkipWidth();
 			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
 		} else {
 			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
@@ -296,6 +296,18 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.setOpacity(1);
 	}
 	QTextEdit::paintEvent(e);
+}
+
+int FlatTextarea::placeholderSkipWidth() const {
+	if (!_phAfter) {
+		return 0;
+	}
+	auto text = getTextWithTags().text;
+	auto result = _st.font->width(text.mid(0, _phAfter));
+	if (_phAfter > text.size()) {
+		result += _st.font->spacew;
+	}
+	return result;
 }
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
@@ -339,11 +351,12 @@ QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInl
 	t_assert(outInlineBotUsername != nullptr);
 
 	auto &text = getTextWithTags().text;
+	auto textLength = text.size();
 
-	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
-	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
+	int inlineUsernameStart = 1, inlineUsernameLength = 0;
+	if (textLength > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
 		inlineUsernameLength = 1;
-		for (int32 i = inlineUsernameStart + 1, l = text.size(); i < l; ++i) {
+		for (int i = inlineUsernameStart + 1; i != textLength; ++i) {
 			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
 				++inlineUsernameLength;
 				continue;
@@ -353,11 +366,19 @@ QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInl
 			}
 			break;
 		}
-		if (inlineUsernameLength && inlineUsernameStart + inlineUsernameLength < text.size() && text.at(inlineUsernameStart + inlineUsernameLength).isSpace()) {
-			QStringRef username = text.midRef(inlineUsernameStart, inlineUsernameLength);
+		auto inlineUsernameEnd = inlineUsernameStart + inlineUsernameLength;
+		auto inlineUsernameEqualsText = (inlineUsernameEnd == textLength);
+		auto validInlineUsername = false;
+		if (inlineUsernameEqualsText) {
+			validInlineUsername = text.endsWith(qstr("bot"));
+		} else if (inlineUsernameEnd < textLength && inlineUsernameLength) {
+			validInlineUsername = text.at(inlineUsernameEnd).isSpace();
+		}
+		if (validInlineUsername) {
+			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
 			if (username != *outInlineBotUsername) {
 				*outInlineBotUsername = username.toString();
-				PeerData *peer = App::peerByName(*outInlineBotUsername);
+				auto peer = App::peerByName(*outInlineBotUsername);
 				if (peer) {
 					if (peer->isUser()) {
 						*outInlineBot = peer->asUser();
@@ -373,7 +394,7 @@ QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInl
 			if (*outInlineBot && (!(*outInlineBot)->botInfo || (*outInlineBot)->botInfo->inlinePlaceholder.isEmpty())) {
 				*outInlineBot = nullptr;
 			} else {
-				return text.mid(inlineUsernameStart + inlineUsernameLength + 1);
+				return inlineUsernameEqualsText ? QString() : text.mid(inlineUsernameEnd + 1);
 			}
 		} else {
 			inlineUsernameLength = 0;
@@ -1265,10 +1286,7 @@ void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 		_phAfter = afterSymbols;
 		updatePlaceholder();
 	}
-	int skipWidth = 0;
-	if (_phAfter) {
-		skipWidth = _st.font->width(getTextWithTags().text.mid(0, _phAfter));
-	}
+	int skipWidth = placeholderSkipWidth();
 	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - skipWidth);
 	if (_phVisible) update();
 }
