@@ -583,7 +583,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_emoji_sticker" = "un {emoji} sticker";
 "lng_action_pinned_media_game" = "el juego «{game}»";
 "lng_action_game_score" = "{from} consiguió {count:# puntos|# punto|# puntos} en {game}";
-"lng_action_game_you_scored" = "Conseguiste {count:# puntos|# punto|#puntos} en {game}";
+"lng_action_game_you_scored" = "Conseguiste {count:# puntos|# punto|# puntos} en {game}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_body" = "Para superar este límite, puedes convertir tu grupo en un supergrupo.";
@@ -772,7 +772,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_allow_bot" = "Permitir";
 
 "lng_bot_start" = "Iniciar";
-"lng_bot_choose_group" = "Elegir grupo";
+"lng_bot_choose_group" = "Elige un grupo";
 "lng_bot_no_groups" = "No tienes grupos";
 "lng_bot_groups_not_found" = "No se encontraron grupos";
 "lng_bot_sure_invite" = "¿Añadir el bot a «{group}»?";
@@ -787,6 +787,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} está escribiendo";
 "lng_users_typing" = "{user} y {second_user} están escribiendo";
 "lng_many_typing" = "{count:_not_used_|# está|# están} escribiendo";
+"lng_playing_game" = "jugando";
+"lng_user_playing_game" = "{user} está jugando";
+"lng_users_playing_game" = "{user} y {second_user} están jugando";
+"lng_many_playing_game" = "{count:_not_used_|# está|# están} jugando";
 "lng_send_action_record_video" = "grabando un vídeo";
 "lng_user_action_record_video" = "{user} está grabando un vídeo";
 "lng_send_action_upload_video" = "enviando un vídeo";

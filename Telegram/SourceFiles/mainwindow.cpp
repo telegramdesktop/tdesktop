@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "mainwindow.h"
 
+#include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "zip.h"
 #include "lang.h"
@@ -182,12 +183,9 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			if (history->peer->isChat() || history->peer->isMegagroup()) {
-				p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), st::dlgChatImg);
-				rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
-			} else if (history->peer->isChannel()) {
-				p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), st::dlgChannelImg);
-				rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
+			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(history->peer, false)) {
+				chatTypeIcon->paint(p, rectForName.topLeft(), w);
+				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 			}
 		}
 

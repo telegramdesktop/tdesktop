@@ -30,7 +30,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Dialogs {
 namespace Layout {
-
 namespace {
 
 // Show all dates that are in the last 20 hours in time format.
@@ -69,25 +68,14 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 	int32 namewidth = w - nameleft - st::dialogsPadding.x();
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
-	// draw chat icon
-	if (history->peer->isChat() || history->peer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
-	} else if (history->peer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
+	if (auto chatTypeIcon = ChatTypeIcon(history->peer, active)) {
+		chatTypeIcon->paint(p, rectForName.topLeft(), w);
+		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 
 	int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 	if (draft) {
 		paintRowDate(p, date, rectForName, active);
-
-		// draw check
-		if (draft->saveRequestId) {
-			auto check = active ? &st::dlgActiveSendImg : &st::dlgSendImg;
-			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dialogsCheckSkip);
-			p.drawSprite(QPoint(rectForName.left() + rectForName.width() + st::dialogsCheckLeft, rectForName.top() + st::dialogsCheckTop), *check);
-		}
 
 		p.setFont(st::dialogsTextFont);
 		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
@@ -116,28 +104,33 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active);
 
-		// draw check
-		if (item->needCheck()) {
-			const style::sprite *check;
+		paintItemCallback(nameleft, namewidth, item);
+	}
+	auto sendStateIcon = ([draft, item, active]() -> const style::icon* {
+		if (draft) {
+			if (draft->saveRequestId) {
+				return &(active ? st::dialogsSendingActiveIcon : st::dialogsSendingIcon);
+			}
+		} else if (item && !item->isEmpty() && item->needCheck()) {
 			if (item->id > 0) {
 				if (item->unread()) {
-					check = active ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
-				} else {
-					check = active ? &st::dlgActiveDblCheckImg : &st::dlgDblCheckImg;
+					return &(active ? st::dialogsSentActiveIcon : st::dialogsSentIcon);
 				}
-			} else {
-				check = active ? &st::dlgActiveSendImg : &st::dlgSendImg;
+				return &(active ? st::dialogsReceivedActiveIcon : st::dialogsReceivedIcon);
 			}
-			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dialogsCheckSkip);
-			p.drawSprite(QPoint(rectForName.left() + rectForName.width() + st::dialogsCheckLeft, rectForName.top() + st::dialogsCheckTop), *check);
+			return &(active ? st::dialogsSendingActiveIcon : st::dialogsSendingIcon);
 		}
-
-		paintItemCallback(nameleft, namewidth, item);
+		return nullptr;
+	})();
+	if (sendStateIcon) {
+		rectForName.setWidth(rectForName.width() - st::dialogsSendStateSkip);
+		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), w);
 	}
 
 	if (history->peer->isUser() && history->peer->isVerified()) {
-		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-		p.drawSprite(rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (active ? st::verifiedCheckInv : st::verifiedCheck));
+		auto icon = &(active ? st::dialogsVerifiedActiveIcon : st::dialogsVerifiedIcon);
+		rectForName.setWidth(rectForName.width() - icon->width());
+		icon->paint(p, rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0), w);
 	}
 
 	p.setPen(active ? st::dialogsTextFgActive : st::dialogsNameFg);
@@ -168,6 +161,15 @@ QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xof
 }
 
 } // namepsace
+
+const style::icon *ChatTypeIcon(PeerData *peer, bool active) {
+	if (peer->isChat() || peer->isMegagroup()) {
+		return &(active ? st::dialogsChatActiveIcon : st::dialogsChatIcon);
+	} else if (peer->isChannel()) {
+		return &(active ? st::dialogsChannelActiveIcon : st::dialogsChannelIcon);
+	}
+	return nullptr;
+}
 
 void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st) {
 	t_assert(rect.height() == st.size);

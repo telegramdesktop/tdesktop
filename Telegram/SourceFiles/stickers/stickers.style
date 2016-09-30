@@ -40,9 +40,7 @@ featuredStickersAdd: RoundButton(defaultActiveButton) {
 
 stickerEmojiSkip: 5px;
 
-stickersAddIcon: icon {
-	{ "stickers_add", #ffffff },
-};
+stickersAddIcon: icon {{ "stickers_add", #ffffff }};
 stickersAddSize: size(30px, 24px);
 
 stickersFeaturedHeight: 32px;
@@ -55,6 +53,4 @@ stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {
-	{ "mediaview_save_check", #40ace3 }
-};
+stickersFeaturedInstalled: icon {{ "mediaview_save_check", #40ace3 }};

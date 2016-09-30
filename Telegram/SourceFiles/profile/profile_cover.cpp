@@ -151,7 +151,7 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 	int nameTop = _userpicButton->y() + st::profileNameTop - st::profileNameLabel.margin.top();
 	int nameWidth = newWidth - infoLeft - st::profileNameLeft;
 	if (_peer->isVerified()) {
-		nameWidth -= st::profileVerifiedCheckPosition.x() + st::profileVerifiedCheck.width();
+		nameWidth -= st::profileVerifiedCheckShift + st::profileVerifiedCheck.width();
 	}
 	int marginsAdd = st::profileNameLabel.margin.left() + st::profileNameLabel.margin.right();
 	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
@@ -207,7 +207,7 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(_statusPosition.x(), _statusPosition.y(), width(), _statusText);
 
 	if (_peer->isVerified()) {
-		st::profileVerifiedCheck.paint(p, QPoint(_name->x() + _name->width(), _name->y()) + st::profileVerifiedCheckPosition, width());
+		st::profileVerifiedCheck.paint(p, _name->x() + _name->width() + st::profileVerifiedCheckShift, _name->y(), width());
 	}
 
 	paintDivider(p);

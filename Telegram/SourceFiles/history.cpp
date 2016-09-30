@@ -32,6 +32,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
 
+namespace {
+
+constexpr int kStatusShowClientsideRecordVideo = 6000;
+constexpr int kStatusShowClientsideUploadVideo = 6000;
+constexpr int kStatusShowClientsideRecordVoice = 6000;
+constexpr int kStatusShowClientsideUploadVoice = 6000;
+constexpr int kStatusShowClientsideUploadPhoto = 6000;
+constexpr int kStatusShowClientsideUploadFile = 6000;
+constexpr int kStatusShowClientsideChooseLocation = 6000;
+constexpr int kStatusShowClientsideChooseContact = 6000;
+constexpr int kStatusShowClientsidePlayGame = 10000;
+
+} // namespace
+
 void historyInit() {
 	historyInitMessages();
 	historyInitMedia();
@@ -171,7 +185,7 @@ void History::draftSavedToCloud() {
 
 bool History::updateTyping(uint64 ms, bool force) {
 	bool changed = force;
-	for (TypingUsers::iterator i = typing.begin(), e = typing.end(); i != e;) {
+	for (auto i = typing.begin(), e = typing.end(); i != e;) {
 		if (ms >= i.value()) {
 			i = typing.erase(i);
 			changed = true;
@@ -179,7 +193,7 @@ bool History::updateTyping(uint64 ms, bool force) {
 			++i;
 		}
 	}
-	for (SendActionUsers::iterator i = sendActions.begin(); i != sendActions.cend();) {
+	for (auto i = sendActions.begin(); i != sendActions.cend();) {
 		if (ms >= i.value().until) {
 			i = sendActions.erase(i);
 			changed = true;
@@ -189,23 +203,46 @@ bool History::updateTyping(uint64 ms, bool force) {
 	}
 	if (changed) {
 		QString newTypingStr;
-		int32 cnt = typing.size();
-		if (cnt > 2) {
-			newTypingStr = lng_many_typing(lt_count, cnt);
-		} else if (cnt > 1) {
+		int typingCount = typing.size();
+		if (typingCount > 2) {
+			newTypingStr = lng_many_typing(lt_count, typingCount);
+		} else if (typingCount > 1) {
 			newTypingStr = lng_users_typing(lt_user, typing.begin().key()->firstName, lt_second_user, (typing.end() - 1).key()->firstName);
-		} else if (cnt) {
+		} else if (typingCount) {
 			newTypingStr = peer->isUser() ? lang(lng_typing) : lng_user_typing(lt_user, typing.begin().key()->firstName);
 		} else if (!sendActions.isEmpty()) {
-			switch (sendActions.begin().value().type) {
-			case SendActionRecordVideo: newTypingStr = peer->isUser() ? lang(lng_send_action_record_video) : lng_user_action_record_video(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionUploadVideo: newTypingStr = peer->isUser() ? lang(lng_send_action_upload_video) : lng_user_action_upload_video(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionRecordVoice: newTypingStr = peer->isUser() ? lang(lng_send_action_record_audio) : lng_user_action_record_audio(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionUploadVoice: newTypingStr = peer->isUser() ? lang(lng_send_action_upload_audio) : lng_user_action_upload_audio(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionUploadPhoto: newTypingStr = peer->isUser() ? lang(lng_send_action_upload_photo) : lng_user_action_upload_photo(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionUploadFile: newTypingStr = peer->isUser() ? lang(lng_send_action_upload_file) : lng_user_action_upload_file(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionChooseLocation: newTypingStr = peer->isUser() ? lang(lng_send_action_geo_location) : lng_user_action_geo_location(lt_user, sendActions.begin().key()->firstName); break;
-			case SendActionChooseContact: newTypingStr = peer->isUser() ? lang(lng_send_action_choose_contact) : lng_user_action_choose_contact(lt_user, sendActions.begin().key()->firstName); break;
+			// Handles all actions except game playing.
+			auto sendActionString = [](SendActionType type, const QString &name) -> QString {
+				switch (type) {
+				case SendActionRecordVideo: return name.isEmpty() ? lang(lng_send_action_record_video) : lng_user_action_record_video(lt_user, name);
+				case SendActionUploadVideo: return name.isEmpty() ? lang(lng_send_action_upload_video) : lng_user_action_upload_video(lt_user, name);
+				case SendActionRecordVoice: return name.isEmpty() ? lang(lng_send_action_record_audio) : lng_user_action_record_audio(lt_user, name);
+				case SendActionUploadVoice: return name.isEmpty() ? lang(lng_send_action_upload_audio) : lng_user_action_upload_audio(lt_user, name);
+				case SendActionUploadPhoto: return name.isEmpty() ? lang(lng_send_action_upload_photo) : lng_user_action_upload_photo(lt_user, name);
+				case SendActionUploadFile: return name.isEmpty() ? lang(lng_send_action_upload_file) : lng_user_action_upload_file(lt_user, name);
+				case SendActionChooseLocation: return name.isEmpty() ? lang(lng_send_action_geo_location) : lng_user_action_geo_location(lt_user, name);
+				case SendActionChooseContact: return name.isEmpty() ? lang(lng_send_action_choose_contact) : lng_user_action_choose_contact(lt_user, name);
+				default: break;
+				};
+				return QString();
+			};
+			for (auto i = sendActions.cbegin(), e = sendActions.cend(); i != e; ++i) {
+				newTypingStr = sendActionString(i->type, peer->isUser() ? QString() : i.key()->firstName);
+				if (!newTypingStr.isEmpty()) {
+					break;
+				}
+			}
+
+			// Everyone in sendActions are playing a game.
+			if (newTypingStr.isEmpty()) {
+				int playingCount = sendActions.size();
+				if (playingCount > 2) {
+					newTypingStr = lng_many_playing_game(lt_count, playingCount);
+				} else if (playingCount > 1) {
+					newTypingStr = lng_users_playing_game(lt_user, sendActions.begin().key()->firstName, lt_second_user, (sendActions.end() - 1).key()->firstName);
+				} else {
+					newTypingStr = peer->isUser() ? lang(lng_playing_game) : lng_user_playing_game(lt_user, sendActions.begin().key()->firstName);
+				}
 			}
 		}
 		if (!newTypingStr.isEmpty()) {
@@ -527,25 +564,37 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 	if (action.type() == mtpc_sendMessageCancelAction) {
 		history->unregTyping(user);
 		return;
+	} else if (action.type() == mtpc_sendMessageGameStopAction) {
+		auto it = history->sendActions.find(user);
+		if (it != history->sendActions.end() && it->type == SendActionPlayGame) {
+			history->unregTyping(user);
+		}
+		return;
 	}
 
 	uint64 ms = getms();
 	switch (action.type()) {
 	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
-	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + 6000)); break;
-	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + 6000, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
-	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordVoice, ms + 6000)); break;
-	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadVoice, ms + 6000, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + 6000, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + 6000, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
-	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + 6000)); break;
-	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + 6000)); break;
+	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + kStatusShowClientsideRecordVideo)); break;
+	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + kStatusShowClientsideUploadVideo, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
+	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordVoice, ms + kStatusShowClientsideRecordVoice)); break;
+	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadVoice, ms + kStatusShowClientsideUploadVoice, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + kStatusShowClientsideUploadPhoto, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
+	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + kStatusShowClientsideChooseLocation)); break;
+	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + kStatusShowClientsideChooseContact)); break;
+	case mtpc_sendMessageGamePlayAction: {
+		auto it = history->sendActions.find(user);
+		if (it == history->sendActions.end() || it->type == SendActionPlayGame || it->until <= ms) {
+			history->sendActions.insert(user, SendAction(SendActionPlayGame, ms + kStatusShowClientsidePlayGame));
+		}
+	} break;
 	default: return;
 	}
 
 	user->madeAction(when);
 
-	TypingHistories::const_iterator i = typing.find(history);
+	auto i = typing.find(history);
 	if (i == typing.cend()) {
 		typing.insert(history, ms);
 		history->typingDots = 0;
@@ -1059,13 +1108,13 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 
 void History::unregTyping(UserData *from) {
 	uint64 updateAtMs = 0;
-	TypingUsers::iterator i = typing.find(from);
-	if (i != typing.end()) {
+	auto i = typing.find(from);
+	if (i != typing.cend()) {
 		updateAtMs = getms();
 		i.value() = updateAtMs;
 	}
-	SendActionUsers::iterator j = sendActions.find(from);
-	if (j != sendActions.end()) {
+	auto j = sendActions.find(from);
+	if (j != sendActions.cend()) {
 		if (!updateAtMs) updateAtMs = getms();
 		j.value().until = updateAtMs;
 	}

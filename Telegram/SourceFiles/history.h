@@ -142,6 +142,7 @@ enum SendActionType {
 	SendActionUploadFile,
 	SendActionChooseLocation,
 	SendActionChooseContact,
+	SendActionPlayGame,
 };
 struct SendAction {
 	SendAction(SendActionType type, uint64 until, int32 progress = 0) : type(type), until(until), progress(progress) {
@@ -401,9 +402,9 @@ public:
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
 
-	typedef QMap<UserData*, uint64> TypingUsers;
+	using TypingUsers = QMap<UserData*, uint64>;
 	TypingUsers typing;
-	typedef QMap<UserData*, SendAction> SendActionUsers;
+	using SendActionUsers = QMap<UserData*, SendAction>;
 	SendActionUsers sendActions;
 	QString typingStr;
 	Text typingText;

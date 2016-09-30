@@ -25,9 +25,7 @@ profileBg: windowBg;
 
 profileTopBarHeight: topBarHeight;
 profileTopBarBackIconFg: #0290d7;
-profileTopBarBackIcon: icon {
-	{ "topbar_back_arrow", profileTopBarBackIconFg },
-};
+profileTopBarBackIcon: icon {{ "topbar_back_arrow", profileTopBarBackIconFg }};
 profileTopBarBackIconPosition: point(15px, 20px);
 profileTopBarBackFont: font(14px);
 profileTopBarBackFg: #1485c2;
@@ -69,9 +67,7 @@ profileSecondaryButton: RoundButton(profilePrimaryButton) {
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
-profileAddMemberIcon: icon {
-	{ "profile_add_member", windowActiveBg, point(20px, 10px) },
-};
+profileAddMemberIcon: icon {{ "profile_add_member", windowActiveBg, point(20px, 10px) }};
 profileAddMemberButton: RoundButton(profileSecondaryButton) {
 	width: 62px;
 	icon: profileAddMemberIcon;
@@ -89,12 +85,8 @@ profileDropAreaBorderWidth: 3px;
 profileDropAreaDuration: 200;
 
 profileDividerFg: windowShadowFg;
-profileDividerLeft: icon {
-	{ "profile_divider_left", profileDividerFg },
-};
-profileDividerFill: icon {
-	{ "profile_divider_fill", profileDividerFg },
-};
+profileDividerLeft: icon {{ "profile_divider_left", profileDividerFg }};
+profileDividerFill: icon {{ "profile_divider_fill", profileDividerFg }};
 
 profileBlocksTop: 7px;
 profileBlocksBottom: 20px;
@@ -143,9 +135,7 @@ profileMemberStatusPosition: point(68px, 31px);
 profileMemberStatusFg: windowSubTextFg;
 profileMemberStatusFgOver: windowSubTextFgOver;
 profileMemberStatusFgActive: windowActiveTextFg;
-profileMemberAdminIcon: icon {
-	{ "profile_admin_star", #3babe7, point(4px, 3px) },
-};
+profileMemberAdminIcon: icon {{ "profile_admin_star", #3babe7, point(4px, 3px) }};
 profileLimitReachedLabel: flatLabel(labelDefFlat) {
 	width: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
@@ -159,8 +149,8 @@ profileReportReasonOther: InputArea(defaultInputArea) {
 	heightMax: 115px;
 }
 
-profileVerifiedCheckPosition: point(-3px, 7px);
+profileVerifiedCheckShift: -3px;
 profileVerifiedCheck: icon {
-	{ "profile_verified_star", #4abcf1 },
-	{ "profile_verified_check", #ffffff, point(4px, 4px) }
+	{ "profile_verified_star", #4abcf1, point(0px, 7px) },
+	{ "profile_verified_check", #ffffff, point(4px, 11px) }
 };

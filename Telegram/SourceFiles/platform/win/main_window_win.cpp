@@ -529,7 +529,7 @@ private:
 
 };
 _PsShadowWindows _psShadowWindows;
-QColor _shActive(0, 0, 0), _shInactive(0, 0, 0);
+QColor _shActive(0, 0, 0)/*, _shInactive(0, 0, 0)*/;
 
 LRESULT CALLBACK _PsShadowWindows::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	auto wnd = App::wnd();
@@ -633,12 +633,12 @@ void MainWindow::shadowsUpdate(ShadowsChanges changes, WINDOWPOS *position) {
 }
 
 void MainWindow::shadowsActivate() {
-	_psShadowWindows.setColor(_shActive);
+//	_psShadowWindows.setColor(_shActive);
 	shadowsUpdate(ShadowsChange::Activate);
 }
 
 void MainWindow::shadowsDeactivate() {
-	_psShadowWindows.setColor(_shInactive);
+//	_psShadowWindows.setColor(_shInactive);
 }
 
 void MainWindow::psShowTrayMenu() {

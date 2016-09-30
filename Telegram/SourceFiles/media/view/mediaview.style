@@ -51,40 +51,51 @@ mediaviewPlayButton: IconButton {
 	opacity: mediaviewInactiveOpacity;
 	overOpacity: mediaviewActiveOpacity;
 
-	icon: icon {
-		{ "media_play", #ffffff, point(3px, 0px) },
-	};
+	icon: icon {{ "media_play", #ffffff, point(3px, 0px) }};
 	iconPosition: point(3px, 1px);
 	downIconPosition: point(3px, 1px);
 
 	duration: mediaviewOverDuration;
 }
-mediaviewPauseIcon: icon {
-	{ "media_pause", #ffffff, point(1px, 1px) }
-};
+mediaviewPauseIcon: icon {{ "media_pause", #ffffff, point(1px, 1px) }};
 mediaviewPlayPauseLeft: 17px;
 mediaviewFullScreenLeft: 17px;
 mediaviewVolumeLeft: 15px;
 
 mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
-	icon: icon {
-		{ "media_fullscreen_to", #ffffff, point(0px, 0px) },
-	};
+	icon: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
 	iconPosition: point(0px, 1px);
 	downIconPosition: point(0px, 1px);
 }
-mediaviewFullScreenOutIcon: icon {
-	{ "media_fullscreen_from", #ffffff, point(0px, 0px) },
-};
+mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
 
 mediaviewPlaybackTop: 28px;
 
 mediaviewVolumeSize: size(44px, 20px);
-mediaviewVolumeIcon: icon {
-	{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) },
-};
-mediaviewVolumeOnIcon: icon {
-	{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) },
-};
+mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) }};
+mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;
+
+mediaviewLeft: icon {{ "mediaview_previous", #ffffff }};
+mediaviewRight: icon {{ "mediaview_next", #ffffff }};
+mediaviewClose: icon {{ "mediaview_close", #ffffff }};
+mediaviewSave: icon {{ "mediaview_download", #ffffff }};
+mediaviewMore: icon {{ "mediaview_more", #ffffff }};
+
+mediaviewFileRed: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #d55959 },
+};
+mediaviewFileYellow: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #e8a659 },
+};
+mediaviewFileGreen: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #49a957 },
+};
+mediaviewFileBlue: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #599dcf },
+};

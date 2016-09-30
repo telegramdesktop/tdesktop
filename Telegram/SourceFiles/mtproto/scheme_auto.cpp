@@ -3896,6 +3896,14 @@ void _serialize_sendMessageChooseContactAction(MTPStringLogger &to, int32 stage,
 	to.add("{ sendMessageChooseContactAction }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
+void _serialize_sendMessageGamePlayAction(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ sendMessageGamePlayAction }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_sendMessageGameStopAction(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ sendMessageGameStopAction }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
 void _serialize_contacts_found(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5387,6 +5395,8 @@ void _serialize_inputBotInlineMessageMediaContact(MTPStringLogger &to, int32 sta
 }
 
 void _serialize_inputBotInlineMessageGame(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDinputBotInlineMessageGame::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -5394,7 +5404,8 @@ void _serialize_inputBotInlineMessageGame(MTPStringLogger &to, int32 stage, int3
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  reply_markup: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  reply_markup: "); ++stages.back(); if (flag & MTPDinputBotInlineMessageGame::Flag::f_reply_markup) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -9144,6 +9155,8 @@ namespace {
 		_serializers.insert(mtpc_sendMessageUploadDocumentAction, _serialize_sendMessageUploadDocumentAction);
 		_serializers.insert(mtpc_sendMessageGeoLocationAction, _serialize_sendMessageGeoLocationAction);
 		_serializers.insert(mtpc_sendMessageChooseContactAction, _serialize_sendMessageChooseContactAction);
+		_serializers.insert(mtpc_sendMessageGamePlayAction, _serialize_sendMessageGamePlayAction);
+		_serializers.insert(mtpc_sendMessageGameStopAction, _serialize_sendMessageGameStopAction);
 		_serializers.insert(mtpc_contacts_found, _serialize_contacts_found);
 		_serializers.insert(mtpc_inputPrivacyKeyStatusTimestamp, _serialize_inputPrivacyKeyStatusTimestamp);
 		_serializers.insert(mtpc_inputPrivacyKeyChatInvite, _serialize_inputPrivacyKeyChatInvite);

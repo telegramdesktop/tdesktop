@@ -37,6 +37,9 @@ inline QRect rtlrect(const QRect &r, int outerw) {
 inline QRect centerrect(const QRect &inRect, const QRect &rect) {
 	return QRect(inRect.x() + (inRect.width() - rect.width()) / 2, inRect.y() + (inRect.height() - rect.height()) / 2, rect.width(), rect.height());
 }
+inline QRect centerrect(const QRect &inRect, const style::icon &icon) {
+	return centerrect(inRect, QRect(0, 0, icon.width(), icon.height()));
+}
 
 namespace style {
 namespace internal {

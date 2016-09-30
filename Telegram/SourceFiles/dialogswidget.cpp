@@ -253,16 +253,14 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (peer->isChat() || peer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), (active ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
-	} else if (peer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), (active ? st::dlgActiveChannelImg : st::dlgChannelImg));
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
+	if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(peer, active)) {
+		chatTypeIcon->paint(p, rectForName.topLeft(), w);
+		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 	if (peer->isVerified()) {
-		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-		p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (active ? st::verifiedCheckInv : st::verifiedCheck));
+		auto icon = &(active ? st::dialogsVerifiedActiveIcon : st::dialogsVerifiedIcon);
+		rectForName.setWidth(rectForName.width() - icon->width());
+		icon->paint(p, rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0), w);
 	}
 
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
@@ -300,13 +298,9 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 	int32 namewidth = w - nameleft - st::dialogsPadding.x() * 2 - st::btnCancelSearch.width;
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
-	// draw chat icon
-	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChatImgPos.x(), rectForName.top() + st::dialogsChatImgPos.y()), st::dlgChatImg);
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
-	} else if (_searchInPeer->isChannel()) {
-		p.drawSprite(QPoint(rectForName.left() + st::dialogsChannelImgPos.x(), rectForName.top() + st::dialogsChannelImgPos.y()), st::dlgChannelImg);
-		rectForName.setLeft(rectForName.left() + st::dialogsImgSkip);
+	if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_searchInPeer, false)) {
+		chatTypeIcon->paint(p, rectForName.topLeft(), w);
+		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);

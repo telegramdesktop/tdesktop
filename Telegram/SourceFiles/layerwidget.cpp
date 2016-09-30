@@ -220,7 +220,6 @@ void LayerStackWidget::startHide() {
 	if (isHidden() || _hiding) {
 		return;
 	}
-
 	_hiding = true;
 	startAnimation(0);
 }
@@ -653,13 +652,11 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		if (_cacheStatus != CacheLoaded) {
 			if (_photo->full->loaded()) {
 				QSize s = currentDimensions();
-				LOG(("DIMENSIONS: %1 %2").arg(s.width()).arg(s.height()));
 				_cache = _photo->full->pix(s.width(), s.height());
 				_cacheStatus = CacheLoaded;
 			} else {
 				if (_cacheStatus != CacheThumbLoaded && _photo->thumb->loaded()) {
 					QSize s = currentDimensions();
-					LOG(("DIMENSIONS: %1 %2").arg(s.width()).arg(s.height()));
 					_cache = _photo->thumb->pixBlurred(s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				}

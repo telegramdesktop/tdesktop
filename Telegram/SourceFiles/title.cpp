@@ -124,8 +124,8 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(rect(), st::titleBg);
 	if (!_cancel.isHidden()) {
-		p.setPen(st::titleTextButton.color->p);
-		p.setFont(st::titleTextButton.font->f);
+		p.setPen(st::titleTextButton.color);
+		p.setFont(st::titleTextButton.font);
 		bool inlineSwitchChoose = (App::main() && App::main()->selectingPeerForInlineSwitch());
 		auto chooseText = lang(inlineSwitchChoose ? lng_inline_switch_choose : lng_forward_choose);
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, chooseText);

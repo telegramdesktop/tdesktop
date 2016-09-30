@@ -40,7 +40,7 @@ linkButton {
 
 sysButton {
 	size: size;
-	img: sprite;
+	icon: icon;
 	color: color;
 	overColor: color;
 	duration: int;

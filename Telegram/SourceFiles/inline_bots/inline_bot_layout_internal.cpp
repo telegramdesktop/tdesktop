@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_internal.h"
 
 #include "styles/style_overview.h"
+#include "styles/style_history.h"
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -178,16 +179,16 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		p.setOpacity(radialOpacity * p.opacity());
 
 		p.setOpacity(radialOpacity);
-		style::sprite icon;
-		if (loaded && !radial) {
-			icon = st::msgFileInPlay;
-		} else if (radial || loading) {
-			icon = st::msgFileInCancel;
-		} else {
-			icon = st::msgFileInDownload;
-		}
+		auto icon = ([loaded, radial, loading] {
+			if (loaded && !radial) {
+				return &st::historyFileInPlay;
+			} else if (radial || loading) {
+				return &st::historyFileInCancel;
+			}
+			return &st::historyFileInDownload;
+		})();
 		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
-		p.drawSpriteCenter(inner, icon);
+		icon->paintInCenter(p, inner);
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
@@ -703,7 +704,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	bool showPause = updateStatusText();
 	bool radial = isRadialAnimation(context->ms);
 
-	QRect iconCircle = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
+	auto inner = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
 	p.setPen(Qt::NoPen);
 	if (isThumbAnimation(context->ms)) {
 		float64 over = _animation->a_thumbOver.current();
@@ -714,31 +715,30 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.drawEllipse(iconCircle);
+	p.drawEllipse(inner);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	if (radial) {
-		QRect radialCircle(iconCircle.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+		auto radialCircle = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
 		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::msgInBg);
 	}
 
-	style::sprite icon;
-	if (showPause) {
-		icon = st::msgFileInPause;
-	} else if (radial || document->loading()) {
-		icon = st::msgFileInCancel;
-	} else if (true || document->loaded()) {
-		if (document->isImage()) {
-			icon = st::msgFileInImage;
-		} else if (document->voice() || document->song()) {
-			icon = st::msgFileInPlay;
-		} else {
-			icon = st::msgFileInFile;
+	auto icon = ([showPause, radial, document] {
+		if (showPause) {
+			return &st::historyFileInPause;
+		} else if (radial || document->loading()) {
+			return &st::historyFileInCancel;
+		} else if (true || document->loaded()) {
+			if (document->isImage()) {
+				return &st::historyFileInImage;
+			} else if (document->voice() || document->song()) {
+				return &st::historyFileInPlay;
+			}
+			return &st::historyFileInDocument;
 		}
-	} else {
-		icon = st::msgFileInDownload;
-	}
-	p.drawSpriteCenter(iconCircle, icon);
+		return &st::historyFileInDownload;
+	})();
+	icon->paintInCenter(p, inner);
 
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
 	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;

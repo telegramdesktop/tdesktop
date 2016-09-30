@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 
 namespace {
 
@@ -244,7 +245,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 	style::color bar;
 	if (flags & PaintInBubble) {
-		bar = ((flags & PaintSelected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
+		bar = ((flags & PaintSelected) ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
 	} else {
 		bar = st::white;
 	}
@@ -338,8 +339,8 @@ void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rec
 }
 
 void HistoryMessage::KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
-	style::sprite sprite = st::msgInvSendingImg;
-	p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + rect.height() - sprite.pxHeight() - st::msgBotKbIconPadding, sprite);
+	auto icon = &st::historySendingInvertedIcon;
+	icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon->height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
 }
 
 int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
@@ -352,7 +353,7 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	case Button::Type::SwitchInlineSame:
 	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
 	case Button::Type::Callback:
-	case Button::Type::Game: iconWidth = st::msgInvSendingImg.pxWidth(); break;
+	case Button::Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
@@ -494,7 +495,7 @@ void HistoryMessage::updateMediaInBubbleState() {
 		return;
 	}
 
-	bool hasSomethingAbove = displayFromName() || displayForwardedFrom() || Has<HistoryMessageVia>();
+	bool hasSomethingAbove = displayFromName() || displayForwardedFrom() || Has<HistoryMessageReply>() || Has<HistoryMessageVia>();
 	bool hasSomethingBelow = false;
 	if (!emptyText()) {
 		if (_media->isAboveMessage()) {
@@ -1076,6 +1077,28 @@ bool HistoryMessage::textHasLinks() const {
 	return emptyText() ? false : _text.hasLinks();
 }
 
+int HistoryMessage::infoWidth() const {
+	int result = _timeWidth;
+	if (auto views = Get<HistoryMessageViews>()) {
+		result += st::historyViewsSpace + views->_viewsWidth + st::historyViewsWidth;
+	} else if (id < 0 && history()->peer->isSelf()) {
+		result += st::historySendStateSpace;
+	}
+	if (out() && !isPost()) {
+		result += st::historySendStateSpace;
+	}
+	return result;
+}
+int HistoryMessage::timeLeft() const {
+	int result = 0;
+	if (auto views = Get<HistoryMessageViews>()) {
+		result += st::historyViewsSpace + views->_viewsWidth + st::historyViewsWidth;
+	} else if (id < 0 && history()->peer->isSelf()) {
+		result += st::historySendStateSpace;
+	}
+	return result;
+}
+
 void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	p.setFont(st::msgDateFont);
 
@@ -1122,43 +1145,38 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		p.drawText(dateX, dateY + st::msgDateFont->ascent, _timeText);
 	}
 
-	QPoint iconPos;
-	const style::sprite *iconRect = nullptr;
 	if (auto views = Get<HistoryMessageViews>()) {
-		iconPos = QPoint(infoRight - infoW + st::msgViewsPos.x(), infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
+		auto icon = ([this, outbg, invertedsprites, selected] {
+			if (id > 0) {
+				if (outbg) {
+					return &(invertedsprites ? st::historyViewsInvertedIcon : (selected ? st::historyViewsOutSelectedIcon : st::historyViewsOutIcon));
+				}
+				return &(invertedsprites ? st::historyViewsInvertedIcon : (selected ? st::historyViewsInSelectedIcon : st::historyViewsInIcon));
+			}
+			return &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
+		})();
 		if (id > 0) {
-			if (outbg) {
-				iconRect = &(invertedsprites ? st::msgInvViewsImg : (selected ? st::msgSelectOutViewsImg : st::msgOutViewsImg));
-			} else {
-				iconRect = &(invertedsprites ? st::msgInvViewsImg : (selected ? st::msgSelectViewsImg : st::msgViewsImg));
-			}
-			p.drawText(iconPos.x() + st::msgViewsImg.pxWidth() + st::msgDateCheckSpace, infoBottom - st::msgDateFont->descent, views->_viewsText);
-		} else {
-			iconPos.setX(iconPos.x() + st::msgDateViewsSpace + views->_viewsWidth);
-			if (outbg) {
-				iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingOutViewsImg);
-			} else {
-				iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
-			}
+			icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);
+			p.drawText(infoRight - infoW + st::historyViewsWidth, infoBottom - st::msgDateFont->descent, views->_viewsText);
+		} else if (!outbg) { // sending outbg icon will be painted below
+			auto iconSkip = st::historyViewsSpace + views->_viewsWidth;
+			icon->paint(p, infoRight - infoW + iconSkip, infoBottom + st::historyViewsTop, width);
 		}
-		p.drawSprite(iconPos, *iconRect);
 	} else if (id < 0 && history()->peer->isSelf()) {
-		iconPos = QPoint(infoRight - infoW, infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
-		iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
-		p.drawSprite(iconPos, *iconRect);
+		auto icon = &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
+		icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);
 	}
 	if (outbg) {
-		iconPos = QPoint(infoRight - st::msgCheckImg.pxWidth() + st::msgCheckPos.x(), infoBottom - st::msgCheckImg.pxHeight() + st::msgCheckPos.y());
-		if (id > 0) {
-			if (unread()) {
-				iconRect = &(invertedsprites ? st::msgInvCheckImg : (selected ? st::msgSelectCheckImg : st::msgCheckImg));
-			} else {
-				iconRect = &(invertedsprites ? st::msgInvDblCheckImg : (selected ? st::msgSelectDblCheckImg : st::msgDblCheckImg));
+		auto icon = ([this, invertedsprites, selected] {
+			if (id > 0) {
+				if (unread()) {
+					return &(invertedsprites ? st::historySentInvertedIcon : (selected ? st::historySentSelectedIcon : st::historySentIcon));
+				}
+				return &(invertedsprites ? st::historyReceivedInvertedIcon : (selected ? st::historyReceivedSelectedIcon : st::historyReceivedIcon));
 			}
-		} else {
-			iconRect = &(invertedsprites ? st::msgInvSendingImg : st::msgSendingImg);
-		}
-		p.drawSprite(iconPos, *iconRect);
+			return &(invertedsprites ? st::historySendingInvertedIcon : st::historySendingIcon);
+		})();
+		icon->paint(p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, width);
 	}
 }
 

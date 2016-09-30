@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
+using "dialogs/dialogs.style";
 
 historyToDown: icon {
 	{ "history_down_shadow", #00000040 },
@@ -45,3 +46,49 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
+
+historyFileOutImage: icon {{ "history_file_image", msgOutBg }};
+historyFileOutImageSelected: icon {{ "history_file_image", msgOutBgSelected }};
+historyFileInImage: icon {{ "history_file_image", msgInBg }};
+historyFileInImageSelected: icon {{ "history_file_image", msgInBgSelected }};
+historyFileOutDocument: icon {{ "history_file_document", msgOutBg }};
+historyFileOutDocumentSelected: icon {{ "history_file_document", msgOutBgSelected }};
+historyFileInDocument: icon {{ "history_file_document", msgInBg }};
+historyFileInDocumentSelected: icon {{ "history_file_document", msgInBgSelected }};
+historyFileOutDownload: icon {{ "history_file_download", msgOutBg }};
+historyFileOutDownloadSelected: icon {{ "history_file_download", msgOutBgSelected }};
+historyFileInDownload: icon {{ "history_file_download", msgInBg }};
+historyFileInDownloadSelected: icon {{ "history_file_download", msgInBgSelected }};
+historyFileOutCancel: icon {{ "history_file_cancel", msgOutBg }};
+historyFileOutCancelSelected: icon {{ "history_file_cancel", msgOutBgSelected }};
+historyFileInCancel: icon {{ "history_file_cancel", msgInBg }};
+historyFileInCancelSelected: icon {{ "history_file_cancel", msgInBgSelected }};
+historyFileOutPause: icon {{ "history_file_pause", msgOutBg }};
+historyFileOutPauseSelected: icon {{ "history_file_pause", msgOutBgSelected }};
+historyFileInPause: icon {{ "history_file_pause", msgInBg }};
+historyFileInPauseSelected: icon {{ "history_file_pause", msgInBgSelected }};
+historyFileOutPlay: icon {{ "history_file_play", msgOutBg }};
+historyFileOutPlaySelected: icon {{ "history_file_play", msgOutBgSelected }};
+historyFileInPlay: icon {{ "history_file_play", msgInBg }};
+historyFileInPlaySelected: icon {{ "history_file_play", msgInBgSelected }};
+
+historyOutFg: dialogsSentStateFg;
+historyOutSelectedFg: #4da79f;
+historyInvertedFg: #ffffff;
+historySendStateSpace: 24px;
+historySendStatePosition: point(-17px, -19px);
+historySentIcon: icon {{ "history_sent", historyOutFg, point(2px, 4px) }};
+historySentSelectedIcon: icon {{ "history_sent", historyOutSelectedFg, point(2px, 4px) }};
+historySentInvertedIcon: icon {{ "history_sent", historyInvertedFg, point(2px, 4px) }};
+historyReceivedIcon: icon {{ "history_received", historyOutFg, point(2px, 4px) }};
+historyReceivedSelectedIcon: icon {{ "history_received", historyOutSelectedFg, point(2px, 4px) }};
+historyReceivedInvertedIcon: icon {{ "history_received", historyInvertedFg, point(2px, 4px) }};
+
+historyViewsSpace: 11px;
+historyViewsWidth: 20px;
+historyViewsTop: -15px;
+historyViewsInIcon: icon {{ "history_views", #a0acb6 }};
+historyViewsInSelectedIcon: icon {{ "history_views", #6a9bc5 }};
+historyViewsOutIcon: icon {{ "history_views", historyOutFg }};
+historyViewsOutSelectedIcon: icon {{ "history_views", historyOutSelectedFg }};
+historyViewsInvertedIcon: icon {{ "history_views", #ffffffe6 }};

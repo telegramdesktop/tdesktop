@@ -913,15 +913,24 @@ QVector<PeerData*> ShareInner::selected() const {
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto shareHashData = QByteArray(0x10, Qt::Uninitialized);
-	auto ints = reinterpret_cast<int32*>(shareHashData.data());
-	ints[0] = MTP::authedId();
-	ints[1] = fullId.channel;
-	ints[2] = fullId.msg;
-	ints[3] = 0;
+	auto shareHashDataInts = reinterpret_cast<int32*>(shareHashData.data());
+	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
+	auto channelAccessHash = channel ? channel->access : 0ULL;
+	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
+	shareHashDataInts[0] = MTP::authedId();
+	shareHashDataInts[1] = fullId.channel;
+	shareHashDataInts[2] = fullId.msg;
+	shareHashDataInts[3] = channelAccessHashInts[0];
 
+	// Count SHA1() of data.
 	auto key128Size = 0x10;
 	auto shareHashEncrypted = QByteArray(key128Size + shareHashData.size(), Qt::Uninitialized);
 	hashSha1(shareHashData.constData(), shareHashData.size(), shareHashEncrypted.data());
+
+	// Mix in channel access hash to the first 64 bits of SHA1 of data.
+	*reinterpret_cast<uint64*>(shareHashEncrypted.data()) ^= *reinterpret_cast<uint64*>(channelAccessHashInts);
+
+	// Encrypt data.
 	if (!Local::encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
 		return url;
 	}
@@ -1031,29 +1040,51 @@ void shareGameScoreByHash(const QString &hash) {
 		return;
 	}
 
+	// Decrypt data.
 	auto hashData = QByteArray(hashEncrypted.size() - key128Size, Qt::Uninitialized);
 	if (!Local::decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
 		return;
 	}
 
-	char checkSha1[20] = { 0 };
-	if (memcmp(hashSha1(hashData.constData(), hashData.size(), checkSha1), hashEncrypted.constData(), key128Size) != 0) {
-		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
-		return;
-	}
-	auto ints = reinterpret_cast<int32*>(hashData.data());
-	if (ints[0] != MTP::authedId()) {
+	// Count SHA1() of data.
+	char dataSha1[20] = { 0 };
+	hashSha1(hashData.constData(), hashData.size(), dataSha1);
+
+	// Mix out channel access hash from the first 64 bits of SHA1 of data.
+	auto channelAccessHash = *reinterpret_cast<uint64*>(hashEncrypted.data()) ^ *reinterpret_cast<uint64*>(dataSha1);
+
+	// Check next 64 bits of SHA1() of data.
+	auto skipSha1Part = sizeof(channelAccessHash);
+	if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
 		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
 		return;
 	}
 
-	auto channelId = ints[1];
-	auto msgId = ints[2];
+	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
+	if (hashDataInts[0] != MTP::authedId()) {
+		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		return;
+	}
+
+	// Check first 32 bits of channel access hash.
+	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
+	if (channelAccessHashInts[0] != hashDataInts[3]) {
+		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		return;
+	}
+
+	auto channelId = hashDataInts[1];
+	auto msgId = hashDataInts[2];
+	if (!channelId && channelAccessHash) {
+		// If there is no channel id, there should be no channel access_hash.
+		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		return;
+	}
+
 	if (auto item = App::histItemById(channelId, msgId)) {
 		shareGameScoreFromItem(item);
 	} else if (App::api()) {
-		auto channel = channelId ? App::channelLoaded(channelId) : nullptr;
-		if (channel || !channelId) {
+		auto resolveMessageAndShareScore = [msgId](ChannelData *channel) {
 			App::api()->requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
 				if (auto item = App::histItemById(channel, msgId)) {
 					shareGameScoreFromItem(item);
@@ -1061,6 +1092,22 @@ void shareGameScoreByHash(const QString &hash) {
 					Ui::showLayer(new InformBox(lang(lng_edit_deleted)));
 				}
 			});
+		};
+
+		auto channel = channelId ? App::channelLoaded(channelId) : nullptr;
+		if (channel || !channelId) {
+			resolveMessageAndShareScore(channel);
+		} else {
+			auto requestChannelIds = MTP_vector<MTPInputChannel>(1, MTP_inputChannel(MTP_int(channelId), MTP_long(channelAccessHash)));
+			auto requestChannel = MTPchannels_GetChannels(requestChannelIds);
+			MTP::send(requestChannel, rpcDone([channelId, resolveMessageAndShareScore](const MTPmessages_Chats &result) {
+				if (result.type() == mtpc_messages_chats) {
+					App::feedChats(result.c_messages_chats().vchats);
+				}
+				if (auto channel = App::channelLoaded(channelId)) {
+					resolveMessageAndShareScore(channel);
+				}
+			}));
 		}
 	}
 }

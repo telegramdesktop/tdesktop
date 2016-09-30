@@ -248,9 +248,7 @@ defaultCheckbox: Checkbox {
 	textPosition: point(32px, 2px);
 	diameter: 22px;
 	thickness: 2px;
-	checkIcon: icon {
-		{ "default_checkbox_check", #ffffff, point(4px, 7px) }
-	};
+	checkIcon: icon {{ "default_checkbox_check", #ffffff, point(4px, 7px) }};
 
 	font: normalFont;
 	duration: 120;
@@ -445,47 +443,29 @@ titleButtonDuration: 150;
 sysBtnDelta: 6px;
 sysUpd: sysButton {
 	size: size(31px, 39px);
-	img: sprite(184px, 1px, 19px, 19px);
+	icon: icon {{ "title_button_update", titleBg }};
 	color: titleButtonFg;
 	overColor: titleButtonActiveFg;
 	duration: titleButtonDuration;
 }
 updateBlinkDuration: 500;
 sysMin: sysButton(sysUpd) {
-	img: sprite(207px, 1px, 19px, 19px);
+	icon: icon {{ "title_button_minimize", titleBg }};
 }
 sysMax: sysButton(sysUpd) {
-	img: sprite(230px, 1px, 19px, 19px);
+	icon: icon {{ "title_button_maximize", titleBg }};
 }
 sysRes: sysButton(sysUpd) {
-	img: sprite(253px, 1px, 19px, 19px);
+	icon: icon {{ "title_button_restore", titleBg }};
 }
 sysCls: sysButton(sysUpd) {
-	img: sprite(276px, 1px, 19px, 19px);
+	icon: icon {{ "title_button_close", titleBg }};
 }
 sysLock: sysButton(sysUpd) {
-	img: sprite(184px, 22px, 19px, 19px);
+	icon: icon {{ "title_button_lock", titleBg }};
 }
 sysUnlock: sysButton(sysUpd) {
-	img: sprite(207px, 22px, 19px, 19px);
-}
-titleBackButton: iconedButton(btnDefIconed) {
-	icon: sprite(9px, 104px, 13px, 20px);
-	iconPos: point(5px, 9px);
-	downIcon: sprite(9px, 104px, 13px, 20px);
-	downIconPos: point(5px, 10px);
-
-	bgColor: #c4d8e9;
-	overBgColor: #fff;
-
-	width: -30px;
-	height: 39px;
-
-	opacity: 1.;
-	cursor: cursor(default);
-
-	textPos: point(23px, 10px);
-	downTextPos: point(23px, 11px);
+	icon: icon {{ "title_button_unlock", titleBg }};
 }
 
 btnWhiteHover: #f5f5f5;
@@ -811,18 +791,6 @@ noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;
 
-dlgDblCheckImg: sprite(302px, 23px, 17px, 11px);
-dlgCheckImg: sprite(320px, 23px, 17px, 11px);
-dlgActiveDblCheckImg: sprite(302px, 36px, 17px, 11px);
-dlgActiveCheckImg: sprite(320px, 36px, 17px, 11px);
-dlgSendImg: sprite(122px, 25px, 17px, 11px);
-dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
-
-dlgChatImg: sprite(104px, 26px, 16px, 11px);
-dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
-dlgChannelImg: sprite(105px, 1px, 12px, 11px);
-dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
-
 dlgFilter: flatInput(inpDefGray) {
 	font: font(fsize);
 	bgColor: #f2f2f2;
@@ -954,9 +922,7 @@ msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
 msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
-msgOutReplyBarColor: #5dc452;
 msgInReplyBarColor: #2fa9e2;
-msgOutReplyBarSelColor: #4da79f;
 msgInReplyBarSelColor: #2fa9e2;
 
 msgBotKbDuration: 200;
@@ -990,28 +956,7 @@ msgPtr: 8px;
 msgBG: ":/gui/art/bg.jpg";
 msgBG0: ":/gui/art/bg0.png";
 
-msgCheckPos: point(3px, 1px);
-msgSendingImg: sprite(260px, 20px, 20px, 20px);
-msgCheckImg: sprite(320px, 0px, 20px, 20px);
-msgDblCheckImg: sprite(300px, 0px, 20px, 20px);
-msgSelectCheckImg: sprite(162px, 0px, 20px, 20px);
-msgSelectDblCheckImg: sprite(142px, 0px, 20px, 20px);
-msgViewsPos: point(0px, -4px);
-msgViewsImg: sprite(104px, 48px, 16px, 11px);
-msgSelectViewsImg: sprite(104px, 70px, 16px, 11px);
-msgOutViewsImg: sprite(104px, 81px, 16px, 11px);
-msgSelectOutViewsImg: sprite(104px, 92px, 16px, 11px);
-msgSendingViewsImg: sprite(104px, 103px, 16px, 11px);
-msgSendingOutViewsImg: sprite(104px, 125px, 16px, 11px);
-msgInvSendingImg: sprite(320px, 65px, 20px, 20px);
-msgInvCheckImg: sprite(280px, 20px, 20px, 20px);
-msgInvDblCheckImg: sprite(300px, 65px, 20px, 20px);
-msgInvViewsImg: sprite(104px, 59px, 16px, 11px);
-msgInvSendingViewsImg: sprite(104px, 114px, 16px, 11px);
-
 msgDateSpace: 12px;
-msgDateCheckSpace: 4px;
-msgDateViewsSpace: 11px;
 msgDateDelta: point(2px, 5px);
 
 msgDateImgDelta: 4px;
@@ -1170,31 +1115,6 @@ msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
 msgFileOutBgOver: #6bc272;
 msgFileOutBgSelected: #5fb389;
-
-msgFileOutImage: sprite(0px, 146px, 18px, 18px);
-msgFileOutImageSelected: sprite(18px, 146px, 18px, 18px);
-msgFileInImage: sprite(0px, 164px, 18px, 18px);
-msgFileInImageSelected: sprite(18px, 164px, 18px, 18px);
-msgFileOutFile: sprite(36px, 146px, 18px, 18px);
-msgFileOutFileSelected: sprite(54px, 146px, 18px, 18px);
-msgFileInFile: sprite(36px, 164px, 18px, 18px);
-msgFileInFileSelected: sprite(54px, 164px, 18px, 18px);
-msgFileOutDownload: sprite(72px, 142px, 14px, 20px);
-msgFileOutDownloadSelected: sprite(86px, 142px, 14px, 20px);
-msgFileInDownload: sprite(72px, 162px, 14px, 20px);
-msgFileInDownloadSelected: sprite(86px, 162px, 14px, 20px);
-msgFileOutCancel: sprite(100px, 147px, 16px, 16px);
-msgFileOutCancelSelected: sprite(116px, 147px, 16px, 16px);
-msgFileInCancel: sprite(100px, 165px, 16px, 16px);
-msgFileInCancelSelected: sprite(116px, 165px, 16px, 16px);
-msgFileOutPause: sprite(132px, 147px, 14px, 16px);
-msgFileOutPauseSelected: sprite(146px, 147px, 14px, 16px);
-msgFileInPause: sprite(132px, 165px, 14px, 16px);
-msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
-msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
-msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
-msgFileInPlay: sprite(160px, 164px, 20px, 18px);
-msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
 
 msgFileRed: sprite(0px, 425px, 20px, 20px);
 msgFileYellow: sprite(20px, 425px, 20px, 20px);
@@ -1627,9 +1547,7 @@ dropdownDef: dropdown {
 	width: 0px;
 }
 
-defaultInnerDropdownShadow: icon {
-	{ "dropdown_shadow", windowShadowFg },
-};
+defaultInnerDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
 defaultInnerDropdown: InnerDropdown {
 	padding: margins(10px, 10px, 10px, 10px);
 	shadow: defaultInnerDropdownShadow;
@@ -1863,10 +1781,6 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
-verifiedCheck: sprite(285px, 221px, 14px, 14px);
-verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
-verifiedCheckPos: point(4px, 2px);
-
 botKbDuration: 200;
 botKbBg: #edf1f5;
 botKbOverBg: #d8e2ec;
@@ -1924,12 +1838,6 @@ mvControlBgOpacity: 0.3;
 mvControlMargin: 0px;
 mvControlSize: 90px;
 mvIconSize: size(60px, 56px);
-
-mvLeft: sprite(320px, 445px, 12px, 22px);
-mvRight: sprite(332px, 445px, 12px, 22px);
-mvClose: sprite(344px, 445px, 18px, 18px);
-mvSave: sprite(362px, 445px, 14px, 19px);
-mvMore: sprite(376px, 445px, 5px, 21px);
 
 mvDropdown: dropdown(dropdownDef) {
 	shadow: sprite(0px, 0px, 0px, 0px);
@@ -1992,10 +1900,6 @@ mvDocExtFont: font(semibold 18px);
 mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
-mvDocRed: sprite(0px, 400px, 25px, 25px);
-mvDocYellow: sprite(25px, 400px, 25px, 25px);
-mvDocGreen: sprite(50px, 400px, 25px, 25px);
-mvDocBlue: sprite(75px, 400px, 25px, 25px);
 mvDocIconSize: 80px;
 
 mvDocLink: linkButton(btnDefLink) {
@@ -2013,9 +1917,7 @@ mvCaptionRadius: 2px;
 mvCaptionBg: #11111180;
 mvCaptionFont: font(fsize);
 
-medviewSaveMsgCheck: icon {
-	{ "mediaview_save_check", #ffffff }
-};
+medviewSaveMsgCheck: icon {{ "mediaview_save_check", #ffffff }};
 medviewSaveMsgFont: font(16px);
 medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 medviewSaveMsgCheckPos: point(23px, 21px);

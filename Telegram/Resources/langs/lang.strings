@@ -772,12 +772,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_allow_bot" = "Allow";
 
 "lng_bot_start" = "Start";
-"lng_bot_choose_group" = "Choose Group";
+"lng_bot_choose_group" = "Select a Group";
 "lng_bot_no_groups" = "You have no groups";
 "lng_bot_groups_not_found" = "No groups found";
 "lng_bot_sure_invite" = "Add the bot to «{group}»?";
 "lng_bot_already_in_group" = "The bot is already a member of the group.";
-"lng_bot_choose_chat" = "Choose Chat";
+"lng_bot_choose_chat" = "Select a Chat";
 "lng_bot_no_chats" = "You have no chats";
 "lng_bot_chats_not_found" = "No chats found";
 "lng_bot_sure_share_game" = "Share the game with {user}?";
@@ -787,6 +787,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} is typing";
 "lng_users_typing" = "{user} and {second_user} are typing";
 "lng_many_typing" = "{count:_not_used_|# is|# are} typing";
+"lng_playing_game" = "playing a game";
+"lng_user_playing_game" = "{user} is playing a game";
+"lng_users_playing_game" = "{user} and {second_user} are playing a game";
+"lng_many_playing_game" = "{count:_not_used_|# is|# are} playing a game";
 "lng_send_action_record_video" = "recording a video";
 "lng_user_action_record_video" = "{user} is recording a video";
 "lng_send_action_upload_video" = "sending a video";
