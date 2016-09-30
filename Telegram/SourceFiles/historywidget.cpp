@@ -3454,6 +3454,7 @@ void HistoryWidget::updateSendAction(History *history, SendActionType type, int3
 		case SendActionUploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
 		case SendActionChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
 		case SendActionChooseContact: action = MTP_sendMessageChooseContactAction(); break;
+		case SendActionPlayGame: action = MTP_sendMessageGamePlayAction(); break;
 		}
 		_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(history->peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
 		if (type == SendActionTyping) _sendActionStopTimer.start(5000);
@@ -5817,7 +5818,8 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 }
 
 void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req) {
-	if (auto item = App::histItemById(info.msgId)) {
+	auto item = App::histItemById(info.msgId);
+	if (item) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
@@ -5842,6 +5844,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 			if (info.game) {
 				url = appendShareGameScoreUrl(url, info.msgId);
 				BotGameUrlClickHandler(info.bot, url).onClick(Qt::LeftButton);
+				updateSendAction(item->history(), SendActionPlayGame);
 			} else {
 				UrlClickHandler(url).onClick(Qt::LeftButton);
 			}
