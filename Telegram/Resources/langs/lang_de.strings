@@ -787,6 +787,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} tippt";
 "lng_users_typing" = "{user} und {second_user} tippen";
 "lng_many_typing" = "{count:_not_used_|# tippt|# tippen}";
+"lng_playing_game" = "spielt ein Spiel";
+"lng_user_playing_game" = "{user} spielt ein Spiel";
+"lng_users_playing_game" = "{user} und {second_user} spielen ein Spiel";
+"lng_many_playing_game" = "{count:_not_used_|# spielt|# spielen} ein Spiel";
 "lng_send_action_record_video" = "schickt Video";
 "lng_user_action_record_video" = "{user} sendet ein Video";
 "lng_send_action_upload_video" = "schickt ein Video";

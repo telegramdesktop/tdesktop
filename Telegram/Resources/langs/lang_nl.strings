@@ -772,7 +772,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_allow_bot" = "Toestaan";
 
 "lng_bot_start" = "Begin";
-"lng_bot_choose_group" = "Groep kiezen";
+"lng_bot_choose_group" = "Kies group";
 "lng_bot_no_groups" = "Je hebt geen groepen";
 "lng_bot_groups_not_found" = "Geen groepen gevonden";
 "lng_bot_sure_invite" = "De bot toevoegen aan  \"{group}\"?";
@@ -787,6 +787,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} is aan het typen";
 "lng_users_typing" = "{user} en {second_user} zijn aan het typen";
 "lng_many_typing" = "{count:_not_used_|# is|# zijn} aan het typen";
+"lng_playing_game" = "speelt een spel";
+"lng_user_playing_game" = "{user} speelt een spel";
+"lng_users_playing_game" = "{user} en {second_user} spelen een spel";
+"lng_many_playing_game" = "{count:_not_used_|# is|# zijn} een spel aan het spelen";
 "lng_send_action_record_video" = "video opnemen";
 "lng_user_action_record_video" = "{user} neemt video op";
 "lng_send_action_upload_video" = "video versturen";
