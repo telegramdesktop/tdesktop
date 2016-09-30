@@ -32,7 +32,7 @@ SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text)
 , _a_color(animation(this, &SysBtn::step_color))
 , _overLevel(0)
 , _text(text) {
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
+	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.icon.width()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 	setCursor(style::cur_default);
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
@@ -40,7 +40,7 @@ SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text)
 
 void SysBtn::setText(const QString &text) {
 	_text = text;
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
+	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.icon.width()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 }
 
@@ -64,7 +64,7 @@ void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
 void SysBtn::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	int x = width() - ((_st.size.width() + _st.img.pxWidth()) / 2), y = (height() - _st.img.pxHeight()) / 2;
+	int x = width() - ((_st.size.width() + _st.icon.width()) / 2), y = (height() - _st.icon.height()) / 2;
 	QColor c = a_color.current();
 	if (_overLevel > 0) {
 		if (_overLevel >= 1) {
@@ -75,13 +75,13 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 			c.setBlueF(c.blueF() * (1 - _overLevel) + _st.overColor->c.blueF() * _overLevel);
 		}
 	}
-	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
-	p.drawSprite(QPoint(x, y), _st.img);
+	p.fillRect(x, y, _st.icon.width(), _st.icon.height(), c);
+	_st.icon.paint(p, x, y, width());
 
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);
-		p.drawText((_st.size.width() - _st.img.pxWidth()) / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, _text);
+		p.drawText((_st.size.width() - _st.icon.width()) / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, _text);
 	}
 }
 

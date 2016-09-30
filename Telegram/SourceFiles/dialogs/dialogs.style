@@ -63,14 +63,6 @@ dialogsScroll: flatScroll(scrollDef) {
 	bottomsh: 0px;
 }
 
-dialogsChatImgPos: point(1px, 4px);
-dialogsChannelImgPos: point(3px, 4px);
-dialogsImgSkip: 22px;
-
-dialogsCheckLeft: 5px;
-dialogsCheckTop: 4px;
-dialogsCheckSkip: 3px;
-
 dialogsTextStyle: textStyle(defaultTextStyle) {
 	linkFg: dialogsTextFgService;
 	linkFgDown: dialogsTextFgService;
@@ -89,9 +81,7 @@ dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
 	linkFgDown: #c6e1f7;
 }
 
-dialogsNewChatIcon: icon {
-	{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }
-};
+dialogsNewChatIcon: icon {{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }};
 dialogsNewChatButton: RoundButton {
 	width: 36px;
 	height: 36px;
@@ -108,6 +98,33 @@ dialogsNewChatButton: RoundButton {
 	textBgOver: transparent;
 }
 
-settingsEditIcon: icon {
-	{ "dialogs_new_chat", #b7b7b7, point(3px, 9px) }
+dialogsChatTypeSkip: 22px;
+dialogsChatIcon: icon {{ "dialogs_chat", #373737, point(1px, 4px) }};
+dialogsChatActiveIcon: icon {{ "dialogs_chat", #ffffff, point(1px, 4px) }};
+dialogsChannelIcon: icon {{ "dialogs_channel", #373737, point(3px, 4px) }};
+dialogsChannelActiveIcon: icon {{ "dialogs_channel", #ffffff, point(3px, 4px) }};
+
+dialogsSentStateFg: #5dc452;
+dialogsSendStateSkip: 20px;
+dialogsSendingIcon: icon {{ "dialogs_sending", #c1c1c1, point(8px, 4px) }};
+dialogsSendingActiveIcon: icon {{ "dialogs_sending", #ffffff99, point(8px, 4px) }};
+dialogsSentIcon: icon {{ "dialogs_sent", dialogsSentStateFg, point(10px, 4px) }};
+dialogsSentActiveIcon: icon {{ "dialogs_sent", #ffffff, point(10px, 4px) }};
+dialogsReceivedIcon: icon {{ "dialogs_received", dialogsSentStateFg, point(5px, 4px) }};
+dialogsReceivedActiveIcon: icon {{ "dialogs_received", #ffffff, point(5px, 4px) }};
+
+dialogsVerifiedIcon: icon {
+	{ "dialogs_verified_star", #4abcf1, point(4px, 2px) },
+	{ "dialogs_verified_check", #ffffff, point(7px, 7px) },
 };
+dialogsVerifiedActiveIcon: icon {
+	{ "dialogs_verified_star", #ffffff, point(4px, 2px) },
+	{ "dialogs_verified_check", #6a91b1, point(7px, 7px) },
+};
+
+historySendingIcon: icon {{ "dialogs_sending", #98d292, point(5px, 5px) }};
+historySendingInvertedIcon: icon {{ "dialogs_sending", #ffffffc8, point(5px, 5px) }};
+historyViewsSendingIcon: icon {{ "dialogs_sending", #a0adb5, point(3px, 0px) }};
+historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", #ffffffc8, point(3px, 0px) }};
+
+settingsEditIcon: icon {{ "dialogs_new_chat", #b7b7b7, point(3px, 9px) }};

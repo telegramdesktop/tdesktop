@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "overview/overview_layout.h"
 
 #include "styles/style_overview.h"
+#include "styles/style_history.h"
 #include "ui/filedialog.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
@@ -335,11 +336,11 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
 		auto icon = ([radial, loaded, selected] {
 			if (radial) {
-				return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 			} else if (loaded) {
-				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 			}
-			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 		})();
 		icon->paintInCenter(p, inner);
 		if (radial) {
@@ -463,13 +464,13 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		auto icon = ([showPause, this, selected] {
 			if (showPause) {
-				return &(selected ? st::msgFileInPauseSelected : st::msgFileInPause);
+				return &(selected ? st::historyFileInPauseSelected : st::historyFileInPause);
 			} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
-				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 			} else if (_data->loading()) {
-				return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+				return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 			}
-			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 		})();
 		icon->paintInCenter(p, inner);
 	}
@@ -674,13 +675,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			auto icon = ([showPause, loaded, this, selected] {
 				if (showPause) {
-					return &(selected ? st::msgFileInPauseSelected : st::msgFileInPause);
+					return &(selected ? st::historyFileInPauseSelected : st::historyFileInPause);
 				} else if (loaded) {
-					return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+					return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 				} else if (_data->loading()) {
-					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 				}
-				return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+				return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 			})();
 			icon->paintInCenter(p, inner);
 		}
@@ -750,9 +751,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.setOpacity(radialOpacity);
 					auto icon = ([loaded, this, selected] {
 						if (loaded || _data->loading()) {
-							return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+							return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 						}
-						return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+						return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 					})();
 					icon->paintInCenter(p, inner);
 					if (radial) {

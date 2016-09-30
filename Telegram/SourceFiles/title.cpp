@@ -101,7 +101,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBG->b);
+	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBg);
 	if (!_cancel.isHidden()) {
 		p.setPen(st::titleTextButton.color->p);
 		p.setFont(st::titleTextButton.font->f);

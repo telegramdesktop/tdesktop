@@ -39,31 +39,23 @@ mediaviewPlayButton: IconButton {
 	opacity: mediaviewInactiveOpacity;
 	overOpacity: mediaviewActiveOpacity;
 
-	icon: icon {
-		{ "media_play", #ffffff, point(3px, 0px) },
-	};
+	icon: icon {{ "media_play", #ffffff, point(3px, 0px) }};
 	iconPosition: point(3px, 1px);
 	downIconPosition: point(3px, 1px);
 
 	duration: mediaviewOverDuration;
 }
-mediaviewPauseIcon: icon {
-	{ "media_pause", #ffffff, point(1px, 1px) }
-};
+mediaviewPauseIcon: icon {{ "media_pause", #ffffff, point(1px, 1px) }};
 mediaviewPlayPauseLeft: 17px;
 mediaviewFullScreenLeft: 17px;
 mediaviewVolumeLeft: 15px;
 
 mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
-	icon: icon {
-		{ "media_fullscreen_to", #ffffff, point(0px, 0px) },
-	};
+	icon: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
 	iconPosition: point(0px, 1px);
 	downIconPosition: point(0px, 1px);
 }
-mediaviewFullScreenOutIcon: icon {
-	{ "media_fullscreen_from", #ffffff, point(0px, 0px) },
-};
+mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
 
 mediaviewPlaybackActive: #ffffff;
 mediaviewPlaybackInactive: #474747;
@@ -72,11 +64,7 @@ mediaviewPlaybackTop: 28px;
 mediaviewSeekSize: size(11px, 11px);
 
 mediaviewVolumeSize: size(44px, 20px);
-mediaviewVolumeIcon: icon {
-	{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) },
-};
-mediaviewVolumeOnIcon: icon {
-	{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) },
-};
+mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) }};
+mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;

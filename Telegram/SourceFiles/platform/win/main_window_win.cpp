@@ -666,7 +666,7 @@ void MainWindow::psRefreshTaskbarIcon() {
 	w->setWindowFlags(::operator|(Qt::Tool, Qt::FramelessWindowHint));
 	w->setGeometry(x() + 1, y() + 1, 1, 1);
 	QPalette p(w->palette());
-	p.setColor(QPalette::Background, st::titleBG->c);
+	p.setColor(QPalette::Background, st::titleBg->c);
 	QWindow *wnd = w->windowHandle();
 	w->setPalette(p);
 	w->show();

@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
 , _save(this, lang(lng_add_contact), st::defaultBoxButton)
@@ -1451,8 +1452,9 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (_revokeWidth + st::contactsCheckPosition.x() * 2);
 	if (peer->isVerified()) {
-		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
-		p.drawSpriteLeft(namex + qMin(row.name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
+		auto icon = &st::dialogsVerifiedIcon;
+		namew -= icon->width();
+		icon->paint(p, namex + qMin(row.name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
 	row.name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 

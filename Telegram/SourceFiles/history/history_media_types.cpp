@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "core/click_handler_types.h"
 #include "history/history_location_manager.h"
+#include "styles/style_history.h"
 
 namespace {
 
@@ -436,11 +437,11 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 			if (radial || _data->loading()) {
 				auto delayed = _data->full->toDelayedStorageImage();
 				if (!delayed || !delayed->location().isNull()) {
-					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 				}
 				return nullptr;
 			}
-			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
@@ -772,11 +773,11 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 
 	auto icon = ([loaded, radial, this, selected] {
 		if (loaded) {
-			return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+			return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 		} else if (radial || _data->loading()) {
-			return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 		}
-		return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 	})();
 	icon->paintInCenter(p, inner);
 	if (radial) {
@@ -1125,9 +1126,9 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setOpacity(radialOpacity);
 			auto icon = ([radial, this, selected] {
 				if (radial || _data->loading()) {
-					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 				}
-				return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+				return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 			})();
 			p.setOpacity((radial && loaded) ? _animation->radial.opacity() : 1);
 			icon->paintInCenter(p, inner);
@@ -1177,18 +1178,18 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 		auto icon = ([showPause, radial, this, loaded, outbg, selected] {
 			if (showPause) {
-				return &(outbg ? (selected ? st::msgFileOutPauseSelected : st::msgFileOutPause) : (selected ? st::msgFileInPauseSelected : st::msgFileInPause));
+				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
 			} else if (radial || _data->loading()) {
-				return &(outbg ? (selected ? st::msgFileOutCancelSelected : st::msgFileOutCancel) : (selected ? st::msgFileInCancelSelected : st::msgFileInCancel));
+				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
 			} else if (loaded) {
 				if (_data->song() || _data->voice()) {
-					return &(outbg ? (selected ? st::msgFileOutPlaySelected : st::msgFileOutPlay) : (selected ? st::msgFileInPlaySelected : st::msgFileInPlay));
+					return &(outbg ? (selected ? st::historyFileOutPlaySelected : st::historyFileOutPlay) : (selected ? st::historyFileInPlaySelected : st::historyFileInPlay));
 				} else if (_data->isImage()) {
-					return &(outbg ? (selected ? st::msgFileOutImageSelected : st::msgFileOutImage) : (selected ? st::msgFileInImageSelected : st::msgFileInImage));
+					return &(outbg ? (selected ? st::historyFileOutImageSelected : st::historyFileOutImage) : (selected ? st::historyFileInImageSelected : st::historyFileInImage));
 				}
-				return &(outbg ? (selected ? st::msgFileOutDocumentSelected : st::msgFileOutDocument) : (selected ? st::msgFileInDocumentSelected : st::msgFileInDocument));
+				return &(outbg ? (selected ? st::historyFileOutDocumentSelected : st::historyFileOutDocument) : (selected ? st::historyFileInDocumentSelected : st::historyFileInDocument));
 			}
-			return &(outbg ? (selected ? st::msgFileOutDownloadSelected : st::msgFileOutDownload) : (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload));
+			return &(outbg ? (selected ? st::historyFileOutDownloadSelected : st::historyFileOutDownload) : (selected ? st::historyFileInDownloadSelected : st::historyFileInDownload));
 		})();
 		icon->paintInCenter(p, inner);
 	}
@@ -1748,14 +1749,14 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 		p.setOpacity(radialOpacity);
 		auto icon = ([this, radial, selected]() -> const style::icon * {
 			if (_data->loaded() && !radial) {
-				return &(selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 			} else if (radial || _data->loading()) {
 				if (_parent->id > 0 || _data->uploading()) {
-					return &(selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
 				}
 				return nullptr;
 			}
-			return &(selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
@@ -2652,7 +2653,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 	bool selected = (selection == FullSelection);
 
-	style::color barfg = (selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
+	style::color barfg = (selected ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
 	style::color semibold = (selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 	style::color regular = (selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg));
 
@@ -3051,7 +3052,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 	bool selected = (selection == FullSelection);
 
-	style::color barfg = (selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
+	style::color barfg = (selected ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
 	style::color semibold = (selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 	style::color regular = (selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg));
 

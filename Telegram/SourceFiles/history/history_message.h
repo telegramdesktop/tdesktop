@@ -105,33 +105,14 @@ public:
 	TextWithEntities originalText() const override;
 	bool textHasLinks() const override;
 
-	int32 infoWidth() const override {
-		int32 result = _timeWidth;
-		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
-			result += st::msgDateViewsSpace + views->_viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
-		} else if (id < 0 && history()->peer->isSelf()) {
-			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
-		}
-		if (out() && !isPost()) {
-			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
-		}
-		return result;
-	}
-	int32 timeLeft() const override {
-		int32 result = 0;
-		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
-			result += st::msgDateViewsSpace + views->_viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
-		} else if (id < 0 && history()->peer->isSelf()) {
-			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
-		}
-		return result;
-	}
-	int32 timeWidth() const override {
+	int infoWidth() const override;
+	int timeLeft() const override;
+	int timeWidth() const override {
 		return _timeWidth;
 	}
 
-	int32 viewsCount() const override {
-		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
+	int viewsCount() const override {
+		if (auto views = Get<HistoryMessageViews>()) {
 			return views->_views;
 		}
 		return HistoryItem::viewsCount();

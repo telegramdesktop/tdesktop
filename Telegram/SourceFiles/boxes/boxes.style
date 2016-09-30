@@ -80,9 +80,7 @@ shareCheckBorder: windowBg;
 shareCheckBg: windowActiveBg;
 shareCheckRadius: 10px;
 shareCheckSmallRadius: 3px;
-shareCheckIcon: icon {
-	{ "default_checkbox_check", windowBg, point(3px, 6px) },
-};
+shareCheckIcon: icon {{ "default_checkbox_check", windowBg, point(3px, 6px) }};
 shareNameFont: font(11px);
 shareNameFg: windowTextFg;
 shareNameActiveFg: btnYesColor;

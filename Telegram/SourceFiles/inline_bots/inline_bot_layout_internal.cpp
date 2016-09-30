@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_internal.h"
 
 #include "styles/style_overview.h"
+#include "styles/style_history.h"
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_clip_reader.h"
 #include "history/history_location_manager.h"
@@ -179,11 +180,11 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		p.setOpacity(radialOpacity);
 		auto icon = ([loaded, radial, loading] {
 			if (loaded && !radial) {
-				return &st::msgFileInPlay;
+				return &st::historyFileInPlay;
 			} else if (radial || loading) {
-				return &st::msgFileInCancel;
+				return &st::historyFileInCancel;
 			}
-			return &st::msgFileInDownload;
+			return &st::historyFileInDownload;
 		})();
 		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		icon->paintInCenter(p, inner);
@@ -723,18 +724,18 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	auto icon = ([showPause, radial, document] {
 		if (showPause) {
-			return &st::msgFileInPause;
+			return &st::historyFileInPause;
 		} else if (radial || document->loading()) {
-			return &st::msgFileInCancel;
+			return &st::historyFileInCancel;
 		} else if (true || document->loaded()) {
 			if (document->isImage()) {
-				return &st::msgFileInImage;
+				return &st::historyFileInImage;
 			} else if (document->voice() || document->song()) {
-				return &st::msgFileInPlay;
+				return &st::historyFileInPlay;
 			}
-			return &st::msgFileInDocument;
+			return &st::historyFileInDocument;
 		}
-		return &st::msgFileInDownload;
+		return &st::historyFileInDownload;
 	})();
 	icon->paintInCenter(p, inner);
 

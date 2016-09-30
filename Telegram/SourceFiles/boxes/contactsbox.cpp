@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 
 #include "dialogs/dialogs_indexed_list.h"
+#include "styles/style_dialogs.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
@@ -435,8 +436,9 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	int32 iconw = (_chat || _creating != CreatingGroupNone) ? (st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth()) : 0;
 	int32 namew = width() - namex - st::contactsPadding.right() - iconw;
 	if (peer->isVerified()) {
-		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
-		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
+		auto icon = &st::dialogsVerifiedIcon;
+		namew -= icon->width();
+		icon->paint(p, namex + qMin(data->name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
@@ -1942,8 +1944,9 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (data->canKick ? (_kickWidth + st::contactsCheckPosition.x() * 2) : 0);
 	if (peer->isVerified()) {
-		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
-		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
+		auto icon = &st::dialogsVerifiedIcon;
+		namew -= icon->width();
+		icon->paint(p, namex + qMin(data->name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
