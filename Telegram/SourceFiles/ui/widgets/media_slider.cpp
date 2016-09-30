@@ -35,6 +35,14 @@ float64 MediaSlider::value() const {
 	return a_value.current();
 }
 
+void MediaSlider::setDisabled(bool disabled) {
+	if (_disabled != disabled) {
+		_disabled = disabled;
+		setCursor(_disabled ? style::cur_default : style::cur_pointer);
+		update();
+	}
+}
+
 void MediaSlider::setValue(float64 value, bool animated) {
 	if (animated) {
 		a_value.start(value);
@@ -84,7 +92,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	int skip = lineLeft();
 	int length = lineWidth();
 	float64 prg = _mouseDown ? _downValue : a_value.current();
-	int32 from = skip, mid = qRound(from + prg * length), end = from + length;
+	int32 from = skip, mid = _disabled ? 0 : qRound(from + prg * length), end = from + length;
 	if (mid > from) {
 		p.setClipRect(0, 0, mid, height());
 		p.setOpacity(_fadeOpacity * (over * _st.activeOpacity + (1. - over) * _st.inactiveOpacity));
@@ -97,7 +105,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		p.setBrush(_st.inactiveFg);
 		p.drawRoundedRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width, radius, radius);
 	}
-	if (over > 0) {
+	if (!_disabled && over > 0) {
 		int x = mid - skip;
 		p.setClipRect(rect());
 		p.setOpacity(_fadeOpacity * _st.activeOpacity);

@@ -63,6 +63,9 @@ public:
 	void resize(int w, int h) {
 		_slider->resize(w, h);
 	}
+	void setDisabled(bool disabled) {
+		_slider->setDisabled(disabled);
+	}
 
 private:
 	Ui::MediaSlider *_slider;

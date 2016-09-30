@@ -195,10 +195,12 @@ void CoverWidget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackS
 	if (duration || !audioId.audio()->loading()) {
 		display = display / frequency;
 		_time = formatDurationText(display);
+		_playback->setDisabled(false);
 	} else {
 		auto loaded = audioId.audio()->loadOffset();
 		auto loadProgress = snap(float64(loaded) / qMax(audioId.audio()->size, 1), 0., 1.);
 		_time = QString::number(qRound(loadProgress * 100)) + '%';
+		_playback->setDisabled(true);
 	}
 	if (_seekPositionMs < 0) {
 		updateTimeLabel();

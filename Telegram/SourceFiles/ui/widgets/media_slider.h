@@ -33,6 +33,7 @@ public:
 	float64 value() const;
 	void setValue(float64 value, bool animated);
 	void setFadeOpacity(float64 opacity);
+	void setDisabled(bool disabled);
 
 	using Callback = base::lambda_unique<void(float64)>;
 	void setChangeProgressCallback(Callback &&callback) {
@@ -59,6 +60,8 @@ private:
 	int lineWidth() const;
 
 	const style::MediaSlider &_st;
+
+	bool _disabled = false;
 
 	Callback _changeProgressCallback;
 	Callback _changeFinishedCallback;
