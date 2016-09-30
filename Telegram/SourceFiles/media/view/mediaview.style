@@ -68,3 +68,26 @@ mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactive, point(0p
 mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;
+
+mediaviewLeft: icon {{ "mediaview_previous", #ffffff }};
+mediaviewRight: icon {{ "mediaview_next", #ffffff }};
+mediaviewClose: icon {{ "mediaview_close", #ffffff }};
+mediaviewSave: icon {{ "mediaview_download", #ffffff }};
+mediaviewMore: icon {{ "mediaview_more", #ffffff }};
+
+mediaviewFileRed: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #d55959 },
+};
+mediaviewFileYellow: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #e8a659 },
+};
+mediaviewFileGreen: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #49a957 },
+};
+mediaviewFileBlue: icon {
+	{ size(25px, 25px), #ffffff },
+	{ "mediaview_file_corner", #599dcf },
+};

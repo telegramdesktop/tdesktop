@@ -229,7 +229,7 @@ private:
 	bool gifShown() const;
 	void stopGif();
 
-	style::sprite _docIcon;
+	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;
 	QString _docName, _docSize, _docExt;
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;

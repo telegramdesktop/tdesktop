@@ -32,6 +32,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
 
+namespace {
+
+constexpr int kStatusShowClientsideRecordVideo = 6000;
+constexpr int kStatusShowClientsideUploadVideo = 6000;
+constexpr int kStatusShowClientsideRecordVoice = 6000;
+constexpr int kStatusShowClientsideUploadVoice = 6000;
+constexpr int kStatusShowClientsideUploadPhoto = 6000;
+constexpr int kStatusShowClientsideUploadFile = 6000;
+constexpr int kStatusShowClientsideChooseLocation = 6000;
+constexpr int kStatusShowClientsideChooseContact = 6000;
+constexpr int kStatusShowClientsidePlayGame = 10000;
+
+} // namespace
+
 void historyInit() {
 	historyInitMessages();
 	historyInitMedia();
@@ -561,18 +575,18 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 	uint64 ms = getms();
 	switch (action.type()) {
 	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
-	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + 6000)); break;
-	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + 6000, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
-	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordVoice, ms + 6000)); break;
-	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadVoice, ms + 6000, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + 6000, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + 6000, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
-	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + 6000)); break;
-	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + 6000)); break;
+	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + kStatusShowClientsideRecordVideo)); break;
+	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + kStatusShowClientsideUploadVideo, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
+	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordVoice, ms + kStatusShowClientsideRecordVoice)); break;
+	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadVoice, ms + kStatusShowClientsideUploadVoice, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + kStatusShowClientsideUploadPhoto, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
+	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + kStatusShowClientsideChooseLocation)); break;
+	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + kStatusShowClientsideChooseContact)); break;
 	case mtpc_sendMessageGamePlayAction: {
 		auto it = history->sendActions.find(user);
 		if (it == history->sendActions.end() || it->type == SendActionPlayGame || it->until <= ms) {
-			history->sendActions.insert(user, SendAction(SendActionPlayGame, ms + 30000));
+			history->sendActions.insert(user, SendAction(SendActionPlayGame, ms + kStatusShowClientsidePlayGame));
 		}
 	} break;
 	default: return;

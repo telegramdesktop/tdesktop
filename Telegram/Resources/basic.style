@@ -1837,12 +1837,6 @@ mvControlMargin: 0px;
 mvControlSize: 90px;
 mvIconSize: size(60px, 56px);
 
-mvLeft: sprite(320px, 445px, 12px, 22px);
-mvRight: sprite(332px, 445px, 12px, 22px);
-mvClose: sprite(344px, 445px, 18px, 18px);
-mvSave: sprite(362px, 445px, 14px, 19px);
-mvMore: sprite(376px, 445px, 5px, 21px);
-
 mvDropdown: dropdown(dropdownDef) {
 	shadow: sprite(0px, 0px, 0px, 0px);
 	padding: margins(11px, 12px, 11px, 12px);
@@ -1904,10 +1898,6 @@ mvDocExtFont: font(semibold 18px);
 mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
-mvDocRed: sprite(0px, 400px, 25px, 25px);
-mvDocYellow: sprite(25px, 400px, 25px, 25px);
-mvDocGreen: sprite(50px, 400px, 25px, 25px);
-mvDocBlue: sprite(75px, 400px, 25px, 25px);
 mvDocIconSize: 80px;
 
 mvDocLink: linkButton(btnDefLink) {

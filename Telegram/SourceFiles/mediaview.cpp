@@ -160,11 +160,11 @@ void MediaView::moveToScreen() {
 
 	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
 	_closeNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize);
-	_closeNavIcon = centersprite(_closeNav, st::mvClose);
+	_closeNavIcon = centerrect(_closeNav, st::mediaviewClose);
 	_leftNav = myrtlrect(st::mvControlMargin, navSkip, st::mvControlSize, height() - 2 * navSkip);
-	_leftNavIcon = centersprite(_leftNav, st::mvLeft);
+	_leftNavIcon = centerrect(_leftNav, st::mediaviewLeft);
 	_rightNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, navSkip, st::mvControlSize, height() - 2 * navSkip);
-	_rightNavIcon = centersprite(_rightNav, st::mvRight);
+	_rightNavIcon = centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
@@ -327,9 +327,9 @@ void MediaView::updateControls() {
 
 	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
-	_saveNavIcon = centersprite(_saveNav, st::mvSave);
+	_saveNavIcon = centerrect(_saveNav, st::mediaviewSave);
 	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
-	_moreNavIcon = centersprite(_moreNav, st::mvMore);
+	_moreNavIcon = centerrect(_moreNav, st::mediaviewMore);
 
 	QDateTime d, dNow(date(unixtime()));
 	if (_photo) {
@@ -1235,7 +1235,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		if (!_doc || _doc->thumb->isNull()) {
 			int32 colorIndex = documentColorIndex(_doc, _docExt);
 			_docIconColor = documentColor(colorIndex);
-			style::sprite thumbs[] = { st::mvDocBlue, st::mvDocGreen, st::mvDocRed, st::mvDocYellow };
+			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
 			_docIcon = thumbs[colorIndex];
 
 			int32 extmaxw = (st::mvDocIconSize - st::mvDocExtPadding * 2);
@@ -1552,7 +1552,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	} else {
 		p.setOpacity(st::mvBgOpacity);
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
-			p.fillRect(rs.at(i), st::mvBgColor->b);
+			p.fillRect(rs.at(i), st::mvBgColor);
 		}
 		p.setCompositionMode(m);
 	}
@@ -1664,8 +1664,8 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 				if (!_doc || _doc->thumb->isNull()) {
 					p.fillRect(_docIconRect, _docIconColor->b);
-					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1)) {
-						p.drawSprite(_docIconRect.topLeft() + QPoint(rtl() ? 0 : (_docIconRect.width() - _docIcon.pxWidth()), 0), _docIcon);
+					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
+						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
 						p.setPen(st::mvDocExtColor->p);
 						p.setFont(st::mvDocExtFont->f);
 						if (!_docExt.isEmpty()) {
@@ -1697,68 +1697,68 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	if (co > 0) {
 		// left nav bar
 		if (_leftNav.intersects(r) && _leftNavVisible) {
-			float64 o = overLevel(OverLeftNav);
+			auto o = overLevel(OverLeftNav);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
-					QRect fill(_leftNav.intersected(rs.at(i)));
+					auto fill = _leftNav.intersected(rs.at(i));
 					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
 				}
 			}
 			if (_leftNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawSprite(_leftNavIcon.topLeft(), st::mvLeft);
+				st::mediaviewLeft.paintInCenter(p, _leftNavIcon);
 			}
 		}
 
 		// right nav bar
 		if (_rightNav.intersects(r) && _rightNavVisible) {
-			float64 o = overLevel(OverRightNav);
+			auto o = overLevel(OverRightNav);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
-					QRect fill(_rightNav.intersected(rs.at(i)));
+					auto fill = _rightNav.intersected(rs.at(i));
 					if (!fill.isEmpty()) p.fillRect(fill, st::black);
 				}
 			}
 			if (_rightNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawSprite(_rightNavIcon.topLeft(), st::mvRight);
+				st::mediaviewRight.paintInCenter(p, _rightNavIcon);
 			}
 		}
 
 		// close button
 		if (_closeNav.intersects(r)) {
-			float64 o = overLevel(OverClose);
+			auto o = overLevel(OverClose);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
-					QRect fill(_closeNav.intersected(rs.at(i)));
+					auto fill = _closeNav.intersected(rs.at(i));
 					if (!fill.isEmpty()) p.fillRect(fill, st::black);
 				}
 			}
 			if (_closeNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawSprite(_closeNavIcon.topLeft(), st::mvClose);
+				st::mediaviewClose.paintInCenter(p, _closeNavIcon);
 			}
 		}
 
 		// save button
 		if (_saveVisible && _saveNavIcon.intersects(r)) {
-			float64 o = overLevel(OverSave);
+			auto o = overLevel(OverSave);
 			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawSprite(_saveNavIcon.topLeft(), st::mvSave);
+			st::mediaviewSave.paintInCenter(p, _saveNavIcon);
 		}
 
 		// more area
 		if (_moreNavIcon.intersects(r)) {
-			float64 o = overLevel(OverMore);
+			auto o = overLevel(OverMore);
 			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawSprite(_moreNavIcon.topLeft(), st::mvMore);
+			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
 		}
 
-		p.setPen(st::white->p);
-		p.setFont(st::mvThickFont->f);
+		p.setPen(st::white);
+		p.setFont(st::mvThickFont);
 
 		// header
 		if (_headerNav.intersects(r)) {
