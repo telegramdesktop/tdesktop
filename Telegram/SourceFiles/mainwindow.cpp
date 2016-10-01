@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
+#include "ui/popupmenu.h"
 #include "zip.h"
 #include "lang.h"
 #include "shortcuts.h"

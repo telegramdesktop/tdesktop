@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "lang.h"
 #include "localstorage.h"
+#include "ui/popupmenu.h"
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -143,19 +144,10 @@ public:
 		QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&cornersImage);
+			p.setCompositionMode(QPainter::CompositionMode_Source);
 			st::wndShadow.paint(p, 0, 0, _fullsize);
 		}
 		if (rtl()) cornersImage = cornersImage.mirrored(true, false);
-		uchar *bits = cornersImage.bits();
-		if (bits) {
-			for (
-				quint32 *p = (quint32*)bits, *end = (quint32*)(bits + cornersImage.byteCount());
-				p < end;
-				++p
-				) {
-				*p = (*p ^ 0x00ffffff) << 24;
-			}
-		}
 
 		_metaSize = _fullsize + 2 * _shift;
 		_alphas.reserve(_metaSize);

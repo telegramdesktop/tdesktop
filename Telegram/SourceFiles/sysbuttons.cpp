@@ -30,7 +30,6 @@ SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text)
 , _st(st)
 , a_color(_st.color->c)
 , _a_color(animation(this, &SysBtn::step_color))
-, _overLevel(0)
 , _text(text) {
 	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.icon.width()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());

@@ -68,7 +68,7 @@ protected:
 	anim::cvalue a_color;
 	Animation _a_color;
 
-	float64 _overLevel;
+	float64 _overLevel = 0.;
 	QString _text;
 
 };
