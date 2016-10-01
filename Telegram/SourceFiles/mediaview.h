@@ -29,6 +29,8 @@ class Controller;
 } // namespace Clip
 } // namespace Media
 
+class PopupMenu;
+
 struct AudioPlaybackState;
 
 class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {

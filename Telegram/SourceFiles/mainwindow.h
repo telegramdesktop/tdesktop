@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "title.h"
 #include "pspecific.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
 
 class MediaView;
@@ -54,7 +54,7 @@ public slots:
 
 private:
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 	QString _text;
 	int32 _textWidth;
 	LinkButton _reconnect;

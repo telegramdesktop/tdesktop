@@ -138,12 +138,12 @@ public:
 	}
 
 	bool init(QColor c) {
-		_fullsize = st::wndShadow.rect().width();
+		_fullsize = st::wndShadow.width();
 		_shift = st::wndShadowShift;
 		QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&cornersImage);
-			p.drawSprite(0, 0, st::wndShadow);
+			st::wndShadow.paint(p, 0, 0, _fullsize);
 		}
 		if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 		uchar *bits = cornersImage.bits();
@@ -252,6 +252,12 @@ public:
 
 			SelectObject(dcs[i], bitmaps[i]);
 		}
+
+		QStringList alphasForLog;
+		for_const (auto alpha, _alphas) {
+			alphasForLog.append(QString::number(alpha));
+		}
+		LOG(("Window Shadow: %1").arg(alphasForLog.join(", ")));
 
 		initCorners();
 		return true;

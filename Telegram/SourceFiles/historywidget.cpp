@@ -2638,85 +2638,53 @@ void BotKeyboard::updateSelected() {
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
-, _sharedContact(0)
 , _forwardSelected(forwardSelected)
-, _sendPath(false)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, offered(0)
 , a_opacity(0, 1)
 , _a_appearance(animation(this, &HistoryHider::step_appearance))
-, hiding(false)
-, _forwardRequest(0)
-, toTextWidth(0)
-, shadow(st::boxShadow) {
+, _shadow(st::boxShadow) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
 , _sharedContact(sharedContact)
-, _forwardSelected(false)
-, _sendPath(false)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, offered(0)
 , a_opacity(0, 1)
 , _a_appearance(animation(this, &HistoryHider::step_appearance))
-, hiding(false)
-, _forwardRequest(0)
-, toTextWidth(0)
-, shadow(st::boxShadow) {
+, _shadow(st::boxShadow) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
-, _sharedContact(0)
-, _forwardSelected(false)
 , _sendPath(true)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, offered(0)
 , a_opacity(0, 1)
 , _a_appearance(animation(this, &HistoryHider::step_appearance))
-, hiding(false)
-, _forwardRequest(0)
-, toTextWidth(0)
-, shadow(st::boxShadow) {
+, _shadow(st::boxShadow) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWidget(parent)
-, _sharedContact(0)
-, _forwardSelected(false)
-, _sendPath(false)
 , _botAndQuery(botAndQuery)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, offered(0)
 , a_opacity(0, 1)
 , _a_appearance(animation(this, &HistoryHider::step_appearance))
-, hiding(false)
-, _forwardRequest(0)
-, toTextWidth(0)
-, shadow(st::boxShadow) {
+, _shadow(st::boxShadow) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
-, _sharedContact(0)
-, _forwardSelected(false)
-, _sendPath(false)
 , _shareUrl(url)
 , _shareText(text)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, offered(0)
 , a_opacity(0, 1)
 , _a_appearance(animation(this, &HistoryHider::step_appearance))
-, hiding(false)
-, _forwardRequest(0)
-, toTextWidth(0)
-, shadow(st::boxShadow) {
+, _shadow(st::boxShadow) {
 	init();
 }
 
@@ -2736,7 +2704,7 @@ void HistoryHider::step_appearance(float64 ms, bool timer) {
 	if (dt >= 1) {
 		_a_appearance.stop();
 		a_opacity.finish();
-		if (hiding)	{
+		if (_hiding)	{
 			QTimer::singleShot(0, this, SLOT(deleteLater()));
 		}
 	} else {
@@ -2752,45 +2720,45 @@ bool HistoryHider::withConfirm() const {
 
 void HistoryHider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	if (!hiding || !cacheForAnim.isNull() || !offered) {
+	if (!_hiding || !_cacheForAnim.isNull() || !_offered) {
 		p.setOpacity(a_opacity.current() * st::layerAlpha);
 		p.fillRect(rect(), st::layerBg->b);
 		p.setOpacity(a_opacity.current());
 	}
-	if (cacheForAnim.isNull() || !offered) {
-		p.setFont(st::forwardFont->f);
-		if (offered) {
-			shadow.paint(p, box, st::boxShadowShift);
+	if (_cacheForAnim.isNull() || !_offered) {
+		p.setFont(st::forwardFont);
+		if (_offered) {
+			_shadow.paint(p, _box, st::boxShadowShift);
 
 			// fill bg
-			p.fillRect(box, st::boxBg->b);
+			p.fillRect(_box, st::boxBg);
 
-			p.setPen(st::black->p);
-			toText.drawElided(p, box.left() + st::boxPadding.left(), box.top() + st::boxPadding.top(), toTextWidth + 2);
+			p.setPen(st::black);
+			_toText.drawElided(p, _box.left() + st::boxPadding.left(), _box.top() + st::boxPadding.top(), _toTextWidth + 2);
 		} else {
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
 			App::roundRect(p, (width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
-			p.setPen(st::white->p);
-			p.drawText(box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
+			p.setPen(st::white);
+			p.drawText(_box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
 		}
 	} else {
-		p.drawPixmap(box.left(), box.top(), cacheForAnim);
+		p.drawPixmap(_box.left(), _box.top(), _cacheForAnim);
 	}
 }
 
 void HistoryHider::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		if (offered) {
-			offered = 0;
-			resizeEvent(0);
+		if (_offered) {
+			_offered = nullptr;
+			resizeEvent(nullptr);
 			update();
 			App::main()->dialogsActivate();
 		} else {
 			startHide();
 		}
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (offered) {
+		if (_offered) {
 			forward();
 		}
 	}
@@ -2798,19 +2766,19 @@ void HistoryHider::keyPressEvent(QKeyEvent *e) {
 
 void HistoryHider::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
-		if (!box.contains(e->pos())) {
+		if (!_box.contains(e->pos())) {
 			startHide();
 		}
 	}
 }
 
 void HistoryHider::startHide() {
-	if (hiding) return;
-	hiding = true;
+	if (_hiding) return;
+	_hiding = true;
 	if (Adaptive::OneColumn()) {
 		QTimer::singleShot(0, this, SLOT(deleteLater()));
 	} else {
-		if (offered) cacheForAnim = myGrab(this, box);
+		if (_offered) _cacheForAnim = myGrab(this, _box);
 		if (_forwardRequest) MTP::cancel(_forwardRequest);
 		a_opacity.start(0);
 		_send.hide();
@@ -2820,17 +2788,17 @@ void HistoryHider::startHide() {
 }
 
 void HistoryHider::forward() {
-	if (!hiding && offered) {
+	if (!_hiding && _offered) {
 		if (_sharedContact) {
-			parent()->onShareContact(offered->id, _sharedContact);
+			parent()->onShareContact(_offered->id, _sharedContact);
 		} else if (_sendPath) {
-			parent()->onSendPaths(offered->id);
+			parent()->onSendPaths(_offered->id);
 		} else if (!_shareUrl.isEmpty()) {
-			parent()->onShareUrl(offered->id, _shareUrl, _shareText);
+			parent()->onShareUrl(_offered->id, _shareUrl, _shareText);
 		} else if (!_botAndQuery.isEmpty()) {
-			parent()->onInlineSwitchChosen(offered->id, _botAndQuery);
+			parent()->onInlineSwitchChosen(_offered->id, _botAndQuery);
 		} else {
-			parent()->onForward(offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
+			parent()->onForward(_offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		}
 	}
 	emit forwarded();
@@ -2847,8 +2815,8 @@ MainWidget *HistoryHider::parent() {
 
 void HistoryHider::resizeEvent(QResizeEvent *e) {
 	int32 w = st::boxWidth, h = st::boxPadding.top() + st::boxPadding.bottom();
-	if (offered) {
-		if (!hiding) {
+	if (_offered) {
+		if (!_hiding) {
 			_send.show();
 			_cancel.show();
 		}
@@ -2858,22 +2826,22 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 		_send.hide();
 		_cancel.hide();
 	}
-	box = QRect((width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h);
-	_send.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right(), box.y() + h - st::boxButtonPadding.bottom() - _send.height());
-	_cancel.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
+	_box = QRect((width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h);
+	_send.moveToRight(width() - (_box.x() + _box.width()) + st::boxButtonPadding.right(), _box.y() + h - st::boxButtonPadding.bottom() - _send.height());
+	_cancel.moveToRight(width() - (_box.x() + _box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
 }
 
 bool HistoryHider::offerPeer(PeerId peer) {
 	if (!peer) {
-		offered = 0;
-		toText.setText(st::boxTextFont, QString());
-		toTextWidth = 0;
-		resizeEvent(0);
+		_offered = nullptr;
+		_toText.setText(st::boxTextFont, QString());
+		_toTextWidth = 0;
+		resizeEvent(nullptr);
 		return false;
 	}
-	offered = App::peer(peer);
+	_offered = App::peer(peer);
 	LangString phrase;
-	QString recipient = offered->isUser() ? offered->name : '\xAB' + offered->name + '\xBB';
+	QString recipient = _offered->isUser() ? _offered->name : '\xAB' + _offered->name + '\xBB';
 	if (_sharedContact) {
 		phrase = lng_forward_share_contact(lt_recipient, recipient);
 	} else if (_sendPath) {
@@ -2887,35 +2855,35 @@ bool HistoryHider::offerPeer(PeerId peer) {
 			phrase = lng_forward_send_file_confirm(lt_name, name, lt_recipient, recipient);
 		}
 	} else if (!_shareUrl.isEmpty()) {
-		PeerId to = offered->id;
-		offered = 0;
+		PeerId to = _offered->id;
+		_offered = nullptr;
 		if (parent()->onShareUrl(to, _shareUrl, _shareText)) {
 			startHide();
 		}
 		return false;
 	} else if (!_botAndQuery.isEmpty()) {
-		PeerId to = offered->id;
-		offered = 0;
+		PeerId to = _offered->id;
+		_offered = nullptr;
 		if (parent()->onInlineSwitchChosen(to, _botAndQuery)) {
 			startHide();
 		}
 		return false;
 	} else {
-		PeerId to = offered->id;
-		offered = 0;
+		PeerId to = _offered->id;
+		_offered = nullptr;
 		if (parent()->onForward(to, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage)) {
 			startHide();
 		}
 		return false;
 	}
 
-	toText.setText(st::boxTextFont, phrase, _textNameOptions);
-	toTextWidth = toText.maxWidth();
-	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxButtonPadding.right()) {
-		toTextWidth = box.width() - st::boxPadding.left() - st::boxButtonPadding.right();
+	_toText.setText(st::boxTextFont, phrase, _textNameOptions);
+	_toTextWidth = _toText.maxWidth();
+	if (_toTextWidth > _box.width() - st::boxPadding.left() - st::boxButtonPadding.right()) {
+		_toTextWidth = _box.width() - st::boxPadding.left() - st::boxButtonPadding.right();
 	}
 
-	resizeEvent(0);
+	resizeEvent(nullptr);
 	update();
 	setFocus();
 
@@ -2923,11 +2891,11 @@ bool HistoryHider::offerPeer(PeerId peer) {
 }
 
 QString HistoryHider::offeredText() const {
-	return toText.originalText();
+	return _toText.originalText();
 }
 
 bool HistoryHider::wasOffered() const {
-	return !!offered;
+	return _offered != nullptr;
 }
 
 HistoryHider::~HistoryHider() {

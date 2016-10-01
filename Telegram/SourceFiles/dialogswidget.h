@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/section_widget.h"
 
-class MainWidget;
 namespace Dialogs {
 class Row;
 class FakeRow;
@@ -32,6 +31,9 @@ class IndexedList;
 namespace Ui {
 class RoundButton;
 } // namespace Ui
+
+class MainWidget;
+class PopupMenu;
 
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,

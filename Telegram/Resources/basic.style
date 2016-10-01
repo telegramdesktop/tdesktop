@@ -68,7 +68,7 @@ semiboldButtonBlueText: #2b99d5;
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndShadow: sprite(209px, 46px, 19px, 19px);
+wndShadow: icon {{ "window_shadow", windowShadowFg }};
 wndShadowShift: 1px;
 
 layerAlpha: 0.5;
@@ -298,10 +298,11 @@ solidScroll: flatScroll {
 	duration: 150;
 	hiding: 0;
 }
+defaultDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
 defaultPopupMenu: PopupMenu {
 	skip: 5px;
 
-	shadow: sprite(241px, 46px, 6px, 6px);
+	shadow: defaultDropdownShadow;
 	shadowShift: 1px;
 
 	itemBg: white;
@@ -320,7 +321,7 @@ defaultPopupMenu: PopupMenu {
 	separatorWidth: 1px;
 	separatorFg: #f1f1f1;
 
-	arrow: sprite(0px, 126px, 4px, 7px);
+	arrow: icon {{ "dropdown_submenu_arrow", #373737 }};
 
 	duration: 120;
 
@@ -687,7 +688,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	radius: buttonRadius;
 }
 
-boxShadow: sprite(363px, 50px, 15px, 15px);
+boxShadow: icon {{ "box_shadow", windowShadowFg }};
 boxShadowShift: 2px;
 
 introCountry: countryInput {
@@ -1211,12 +1212,12 @@ btnBotKbHide: iconedButton(btnAttachEmoji) {
 	downIcon: sprite(373px, 95px, 23px, 14px);
 	downIconPos: point(5px, 17px);
 }
-broadcastToggle: flatCheckbox {
+silentToggle: flatCheckbox {
 	textColor: black;
 	bgColor: white;
 	disColor: black;
 
-	width: 34px;
+	width: 33px;
 	height: 46px;
 	duration: 200;
 	bgFunc: transition(easeOutCirc);
@@ -1224,24 +1225,14 @@ broadcastToggle: flatCheckbox {
 
 	font: normalFont;
 
-	imageRect: sprite(18px, 125px, 22px, 21px);
-	chkImageRect: sprite(40px, 125px, 22px, 21px);
-	overImageRect: sprite(40px, 104px, 22px, 21px);
-	chkOverImageRect: sprite(40px, 125px, 22px, 21px);
-	disImageRect: sprite(18px, 125px, 22px, 21px);
-	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
-
-	imagePos: point(6px, 12px);
-}
-silentToggle: flatCheckbox(broadcastToggle) {
-	width: 33px;
-
 	imageRect: sprite(354px, 242px, 21px, 21px);
 	chkImageRect: sprite(354px, 221px, 21px, 21px);
 	overImageRect: sprite(375px, 242px, 21px, 21px);
 	chkOverImageRect: sprite(375px, 221px, 21px, 21px);
 	disImageRect: sprite(354px, 242px, 21px, 21px);
 	chkDisImageRect: sprite(354px, 221px, 21px, 21px);
+
+	imagePos: point(6px, 12px);
 }
 btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
@@ -1538,17 +1529,15 @@ dropdownDef: dropdown {
 	borderColor: #ebebeb;
 
 	padding: margins(10px, 10px, 10px, 10px);
-	shadow: sprite(241px, 46px, 6px, 6px);
+	shadow: defaultDropdownShadow;
 	shadowShift: 1px;
 
 	duration: 150;
 	width: 0px;
 }
-
-defaultInnerDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
 defaultInnerDropdown: InnerDropdown {
 	padding: margins(10px, 10px, 10px, 10px);
-	shadow: defaultInnerDropdownShadow;
+	shadow: defaultDropdownShadow;
 	shadowShift: 1px;
 
 	duration: 150;
@@ -1838,7 +1827,7 @@ mvControlSize: 90px;
 mvIconSize: size(60px, 56px);
 
 mvDropdown: dropdown(dropdownDef) {
-	shadow: sprite(0px, 0px, 0px, 0px);
+	shadow: icon {};
 	padding: margins(11px, 12px, 11px, 12px);
 
 	border: 0px;
@@ -1863,7 +1852,7 @@ mvButton: iconedButton(btnDefIconed) {
 	duration: 0;
 }
 mvPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: sprite(0px, 0px, 0px, 0px);
+	shadow: icon {};
 
 	itemBg: #383838;
 	itemBgOver: #505050;

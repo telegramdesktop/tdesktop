@@ -160,7 +160,7 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 					move(r.left(), newTop);
 				}
 			}
-			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
+			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.width(), st::boxShadow.height(), st::boxShadow.width(), st::boxShadow.height())));
 		}
 	}
 }

@@ -337,7 +337,7 @@ private:
 	int _dragging = -1;
 	int _above = -1;
 
-	BoxShadow _aboveShadow;
+	Ui::RectShadow _aboveShadow;
 
 	int32 _scrollbar = 0;
 };

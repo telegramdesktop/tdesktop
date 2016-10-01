@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
 
 namespace internal {
 
@@ -91,9 +91,10 @@ public slots:
 
 	void showStart();
 
-private:
+protected:
 	void paintEvent(QPaintEvent *e) override;
 
+private:
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
 
@@ -108,9 +109,9 @@ private:
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<internal::FieldAutocompleteInner> _inner;
 
-	ChatData *_chat;
-	UserData *_user;
-	ChannelData *_channel;
+	ChatData *_chat = nullptr;
+	UserData *_user = nullptr;
+	ChannelData *_channel = nullptr;
 	EmojiPtr _emoji;
 	enum class Type {
 		Mentions,
@@ -124,14 +125,13 @@ private:
 	bool _addInlineBots;
 
 	int32 _width, _height;
-	bool _hiding;
+	bool _hiding = false;
 
 	anim::fvalue a_opacity;
 	Animation _a_appearance;
 
 	QTimer _hideTimer;
 
-	BoxShadow _shadow;
 	friend class internal::FieldAutocompleteInner;
 
 };

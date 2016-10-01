@@ -25,43 +25,27 @@
 
 #include "lang.h"
 
-PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(0)
+PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
-, _menu(0)
-, _parent(0)
 , _itemHeight(_st.itemPadding.top() + _st.itemFont->height + _st.itemPadding.bottom())
 , _separatorHeight(_st.separatorPadding.top() + _st.separatorWidth + _st.separatorPadding.bottom())
-, _mouseSelection(false)
 , _shadow(_st.shadow)
-, _selected(-1)
-, _childMenuIndex(-1)
 , a_opacity(1)
-, _a_hide(animation(this, &PopupMenu::step_hide))
-, _deleteOnHide(true)
-, _triggering(false)
-, _deleteLater(false) {
+, _a_hide(animation(this, &PopupMenu::step_hide)) {
 	init();
 }
 
 PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
 , _st(st)
 , _menu(menu)
-, _parent(0)
 , _itemHeight(_st.itemPadding.top() + _st.itemFont->height + _st.itemPadding.bottom())
 , _separatorHeight(_st.separatorPadding.top() + _st.separatorWidth + _st.separatorPadding.bottom())
-, _mouseSelection(false)
 , _shadow(_st.shadow)
-, _selected(-1)
-, _childMenuIndex(-1)
 , a_opacity(1)
-, _a_hide(animation(this, &PopupMenu::step_hide))
-, _deleteOnHide(true)
-, _triggering(false)
-, _deleteLater(false) {
+, _a_hide(animation(this, &PopupMenu::step_hide)) {
 	init();
-	QList<QAction*> actions(menu->actions());
-	for (int32 i = 0, l = actions.size(); i < l; ++i) {
-		addAction(actions.at(i));
+	for (auto action : menu->actions()) {
+		addAction(action);
 	}
 }
 
@@ -117,7 +101,7 @@ int32 PopupMenu::processAction(QAction *a, int32 index, int32 w) {
 		int32 textw = _st.itemFont->width(texts.at(0));
 		int32 goodw = _padding.left() + _st.itemPadding.left() + textw + _st.itemPadding.right() + _padding.right();
 		if (_menus.at(index)) {
-			goodw += _st.itemPadding.left() + _st.arrow.pxWidth();
+			goodw += _st.itemPadding.left() + _st.arrow.width();
 		} else if (texts.size() > 1) {
 			goodw += _st.itemPadding.left() + _st.itemFont->width(texts.at(1));
 		}
@@ -212,7 +196,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 				p.setPen(selected ? _st.itemFgOver : (enabled ? _st.itemFg : _st.itemFgDisabled));
 				p.drawTextLeft(_st.itemPadding.left(), _st.itemPadding.top(), _inner.width(), _texts.at(i));
 				if (_menus.at(i)) {
-					p.drawSpriteRight(_st.itemPadding.right(), (_itemHeight - _st.arrow.pxHeight()) / 2, _inner.width(), _st.arrow);
+					_st.arrow.paint(p, _inner.width() - _st.itemPadding.right() - _st.arrow.width(), (_itemHeight - _st.arrow.height()) / 2, _inner.width());
 				} else if (!_shortcutTexts.at(i).isEmpty()) {
 					p.setPen(selected ? _st.itemFgShortcutOver : (enabled ? _st.itemFgShortcut : _st.itemFgShortcutDisabled));
 					p.drawTextRight(_st.itemPadding.right(), _st.itemPadding.top(), _inner.width(), _shortcutTexts.at(i));

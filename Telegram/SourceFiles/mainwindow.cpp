@@ -43,7 +43,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
+ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
+, _shadow(st::boxShadow)
+, _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
 }
@@ -57,21 +59,21 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	} else {
 		_reconnect.setText(reconnect);
 		_reconnect.show();
-		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.pxHeight() + st::connectingPadding.top());
+		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
 		_reconnectWidth = _reconnect.width();
 	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.pxWidth(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
+	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();
 }
 
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), 0, BoxShadow::Top | BoxShadow::Right);
-	p.fillRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight(), st::connectingBG->b);
+	_shadow.paint(p, QRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height()), 0, Ui::RectShadow::Side::Top | Ui::RectShadow::Side::Right);
+	p.fillRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height(), st::connectingBG->b);
 	p.setFont(st::linkFont->f);
 	p.setPen(st::connectingColor->p);
-	p.drawText(st::connectingPadding.left(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->ascent, _text);
+	p.drawText(st::connectingPadding.left(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->ascent, _text);
 }
 
 void ConnectingWidget::onReconnect() {

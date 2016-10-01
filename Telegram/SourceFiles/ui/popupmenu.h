@@ -18,12 +18,12 @@
 #pragma once
 
 #include "ui/text/text.h"
+#include "ui/effects/rect_shadow.h"
 
 class PopupMenu : public TWidget {
 	Q_OBJECT
 
 public:
-
 	PopupMenu(const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member);
@@ -41,23 +41,20 @@ public:
 	~PopupMenu();
 
 protected:
-
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-	void enterEvent(QEvent *e);
-	void focusOutEvent(QFocusEvent *e);
-	void hideEvent(QHideEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void hideEvent(QHideEvent *e) override;
 
 public slots:
-
 	void actionChanged();
 
 private:
-
 	void updateSelected();
 
 	void childHiding(PopupMenu *child);
@@ -85,10 +82,10 @@ private:
 
 	typedef QVector<PopupMenu*> PopupMenus;
 
-	QMenu *_menu;
+	QMenu *_menu = nullptr;
 	Actions _actions;
 	PopupMenus _menus;
-	PopupMenu *_parent;
+	PopupMenu *_parent = nullptr;
 	QStringList _texts, _shortcutTexts;
 
 	int32 _itemHeight, _separatorHeight;
@@ -96,16 +93,19 @@ private:
 	style::margins _padding;
 
 	QPoint _mouse;
-	bool _mouseSelection;
+	bool _mouseSelection = false;
 
-	BoxShadow _shadow;
-	int32 _selected, _childMenuIndex;
+	Ui::RectShadow _shadow;
+	int _selected = -1;
+	int _childMenuIndex = -1;
 
 	QPixmap _cache;
 	anim::fvalue a_opacity;
 	Animation _a_hide;
 
-	bool _deleteOnHide, _triggering, _deleteLater;
+	bool _deleteOnHide = true;
+	bool _triggering = false;
+	bool _deleteLater = false;
 
 };
 
@@ -123,7 +123,6 @@ class PopupTooltip : public TWidget {
 	Q_OBJECT
 
 public:
-
 	bool eventFilter(QObject *o, QEvent *e);
 
 	static void Show(int32 delay, const AbstractTooltipShower *shower);
@@ -132,18 +131,15 @@ public:
 	~PopupTooltip();
 
 public slots:
-
 	void onShow();
 	void onWndActiveChanged();
 	void onHideByLeave();
 
 protected:
-
 	void paintEvent(QPaintEvent *e);
 	void hideEvent(QHideEvent *e);
 
 private:
-
 	PopupTooltip();
 
 	void popup(const QPoint &p, const QString &text, const style::Tooltip *st);

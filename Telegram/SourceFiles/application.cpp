@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "ui/filedialog.h"
+#include "ui/popupmenu.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"

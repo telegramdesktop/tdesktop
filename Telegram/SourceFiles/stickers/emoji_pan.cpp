@@ -48,8 +48,8 @@ EmojiColorPicker::EmojiColorPicker() : TWidget()
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
 
-	int32 w = st::emojiPanSize.width() * (EmojiColorsCount + 1) + 4 * st::emojiColorsPadding + st::emojiColorsSep + st::dropdownDef.shadow.pxWidth() * 2;
-	int32 h = 2 * st::emojiColorsPadding + st::emojiPanSize.height() + st::dropdownDef.shadow.pxHeight() * 2;
+	int32 w = st::emojiPanSize.width() * (EmojiColorsCount + 1) + 4 * st::emojiColorsPadding + st::emojiColorsSep + st::dropdownDef.shadow.width() * 2;
+	int32 h = 2 * st::emojiColorsPadding + st::emojiPanSize.height() + st::dropdownDef.shadow.height() * 2;
 	resize(w, h);
 
 	_hideTimer.setSingleShot(true);
@@ -84,7 +84,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 
-	int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+	int32 w = st::dropdownDef.shadow.width(), h = st::dropdownDef.shadow.height();
 	QRect r = QRect(w, h, width() - 2 * w, height() - 2 * h);
 	_shadow.paint(p, r, st::dropdownDef.shadowShift);
 
@@ -174,7 +174,7 @@ void EmojiColorPicker::step_selected(uint64 ms, bool timer) {
 			_hovers[index] = (i.key() > 0) ? dt : (1 - dt);
 			++i;
 		}
-		toUpdate += QRect(st::dropdownDef.shadow.pxWidth() + st::emojiColorsPadding + index * st::emojiPanSize.width() + (index ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.pxHeight() + st::emojiColorsPadding, st::emojiPanSize.width(), st::emojiPanSize.height());
+		toUpdate += QRect(st::dropdownDef.shadow.width() + st::emojiColorsPadding + index * st::emojiPanSize.width() + (index ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.height() + st::emojiColorsPadding, st::emojiPanSize.width(), st::emojiPanSize.height());
 	}
 	if (timer) rtlupdate(toUpdate.boundingRect());
 	if (_emojiAnimations.isEmpty()) _a_selected.stop();
@@ -191,7 +191,7 @@ void EmojiColorPicker::hideStart(bool fast) {
 		emit hidden();
 	} else {
 		if (_cache.isNull()) {
-			int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+			int32 w = st::dropdownDef.shadow.width(), h = st::dropdownDef.shadow.height();
 			_cache = myGrab(this, QRect(w, h, width() - 2 * w, height() - 2 * h));
 			clearSelection(true);
 		}
@@ -213,7 +213,7 @@ void EmojiColorPicker::showStart() {
 		return;
 	}
 	if (_cache.isNull()) {
-		int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+		int32 w = st::dropdownDef.shadow.width(), h = st::dropdownDef.shadow.height();
 		_cache = myGrab(this, QRect(w, h, width() - 2 * w, height() - 2 * h));
 		clearSelection(true);
 	}
@@ -237,9 +237,9 @@ void EmojiColorPicker::clearSelection(bool fast) {
 void EmojiColorPicker::updateSelected() {
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
-	int32 sx = rtl() ? (width() - p.x()) : p.x(), y = p.y() - st::dropdownDef.shadow.pxHeight() - st::emojiColorsPadding;
+	int32 sx = rtl() ? (width() - p.x()) : p.x(), y = p.y() - st::dropdownDef.shadow.height() - st::emojiColorsPadding;
 	if (y >= 0 && y < st::emojiPanSize.height()) {
-		int32 x = sx - st::dropdownDef.shadow.pxWidth() - st::emojiColorsPadding;
+		int32 x = sx - st::dropdownDef.shadow.width() - st::emojiColorsPadding;
 		if (x >= 0 && x < st::emojiPanSize.width()) {
 			selIndex = 0;
 		} else {
@@ -275,7 +275,7 @@ void EmojiColorPicker::updateSelected() {
 void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	float64 hover = _hovers[variant];
 
-	QPoint w(st::dropdownDef.shadow.pxWidth() + st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.pxHeight() + st::emojiColorsPadding);
+	QPoint w(st::dropdownDef.shadow.width() + st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.height() + st::emojiColorsPadding);
 	if (hover > 0) {
 		p.setOpacity(hover);
 		QPoint tl(w);

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/flatinput.h"
 
+#include "ui/popupmenu.h"
 #include "mainwindow.h"
 #include "countryinput.h"
 #include "lang.h"

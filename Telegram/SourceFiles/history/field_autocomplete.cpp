@@ -28,13 +28,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
 , _inner(this, &_mrows, &_hrows, &_brows, &_srows)
-, _chat(0)
-, _user(0)
-, _channel(0)
-, _hiding(false)
 , a_opacity(0)
-, _a_appearance(animation(this, &FieldAutocomplete::step_appearance))
-, _shadow(st::dropdownDef.shadow) {
+, _a_appearance(animation(this, &FieldAutocomplete::step_appearance)) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 

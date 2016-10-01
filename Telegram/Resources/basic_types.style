@@ -233,7 +233,7 @@ dropdown {
 	borderColor: color;
 
 	padding: margins;
-	shadow: sprite;
+	shadow: icon;
 	shadowShift: pixels;
 
 	duration: int;
@@ -255,7 +255,7 @@ InnerDropdown {
 PopupMenu {
 	skip: pixels;
 
-	shadow: sprite;
+	shadow: icon;
 	shadowShift: pixels;
 
 	itemBg: color;
@@ -273,7 +273,7 @@ PopupMenu {
 	separatorWidth: pixels;
 	separatorFg: color;
 
-	arrow: sprite;
+	arrow: icon;
 
 	duration: int;
 
