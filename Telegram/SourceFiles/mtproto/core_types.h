@@ -199,27 +199,9 @@ public:
 	}
 };
 
-class mtpErrorUninitialized : public Exception {
-public:
-	mtpErrorUninitialized() : Exception("MTP Uninitialized variable write attempt") {
-	}
-};
-
 class mtpErrorBadTypeId : public Exception {
 public:
 	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Bad type id %1 passed to constructor of %2").arg(typeId).arg(type)) {
-	}
-};
-
-class mtpErrorWrongTypeId : public Exception {
-public:
-	mtpErrorWrongTypeId(mtpTypeId typeId, mtpTypeId required) : Exception(QString("MTP Wrong type id %1 for this data conversion, must be %2").arg(typeId).arg(required)) {
-	}
-};
-
-class mtpErrorKeyNotReady : public Exception {
-public:
-	mtpErrorKeyNotReady(const QString &method) : Exception(QString("MTP Auth key is used in %1 without being created").arg(method)) {
 	}
 };
 
@@ -686,12 +668,12 @@ public:
 	}
 
 	MTPDstring &_string() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDstring*)data;
 	}
 	const MTPDstring &c_string() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDstring*)data;
 	}
 
@@ -823,12 +805,12 @@ public:
 	}
 
 	MTPDvector<T> &_vector() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDvector<T>*)data;
 	}
 	const MTPDvector<T> &c_vector() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDvector<T>*)data;
 	}
 

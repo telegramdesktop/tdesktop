@@ -22,7 +22,7 @@ import glob
 import re
 import binascii
 
-# define some checked flag convertions
+# define some checked flag conversions
 # the key flag type should be a subset of the value flag type
 # with exact the same names, then the key flag can be implicitly
 # casted to the value flag type
@@ -612,17 +612,19 @@ for restype in typesList:
       withData = 1;
 
       getters += '\n\tMTPD' + name + ' &_' + name + '() {\n'; # splitting getter
-      getters += '\t\tif (!data) throw mtpErrorUninitialized();\n';
       if (withType):
-        getters += '\t\tif (_type != mtpc_' + name + ') throw mtpErrorWrongTypeId(_type, mtpc_' + name + ');\n';
+        getters += '\t\tt_assert(data != nullptr && _type == mtpc_' + name + ');\n';
+      else:
+        getters += '\t\tt_assert(data != nullptr);\n';
       getters += '\t\tsplit();\n';
       getters += '\t\treturn *(MTPD' + name + '*)data;\n';
       getters += '\t}\n';
 
       getters += '\tconst MTPD' + name + ' &c_' + name + '() const {\n'; # const getter
-      getters += '\t\tif (!data) throw mtpErrorUninitialized();\n';
       if (withType):
-        getters += '\t\tif (_type != mtpc_' + name + ') throw mtpErrorWrongTypeId(_type, mtpc_' + name + ');\n';
+        getters += '\t\tt_assert(data != nullptr && _type == mtpc_' + name + ');\n';
+      else:
+        getters += '\t\tt_assert(data != nullptr);\n';
       getters += '\t\treturn *(const MTPD' + name + '*)data;\n';
       getters += '\t}\n';
 
@@ -783,7 +785,7 @@ for restype in typesList:
   typesText += '\tmtpTypeId type() const;\n'; # type id method
   inlineMethods += 'inline mtpTypeId MTP' + restype + '::type() const {\n';
   if (withType):
-    inlineMethods += '\tif (!_type) throw mtpErrorUninitialized();\n';
+    inlineMethods += '\tt_assert(_type != 0);\n';
     inlineMethods += '\treturn _type;\n';
   else:
     inlineMethods += '\treturn mtpc_' + v[0][0] + ';\n';
