@@ -50,7 +50,7 @@ namespace {
 // Delete notify photo file after 1 minute of not using.
 constexpr int kNotifyDeletePhotoAfterMs = 60000;
 
-NeverFreedPointer<Manager> ToastsManager;
+NeverFreedPointer<Manager> ManagerInstance;
 
 ComPtr<IToastNotificationManagerStatics> _notificationManager;
 ComPtr<IToastNotifier> _notifier;
@@ -361,7 +361,7 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 	if (i != _images.cend()) {
 		if (i->until) {
 			i->until = ms + kNotifyDeletePhotoAfterMs;
-			if (auto manager = ToastsManager.data()) {
+			if (auto manager = ManagerInstance.data()) {
 				manager->clearNotifyPhotosInMs(-kNotifyDeletePhotoAfterMs);
 			}
 		}
@@ -369,7 +369,7 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 		Image v;
 		if (key.first) {
 			v.until = ms + kNotifyDeletePhotoAfterMs;
-			if (auto manager = ToastsManager.data()) {
+			if (auto manager = ManagerInstance.data()) {
 				manager->clearNotifyPhotosInMs(-kNotifyDeletePhotoAfterMs);
 			}
 		} else {
@@ -391,16 +391,16 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 
 void start() {
 	if (init()) {
-		ToastsManager.makeIfNull();
+		ManagerInstance.makeIfNull();
 	}
 }
 
 Manager *manager() {
-	return ToastsManager.data();
+	return ManagerInstance.data();
 }
 
 void finish() {
-	ToastsManager.reset();
+	ManagerInstance.clear();
 }
 
 uint64 clearImages(uint64 ms) {

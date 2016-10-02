@@ -49,6 +49,7 @@ public:
 	void clearFromHistory(History *history) {
 		doClearFromHistory(history);
 	}
+	virtual ~Manager() = default;
 
 protected:
 	virtual void doUpdateAll() = 0;

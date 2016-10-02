@@ -35,20 +35,20 @@ namespace {
 // 3 desktop notifies at the same time.
 constexpr int kNotifyWindowsCount = 3;
 
-NeverFreedPointer<Manager> FallbackManager;
+NeverFreedPointer<Manager> ManagerInstance;
 
 } // namespace
 
 void start() {
-	FallbackManager.makeIfNull();
+	ManagerInstance.makeIfNull();
 }
 
 Manager *manager() {
-	return FallbackManager.data();
+	return ManagerInstance.data();
 }
 
 void finish() {
-	FallbackManager.reset();
+	ManagerInstance.clear();
 }
 
 Manager::Manager() {
@@ -340,7 +340,7 @@ void Widget::itemRemoved(HistoryItem *deleted) {
 
 void Widget::unlinkHistoryAndNotify() {
 	unlinkHistory();
-	if (auto manager = FallbackManager.data()) {
+	if (auto manager = ManagerInstance.data()) {
 		manager->showNextFromQueue();
 	}
 }
@@ -355,14 +355,14 @@ void Widget::unlinkHistory(History *history) {
 
 void Widget::enterEvent(QEvent *e) {
 	if (!_history) return;
-	if (auto manager = FallbackManager.data()) {
+	if (auto manager = ManagerInstance.data()) {
 		manager->stopAllHiding();
 	}
 }
 
 void Widget::leaveEvent(QEvent *e) {
 	if (!_history) return;
-	if (auto manager = FallbackManager.data()) {
+	if (auto manager = ManagerInstance.data()) {
 		manager->startAllHiding();
 	}
 }
@@ -446,7 +446,7 @@ void Widget::step_appearance(float64 ms, bool timer) {
 }
 
 Widget::~Widget() {
-	if (auto manager = FallbackManager.data()) {
+	if (auto manager = ManagerInstance.data()) {
 		manager->removeFromShown(this);
 	}
 }

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "playerwidget.h"
 #include "localstorage.h"
+#include "platform/mac/mac_utilities.h"
 
 #include "lang.h"
 
@@ -31,6 +32,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <CoreFoundation/CFURL.h>
 
 #include <IOKit/hidsystem/ev_keymap.h>
+
+using Platform::Q2NSString;
+using Platform::NSlang;
+using Platform::NS2QString;
 
 @interface qVisualize : NSObject {
 }
@@ -104,24 +109,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 @end
 
-class QNSString {
-public:
-    QNSString(const QString &str) : _str([NSString stringWithUTF8String:str.toUtf8().constData()]) {
-    }
-    NSString *s() {
-        return _str;
-    }
-private:
-    NSString *_str;
-};
-
-QNSString objc_lang(LangKey key) {
-	return QNSString(lang(key));
-}
-QString objcString(NSString *str) {
-	return QString::fromUtf8([str cStringUsingEncoding:NSUTF8StringEncoding]);
-}
-
 @interface ObserverHelper : NSObject {
 }
 
@@ -147,51 +134,51 @@ QString objcString(NSString *str) {
 class PsMacWindowData {
 public:
 
-    PsMacWindowData(PsMacWindowPrivate *wnd) :
-    wnd(wnd),
-    observerHelper([[ObserverHelper alloc] init:wnd]),
-    notifyHandler([[NotifyHandler alloc] init:wnd]) {
-    }
+	PsMacWindowData(PsMacWindowPrivate *wnd) :
+	wnd(wnd),
+	observerHelper([[ObserverHelper alloc] init:wnd]),
+	notifyHandler([[NotifyHandler alloc] init:wnd]) {
+	}
 
-    void onNotifyClick(NSUserNotification *notification) {
+	void onNotifyClick(NSUserNotification *notification) {
 		NSDictionary *dict = [notification userInfo];
 		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
 		int msgId = msgObj ? [msgObj intValue] : 0;
-        wnd->notifyClicked(peerLong, msgId);
-    }
+		wnd->notifyClicked(peerLong, msgId);
+	}
 
-    void onNotifyReply(NSUserNotification *notification) {
+	void onNotifyReply(NSUserNotification *notification) {
 		NSDictionary *dict = [notification userInfo];
 		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
 		int msgId = msgObj ? [msgObj intValue] : 0;
-        wnd->notifyReplied(peerLong, msgId, [[[notification response] string] UTF8String]);
-    }
+		wnd->notifyReplied(peerLong, msgId, [[[notification response] string] UTF8String]);
+	}
 
-    ~PsMacWindowData() {
-        [observerHelper release];
-        [notifyHandler release];
-    }
+	~PsMacWindowData() {
+		[observerHelper release];
+		[notifyHandler release];
+	}
 
-    PsMacWindowPrivate *wnd;
-    ObserverHelper *observerHelper;
-    NotifyHandler *notifyHandler;
+	PsMacWindowPrivate *wnd;
+	ObserverHelper *observerHelper;
+	NotifyHandler *notifyHandler;
 };
 
 @implementation ObserverHelper {
-    PsMacWindowPrivate *wnd;
+	PsMacWindowPrivate *wnd;
 }
 
 - (id) init:(PsMacWindowPrivate *)aWnd {
-    if (self = [super init]) {
-        wnd = aWnd;
-    }
-    return self;
+	if (self = [super init]) {
+		wnd = aWnd;
+	}
+	return self;
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-    wnd->activeSpaceChanged();
+	wnd->activeSpaceChanged();
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
@@ -209,71 +196,85 @@ public:
 @end
 
 @implementation NotifyHandler {
-    PsMacWindowPrivate *wnd;
+	PsMacWindowPrivate *wnd;
 }
 
 - (id) init:(PsMacWindowPrivate *)aWnd {
-    if (self = [super init]) {
-        wnd = aWnd;
-    }
-    return self;
+	if (self = [super init]) {
+		wnd = aWnd;
+	}
+	return self;
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
-    NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
+	NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
 	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
 	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
 	if (instLong != Global::LaunchId()) { // other app instance notification
-        return;
-    }
-    if (notification.activationType == NSUserNotificationActivationTypeReplied) {
-        wnd->data->onNotifyReply(notification);
-    } else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-        wnd->data->onNotifyClick(notification);
-    }
-    [center removeDeliveredNotification: notification];
+		return;
+	}
+	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
+		wnd->data->onNotifyReply(notification);
+	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
+		wnd->data->onNotifyClick(notification);
+	}
+	[center removeDeliveredNotification: notification];
 }
 
 - (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification {
-    return YES;
+	return YES;
 }
 
 @end
 
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
-    [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(darkModeChanged:) name:QNSString(strNotificationAboutThemeChange()).s() object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:QNSString(strNotificationAboutScreenLocked()).s() object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:QNSString(strNotificationAboutScreenUnlocked()).s() object:nil];
+	@autoreleasepool {
+
+	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
+
+	}
 }
 
 void PsMacWindowPrivate::setWindowBadge(const QString &str) {
-    [[NSApp dockTile] setBadgeLabel:QNSString(str).s()];
+	@autoreleasepool {
+
+	[[NSApp dockTile] setBadgeLabel:Q2NSString(str)];
+
+	}
 }
 
 void PsMacWindowPrivate::startBounce() {
-    [NSApp requestUserAttention:NSInformationalRequest];
+	[NSApp requestUserAttention:NSInformationalRequest];
 }
 
 void PsMacWindowPrivate::updateDelegate() {
-    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-    [center setDelegate:data->notifyHandler];
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	[center setDelegate:data->notifyHandler];
 }
 
 void objc_holdOnTop(WId winId) {
-    NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-    [wnd setHidesOnDeactivate:NO];
+	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
+	[wnd setHidesOnDeactivate:NO];
 }
 
 bool objc_darkMode() {
+	bool result = false;
+	@autoreleasepool {
+
 	NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
-	id style = [dict objectForKey:QNSString(strStyleOfInterface()).s()];
+	id style = [dict objectForKey:Q2NSString(strStyleOfInterface())];
 	BOOL darkModeOn = (style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"]);
-	return darkModeOn ? true : false;
+	result = darkModeOn ? true : false;
+
+	}
+	return result;
 }
 
 void objc_showOverAll(WId winId, bool canFocus) {
-    NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
+	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
 	[wnd setLevel:NSPopUpMenuWindowLevel];
 	if (!canFocus) {
 		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
@@ -287,15 +288,13 @@ void objc_bringToBack(WId winId) {
 }
 
 void objc_activateWnd(WId winId) {
-    NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-    [wnd orderFront:wnd];
+	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
+	[wnd orderFront:wnd];
 }
 
-NSImage *qt_mac_create_nsimage(const QPixmap &pm);
-
 void PsMacWindowPrivate::enableShadow(WId winId) {
-//    [[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
-//    [[(NSView*)winId window] setHasShadow:YES];
+//	[[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
+//	[[(NSView*)winId window] setHasShadow:YES];
 }
 
 bool PsMacWindowPrivate::filterNativeEvent(void *event) {
@@ -333,15 +332,23 @@ bool PsMacWindowPrivate::filterNativeEvent(void *event) {
 }
 
 void objc_debugShowAlert(const QString &str) {
-    [[NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", QNSString(str).s()] runModal];
+	@autoreleasepool {
+
+	[[NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", Q2NSString(str)] runModal];
+
+	}
 }
 
 void objc_outputDebugString(const QString &str) {
-    NSLog(@"%@", QNSString(str).s());
+	@autoreleasepool {
+
+	NSLog(@"%@", Q2NSString(str));
+
+	}
 }
 
 PsMacWindowPrivate::~PsMacWindowPrivate() {
-    delete data;
+	delete data;
 }
 
 bool objc_idleSupported() {
@@ -350,52 +357,52 @@ bool objc_idleSupported() {
 }
 
 bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
-    CFMutableDictionaryRef properties = 0;
-    CFTypeRef obj;
-    mach_port_t masterPort;
-    io_iterator_t iter;
-    io_registry_entry_t curObj;
+	CFMutableDictionaryRef properties = 0;
+	CFTypeRef obj;
+	mach_port_t masterPort;
+	io_iterator_t iter;
+	io_registry_entry_t curObj;
 
-    IOMasterPort(MACH_PORT_NULL, &masterPort);
+	IOMasterPort(MACH_PORT_NULL, &masterPort);
 
-    /* Get IOHIDSystem */
-    IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
-    if (iter == 0) {
-        return false;
-    } else {
-        curObj = IOIteratorNext(iter);
-    }
-    if (IORegistryEntryCreateCFProperties(curObj, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS && properties != NULL) {
-        obj = CFDictionaryGetValue(properties, CFSTR("HIDIdleTime"));
-        CFRetain(obj);
-    } else {
-        return false;
-    }
+	/* Get IOHIDSystem */
+	IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
+	if (iter == 0) {
+		return false;
+	} else {
+		curObj = IOIteratorNext(iter);
+	}
+	if (IORegistryEntryCreateCFProperties(curObj, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS && properties != NULL) {
+		obj = CFDictionaryGetValue(properties, CFSTR("HIDIdleTime"));
+		CFRetain(obj);
+	} else {
+		return false;
+	}
 
-    uint64 err = ~0L, result = err;
-    if (obj) {
-        CFTypeID type = CFGetTypeID(obj);
+	uint64 err = ~0L, result = err;
+	if (obj) {
+		CFTypeID type = CFGetTypeID(obj);
 
-        if (type == CFDataGetTypeID()) {
-            CFDataGetBytes((CFDataRef) obj, CFRangeMake(0, sizeof(result)), (UInt8*)&result);
-        } else if (type == CFNumberGetTypeID()) {
-            CFNumberGetValue((CFNumberRef)obj, kCFNumberSInt64Type, &result);
-        } else {
-            // error
-        }
+		if (type == CFDataGetTypeID()) {
+			CFDataGetBytes((CFDataRef) obj, CFRangeMake(0, sizeof(result)), (UInt8*)&result);
+		} else if (type == CFNumberGetTypeID()) {
+			CFNumberGetValue((CFNumberRef)obj, kCFNumberSInt64Type, &result);
+		} else {
+			// error
+		}
 
-        CFRelease(obj);
+		CFRelease(obj);
 
-        if (result != err) {
-            result /= 1000000; // return as ms
-        }
-    } else {
-        // error
-    }
+		if (result != err) {
+			result /= 1000000; // return as ms
+		}
+	} else {
+		// error
+	}
 
-    CFRelease((CFTypeRef)properties);
-    IOObjectRelease(curObj);
-    IOObjectRelease(iter);
+	CFRelease((CFTypeRef)properties);
+	IOObjectRelease(curObj);
+	IOObjectRelease(iter);
 	if (result == err) return false;
 
 	idleTime = int64(result);
@@ -468,7 +475,7 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 }
 
 - (id) init:(NSString*)file {
-	toOpen = file;
+	toOpen = [file retain];
 	if (self = [super init]) {
 		NSURL *url = [NSURL fileURLWithPath:file];
 		defUrl = [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url];
@@ -553,7 +560,7 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 		}
 		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
 	}
-	NSMenuItem *item = [menu insertItemWithTitle:objc_lang(lng_mac_choose_program_menu).s() action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+	NSMenuItem *item = [menu insertItemWithTitle:NSlang(lng_mac_choose_program_menu) action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
 	[item setTarget:self];
 
 	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
@@ -578,22 +585,24 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 	if (url) {
 		[[NSWorkspace sharedWorkspace] openFile:toOpen withApplication:[url path]];
 	} else {
-		objc_openFile(objcString(toOpen), true);
+		objc_openFile(NS2QString(toOpen), true);
 	}
 }
 
 - (void) dealloc {
-	if (apps) [apps release];
-	[super dealloc];
+	[toOpen release];
 	if (menu) [menu release];
+	[super dealloc];
 }
 
 @end
 
 bool objc_showOpenWithMenu(int x, int y, const QString &f) {
-	NSString *file = QNSString(f).s();
+	@autoreleasepool {
+
+	NSString *file = Q2NSString(f);
 	@try {
-		OpenFileWithInterface *menu = [[OpenFileWithInterface alloc] init:file];
+		OpenFileWithInterface *menu = [[[OpenFileWithInterface alloc] init:file] autorelease];
 		QRect r = QApplication::desktop()->screenGeometry(QPoint(x, y));
 		y = r.y() + r.height() - y;
 		return !![menu popupAtX:x andY:y];
@@ -602,11 +611,17 @@ bool objc_showOpenWithMenu(int x, int y, const QString &f) {
 	}
 	@finally {
 	}
+
+	}
 	return false;
 }
 
 void objc_showInFinder(const QString &file, const QString &path) {
-    [[NSWorkspace sharedWorkspace] selectFile:QNSString(file).s() inFileViewerRootedAtPath:QNSString(path).s()];
+	@autoreleasepool {
+
+	[[NSWorkspace sharedWorkspace] selectFile:Q2NSString(file) inFileViewerRootedAtPath:Q2NSString(path)];
+
+	}
 }
 
 @interface NSURL(CompareUrls)
@@ -618,13 +633,13 @@ void objc_showInFinder(const QString &file, const QString &path) {
 @implementation NSURL(CompareUrls)
 
 - (BOOL) isEquivalent:(NSURL *)aURL {
-    if ([self isEqual:aURL]) return YES;
-    if ([[self scheme] caseInsensitiveCompare:[aURL scheme]] != NSOrderedSame) return NO;
-    if ([[self host] caseInsensitiveCompare:[aURL host]] != NSOrderedSame) return NO;
-    if ([[self path] compare:[aURL path]] != NSOrderedSame) return NO;
-    if ([[self port] compare:[aURL port]] != NSOrderedSame) return NO;
-    if ([[self query] compare:[aURL query]] != NSOrderedSame) return NO;
-    return YES;
+	if ([self isEqual:aURL]) return YES;
+	if ([[self scheme] caseInsensitiveCompare:[aURL scheme]] != NSOrderedSame) return NO;
+	if ([[self host] caseInsensitiveCompare:[aURL host]] != NSOrderedSame) return NO;
+	if ([[self path] compare:[aURL path]] != NSOrderedSame) return NO;
+	if ([[self port] compare:[aURL port]] != NSOrderedSame) return NO;
+	if ([[self query] compare:[aURL query]] != NSOrderedSame) return NO;
+	return YES;
 }
 
 @end
@@ -641,260 +656,267 @@ void objc_showInFinder(const QString &file, const QString &path) {
 @end
 
 @implementation ChooseApplicationDelegate {
-    BOOL onlyRecommended;
-    NSArray *apps;
-    NSOpenPanel *panel;
-    NSPopUpButton *selector;
-    NSTextField *good, *bad;
-    NSImageView *icon;
-    NSString *recom;
-    NSView *accessory;
+	BOOL onlyRecommended;
+	NSArray *apps;
+	NSOpenPanel *panel;
+	NSPopUpButton *selector;
+	NSTextField *good, *bad;
+	NSImageView *icon;
+	NSString *recom;
+	NSView *accessory;
 }
 
 - (id) init:(NSArray *)recommendedApps withPanel:(NSOpenPanel *)creator withSelector:(NSPopUpButton *)menu withGood:(NSTextField *)goodLabel withBad:(NSTextField *)badLabel withIcon:(NSImageView *)badIcon withAccessory:(NSView *)acc {
-    if (self = [super init]) {
-        onlyRecommended = YES;
-        recom = [objc_lang(lng_mac_recommended_apps).s() copy];
-        apps = recommendedApps;
-        panel = creator;
-        selector = menu;
-        good = goodLabel;
-        bad = badLabel;
-        icon = badIcon;
-        accessory = acc;
-        [selector setAction:@selector(menuDidClose)];
-    }
-    return self;
+	if (self = [super init]) {
+		onlyRecommended = YES;
+		recom = [NSlang(lng_mac_recommended_apps) copy];
+		apps = recommendedApps;
+		panel = creator;
+		selector = menu;
+		good = goodLabel;
+		bad = badLabel;
+		icon = badIcon;
+		accessory = acc;
+		[selector setAction:@selector(menuDidClose)];
+	}
+	return self;
 }
 
 - (BOOL) isRecommended:(NSURL *)url {
-    if (apps) {
-        for (id app in apps) {
-            if ([(NSURL*)app isEquivalent:url]) {
-                return YES;
-            }
-        }
-    }
-    return NO;
+	if (apps) {
+		for (id app in apps) {
+			if ([(NSURL*)app isEquivalent:url]) {
+				return YES;
+			}
+		}
+	}
+	return NO;
 }
 
 - (BOOL) panel:(id)sender shouldEnableURL:(NSURL *)url {
-    NSNumber *isDirectory;
-    if ([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] && isDirectory != nil && [isDirectory boolValue]) {
-        if (onlyRecommended) {
-            CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
-            NSNumber *isPackage;
-            if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
-                return [self isRecommended:url];
-            }
-        }
-        return YES;
-    }
-    return NO;
+	NSNumber *isDirectory;
+	if ([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] && isDirectory != nil && [isDirectory boolValue]) {
+		if (onlyRecommended) {
+			CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
+			NSNumber *isPackage;
+			if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
+				return [self isRecommended:url];
+			}
+		}
+		return YES;
+	}
+	return NO;
 }
 
 - (void) panelSelectionDidChange:(id)sender {
-    NSArray *urls = [panel URLs];
-    if ([urls count]) {
-        if ([self isRecommended:[urls firstObject]]) {
-            [bad removeFromSuperview];
-            [icon removeFromSuperview];
-            [accessory addSubview:good];
-        } else {
-            [good removeFromSuperview];
-            [accessory addSubview:bad];
-            [accessory addSubview:icon];
-        }
-    } else {
-        [good removeFromSuperview];
-        [bad removeFromSuperview];
-        [icon removeFromSuperview];
-    }
+	NSArray *urls = [panel URLs];
+	if ([urls count]) {
+		if ([self isRecommended:[urls firstObject]]) {
+			[bad removeFromSuperview];
+			[icon removeFromSuperview];
+			[accessory addSubview:good];
+		} else {
+			[good removeFromSuperview];
+			[accessory addSubview:bad];
+			[accessory addSubview:icon];
+		}
+	} else {
+		[good removeFromSuperview];
+		[bad removeFromSuperview];
+		[icon removeFromSuperview];
+	}
 }
 
 - (void) menuDidClose {
-    onlyRecommended = [[[selector selectedItem] title] isEqualToString:recom];
-    [self refreshPanelTable];
+	onlyRecommended = [[[selector selectedItem] title] isEqualToString:recom];
+	[self refreshPanelTable];
 }
 
 - (BOOL) refreshDataInViews: (NSArray*)subviews {
-    for (id view in subviews) {
-        NSString *cls = [view className];
-        if ([cls isEqualToString:QNSString(strNeedToReload()).s()]) {
-            [view reloadData];
-        } else if ([cls isEqualToString:QNSString(strNeedToRefresh1()).s()] || [cls isEqualToString:QNSString(strNeedToRefresh2()).s()]) {
-            [view reloadData];
-            return YES;
-        } else {
-            NSArray *next = [view subviews];
-            if ([next count] && [self refreshDataInViews:next]) {
-                return YES;
-            }
-        }
-    }
-
-    return NO;
+	for (id view in subviews) {
+		NSString *cls = [view className];
+		if ([cls isEqualToString:Q2NSString(strNeedToReload())]) {
+			[view reloadData];
+		} else if ([cls isEqualToString:Q2NSString(strNeedToRefresh1())] || [cls isEqualToString:Q2NSString(strNeedToRefresh2())]) {
+			[view reloadData];
+			return YES;
+		} else {
+			NSArray *next = [view subviews];
+			if ([next count] && [self refreshDataInViews:next]) {
+				return YES;
+			}
+		}
+	}
+	return NO;
 }
 
 
 - (void) refreshPanelTable {
-    [self refreshDataInViews:[[panel contentView] subviews]];
-    [panel validateVisibleColumns];
+	@autoreleasepool {
+
+	[self refreshDataInViews:[[panel contentView] subviews]];
+	[panel validateVisibleColumns];
+
+	}
 }
 
 - (void) dealloc {
-    if (apps) {
-        [apps release];
-        [recom release];
-    }
-    [super dealloc];
+	if (apps) {
+		[apps release];
+		[recom release];
+	}
+	[super dealloc];
 }
 
 @end
 
 void objc_openFile(const QString &f, bool openwith) {
-    NSString *file = QNSString(f).s();
-    if (openwith || [[NSWorkspace sharedWorkspace] openFile:file] == NO) {
-        @try {
-            NSURL *url = [NSURL fileURLWithPath:file];
-            NSString *ext = [url pathExtension];
-            NSArray *names =[url pathComponents];
-            NSString *name = [names count] ? [names lastObject] : @"";
-            NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+	@autoreleasepool {
 
-            NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+	NSString *file = Q2NSString(f);
+	if (openwith || [[NSWorkspace sharedWorkspace] openFile:file] == NO) {
+		@try {
+			NSURL *url = [NSURL fileURLWithPath:file];
+			NSString *ext = [url pathExtension];
+			NSArray *names = [url pathComponents];
+			NSString *name = [names count] ? [names lastObject] : @"";
+			NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+
+			NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
 			NSRect fullRect = { { 0., 0. }, { st::macAccessoryWidth, st::macAccessoryHeight } };
 			NSView *accessory = [[NSView alloc] initWithFrame:fullRect];
 
-            [accessory setAutoresizesSubviews:YES];
+			[accessory setAutoresizesSubviews:YES];
 
-            NSPopUpButton *selector = [[NSPopUpButton alloc] init];
-            [accessory addSubview:selector];
-            [selector addItemWithTitle:objc_lang(lng_mac_recommended_apps).s()];
-            [selector addItemWithTitle:objc_lang(lng_mac_all_apps).s()];
-            [selector sizeToFit];
+			NSPopUpButton *selector = [[NSPopUpButton alloc] init];
+			[accessory addSubview:selector];
+			[selector addItemWithTitle:NSlang(lng_mac_recommended_apps)];
+			[selector addItemWithTitle:NSlang(lng_mac_all_apps)];
+			[selector sizeToFit];
 
-            NSTextField *enableLabel = [[NSTextField alloc] init];
-            [accessory addSubview:enableLabel];
-            [enableLabel setStringValue:objc_lang(lng_mac_enable_filter).s()];
-            [enableLabel setFont:[selector font]];
-            [enableLabel setBezeled:NO];
-            [enableLabel setDrawsBackground:NO];
-            [enableLabel setEditable:NO];
-            [enableLabel setSelectable:NO];
-            [enableLabel sizeToFit];
+			NSTextField *enableLabel = [[NSTextField alloc] init];
+			[accessory addSubview:enableLabel];
+			[enableLabel setStringValue:NSlang(lng_mac_enable_filter)];
+			[enableLabel setFont:[selector font]];
+			[enableLabel setBezeled:NO];
+			[enableLabel setDrawsBackground:NO];
+			[enableLabel setEditable:NO];
+			[enableLabel setSelectable:NO];
+			[enableLabel sizeToFit];
 
-            NSRect selectorFrame = [selector frame], enableFrame = [enableLabel frame];
-            enableFrame.size.width += st::macEnableFilterAdd;
-            enableFrame.origin.x = (fullRect.size.width - selectorFrame.size.width - enableFrame.size.width) / 2.;
-            selectorFrame.origin.x = (fullRect.size.width - selectorFrame.size.width + enableFrame.size.width) / 2.;
-            enableFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macEnableFilterTop + (selectorFrame.size.height - enableFrame.size.height) / 2.;
-            selectorFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macSelectorTop;
-            [enableLabel setFrame:enableFrame];
-            [enableLabel setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
-            [selector setFrame:selectorFrame];
-            [selector setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+			NSRect selectorFrame = [selector frame], enableFrame = [enableLabel frame];
+			enableFrame.size.width += st::macEnableFilterAdd;
+			enableFrame.origin.x = (fullRect.size.width - selectorFrame.size.width - enableFrame.size.width) / 2.;
+			selectorFrame.origin.x = (fullRect.size.width - selectorFrame.size.width + enableFrame.size.width) / 2.;
+			enableFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macEnableFilterTop + (selectorFrame.size.height - enableFrame.size.height) / 2.;
+			selectorFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macSelectorTop;
+			[enableLabel setFrame:enableFrame];
+			[enableLabel setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+			[selector setFrame:selectorFrame];
+			[selector setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
 
-            NSButton *button = [[NSButton alloc] init];
-            [accessory addSubview:button];
-            [button setButtonType:NSSwitchButton];
-            [button setFont:[selector font]];
-            [button setTitle:objc_lang(lng_mac_always_open_with).s()];
-            [button sizeToFit];
-            NSRect alwaysRect = [button frame];
-            alwaysRect.origin.x = (fullRect.size.width - alwaysRect.size.width) / 2;
-            alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
-            [button setFrame:alwaysRect];
-            [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+			NSButton *button = [[NSButton alloc] init];
+			[accessory addSubview:button];
+			[button setButtonType:NSSwitchButton];
+			[button setFont:[selector font]];
+			[button setTitle:NSlang(lng_mac_always_open_with)];
+			[button sizeToFit];
+			NSRect alwaysRect = [button frame];
+			alwaysRect.origin.x = (fullRect.size.width - alwaysRect.size.width) / 2;
+			alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
+			[button setFrame:alwaysRect];
+			[button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
 #ifdef OS_MAC_STORE
-            [button setHidden:YES];
+			[button setHidden:YES];
 #endif // OS_MAC_STORE
-            NSTextField *goodLabel = [[NSTextField alloc] init];
-            [goodLabel setStringValue:QNSString(lng_mac_this_app_can_open(lt_file, objcString(name))).s()];
-            [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
-            [goodLabel setBezeled:NO];
-            [goodLabel setDrawsBackground:NO];
-            [goodLabel setEditable:NO];
-            [goodLabel setSelectable:NO];
-            [goodLabel sizeToFit];
-            NSRect goodFrame = [goodLabel frame];
-            goodFrame.origin.x = (fullRect.size.width - goodFrame.size.width) / 2.;
-            goodFrame.origin.y = alwaysRect.origin.y - goodFrame.size.height - st::macAppHintTop;
-            [goodLabel setFrame:goodFrame];
+			NSTextField *goodLabel = [[NSTextField alloc] init];
+			[goodLabel setStringValue:Q2NSString(lng_mac_this_app_can_open(lt_file, NS2QString(name)))];
+			[goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+			[goodLabel setBezeled:NO];
+			[goodLabel setDrawsBackground:NO];
+			[goodLabel setEditable:NO];
+			[goodLabel setSelectable:NO];
+			[goodLabel sizeToFit];
+			NSRect goodFrame = [goodLabel frame];
+			goodFrame.origin.x = (fullRect.size.width - goodFrame.size.width) / 2.;
+			goodFrame.origin.y = alwaysRect.origin.y - goodFrame.size.height - st::macAppHintTop;
+			[goodLabel setFrame:goodFrame];
 
-            NSTextField *badLabel = [[NSTextField alloc] init];
-            [badLabel setStringValue:QNSString(lng_mac_not_known_app(lt_file, objcString(name))).s()];
-            [badLabel setFont:[goodLabel font]];
-            [badLabel setBezeled:NO];
-            [badLabel setDrawsBackground:NO];
-            [badLabel setEditable:NO];
-            [badLabel setSelectable:NO];
-            [badLabel sizeToFit];
-            NSImageView *badIcon = [[NSImageView alloc] init];
-            NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
-            [badIcon setImage:badImage];
-            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize, st::macCautionIconSize)];
+			NSTextField *badLabel = [[NSTextField alloc] init];
+			[badLabel setStringValue:Q2NSString(lng_mac_not_known_app(lt_file, NS2QString(name)))];
+			[badLabel setFont:[goodLabel font]];
+			[badLabel setBezeled:NO];
+			[badLabel setDrawsBackground:NO];
+			[badLabel setEditable:NO];
+			[badLabel setSelectable:NO];
+			[badLabel sizeToFit];
+			NSImageView *badIcon = [[NSImageView alloc] init];
+			NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
+			[badIcon setImage:badImage];
+			[badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize, st::macCautionIconSize)];
 
-            NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
-            badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;
-            badIconFrame.origin.x = (fullRect.size.width - badFrame.size.width - badIconFrame.size.width) / 2.;
-            badFrame.origin.y = alwaysRect.origin.y - badFrame.size.height - st::macAppHintTop;
-            badIconFrame.origin.y = badFrame.origin.y;
-            [badLabel setFrame:badFrame];
-            [badIcon setFrame:badIconFrame];
+			NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
+			badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;
+			badIconFrame.origin.x = (fullRect.size.width - badFrame.size.width - badIconFrame.size.width) / 2.;
+			badFrame.origin.y = alwaysRect.origin.y - badFrame.size.height - st::macAppHintTop;
+			badIconFrame.origin.y = badFrame.origin.y;
+			[badLabel setFrame:badFrame];
+			[badIcon setFrame:badIconFrame];
 
 			[openPanel setAccessoryView:accessory];
 
-            ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps withPanel:openPanel withSelector:selector withGood:goodLabel withBad:badLabel withIcon:badIcon withAccessory:accessory];
-            [openPanel setDelegate:delegate];
+			ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps withPanel:openPanel withSelector:selector withGood:goodLabel withBad:badLabel withIcon:badIcon withAccessory:accessory];
+			[openPanel setDelegate:delegate];
 
-            [openPanel setCanChooseDirectories:NO];
-            [openPanel setCanChooseFiles:YES];
-            [openPanel setAllowsMultipleSelection:NO];
-            [openPanel setResolvesAliases:YES];
-            [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
-            [openPanel setMessage:QNSString(lng_mac_choose_text(lt_file, objcString(name))).s()];
+			[openPanel setCanChooseDirectories:NO];
+			[openPanel setCanChooseFiles:YES];
+			[openPanel setAllowsMultipleSelection:NO];
+			[openPanel setResolvesAliases:YES];
+			[openPanel setTitle:NSlang(lng_mac_choose_app)];
+			[openPanel setMessage:Q2NSString(lng_mac_choose_text(lt_file, NS2QString(name)))];
 
-            NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
-            if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
-            [openPanel beginWithCompletionHandler:^(NSInteger result){
-                if (result == NSFileHandlingPanelOKButton) {
-                    if ([[openPanel URLs] count] > 0) {
-                        NSURL *app = [[openPanel URLs] objectAtIndex:0];
-                        NSString *path = [app path];
-                        if ([button state] == NSOnState) {
-                            NSArray *UTIs = (NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension,
-                                                                                        (CFStringRef)ext,
-                                                                                        nil);
-                            for (NSString *UTI in UTIs) {
+			NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
+			if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
+			[openPanel beginWithCompletionHandler:^(NSInteger result){
+				if (result == NSFileHandlingPanelOKButton) {
+					if ([[openPanel URLs] count] > 0) {
+						NSURL *app = [[openPanel URLs] objectAtIndex:0];
+						NSString *path = [app path];
+						if ([button state] == NSOnState) {
+							NSArray *UTIs = (NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension,
+																						(CFStringRef)ext,
+																						nil);
+							for (NSString *UTI in UTIs) {
 								OSStatus result = LSSetDefaultRoleHandlerForContentType((CFStringRef)UTI,
 																						kLSRolesAll,
 																						(CFStringRef)[[NSBundle bundleWithPath:path] bundleIdentifier]);
-								DEBUG_LOG(("App Info: set default handler for '%1' UTI result: %2").arg(objcString(UTI)).arg(result));
-                            }
+								DEBUG_LOG(("App Info: set default handler for '%1' UTI result: %2").arg(NS2QString(UTI)).arg(result));
+							}
 
-                            [UTIs release];
-                        }
-                        [[NSWorkspace sharedWorkspace] openFile:file withApplication:[app path]];
-                    }
-                }
-                [selector release];
-                [button release];
-                [enableLabel release];
-                [goodLabel release];
-                [badLabel release];
-                [badIcon release];
-                [accessory release];
-                [delegate release];
-            }];
-        }
-        @catch (NSException *exception) {
-            [[NSWorkspace sharedWorkspace] openFile:file];
-        }
-        @finally {
-        }
-    }
+							[UTIs release];
+						}
+						[[NSWorkspace sharedWorkspace] openFile:file withApplication:[app path]];
+					}
+				}
+				[selector release];
+				[button release];
+				[enableLabel release];
+				[goodLabel release];
+				[badLabel release];
+				[badIcon release];
+				[accessory release];
+				[delegate release];
+			}];
+		}
+		@catch (NSException *exception) {
+			[[NSWorkspace sharedWorkspace] openFile:file];
+		}
+		@finally {
+		}
+	}
+
+	}
 }
 
 void objc_start() {
@@ -925,6 +947,8 @@ void objc_registerCustomScheme() {
 }
 
 BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
+	@autoreleasepool {
+
 	NSString *path = @"", *args = @"";
 	@try {
 		path = [[NSBundle mainBundle] bundlePath];
@@ -934,7 +958,7 @@ BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 		}
 		path = [path stringByAppendingString:@"/Contents/Frameworks/Updater"];
 
-		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", QNSString(cWorkingDir()).s(), @"-procid", nil];
+		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", Q2NSString(cWorkingDir()), @"-procid", nil];
 		[args addObject:[NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];
 		if (cRestartingToSettings()) [args addObject:@"-tosettings"];
 		if (!update) [args addObject:@"-noupdate"];
@@ -944,26 +968,28 @@ BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 		if (cTestMode()) [args addObject:@"-testmode"];
 		if (cDataFile() != qsl("data")) {
 			[args addObject:@"-key"];
-			[args addObject:QNSString(cDataFile()).s()];
+			[args addObject:Q2NSString(cDataFile())];
 		}
 		if (!crashreport.isEmpty()) {
 			[args addObject:@"-crashreport"];
-			[args addObject:QNSString(crashreport).s()];
+			[args addObject:Q2NSString(crashreport)];
 		}
 
-		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+		DEBUG_LOG(("Application Info: executing %1 %2").arg(NS2QString(path)).arg(NS2QString([args componentsJoinedByString:@" "])));
 		Logs::closeMain();
 		SignalHandlers::finish();
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
-			DEBUG_LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+			DEBUG_LOG(("Task not launched while executing %1 %2").arg(NS2QString(path)).arg(NS2QString([args componentsJoinedByString:@" "])));
 			return NO;
 		}
 	}
 	@catch (NSException *exception) {
-		LOG(("Exception caught while executing %1 %2").arg(objcString(path)).arg(objcString(args)));
+		LOG(("Exception caught while executing %1 %2").arg(NS2QString(path)).arg(NS2QString(args)));
 		return NO;
 	}
 	@finally {
+	}
+
 	}
 	return YES;
 }
@@ -976,8 +1002,12 @@ void objc_execTelegram(const QString &crashreport) {
 #ifndef OS_MAC_STORE
 	_execUpdater(NO, crashreport);
 #else // OS_MAC_STORE
+	@autoreleasepool {
+
 	NSDictionary *conf = [NSDictionary dictionaryWithObject:[NSArray array] forKey:NSWorkspaceLaunchConfigurationArguments];
-	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:QNSString(cExeDir() + cExeName()).s()] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:conf error:0];
+	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:Q2NSString(cExeDir() + cExeName())] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:conf error:0];
+
+	}
 #endif // OS_MAC_STORE
 }
 
@@ -990,7 +1020,9 @@ void objc_activateProgram(WId winId) {
 }
 
 bool objc_moveFile(const QString &from, const QString &to) {
-	NSString *f = QNSString(from).s(), *t = QNSString(to).s();
+	@autoreleasepool {
+
+	NSString *f = Q2NSString(from), *t = Q2NSString(to);
 	if ([[NSFileManager defaultManager] fileExistsAtPath:t]) {
 		NSData *data = [NSData dataWithContentsOfFile:f];
 		if (data) {
@@ -1005,11 +1037,17 @@ bool objc_moveFile(const QString &from, const QString &to) {
 			return true;
 		}
 	}
+
+	}
 	return false;
 }
 
 void objc_deleteDir(const QString &dir) {
-	[[NSFileManager defaultManager] removeItemAtPath:QNSString(dir).s() error:nil];
+	@autoreleasepool {
+
+	[[NSFileManager defaultManager] removeItemAtPath:Q2NSString(dir) error:nil];
+
+	}
 }
 
 double objc_appkitVersion() {
@@ -1043,20 +1081,20 @@ QString objc_downloadPath() {
 QString objc_currentCountry() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *countryCode = [currentLocale objectForKey:NSLocaleCountryCode];
-	return countryCode ? objcString(countryCode) : QString();
+	return countryCode ? NS2QString(countryCode) : QString();
 }
 
 QString objc_currentLang() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
-	return currentLang ? objcString(currentLang) : QString();
+	return currentLang ? NS2QString(currentLang) : QString();
 }
 
 QString objc_convertFileUrl(const QString &url) {
 	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] path];
 	if (!nsurl) return QString();
 
-	return objcString(nsurl);
+	return NS2QString(nsurl);
 }
 
 QByteArray objc_downloadPathBookmark(const QString &path) {
@@ -1100,7 +1138,7 @@ void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 		}
 		_downloadPathUrl = url;
 
-		Global::SetDownloadPath(objcString([_downloadPathUrl path]) + '/');
+		Global::SetDownloadPath(NS2QString([_downloadPathUrl path]) + '/');
 		if (isStale) {
 			NSData *data = [_downloadPathUrl bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
 			if (data) {
@@ -1141,7 +1179,7 @@ objc_FileBookmark::objc_FileBookmark(const QByteArray &bookmark) {
 	if ([url startAccessingSecurityScopedResource]) {
 		data = new objc_FileBookmarkData();
 		data->url = [url retain];
-		data->name = objcString([url path]);
+		data->name = NS2QString([url path]);
 		data->bookmark = bookmark;
 		[url stopAccessingSecurityScopedResource];
 	}

@@ -22,25 +22,39 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/mac/notifications_manager_mac.h"
 
 #include "pspecific.h"
+#include "platform/mac/mac_utilities.h"
+
+#include <Cocoa/Cocoa.h>
+
+NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 namespace Platform {
 namespace Notifications {
+namespace {
+
+NeverFreedPointer<Manager> ManagerInstance;
+
+} // namespace
 
 void start() {
+	if (cPlatform() != dbipMacOld) {
+		ManagerInstance.makeIfNull();
+	}
 }
 
 Window::Notifications::Manager *manager() {
-	return nullptr;
+	return ManagerInstance.data();
 }
 
 void finish() {
+	ManagerInstance.clear();
 }
 
 void defaultNotificationShown(QWidget *widget) {
 	widget->hide();
 	objc_holdOnTop(widget->winId());
 	widget->show();
-	psShowOverAll(w, false);
+	psShowOverAll(widget, false);
 }
 
 class Manager::Impl {
@@ -56,18 +70,23 @@ private:
 };
 
 void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	auto notification = [[NSUserNotification alloc] init];
+	@autoreleasepool {
 
+	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
+	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
+		auto identifier = QString::number(Global::LaunchId()) + '_' + QString::number(peer->id) + '_' + QString::number(msgId);
+		auto identifierValue = Q2NSString(identifier);
+		[notification setIdentifier:identifierValue];
+	}
 	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
 
-	[notification setTitle:QNSString(title).s()];
-	[notification setSubtitle:QNSString(subtitle).s()];
-	[notification setInformativeText:QNSString(msg).s()];
+	[notification setTitle:Q2NSString(title)];
+	[notification setSubtitle:Q2NSString(subtitle)];
+	[notification setInformativeText:Q2NSString(msg)];
 	if (showUserpic && [notification respondsToSelector:@selector(setContentImage:)]) {
 		auto userpic = peer->genUserpic(st::notifyMacPhotoSize);
-		auto img = qt_mac_create_nsimage(userpic);
+		NSImage *img = [qt_mac_create_nsimage(userpic) autorelease];
 		[notification setContentImage:img];
-		[img release];
 	}
 
 	if (showReplyButton && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
@@ -76,30 +95,41 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 
 	[notification setSoundName:nil];
 
-	auto center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	[center deliverNotification:notification];
 
-	[notification release];
+	}
 }
 
 void Manager::Impl::clearAll() {
-	auto center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	NSArray *notificationsList = [center deliveredNotifications];
+	for (id notify in notificationsList) {
+		NSDictionary *notifyUserInfo = [notify userInfo];
+		auto notifyLaunchId = [[notifyUserInfo objectForKey:@"launch"] unsignedLongLongValue];
+		if (notifyLaunchId == Global::LaunchId()) {
+			[center removeDeliveredNotification:notify];
+		}
+	}
 	[center removeAllDeliveredNotifications];
 }
 
 void Manager::Impl::clearFromHistory(History *history) {
 	unsigned long long peerId = history->peer->id;
 
-	auto center = [NSUserNotificationCenter defaultUserNotificationCenter];
-	auto notificationsList = [center deliveredNotifications];
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	NSArray *notificationsList = [center deliveredNotifications];
 	for (id notify in notificationsList) {
-		auto notifyUserInfo = [notify userInfo];
+		NSDictionary *notifyUserInfo = [notify userInfo];
 		auto notifyPeerId = [[notifyUserInfo objectForKey:@"peer"] unsignedLongLongValue];
 		auto notifyLaunchId = [[notifyUserInfo objectForKey:@"launch"] unsignedLongLongValue];
 		if (notifyPeerId == peerId && notifyLaunchId == Global::LaunchId()) {
 			[center removeDeliveredNotification:notify];
 		}
 	}
+}
+
+Manager::Impl::~Impl() {
 }
 
 Manager::Manager() : _impl(std_::make_unique<Impl>()) {
