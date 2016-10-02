@@ -43,7 +43,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
-#include "window/notifications_default_manager.h"
+#include "window/notifications_manager.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
 , _shadow(st::boxShadow)
@@ -96,8 +96,6 @@ MainWindow::MainWindow() {
 			notifyClear();
 		} else if (type == Notify::ChangeType::ViewParams) {
 			notifyUpdateAll();
-		} else if (type == Notify::ChangeType::UseNative) {
-			notifyClearFast();
 		} else if (type == Notify::ChangeType::IncludeMuted) {
 			Notify::unreadCounterUpdated();
 		}
@@ -118,14 +116,13 @@ MainWindow::MainWindow() {
 	_inactiveTimer.setSingleShot(true);
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
 
-	connect(&notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyFire()));
+	connect(&_notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyShowNext()));
 
 	_isActiveTimer.setSingleShot(true);
 	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
-	subscribe(FileDownload::ImageLoaded(), [this] { notifyUpdateAllPhotos(); });
 	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
 
 	setAttribute(Qt::WA_NoSystemBackground);
@@ -1130,72 +1127,66 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 //	LOG(("Is online: %1, otherOnline: %2, currentTime: %3, otherNotOld: %4, otherLaterThanMe: %5").arg(Logs::b(isOnline)).arg(cOtherOnline()).arg(t).arg(Logs::b(otherNotOld)).arg(Logs::b(otherLaterThanMe)));
 
 	uint64 when = ms + delay;
-	notifyWhenAlerts[history].insert(when, notifyByFrom);
+	_notifyWhenAlerts[history].insert(when, notifyByFrom);
 	if (Global::DesktopNotify() && !psSkipDesktopNotify()) {
-		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
-		if (i == notifyWhenMaps.end()) {
-			i = notifyWhenMaps.insert(history, NotifyWhenMap());
+		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
+		if (i == _notifyWhenMaps.end()) {
+			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
 		}
 		if (i.value().constFind(item->id) == i.value().cend()) {
 			i.value().insert(item->id, when);
 		}
-		NotifyWaiters *addTo = haveSetting ? &notifyWaiters : &notifySettingWaiters;
+		NotifyWaiters *addTo = haveSetting ? &_notifyWaiters : &_notifySettingWaiters;
 		NotifyWaiters::const_iterator it = addTo->constFind(history);
 		if (it == addTo->cend() || it->when > when) {
 			addTo->insert(history, NotifyWaiter(item->id, when, notifyByFrom));
 		}
 	}
 	if (haveSetting) {
-		if (!notifyWaitTimer.isActive() || notifyWaitTimer.remainingTime() > delay) {
-			notifyWaitTimer.start(delay);
+		if (!_notifyWaitTimer.isActive() || _notifyWaitTimer.remainingTime() > delay) {
+			_notifyWaitTimer.start(delay);
 		}
 	}
-}
-
-void MainWindow::notifyFire() {
-	notifyShowNext();
 }
 
 void MainWindow::notifyClear(History *history) {
 	if (!history) {
-		for_const (auto widget, notifyWidgets) {
-			widget->unlinkHistory();
-		}
-		psClearNotifies();
-		for (NotifyWhenMaps::const_iterator i = notifyWhenMaps.cbegin(), e = notifyWhenMaps.cend(); i != e; ++i) {
+		Window::Notifications::manager()->clearAll();
+
+		for (auto i = _notifyWhenMaps.cbegin(), e = _notifyWhenMaps.cend(); i != e; ++i) {
 			i.key()->clearNotifications();
 		}
-		notifyWaiters.clear();
-		notifySettingWaiters.clear();
-		notifyWhenMaps.clear();
+		_notifyWhenMaps.clear();
+		_notifyWhenAlerts.clear();
+		_notifyWaiters.clear();
+		_notifySettingWaiters.clear();
 		return;
 	}
-	notifyWaiters.remove(history);
-	notifySettingWaiters.remove(history);
-	for_const (auto widget, notifyWidgets) {
-		widget->unlinkHistory(history);
-	}
-	psClearNotifies(history);
-	notifyWhenMaps.remove(history);
-	notifyWhenAlerts.remove(history);
+
+	Window::Notifications::manager()->clearFromHistory(history);
+
+	history->clearNotifications();
+	_notifyWhenMaps.remove(history);
+	_notifyWhenAlerts.remove(history);
+	_notifyWaiters.remove(history);
+	_notifySettingWaiters.remove(history);
+
+	_notifyWaitTimer.stop();
 	notifyShowNext();
 }
 
 void MainWindow::notifyClearFast() {
-	notifyWaiters.clear();
-	notifySettingWaiters.clear();
-	for_const (auto widget, notifyWidgets) {
-		widget->deleteLater();
-	}
-	psClearNotifies();
-	notifyWidgets.clear();
-	notifyWhenMaps.clear();
-	notifyWhenAlerts.clear();
+	Window::Notifications::manager()->clearAllFast();
+
+	_notifyWhenMaps.clear();
+	_notifyWhenAlerts.clear();
+	_notifyWaiters.clear();
+	_notifySettingWaiters.clear();
 }
 
 void MainWindow::notifySettingGot() {
 	int32 t = unixtime();
-	for (NotifyWaiters::iterator i = notifySettingWaiters.begin(); i != notifySettingWaiters.end();) {
+	for (NotifyWaiters::iterator i = _notifySettingWaiters.begin(); i != _notifySettingWaiters.end();) {
 		History *history = i.key();
 		bool loaded = false, muted = false;
 		if (history->peer->notify != UnknownNotifySettings) {
@@ -1224,34 +1215,24 @@ void MainWindow::notifySettingGot() {
 		}
 		if (loaded) {
 			if (!muted) {
-				notifyWaiters.insert(i.key(), i.value());
+				_notifyWaiters.insert(i.key(), i.value());
 			}
-			i = notifySettingWaiters.erase(i);
+			i = _notifySettingWaiters.erase(i);
 		} else {
 			++i;
 		}
 	}
-	notifyWaitTimer.stop();
+	_notifyWaitTimer.stop();
 	notifyShowNext();
 }
 
-void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
+void MainWindow::notifyShowNext() {
 	if (App::quitting()) return;
-
-	int32 count = NotifyWindowsCount;
-	if (remove) {
-		for (auto i = notifyWidgets.begin(), e = notifyWidgets.end(); i != e; ++i) {
-			if ((*i) == remove) {
-				notifyWidgets.erase(i);
-				break;
-			}
-		}
-	}
 
 	uint64 ms = getms(true), nextAlert = 0;
 	bool alert = false;
 	int32 now = unixtime();
-	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
+	for (NotifyWhenAlerts::iterator i = _notifyWhenAlerts.begin(); i != _notifyWhenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
 			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
 			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
@@ -1264,7 +1245,7 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 			}
 		}
 		if (i.value().isEmpty()) {
-			i = notifyWhenAlerts.erase(i);
+			i = _notifyWhenAlerts.erase(i);
 		} else {
 			if (!nextAlert || nextAlert > i.value().begin().key()) {
 				nextAlert = i.value().begin().key();
@@ -1277,32 +1258,24 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 		App::playSound();
 	}
 
-    if (Global::CustomNotifies()) {
-        for_const (auto widget, notifyWidgets) {
-            if (widget->index() < 0) continue;
-            --count;
-        }
-    }
-	if (count <= 0 || notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
+	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
 		if (nextAlert) {
-			notifyWaitTimer.start(nextAlert - ms);
+			_notifyWaitTimer.start(nextAlert - ms);
 		}
 		return;
 	}
 
-	QRect r = psDesktopRect();
-	int32 x = r.x() + r.width() - st::notifyWidth - st::notifyDeltaX, y = r.y() + r.height() - st::notifyHeight - st::notifyDeltaY;
-	while (count > 0) {
+	while (true) {
 		uint64 next = 0;
 		HistoryItem *notifyItem = 0;
 		History *notifyHistory = 0;
-		for (NotifyWaiters::iterator i = notifyWaiters.begin(); i != notifyWaiters.end();) {
+		for (NotifyWaiters::iterator i = _notifyWaiters.begin(); i != _notifyWaiters.end();) {
 			History *history = i.key();
 			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
-				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.end()) {
+				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
+				if (j == _notifyWhenMaps.end()) {
 					history->clearNotifications();
-					i = notifyWaiters.erase(i);
+					i = _notifyWaiters.erase(i);
 					continue;
 				}
 				do {
@@ -1316,8 +1289,8 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 				} while (history->currentNotification());
 			}
 			if (!history->currentNotification()) {
-				notifyWhenMaps.remove(history);
-				i = notifyWaiters.erase(i);
+				_notifyWhenMaps.remove(history);
+				i = _notifyWaiters.erase(i);
 				continue;
 			}
 			uint64 when = i.value().when;
@@ -1334,7 +1307,7 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 					next = nextAlert;
 					nextAlert = 0;
 				}
-				notifyWaitTimer.start(next - ms);
+				_notifyWaitTimer.start(next - ms);
 				break;
 			} else {
 				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
@@ -1342,8 +1315,8 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
-				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.cend()) {
+				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
+				if (j == _notifyWhenMaps.cend()) {
 					history->clearNotifications();
 				} else {
 					HistoryItem *nextNotify = 0;
@@ -1358,7 +1331,7 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
 							if (k != j.value().cend()) {
 								nextNotify = history->currentNotification();
-								notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
+								_notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
 								break;
 							}
 							history->skipNotification();
@@ -1379,18 +1352,11 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 					} while (nextNotify);
 				}
 
-				if (Global::CustomNotifies()) {
-					auto widget = new Window::Notifications::Widget(notifyItem, x, y, fwdCount);
-					notifyWidgets.push_back(widget);
-					psNotifyShown(widget);
-					--count;
-				} else {
-					psPlatformNotify(notifyItem, fwdCount);
-				}
+				Window::Notifications::manager()->showNotification(notifyItem, fwdCount);
 
 				if (!history->hasNotification()) {
-					notifyWaiters.remove(history);
-					notifyWhenMaps.remove(history);
+					_notifyWaiters.remove(history);
+					_notifyWhenMaps.remove(history);
 					continue;
 				}
 			}
@@ -1399,48 +1365,8 @@ void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 		}
 	}
 	if (nextAlert) {
-		notifyWaitTimer.start(nextAlert - ms);
+		_notifyWaitTimer.start(nextAlert - ms);
 	}
-
-	count = NotifyWindowsCount - count;
-	for_const (auto widget, notifyWidgets) {
-		if (widget->index() < 0) continue;
-		--count;
-		widget->moveTo(x, y - count * (st::notifyHeight + st::notifyDeltaY));
-	}
-}
-
-void MainWindow::notifyItemRemoved(HistoryItem *item) {
-	if (Global::CustomNotifies()) {
-		for_const (auto widget, notifyWidgets) {
-			widget->itemRemoved(item);
-		}
-	}
-}
-
-void MainWindow::notifyStopHiding() {
-    if (Global::CustomNotifies()) {
-		for_const (auto widget, notifyWidgets) {
-			widget->stopHiding();
-        }
-    }
-}
-
-void MainWindow::notifyStartHiding() {
-    if (Global::CustomNotifies()) {
-		for_const (auto widget, notifyWidgets) {
-			widget->startHiding();
-        }
-    }
-}
-
-void MainWindow::notifyUpdateAllPhotos() {
-    if (Global::CustomNotifies()) {
-		for_const (auto widget, notifyWidgets) {
-			widget->updatePeerPhoto();
-        }
-    }
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
 void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
@@ -1448,20 +1374,7 @@ void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButt
 }
 
 void MainWindow::notifyUpdateAll() {
-	if (Global::CustomNotifies()) {
-		for_const (auto widget, notifyWidgets) {
-			widget->updateNotifyDisplay();
-		}
-	}
-	psClearNotifies();
-}
-
-void MainWindow::notifyActivateAll() {
-	if (Global::CustomNotifies()) {
-        for_const (auto widget, notifyWidgets) {
-            psActivateNotify(widget);
-        }
-    }
+	Window::Notifications::manager()->updateAll();
 }
 
 QImage MainWindow::iconLarge() const {

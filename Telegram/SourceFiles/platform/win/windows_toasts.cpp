@@ -47,7 +47,10 @@ namespace Platform {
 namespace Toasts {
 namespace {
 
-bool _supported = false;
+// Delete notify photo file after 1 minute of not using.
+constexpr int kNotifyDeletePhotoAfterMs = 60000;
+
+NeverFreedPointer<Manager> ToastsManager;
 
 ComPtr<IToastNotificationManagerStatics> _notificationManager;
 ComPtr<IToastNotifier> _notifier;
@@ -357,14 +360,18 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
 		if (i->until) {
-			i->until = ms + NotifyDeletePhotoAfter;
-			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
+			i->until = ms + kNotifyDeletePhotoAfterMs;
+			if (auto manager = ToastsManager.data()) {
+				manager->clearNotifyPhotosInMs(-kNotifyDeletePhotoAfterMs);
+			}
 		}
 	} else {
 		Image v;
 		if (key.first) {
-			v.until = ms + NotifyDeletePhotoAfter;
-			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
+			v.until = ms + kNotifyDeletePhotoAfterMs;
+			if (auto manager = ToastsManager.data()) {
+				manager->clearNotifyPhotosInMs(-kNotifyDeletePhotoAfterMs);
+			}
 		} else {
 			v.until = 0;
 		}
@@ -383,14 +390,17 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 } // namespace
 
 void start() {
-	_supported = init();
+	if (init()) {
+		ToastsManager.makeIfNull();
+	}
+}
+
+Manager *manager() {
+	return ToastsManager.data();
 }
 
 void finish() {
-}
-
-bool supported() {
-	return _supported;
+	ToastsManager.reset();
 }
 
 uint64 clearImages(uint64 ms) {
@@ -417,12 +427,15 @@ uint64 clearImages(uint64 ms) {
 
 class Manager::Impl {
 public:
-	bool create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
-	void clear(History *history, bool fast);
+	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
+	void clearAll();
+	void clearFromHistory(History *history);
 
 	~Impl();
 
 private:
+	QTimer _clearNotifyPhotosTimer;
+	friend class Manager;
 
 };
 
@@ -437,31 +450,33 @@ Manager::Impl::~Impl() {
 	}
 }
 
-void Manager::Impl::clear(History *history, bool fast) {
+void Manager::Impl::clearAll() {
 	if (!_notifier) return;
 
-	if (history) {
-		auto i = _notifications.find(history->peer->id);
-		if (i != _notifications.cend()) {
-			auto temp = createAndSwap(i.value());
-			_notifications.erase(i);
-
-			for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
-				_notifier->Hide(j->p.Get());
-			}
-		}
-	} else {
-		auto temp = createAndSwap(_notifications);
-		for_const (auto &notifications, temp) {
-			for_const (auto &notification, notifications) {
-				_notifier->Hide(notification.p.Get());
-			}
+	auto temp = createAndSwap(_notifications);
+	for_const (auto &notifications, temp) {
+		for_const (auto &notification, notifications) {
+			_notifier->Hide(notification.p.Get());
 		}
 	}
 }
 
-bool Manager::Impl::create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	if (!supported() || !_notificationManager || !_notifier || !_notificationFactory) return false;
+void Manager::Impl::clearFromHistory(History *history) {
+	if (!_notifier) return;
+
+	auto i = _notifications.find(history->peer->id);
+	if (i != _notifications.cend()) {
+		auto temp = createAndSwap(i.value());
+		_notifications.erase(i);
+
+		for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
+			_notifier->Hide(j->p.Get());
+		}
+	}
+}
+
+bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
 
 	ComPtr<IXmlDocument> toastXml;
 	bool withSubtitle = !subtitle.isEmpty();
@@ -564,16 +579,39 @@ bool Manager::Impl::create(PeerData *peer, MsgId msgId, const QString &title, co
 }
 
 Manager::Manager() : _impl(std_::make_unique<Impl>()) {
+	connect(&_impl->_clearNotifyPhotosTimer, SIGNAL(timeout()), this, SLOT(onClearNotifyPhotos()));
+}
+
+void Manager::clearNotifyPhotosInMs(int ms) {
+	if (ms < 0) {
+		ms = -ms;
+		if (_impl->_clearNotifyPhotosTimer.isActive() && _impl->_clearNotifyPhotosTimer.remainingTime() <= ms) {
+			return;
+		}
+	}
+	_impl->_clearNotifyPhotosTimer.start(ms);
+}
+
+void Manager::onClearNotifyPhotos() {
+	auto ms = getms(true);
+	auto minuntil = Toasts::clearImages(ms);
+	if (minuntil) {
+		clearNotifyPhotosInMs(int32(minuntil - ms));
+	}
 }
 
 Manager::~Manager() = default;
 
-void Manager::create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	_impl->create(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
+void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+	_impl->showNotification(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
 }
 
-void Manager::clear(History *history, bool fast) {
-	return _impl->clear(history, fast);
+void Manager::doClearAllFast() {
+	_impl->clearAll();
+}
+
+void Manager::doClearFromHistory(History *history) {
+	_impl->clearFromHistory(history);
 }
 
 } // namespace Toasts

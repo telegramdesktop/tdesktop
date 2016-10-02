@@ -479,7 +479,6 @@ void DialogsInner::removeDialog(History *history) {
 	if (importantDialogs) {
 		history->removeFromChatList(Dialogs::Mode::Important, importantDialogs.get());
 	}
-	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
 	if (contacts->contains(history->peer->id)) {
 		if (!contactsNoDialogs->contains(history->peer->id)) {

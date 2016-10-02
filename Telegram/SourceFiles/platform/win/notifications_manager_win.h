@@ -20,14 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
 void start();
-Window::Notifications::AbstractManager *manager();
+Window::Notifications::Manager *manager();
 void finish();
+
+inline void defaultNotificationShown(QWidget *widget) {
+}
 
 } // namespace Notifications
 } // namespace Platform

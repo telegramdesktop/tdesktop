@@ -97,6 +97,12 @@ MediaView::MediaView() : TWidget(App::wnd())
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
+	subscribe(FileDownload::ImageLoaded(), [this] {
+		if (!isHidden()) {
+			updateControls();
+		}
+	});
+
 	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush.rect()));
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);

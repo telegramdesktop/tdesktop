@@ -27,7 +27,7 @@ namespace Notifications {
 void start() {
 }
 
-Window::Notifications::AbstractManager *manager() {
+Window::Notifications::Manager *manager() {
 	return nullptr;
 }
 

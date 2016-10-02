@@ -436,8 +436,8 @@ private:
 
 namespace internal {
 
-	TextSelection unshiftSelection(TextSelection selection, const Text &byText);
-	TextSelection shiftSelection(TextSelection selection, const Text &byText);
+TextSelection unshiftSelection(TextSelection selection, const Text &byText);
+TextSelection shiftSelection(TextSelection selection, const Text &byText);
 
 } // namespace internal
 
@@ -837,7 +837,7 @@ public:
 
 	void clipCallback(Media::Clip::Notification notification);
 
-	virtual ~HistoryItem();
+	~HistoryItem();
 
 protected:
 	HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from);

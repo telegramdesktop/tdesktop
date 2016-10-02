@@ -20,17 +20,65 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 
 namespace Window {
 namespace Notifications {
+namespace Default {
 
-class DefaultManager : public AbstractManager {
+class Manager;
+class Widget;
+
+void start();
+Manager *manager();
+void finish();
+
+class Manager : public Notifications::Manager, private base::Subscriber {
 public:
+	Manager();
+
+	void showNextFromQueue();
+	void removeFromShown(Widget *remove);
+	void startAllHiding();
+	void stopAllHiding();
+
+	template <typename Method>
+	void enumerateWidgets(Method method) {
+		for_const (auto widget, _widgets) {
+			method(widget);
+		}
+	}
+
+	~Manager();
 
 private:
-	void create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
-	void clear(History *history, bool fast) override;
+	void doUpdateAll() override;
+	void doShowNotification(HistoryItem *item, int forwardedCount) override;
+	void doClearAll() override;
+	void doClearAllFast() override;
+	void doClearFromHistory(History *history) override;
+	void doClearFromItem(HistoryItem *item) override;
+
+	using Widgets = QList<Widget*>;
+	Widgets _widgets;
+
+	struct QueuedNotification {
+		QueuedNotification(HistoryItem *item, int forwardedCount)
+		: history(item->history())
+		, peer(history->peer)
+		, author((item->hasFromName() && !item->isPost()) ? item->author() : nullptr)
+		, item((forwardedCount > 1) ? nullptr : item)
+		, forwardedCount(forwardedCount) {
+		}
+
+		History *history;
+		PeerData *peer;
+		PeerData *author;
+		HistoryItem *item;
+		int forwardedCount;
+	};
+	using QueuedNotifications = QList<QueuedNotification>;
+	QueuedNotifications _queuedNotifications;
 
 };
 
@@ -38,21 +86,21 @@ class Widget : public TWidget {
 	Q_OBJECT
 
 public:
-	Widget(HistoryItem *item, int32 x, int32 y, int32 fwdCount);
+	Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, int x, int y);
 
 	void step_appearance(float64 ms, bool timer);
 	void animHide(float64 duration, anim::transition func);
 	void startHiding();
 	void stopHiding();
-	void moveTo(int32 x, int32 y, int32 index = -1);
+	void moveTo(int x, int y, int index = -1);
 
 	void updateNotifyDisplay();
 	void updatePeerPhoto();
 
 	void itemRemoved(HistoryItem *del);
 
-	int32 index() const {
-		return history ? _index : -1;
+	int index() const {
+		return _history ? _index : -1;
 	}
 
 	void unlinkHistory(History *hist = 0);
@@ -73,18 +121,20 @@ private:
 	void unlinkHistoryAndNotify();
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
-	uint64 started;
+	uint64 _started;
 #endif // Q_OS_WIN && !Q_OS_WINRT
 
-	History *history;
-	HistoryItem *item;
-	int32 fwdCount;
-	IconedButton close;
-	QPixmap pm;
-	float64 alphaDuration, posDuration;
-	QTimer hideTimer, inputTimer;
-	bool hiding;
-	int32 _index;
+	History *_history;
+	PeerData *_peer;
+	PeerData *_author;
+	HistoryItem *_item;
+	int _forwardedCount;
+	IconedButton _close;
+	QPixmap _cache;
+	float64 _alphaDuration, _posDuration;
+	QTimer _hideTimer, _inputTimer;
+	bool _hiding = false;
+	int _index = 0;
 	anim::fvalue a_opacity;
 	anim::transition a_func;
 	anim::ivalue a_y;
@@ -94,5 +144,6 @@ private:
 
 };
 
+} // namespace Default
 } // namespace Notifications
 } // namespace Window

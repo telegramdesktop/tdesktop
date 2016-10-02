@@ -20,14 +20,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
 void start();
-Window::Notifications::AbstractManager *manager();
+Window::Notifications::Manager *manager();
 void finish();
+
+void defaultNotificationShown(QWidget *widget);
+
+class Manager : public Window::Notifications::NativeManager {
+public:
+	Manager();
+	~Manager();
+
+private:
+	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
+	void doClearAllFast() override;
+	void doClearFromHistory(History *history) override;
+
+	class Impl;
+	std_::unique_ptr<Impl> _impl;
+
+};
 
 } // namespace Notifications
 } // namespace Platform

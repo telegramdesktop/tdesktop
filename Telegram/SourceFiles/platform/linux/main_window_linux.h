@@ -22,12 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/main_window.h"
 
-namespace Window {
-namespace Notifications {
-class Widget;
-} // namespace Notifications
-} // namespace Window
-
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -61,11 +55,6 @@ public:
 	bool psPosInited() const {
 		return posInited;
 	}
-
-	void psActivateNotify(Window::Notifications::Widget *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(Window::Notifications::Widget *w);
-	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
 
 	void psUpdateCounter();
 

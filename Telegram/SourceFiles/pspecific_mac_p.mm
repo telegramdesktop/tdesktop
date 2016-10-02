@@ -293,33 +293,6 @@ void objc_activateWnd(WId winId) {
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
-void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
-    NSUserNotification *notification = [[NSUserNotification alloc] init];
-	NSImage *img = qt_mac_create_nsimage(pix);
-
-	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(Global::LaunchId()));
-    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
-
-	[notification setTitle:QNSString(title).s()];
-    [notification setSubtitle:QNSString(subtitle).s()];
-    [notification setInformativeText:QNSString(msg).s()];
-	if ([notification respondsToSelector:@selector(setContentImage:)]) {
-		[notification setContentImage:img];
-	}
-
-	if (withReply && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
-		[notification setHasReplyButton:YES];
-	}
-
-    [notification setSoundName:nil];
-
-    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-    [center deliverNotification:notification];
-
-	if (img) [img release];
-    [notification release];
-}
-
 void PsMacWindowPrivate::enableShadow(WId winId) {
 //    [[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
 //    [[(NSView*)winId window] setHasShadow:YES];
@@ -357,22 +330,6 @@ bool PsMacWindowPrivate::filterNativeEvent(void *event) {
 		}
 	}
 	return false;
-}
-
-
-void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
-    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-    if (peer) {
-        NSArray *notifies = [center deliveredNotifications];
-        for (id notify in notifies) {
-			NSDictionary *dict = [notify userInfo];
-			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"launch"] unsignedLongLongValue] == Global::LaunchId()) {
-                [center removeDeliveredNotification:notify];
-            }
-        }
-    } else {
-        [center removeAllDeliveredNotifications];
-    }
 }
 
 void objc_debugShowAlert(const QString &str) {

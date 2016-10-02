@@ -1427,7 +1427,6 @@ MsgId History::inboxRead(MsgId upTo) {
 
 	showFrom = nullptr;
 	App::wnd()->notifyClear(this);
-	clearNotifications();
 
 	return upTo;
 }

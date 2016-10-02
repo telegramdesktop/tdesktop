@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "platform/win/windows_toasts.h"
 #include "platform/win/windows_dlls.h"
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "lang.h"
@@ -617,7 +617,6 @@ MainWindow::MainWindow()
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
-	connect(&ps_cleanNotifyPhotosTimer, SIGNAL(timeout()), this, SLOT(psCleanNotifyPhotos()));
 }
 
 void MainWindow::TaskbarCreated() {
@@ -642,22 +641,6 @@ void MainWindow::shadowsDeactivate() {
 
 void MainWindow::psShowTrayMenu() {
 	trayIconMenu->popup(QCursor::pos());
-}
-
-void MainWindow::psCleanNotifyPhotosIn(int32 dt) {
-	if (dt < 0) {
-		if (ps_cleanNotifyPhotosTimer.isActive() && ps_cleanNotifyPhotosTimer.remainingTime() <= -dt) return;
-		dt = -dt;
-	}
-	ps_cleanNotifyPhotosTimer.start(dt);
-}
-
-void MainWindow::psCleanNotifyPhotos() {
-	auto ms = getms(true);
-	auto minuntil = Toasts::clearImages(ms);
-	if (minuntil) {
-		psCleanNotifyPhotosIn(int32(minuntil - ms));
-	}
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
@@ -879,17 +862,11 @@ void MainWindow::psUpdatedPosition() {
 }
 
 bool MainWindow::psHasNativeNotifications() {
-	return Toasts::supported();
+	return (Toasts::manager() != nullptr);
 }
 
 Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psFirstShow() {
-	if (Toasts::supported()) {
-		Global::SetCustomNotifies(!Global::WindowsNotifications());
-	} else {
-		Global::SetCustomNotifies(true);
-	}
-
 	_psShadowWindows.init(_shActive);
 	_shadowsWorking = true;
 
@@ -1072,24 +1049,6 @@ MainWindow::~MainWindow() {
 	psDestroyIcons();
 	_psShadowWindows.destroy();
 	if (ps_tbHider_hWnd) DestroyWindow(ps_tbHider_hWnd);
-}
-
-void MainWindow::psActivateNotify(Window::Notifications::Widget *w) {
-}
-
-void MainWindow::psClearNotifies(History *history) {
-	if (history) {
-		Window::Notifications::manager()->clearFromHistory(history);
-	} else {
-		Window::Notifications::manager()->clearAllFast();
-	}
-}
-
-void MainWindow::psNotifyShown(Window::Notifications::Widget *w) {
-}
-
-void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-	Window::Notifications::manager()->showNotification(item, fwdCount);
 }
 
 } // namespace Platform

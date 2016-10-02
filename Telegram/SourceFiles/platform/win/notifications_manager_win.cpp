@@ -25,26 +25,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 namespace Notifications {
-namespace {
-
-NeverFreedPointer<Toasts::Manager> ToastsManager;
-
-} // namespace
 
 void start() {
 	Toasts::start();
 }
 
-Window::Notifications::AbstractManager *manager() {
-	if (Toasts::supported()) {
-		ToastsManager.makeIfNull();
-		return ToastsManager.data();
+Window::Notifications::Manager *manager() {
+	if (Global::WindowsNotifications()) {
+		return Toasts::manager();
 	}
 	return nullptr;
 }
 
 void finish() {
-	ToastsManager.reset();
+	Toasts::finish();
 }
 
 } // namespace Notifications

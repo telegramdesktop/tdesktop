@@ -995,9 +995,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetWindowsNotifications(v == 1);
-		if (cPlatform() == dbipWindows) {
-			Global::SetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !Global::WindowsNotifications());
-		}
 	} break;
 
 	case dbiWorkMode: {

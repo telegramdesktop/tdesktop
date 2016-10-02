@@ -33,7 +33,7 @@ class PopupMenu;
 
 struct AudioPlaybackState;
 
-class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
+class MediaView : public TWidget, private base::Subscriber, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:

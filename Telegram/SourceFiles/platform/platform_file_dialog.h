@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #ifdef Q_OS_MAC
 namespace Platform {
-
 namespace FileDialog {
 inline bool Supported() {
 	return false;

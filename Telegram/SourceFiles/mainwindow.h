@@ -43,7 +43,9 @@ class Widget;
 
 namespace Window {
 namespace Notifications {
+namespace Default {
 class Widget;
+} // namespace Default
 } // namespace Notifications
 } // namespace Window
 
@@ -150,12 +152,7 @@ public:
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
-	void notifyShowNext(Window::Notifications::Widget *remove = 0);
-	void notifyItemRemoved(HistoryItem *item);
-	void notifyStopHiding();
-	void notifyStartHiding();
 	void notifyUpdateAll();
-	void notifyActivateAll();
 
     QImage iconLarge() const;
 
@@ -212,7 +209,7 @@ public slots:
 	void onClearFinished(int task, void *manager);
 	void onClearFailed(int task, void *manager);
 
-	void notifyFire();
+	void notifyShowNext();
 	void updateTrayMenu(bool force = false);
 
 	void onShowAddContact();
@@ -223,8 +220,6 @@ public slots:
 	void updateGlobalMenu(); // for OS X top menu
 
 	void onReActivate();
-
-	void notifyUpdateAllPhotos();
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
@@ -277,27 +272,27 @@ private:
 	SingleTimer _autoLockTimer;
 	uint64 _shouldLockAt = 0;
 
-	typedef QMap<MsgId, uint64> NotifyWhenMap;
-	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
-	NotifyWhenMaps notifyWhenMaps;
+	using NotifyWhenMap = QMap<MsgId, uint64>;
+	using NotifyWhenMaps = QMap<History*, NotifyWhenMap>;
+	NotifyWhenMaps _notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
+		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom)
+		: msg(msg)
+		, when(when)
+		, notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
 		uint64 when;
 		PeerData *notifyByFrom;
 	};
-	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
-	NotifyWaiters notifyWaiters;
-	NotifyWaiters notifySettingWaiters;
-	SingleTimer notifyWaitTimer;
+	using NotifyWaiters = QMap<History*, NotifyWaiter>;
+	NotifyWaiters _notifyWaiters;
+	NotifyWaiters _notifySettingWaiters;
+	SingleTimer _notifyWaitTimer;
 
-	typedef QMap<uint64, PeerData*> NotifyWhenAlert;
-	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
-	NotifyWhenAlerts notifyWhenAlerts;
-
-	using NotifyWidgets = QList<Window::Notifications::Widget*>;
-	NotifyWidgets notifyWidgets;
+	using NotifyWhenAlert = QMap<uint64, PeerData*>;
+	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
+	NotifyWhenAlerts _notifyWhenAlerts;
 
 	MediaView *_mediaView = nullptr;
 

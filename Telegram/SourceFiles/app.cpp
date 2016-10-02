@@ -42,6 +42,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "numbers.h"
 #include "observer_peer.h"
 #include "window/chat_background.h"
+#include "window/notifications_manager.h"
 
 namespace {
 	App::LaunchState _launchState = App::Launched;
@@ -1992,13 +1993,10 @@ namespace {
 		if (::mousedItem == item) {
 			mousedItem(nullptr);
 		}
-		if (App::wnd()) {
-			App::wnd()->notifyItemRemoved(item);
-		}
 	}
 
 	void historyUnregItem(HistoryItem *item) {
-		MsgsData *data = fetchMsgsData(item->channelId(), false);
+		auto data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
 		auto i = data->find(item->id);
@@ -2014,9 +2012,12 @@ namespace {
 			std::swap(items, j.value());
 			::dependentItems.erase(j);
 
-			for_const (HistoryItem *dependent, items) {
+			for_const (auto dependent, items) {
 				dependent->dependencyItemRemoved(item);
 			}
+		}
+		if (auto manager = Window::Notifications::manager()) {
+			manager->clearFromItem(item);
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);

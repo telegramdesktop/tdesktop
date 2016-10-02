@@ -35,7 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "observer_peer.h"
 #include "window/chat_background.h"
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
 
 namespace {
@@ -332,6 +332,10 @@ void Application::startApplication() {
 void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
+
+	if (auto manager = Window::Notifications::manager()) {
+		manager->clearAllFast();
+	}
 
 	delete AppObject;
 	AppObject = 0;

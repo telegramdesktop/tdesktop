@@ -149,7 +149,6 @@ enum class ChangeType {
 	IncludeMuted,
 	DesktopEnabled,
 	ViewParams,
-	UseNative,
 };
 
 } // namespace Notify
@@ -309,7 +308,6 @@ DeclareVar(bool, RestoreSoundNotifyFromTray);
 DeclareVar(bool, IncludeMuted);
 DeclareVar(DBINotifyView, NotifyView);
 DeclareVar(bool, WindowsNotifications);
-DeclareVar(bool, CustomNotifies);
 DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DeclareVar(DBIConnectionType, ConnectionType);

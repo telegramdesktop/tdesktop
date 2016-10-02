@@ -663,18 +663,6 @@ void MainWindow::psUpdateMargins() {
 void MainWindow::psFlash() {
 }
 
-void MainWindow::psActivateNotify(Window::Notifications::Widget *w) {
-}
-
-void MainWindow::psClearNotifies(PeerId peerId) {
-}
-
-void MainWindow::psNotifyShown(Window::Notifications::Widget *w) {
-}
-
-void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-}
-
 MainWindow::~MainWindow() {
 	if (_trayIcon) {
 		Libs::g_object_unref(_trayIcon);

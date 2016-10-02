@@ -375,9 +375,7 @@ enum {
 	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
-	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
-	NotifyDeletePhotoAfter = 60000, // delete notify photo after 1 minute
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 

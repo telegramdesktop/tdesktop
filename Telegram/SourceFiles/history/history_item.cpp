@@ -482,19 +482,19 @@ void HistoryMediaPtr::reset(HistoryMedia *p) {
 
 namespace internal {
 
-	TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
-		if (selection == FullSelection) {
-			return selection;
-		}
-		return ::unshiftSelection(selection, byText);
+TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+	if (selection == FullSelection) {
+		return selection;
 	}
+	return ::unshiftSelection(selection, byText);
+}
 
-	TextSelection shiftSelection(TextSelection selection, const Text &byText) {
-		if (selection == FullSelection) {
-			return selection;
-		}
-		return ::shiftSelection(selection, byText);
+TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+	if (selection == FullSelection) {
+		return selection;
 	}
+	return ::shiftSelection(selection, byText);
+}
 
 } // namespace internal
 

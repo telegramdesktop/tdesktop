@@ -19,38 +19,33 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "window/notifications_abstract_manager.h"
+#include "window/notifications_manager.h"
 
 #include "platform/platform_notifications_manager.h"
-#include "window/notifications_default_manager.h"
+#include "window/notifications_manager_default.h"
 #include "lang.h"
 
 namespace Window {
 namespace Notifications {
-namespace {
-
-NeverFreedPointer<DefaultManager> FallbackManager;
-
-} // namespace
 
 void start() {
+	Default::start();
 	Platform::Notifications::start();
 }
 
-AbstractManager *manager() {
+Manager *manager() {
 	if (auto result = Platform::Notifications::manager()) {
 		return result;
 	}
-	FallbackManager.makeIfNull();
-	return FallbackManager.data();
+	return Default::manager();
 }
 
 void finish() {
 	Platform::Notifications::finish();
-	FallbackManager.reset();
+	Default::finish();
 }
 
-void AbstractManager::showNotification(HistoryItem *item, int forwardedCount) {
+void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
 	auto hideEverything = (App::passcoded() || Global::ScreenIsLocked());
 	auto hideName = hideEverything || (Global::NotifyView() > dbinvShowName);
 	auto hidePreview = hideEverything || (Global::NotifyView() > dbinvShowPreview);
@@ -62,19 +57,7 @@ void AbstractManager::showNotification(HistoryItem *item, int forwardedCount) {
 	QString msg = hidePreview ? lang(lng_notification_preview) : (forwardedCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, forwardedCount));
 	bool showReplyButton = hidePreview ? false : item->history()->peer->canWrite();
 
-	create(item->history()->peer, item->id, title, subtitle, showUserpic, msg, showReplyButton);
-}
-
-void AbstractManager::clearAllFast() {
-	clear(nullptr, true);
-}
-
-void AbstractManager::clearAll() {
-	clear(nullptr, false);
-}
-
-void AbstractManager::clearFromHistory(History *history) {
-	clear(history, false);
+	doShowNativeNotification(item->history()->peer, item->id, title, subtitle, showUserpic, msg, showReplyButton);
 }
 
 } // namespace Notifications

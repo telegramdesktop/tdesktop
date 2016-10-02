@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/widget_slide_wrap.h"
 #include "ui/flatcheckbox.h"
 #include "mainwindow.h"
+#include "window/notifications_manager.h"
 
 namespace Settings {
 
@@ -132,16 +133,13 @@ void NotificationsWidget::viewParamUpdated() {
 }
 
 void NotificationsWidget::onWindowsNative() {
-#ifdef Q_OS_WIN
 	if (Global::WindowsNotifications() == _windowsNative->checked()) {
 		return;
 	}
 
+	Window::Notifications::manager()->clearAllFast();
 	Global::SetWindowsNotifications(_windowsNative->checked());
-	Global::SetCustomNotifies(!Global::WindowsNotifications());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::UseNative);
-#endif // Q_OS_WIN
 }
 
 void NotificationsWidget::onPlaySound() {

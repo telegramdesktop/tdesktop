@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #ifdef Q_OS_MAC
-#include "platform/winrt/notifications_manager_mac.h"
+#include "platform/mac/notifications_manager_mac.h"
 #elif defined Q_OS_LINUX // Q_OS_MAC
 #include "platform/linux/notifications_manager_linux.h"
 #elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
