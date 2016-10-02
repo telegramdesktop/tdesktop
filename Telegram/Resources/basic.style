@@ -448,9 +448,15 @@ sysUpd: sysButton {
 	duration: 150;
 }
 updateBlinkDuration: 500;
+
+sysPin: sysButton(sysUpd) {
+   icon: icon {{ "title_button_pin", titleBg }};
+}
+
 sysMin: sysButton(sysUpd) {
 	icon: icon {{ "title_button_minimize", titleBg }};
 }
+
 sysMax: sysButton(sysUpd) {
 	icon: icon {{ "title_button_maximize", titleBg }};
 }

@@ -73,6 +73,22 @@ protected:
 
 };
 
+class PinBtn : public SysBtn {
+   Q_OBJECT
+
+public:
+
+   PinBtn(QWidget *parent, MainWindow *window);
+
+public slots:
+
+   void onClick();
+
+private:
+
+   MainWindow *wnd;
+};
+
 class MinimizeBtn : public SysBtn {
 	Q_OBJECT
 

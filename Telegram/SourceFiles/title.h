@@ -91,9 +91,10 @@ private:
 
 	LockBtn _lock;
 	UpdateBtn _update;
-	MinimizeBtn _minimize;
+   PinBtn _pin;
+   MinimizeBtn _minimize;
 	MaximizeBtn _maximize;
-	RestoreBtn _restore;
+   RestoreBtn _restore;
 	CloseBtn _close;
 
 	Animation _a_update;
