@@ -49,7 +49,9 @@ public:
 	void clearFromHistory(History *history) {
 		doClearFromHistory(history);
 	}
+
 	void notificationActivated(PeerId peerId, MsgId msgId);
+	void notificationReplied(PeerId peerId, MsgId msgId, const QString &reply);
 
 	virtual ~Manager() = default;
 

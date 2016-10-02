@@ -26,15 +26,72 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <Cocoa/Cocoa.h>
 
+namespace {
+
+NeverFreedPointer<Platform::Notifications::Manager> ManagerInstance;
+
+} // namespace
+
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
+
+@interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
+}
+
+- (id) init;
+- (void)userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification;
+- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification;
+
+@end
+
+@implementation NotificationDelegate {
+}
+
+- (id) init {
+	if (self = [super init]) {
+	}
+	return self;
+}
+
+- (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
+	auto manager = ManagerInstance.data();
+	if (!manager) {
+		return;
+	}
+
+	NSDictionary *notificationUserInfo = [notification userInfo];
+	NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
+	auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
+	DEBUG_LOG(("Received notification with instance %1").arg(notificationLaunchId));
+	if (notificationLaunchId != Global::LaunchId()) { // other app instance notification
+		return;
+	}
+
+	NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
+	auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
+	if (!notificationPeerId) {
+		return;
+	}
+
+	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
+	auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
+	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
+		auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
+		manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
+	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
+		manager->notificationActivated(notificationPeerId, notificationMsgId);
+	}
+
+	[center removeDeliveredNotification: notification];
+}
+
+- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification {
+	return YES;
+}
+
+@end
 
 namespace Platform {
 namespace Notifications {
-namespace {
-
-NeverFreedPointer<Manager> ManagerInstance;
-
-} // namespace
 
 void start() {
 	if (cPlatform() != dbipMacOld) {
@@ -42,7 +99,7 @@ void start() {
 	}
 }
 
-Window::Notifications::Manager *manager() {
+Manager *manager() {
 	return ManagerInstance.data();
 }
 
@@ -59,15 +116,21 @@ void defaultNotificationShown(QWidget *widget) {
 
 class Manager::Impl {
 public:
+	Impl();
 	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
+	void updateDelegate();
 
 	~Impl();
 
 private:
+	NotificationDelegate *_delegate;
 
 };
+
+Manager::Impl::Impl() : _delegate([[NotificationDelegate alloc] init]) {
+}
 
 void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
 	@autoreleasepool {
@@ -104,11 +167,12 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 void Manager::Impl::clearAll() {
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	NSArray *notificationsList = [center deliveredNotifications];
-	for (id notify in notificationsList) {
-		NSDictionary *notifyUserInfo = [notify userInfo];
-		auto notifyLaunchId = [[notifyUserInfo objectForKey:@"launch"] unsignedLongLongValue];
-		if (notifyLaunchId == Global::LaunchId()) {
-			[center removeDeliveredNotification:notify];
+	for (id notification in notificationsList) {
+		NSDictionary *notificationUserInfo = [notification userInfo];
+		NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
+		auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
+		if (notificationLaunchId == Global::LaunchId()) {
+			[center removeDeliveredNotification:notification];
 		}
 	}
 	[center removeAllDeliveredNotifications];
@@ -119,20 +183,32 @@ void Manager::Impl::clearFromHistory(History *history) {
 
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	NSArray *notificationsList = [center deliveredNotifications];
-	for (id notify in notificationsList) {
-		NSDictionary *notifyUserInfo = [notify userInfo];
-		auto notifyPeerId = [[notifyUserInfo objectForKey:@"peer"] unsignedLongLongValue];
-		auto notifyLaunchId = [[notifyUserInfo objectForKey:@"launch"] unsignedLongLongValue];
-		if (notifyPeerId == peerId && notifyLaunchId == Global::LaunchId()) {
-			[center removeDeliveredNotification:notify];
+	for (id notification in notificationsList) {
+		NSDictionary *notificationUserInfo = [notification userInfo];
+		NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
+		NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
+		auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
+		auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
+		if (notificationPeerId == peerId && notificationLaunchId == Global::LaunchId()) {
+			[center removeDeliveredNotification:notification];
 		}
 	}
 }
 
+void Manager::Impl::updateDelegate() {
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	[center setDelegate:_delegate];
+}
+
 Manager::Impl::~Impl() {
+	[_delegate release];
 }
 
 Manager::Manager() : _impl(std_::make_unique<Impl>()) {
+}
+
+void Manager::updateDelegate() {
+	_impl->updateDelegate();
 }
 
 Manager::~Manager() = default;

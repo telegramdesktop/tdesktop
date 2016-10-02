@@ -25,8 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
+class Manager;
+
 void start();
-Window::Notifications::Manager *manager();
+Manager *manager();
 void finish();
 
 void defaultNotificationShown(QWidget *widget);
@@ -34,6 +36,9 @@ void defaultNotificationShown(QWidget *widget);
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager();
+
+	void updateDelegate();
+
 	~Manager();
 
 protected:

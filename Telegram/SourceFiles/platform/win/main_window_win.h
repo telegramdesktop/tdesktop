@@ -99,7 +99,6 @@ public:
 	~MainWindow();
 
 public slots:
-	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 

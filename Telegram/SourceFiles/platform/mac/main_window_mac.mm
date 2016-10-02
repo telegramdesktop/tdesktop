@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "localstorage.h"
 #include "window/notifications_manager_default.h"
+#include "platform/mac/notifications_manager_mac.h"
 
 #include "lang.h"
 
@@ -46,38 +47,6 @@ void MacPrivate::activeSpaceChanged() {
 
 void MacPrivate::darkModeChanged() {
 	Notify::unreadCounterUpdated();
-}
-
-void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
-	History *history = App::history(PeerId(peer));
-
-	App::wnd()->showFromTray();
-	if (App::passcoded()) {
-		App::wnd()->setInnerFocus();
-		App::wnd()->notifyClear();
-	} else {
-		bool tomsg = !history->peer->isUser() && (msgid > 0);
-		if (tomsg) {
-			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));
-			if (!item || !item->mentionsMe()) {
-				tomsg = false;
-			}
-		}
-		Ui::showPeerHistory(history, tomsg ? msgid : ShowAtUnreadMsgId);
-		App::wnd()->notifyClear(history);
-	}
-}
-
-void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
-	History *history = App::history(PeerId(peer));
-
-	MainWidget::MessageToSend message;
-	message.history = history;
-	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
-	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
-	message.silent = false;
-	message.clearDraft = false;
-	App::main()->sendMessage(message);
 }
 
 MainWindow::MainWindow()
@@ -151,10 +120,12 @@ void MainWindow::psUpdateWorkmode() {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;
+			trayIcon = nullptr;
 		}
-		trayIcon = 0;
 	}
-	psUpdateDelegate();
+	if (auto manager = Platform::Notifications::manager()) {
+		manager->updateDelegate();
+	}
 	setWindowIcon(wndIcon);
 }
 
@@ -218,10 +189,6 @@ void MainWindow::psUpdateCounter() {
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
-}
-
-void MainWindow::psUpdateDelegate() {
-	_private.updateDelegate();
 }
 
 void MainWindow::psInitSize() {

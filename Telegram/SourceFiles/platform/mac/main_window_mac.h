@@ -27,11 +27,8 @@ namespace Platform {
 
 class MacPrivate : public PsMacWindowPrivate {
 public:
-
 	void activeSpaceChanged();
 	void darkModeChanged();
-	void notifyClicked(unsigned long long peer, int msgid);
-	void notifyReplied(unsigned long long peer, int msgid, const char *str);
 
 };
 
@@ -83,7 +80,6 @@ public:
 	~MainWindow();
 
 public slots:
-	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 

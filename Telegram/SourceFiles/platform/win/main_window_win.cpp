@@ -674,7 +674,6 @@ void MainWindow::psSetupTrayIcon() {
 	psUpdateCounter();
 
 	trayIcon->show();
-	psUpdateDelegate();
 }
 
 void MainWindow::psUpdateWorkmode() {
@@ -743,9 +742,6 @@ void MainWindow::psUpdateCounter() {
 		taskbarList->SetOverlayIcon(ps_hWnd, ps_iconOverlay, description.toStdWString().c_str());
 	}
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-}
-
-void MainWindow::psUpdateDelegate() {
 }
 
 namespace {

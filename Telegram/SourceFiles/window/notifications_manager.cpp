@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager_default.h"
 #include "lang.h"
 #include "mainwindow.h"
+#include "mainwidget.h"
 
 namespace Window {
 namespace Notifications {
@@ -68,6 +69,22 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 		}
 	}
 	onAfterNotificationActivated(peerId, msgId);
+}
+
+void Manager::notificationReplied(PeerId peerId, MsgId msgId, const QString &reply) {
+	if (!peerId) return;
+
+	auto history = App::history(peerId);
+
+	MainWidget::MessageToSend message;
+	message.history = history;
+	message.textWithTags = { reply, TextWithTags::Tags() };
+	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
+	message.silent = false;
+	message.clearDraft = false;
+	if (auto main = App::main()) {
+		main->sendMessage(message);
+	}
 }
 
 void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {

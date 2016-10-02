@@ -268,7 +268,6 @@ void MainWindow::psSetupTrayIcon() {
 		psUpdateCounter();
 
 		trayIcon->show();
-		psUpdateDelegate();
 	}
 }
 
@@ -428,9 +427,6 @@ void MainWindow::LibsLoaded() {
 		DEBUG_LOG(("Unity count api loaded!"));
 	}
 #endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
-}
-
-void MainWindow::psUpdateDelegate() {
 }
 
 void MainWindow::psInitSize() {

@@ -120,50 +120,20 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 @end
 
-@interface NotifyHandler : NSObject<NSUserNotificationCenterDelegate> {
-}
-
-- (id) init:(PsMacWindowPrivate *)aWnd;
-
-- (void)userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification;
-
-- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification;
-
-@end
-
 class PsMacWindowData {
 public:
-
 	PsMacWindowData(PsMacWindowPrivate *wnd) :
 	wnd(wnd),
-	observerHelper([[ObserverHelper alloc] init:wnd]),
-	notifyHandler([[NotifyHandler alloc] init:wnd]) {
-	}
-
-	void onNotifyClick(NSUserNotification *notification) {
-		NSDictionary *dict = [notification userInfo];
-		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
-		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-		int msgId = msgObj ? [msgObj intValue] : 0;
-		wnd->notifyClicked(peerLong, msgId);
-	}
-
-	void onNotifyReply(NSUserNotification *notification) {
-		NSDictionary *dict = [notification userInfo];
-		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
-		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-		int msgId = msgObj ? [msgObj intValue] : 0;
-		wnd->notifyReplied(peerLong, msgId, [[[notification response] string] UTF8String]);
+	observerHelper([[ObserverHelper alloc] init:wnd]) {
 	}
 
 	~PsMacWindowData() {
 		[observerHelper release];
-		[notifyHandler release];
 	}
 
 	PsMacWindowPrivate *wnd;
 	ObserverHelper *observerHelper;
-	NotifyHandler *notifyHandler;
+
 };
 
 @implementation ObserverHelper {
@@ -195,38 +165,6 @@ public:
 
 @end
 
-@implementation NotifyHandler {
-	PsMacWindowPrivate *wnd;
-}
-
-- (id) init:(PsMacWindowPrivate *)aWnd {
-	if (self = [super init]) {
-		wnd = aWnd;
-	}
-	return self;
-}
-
-- (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
-	NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
-	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
-	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
-	if (instLong != Global::LaunchId()) { // other app instance notification
-		return;
-	}
-	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
-		wnd->data->onNotifyReply(notification);
-	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-		wnd->data->onNotifyClick(notification);
-	}
-	[center removeDeliveredNotification: notification];
-}
-
-- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification {
-	return YES;
-}
-
-@end
-
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
 	@autoreleasepool {
 
@@ -248,11 +186,6 @@ void PsMacWindowPrivate::setWindowBadge(const QString &str) {
 
 void PsMacWindowPrivate::startBounce() {
 	[NSApp requestUserAttention:NSInformationalRequest];
-}
-
-void PsMacWindowPrivate::updateDelegate() {
-	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-	[center setDelegate:data->notifyHandler];
 }
 
 void objc_holdOnTop(WId winId) {
