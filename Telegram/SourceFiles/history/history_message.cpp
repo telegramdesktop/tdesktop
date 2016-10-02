@@ -1808,7 +1808,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChannelCreate: {
 		auto &d = action.c_messageActionChannelCreate();
 		if (isPost()) {
-			text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
+			text = lang(lng_action_created_channel);
 		} else {
 			text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 		}
