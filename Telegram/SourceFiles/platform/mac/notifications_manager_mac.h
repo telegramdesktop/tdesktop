@@ -36,11 +36,12 @@ public:
 	Manager();
 	~Manager();
 
-private:
+protected:
 	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
 	void doClearAllFast() override;
 	void doClearFromHistory(History *history) override;
 
+private:
 	class Impl;
 	std_::unique_ptr<Impl> _impl;
 

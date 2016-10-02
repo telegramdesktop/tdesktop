@@ -49,6 +49,8 @@ public:
 	void clearFromHistory(History *history) {
 		doClearFromHistory(history);
 	}
+	void notificationActivated(PeerId peerId, MsgId msgId);
+
 	virtual ~Manager() = default;
 
 protected:
@@ -58,6 +60,10 @@ protected:
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(HistoryItem *item) = 0;
 	virtual void doClearFromHistory(History *history) = 0;
+	virtual void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
+	}
+	virtual void onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
+	}
 
 };
 

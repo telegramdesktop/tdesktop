@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
 #include "lang.h"
+#include "mainwindow.h"
 
 namespace Window {
 namespace Notifications {
@@ -43,6 +44,30 @@ Manager *manager() {
 void finish() {
 	Platform::Notifications::finish();
 	Default::finish();
+}
+
+void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
+	onBeforeNotificationActivated(peerId, msgId);
+	if (auto window = App::wnd()) {
+		auto history = App::history(peerId);
+
+		window->showFromTray();
+		if (App::passcoded()) {
+			window->setInnerFocus();
+			window->notifyClear();
+		} else {
+			auto tomsg = !history->peer->isUser() && (msgId > 0);
+			if (tomsg) {
+				auto item = App::histItemById(peerToChannel(peerId), msgId);
+				if (!item || !item->mentionsMe()) {
+					tomsg = false;
+				}
+			}
+			Ui::showPeerHistory(history, tomsg ? msgId : ShowAtUnreadMsgId);
+			window->notifyClear(history);
+		}
+	}
+	onAfterNotificationActivated(peerId, msgId);
 }
 
 void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {

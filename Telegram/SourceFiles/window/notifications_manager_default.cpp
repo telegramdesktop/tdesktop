@@ -374,20 +374,15 @@ void Widget::startHiding() {
 void Widget::mousePressEvent(QMouseEvent *e) {
 	if (!_history) return;
 
-	auto peerId = _history->peer->id;
-	auto msgId = (!_history->peer->isUser() && _item && _item->mentionsMe() && _item->id > 0) ? _item->id : ShowAtUnreadMsgId;
-
 	if (e->button() == Qt::RightButton) {
 		unlinkHistoryAndNotify();
 	} else {
-		App::wnd()->showFromTray();
-		if (App::passcoded()) {
-			App::wnd()->setInnerFocus();
-			App::wnd()->notifyClear();
-		} else {
-			Ui::showPeerHistory(peerId, msgId);
-		}
 		e->ignore();
+		if (auto manager = ManagerInstance.data()) {
+			auto peerId = _history->peer->id;
+			auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
+			manager->notificationActivated(peerId, msgId);
+		}
 	}
 }
 

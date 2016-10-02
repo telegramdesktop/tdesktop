@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/main_window_win.h"
 
-#include "platform/win/windows_toasts.h"
+#include "platform/win/notifications_manager_win.h"
 #include "platform/win/windows_dlls.h"
 #include "window/notifications_manager.h"
 #include "mainwindow.h"
@@ -814,7 +814,6 @@ void MainWindow::psInitFrameless() {
 	}
 
 //	RegisterApplicationRestart(NULL, 0);
-	Toasts::start();
 
 	psInitSysMenu();
 }
@@ -862,7 +861,7 @@ void MainWindow::psUpdatedPosition() {
 }
 
 bool MainWindow::psHasNativeNotifications() {
-	return (Toasts::manager() != nullptr);
+	return Notifications::supported();
 }
 
 Q_DECLARE_METATYPE(QMargins);

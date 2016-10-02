@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 
 #include "platform/win/main_window_win.h"
-#include "platform/win/windows_toasts.h"
+#include "platform/win/notifications_manager_win.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "platform/win/windows_event_filter.h"
