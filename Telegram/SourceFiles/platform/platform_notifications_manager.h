@@ -20,31 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_abstract_manager.h"
-
-namespace Platform {
-namespace Toasts {
-
-void start();
-bool supported();
-
-// Returns the next ms when clearImages() should be called.
-uint64 clearImages(uint64 ms);
-
-class Manager : public Window::Notifications::AbstractManager {
-public:
-	Manager();
-
-	~Manager();
-
-private:
-	void create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
-	void clear(History *history, bool fast) override;
-
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
-
-};
-
-} // namespace Toasts
-} // namespace Platform
+#ifdef Q_OS_MAC
+#include "platform/winrt/notifications_manager_mac.h"
+#elif defined Q_OS_LINUX // Q_OS_MAC
+#include "platform/linux/notifications_manager_linux.h"
+#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
+#include "platform/winrt/notifications_manager_winrt.h"
+#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
+#include "platform/win/notifications_manager_win.h"
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN

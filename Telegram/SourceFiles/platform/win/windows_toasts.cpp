@@ -156,72 +156,6 @@ bool init() {
 	return true;
 }
 
-} // namespace
-
-void start() {
-	_supported = init();
-}
-
-bool supported() {
-	return _supported;
-}
-
-uint64 clearImages(uint64 ms) {
-	uint64 result = 0;
-	for (auto i = _images.begin(); i != _images.end();) {
-		if (!i->until) {
-			++i;
-			continue;
-		}
-		if (i->until <= ms) {
-			QFile(i->path).remove();
-			i = _images.erase(i);
-		} else {
-			if (!result) {
-				result = i->until;
-			} else {
-				accumulate_min(result, i->until);
-			}
-			++i;
-		}
-	}
-	return result;
-}
-
-void clearNotifies(PeerId peerId) {
-	if (!_notifier) return;
-
-	if (peerId) {
-		auto i = _notifications.find(peerId);
-		if (i != _notifications.cend()) {
-			auto temp = createAndSwap(i.value());
-			_notifications.erase(i);
-
-			for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
-				_notifier->Hide(j->p.Get());
-			}
-		}
-	} else {
-		auto temp = createAndSwap(_notifications);
-		for_const (auto &notifications, temp) {
-			for_const (auto &notification, notifications) {
-				_notifier->Hide(notification.p.Get());
-			}
-		}
-	}
-}
-
-void finish() {
-	_notifications.clear();
-	if (_notificationManager) _notificationManager.Reset();
-	if (_notifier) _notifier.Reset();
-	if (_notificationFactory) _notificationFactory.Reset();
-
-	if (_imageSavedFlag) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
-	}
-}
-
 HRESULT SetNodeValueString(_In_ HSTRING inputString, _In_ IXmlNode *node, _In_ IXmlDocument *xml) {
 	ComPtr<IXmlText> inputText;
 
@@ -446,7 +380,87 @@ QString getImage(const StorageKey &key, PeerData *peer) {
 	return i->path;
 }
 
-bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg) {
+} // namespace
+
+void start() {
+	_supported = init();
+}
+
+void finish() {
+}
+
+bool supported() {
+	return _supported;
+}
+
+uint64 clearImages(uint64 ms) {
+	uint64 result = 0;
+	for (auto i = _images.begin(); i != _images.end();) {
+		if (!i->until) {
+			++i;
+			continue;
+		}
+		if (i->until <= ms) {
+			QFile(i->path).remove();
+			i = _images.erase(i);
+		} else {
+			if (!result) {
+				result = i->until;
+			} else {
+				accumulate_min(result, i->until);
+			}
+			++i;
+		}
+	}
+	return result;
+}
+
+class Manager::Impl {
+public:
+	bool create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
+	void clear(History *history, bool fast);
+
+	~Impl();
+
+private:
+
+};
+
+Manager::Impl::~Impl() {
+	_notifications.clear();
+	if (_notificationManager) _notificationManager.Reset();
+	if (_notifier) _notifier.Reset();
+	if (_notificationFactory) _notificationFactory.Reset();
+
+	if (_imageSavedFlag) {
+		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+	}
+}
+
+void Manager::Impl::clear(History *history, bool fast) {
+	if (!_notifier) return;
+
+	if (history) {
+		auto i = _notifications.find(history->peer->id);
+		if (i != _notifications.cend()) {
+			auto temp = createAndSwap(i.value());
+			_notifications.erase(i);
+
+			for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
+				_notifier->Hide(j->p.Get());
+			}
+		}
+	} else {
+		auto temp = createAndSwap(_notifications);
+		for_const (auto &notifications, temp) {
+			for_const (auto &notification, notifications) {
+				_notifier->Hide(notification.p.Get());
+			}
+		}
+	}
+}
+
+bool Manager::Impl::create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
 	if (!supported() || !_notificationManager || !_notifier || !_notificationFactory) return false;
 
 	ComPtr<IXmlDocument> toastXml;
@@ -460,7 +474,7 @@ bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, con
 
 	StorageKey key;
 	QString imagePath;
-	if (showpix) {
+	if (showUserpic) {
 		key = peer->userpicUniqueKey();
 	} else {
 		key = StorageKey(0, 0);
@@ -547,6 +561,19 @@ bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, con
 	_notifications[peer->id].insert(msgId, toast);
 
 	return true;
+}
+
+Manager::Manager() : _impl(std_::make_unique<Impl>()) {
+}
+
+Manager::~Manager() = default;
+
+void Manager::create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+	_impl->create(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
+}
+
+void Manager::clear(History *history, bool fast) {
+	return _impl->clear(history, fast);
 }
 
 } // namespace Toasts

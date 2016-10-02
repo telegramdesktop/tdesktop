@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "observer_peer.h"
 #include "window/chat_background.h"
+#include "window/notifications_abstract_manager.h"
 #include "history/history_location_manager.h"
 
 namespace {
@@ -728,6 +729,7 @@ AppClass::AppClass() : QObject()
 	style::startManager();
 	anim::startManager();
 	historyInit();
+	Window::Notifications::start();
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -741,7 +743,8 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: starting app..."));
 
-	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
+	// Create mime database, so it won't be slow later.
+	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = new MainWindow();
 	_window->createWinId();
@@ -1100,6 +1103,8 @@ AppClass::~AppClass() {
 	auto window = createAndSwap(_window);
 	delete window;
 
+	Window::Notifications::finish();
+
 	anim::stopManager();
 
 	stopWebLoadManager();
@@ -1126,9 +1131,9 @@ AppClass *AppClass::app() {
 }
 
 MainWindow *AppClass::wnd() {
-	return AppObject ? AppObject->_window : 0;
+	return AppObject ? AppObject->_window : nullptr;
 }
 
 MainWidget *AppClass::main() {
-	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : 0;
+	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : nullptr;
 }

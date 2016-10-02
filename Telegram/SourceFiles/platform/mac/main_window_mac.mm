@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "historywidget.h"
 #include "localstorage.h"
+#include "window/notifications_default_manager.h"
 
 #include "lang.h"
 
@@ -467,7 +468,7 @@ void MainWindow::psClearNotifies(PeerId peerId) {
 	_private.clearNotifies(peerId);
 }
 
-void MainWindow::psActivateNotify(NotifyWindow *w) {
+void MainWindow::psActivateNotify(Window::Notifications::Widget *w) {
 	objc_activateWnd(w->winId());
 }
 
@@ -475,7 +476,7 @@ bool MainWindow::psFilterNativeEvent(void *event) {
 	return _private.filterNativeEvent(event);
 }
 
-void MainWindow::psNotifyShown(NotifyWindow *w) {
+void MainWindow::psNotifyShown(Window::Notifications::Widget *w) {
 	w->hide();
 	objc_holdOnTop(w->winId());
 	w->show();

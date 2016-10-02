@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "platform/win/windows_toasts.h"
 #include "platform/win/windows_dlls.h"
+#include "window/notifications_abstract_manager.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "lang.h"
@@ -819,8 +820,8 @@ void MainWindow::psInitFrameless() {
 	psUpdatedPositionTimer.setSingleShot(true);
 	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
 
-	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
-	ps_hWnd = static_cast<HWND>(i->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
+	auto platformInterface = QGuiApplication::platformNativeInterface();
+	ps_hWnd = static_cast<HWND>(platformInterface->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
 
 	if (!ps_hWnd) return;
 
@@ -1066,8 +1067,6 @@ MainWindow::~MainWindow() {
 
 	if (taskbarList) taskbarList.Reset();
 
-	Toasts::finish();
-
 	_shadowsWorking = false;
 	if (ps_menu) DestroyMenu(ps_menu);
 	psDestroyIcons();
@@ -1075,23 +1074,22 @@ MainWindow::~MainWindow() {
 	if (ps_tbHider_hWnd) DestroyWindow(ps_tbHider_hWnd);
 }
 
-void MainWindow::psActivateNotify(NotifyWindow *w) {
+void MainWindow::psActivateNotify(Window::Notifications::Widget *w) {
 }
 
-void MainWindow::psClearNotifies(PeerId peerId) {
-	Toasts::clearNotifies(peerId);
+void MainWindow::psClearNotifies(History *history) {
+	if (history) {
+		Window::Notifications::manager()->clearFromHistory(history);
+	} else {
+		Window::Notifications::manager()->clearAllFast();
+	}
 }
 
-void MainWindow::psNotifyShown(NotifyWindow *w) {
+void MainWindow::psNotifyShown(Window::Notifications::Widget *w) {
 }
 
 void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-	QString title = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
-	QString subtitle = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
-	bool showpix = (!App::passcoded() && Global::NotifyView() <= dbinvShowName);
-	QString msg = (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
-
-	Toasts::create(item->history()->peer, item->id, showpix, title, subtitle, msg);
+	Window::Notifications::manager()->showNotification(item, fwdCount);
 }
 
 } // namespace Platform

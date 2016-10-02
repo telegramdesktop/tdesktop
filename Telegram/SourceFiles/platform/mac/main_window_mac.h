@@ -23,7 +23,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include "pspecific_mac_p.h"
 
-class NotifyWindow;
+namespace Window {
+namespace Notifications {
+class Widget;
+} // namespace Notifications
+} // namespace Window
 
 namespace Platform {
 
@@ -70,9 +74,9 @@ public:
 
 	bool psFilterNativeEvent(void *event);
 
-	void psActivateNotify(NotifyWindow *w);
+	void psActivateNotify(Window::Notifications::Widget *w);
 	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
+	void psNotifyShown(Window::Notifications::Widget *w);
 	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
 
 	bool eventFilter(QObject *obj, QEvent *evt) override;

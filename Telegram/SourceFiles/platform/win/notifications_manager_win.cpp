@@ -18,33 +18,34 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "platform/win/notifications_manager_win.h"
 
-#include "window/notifications_abstract_manager.h"
+#include "platform/win/windows_toasts.h"
 
 namespace Platform {
-namespace Toasts {
+namespace Notifications {
+namespace {
 
-void start();
-bool supported();
+NeverFreedPointer<Toasts::Manager> ToastsManager;
 
-// Returns the next ms when clearImages() should be called.
-uint64 clearImages(uint64 ms);
+} // namespace
 
-class Manager : public Window::Notifications::AbstractManager {
-public:
-	Manager();
+void start() {
+	Toasts::start();
+}
 
-	~Manager();
+Window::Notifications::AbstractManager *manager() {
+	if (Toasts::supported()) {
+		ToastsManager.makeIfNull();
+		return ToastsManager.data();
+	}
+	return nullptr;
+}
 
-private:
-	void create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
-	void clear(History *history, bool fast) override;
+void finish() {
+	ToastsManager.reset();
+}
 
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
-
-};
-
-} // namespace Toasts
+} // namespace Notifications
 } // namespace Platform

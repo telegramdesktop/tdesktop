@@ -23,8 +23,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include <windows.h>
 
-class NotifyWindow;
 class PopupMenu;
+
+namespace Window {
+namespace Notifications {
+class Widget;
+} // namespace Notifications
+} // namespace Window
 
 namespace Platform {
 
@@ -62,9 +67,9 @@ public:
 		return posInited;
 	}
 
-	void psActivateNotify(NotifyWindow *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
+	void psActivateNotify(Window::Notifications::Widget *w);
+	void psClearNotifies(History *history = nullptr);
+	void psNotifyShown(Window::Notifications::Widget *w);
 	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
 
 	void psUpdateCounter();

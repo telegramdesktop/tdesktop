@@ -663,13 +663,13 @@ void MainWindow::psUpdateMargins() {
 void MainWindow::psFlash() {
 }
 
-void MainWindow::psActivateNotify(NotifyWindow *w) {
+void MainWindow::psActivateNotify(Window::Notifications::Widget *w) {
 }
 
 void MainWindow::psClearNotifies(PeerId peerId) {
 }
 
-void MainWindow::psNotifyShown(NotifyWindow *w) {
+void MainWindow::psNotifyShown(Window::Notifications::Widget *w) {
 }
 
 void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {

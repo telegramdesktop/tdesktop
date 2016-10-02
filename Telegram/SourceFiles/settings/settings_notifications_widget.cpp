@@ -57,13 +57,13 @@ void NotificationsWidget::createControls() {
 		_showSenderName->hideFast();
 		_showMessagePreview->hideFast();
 	}
+	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
+	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
 #ifdef Q_OS_WIN
 	if (App::wnd()->psHasNativeNotifications()) {
 		addChildRow(_windowsNative, margin, lang(lng_settings_use_windows), SLOT(onWindowsNative()), Global::WindowsNotifications());
 	}
 #endif // Q_OS_WIN
-	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
-	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
 }
 
 void NotificationsWidget::onDesktopNotifications() {

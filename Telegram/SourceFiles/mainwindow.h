@@ -32,97 +32,39 @@ class IntroWidget;
 class MainWidget;
 class LayerStackWidget;
 class LayerWidget;
+
 namespace Local {
 class ClearManager;
 } // namespace Local
+
 namespace Settings {
 class Widget;
 } // namespace Settings
+
+namespace Window {
+namespace Notifications {
+class Widget;
+} // namespace Notifications
+} // namespace Window
 
 class ConnectingWidget : public QWidget {
 	Q_OBJECT
 
 public:
-
 	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
 	void set(const QString &text, const QString &reconnect);
 	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void onReconnect();
 
 private:
-
 	Ui::RectShadow _shadow;
 	QString _text;
 	int32 _textWidth;
 	LinkButton _reconnect;
 
 };
-
-class NotifyWindow : public TWidget {
-	Q_OBJECT
-
-public:
-
-	NotifyWindow(HistoryItem *item, int32 x, int32 y, int32 fwdCount);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-
-	void step_appearance(float64 ms, bool timer);
-	void animHide(float64 duration, anim::transition func);
-	void startHiding();
-	void stopHiding();
-	void moveTo(int32 x, int32 y, int32 index = -1);
-
-	void updateNotifyDisplay();
-	void updatePeerPhoto();
-
-	void itemRemoved(HistoryItem *del);
-
-	int32 index() const {
-		return history ? _index : -1;
-	}
-
-	void unlinkHistory(History *hist = 0);
-
-	~NotifyWindow();
-
-public slots:
-
-	void hideByTimer();
-	void checkLastInput();
-
-	void unlinkHistoryAndNotify();
-
-private:
-
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-	DWORD started;
-#endif // Q_OS_WIN && !Q_OS_WINRT
-	History *history;
-	HistoryItem *item;
-	int32 fwdCount;
-	IconedButton close;
-	QPixmap pm;
-	float64 alphaDuration, posDuration;
-	QTimer hideTimer, inputTimer;
-	bool hiding;
-	int32 _index;
-	anim::fvalue a_opacity;
-	anim::transition a_func;
-	anim::ivalue a_y;
-	Animation _a_appearance;
-
-	ImagePtr peerPhoto;
-
-};
-
-typedef QList<NotifyWindow*> NotifyWindows;
 
 class MediaPreviewWidget;
 
@@ -208,7 +150,7 @@ public:
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
-	void notifyShowNext(NotifyWindow *remove = 0);
+	void notifyShowNext(Window::Notifications::Widget *remove = 0);
 	void notifyItemRemoved(HistoryItem *item);
 	void notifyStopHiding();
 	void notifyStartHiding();
@@ -354,9 +296,11 @@ private:
 	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
 	NotifyWhenAlerts notifyWhenAlerts;
 
-	NotifyWindows notifyWindows;
+	using NotifyWidgets = QList<Window::Notifications::Widget*>;
+	NotifyWidgets notifyWidgets;
 
 	MediaView *_mediaView = nullptr;
+
 };
 
 class PreLaunchWindow : public TWidget {

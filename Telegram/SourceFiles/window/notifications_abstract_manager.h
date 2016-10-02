@@ -20,31 +20,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_abstract_manager.h"
+namespace Window {
+namespace Notifications {
 
-namespace Platform {
-namespace Toasts {
+class AbstractManager;
 
 void start();
-bool supported();
+AbstractManager *manager();
+void finish();
 
-// Returns the next ms when clearImages() should be called.
-uint64 clearImages(uint64 ms);
-
-class Manager : public Window::Notifications::AbstractManager {
+class AbstractManager {
 public:
-	Manager();
-
-	~Manager();
+	void showNotification(HistoryItem *item, int forwardedCount);
+	void clearAllFast();
+	void clearAll();
+	void clearFromHistory(History *history);
 
 private:
-	void create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
-	void clear(History *history, bool fast) override;
-
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	virtual void create(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) = 0;
+	virtual void clear(History *history, bool fast) = 0;
 
 };
 
-} // namespace Toasts
-} // namespace Platform
+} // namespace Notifications
+} // namespace Window

@@ -43,6 +43,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
+#include "window/notifications_default_manager.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
 , _shadow(st::boxShadow)
@@ -79,289 +80,6 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 
 void ConnectingWidget::onReconnect() {
 	MTP::restart();
-}
-
-NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) : TWidget(0)
-, history(msg->history())
-, item(msg)
-, fwdCount(fwdCount)
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-, started(GetTickCount())
-#endif // Q_OS_WIN && !Q_OS_WINRT
-, close(this, st::notifyClose)
-, alphaDuration(st::notifyFastAnim)
-, posDuration(st::notifyFastAnim)
-, hiding(false)
-, _index(0)
-, a_opacity(0)
-, a_func(anim::linear)
-, a_y(y + st::notifyHeight + st::notifyDeltaY)
-, _a_appearance(animation(this, &NotifyWindow::step_appearance)) {
-
-	updateNotifyDisplay();
-
-	hideTimer.setSingleShot(true);
-	connect(&hideTimer, SIGNAL(timeout()), this, SLOT(hideByTimer()));
-
-	inputTimer.setSingleShot(true);
-	connect(&inputTimer, SIGNAL(timeout()), this, SLOT(checkLastInput()));
-
-	connect(&close, SIGNAL(clicked()), this, SLOT(unlinkHistoryAndNotify()));
-	close.setAcceptBoth(true);
-	close.move(st::notifyWidth - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
-	close.show();
-
-	a_y.start(y);
-	setGeometry(x, a_y.current(), st::notifyWidth, st::notifyHeight);
-
-	a_opacity.start(1);
-    setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
-    setAttribute(Qt::WA_MacAlwaysShowToolWindow);
-
-	show();
-
-	setWindowOpacity(a_opacity.current());
-
-	alphaDuration = posDuration = st::notifyFastAnim;
-	_a_appearance.start();
-
-	checkLastInput();
-}
-
-void NotifyWindow::checkLastInput() {
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-	LASTINPUTINFO lii;
-	lii.cbSize = sizeof(LASTINPUTINFO);
-	BOOL res = GetLastInputInfo(&lii);
-	if (!res || lii.dwTime >= started) {
-		hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		inputTimer.start(300);
-	}
-#else // Q_OS_WIN && !Q_OS_WINRT
-    // TODO
-	if (true) {
-		hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		inputTimer.start(300);
-	}
-#endif // else for Q_OS_WIN && !Q_OS_WINRT
-}
-
-void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
-	if (index >= 0) {
-		_index = index;
-	}
-	move(x, a_y.current());
-	a_y.start(y);
-	a_opacity.restart();
-	posDuration = st::notifyFastAnim;
-	_a_appearance.start();
-}
-
-void NotifyWindow::updateNotifyDisplay() {
-	if (!item) return;
-
-	int32 w = st::notifyWidth, h = st::notifyHeight;
-	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
-	img.fill(st::notifyBG->c);
-
-	{
-		Painter p(&img);
-		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			history->peer->loadUserpic(true, true);
-			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
-		} else {
-			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
-		}
-
-		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
-
-		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(history->peer, false)) {
-				chatTypeIcon->paint(p, rectForName.topLeft(), w);
-				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
-			}
-		}
-
-		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt = lastTime.toString(cTimeFormat());
-		int32 dtWidth = st::dialogsTextFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dialogsDateSkip);
-		p.setFont(st::dialogsDateFont);
-		p.setPen(st::dialogsDateFg);
-		p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::dialogsTextFont->ascent, dt);
-
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) {
-			const HistoryItem *textCachedFor = 0;
-			Text itemTextCache(itemWidth);
-			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
-			if (fwdCount < 2) {
-				bool active = false;
-				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
-			} else {
-				p.setFont(st::dialogsTextFont);
-				if (item->hasFromName() && !item->isPost()) {
-					itemTextCache.setText(st::dialogsTextFont, item->author()->name);
-					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
-					r.setTop(r.top() + st::dialogsTextFont->height);
-				}
-				p.setPen(st::dialogsTextFg);
-				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, lng_forward_messages(lt_count, fwdCount));
-			}
-		} else {
-			static QString notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
-			p.setPen(st::dialogsTextFgService);
-			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
-		}
-
-		p.setPen(st::dialogsNameFg);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-		} else {
-			p.setFont(st::msgNameFont->f);
-			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
-			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
-		}
-	}
-
-	pm = App::pixmapFromImageInPlace(std_::move(img));
-	update();
-}
-
-void NotifyWindow::updatePeerPhoto() {
-	if (!peerPhoto->isNull() && peerPhoto->loaded()) {
-		QImage img(pm.toImage());
-		{
-			QPainter p(&img);
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
-		}
-		peerPhoto = ImagePtr();
-		pm = App::pixmapFromImageInPlace(std_::move(img));
-		update();
-	}
-}
-
-void NotifyWindow::itemRemoved(HistoryItem *del) {
-	if (item == del) {
-		item = 0;
-		unlinkHistoryAndNotify();
-	}
-}
-
-void NotifyWindow::unlinkHistoryAndNotify() {
-	unlinkHistory();
-	App::wnd()->notifyShowNext();
-}
-
-void NotifyWindow::unlinkHistory(History *hist) {
-	if (!hist || hist == history) {
-		animHide(st::notifyFastAnim, anim::linear);
-		history = 0;
-		item = 0;
-	}
-}
-
-void NotifyWindow::enterEvent(QEvent *e) {
-	if (!history) return;
-	if (App::wnd()) App::wnd()->notifyStopHiding();
-}
-
-void NotifyWindow::leaveEvent(QEvent *e) {
-	if (!history) return;
-	App::wnd()->notifyStartHiding();
-}
-
-void NotifyWindow::startHiding() {
-	hideTimer.start(st::notifyWaitShortHide);
-}
-
-void NotifyWindow::mousePressEvent(QMouseEvent *e) {
-	if (!history) return;
-
-	PeerId peer = history->peer->id;
-	MsgId msgId = (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId;
-
-	if (e->button() == Qt::RightButton) {
-		unlinkHistoryAndNotify();
-	} else {
-		App::wnd()->showFromTray();
-		if (App::passcoded()) {
-			App::wnd()->setInnerFocus();
-			App::wnd()->notifyClear();
-		} else {
-			Ui::showPeerHistory(peer, msgId);
-		}
-		e->ignore();
-	}
-}
-
-void NotifyWindow::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	p.drawPixmap(0, 0, pm);
-}
-
-void NotifyWindow::animHide(float64 duration, anim::transition func) {
-	if (!history) return;
-	alphaDuration = duration;
-	a_func = func;
-	a_opacity.start(0);
-	a_y.restart();
-	hiding = true;
-	_a_appearance.start();
-}
-
-void NotifyWindow::stopHiding() {
-	if (!history) return;
-	alphaDuration = st::notifyFastAnim;
-	a_func = anim::linear;
-	a_opacity.start(1);
-	a_y.restart();
-	hiding = false;
-	hideTimer.stop();
-	_a_appearance.start();
-}
-
-void NotifyWindow::hideByTimer() {
-	if (!history) return;
-	animHide(st::notifySlowHide, st::notifySlowHideFunc);
-}
-
-void NotifyWindow::step_appearance(float64 ms, bool timer) {
-	float64 dtAlpha = ms / alphaDuration, dtPos = ms / posDuration;
-	if (dtAlpha >= 1) {
-		a_opacity.finish();
-		if (hiding) {
-			_a_appearance.stop();
-			deleteLater();
-		} else if (dtPos >= 1) {
-			_a_appearance.stop();
-		}
-	} else {
-		a_opacity.update(dtAlpha, a_func);
-	}
-	setWindowOpacity(a_opacity.current());
-	if (dtPos >= 1) {
-		a_y.finish();
-	} else {
-		a_y.update(dtPos, anim::linear);
-	}
-	move(x(), a_y.current());
-	update();
-}
-
-NotifyWindow::~NotifyWindow() {
-	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
 MainWindow::MainWindow() {
@@ -1440,8 +1158,8 @@ void MainWindow::notifyFire() {
 
 void MainWindow::notifyClear(History *history) {
 	if (!history) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->unlinkHistory();
+		for_const (auto widget, notifyWidgets) {
+			widget->unlinkHistory();
 		}
 		psClearNotifies();
 		for (NotifyWhenMaps::const_iterator i = notifyWhenMaps.cbegin(), e = notifyWhenMaps.cend(); i != e; ++i) {
@@ -1454,10 +1172,10 @@ void MainWindow::notifyClear(History *history) {
 	}
 	notifyWaiters.remove(history);
 	notifySettingWaiters.remove(history);
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		(*i)->unlinkHistory(history);
+	for_const (auto widget, notifyWidgets) {
+		widget->unlinkHistory(history);
 	}
-	psClearNotifies(history->peer->id);
+	psClearNotifies(history);
 	notifyWhenMaps.remove(history);
 	notifyWhenAlerts.remove(history);
 	notifyShowNext();
@@ -1466,11 +1184,11 @@ void MainWindow::notifyClear(History *history) {
 void MainWindow::notifyClearFast() {
 	notifyWaiters.clear();
 	notifySettingWaiters.clear();
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		(*i)->deleteLater();
+	for_const (auto widget, notifyWidgets) {
+		widget->deleteLater();
 	}
 	psClearNotifies();
-	notifyWindows.clear();
+	notifyWidgets.clear();
 	notifyWhenMaps.clear();
 	notifyWhenAlerts.clear();
 }
@@ -1517,14 +1235,14 @@ void MainWindow::notifySettingGot() {
 	notifyShowNext();
 }
 
-void MainWindow::notifyShowNext(NotifyWindow *remove) {
+void MainWindow::notifyShowNext(Window::Notifications::Widget *remove) {
 	if (App::quitting()) return;
 
 	int32 count = NotifyWindowsCount;
 	if (remove) {
-		for (NotifyWindows::iterator i = notifyWindows.begin(), e = notifyWindows.end(); i != e; ++i) {
+		for (auto i = notifyWidgets.begin(), e = notifyWidgets.end(); i != e; ++i) {
 			if ((*i) == remove) {
-				notifyWindows.erase(i);
+				notifyWidgets.erase(i);
 				break;
 			}
 		}
@@ -1560,9 +1278,8 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 	}
 
     if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            int32 ind = (*i)->index();
-            if (ind < 0) continue;
+        for_const (auto widget, notifyWidgets) {
+            if (widget->index() < 0) continue;
             --count;
         }
     }
@@ -1663,9 +1380,9 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 				}
 
 				if (Global::CustomNotifies()) {
-					NotifyWindow *notify = new NotifyWindow(notifyItem, x, y, fwdCount);
-					notifyWindows.push_back(notify);
-					psNotifyShown(notify);
+					auto widget = new Window::Notifications::Widget(notifyItem, x, y, fwdCount);
+					notifyWidgets.push_back(widget);
+					psNotifyShown(widget);
 					--count;
 				} else {
 					psPlatformNotify(notifyItem, fwdCount);
@@ -1686,42 +1403,41 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 	}
 
 	count = NotifyWindowsCount - count;
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		int32 ind = (*i)->index();
-		if (ind < 0) continue;
+	for_const (auto widget, notifyWidgets) {
+		if (widget->index() < 0) continue;
 		--count;
-		(*i)->moveTo(x, y - count * (st::notifyHeight + st::notifyDeltaY));
+		widget->moveTo(x, y - count * (st::notifyHeight + st::notifyDeltaY));
 	}
 }
 
 void MainWindow::notifyItemRemoved(HistoryItem *item) {
 	if (Global::CustomNotifies()) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->itemRemoved(item);
+		for_const (auto widget, notifyWidgets) {
+			widget->itemRemoved(item);
 		}
 	}
 }
 
 void MainWindow::notifyStopHiding() {
     if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->stopHiding();
+		for_const (auto widget, notifyWidgets) {
+			widget->stopHiding();
         }
     }
 }
 
 void MainWindow::notifyStartHiding() {
     if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->startHiding();
+		for_const (auto widget, notifyWidgets) {
+			widget->startHiding();
         }
     }
 }
 
 void MainWindow::notifyUpdateAllPhotos() {
     if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->updatePeerPhoto();
+		for_const (auto widget, notifyWidgets) {
+			widget->updatePeerPhoto();
         }
     }
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
@@ -1733,8 +1449,8 @@ void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButt
 
 void MainWindow::notifyUpdateAll() {
 	if (Global::CustomNotifies()) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->updateNotifyDisplay();
+		for_const (auto widget, notifyWidgets) {
+			widget->updateNotifyDisplay();
 		}
 	}
 	psClearNotifies();
@@ -1742,8 +1458,8 @@ void MainWindow::notifyUpdateAll() {
 
 void MainWindow::notifyActivateAll() {
 	if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            psActivateNotify(*i);
+        for_const (auto widget, notifyWidgets) {
+            psActivateNotify(widget);
         }
     }
 }

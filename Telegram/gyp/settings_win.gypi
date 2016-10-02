@@ -46,6 +46,13 @@
           'ImageHasSafeExceptionHandlers': 'false',   # Disable /SAFESEH
         },
       },
+      'msvs_external_builder_build_cmd': [
+        'ninja.exe',
+        '-C',
+        '$(OutDir)',
+        '-k0',
+        '$(ProjectName)',
+      ],
       'libraries': [
         'winmm',
         'imm32',
