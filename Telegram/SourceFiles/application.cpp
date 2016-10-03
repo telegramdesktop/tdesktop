@@ -303,9 +303,8 @@ void Application::readClients() {
 	if (!startUrl.isEmpty()) {
 		cSetStartUrl(startUrl);
 	}
-	if (!cStartUrl().isEmpty() && App::main() && App::self()) {
-		App::main()->openLocalUrl(cStartUrl());
-		cSetStartUrl(QString());
+	if (auto main = App::main()) {
+		main->checkStartUrl();
 	}
 }
 
