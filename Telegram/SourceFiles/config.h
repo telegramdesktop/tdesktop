@@ -292,6 +292,10 @@ static const int32 ApiId = 17349;
 static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #endif
 
+#if Q_BYTE_ORDER == Q_BIG_ENDIAN
+#error "Only little endian is supported!"
+#endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
+
 #ifndef BETA_VERSION_MACRO
 #error "Beta version macro is not defined."
 #endif

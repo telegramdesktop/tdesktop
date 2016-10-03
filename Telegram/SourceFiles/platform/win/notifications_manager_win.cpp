@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/notifications_manager_win.h"
 
+#include "window/notifications_utilities.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
@@ -47,9 +48,6 @@ namespace Platform {
 namespace Notifications {
 namespace {
 
-// Delete notify photo file after 1 minute of not using.
-constexpr int kNotifyDeletePhotoAfterMs = 60000;
-
 NeverFreedPointer<Manager> ManagerInstance;
 
 ComPtr<IToastNotificationManagerStatics> _notificationManager;
@@ -65,13 +63,6 @@ struct NotificationPtr {
 };
 using Notifications = QMap<PeerId, QMap<MsgId, NotificationPtr>>;
 Notifications _notifications;
-struct Image {
-	uint64 until;
-	QString path;
-};
-using Images = QMap<StorageKey, Image>;
-Images _images;
-bool _imageSavedFlag = false;
 
 class StringReferenceWrapper {
 public:
@@ -155,7 +146,6 @@ bool init() {
 	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
 		return false;
 	}
-	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 	return true;
 }
 
@@ -322,38 +312,6 @@ private:
 
 };
 
-QString getImage(const StorageKey &key, PeerData *peer) {
-	uint64 ms = getms(true);
-	auto i = _images.find(key);
-	if (i != _images.cend()) {
-		if (i->until) {
-			i->until = ms + kNotifyDeletePhotoAfterMs;
-			if (auto manager = ManagerInstance.data()) {
-				manager->clearPhotosInMs(-kNotifyDeletePhotoAfterMs);
-			}
-		}
-	} else {
-		Image v;
-		if (key.first) {
-			v.until = ms + kNotifyDeletePhotoAfterMs;
-			if (auto manager = ManagerInstance.data()) {
-				manager->clearPhotosInMs(-kNotifyDeletePhotoAfterMs);
-			}
-		} else {
-			v.until = 0;
-		}
-		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
-		if (key.first || key.second) {
-			peer->saveUserpic(v.path, st::notifyMacPhotoSize);
-		} else {
-			App::wnd()->iconLarge().save(v.path, "PNG");
-		}
-		i = _images.insert(key, v);
-		_imageSavedFlag = true;
-	}
-	return i->path;
-}
-
 } // namespace
 
 void start() {
@@ -377,28 +335,6 @@ void finish() {
 	ManagerInstance.clear();
 }
 
-uint64 clearImages(uint64 ms) {
-	uint64 result = 0;
-	for (auto i = _images.begin(); i != _images.end();) {
-		if (!i->until) {
-			++i;
-			continue;
-		}
-		if (i->until <= ms) {
-			QFile(i->path).remove();
-			i = _images.erase(i);
-		} else {
-			if (!result) {
-				result = i->until;
-			} else {
-				accumulate_min(result, i->until);
-			}
-			++i;
-		}
-	}
-	return result;
-}
-
 class Manager::Impl {
 public:
 	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
@@ -411,8 +347,7 @@ public:
 	~Impl();
 
 private:
-	QTimer _clearPhotosTimer;
-	friend class Manager;
+	Window::Notifications::CachedUserpics _cachedUserpics;
 
 };
 
@@ -421,10 +356,6 @@ Manager::Impl::~Impl() {
 	if (_notificationManager) _notificationManager.Reset();
 	if (_notifier) _notifier.Reset();
 	if (_notificationFactory) _notificationFactory.Reset();
-
-	if (_imageSavedFlag) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
-	}
 }
 
 void Manager::Impl::clearAll() {
@@ -446,8 +377,8 @@ void Manager::Impl::clearFromHistory(History *history) {
 		auto temp = createAndSwap(i.value());
 		_notifications.erase(i);
 
-		for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
-			_notifier->Hide(j->p.Get());
+		for_const (auto &notification, temp) {
+			_notifier->Hide(notification.p.Get());
 		}
 	}
 }
@@ -485,16 +416,15 @@ bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	if (!SUCCEEDED(hr)) return false;
 
 	StorageKey key;
-	QString imagePath;
 	if (showUserpic) {
 		key = peer->userpicUniqueKey();
 	} else {
 		key = StorageKey(0, 0);
 	}
-	QString image = getImage(key, peer);
-	std::wstring wimage = QDir::toNativeSeparators(image).toStdWString();
+	auto userpicPath = _cachedUserpics.get(key, peer);
+	auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
-	hr = SetImageSrc(wimage.c_str(), toastXml.Get());
+	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
 	ComPtr<IXmlNodeList> nodeList;
@@ -576,29 +506,10 @@ bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 }
 
 Manager::Manager() : _impl(std_::make_unique<Impl>()) {
-	connect(&_impl->_clearPhotosTimer, SIGNAL(timeout()), this, SLOT(onClearPhotos()));
-}
-
-void Manager::clearPhotosInMs(int ms) {
-	if (ms < 0) {
-		ms = -ms;
-		if (_impl->_clearPhotosTimer.isActive() && _impl->_clearPhotosTimer.remainingTime() <= ms) {
-			return;
-		}
-	}
-	_impl->_clearPhotosTimer.start(ms);
 }
 
 void Manager::clearNotification(PeerId peerId, MsgId msgId) {
 	_impl->clearNotification(peerId, msgId);
-}
-
-void Manager::onClearPhotos() {
-	auto ms = getms(true);
-	auto minuntil = clearImages(ms);
-	if (minuntil) {
-		clearPhotosInMs(int32(minuntil - ms));
-	}
 }
 
 Manager::~Manager() = default;

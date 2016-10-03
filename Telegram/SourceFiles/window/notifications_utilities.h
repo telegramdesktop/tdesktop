@@ -22,39 +22,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/notifications_manager.h"
 
-namespace Platform {
+namespace Window {
 namespace Notifications {
 
-class Manager;
+class CachedUserpics : public QObject {
+	Q_OBJECT
 
-void start();
-Manager *manager();
-bool supported();
-void finish();
-
-inline void defaultNotificationShown(QWidget *widget) {
-}
-
-class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
+	CachedUserpics();
 
-	void clearNotification(PeerId peerId, MsgId msgId);
+	QString get(const StorageKey &key, PeerData *peer);
 
-	~Manager();
+	~CachedUserpics();
 
-protected:
-	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
-	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-	void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) override;
-	void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
+private slots:
+	void onClear();
 
 private:
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	void clearInMs(int ms);
+	uint64 clear(uint64 ms);
+
+	struct Image {
+		uint64 until;
+		QString path;
+	};
+	using Images = QMap<StorageKey, Image>;
+	Images _images;
+	bool _someSavedFlag = false;
+	SingleTimer _clearTimer;
 
 };
 
-} // namespace Notifications
-} // namespace Platform
+} // namesapce Notifications
+} // namespace Window

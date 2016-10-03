@@ -63,21 +63,10 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
     return FALSE;
 }
 
-#if Q_BYTE_ORDER == Q_BIG_ENDIAN
-
-#define QT_RED 3
-#define QT_GREEN 2
-#define QT_BLUE 1
-#define QT_ALPHA 0
-
-#else
-
 #define QT_RED 0
 #define QT_GREEN 1
 #define QT_BLUE 2
 #define QT_ALPHA 3
-
-#endif
 
 #define GTK_RED 2
 #define GTK_GREEN 1

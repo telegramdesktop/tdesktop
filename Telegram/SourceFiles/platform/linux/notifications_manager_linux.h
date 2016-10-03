@@ -25,12 +25,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
+class Manager;
+
 void start();
-Window::Notifications::Manager *manager();
+Manager *manager();
 void finish();
 
 inline void defaultNotificationShown(QWidget *widget) {
 }
+
+class Manager : public Window::Notifications::NativeManager {
+public:
+	Manager();
+	~Manager();
+
+protected:
+	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) override;
+	void doClearAllFast() override;
+	void doClearFromHistory(History *history) override;
+
+private:
+	class Impl;
+	friend class Impl;
+	std_::unique_ptr<Impl> _impl;
+
+};
 
 } // namespace Notifications
 } // namespace Platform

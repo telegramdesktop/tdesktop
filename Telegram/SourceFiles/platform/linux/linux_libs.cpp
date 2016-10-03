@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/linux/linux_libs.h"
 
 #include "platform/linux/linux_gdk_helper.h"
+#include "platform/linux/linux_libnotify.h"
 
 namespace Platform {
 namespace Libs {
@@ -175,6 +176,7 @@ f_app_indicator_set_menu app_indicator_set_menu = nullptr;
 f_app_indicator_set_icon_full app_indicator_set_icon_full = nullptr;
 f_gdk_init_check gdk_init_check = nullptr;
 f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
+f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file = nullptr;
 f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf = nullptr;
 f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf = nullptr;
 f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file = nullptr;
@@ -233,6 +235,7 @@ void start() {
 	if (gtkLoaded) {
 		load(lib_gtk, "gdk_init_check", gdk_init_check);
 		load(lib_gtk, "gdk_pixbuf_new_from_data", gdk_pixbuf_new_from_data);
+		load(lib_gtk, "gdk_pixbuf_new_from_file", gdk_pixbuf_new_from_file);
 		load(lib_gtk, "gtk_status_icon_new_from_pixbuf", gtk_status_icon_new_from_pixbuf);
 		load(lib_gtk, "gtk_status_icon_set_from_pixbuf", gtk_status_icon_set_from_pixbuf);
 		load(lib_gtk, "gtk_status_icon_new_from_file", gtk_status_icon_new_from_file);
@@ -266,6 +269,10 @@ void start() {
 		load(lib_unity, "unity_launcher_entry_set_count_visible", unity_launcher_entry_set_count_visible);
 	}
 #endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
+
+	if (gtkLoaded) {
+		startLibNotify();
+	}
 }
 
 } // namespace Libs

@@ -273,6 +273,9 @@ extern f_gdk_init_check gdk_init_check;
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
 extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
 
+typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file)(const gchar *filename, GError **error);
+extern f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file;
+
 typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_pixbuf)(GdkPixbuf *pixbuf);
 extern f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf;
 
