@@ -29,6 +29,7 @@ class Manager;
 
 void start();
 Manager *manager();
+bool supported();
 void finish();
 
 inline void defaultNotificationShown(QWidget *widget) {
@@ -37,6 +38,11 @@ inline void defaultNotificationShown(QWidget *widget) {
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager();
+
+	void clearNotification(PeerId peerId, MsgId msgId);
+	bool hasPoorSupport() const;
+	bool hasActionsSupport() const;
+
 	~Manager();
 
 protected:

@@ -321,7 +321,7 @@ void start() {
 }
 
 Manager *manager() {
-	if (Global::WindowsNotifications()) {
+	if (Global::NativeNotifications()) {
 		return ManagerInstance.data();
 	}
 	return nullptr;

@@ -307,7 +307,7 @@ DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);
 DeclareVar(bool, IncludeMuted);
 DeclareVar(DBINotifyView, NotifyView);
-DeclareVar(bool, WindowsNotifications);
+DeclareVar(bool, NativeNotifications);
 DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DeclareVar(DBIConnectionType, ConnectionType);

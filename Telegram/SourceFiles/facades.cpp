@@ -634,7 +634,7 @@ struct Data {
 	bool RestoreSoundNotifyFromTray = false;
 	bool IncludeMuted = true;
 	DBINotifyView NotifyView = dbinvShowPreview;
-	bool WindowsNotifications = true;
+	bool NativeNotifications = false;
 	base::Observable<Notify::ChangeType> NotifySettingsChanged;
 
 	DBIConnectionType ConnectionType = dbictAuto;
@@ -741,7 +741,7 @@ DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);
 DefineVar(Global, bool, IncludeMuted);
 DefineVar(Global, DBINotifyView, NotifyView);
-DefineVar(Global, bool, WindowsNotifications);
+DefineVar(Global, bool, NativeNotifications);
 DefineRefVar(Global, base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DefineVar(Global, DBIConnectionType, ConnectionType);

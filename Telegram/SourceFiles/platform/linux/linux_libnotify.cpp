@@ -80,7 +80,11 @@ void startLibNotify() {
 
 	QLibrary lib_notify;
 	if (!loadLibrary(lib_notify, "notify", 4)) {
-		return;
+		if (!loadLibrary(lib_notify, "notify", 5)) {
+			if (!loadLibrary(lib_notify, "notify", 1)) {
+				return;
+			}
+		}
 	}
 
 	load(lib_notify, "notify_init", notify_init);

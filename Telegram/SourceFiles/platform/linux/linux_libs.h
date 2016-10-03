@@ -255,6 +255,9 @@ inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *de
 	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, G_CONNECT_SWAPPED);
 }
 
+typedef void (*f_g_signal_handler_disconnect)(gpointer instance, gulong handler_id);
+extern f_g_signal_handler_disconnect g_signal_handler_disconnect;
+
 typedef AppIndicator* (*f_app_indicator_new)(const gchar *id, const gchar *icon_name, AppIndicatorCategory category);
 extern f_app_indicator_new app_indicator_new;
 
@@ -323,6 +326,18 @@ extern f_g_idle_add g_idle_add;
 
 typedef void (*f_g_free)(gpointer mem);
 extern f_g_free g_free;
+
+typedef void (*f_g_list_foreach)(GList *list, GFunc func, gpointer user_data);
+extern f_g_list_foreach g_list_foreach;
+
+typedef void (*f_g_list_free)(GList *list);
+extern f_g_list_free g_list_free;
+
+typedef void (*f_g_list_free_full)(GList *list, GDestroyNotify free_func);
+extern f_g_list_free_full g_list_free_full;
+
+typedef void (*f_g_error_free)(GError *error);
+extern f_g_error_free g_error_free;
 
 typedef void (*f_g_slist_free)(GSList *list);
 extern f_g_slist_free g_slist_free;

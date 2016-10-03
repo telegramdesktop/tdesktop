@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/main_window_win.h"
 
-#include "platform/win/notifications_manager_win.h"
+#include "platform/platform_notifications_manager.h"
 #include "platform/win/windows_dlls.h"
 #include "window/notifications_manager.h"
 #include "mainwindow.h"

@@ -60,11 +60,20 @@ void NotificationsWidget::createControls() {
 	}
 	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
 	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
+
+	QString nativeNotificationsLabel;
 #ifdef Q_OS_WIN
 	if (App::wnd()->psHasNativeNotifications()) {
-		addChildRow(_windowsNative, margin, lang(lng_settings_use_windows), SLOT(onWindowsNative()), Global::WindowsNotifications());
+		nativeNotificationsLabel = lang(lng_settings_use_windows);
+	}
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+	if (App::wnd()->psHasNativeNotifications()) {
+		nativeNotificationsLabel = lang(lng_settings_use_native_notifications);
 	}
 #endif // Q_OS_WIN
+	if (!nativeNotificationsLabel.isEmpty()) {
+		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, SLOT(onNativeNotifications()), Global::NativeNotifications());
+	}
 }
 
 void NotificationsWidget::onDesktopNotifications() {
@@ -132,13 +141,13 @@ void NotificationsWidget::viewParamUpdated() {
 	}
 }
 
-void NotificationsWidget::onWindowsNative() {
-	if (Global::WindowsNotifications() == _windowsNative->checked()) {
+void NotificationsWidget::onNativeNotifications() {
+	if (Global::NativeNotifications() == _nativeNotifications->checked()) {
 		return;
 	}
 
 	Window::Notifications::manager()->clearAllFast();
-	Global::SetWindowsNotifications(_windowsNative->checked());
+	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
 }
 

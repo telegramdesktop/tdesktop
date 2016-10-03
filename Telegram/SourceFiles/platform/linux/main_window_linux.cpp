@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/linux/main_window_linux.h"
 
 #include "platform/linux/linux_libs.h"
+#include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "lang.h"
@@ -353,6 +354,10 @@ void MainWindow::psUpdateCounter() {
 		}
 		trayIcon->setIcon(icon);
 	}
+}
+
+bool MainWindow::psHasNativeNotifications() {
+	return Notifications::supported();
 }
 
 void MainWindow::LibsLoaded() {

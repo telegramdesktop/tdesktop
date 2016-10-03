@@ -534,7 +534,7 @@ enum {
 	dbiDcOption = 0x27,
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
-	dbiWindowsNotifications = 0x30,
+	dbiWindowsNotificationsOld = 0x30,
 	dbiIncludeMuted = 0x31,
 	dbiMegagroupSizeMax = 0x32,
 	dbiDownloadPath = 0x33,
@@ -548,6 +548,7 @@ enum {
 	dbiModerateMode = 0x41,
 	dbiVideoVolume = 0x42,
 	dbiStickersRecentLimit = 0x43,
+	dbiNativeNotifications = 0x44,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -989,12 +990,18 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (App::wnd()) App::wnd()->updateTrayMenu();
 	} break;
 
-	case dbiWindowsNotifications: {
+	case dbiWindowsNotificationsOld: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+	} break;
+
+	case dbiNativeNotifications: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetWindowsNotifications(v == 1);
+		Global::SetNativeNotifications(v == 1);
 	} break;
 
 	case dbiWorkMode: {
@@ -1589,7 +1596,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
-	data.stream << quint32(dbiWindowsNotifications) << qint32(Global::WindowsNotifications());
+	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
 	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
 	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
