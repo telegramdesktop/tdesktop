@@ -550,6 +550,10 @@ void MainWindow::clearPasscode() {
 	notifyUpdateAll();
 	title->updateBackButton();
 	updateGlobalMenu();
+
+	if (auto main = App::main()) {
+		main->checkStartUrl();
+	}
 }
 
 void MainWindow::setupPasscode(bool anim) {
@@ -1040,9 +1044,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
-				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
-					App::main()->openLocalUrl(cStartUrl());
-					cSetStartUrl(QString());
+				if (auto main = App::main()) {
+					main->checkStartUrl();
 				}
 			}
 			activate();
