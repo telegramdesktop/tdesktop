@@ -1633,12 +1633,12 @@ public:
 	}
 
 	MTPDresPQ &_resPQ() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDresPQ*)data;
 	}
 	const MTPDresPQ &c_resPQ() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDresPQ*)data;
 	}
 
@@ -1664,12 +1664,12 @@ public:
 	}
 
 	MTPDp_q_inner_data &_p_q_inner_data() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDp_q_inner_data*)data;
 	}
 	const MTPDp_q_inner_data &c_p_q_inner_data() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDp_q_inner_data*)data;
 	}
 
@@ -1696,26 +1696,22 @@ public:
 	}
 
 	MTPDserver_DH_params_fail &_server_DH_params_fail() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_server_DH_params_fail) throw mtpErrorWrongTypeId(_type, mtpc_server_DH_params_fail);
+		t_assert(data != nullptr && _type == mtpc_server_DH_params_fail);
 		split();
 		return *(MTPDserver_DH_params_fail*)data;
 	}
 	const MTPDserver_DH_params_fail &c_server_DH_params_fail() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_server_DH_params_fail) throw mtpErrorWrongTypeId(_type, mtpc_server_DH_params_fail);
+		t_assert(data != nullptr && _type == mtpc_server_DH_params_fail);
 		return *(const MTPDserver_DH_params_fail*)data;
 	}
 
 	MTPDserver_DH_params_ok &_server_DH_params_ok() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_server_DH_params_ok) throw mtpErrorWrongTypeId(_type, mtpc_server_DH_params_ok);
+		t_assert(data != nullptr && _type == mtpc_server_DH_params_ok);
 		split();
 		return *(MTPDserver_DH_params_ok*)data;
 	}
 	const MTPDserver_DH_params_ok &c_server_DH_params_ok() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_server_DH_params_ok) throw mtpErrorWrongTypeId(_type, mtpc_server_DH_params_ok);
+		t_assert(data != nullptr && _type == mtpc_server_DH_params_ok);
 		return *(const MTPDserver_DH_params_ok*)data;
 	}
 
@@ -1745,12 +1741,12 @@ public:
 	}
 
 	MTPDserver_DH_inner_data &_server_DH_inner_data() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDserver_DH_inner_data*)data;
 	}
 	const MTPDserver_DH_inner_data &c_server_DH_inner_data() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDserver_DH_inner_data*)data;
 	}
 
@@ -1776,12 +1772,12 @@ public:
 	}
 
 	MTPDclient_DH_inner_data &_client_DH_inner_data() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDclient_DH_inner_data*)data;
 	}
 	const MTPDclient_DH_inner_data &c_client_DH_inner_data() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDclient_DH_inner_data*)data;
 	}
 
@@ -1808,38 +1804,32 @@ public:
 	}
 
 	MTPDdh_gen_ok &_dh_gen_ok() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_ok) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_ok);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_ok);
 		split();
 		return *(MTPDdh_gen_ok*)data;
 	}
 	const MTPDdh_gen_ok &c_dh_gen_ok() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_ok) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_ok);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_ok);
 		return *(const MTPDdh_gen_ok*)data;
 	}
 
 	MTPDdh_gen_retry &_dh_gen_retry() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_retry) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_retry);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_retry);
 		split();
 		return *(MTPDdh_gen_retry*)data;
 	}
 	const MTPDdh_gen_retry &c_dh_gen_retry() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_retry) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_retry);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_retry);
 		return *(const MTPDdh_gen_retry*)data;
 	}
 
 	MTPDdh_gen_fail &_dh_gen_fail() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_fail) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_fail);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_fail);
 		split();
 		return *(MTPDdh_gen_fail*)data;
 	}
 	const MTPDdh_gen_fail &c_dh_gen_fail() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_dh_gen_fail) throw mtpErrorWrongTypeId(_type, mtpc_dh_gen_fail);
+		t_assert(data != nullptr && _type == mtpc_dh_gen_fail);
 		return *(const MTPDdh_gen_fail*)data;
 	}
 
@@ -1870,12 +1860,12 @@ public:
 	}
 
 	MTPDmsgs_ack &_msgs_ack() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmsgs_ack*)data;
 	}
 	const MTPDmsgs_ack &c_msgs_ack() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmsgs_ack*)data;
 	}
 
@@ -1902,26 +1892,22 @@ public:
 	}
 
 	MTPDbad_msg_notification &_bad_msg_notification() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_bad_msg_notification) throw mtpErrorWrongTypeId(_type, mtpc_bad_msg_notification);
+		t_assert(data != nullptr && _type == mtpc_bad_msg_notification);
 		split();
 		return *(MTPDbad_msg_notification*)data;
 	}
 	const MTPDbad_msg_notification &c_bad_msg_notification() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_bad_msg_notification) throw mtpErrorWrongTypeId(_type, mtpc_bad_msg_notification);
+		t_assert(data != nullptr && _type == mtpc_bad_msg_notification);
 		return *(const MTPDbad_msg_notification*)data;
 	}
 
 	MTPDbad_server_salt &_bad_server_salt() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_bad_server_salt) throw mtpErrorWrongTypeId(_type, mtpc_bad_server_salt);
+		t_assert(data != nullptr && _type == mtpc_bad_server_salt);
 		split();
 		return *(MTPDbad_server_salt*)data;
 	}
 	const MTPDbad_server_salt &c_bad_server_salt() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_bad_server_salt) throw mtpErrorWrongTypeId(_type, mtpc_bad_server_salt);
+		t_assert(data != nullptr && _type == mtpc_bad_server_salt);
 		return *(const MTPDbad_server_salt*)data;
 	}
 
@@ -1951,12 +1937,12 @@ public:
 	}
 
 	MTPDmsgs_state_req &_msgs_state_req() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmsgs_state_req*)data;
 	}
 	const MTPDmsgs_state_req &c_msgs_state_req() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmsgs_state_req*)data;
 	}
 
@@ -1982,12 +1968,12 @@ public:
 	}
 
 	MTPDmsgs_state_info &_msgs_state_info() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmsgs_state_info*)data;
 	}
 	const MTPDmsgs_state_info &c_msgs_state_info() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmsgs_state_info*)data;
 	}
 
@@ -2013,12 +1999,12 @@ public:
 	}
 
 	MTPDmsgs_all_info &_msgs_all_info() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmsgs_all_info*)data;
 	}
 	const MTPDmsgs_all_info &c_msgs_all_info() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmsgs_all_info*)data;
 	}
 
@@ -2045,26 +2031,22 @@ public:
 	}
 
 	MTPDmsg_detailed_info &_msg_detailed_info() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_msg_detailed_info) throw mtpErrorWrongTypeId(_type, mtpc_msg_detailed_info);
+		t_assert(data != nullptr && _type == mtpc_msg_detailed_info);
 		split();
 		return *(MTPDmsg_detailed_info*)data;
 	}
 	const MTPDmsg_detailed_info &c_msg_detailed_info() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_msg_detailed_info) throw mtpErrorWrongTypeId(_type, mtpc_msg_detailed_info);
+		t_assert(data != nullptr && _type == mtpc_msg_detailed_info);
 		return *(const MTPDmsg_detailed_info*)data;
 	}
 
 	MTPDmsg_new_detailed_info &_msg_new_detailed_info() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_msg_new_detailed_info) throw mtpErrorWrongTypeId(_type, mtpc_msg_new_detailed_info);
+		t_assert(data != nullptr && _type == mtpc_msg_new_detailed_info);
 		split();
 		return *(MTPDmsg_new_detailed_info*)data;
 	}
 	const MTPDmsg_new_detailed_info &c_msg_new_detailed_info() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_msg_new_detailed_info) throw mtpErrorWrongTypeId(_type, mtpc_msg_new_detailed_info);
+		t_assert(data != nullptr && _type == mtpc_msg_new_detailed_info);
 		return *(const MTPDmsg_new_detailed_info*)data;
 	}
 
@@ -2094,12 +2076,12 @@ public:
 	}
 
 	MTPDmsg_resend_req &_msg_resend_req() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmsg_resend_req*)data;
 	}
 	const MTPDmsg_resend_req &c_msg_resend_req() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmsg_resend_req*)data;
 	}
 
@@ -2125,12 +2107,12 @@ public:
 	}
 
 	MTPDrpc_error &_rpc_error() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDrpc_error*)data;
 	}
 	const MTPDrpc_error &c_rpc_error() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDrpc_error*)data;
 	}
 
@@ -2157,14 +2139,12 @@ public:
 	}
 
 	MTPDrpc_answer_dropped &_rpc_answer_dropped() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_rpc_answer_dropped) throw mtpErrorWrongTypeId(_type, mtpc_rpc_answer_dropped);
+		t_assert(data != nullptr && _type == mtpc_rpc_answer_dropped);
 		split();
 		return *(MTPDrpc_answer_dropped*)data;
 	}
 	const MTPDrpc_answer_dropped &c_rpc_answer_dropped() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_rpc_answer_dropped) throw mtpErrorWrongTypeId(_type, mtpc_rpc_answer_dropped);
+		t_assert(data != nullptr && _type == mtpc_rpc_answer_dropped);
 		return *(const MTPDrpc_answer_dropped*)data;
 	}
 
@@ -2193,12 +2173,12 @@ public:
 	}
 
 	MTPDfuture_salt &_future_salt() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDfuture_salt*)data;
 	}
 	const MTPDfuture_salt &c_future_salt() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDfuture_salt*)data;
 	}
 
@@ -2224,12 +2204,12 @@ public:
 	}
 
 	MTPDfuture_salts &_future_salts() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDfuture_salts*)data;
 	}
 	const MTPDfuture_salts &c_future_salts() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDfuture_salts*)data;
 	}
 
@@ -2255,12 +2235,12 @@ public:
 	}
 
 	MTPDpong &_pong() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDpong*)data;
 	}
 	const MTPDpong &c_pong() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDpong*)data;
 	}
 
@@ -2287,26 +2267,22 @@ public:
 	}
 
 	MTPDdestroy_session_ok &_destroy_session_ok() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_destroy_session_ok) throw mtpErrorWrongTypeId(_type, mtpc_destroy_session_ok);
+		t_assert(data != nullptr && _type == mtpc_destroy_session_ok);
 		split();
 		return *(MTPDdestroy_session_ok*)data;
 	}
 	const MTPDdestroy_session_ok &c_destroy_session_ok() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_destroy_session_ok) throw mtpErrorWrongTypeId(_type, mtpc_destroy_session_ok);
+		t_assert(data != nullptr && _type == mtpc_destroy_session_ok);
 		return *(const MTPDdestroy_session_ok*)data;
 	}
 
 	MTPDdestroy_session_none &_destroy_session_none() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_destroy_session_none) throw mtpErrorWrongTypeId(_type, mtpc_destroy_session_none);
+		t_assert(data != nullptr && _type == mtpc_destroy_session_none);
 		split();
 		return *(MTPDdestroy_session_none*)data;
 	}
 	const MTPDdestroy_session_none &c_destroy_session_none() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_destroy_session_none) throw mtpErrorWrongTypeId(_type, mtpc_destroy_session_none);
+		t_assert(data != nullptr && _type == mtpc_destroy_session_none);
 		return *(const MTPDdestroy_session_none*)data;
 	}
 
@@ -2336,12 +2312,12 @@ public:
 	}
 
 	MTPDnew_session_created &_new_session_created() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDnew_session_created*)data;
 	}
 	const MTPDnew_session_created &c_new_session_created() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDnew_session_created*)data;
 	}
 
@@ -2367,12 +2343,12 @@ public:
 	}
 
 	MTPDhttp_wait &_http_wait() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDhttp_wait*)data;
 	}
 	const MTPDhttp_wait &c_http_wait() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDhttp_wait*)data;
 	}
 
@@ -2443,12 +2419,12 @@ public:
 	}
 
 	MTPDerror &_error() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDerror*)data;
 	}
 	const MTPDerror &c_error() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDerror*)data;
 	}
 
@@ -2496,38 +2472,32 @@ public:
 	}
 
 	MTPDinputPeerChat &_inputPeerChat() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerChat) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChat);
+		t_assert(data != nullptr && _type == mtpc_inputPeerChat);
 		split();
 		return *(MTPDinputPeerChat*)data;
 	}
 	const MTPDinputPeerChat &c_inputPeerChat() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerChat) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChat);
+		t_assert(data != nullptr && _type == mtpc_inputPeerChat);
 		return *(const MTPDinputPeerChat*)data;
 	}
 
 	MTPDinputPeerUser &_inputPeerUser() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerUser) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerUser);
+		t_assert(data != nullptr && _type == mtpc_inputPeerUser);
 		split();
 		return *(MTPDinputPeerUser*)data;
 	}
 	const MTPDinputPeerUser &c_inputPeerUser() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerUser) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerUser);
+		t_assert(data != nullptr && _type == mtpc_inputPeerUser);
 		return *(const MTPDinputPeerUser*)data;
 	}
 
 	MTPDinputPeerChannel &_inputPeerChannel() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChannel);
+		t_assert(data != nullptr && _type == mtpc_inputPeerChannel);
 		split();
 		return *(MTPDinputPeerChannel*)data;
 	}
 	const MTPDinputPeerChannel &c_inputPeerChannel() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPeerChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChannel);
+		t_assert(data != nullptr && _type == mtpc_inputPeerChannel);
 		return *(const MTPDinputPeerChannel*)data;
 	}
 
@@ -2559,14 +2529,12 @@ public:
 	}
 
 	MTPDinputUser &_inputUser() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputUser) throw mtpErrorWrongTypeId(_type, mtpc_inputUser);
+		t_assert(data != nullptr && _type == mtpc_inputUser);
 		split();
 		return *(MTPDinputUser*)data;
 	}
 	const MTPDinputUser &c_inputUser() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputUser) throw mtpErrorWrongTypeId(_type, mtpc_inputUser);
+		t_assert(data != nullptr && _type == mtpc_inputUser);
 		return *(const MTPDinputUser*)data;
 	}
 
@@ -2595,12 +2563,12 @@ public:
 	}
 
 	MTPDinputPhoneContact &_inputPhoneContact() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinputPhoneContact*)data;
 	}
 	const MTPDinputPhoneContact &c_inputPhoneContact() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinputPhoneContact*)data;
 	}
 
@@ -2627,26 +2595,22 @@ public:
 	}
 
 	MTPDinputFile &_inputFile() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFile) throw mtpErrorWrongTypeId(_type, mtpc_inputFile);
+		t_assert(data != nullptr && _type == mtpc_inputFile);
 		split();
 		return *(MTPDinputFile*)data;
 	}
 	const MTPDinputFile &c_inputFile() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFile) throw mtpErrorWrongTypeId(_type, mtpc_inputFile);
+		t_assert(data != nullptr && _type == mtpc_inputFile);
 		return *(const MTPDinputFile*)data;
 	}
 
 	MTPDinputFileBig &_inputFileBig() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFileBig) throw mtpErrorWrongTypeId(_type, mtpc_inputFileBig);
+		t_assert(data != nullptr && _type == mtpc_inputFileBig);
 		split();
 		return *(MTPDinputFileBig*)data;
 	}
 	const MTPDinputFileBig &c_inputFileBig() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFileBig) throw mtpErrorWrongTypeId(_type, mtpc_inputFileBig);
+		t_assert(data != nullptr && _type == mtpc_inputFileBig);
 		return *(const MTPDinputFileBig*)data;
 	}
 
@@ -2677,146 +2641,122 @@ public:
 	}
 
 	MTPDinputMediaUploadedPhoto &_inputMediaUploadedPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedPhoto);
 		split();
 		return *(MTPDinputMediaUploadedPhoto*)data;
 	}
 	const MTPDinputMediaUploadedPhoto &c_inputMediaUploadedPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedPhoto);
 		return *(const MTPDinputMediaUploadedPhoto*)data;
 	}
 
 	MTPDinputMediaPhoto &_inputMediaPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputMediaPhoto);
 		split();
 		return *(MTPDinputMediaPhoto*)data;
 	}
 	const MTPDinputMediaPhoto &c_inputMediaPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputMediaPhoto);
 		return *(const MTPDinputMediaPhoto*)data;
 	}
 
 	MTPDinputMediaGeoPoint &_inputMediaGeoPoint() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGeoPoint) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGeoPoint);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGeoPoint);
 		split();
 		return *(MTPDinputMediaGeoPoint*)data;
 	}
 	const MTPDinputMediaGeoPoint &c_inputMediaGeoPoint() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGeoPoint) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGeoPoint);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGeoPoint);
 		return *(const MTPDinputMediaGeoPoint*)data;
 	}
 
 	MTPDinputMediaContact &_inputMediaContact() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaContact);
+		t_assert(data != nullptr && _type == mtpc_inputMediaContact);
 		split();
 		return *(MTPDinputMediaContact*)data;
 	}
 	const MTPDinputMediaContact &c_inputMediaContact() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaContact);
+		t_assert(data != nullptr && _type == mtpc_inputMediaContact);
 		return *(const MTPDinputMediaContact*)data;
 	}
 
 	MTPDinputMediaUploadedDocument &_inputMediaUploadedDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedDocument);
 		split();
 		return *(MTPDinputMediaUploadedDocument*)data;
 	}
 	const MTPDinputMediaUploadedDocument &c_inputMediaUploadedDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedDocument);
 		return *(const MTPDinputMediaUploadedDocument*)data;
 	}
 
 	MTPDinputMediaUploadedThumbDocument &_inputMediaUploadedThumbDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedThumbDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedThumbDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedThumbDocument);
 		split();
 		return *(MTPDinputMediaUploadedThumbDocument*)data;
 	}
 	const MTPDinputMediaUploadedThumbDocument &c_inputMediaUploadedThumbDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedThumbDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedThumbDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaUploadedThumbDocument);
 		return *(const MTPDinputMediaUploadedThumbDocument*)data;
 	}
 
 	MTPDinputMediaDocument &_inputMediaDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaDocument);
 		split();
 		return *(MTPDinputMediaDocument*)data;
 	}
 	const MTPDinputMediaDocument &c_inputMediaDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_inputMediaDocument);
 		return *(const MTPDinputMediaDocument*)data;
 	}
 
 	MTPDinputMediaVenue &_inputMediaVenue() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_inputMediaVenue);
 		split();
 		return *(MTPDinputMediaVenue*)data;
 	}
 	const MTPDinputMediaVenue &c_inputMediaVenue() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_inputMediaVenue);
 		return *(const MTPDinputMediaVenue*)data;
 	}
 
 	MTPDinputMediaGifExternal &_inputMediaGifExternal() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGifExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGifExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGifExternal);
 		split();
 		return *(MTPDinputMediaGifExternal*)data;
 	}
 	const MTPDinputMediaGifExternal &c_inputMediaGifExternal() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGifExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGifExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGifExternal);
 		return *(const MTPDinputMediaGifExternal*)data;
 	}
 
 	MTPDinputMediaPhotoExternal &_inputMediaPhotoExternal() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaPhotoExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaPhotoExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaPhotoExternal);
 		split();
 		return *(MTPDinputMediaPhotoExternal*)data;
 	}
 	const MTPDinputMediaPhotoExternal &c_inputMediaPhotoExternal() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaPhotoExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaPhotoExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaPhotoExternal);
 		return *(const MTPDinputMediaPhotoExternal*)data;
 	}
 
 	MTPDinputMediaDocumentExternal &_inputMediaDocumentExternal() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaDocumentExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaDocumentExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaDocumentExternal);
 		split();
 		return *(MTPDinputMediaDocumentExternal*)data;
 	}
 	const MTPDinputMediaDocumentExternal &c_inputMediaDocumentExternal() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaDocumentExternal) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaDocumentExternal);
+		t_assert(data != nullptr && _type == mtpc_inputMediaDocumentExternal);
 		return *(const MTPDinputMediaDocumentExternal*)data;
 	}
 
 	MTPDinputMediaGame &_inputMediaGame() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGame) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGame);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGame);
 		split();
 		return *(MTPDinputMediaGame*)data;
 	}
 	const MTPDinputMediaGame &c_inputMediaGame() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaGame) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaGame);
+		t_assert(data != nullptr && _type == mtpc_inputMediaGame);
 		return *(const MTPDinputMediaGame*)data;
 	}
 
@@ -2857,26 +2797,22 @@ public:
 	}
 
 	MTPDinputChatUploadedPhoto &_inputChatUploadedPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChatUploadedPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputChatUploadedPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputChatUploadedPhoto);
 		split();
 		return *(MTPDinputChatUploadedPhoto*)data;
 	}
 	const MTPDinputChatUploadedPhoto &c_inputChatUploadedPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChatUploadedPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputChatUploadedPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputChatUploadedPhoto);
 		return *(const MTPDinputChatUploadedPhoto*)data;
 	}
 
 	MTPDinputChatPhoto &_inputChatPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChatPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputChatPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputChatPhoto);
 		split();
 		return *(MTPDinputChatPhoto*)data;
 	}
 	const MTPDinputChatPhoto &c_inputChatPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChatPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputChatPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputChatPhoto);
 		return *(const MTPDinputChatPhoto*)data;
 	}
 
@@ -2907,14 +2843,12 @@ public:
 	}
 
 	MTPDinputGeoPoint &_inputGeoPoint() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGeoPoint) throw mtpErrorWrongTypeId(_type, mtpc_inputGeoPoint);
+		t_assert(data != nullptr && _type == mtpc_inputGeoPoint);
 		split();
 		return *(MTPDinputGeoPoint*)data;
 	}
 	const MTPDinputGeoPoint &c_inputGeoPoint() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGeoPoint) throw mtpErrorWrongTypeId(_type, mtpc_inputGeoPoint);
+		t_assert(data != nullptr && _type == mtpc_inputGeoPoint);
 		return *(const MTPDinputGeoPoint*)data;
 	}
 
@@ -2944,14 +2878,12 @@ public:
 	}
 
 	MTPDinputPhoto &_inputPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputPhoto);
 		split();
 		return *(MTPDinputPhoto*)data;
 	}
 	const MTPDinputPhoto &c_inputPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputPhoto);
 		return *(const MTPDinputPhoto*)data;
 	}
 
@@ -2981,38 +2913,32 @@ public:
 	}
 
 	MTPDinputFileLocation &_inputFileLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputFileLocation);
 		split();
 		return *(MTPDinputFileLocation*)data;
 	}
 	const MTPDinputFileLocation &c_inputFileLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputFileLocation);
 		return *(const MTPDinputFileLocation*)data;
 	}
 
 	MTPDinputEncryptedFileLocation &_inputEncryptedFileLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileLocation);
 		split();
 		return *(MTPDinputEncryptedFileLocation*)data;
 	}
 	const MTPDinputEncryptedFileLocation &c_inputEncryptedFileLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileLocation);
 		return *(const MTPDinputEncryptedFileLocation*)data;
 	}
 
 	MTPDinputDocumentFileLocation &_inputDocumentFileLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputDocumentFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputDocumentFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputDocumentFileLocation);
 		split();
 		return *(MTPDinputDocumentFileLocation*)data;
 	}
 	const MTPDinputDocumentFileLocation &c_inputDocumentFileLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputDocumentFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputDocumentFileLocation);
+		t_assert(data != nullptr && _type == mtpc_inputDocumentFileLocation);
 		return *(const MTPDinputDocumentFileLocation*)data;
 	}
 
@@ -3043,12 +2969,12 @@ public:
 	}
 
 	MTPDinputAppEvent &_inputAppEvent() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinputAppEvent*)data;
 	}
 	const MTPDinputAppEvent &c_inputAppEvent() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinputAppEvent*)data;
 	}
 
@@ -3075,38 +3001,32 @@ public:
 	}
 
 	MTPDpeerUser &_peerUser() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerUser) throw mtpErrorWrongTypeId(_type, mtpc_peerUser);
+		t_assert(data != nullptr && _type == mtpc_peerUser);
 		split();
 		return *(MTPDpeerUser*)data;
 	}
 	const MTPDpeerUser &c_peerUser() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerUser) throw mtpErrorWrongTypeId(_type, mtpc_peerUser);
+		t_assert(data != nullptr && _type == mtpc_peerUser);
 		return *(const MTPDpeerUser*)data;
 	}
 
 	MTPDpeerChat &_peerChat() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerChat) throw mtpErrorWrongTypeId(_type, mtpc_peerChat);
+		t_assert(data != nullptr && _type == mtpc_peerChat);
 		split();
 		return *(MTPDpeerChat*)data;
 	}
 	const MTPDpeerChat &c_peerChat() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerChat) throw mtpErrorWrongTypeId(_type, mtpc_peerChat);
+		t_assert(data != nullptr && _type == mtpc_peerChat);
 		return *(const MTPDpeerChat*)data;
 	}
 
 	MTPDpeerChannel &_peerChannel() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerChannel) throw mtpErrorWrongTypeId(_type, mtpc_peerChannel);
+		t_assert(data != nullptr && _type == mtpc_peerChannel);
 		split();
 		return *(MTPDpeerChannel*)data;
 	}
 	const MTPDpeerChannel &c_peerChannel() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerChannel) throw mtpErrorWrongTypeId(_type, mtpc_peerChannel);
+		t_assert(data != nullptr && _type == mtpc_peerChannel);
 		return *(const MTPDpeerChannel*)data;
 	}
 
@@ -3162,26 +3082,22 @@ public:
 	}
 
 	MTPDfileLocationUnavailable &_fileLocationUnavailable() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_fileLocationUnavailable) throw mtpErrorWrongTypeId(_type, mtpc_fileLocationUnavailable);
+		t_assert(data != nullptr && _type == mtpc_fileLocationUnavailable);
 		split();
 		return *(MTPDfileLocationUnavailable*)data;
 	}
 	const MTPDfileLocationUnavailable &c_fileLocationUnavailable() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_fileLocationUnavailable) throw mtpErrorWrongTypeId(_type, mtpc_fileLocationUnavailable);
+		t_assert(data != nullptr && _type == mtpc_fileLocationUnavailable);
 		return *(const MTPDfileLocationUnavailable*)data;
 	}
 
 	MTPDfileLocation &_fileLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_fileLocation) throw mtpErrorWrongTypeId(_type, mtpc_fileLocation);
+		t_assert(data != nullptr && _type == mtpc_fileLocation);
 		split();
 		return *(MTPDfileLocation*)data;
 	}
 	const MTPDfileLocation &c_fileLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_fileLocation) throw mtpErrorWrongTypeId(_type, mtpc_fileLocation);
+		t_assert(data != nullptr && _type == mtpc_fileLocation);
 		return *(const MTPDfileLocation*)data;
 	}
 
@@ -3212,26 +3128,22 @@ public:
 	}
 
 	MTPDuserEmpty &_userEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userEmpty) throw mtpErrorWrongTypeId(_type, mtpc_userEmpty);
+		t_assert(data != nullptr && _type == mtpc_userEmpty);
 		split();
 		return *(MTPDuserEmpty*)data;
 	}
 	const MTPDuserEmpty &c_userEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userEmpty) throw mtpErrorWrongTypeId(_type, mtpc_userEmpty);
+		t_assert(data != nullptr && _type == mtpc_userEmpty);
 		return *(const MTPDuserEmpty*)data;
 	}
 
 	MTPDuser &_user() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_user) throw mtpErrorWrongTypeId(_type, mtpc_user);
+		t_assert(data != nullptr && _type == mtpc_user);
 		split();
 		return *(MTPDuser*)data;
 	}
 	const MTPDuser &c_user() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_user) throw mtpErrorWrongTypeId(_type, mtpc_user);
+		t_assert(data != nullptr && _type == mtpc_user);
 		return *(const MTPDuser*)data;
 	}
 
@@ -3262,14 +3174,12 @@ public:
 	}
 
 	MTPDuserProfilePhoto &_userProfilePhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userProfilePhoto) throw mtpErrorWrongTypeId(_type, mtpc_userProfilePhoto);
+		t_assert(data != nullptr && _type == mtpc_userProfilePhoto);
 		split();
 		return *(MTPDuserProfilePhoto*)data;
 	}
 	const MTPDuserProfilePhoto &c_userProfilePhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userProfilePhoto) throw mtpErrorWrongTypeId(_type, mtpc_userProfilePhoto);
+		t_assert(data != nullptr && _type == mtpc_userProfilePhoto);
 		return *(const MTPDuserProfilePhoto*)data;
 	}
 
@@ -3299,26 +3209,22 @@ public:
 	}
 
 	MTPDuserStatusOnline &_userStatusOnline() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userStatusOnline) throw mtpErrorWrongTypeId(_type, mtpc_userStatusOnline);
+		t_assert(data != nullptr && _type == mtpc_userStatusOnline);
 		split();
 		return *(MTPDuserStatusOnline*)data;
 	}
 	const MTPDuserStatusOnline &c_userStatusOnline() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userStatusOnline) throw mtpErrorWrongTypeId(_type, mtpc_userStatusOnline);
+		t_assert(data != nullptr && _type == mtpc_userStatusOnline);
 		return *(const MTPDuserStatusOnline*)data;
 	}
 
 	MTPDuserStatusOffline &_userStatusOffline() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userStatusOffline) throw mtpErrorWrongTypeId(_type, mtpc_userStatusOffline);
+		t_assert(data != nullptr && _type == mtpc_userStatusOffline);
 		split();
 		return *(MTPDuserStatusOffline*)data;
 	}
 	const MTPDuserStatusOffline &c_userStatusOffline() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_userStatusOffline) throw mtpErrorWrongTypeId(_type, mtpc_userStatusOffline);
+		t_assert(data != nullptr && _type == mtpc_userStatusOffline);
 		return *(const MTPDuserStatusOffline*)data;
 	}
 
@@ -3349,62 +3255,52 @@ public:
 	}
 
 	MTPDchatEmpty &_chatEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatEmpty) throw mtpErrorWrongTypeId(_type, mtpc_chatEmpty);
+		t_assert(data != nullptr && _type == mtpc_chatEmpty);
 		split();
 		return *(MTPDchatEmpty*)data;
 	}
 	const MTPDchatEmpty &c_chatEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatEmpty) throw mtpErrorWrongTypeId(_type, mtpc_chatEmpty);
+		t_assert(data != nullptr && _type == mtpc_chatEmpty);
 		return *(const MTPDchatEmpty*)data;
 	}
 
 	MTPDchat &_chat() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chat) throw mtpErrorWrongTypeId(_type, mtpc_chat);
+		t_assert(data != nullptr && _type == mtpc_chat);
 		split();
 		return *(MTPDchat*)data;
 	}
 	const MTPDchat &c_chat() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chat) throw mtpErrorWrongTypeId(_type, mtpc_chat);
+		t_assert(data != nullptr && _type == mtpc_chat);
 		return *(const MTPDchat*)data;
 	}
 
 	MTPDchatForbidden &_chatForbidden() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatForbidden) throw mtpErrorWrongTypeId(_type, mtpc_chatForbidden);
+		t_assert(data != nullptr && _type == mtpc_chatForbidden);
 		split();
 		return *(MTPDchatForbidden*)data;
 	}
 	const MTPDchatForbidden &c_chatForbidden() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatForbidden) throw mtpErrorWrongTypeId(_type, mtpc_chatForbidden);
+		t_assert(data != nullptr && _type == mtpc_chatForbidden);
 		return *(const MTPDchatForbidden*)data;
 	}
 
 	MTPDchannel &_channel() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channel) throw mtpErrorWrongTypeId(_type, mtpc_channel);
+		t_assert(data != nullptr && _type == mtpc_channel);
 		split();
 		return *(MTPDchannel*)data;
 	}
 	const MTPDchannel &c_channel() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channel) throw mtpErrorWrongTypeId(_type, mtpc_channel);
+		t_assert(data != nullptr && _type == mtpc_channel);
 		return *(const MTPDchannel*)data;
 	}
 
 	MTPDchannelForbidden &_channelForbidden() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelForbidden) throw mtpErrorWrongTypeId(_type, mtpc_channelForbidden);
+		t_assert(data != nullptr && _type == mtpc_channelForbidden);
 		split();
 		return *(MTPDchannelForbidden*)data;
 	}
 	const MTPDchannelForbidden &c_channelForbidden() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelForbidden) throw mtpErrorWrongTypeId(_type, mtpc_channelForbidden);
+		t_assert(data != nullptr && _type == mtpc_channelForbidden);
 		return *(const MTPDchannelForbidden*)data;
 	}
 
@@ -3438,26 +3334,22 @@ public:
 	}
 
 	MTPDchatFull &_chatFull() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatFull) throw mtpErrorWrongTypeId(_type, mtpc_chatFull);
+		t_assert(data != nullptr && _type == mtpc_chatFull);
 		split();
 		return *(MTPDchatFull*)data;
 	}
 	const MTPDchatFull &c_chatFull() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatFull) throw mtpErrorWrongTypeId(_type, mtpc_chatFull);
+		t_assert(data != nullptr && _type == mtpc_chatFull);
 		return *(const MTPDchatFull*)data;
 	}
 
 	MTPDchannelFull &_channelFull() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelFull) throw mtpErrorWrongTypeId(_type, mtpc_channelFull);
+		t_assert(data != nullptr && _type == mtpc_channelFull);
 		split();
 		return *(MTPDchannelFull*)data;
 	}
 	const MTPDchannelFull &c_channelFull() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelFull) throw mtpErrorWrongTypeId(_type, mtpc_channelFull);
+		t_assert(data != nullptr && _type == mtpc_channelFull);
 		return *(const MTPDchannelFull*)data;
 	}
 
@@ -3488,38 +3380,32 @@ public:
 	}
 
 	MTPDchatParticipant &_chatParticipant() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipant) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipant);
+		t_assert(data != nullptr && _type == mtpc_chatParticipant);
 		split();
 		return *(MTPDchatParticipant*)data;
 	}
 	const MTPDchatParticipant &c_chatParticipant() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipant) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipant);
+		t_assert(data != nullptr && _type == mtpc_chatParticipant);
 		return *(const MTPDchatParticipant*)data;
 	}
 
 	MTPDchatParticipantCreator &_chatParticipantCreator() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantCreator) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantCreator);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantCreator);
 		split();
 		return *(MTPDchatParticipantCreator*)data;
 	}
 	const MTPDchatParticipantCreator &c_chatParticipantCreator() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantCreator) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantCreator);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantCreator);
 		return *(const MTPDchatParticipantCreator*)data;
 	}
 
 	MTPDchatParticipantAdmin &_chatParticipantAdmin() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantAdmin) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantAdmin);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantAdmin);
 		split();
 		return *(MTPDchatParticipantAdmin*)data;
 	}
 	const MTPDchatParticipantAdmin &c_chatParticipantAdmin() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantAdmin) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantAdmin);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantAdmin);
 		return *(const MTPDchatParticipantAdmin*)data;
 	}
 
@@ -3551,26 +3437,22 @@ public:
 	}
 
 	MTPDchatParticipantsForbidden &_chatParticipantsForbidden() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantsForbidden) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantsForbidden);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantsForbidden);
 		split();
 		return *(MTPDchatParticipantsForbidden*)data;
 	}
 	const MTPDchatParticipantsForbidden &c_chatParticipantsForbidden() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipantsForbidden) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipantsForbidden);
+		t_assert(data != nullptr && _type == mtpc_chatParticipantsForbidden);
 		return *(const MTPDchatParticipantsForbidden*)data;
 	}
 
 	MTPDchatParticipants &_chatParticipants() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipants) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipants);
+		t_assert(data != nullptr && _type == mtpc_chatParticipants);
 		split();
 		return *(MTPDchatParticipants*)data;
 	}
 	const MTPDchatParticipants &c_chatParticipants() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatParticipants) throw mtpErrorWrongTypeId(_type, mtpc_chatParticipants);
+		t_assert(data != nullptr && _type == mtpc_chatParticipants);
 		return *(const MTPDchatParticipants*)data;
 	}
 
@@ -3601,14 +3483,12 @@ public:
 	}
 
 	MTPDchatPhoto &_chatPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatPhoto) throw mtpErrorWrongTypeId(_type, mtpc_chatPhoto);
+		t_assert(data != nullptr && _type == mtpc_chatPhoto);
 		split();
 		return *(MTPDchatPhoto*)data;
 	}
 	const MTPDchatPhoto &c_chatPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatPhoto) throw mtpErrorWrongTypeId(_type, mtpc_chatPhoto);
+		t_assert(data != nullptr && _type == mtpc_chatPhoto);
 		return *(const MTPDchatPhoto*)data;
 	}
 
@@ -3638,38 +3518,32 @@ public:
 	}
 
 	MTPDmessageEmpty &_messageEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEmpty) throw mtpErrorWrongTypeId(_type, mtpc_messageEmpty);
+		t_assert(data != nullptr && _type == mtpc_messageEmpty);
 		split();
 		return *(MTPDmessageEmpty*)data;
 	}
 	const MTPDmessageEmpty &c_messageEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEmpty) throw mtpErrorWrongTypeId(_type, mtpc_messageEmpty);
+		t_assert(data != nullptr && _type == mtpc_messageEmpty);
 		return *(const MTPDmessageEmpty*)data;
 	}
 
 	MTPDmessage &_message() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_message) throw mtpErrorWrongTypeId(_type, mtpc_message);
+		t_assert(data != nullptr && _type == mtpc_message);
 		split();
 		return *(MTPDmessage*)data;
 	}
 	const MTPDmessage &c_message() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_message) throw mtpErrorWrongTypeId(_type, mtpc_message);
+		t_assert(data != nullptr && _type == mtpc_message);
 		return *(const MTPDmessage*)data;
 	}
 
 	MTPDmessageService &_messageService() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageService) throw mtpErrorWrongTypeId(_type, mtpc_messageService);
+		t_assert(data != nullptr && _type == mtpc_messageService);
 		split();
 		return *(MTPDmessageService*)data;
 	}
 	const MTPDmessageService &c_messageService() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageService) throw mtpErrorWrongTypeId(_type, mtpc_messageService);
+		t_assert(data != nullptr && _type == mtpc_messageService);
 		return *(const MTPDmessageService*)data;
 	}
 
@@ -3701,86 +3575,72 @@ public:
 	}
 
 	MTPDmessageMediaPhoto &_messageMediaPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_messageMediaPhoto);
 		split();
 		return *(MTPDmessageMediaPhoto*)data;
 	}
 	const MTPDmessageMediaPhoto &c_messageMediaPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_messageMediaPhoto);
 		return *(const MTPDmessageMediaPhoto*)data;
 	}
 
 	MTPDmessageMediaGeo &_messageMediaGeo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_messageMediaGeo);
 		split();
 		return *(MTPDmessageMediaGeo*)data;
 	}
 	const MTPDmessageMediaGeo &c_messageMediaGeo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_messageMediaGeo);
 		return *(const MTPDmessageMediaGeo*)data;
 	}
 
 	MTPDmessageMediaContact &_messageMediaContact() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_messageMediaContact);
 		split();
 		return *(MTPDmessageMediaContact*)data;
 	}
 	const MTPDmessageMediaContact &c_messageMediaContact() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_messageMediaContact);
 		return *(const MTPDmessageMediaContact*)data;
 	}
 
 	MTPDmessageMediaDocument &_messageMediaDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_messageMediaDocument);
 		split();
 		return *(MTPDmessageMediaDocument*)data;
 	}
 	const MTPDmessageMediaDocument &c_messageMediaDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_messageMediaDocument);
 		return *(const MTPDmessageMediaDocument*)data;
 	}
 
 	MTPDmessageMediaWebPage &_messageMediaWebPage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaWebPage) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaWebPage);
+		t_assert(data != nullptr && _type == mtpc_messageMediaWebPage);
 		split();
 		return *(MTPDmessageMediaWebPage*)data;
 	}
 	const MTPDmessageMediaWebPage &c_messageMediaWebPage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaWebPage) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaWebPage);
+		t_assert(data != nullptr && _type == mtpc_messageMediaWebPage);
 		return *(const MTPDmessageMediaWebPage*)data;
 	}
 
 	MTPDmessageMediaVenue &_messageMediaVenue() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_messageMediaVenue);
 		split();
 		return *(MTPDmessageMediaVenue*)data;
 	}
 	const MTPDmessageMediaVenue &c_messageMediaVenue() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_messageMediaVenue);
 		return *(const MTPDmessageMediaVenue*)data;
 	}
 
 	MTPDmessageMediaGame &_messageMediaGame() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaGame) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaGame);
+		t_assert(data != nullptr && _type == mtpc_messageMediaGame);
 		split();
 		return *(MTPDmessageMediaGame*)data;
 	}
 	const MTPDmessageMediaGame &c_messageMediaGame() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaGame) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaGame);
+		t_assert(data != nullptr && _type == mtpc_messageMediaGame);
 		return *(const MTPDmessageMediaGame*)data;
 	}
 
@@ -3816,122 +3676,102 @@ public:
 	}
 
 	MTPDmessageActionChatCreate &_messageActionChatCreate() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatCreate);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatCreate);
 		split();
 		return *(MTPDmessageActionChatCreate*)data;
 	}
 	const MTPDmessageActionChatCreate &c_messageActionChatCreate() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatCreate);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatCreate);
 		return *(const MTPDmessageActionChatCreate*)data;
 	}
 
 	MTPDmessageActionChatEditTitle &_messageActionChatEditTitle() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatEditTitle) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatEditTitle);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatEditTitle);
 		split();
 		return *(MTPDmessageActionChatEditTitle*)data;
 	}
 	const MTPDmessageActionChatEditTitle &c_messageActionChatEditTitle() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatEditTitle) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatEditTitle);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatEditTitle);
 		return *(const MTPDmessageActionChatEditTitle*)data;
 	}
 
 	MTPDmessageActionChatEditPhoto &_messageActionChatEditPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatEditPhoto) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatEditPhoto);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatEditPhoto);
 		split();
 		return *(MTPDmessageActionChatEditPhoto*)data;
 	}
 	const MTPDmessageActionChatEditPhoto &c_messageActionChatEditPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatEditPhoto) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatEditPhoto);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatEditPhoto);
 		return *(const MTPDmessageActionChatEditPhoto*)data;
 	}
 
 	MTPDmessageActionChatAddUser &_messageActionChatAddUser() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatAddUser) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatAddUser);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatAddUser);
 		split();
 		return *(MTPDmessageActionChatAddUser*)data;
 	}
 	const MTPDmessageActionChatAddUser &c_messageActionChatAddUser() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatAddUser) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatAddUser);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatAddUser);
 		return *(const MTPDmessageActionChatAddUser*)data;
 	}
 
 	MTPDmessageActionChatDeleteUser &_messageActionChatDeleteUser() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatDeleteUser) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatDeleteUser);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatDeleteUser);
 		split();
 		return *(MTPDmessageActionChatDeleteUser*)data;
 	}
 	const MTPDmessageActionChatDeleteUser &c_messageActionChatDeleteUser() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatDeleteUser) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatDeleteUser);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatDeleteUser);
 		return *(const MTPDmessageActionChatDeleteUser*)data;
 	}
 
 	MTPDmessageActionChatJoinedByLink &_messageActionChatJoinedByLink() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatJoinedByLink) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatJoinedByLink);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatJoinedByLink);
 		split();
 		return *(MTPDmessageActionChatJoinedByLink*)data;
 	}
 	const MTPDmessageActionChatJoinedByLink &c_messageActionChatJoinedByLink() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatJoinedByLink) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatJoinedByLink);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatJoinedByLink);
 		return *(const MTPDmessageActionChatJoinedByLink*)data;
 	}
 
 	MTPDmessageActionChannelCreate &_messageActionChannelCreate() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChannelCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelCreate);
+		t_assert(data != nullptr && _type == mtpc_messageActionChannelCreate);
 		split();
 		return *(MTPDmessageActionChannelCreate*)data;
 	}
 	const MTPDmessageActionChannelCreate &c_messageActionChannelCreate() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChannelCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelCreate);
+		t_assert(data != nullptr && _type == mtpc_messageActionChannelCreate);
 		return *(const MTPDmessageActionChannelCreate*)data;
 	}
 
 	MTPDmessageActionChatMigrateTo &_messageActionChatMigrateTo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatMigrateTo) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatMigrateTo);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatMigrateTo);
 		split();
 		return *(MTPDmessageActionChatMigrateTo*)data;
 	}
 	const MTPDmessageActionChatMigrateTo &c_messageActionChatMigrateTo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChatMigrateTo) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChatMigrateTo);
+		t_assert(data != nullptr && _type == mtpc_messageActionChatMigrateTo);
 		return *(const MTPDmessageActionChatMigrateTo*)data;
 	}
 
 	MTPDmessageActionChannelMigrateFrom &_messageActionChannelMigrateFrom() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChannelMigrateFrom) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelMigrateFrom);
+		t_assert(data != nullptr && _type == mtpc_messageActionChannelMigrateFrom);
 		split();
 		return *(MTPDmessageActionChannelMigrateFrom*)data;
 	}
 	const MTPDmessageActionChannelMigrateFrom &c_messageActionChannelMigrateFrom() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionChannelMigrateFrom) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelMigrateFrom);
+		t_assert(data != nullptr && _type == mtpc_messageActionChannelMigrateFrom);
 		return *(const MTPDmessageActionChannelMigrateFrom*)data;
 	}
 
 	MTPDmessageActionGameScore &_messageActionGameScore() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionGameScore) throw mtpErrorWrongTypeId(_type, mtpc_messageActionGameScore);
+		t_assert(data != nullptr && _type == mtpc_messageActionGameScore);
 		split();
 		return *(MTPDmessageActionGameScore*)data;
 	}
 	const MTPDmessageActionGameScore &c_messageActionGameScore() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageActionGameScore) throw mtpErrorWrongTypeId(_type, mtpc_messageActionGameScore);
+		t_assert(data != nullptr && _type == mtpc_messageActionGameScore);
 		return *(const MTPDmessageActionGameScore*)data;
 	}
 
@@ -3969,12 +3809,12 @@ public:
 	}
 
 	MTPDdialog &_dialog() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDdialog*)data;
 	}
 	const MTPDdialog &c_dialog() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDdialog*)data;
 	}
 
@@ -4001,26 +3841,22 @@ public:
 	}
 
 	MTPDphotoEmpty &_photoEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoEmpty) throw mtpErrorWrongTypeId(_type, mtpc_photoEmpty);
+		t_assert(data != nullptr && _type == mtpc_photoEmpty);
 		split();
 		return *(MTPDphotoEmpty*)data;
 	}
 	const MTPDphotoEmpty &c_photoEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoEmpty) throw mtpErrorWrongTypeId(_type, mtpc_photoEmpty);
+		t_assert(data != nullptr && _type == mtpc_photoEmpty);
 		return *(const MTPDphotoEmpty*)data;
 	}
 
 	MTPDphoto &_photo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photo) throw mtpErrorWrongTypeId(_type, mtpc_photo);
+		t_assert(data != nullptr && _type == mtpc_photo);
 		split();
 		return *(MTPDphoto*)data;
 	}
 	const MTPDphoto &c_photo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photo) throw mtpErrorWrongTypeId(_type, mtpc_photo);
+		t_assert(data != nullptr && _type == mtpc_photo);
 		return *(const MTPDphoto*)data;
 	}
 
@@ -4051,38 +3887,32 @@ public:
 	}
 
 	MTPDphotoSizeEmpty &_photoSizeEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoSizeEmpty) throw mtpErrorWrongTypeId(_type, mtpc_photoSizeEmpty);
+		t_assert(data != nullptr && _type == mtpc_photoSizeEmpty);
 		split();
 		return *(MTPDphotoSizeEmpty*)data;
 	}
 	const MTPDphotoSizeEmpty &c_photoSizeEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoSizeEmpty) throw mtpErrorWrongTypeId(_type, mtpc_photoSizeEmpty);
+		t_assert(data != nullptr && _type == mtpc_photoSizeEmpty);
 		return *(const MTPDphotoSizeEmpty*)data;
 	}
 
 	MTPDphotoSize &_photoSize() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoSize) throw mtpErrorWrongTypeId(_type, mtpc_photoSize);
+		t_assert(data != nullptr && _type == mtpc_photoSize);
 		split();
 		return *(MTPDphotoSize*)data;
 	}
 	const MTPDphotoSize &c_photoSize() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoSize) throw mtpErrorWrongTypeId(_type, mtpc_photoSize);
+		t_assert(data != nullptr && _type == mtpc_photoSize);
 		return *(const MTPDphotoSize*)data;
 	}
 
 	MTPDphotoCachedSize &_photoCachedSize() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoCachedSize) throw mtpErrorWrongTypeId(_type, mtpc_photoCachedSize);
+		t_assert(data != nullptr && _type == mtpc_photoCachedSize);
 		split();
 		return *(MTPDphotoCachedSize*)data;
 	}
 	const MTPDphotoCachedSize &c_photoCachedSize() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photoCachedSize) throw mtpErrorWrongTypeId(_type, mtpc_photoCachedSize);
+		t_assert(data != nullptr && _type == mtpc_photoCachedSize);
 		return *(const MTPDphotoCachedSize*)data;
 	}
 
@@ -4114,14 +3944,12 @@ public:
 	}
 
 	MTPDgeoPoint &_geoPoint() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_geoPoint) throw mtpErrorWrongTypeId(_type, mtpc_geoPoint);
+		t_assert(data != nullptr && _type == mtpc_geoPoint);
 		split();
 		return *(MTPDgeoPoint*)data;
 	}
 	const MTPDgeoPoint &c_geoPoint() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_geoPoint) throw mtpErrorWrongTypeId(_type, mtpc_geoPoint);
+		t_assert(data != nullptr && _type == mtpc_geoPoint);
 		return *(const MTPDgeoPoint*)data;
 	}
 
@@ -4150,12 +3978,12 @@ public:
 	}
 
 	MTPDauth_checkedPhone &_auth_checkedPhone() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauth_checkedPhone*)data;
 	}
 	const MTPDauth_checkedPhone &c_auth_checkedPhone() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauth_checkedPhone*)data;
 	}
 
@@ -4181,12 +4009,12 @@ public:
 	}
 
 	MTPDauth_sentCode &_auth_sentCode() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauth_sentCode*)data;
 	}
 	const MTPDauth_sentCode &c_auth_sentCode() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauth_sentCode*)data;
 	}
 
@@ -4212,12 +4040,12 @@ public:
 	}
 
 	MTPDauth_authorization &_auth_authorization() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauth_authorization*)data;
 	}
 	const MTPDauth_authorization &c_auth_authorization() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauth_authorization*)data;
 	}
 
@@ -4243,12 +4071,12 @@ public:
 	}
 
 	MTPDauth_exportedAuthorization &_auth_exportedAuthorization() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauth_exportedAuthorization*)data;
 	}
 	const MTPDauth_exportedAuthorization &c_auth_exportedAuthorization() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauth_exportedAuthorization*)data;
 	}
 
@@ -4275,14 +4103,12 @@ public:
 	}
 
 	MTPDinputNotifyPeer &_inputNotifyPeer() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputNotifyPeer) throw mtpErrorWrongTypeId(_type, mtpc_inputNotifyPeer);
+		t_assert(data != nullptr && _type == mtpc_inputNotifyPeer);
 		split();
 		return *(MTPDinputNotifyPeer*)data;
 	}
 	const MTPDinputNotifyPeer &c_inputNotifyPeer() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputNotifyPeer) throw mtpErrorWrongTypeId(_type, mtpc_inputNotifyPeer);
+		t_assert(data != nullptr && _type == mtpc_inputNotifyPeer);
 		return *(const MTPDinputNotifyPeer*)data;
 	}
 
@@ -4335,12 +4161,12 @@ public:
 	}
 
 	MTPDinputPeerNotifySettings &_inputPeerNotifySettings() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinputPeerNotifySettings*)data;
 	}
 	const MTPDinputPeerNotifySettings &c_inputPeerNotifySettings() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinputPeerNotifySettings*)data;
 	}
 
@@ -4391,14 +4217,12 @@ public:
 	}
 
 	MTPDpeerNotifySettings &_peerNotifySettings() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerNotifySettings) throw mtpErrorWrongTypeId(_type, mtpc_peerNotifySettings);
+		t_assert(data != nullptr && _type == mtpc_peerNotifySettings);
 		split();
 		return *(MTPDpeerNotifySettings*)data;
 	}
 	const MTPDpeerNotifySettings &c_peerNotifySettings() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_peerNotifySettings) throw mtpErrorWrongTypeId(_type, mtpc_peerNotifySettings);
+		t_assert(data != nullptr && _type == mtpc_peerNotifySettings);
 		return *(const MTPDpeerNotifySettings*)data;
 	}
 
@@ -4427,12 +4251,12 @@ public:
 	}
 
 	MTPDpeerSettings &_peerSettings() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDpeerSettings*)data;
 	}
 	const MTPDpeerSettings &c_peerSettings() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDpeerSettings*)data;
 	}
 
@@ -4459,26 +4283,22 @@ public:
 	}
 
 	MTPDwallPaper &_wallPaper() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_wallPaper) throw mtpErrorWrongTypeId(_type, mtpc_wallPaper);
+		t_assert(data != nullptr && _type == mtpc_wallPaper);
 		split();
 		return *(MTPDwallPaper*)data;
 	}
 	const MTPDwallPaper &c_wallPaper() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_wallPaper) throw mtpErrorWrongTypeId(_type, mtpc_wallPaper);
+		t_assert(data != nullptr && _type == mtpc_wallPaper);
 		return *(const MTPDwallPaper*)data;
 	}
 
 	MTPDwallPaperSolid &_wallPaperSolid() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_wallPaperSolid) throw mtpErrorWrongTypeId(_type, mtpc_wallPaperSolid);
+		t_assert(data != nullptr && _type == mtpc_wallPaperSolid);
 		split();
 		return *(MTPDwallPaperSolid*)data;
 	}
 	const MTPDwallPaperSolid &c_wallPaperSolid() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_wallPaperSolid) throw mtpErrorWrongTypeId(_type, mtpc_wallPaperSolid);
+		t_assert(data != nullptr && _type == mtpc_wallPaperSolid);
 		return *(const MTPDwallPaperSolid*)data;
 	}
 
@@ -4509,14 +4329,12 @@ public:
 	}
 
 	MTPDinputReportReasonOther &_inputReportReasonOther() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputReportReasonOther) throw mtpErrorWrongTypeId(_type, mtpc_inputReportReasonOther);
+		t_assert(data != nullptr && _type == mtpc_inputReportReasonOther);
 		split();
 		return *(MTPDinputReportReasonOther*)data;
 	}
 	const MTPDinputReportReasonOther &c_inputReportReasonOther() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputReportReasonOther) throw mtpErrorWrongTypeId(_type, mtpc_inputReportReasonOther);
+		t_assert(data != nullptr && _type == mtpc_inputReportReasonOther);
 		return *(const MTPDinputReportReasonOther*)data;
 	}
 
@@ -4545,12 +4363,12 @@ public:
 	}
 
 	MTPDuserFull &_userFull() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDuserFull*)data;
 	}
 	const MTPDuserFull &c_userFull() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDuserFull*)data;
 	}
 
@@ -4576,12 +4394,12 @@ public:
 	}
 
 	MTPDcontact &_contact() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontact*)data;
 	}
 	const MTPDcontact &c_contact() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontact*)data;
 	}
 
@@ -4607,12 +4425,12 @@ public:
 	}
 
 	MTPDimportedContact &_importedContact() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDimportedContact*)data;
 	}
 	const MTPDimportedContact &c_importedContact() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDimportedContact*)data;
 	}
 
@@ -4638,12 +4456,12 @@ public:
 	}
 
 	MTPDcontactBlocked &_contactBlocked() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontactBlocked*)data;
 	}
 	const MTPDcontactBlocked &c_contactBlocked() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontactBlocked*)data;
 	}
 
@@ -4669,12 +4487,12 @@ public:
 	}
 
 	MTPDcontactStatus &_contactStatus() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontactStatus*)data;
 	}
 	const MTPDcontactStatus &c_contactStatus() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontactStatus*)data;
 	}
 
@@ -4700,12 +4518,12 @@ public:
 	}
 
 	MTPDcontacts_link &_contacts_link() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontacts_link*)data;
 	}
 	const MTPDcontacts_link &c_contacts_link() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontacts_link*)data;
 	}
 
@@ -4732,14 +4550,12 @@ public:
 	}
 
 	MTPDcontacts_contacts &_contacts_contacts() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_contacts) throw mtpErrorWrongTypeId(_type, mtpc_contacts_contacts);
+		t_assert(data != nullptr && _type == mtpc_contacts_contacts);
 		split();
 		return *(MTPDcontacts_contacts*)data;
 	}
 	const MTPDcontacts_contacts &c_contacts_contacts() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_contacts) throw mtpErrorWrongTypeId(_type, mtpc_contacts_contacts);
+		t_assert(data != nullptr && _type == mtpc_contacts_contacts);
 		return *(const MTPDcontacts_contacts*)data;
 	}
 
@@ -4768,12 +4584,12 @@ public:
 	}
 
 	MTPDcontacts_importedContacts &_contacts_importedContacts() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontacts_importedContacts*)data;
 	}
 	const MTPDcontacts_importedContacts &c_contacts_importedContacts() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontacts_importedContacts*)data;
 	}
 
@@ -4800,26 +4616,22 @@ public:
 	}
 
 	MTPDcontacts_blocked &_contacts_blocked() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_blocked) throw mtpErrorWrongTypeId(_type, mtpc_contacts_blocked);
+		t_assert(data != nullptr && _type == mtpc_contacts_blocked);
 		split();
 		return *(MTPDcontacts_blocked*)data;
 	}
 	const MTPDcontacts_blocked &c_contacts_blocked() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_blocked) throw mtpErrorWrongTypeId(_type, mtpc_contacts_blocked);
+		t_assert(data != nullptr && _type == mtpc_contacts_blocked);
 		return *(const MTPDcontacts_blocked*)data;
 	}
 
 	MTPDcontacts_blockedSlice &_contacts_blockedSlice() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_blockedSlice) throw mtpErrorWrongTypeId(_type, mtpc_contacts_blockedSlice);
+		t_assert(data != nullptr && _type == mtpc_contacts_blockedSlice);
 		split();
 		return *(MTPDcontacts_blockedSlice*)data;
 	}
 	const MTPDcontacts_blockedSlice &c_contacts_blockedSlice() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_blockedSlice) throw mtpErrorWrongTypeId(_type, mtpc_contacts_blockedSlice);
+		t_assert(data != nullptr && _type == mtpc_contacts_blockedSlice);
 		return *(const MTPDcontacts_blockedSlice*)data;
 	}
 
@@ -4850,26 +4662,22 @@ public:
 	}
 
 	MTPDmessages_dialogs &_messages_dialogs() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dialogs) throw mtpErrorWrongTypeId(_type, mtpc_messages_dialogs);
+		t_assert(data != nullptr && _type == mtpc_messages_dialogs);
 		split();
 		return *(MTPDmessages_dialogs*)data;
 	}
 	const MTPDmessages_dialogs &c_messages_dialogs() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dialogs) throw mtpErrorWrongTypeId(_type, mtpc_messages_dialogs);
+		t_assert(data != nullptr && _type == mtpc_messages_dialogs);
 		return *(const MTPDmessages_dialogs*)data;
 	}
 
 	MTPDmessages_dialogsSlice &_messages_dialogsSlice() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dialogsSlice) throw mtpErrorWrongTypeId(_type, mtpc_messages_dialogsSlice);
+		t_assert(data != nullptr && _type == mtpc_messages_dialogsSlice);
 		split();
 		return *(MTPDmessages_dialogsSlice*)data;
 	}
 	const MTPDmessages_dialogsSlice &c_messages_dialogsSlice() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dialogsSlice) throw mtpErrorWrongTypeId(_type, mtpc_messages_dialogsSlice);
+		t_assert(data != nullptr && _type == mtpc_messages_dialogsSlice);
 		return *(const MTPDmessages_dialogsSlice*)data;
 	}
 
@@ -4900,38 +4708,32 @@ public:
 	}
 
 	MTPDmessages_messages &_messages_messages() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_messages) throw mtpErrorWrongTypeId(_type, mtpc_messages_messages);
+		t_assert(data != nullptr && _type == mtpc_messages_messages);
 		split();
 		return *(MTPDmessages_messages*)data;
 	}
 	const MTPDmessages_messages &c_messages_messages() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_messages) throw mtpErrorWrongTypeId(_type, mtpc_messages_messages);
+		t_assert(data != nullptr && _type == mtpc_messages_messages);
 		return *(const MTPDmessages_messages*)data;
 	}
 
 	MTPDmessages_messagesSlice &_messages_messagesSlice() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_messagesSlice) throw mtpErrorWrongTypeId(_type, mtpc_messages_messagesSlice);
+		t_assert(data != nullptr && _type == mtpc_messages_messagesSlice);
 		split();
 		return *(MTPDmessages_messagesSlice*)data;
 	}
 	const MTPDmessages_messagesSlice &c_messages_messagesSlice() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_messagesSlice) throw mtpErrorWrongTypeId(_type, mtpc_messages_messagesSlice);
+		t_assert(data != nullptr && _type == mtpc_messages_messagesSlice);
 		return *(const MTPDmessages_messagesSlice*)data;
 	}
 
 	MTPDmessages_channelMessages &_messages_channelMessages() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_channelMessages) throw mtpErrorWrongTypeId(_type, mtpc_messages_channelMessages);
+		t_assert(data != nullptr && _type == mtpc_messages_channelMessages);
 		split();
 		return *(MTPDmessages_channelMessages*)data;
 	}
 	const MTPDmessages_channelMessages &c_messages_channelMessages() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_channelMessages) throw mtpErrorWrongTypeId(_type, mtpc_messages_channelMessages);
+		t_assert(data != nullptr && _type == mtpc_messages_channelMessages);
 		return *(const MTPDmessages_channelMessages*)data;
 	}
 
@@ -4962,12 +4764,12 @@ public:
 	}
 
 	MTPDmessages_chats &_messages_chats() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_chats*)data;
 	}
 	const MTPDmessages_chats &c_messages_chats() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_chats*)data;
 	}
 
@@ -4993,12 +4795,12 @@ public:
 	}
 
 	MTPDmessages_chatFull &_messages_chatFull() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_chatFull*)data;
 	}
 	const MTPDmessages_chatFull &c_messages_chatFull() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_chatFull*)data;
 	}
 
@@ -5024,12 +4826,12 @@ public:
 	}
 
 	MTPDmessages_affectedHistory &_messages_affectedHistory() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_affectedHistory*)data;
 	}
 	const MTPDmessages_affectedHistory &c_messages_affectedHistory() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_affectedHistory*)data;
 	}
 
@@ -5080,566 +4882,472 @@ public:
 	}
 
 	MTPDupdateNewMessage &_updateNewMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewMessage);
 		split();
 		return *(MTPDupdateNewMessage*)data;
 	}
 	const MTPDupdateNewMessage &c_updateNewMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewMessage);
 		return *(const MTPDupdateNewMessage*)data;
 	}
 
 	MTPDupdateMessageID &_updateMessageID() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateMessageID) throw mtpErrorWrongTypeId(_type, mtpc_updateMessageID);
+		t_assert(data != nullptr && _type == mtpc_updateMessageID);
 		split();
 		return *(MTPDupdateMessageID*)data;
 	}
 	const MTPDupdateMessageID &c_updateMessageID() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateMessageID) throw mtpErrorWrongTypeId(_type, mtpc_updateMessageID);
+		t_assert(data != nullptr && _type == mtpc_updateMessageID);
 		return *(const MTPDupdateMessageID*)data;
 	}
 
 	MTPDupdateDeleteMessages &_updateDeleteMessages() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDeleteMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteMessages);
+		t_assert(data != nullptr && _type == mtpc_updateDeleteMessages);
 		split();
 		return *(MTPDupdateDeleteMessages*)data;
 	}
 	const MTPDupdateDeleteMessages &c_updateDeleteMessages() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDeleteMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteMessages);
+		t_assert(data != nullptr && _type == mtpc_updateDeleteMessages);
 		return *(const MTPDupdateDeleteMessages*)data;
 	}
 
 	MTPDupdateUserTyping &_updateUserTyping() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateUserTyping);
+		t_assert(data != nullptr && _type == mtpc_updateUserTyping);
 		split();
 		return *(MTPDupdateUserTyping*)data;
 	}
 	const MTPDupdateUserTyping &c_updateUserTyping() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateUserTyping);
+		t_assert(data != nullptr && _type == mtpc_updateUserTyping);
 		return *(const MTPDupdateUserTyping*)data;
 	}
 
 	MTPDupdateChatUserTyping &_updateChatUserTyping() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatUserTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateChatUserTyping);
+		t_assert(data != nullptr && _type == mtpc_updateChatUserTyping);
 		split();
 		return *(MTPDupdateChatUserTyping*)data;
 	}
 	const MTPDupdateChatUserTyping &c_updateChatUserTyping() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatUserTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateChatUserTyping);
+		t_assert(data != nullptr && _type == mtpc_updateChatUserTyping);
 		return *(const MTPDupdateChatUserTyping*)data;
 	}
 
 	MTPDupdateChatParticipants &_updateChatParticipants() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipants) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipants);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipants);
 		split();
 		return *(MTPDupdateChatParticipants*)data;
 	}
 	const MTPDupdateChatParticipants &c_updateChatParticipants() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipants) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipants);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipants);
 		return *(const MTPDupdateChatParticipants*)data;
 	}
 
 	MTPDupdateUserStatus &_updateUserStatus() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserStatus) throw mtpErrorWrongTypeId(_type, mtpc_updateUserStatus);
+		t_assert(data != nullptr && _type == mtpc_updateUserStatus);
 		split();
 		return *(MTPDupdateUserStatus*)data;
 	}
 	const MTPDupdateUserStatus &c_updateUserStatus() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserStatus) throw mtpErrorWrongTypeId(_type, mtpc_updateUserStatus);
+		t_assert(data != nullptr && _type == mtpc_updateUserStatus);
 		return *(const MTPDupdateUserStatus*)data;
 	}
 
 	MTPDupdateUserName &_updateUserName() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserName) throw mtpErrorWrongTypeId(_type, mtpc_updateUserName);
+		t_assert(data != nullptr && _type == mtpc_updateUserName);
 		split();
 		return *(MTPDupdateUserName*)data;
 	}
 	const MTPDupdateUserName &c_updateUserName() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserName) throw mtpErrorWrongTypeId(_type, mtpc_updateUserName);
+		t_assert(data != nullptr && _type == mtpc_updateUserName);
 		return *(const MTPDupdateUserName*)data;
 	}
 
 	MTPDupdateUserPhoto &_updateUserPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserPhoto) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhoto);
+		t_assert(data != nullptr && _type == mtpc_updateUserPhoto);
 		split();
 		return *(MTPDupdateUserPhoto*)data;
 	}
 	const MTPDupdateUserPhoto &c_updateUserPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserPhoto) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhoto);
+		t_assert(data != nullptr && _type == mtpc_updateUserPhoto);
 		return *(const MTPDupdateUserPhoto*)data;
 	}
 
 	MTPDupdateContactRegistered &_updateContactRegistered() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateContactRegistered) throw mtpErrorWrongTypeId(_type, mtpc_updateContactRegistered);
+		t_assert(data != nullptr && _type == mtpc_updateContactRegistered);
 		split();
 		return *(MTPDupdateContactRegistered*)data;
 	}
 	const MTPDupdateContactRegistered &c_updateContactRegistered() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateContactRegistered) throw mtpErrorWrongTypeId(_type, mtpc_updateContactRegistered);
+		t_assert(data != nullptr && _type == mtpc_updateContactRegistered);
 		return *(const MTPDupdateContactRegistered*)data;
 	}
 
 	MTPDupdateContactLink &_updateContactLink() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateContactLink) throw mtpErrorWrongTypeId(_type, mtpc_updateContactLink);
+		t_assert(data != nullptr && _type == mtpc_updateContactLink);
 		split();
 		return *(MTPDupdateContactLink*)data;
 	}
 	const MTPDupdateContactLink &c_updateContactLink() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateContactLink) throw mtpErrorWrongTypeId(_type, mtpc_updateContactLink);
+		t_assert(data != nullptr && _type == mtpc_updateContactLink);
 		return *(const MTPDupdateContactLink*)data;
 	}
 
 	MTPDupdateNewAuthorization &_updateNewAuthorization() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewAuthorization) throw mtpErrorWrongTypeId(_type, mtpc_updateNewAuthorization);
+		t_assert(data != nullptr && _type == mtpc_updateNewAuthorization);
 		split();
 		return *(MTPDupdateNewAuthorization*)data;
 	}
 	const MTPDupdateNewAuthorization &c_updateNewAuthorization() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewAuthorization) throw mtpErrorWrongTypeId(_type, mtpc_updateNewAuthorization);
+		t_assert(data != nullptr && _type == mtpc_updateNewAuthorization);
 		return *(const MTPDupdateNewAuthorization*)data;
 	}
 
 	MTPDupdateNewEncryptedMessage &_updateNewEncryptedMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewEncryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewEncryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewEncryptedMessage);
 		split();
 		return *(MTPDupdateNewEncryptedMessage*)data;
 	}
 	const MTPDupdateNewEncryptedMessage &c_updateNewEncryptedMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewEncryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewEncryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewEncryptedMessage);
 		return *(const MTPDupdateNewEncryptedMessage*)data;
 	}
 
 	MTPDupdateEncryptedChatTyping &_updateEncryptedChatTyping() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryptedChatTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryptedChatTyping);
+		t_assert(data != nullptr && _type == mtpc_updateEncryptedChatTyping);
 		split();
 		return *(MTPDupdateEncryptedChatTyping*)data;
 	}
 	const MTPDupdateEncryptedChatTyping &c_updateEncryptedChatTyping() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryptedChatTyping) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryptedChatTyping);
+		t_assert(data != nullptr && _type == mtpc_updateEncryptedChatTyping);
 		return *(const MTPDupdateEncryptedChatTyping*)data;
 	}
 
 	MTPDupdateEncryption &_updateEncryption() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryption) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryption);
+		t_assert(data != nullptr && _type == mtpc_updateEncryption);
 		split();
 		return *(MTPDupdateEncryption*)data;
 	}
 	const MTPDupdateEncryption &c_updateEncryption() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryption) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryption);
+		t_assert(data != nullptr && _type == mtpc_updateEncryption);
 		return *(const MTPDupdateEncryption*)data;
 	}
 
 	MTPDupdateEncryptedMessagesRead &_updateEncryptedMessagesRead() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryptedMessagesRead) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryptedMessagesRead);
+		t_assert(data != nullptr && _type == mtpc_updateEncryptedMessagesRead);
 		split();
 		return *(MTPDupdateEncryptedMessagesRead*)data;
 	}
 	const MTPDupdateEncryptedMessagesRead &c_updateEncryptedMessagesRead() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEncryptedMessagesRead) throw mtpErrorWrongTypeId(_type, mtpc_updateEncryptedMessagesRead);
+		t_assert(data != nullptr && _type == mtpc_updateEncryptedMessagesRead);
 		return *(const MTPDupdateEncryptedMessagesRead*)data;
 	}
 
 	MTPDupdateChatParticipantAdd &_updateChatParticipantAdd() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantAdd) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantAdd);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdd);
 		split();
 		return *(MTPDupdateChatParticipantAdd*)data;
 	}
 	const MTPDupdateChatParticipantAdd &c_updateChatParticipantAdd() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantAdd) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantAdd);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdd);
 		return *(const MTPDupdateChatParticipantAdd*)data;
 	}
 
 	MTPDupdateChatParticipantDelete &_updateChatParticipantDelete() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantDelete) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantDelete);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantDelete);
 		split();
 		return *(MTPDupdateChatParticipantDelete*)data;
 	}
 	const MTPDupdateChatParticipantDelete &c_updateChatParticipantDelete() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantDelete) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantDelete);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantDelete);
 		return *(const MTPDupdateChatParticipantDelete*)data;
 	}
 
 	MTPDupdateDcOptions &_updateDcOptions() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDcOptions) throw mtpErrorWrongTypeId(_type, mtpc_updateDcOptions);
+		t_assert(data != nullptr && _type == mtpc_updateDcOptions);
 		split();
 		return *(MTPDupdateDcOptions*)data;
 	}
 	const MTPDupdateDcOptions &c_updateDcOptions() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDcOptions) throw mtpErrorWrongTypeId(_type, mtpc_updateDcOptions);
+		t_assert(data != nullptr && _type == mtpc_updateDcOptions);
 		return *(const MTPDupdateDcOptions*)data;
 	}
 
 	MTPDupdateUserBlocked &_updateUserBlocked() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserBlocked) throw mtpErrorWrongTypeId(_type, mtpc_updateUserBlocked);
+		t_assert(data != nullptr && _type == mtpc_updateUserBlocked);
 		split();
 		return *(MTPDupdateUserBlocked*)data;
 	}
 	const MTPDupdateUserBlocked &c_updateUserBlocked() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserBlocked) throw mtpErrorWrongTypeId(_type, mtpc_updateUserBlocked);
+		t_assert(data != nullptr && _type == mtpc_updateUserBlocked);
 		return *(const MTPDupdateUserBlocked*)data;
 	}
 
 	MTPDupdateNotifySettings &_updateNotifySettings() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNotifySettings) throw mtpErrorWrongTypeId(_type, mtpc_updateNotifySettings);
+		t_assert(data != nullptr && _type == mtpc_updateNotifySettings);
 		split();
 		return *(MTPDupdateNotifySettings*)data;
 	}
 	const MTPDupdateNotifySettings &c_updateNotifySettings() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNotifySettings) throw mtpErrorWrongTypeId(_type, mtpc_updateNotifySettings);
+		t_assert(data != nullptr && _type == mtpc_updateNotifySettings);
 		return *(const MTPDupdateNotifySettings*)data;
 	}
 
 	MTPDupdateServiceNotification &_updateServiceNotification() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateServiceNotification) throw mtpErrorWrongTypeId(_type, mtpc_updateServiceNotification);
+		t_assert(data != nullptr && _type == mtpc_updateServiceNotification);
 		split();
 		return *(MTPDupdateServiceNotification*)data;
 	}
 	const MTPDupdateServiceNotification &c_updateServiceNotification() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateServiceNotification) throw mtpErrorWrongTypeId(_type, mtpc_updateServiceNotification);
+		t_assert(data != nullptr && _type == mtpc_updateServiceNotification);
 		return *(const MTPDupdateServiceNotification*)data;
 	}
 
 	MTPDupdatePrivacy &_updatePrivacy() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updatePrivacy) throw mtpErrorWrongTypeId(_type, mtpc_updatePrivacy);
+		t_assert(data != nullptr && _type == mtpc_updatePrivacy);
 		split();
 		return *(MTPDupdatePrivacy*)data;
 	}
 	const MTPDupdatePrivacy &c_updatePrivacy() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updatePrivacy) throw mtpErrorWrongTypeId(_type, mtpc_updatePrivacy);
+		t_assert(data != nullptr && _type == mtpc_updatePrivacy);
 		return *(const MTPDupdatePrivacy*)data;
 	}
 
 	MTPDupdateUserPhone &_updateUserPhone() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserPhone) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhone);
+		t_assert(data != nullptr && _type == mtpc_updateUserPhone);
 		split();
 		return *(MTPDupdateUserPhone*)data;
 	}
 	const MTPDupdateUserPhone &c_updateUserPhone() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateUserPhone) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhone);
+		t_assert(data != nullptr && _type == mtpc_updateUserPhone);
 		return *(const MTPDupdateUserPhone*)data;
 	}
 
 	MTPDupdateReadHistoryInbox &_updateReadHistoryInbox() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadHistoryInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadHistoryInbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadHistoryInbox);
 		split();
 		return *(MTPDupdateReadHistoryInbox*)data;
 	}
 	const MTPDupdateReadHistoryInbox &c_updateReadHistoryInbox() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadHistoryInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadHistoryInbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadHistoryInbox);
 		return *(const MTPDupdateReadHistoryInbox*)data;
 	}
 
 	MTPDupdateReadHistoryOutbox &_updateReadHistoryOutbox() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadHistoryOutbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadHistoryOutbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadHistoryOutbox);
 		split();
 		return *(MTPDupdateReadHistoryOutbox*)data;
 	}
 	const MTPDupdateReadHistoryOutbox &c_updateReadHistoryOutbox() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadHistoryOutbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadHistoryOutbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadHistoryOutbox);
 		return *(const MTPDupdateReadHistoryOutbox*)data;
 	}
 
 	MTPDupdateWebPage &_updateWebPage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateWebPage) throw mtpErrorWrongTypeId(_type, mtpc_updateWebPage);
+		t_assert(data != nullptr && _type == mtpc_updateWebPage);
 		split();
 		return *(MTPDupdateWebPage*)data;
 	}
 	const MTPDupdateWebPage &c_updateWebPage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateWebPage) throw mtpErrorWrongTypeId(_type, mtpc_updateWebPage);
+		t_assert(data != nullptr && _type == mtpc_updateWebPage);
 		return *(const MTPDupdateWebPage*)data;
 	}
 
 	MTPDupdateReadMessagesContents &_updateReadMessagesContents() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadMessagesContents) throw mtpErrorWrongTypeId(_type, mtpc_updateReadMessagesContents);
+		t_assert(data != nullptr && _type == mtpc_updateReadMessagesContents);
 		split();
 		return *(MTPDupdateReadMessagesContents*)data;
 	}
 	const MTPDupdateReadMessagesContents &c_updateReadMessagesContents() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadMessagesContents) throw mtpErrorWrongTypeId(_type, mtpc_updateReadMessagesContents);
+		t_assert(data != nullptr && _type == mtpc_updateReadMessagesContents);
 		return *(const MTPDupdateReadMessagesContents*)data;
 	}
 
 	MTPDupdateChannelTooLong &_updateChannelTooLong() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelTooLong);
+		t_assert(data != nullptr && _type == mtpc_updateChannelTooLong);
 		split();
 		return *(MTPDupdateChannelTooLong*)data;
 	}
 	const MTPDupdateChannelTooLong &c_updateChannelTooLong() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelTooLong);
+		t_assert(data != nullptr && _type == mtpc_updateChannelTooLong);
 		return *(const MTPDupdateChannelTooLong*)data;
 	}
 
 	MTPDupdateChannel &_updateChannel() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannel) throw mtpErrorWrongTypeId(_type, mtpc_updateChannel);
+		t_assert(data != nullptr && _type == mtpc_updateChannel);
 		split();
 		return *(MTPDupdateChannel*)data;
 	}
 	const MTPDupdateChannel &c_updateChannel() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannel) throw mtpErrorWrongTypeId(_type, mtpc_updateChannel);
+		t_assert(data != nullptr && _type == mtpc_updateChannel);
 		return *(const MTPDupdateChannel*)data;
 	}
 
 	MTPDupdateNewChannelMessage &_updateNewChannelMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewChannelMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewChannelMessage);
 		split();
 		return *(MTPDupdateNewChannelMessage*)data;
 	}
 	const MTPDupdateNewChannelMessage &c_updateNewChannelMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewChannelMessage);
+		t_assert(data != nullptr && _type == mtpc_updateNewChannelMessage);
 		return *(const MTPDupdateNewChannelMessage*)data;
 	}
 
 	MTPDupdateReadChannelInbox &_updateReadChannelInbox() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadChannelInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelInbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadChannelInbox);
 		split();
 		return *(MTPDupdateReadChannelInbox*)data;
 	}
 	const MTPDupdateReadChannelInbox &c_updateReadChannelInbox() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadChannelInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelInbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadChannelInbox);
 		return *(const MTPDupdateReadChannelInbox*)data;
 	}
 
 	MTPDupdateDeleteChannelMessages &_updateDeleteChannelMessages() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDeleteChannelMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteChannelMessages);
+		t_assert(data != nullptr && _type == mtpc_updateDeleteChannelMessages);
 		split();
 		return *(MTPDupdateDeleteChannelMessages*)data;
 	}
 	const MTPDupdateDeleteChannelMessages &c_updateDeleteChannelMessages() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDeleteChannelMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteChannelMessages);
+		t_assert(data != nullptr && _type == mtpc_updateDeleteChannelMessages);
 		return *(const MTPDupdateDeleteChannelMessages*)data;
 	}
 
 	MTPDupdateChannelMessageViews &_updateChannelMessageViews() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelMessageViews) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelMessageViews);
+		t_assert(data != nullptr && _type == mtpc_updateChannelMessageViews);
 		split();
 		return *(MTPDupdateChannelMessageViews*)data;
 	}
 	const MTPDupdateChannelMessageViews &c_updateChannelMessageViews() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelMessageViews) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelMessageViews);
+		t_assert(data != nullptr && _type == mtpc_updateChannelMessageViews);
 		return *(const MTPDupdateChannelMessageViews*)data;
 	}
 
 	MTPDupdateChatAdmins &_updateChatAdmins() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatAdmins) throw mtpErrorWrongTypeId(_type, mtpc_updateChatAdmins);
+		t_assert(data != nullptr && _type == mtpc_updateChatAdmins);
 		split();
 		return *(MTPDupdateChatAdmins*)data;
 	}
 	const MTPDupdateChatAdmins &c_updateChatAdmins() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatAdmins) throw mtpErrorWrongTypeId(_type, mtpc_updateChatAdmins);
+		t_assert(data != nullptr && _type == mtpc_updateChatAdmins);
 		return *(const MTPDupdateChatAdmins*)data;
 	}
 
 	MTPDupdateChatParticipantAdmin &_updateChatParticipantAdmin() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantAdmin) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantAdmin);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdmin);
 		split();
 		return *(MTPDupdateChatParticipantAdmin*)data;
 	}
 	const MTPDupdateChatParticipantAdmin &c_updateChatParticipantAdmin() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChatParticipantAdmin) throw mtpErrorWrongTypeId(_type, mtpc_updateChatParticipantAdmin);
+		t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdmin);
 		return *(const MTPDupdateChatParticipantAdmin*)data;
 	}
 
 	MTPDupdateNewStickerSet &_updateNewStickerSet() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewStickerSet) throw mtpErrorWrongTypeId(_type, mtpc_updateNewStickerSet);
+		t_assert(data != nullptr && _type == mtpc_updateNewStickerSet);
 		split();
 		return *(MTPDupdateNewStickerSet*)data;
 	}
 	const MTPDupdateNewStickerSet &c_updateNewStickerSet() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateNewStickerSet) throw mtpErrorWrongTypeId(_type, mtpc_updateNewStickerSet);
+		t_assert(data != nullptr && _type == mtpc_updateNewStickerSet);
 		return *(const MTPDupdateNewStickerSet*)data;
 	}
 
 	MTPDupdateStickerSetsOrder &_updateStickerSetsOrder() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateStickerSetsOrder) throw mtpErrorWrongTypeId(_type, mtpc_updateStickerSetsOrder);
+		t_assert(data != nullptr && _type == mtpc_updateStickerSetsOrder);
 		split();
 		return *(MTPDupdateStickerSetsOrder*)data;
 	}
 	const MTPDupdateStickerSetsOrder &c_updateStickerSetsOrder() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateStickerSetsOrder) throw mtpErrorWrongTypeId(_type, mtpc_updateStickerSetsOrder);
+		t_assert(data != nullptr && _type == mtpc_updateStickerSetsOrder);
 		return *(const MTPDupdateStickerSetsOrder*)data;
 	}
 
 	MTPDupdateBotInlineQuery &_updateBotInlineQuery() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotInlineQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateBotInlineQuery);
+		t_assert(data != nullptr && _type == mtpc_updateBotInlineQuery);
 		split();
 		return *(MTPDupdateBotInlineQuery*)data;
 	}
 	const MTPDupdateBotInlineQuery &c_updateBotInlineQuery() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotInlineQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateBotInlineQuery);
+		t_assert(data != nullptr && _type == mtpc_updateBotInlineQuery);
 		return *(const MTPDupdateBotInlineQuery*)data;
 	}
 
 	MTPDupdateBotInlineSend &_updateBotInlineSend() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotInlineSend) throw mtpErrorWrongTypeId(_type, mtpc_updateBotInlineSend);
+		t_assert(data != nullptr && _type == mtpc_updateBotInlineSend);
 		split();
 		return *(MTPDupdateBotInlineSend*)data;
 	}
 	const MTPDupdateBotInlineSend &c_updateBotInlineSend() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotInlineSend) throw mtpErrorWrongTypeId(_type, mtpc_updateBotInlineSend);
+		t_assert(data != nullptr && _type == mtpc_updateBotInlineSend);
 		return *(const MTPDupdateBotInlineSend*)data;
 	}
 
 	MTPDupdateEditChannelMessage &_updateEditChannelMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEditChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateEditChannelMessage);
+		t_assert(data != nullptr && _type == mtpc_updateEditChannelMessage);
 		split();
 		return *(MTPDupdateEditChannelMessage*)data;
 	}
 	const MTPDupdateEditChannelMessage &c_updateEditChannelMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEditChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateEditChannelMessage);
+		t_assert(data != nullptr && _type == mtpc_updateEditChannelMessage);
 		return *(const MTPDupdateEditChannelMessage*)data;
 	}
 
 	MTPDupdateChannelPinnedMessage &_updateChannelPinnedMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelPinnedMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelPinnedMessage);
+		t_assert(data != nullptr && _type == mtpc_updateChannelPinnedMessage);
 		split();
 		return *(MTPDupdateChannelPinnedMessage*)data;
 	}
 	const MTPDupdateChannelPinnedMessage &c_updateChannelPinnedMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateChannelPinnedMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelPinnedMessage);
+		t_assert(data != nullptr && _type == mtpc_updateChannelPinnedMessage);
 		return *(const MTPDupdateChannelPinnedMessage*)data;
 	}
 
 	MTPDupdateBotCallbackQuery &_updateBotCallbackQuery() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotCallbackQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateBotCallbackQuery);
+		t_assert(data != nullptr && _type == mtpc_updateBotCallbackQuery);
 		split();
 		return *(MTPDupdateBotCallbackQuery*)data;
 	}
 	const MTPDupdateBotCallbackQuery &c_updateBotCallbackQuery() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateBotCallbackQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateBotCallbackQuery);
+		t_assert(data != nullptr && _type == mtpc_updateBotCallbackQuery);
 		return *(const MTPDupdateBotCallbackQuery*)data;
 	}
 
 	MTPDupdateEditMessage &_updateEditMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEditMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateEditMessage);
+		t_assert(data != nullptr && _type == mtpc_updateEditMessage);
 		split();
 		return *(MTPDupdateEditMessage*)data;
 	}
 	const MTPDupdateEditMessage &c_updateEditMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateEditMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateEditMessage);
+		t_assert(data != nullptr && _type == mtpc_updateEditMessage);
 		return *(const MTPDupdateEditMessage*)data;
 	}
 
 	MTPDupdateInlineBotCallbackQuery &_updateInlineBotCallbackQuery() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateInlineBotCallbackQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateInlineBotCallbackQuery);
+		t_assert(data != nullptr && _type == mtpc_updateInlineBotCallbackQuery);
 		split();
 		return *(MTPDupdateInlineBotCallbackQuery*)data;
 	}
 	const MTPDupdateInlineBotCallbackQuery &c_updateInlineBotCallbackQuery() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateInlineBotCallbackQuery) throw mtpErrorWrongTypeId(_type, mtpc_updateInlineBotCallbackQuery);
+		t_assert(data != nullptr && _type == mtpc_updateInlineBotCallbackQuery);
 		return *(const MTPDupdateInlineBotCallbackQuery*)data;
 	}
 
 	MTPDupdateReadChannelOutbox &_updateReadChannelOutbox() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadChannelOutbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelOutbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadChannelOutbox);
 		split();
 		return *(MTPDupdateReadChannelOutbox*)data;
 	}
 	const MTPDupdateReadChannelOutbox &c_updateReadChannelOutbox() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateReadChannelOutbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelOutbox);
+		t_assert(data != nullptr && _type == mtpc_updateReadChannelOutbox);
 		return *(const MTPDupdateReadChannelOutbox*)data;
 	}
 
 	MTPDupdateDraftMessage &_updateDraftMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDraftMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateDraftMessage);
+		t_assert(data != nullptr && _type == mtpc_updateDraftMessage);
 		split();
 		return *(MTPDupdateDraftMessage*)data;
 	}
 	const MTPDupdateDraftMessage &c_updateDraftMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateDraftMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateDraftMessage);
+		t_assert(data != nullptr && _type == mtpc_updateDraftMessage);
 		return *(const MTPDupdateDraftMessage*)data;
 	}
 
@@ -5714,12 +5422,12 @@ public:
 	}
 
 	MTPDupdates_state &_updates_state() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDupdates_state*)data;
 	}
 	const MTPDupdates_state &c_updates_state() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDupdates_state*)data;
 	}
 
@@ -5746,38 +5454,32 @@ public:
 	}
 
 	MTPDupdates_differenceEmpty &_updates_differenceEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_differenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_differenceEmpty);
+		t_assert(data != nullptr && _type == mtpc_updates_differenceEmpty);
 		split();
 		return *(MTPDupdates_differenceEmpty*)data;
 	}
 	const MTPDupdates_differenceEmpty &c_updates_differenceEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_differenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_differenceEmpty);
+		t_assert(data != nullptr && _type == mtpc_updates_differenceEmpty);
 		return *(const MTPDupdates_differenceEmpty*)data;
 	}
 
 	MTPDupdates_difference &_updates_difference() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_difference) throw mtpErrorWrongTypeId(_type, mtpc_updates_difference);
+		t_assert(data != nullptr && _type == mtpc_updates_difference);
 		split();
 		return *(MTPDupdates_difference*)data;
 	}
 	const MTPDupdates_difference &c_updates_difference() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_difference) throw mtpErrorWrongTypeId(_type, mtpc_updates_difference);
+		t_assert(data != nullptr && _type == mtpc_updates_difference);
 		return *(const MTPDupdates_difference*)data;
 	}
 
 	MTPDupdates_differenceSlice &_updates_differenceSlice() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_differenceSlice) throw mtpErrorWrongTypeId(_type, mtpc_updates_differenceSlice);
+		t_assert(data != nullptr && _type == mtpc_updates_differenceSlice);
 		split();
 		return *(MTPDupdates_differenceSlice*)data;
 	}
 	const MTPDupdates_differenceSlice &c_updates_differenceSlice() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_differenceSlice) throw mtpErrorWrongTypeId(_type, mtpc_updates_differenceSlice);
+		t_assert(data != nullptr && _type == mtpc_updates_differenceSlice);
 		return *(const MTPDupdates_differenceSlice*)data;
 	}
 
@@ -5809,74 +5511,62 @@ public:
 	}
 
 	MTPDupdateShortMessage &_updateShortMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortMessage);
 		split();
 		return *(MTPDupdateShortMessage*)data;
 	}
 	const MTPDupdateShortMessage &c_updateShortMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortMessage);
 		return *(const MTPDupdateShortMessage*)data;
 	}
 
 	MTPDupdateShortChatMessage &_updateShortChatMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortChatMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortChatMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortChatMessage);
 		split();
 		return *(MTPDupdateShortChatMessage*)data;
 	}
 	const MTPDupdateShortChatMessage &c_updateShortChatMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortChatMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortChatMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortChatMessage);
 		return *(const MTPDupdateShortChatMessage*)data;
 	}
 
 	MTPDupdateShort &_updateShort() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShort) throw mtpErrorWrongTypeId(_type, mtpc_updateShort);
+		t_assert(data != nullptr && _type == mtpc_updateShort);
 		split();
 		return *(MTPDupdateShort*)data;
 	}
 	const MTPDupdateShort &c_updateShort() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShort) throw mtpErrorWrongTypeId(_type, mtpc_updateShort);
+		t_assert(data != nullptr && _type == mtpc_updateShort);
 		return *(const MTPDupdateShort*)data;
 	}
 
 	MTPDupdatesCombined &_updatesCombined() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updatesCombined) throw mtpErrorWrongTypeId(_type, mtpc_updatesCombined);
+		t_assert(data != nullptr && _type == mtpc_updatesCombined);
 		split();
 		return *(MTPDupdatesCombined*)data;
 	}
 	const MTPDupdatesCombined &c_updatesCombined() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updatesCombined) throw mtpErrorWrongTypeId(_type, mtpc_updatesCombined);
+		t_assert(data != nullptr && _type == mtpc_updatesCombined);
 		return *(const MTPDupdatesCombined*)data;
 	}
 
 	MTPDupdates &_updates() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates) throw mtpErrorWrongTypeId(_type, mtpc_updates);
+		t_assert(data != nullptr && _type == mtpc_updates);
 		split();
 		return *(MTPDupdates*)data;
 	}
 	const MTPDupdates &c_updates() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates) throw mtpErrorWrongTypeId(_type, mtpc_updates);
+		t_assert(data != nullptr && _type == mtpc_updates);
 		return *(const MTPDupdates*)data;
 	}
 
 	MTPDupdateShortSentMessage &_updateShortSentMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortSentMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortSentMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortSentMessage);
 		split();
 		return *(MTPDupdateShortSentMessage*)data;
 	}
 	const MTPDupdateShortSentMessage &c_updateShortSentMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updateShortSentMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateShortSentMessage);
+		t_assert(data != nullptr && _type == mtpc_updateShortSentMessage);
 		return *(const MTPDupdateShortSentMessage*)data;
 	}
 
@@ -5911,26 +5601,22 @@ public:
 	}
 
 	MTPDphotos_photos &_photos_photos() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photos_photos) throw mtpErrorWrongTypeId(_type, mtpc_photos_photos);
+		t_assert(data != nullptr && _type == mtpc_photos_photos);
 		split();
 		return *(MTPDphotos_photos*)data;
 	}
 	const MTPDphotos_photos &c_photos_photos() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photos_photos) throw mtpErrorWrongTypeId(_type, mtpc_photos_photos);
+		t_assert(data != nullptr && _type == mtpc_photos_photos);
 		return *(const MTPDphotos_photos*)data;
 	}
 
 	MTPDphotos_photosSlice &_photos_photosSlice() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photos_photosSlice) throw mtpErrorWrongTypeId(_type, mtpc_photos_photosSlice);
+		t_assert(data != nullptr && _type == mtpc_photos_photosSlice);
 		split();
 		return *(MTPDphotos_photosSlice*)data;
 	}
 	const MTPDphotos_photosSlice &c_photos_photosSlice() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_photos_photosSlice) throw mtpErrorWrongTypeId(_type, mtpc_photos_photosSlice);
+		t_assert(data != nullptr && _type == mtpc_photos_photosSlice);
 		return *(const MTPDphotos_photosSlice*)data;
 	}
 
@@ -5960,12 +5646,12 @@ public:
 	}
 
 	MTPDphotos_photo &_photos_photo() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDphotos_photo*)data;
 	}
 	const MTPDphotos_photo &c_photos_photo() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDphotos_photo*)data;
 	}
 
@@ -5991,12 +5677,12 @@ public:
 	}
 
 	MTPDupload_file &_upload_file() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDupload_file*)data;
 	}
 	const MTPDupload_file &c_upload_file() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDupload_file*)data;
 	}
 
@@ -6022,12 +5708,12 @@ public:
 	}
 
 	MTPDdcOption &_dcOption() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDdcOption*)data;
 	}
 	const MTPDdcOption &c_dcOption() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDdcOption*)data;
 	}
 
@@ -6053,12 +5739,12 @@ public:
 	}
 
 	MTPDconfig &_config() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDconfig*)data;
 	}
 	const MTPDconfig &c_config() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDconfig*)data;
 	}
 
@@ -6084,12 +5770,12 @@ public:
 	}
 
 	MTPDnearestDc &_nearestDc() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDnearestDc*)data;
 	}
 	const MTPDnearestDc &c_nearestDc() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDnearestDc*)data;
 	}
 
@@ -6116,14 +5802,12 @@ public:
 	}
 
 	MTPDhelp_appUpdate &_help_appUpdate() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_help_appUpdate) throw mtpErrorWrongTypeId(_type, mtpc_help_appUpdate);
+		t_assert(data != nullptr && _type == mtpc_help_appUpdate);
 		split();
 		return *(MTPDhelp_appUpdate*)data;
 	}
 	const MTPDhelp_appUpdate &c_help_appUpdate() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_help_appUpdate) throw mtpErrorWrongTypeId(_type, mtpc_help_appUpdate);
+		t_assert(data != nullptr && _type == mtpc_help_appUpdate);
 		return *(const MTPDhelp_appUpdate*)data;
 	}
 
@@ -6152,12 +5836,12 @@ public:
 	}
 
 	MTPDhelp_inviteText &_help_inviteText() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDhelp_inviteText*)data;
 	}
 	const MTPDhelp_inviteText &c_help_inviteText() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDhelp_inviteText*)data;
 	}
 
@@ -6184,62 +5868,52 @@ public:
 	}
 
 	MTPDencryptedChatEmpty &_encryptedChatEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatEmpty) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatEmpty);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatEmpty);
 		split();
 		return *(MTPDencryptedChatEmpty*)data;
 	}
 	const MTPDencryptedChatEmpty &c_encryptedChatEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatEmpty) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatEmpty);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatEmpty);
 		return *(const MTPDencryptedChatEmpty*)data;
 	}
 
 	MTPDencryptedChatWaiting &_encryptedChatWaiting() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatWaiting) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatWaiting);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatWaiting);
 		split();
 		return *(MTPDencryptedChatWaiting*)data;
 	}
 	const MTPDencryptedChatWaiting &c_encryptedChatWaiting() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatWaiting) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatWaiting);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatWaiting);
 		return *(const MTPDencryptedChatWaiting*)data;
 	}
 
 	MTPDencryptedChatRequested &_encryptedChatRequested() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatRequested) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatRequested);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatRequested);
 		split();
 		return *(MTPDencryptedChatRequested*)data;
 	}
 	const MTPDencryptedChatRequested &c_encryptedChatRequested() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatRequested) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatRequested);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatRequested);
 		return *(const MTPDencryptedChatRequested*)data;
 	}
 
 	MTPDencryptedChat &_encryptedChat() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChat) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChat);
+		t_assert(data != nullptr && _type == mtpc_encryptedChat);
 		split();
 		return *(MTPDencryptedChat*)data;
 	}
 	const MTPDencryptedChat &c_encryptedChat() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChat) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChat);
+		t_assert(data != nullptr && _type == mtpc_encryptedChat);
 		return *(const MTPDencryptedChat*)data;
 	}
 
 	MTPDencryptedChatDiscarded &_encryptedChatDiscarded() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatDiscarded) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatDiscarded);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatDiscarded);
 		split();
 		return *(MTPDencryptedChatDiscarded*)data;
 	}
 	const MTPDencryptedChatDiscarded &c_encryptedChatDiscarded() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedChatDiscarded) throw mtpErrorWrongTypeId(_type, mtpc_encryptedChatDiscarded);
+		t_assert(data != nullptr && _type == mtpc_encryptedChatDiscarded);
 		return *(const MTPDencryptedChatDiscarded*)data;
 	}
 
@@ -6272,12 +5946,12 @@ public:
 	}
 
 	MTPDinputEncryptedChat &_inputEncryptedChat() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinputEncryptedChat*)data;
 	}
 	const MTPDinputEncryptedChat &c_inputEncryptedChat() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinputEncryptedChat*)data;
 	}
 
@@ -6304,14 +5978,12 @@ public:
 	}
 
 	MTPDencryptedFile &_encryptedFile() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_encryptedFile);
+		t_assert(data != nullptr && _type == mtpc_encryptedFile);
 		split();
 		return *(MTPDencryptedFile*)data;
 	}
 	const MTPDencryptedFile &c_encryptedFile() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_encryptedFile);
+		t_assert(data != nullptr && _type == mtpc_encryptedFile);
 		return *(const MTPDencryptedFile*)data;
 	}
 
@@ -6341,38 +6013,32 @@ public:
 	}
 
 	MTPDinputEncryptedFileUploaded &_inputEncryptedFileUploaded() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileUploaded) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileUploaded);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileUploaded);
 		split();
 		return *(MTPDinputEncryptedFileUploaded*)data;
 	}
 	const MTPDinputEncryptedFileUploaded &c_inputEncryptedFileUploaded() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileUploaded) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileUploaded);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileUploaded);
 		return *(const MTPDinputEncryptedFileUploaded*)data;
 	}
 
 	MTPDinputEncryptedFile &_inputEncryptedFile() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFile);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFile);
 		split();
 		return *(MTPDinputEncryptedFile*)data;
 	}
 	const MTPDinputEncryptedFile &c_inputEncryptedFile() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFile);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFile);
 		return *(const MTPDinputEncryptedFile*)data;
 	}
 
 	MTPDinputEncryptedFileBigUploaded &_inputEncryptedFileBigUploaded() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileBigUploaded) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileBigUploaded);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileBigUploaded);
 		split();
 		return *(MTPDinputEncryptedFileBigUploaded*)data;
 	}
 	const MTPDinputEncryptedFileBigUploaded &c_inputEncryptedFileBigUploaded() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputEncryptedFileBigUploaded) throw mtpErrorWrongTypeId(_type, mtpc_inputEncryptedFileBigUploaded);
+		t_assert(data != nullptr && _type == mtpc_inputEncryptedFileBigUploaded);
 		return *(const MTPDinputEncryptedFileBigUploaded*)data;
 	}
 
@@ -6404,26 +6070,22 @@ public:
 	}
 
 	MTPDencryptedMessage &_encryptedMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_encryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_encryptedMessage);
 		split();
 		return *(MTPDencryptedMessage*)data;
 	}
 	const MTPDencryptedMessage &c_encryptedMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_encryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_encryptedMessage);
 		return *(const MTPDencryptedMessage*)data;
 	}
 
 	MTPDencryptedMessageService &_encryptedMessageService() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedMessageService) throw mtpErrorWrongTypeId(_type, mtpc_encryptedMessageService);
+		t_assert(data != nullptr && _type == mtpc_encryptedMessageService);
 		split();
 		return *(MTPDencryptedMessageService*)data;
 	}
 	const MTPDencryptedMessageService &c_encryptedMessageService() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_encryptedMessageService) throw mtpErrorWrongTypeId(_type, mtpc_encryptedMessageService);
+		t_assert(data != nullptr && _type == mtpc_encryptedMessageService);
 		return *(const MTPDencryptedMessageService*)data;
 	}
 
@@ -6454,26 +6116,22 @@ public:
 	}
 
 	MTPDmessages_dhConfigNotModified &_messages_dhConfigNotModified() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dhConfigNotModified) throw mtpErrorWrongTypeId(_type, mtpc_messages_dhConfigNotModified);
+		t_assert(data != nullptr && _type == mtpc_messages_dhConfigNotModified);
 		split();
 		return *(MTPDmessages_dhConfigNotModified*)data;
 	}
 	const MTPDmessages_dhConfigNotModified &c_messages_dhConfigNotModified() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dhConfigNotModified) throw mtpErrorWrongTypeId(_type, mtpc_messages_dhConfigNotModified);
+		t_assert(data != nullptr && _type == mtpc_messages_dhConfigNotModified);
 		return *(const MTPDmessages_dhConfigNotModified*)data;
 	}
 
 	MTPDmessages_dhConfig &_messages_dhConfig() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dhConfig) throw mtpErrorWrongTypeId(_type, mtpc_messages_dhConfig);
+		t_assert(data != nullptr && _type == mtpc_messages_dhConfig);
 		split();
 		return *(MTPDmessages_dhConfig*)data;
 	}
 	const MTPDmessages_dhConfig &c_messages_dhConfig() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_dhConfig) throw mtpErrorWrongTypeId(_type, mtpc_messages_dhConfig);
+		t_assert(data != nullptr && _type == mtpc_messages_dhConfig);
 		return *(const MTPDmessages_dhConfig*)data;
 	}
 
@@ -6504,26 +6162,22 @@ public:
 	}
 
 	MTPDmessages_sentEncryptedMessage &_messages_sentEncryptedMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_sentEncryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_messages_sentEncryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedMessage);
 		split();
 		return *(MTPDmessages_sentEncryptedMessage*)data;
 	}
 	const MTPDmessages_sentEncryptedMessage &c_messages_sentEncryptedMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_sentEncryptedMessage) throw mtpErrorWrongTypeId(_type, mtpc_messages_sentEncryptedMessage);
+		t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedMessage);
 		return *(const MTPDmessages_sentEncryptedMessage*)data;
 	}
 
 	MTPDmessages_sentEncryptedFile &_messages_sentEncryptedFile() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_sentEncryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_messages_sentEncryptedFile);
+		t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedFile);
 		split();
 		return *(MTPDmessages_sentEncryptedFile*)data;
 	}
 	const MTPDmessages_sentEncryptedFile &c_messages_sentEncryptedFile() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_sentEncryptedFile) throw mtpErrorWrongTypeId(_type, mtpc_messages_sentEncryptedFile);
+		t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedFile);
 		return *(const MTPDmessages_sentEncryptedFile*)data;
 	}
 
@@ -6554,14 +6208,12 @@ public:
 	}
 
 	MTPDinputDocument &_inputDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputDocument);
+		t_assert(data != nullptr && _type == mtpc_inputDocument);
 		split();
 		return *(MTPDinputDocument*)data;
 	}
 	const MTPDinputDocument &c_inputDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputDocument);
+		t_assert(data != nullptr && _type == mtpc_inputDocument);
 		return *(const MTPDinputDocument*)data;
 	}
 
@@ -6591,26 +6243,22 @@ public:
 	}
 
 	MTPDdocumentEmpty &_documentEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentEmpty) throw mtpErrorWrongTypeId(_type, mtpc_documentEmpty);
+		t_assert(data != nullptr && _type == mtpc_documentEmpty);
 		split();
 		return *(MTPDdocumentEmpty*)data;
 	}
 	const MTPDdocumentEmpty &c_documentEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentEmpty) throw mtpErrorWrongTypeId(_type, mtpc_documentEmpty);
+		t_assert(data != nullptr && _type == mtpc_documentEmpty);
 		return *(const MTPDdocumentEmpty*)data;
 	}
 
 	MTPDdocument &_document() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_document) throw mtpErrorWrongTypeId(_type, mtpc_document);
+		t_assert(data != nullptr && _type == mtpc_document);
 		split();
 		return *(MTPDdocument*)data;
 	}
 	const MTPDdocument &c_document() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_document) throw mtpErrorWrongTypeId(_type, mtpc_document);
+		t_assert(data != nullptr && _type == mtpc_document);
 		return *(const MTPDdocument*)data;
 	}
 
@@ -6640,12 +6288,12 @@ public:
 	}
 
 	MTPDhelp_support &_help_support() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDhelp_support*)data;
 	}
 	const MTPDhelp_support &c_help_support() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDhelp_support*)data;
 	}
 
@@ -6672,14 +6320,12 @@ public:
 	}
 
 	MTPDnotifyPeer &_notifyPeer() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_notifyPeer) throw mtpErrorWrongTypeId(_type, mtpc_notifyPeer);
+		t_assert(data != nullptr && _type == mtpc_notifyPeer);
 		split();
 		return *(MTPDnotifyPeer*)data;
 	}
 	const MTPDnotifyPeer &c_notifyPeer() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_notifyPeer) throw mtpErrorWrongTypeId(_type, mtpc_notifyPeer);
+		t_assert(data != nullptr && _type == mtpc_notifyPeer);
 		return *(const MTPDnotifyPeer*)data;
 	}
 
@@ -6709,50 +6355,42 @@ public:
 	}
 
 	MTPDsendMessageUploadVideoAction &_sendMessageUploadVideoAction() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadVideoAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadVideoAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadVideoAction);
 		split();
 		return *(MTPDsendMessageUploadVideoAction*)data;
 	}
 	const MTPDsendMessageUploadVideoAction &c_sendMessageUploadVideoAction() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadVideoAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadVideoAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadVideoAction);
 		return *(const MTPDsendMessageUploadVideoAction*)data;
 	}
 
 	MTPDsendMessageUploadAudioAction &_sendMessageUploadAudioAction() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadAudioAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadAudioAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadAudioAction);
 		split();
 		return *(MTPDsendMessageUploadAudioAction*)data;
 	}
 	const MTPDsendMessageUploadAudioAction &c_sendMessageUploadAudioAction() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadAudioAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadAudioAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadAudioAction);
 		return *(const MTPDsendMessageUploadAudioAction*)data;
 	}
 
 	MTPDsendMessageUploadPhotoAction &_sendMessageUploadPhotoAction() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadPhotoAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadPhotoAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadPhotoAction);
 		split();
 		return *(MTPDsendMessageUploadPhotoAction*)data;
 	}
 	const MTPDsendMessageUploadPhotoAction &c_sendMessageUploadPhotoAction() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadPhotoAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadPhotoAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadPhotoAction);
 		return *(const MTPDsendMessageUploadPhotoAction*)data;
 	}
 
 	MTPDsendMessageUploadDocumentAction &_sendMessageUploadDocumentAction() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadDocumentAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadDocumentAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadDocumentAction);
 		split();
 		return *(MTPDsendMessageUploadDocumentAction*)data;
 	}
 	const MTPDsendMessageUploadDocumentAction &c_sendMessageUploadDocumentAction() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_sendMessageUploadDocumentAction) throw mtpErrorWrongTypeId(_type, mtpc_sendMessageUploadDocumentAction);
+		t_assert(data != nullptr && _type == mtpc_sendMessageUploadDocumentAction);
 		return *(const MTPDsendMessageUploadDocumentAction*)data;
 	}
 
@@ -6784,12 +6422,12 @@ public:
 	}
 
 	MTPDcontacts_found &_contacts_found() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontacts_found*)data;
 	}
 	const MTPDcontacts_found &c_contacts_found() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontacts_found*)data;
 	}
 
@@ -6864,26 +6502,22 @@ public:
 	}
 
 	MTPDinputPrivacyValueAllowUsers &_inputPrivacyValueAllowUsers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPrivacyValueAllowUsers) throw mtpErrorWrongTypeId(_type, mtpc_inputPrivacyValueAllowUsers);
+		t_assert(data != nullptr && _type == mtpc_inputPrivacyValueAllowUsers);
 		split();
 		return *(MTPDinputPrivacyValueAllowUsers*)data;
 	}
 	const MTPDinputPrivacyValueAllowUsers &c_inputPrivacyValueAllowUsers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPrivacyValueAllowUsers) throw mtpErrorWrongTypeId(_type, mtpc_inputPrivacyValueAllowUsers);
+		t_assert(data != nullptr && _type == mtpc_inputPrivacyValueAllowUsers);
 		return *(const MTPDinputPrivacyValueAllowUsers*)data;
 	}
 
 	MTPDinputPrivacyValueDisallowUsers &_inputPrivacyValueDisallowUsers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPrivacyValueDisallowUsers) throw mtpErrorWrongTypeId(_type, mtpc_inputPrivacyValueDisallowUsers);
+		t_assert(data != nullptr && _type == mtpc_inputPrivacyValueDisallowUsers);
 		split();
 		return *(MTPDinputPrivacyValueDisallowUsers*)data;
 	}
 	const MTPDinputPrivacyValueDisallowUsers &c_inputPrivacyValueDisallowUsers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputPrivacyValueDisallowUsers) throw mtpErrorWrongTypeId(_type, mtpc_inputPrivacyValueDisallowUsers);
+		t_assert(data != nullptr && _type == mtpc_inputPrivacyValueDisallowUsers);
 		return *(const MTPDinputPrivacyValueDisallowUsers*)data;
 	}
 
@@ -6914,26 +6548,22 @@ public:
 	}
 
 	MTPDprivacyValueAllowUsers &_privacyValueAllowUsers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_privacyValueAllowUsers) throw mtpErrorWrongTypeId(_type, mtpc_privacyValueAllowUsers);
+		t_assert(data != nullptr && _type == mtpc_privacyValueAllowUsers);
 		split();
 		return *(MTPDprivacyValueAllowUsers*)data;
 	}
 	const MTPDprivacyValueAllowUsers &c_privacyValueAllowUsers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_privacyValueAllowUsers) throw mtpErrorWrongTypeId(_type, mtpc_privacyValueAllowUsers);
+		t_assert(data != nullptr && _type == mtpc_privacyValueAllowUsers);
 		return *(const MTPDprivacyValueAllowUsers*)data;
 	}
 
 	MTPDprivacyValueDisallowUsers &_privacyValueDisallowUsers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_privacyValueDisallowUsers) throw mtpErrorWrongTypeId(_type, mtpc_privacyValueDisallowUsers);
+		t_assert(data != nullptr && _type == mtpc_privacyValueDisallowUsers);
 		split();
 		return *(MTPDprivacyValueDisallowUsers*)data;
 	}
 	const MTPDprivacyValueDisallowUsers &c_privacyValueDisallowUsers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_privacyValueDisallowUsers) throw mtpErrorWrongTypeId(_type, mtpc_privacyValueDisallowUsers);
+		t_assert(data != nullptr && _type == mtpc_privacyValueDisallowUsers);
 		return *(const MTPDprivacyValueDisallowUsers*)data;
 	}
 
@@ -6963,12 +6593,12 @@ public:
 	}
 
 	MTPDaccount_privacyRules &_account_privacyRules() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDaccount_privacyRules*)data;
 	}
 	const MTPDaccount_privacyRules &c_account_privacyRules() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDaccount_privacyRules*)data;
 	}
 
@@ -6994,12 +6624,12 @@ public:
 	}
 
 	MTPDaccountDaysTTL &_accountDaysTTL() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDaccountDaysTTL*)data;
 	}
 	const MTPDaccountDaysTTL &c_accountDaysTTL() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDaccountDaysTTL*)data;
 	}
 
@@ -7026,62 +6656,52 @@ public:
 	}
 
 	MTPDdocumentAttributeImageSize &_documentAttributeImageSize() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeImageSize) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeImageSize);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeImageSize);
 		split();
 		return *(MTPDdocumentAttributeImageSize*)data;
 	}
 	const MTPDdocumentAttributeImageSize &c_documentAttributeImageSize() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeImageSize) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeImageSize);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeImageSize);
 		return *(const MTPDdocumentAttributeImageSize*)data;
 	}
 
 	MTPDdocumentAttributeSticker &_documentAttributeSticker() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeSticker) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeSticker);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeSticker);
 		split();
 		return *(MTPDdocumentAttributeSticker*)data;
 	}
 	const MTPDdocumentAttributeSticker &c_documentAttributeSticker() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeSticker) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeSticker);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeSticker);
 		return *(const MTPDdocumentAttributeSticker*)data;
 	}
 
 	MTPDdocumentAttributeVideo &_documentAttributeVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeVideo) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeVideo);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeVideo);
 		split();
 		return *(MTPDdocumentAttributeVideo*)data;
 	}
 	const MTPDdocumentAttributeVideo &c_documentAttributeVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeVideo) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeVideo);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeVideo);
 		return *(const MTPDdocumentAttributeVideo*)data;
 	}
 
 	MTPDdocumentAttributeAudio &_documentAttributeAudio() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeAudio) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeAudio);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeAudio);
 		split();
 		return *(MTPDdocumentAttributeAudio*)data;
 	}
 	const MTPDdocumentAttributeAudio &c_documentAttributeAudio() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeAudio) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeAudio);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeAudio);
 		return *(const MTPDdocumentAttributeAudio*)data;
 	}
 
 	MTPDdocumentAttributeFilename &_documentAttributeFilename() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeFilename) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeFilename);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeFilename);
 		split();
 		return *(MTPDdocumentAttributeFilename*)data;
 	}
 	const MTPDdocumentAttributeFilename &c_documentAttributeFilename() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_documentAttributeFilename) throw mtpErrorWrongTypeId(_type, mtpc_documentAttributeFilename);
+		t_assert(data != nullptr && _type == mtpc_documentAttributeFilename);
 		return *(const MTPDdocumentAttributeFilename*)data;
 	}
 
@@ -7115,14 +6735,12 @@ public:
 	}
 
 	MTPDmessages_stickers &_messages_stickers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_stickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_stickers);
+		t_assert(data != nullptr && _type == mtpc_messages_stickers);
 		split();
 		return *(MTPDmessages_stickers*)data;
 	}
 	const MTPDmessages_stickers &c_messages_stickers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_stickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_stickers);
+		t_assert(data != nullptr && _type == mtpc_messages_stickers);
 		return *(const MTPDmessages_stickers*)data;
 	}
 
@@ -7151,12 +6769,12 @@ public:
 	}
 
 	MTPDstickerPack &_stickerPack() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDstickerPack*)data;
 	}
 	const MTPDstickerPack &c_stickerPack() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDstickerPack*)data;
 	}
 
@@ -7183,14 +6801,12 @@ public:
 	}
 
 	MTPDmessages_allStickers &_messages_allStickers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_allStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_allStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_allStickers);
 		split();
 		return *(MTPDmessages_allStickers*)data;
 	}
 	const MTPDmessages_allStickers &c_messages_allStickers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_allStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_allStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_allStickers);
 		return *(const MTPDmessages_allStickers*)data;
 	}
 
@@ -7219,12 +6835,12 @@ public:
 	}
 
 	MTPDdisabledFeature &_disabledFeature() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDdisabledFeature*)data;
 	}
 	const MTPDdisabledFeature &c_disabledFeature() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDdisabledFeature*)data;
 	}
 
@@ -7250,12 +6866,12 @@ public:
 	}
 
 	MTPDmessages_affectedMessages &_messages_affectedMessages() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_affectedMessages*)data;
 	}
 	const MTPDmessages_affectedMessages &c_messages_affectedMessages() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_affectedMessages*)data;
 	}
 
@@ -7306,38 +6922,32 @@ public:
 	}
 
 	MTPDwebPageEmpty &_webPageEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPageEmpty) throw mtpErrorWrongTypeId(_type, mtpc_webPageEmpty);
+		t_assert(data != nullptr && _type == mtpc_webPageEmpty);
 		split();
 		return *(MTPDwebPageEmpty*)data;
 	}
 	const MTPDwebPageEmpty &c_webPageEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPageEmpty) throw mtpErrorWrongTypeId(_type, mtpc_webPageEmpty);
+		t_assert(data != nullptr && _type == mtpc_webPageEmpty);
 		return *(const MTPDwebPageEmpty*)data;
 	}
 
 	MTPDwebPagePending &_webPagePending() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPagePending) throw mtpErrorWrongTypeId(_type, mtpc_webPagePending);
+		t_assert(data != nullptr && _type == mtpc_webPagePending);
 		split();
 		return *(MTPDwebPagePending*)data;
 	}
 	const MTPDwebPagePending &c_webPagePending() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPagePending) throw mtpErrorWrongTypeId(_type, mtpc_webPagePending);
+		t_assert(data != nullptr && _type == mtpc_webPagePending);
 		return *(const MTPDwebPagePending*)data;
 	}
 
 	MTPDwebPage &_webPage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPage) throw mtpErrorWrongTypeId(_type, mtpc_webPage);
+		t_assert(data != nullptr && _type == mtpc_webPage);
 		split();
 		return *(MTPDwebPage*)data;
 	}
 	const MTPDwebPage &c_webPage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_webPage) throw mtpErrorWrongTypeId(_type, mtpc_webPage);
+		t_assert(data != nullptr && _type == mtpc_webPage);
 		return *(const MTPDwebPage*)data;
 	}
 
@@ -7368,12 +6978,12 @@ public:
 	}
 
 	MTPDauthorization &_authorization() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauthorization*)data;
 	}
 	const MTPDauthorization &c_authorization() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauthorization*)data;
 	}
 
@@ -7399,12 +7009,12 @@ public:
 	}
 
 	MTPDaccount_authorizations &_account_authorizations() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDaccount_authorizations*)data;
 	}
 	const MTPDaccount_authorizations &c_account_authorizations() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDaccount_authorizations*)data;
 	}
 
@@ -7431,26 +7041,22 @@ public:
 	}
 
 	MTPDaccount_noPassword &_account_noPassword() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_account_noPassword) throw mtpErrorWrongTypeId(_type, mtpc_account_noPassword);
+		t_assert(data != nullptr && _type == mtpc_account_noPassword);
 		split();
 		return *(MTPDaccount_noPassword*)data;
 	}
 	const MTPDaccount_noPassword &c_account_noPassword() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_account_noPassword) throw mtpErrorWrongTypeId(_type, mtpc_account_noPassword);
+		t_assert(data != nullptr && _type == mtpc_account_noPassword);
 		return *(const MTPDaccount_noPassword*)data;
 	}
 
 	MTPDaccount_password &_account_password() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_account_password) throw mtpErrorWrongTypeId(_type, mtpc_account_password);
+		t_assert(data != nullptr && _type == mtpc_account_password);
 		split();
 		return *(MTPDaccount_password*)data;
 	}
 	const MTPDaccount_password &c_account_password() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_account_password) throw mtpErrorWrongTypeId(_type, mtpc_account_password);
+		t_assert(data != nullptr && _type == mtpc_account_password);
 		return *(const MTPDaccount_password*)data;
 	}
 
@@ -7480,12 +7086,12 @@ public:
 	}
 
 	MTPDaccount_passwordSettings &_account_passwordSettings() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDaccount_passwordSettings*)data;
 	}
 	const MTPDaccount_passwordSettings &c_account_passwordSettings() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDaccount_passwordSettings*)data;
 	}
 
@@ -7511,12 +7117,12 @@ public:
 	}
 
 	MTPDaccount_passwordInputSettings &_account_passwordInputSettings() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDaccount_passwordInputSettings*)data;
 	}
 	const MTPDaccount_passwordInputSettings &c_account_passwordInputSettings() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDaccount_passwordInputSettings*)data;
 	}
 
@@ -7542,12 +7148,12 @@ public:
 	}
 
 	MTPDauth_passwordRecovery &_auth_passwordRecovery() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDauth_passwordRecovery*)data;
 	}
 	const MTPDauth_passwordRecovery &c_auth_passwordRecovery() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDauth_passwordRecovery*)data;
 	}
 
@@ -7573,12 +7179,12 @@ public:
 	}
 
 	MTPDreceivedNotifyMessage &_receivedNotifyMessage() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDreceivedNotifyMessage*)data;
 	}
 	const MTPDreceivedNotifyMessage &c_receivedNotifyMessage() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDreceivedNotifyMessage*)data;
 	}
 
@@ -7605,14 +7211,12 @@ public:
 	}
 
 	MTPDchatInviteExported &_chatInviteExported() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInviteExported) throw mtpErrorWrongTypeId(_type, mtpc_chatInviteExported);
+		t_assert(data != nullptr && _type == mtpc_chatInviteExported);
 		split();
 		return *(MTPDchatInviteExported*)data;
 	}
 	const MTPDchatInviteExported &c_chatInviteExported() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInviteExported) throw mtpErrorWrongTypeId(_type, mtpc_chatInviteExported);
+		t_assert(data != nullptr && _type == mtpc_chatInviteExported);
 		return *(const MTPDchatInviteExported*)data;
 	}
 
@@ -7642,26 +7246,22 @@ public:
 	}
 
 	MTPDchatInviteAlready &_chatInviteAlready() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInviteAlready) throw mtpErrorWrongTypeId(_type, mtpc_chatInviteAlready);
+		t_assert(data != nullptr && _type == mtpc_chatInviteAlready);
 		split();
 		return *(MTPDchatInviteAlready*)data;
 	}
 	const MTPDchatInviteAlready &c_chatInviteAlready() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInviteAlready) throw mtpErrorWrongTypeId(_type, mtpc_chatInviteAlready);
+		t_assert(data != nullptr && _type == mtpc_chatInviteAlready);
 		return *(const MTPDchatInviteAlready*)data;
 	}
 
 	MTPDchatInvite &_chatInvite() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInvite) throw mtpErrorWrongTypeId(_type, mtpc_chatInvite);
+		t_assert(data != nullptr && _type == mtpc_chatInvite);
 		split();
 		return *(MTPDchatInvite*)data;
 	}
 	const MTPDchatInvite &c_chatInvite() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_chatInvite) throw mtpErrorWrongTypeId(_type, mtpc_chatInvite);
+		t_assert(data != nullptr && _type == mtpc_chatInvite);
 		return *(const MTPDchatInvite*)data;
 	}
 
@@ -7692,26 +7292,22 @@ public:
 	}
 
 	MTPDinputStickerSetID &_inputStickerSetID() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickerSetID) throw mtpErrorWrongTypeId(_type, mtpc_inputStickerSetID);
+		t_assert(data != nullptr && _type == mtpc_inputStickerSetID);
 		split();
 		return *(MTPDinputStickerSetID*)data;
 	}
 	const MTPDinputStickerSetID &c_inputStickerSetID() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickerSetID) throw mtpErrorWrongTypeId(_type, mtpc_inputStickerSetID);
+		t_assert(data != nullptr && _type == mtpc_inputStickerSetID);
 		return *(const MTPDinputStickerSetID*)data;
 	}
 
 	MTPDinputStickerSetShortName &_inputStickerSetShortName() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickerSetShortName) throw mtpErrorWrongTypeId(_type, mtpc_inputStickerSetShortName);
+		t_assert(data != nullptr && _type == mtpc_inputStickerSetShortName);
 		split();
 		return *(MTPDinputStickerSetShortName*)data;
 	}
 	const MTPDinputStickerSetShortName &c_inputStickerSetShortName() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickerSetShortName) throw mtpErrorWrongTypeId(_type, mtpc_inputStickerSetShortName);
+		t_assert(data != nullptr && _type == mtpc_inputStickerSetShortName);
 		return *(const MTPDinputStickerSetShortName*)data;
 	}
 
@@ -7741,12 +7337,12 @@ public:
 	}
 
 	MTPDstickerSet &_stickerSet() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDstickerSet*)data;
 	}
 	const MTPDstickerSet &c_stickerSet() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDstickerSet*)data;
 	}
 
@@ -7772,12 +7368,12 @@ public:
 	}
 
 	MTPDmessages_stickerSet &_messages_stickerSet() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_stickerSet*)data;
 	}
 	const MTPDmessages_stickerSet &c_messages_stickerSet() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_stickerSet*)data;
 	}
 
@@ -7803,12 +7399,12 @@ public:
 	}
 
 	MTPDbotCommand &_botCommand() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDbotCommand*)data;
 	}
 	const MTPDbotCommand &c_botCommand() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDbotCommand*)data;
 	}
 
@@ -7834,12 +7430,12 @@ public:
 	}
 
 	MTPDbotInfo &_botInfo() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDbotInfo*)data;
 	}
 	const MTPDbotInfo &c_botInfo() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDbotInfo*)data;
 	}
 
@@ -7866,86 +7462,72 @@ public:
 	}
 
 	MTPDkeyboardButton &_keyboardButton() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButton) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButton);
+		t_assert(data != nullptr && _type == mtpc_keyboardButton);
 		split();
 		return *(MTPDkeyboardButton*)data;
 	}
 	const MTPDkeyboardButton &c_keyboardButton() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButton) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButton);
+		t_assert(data != nullptr && _type == mtpc_keyboardButton);
 		return *(const MTPDkeyboardButton*)data;
 	}
 
 	MTPDkeyboardButtonUrl &_keyboardButtonUrl() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonUrl) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonUrl);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonUrl);
 		split();
 		return *(MTPDkeyboardButtonUrl*)data;
 	}
 	const MTPDkeyboardButtonUrl &c_keyboardButtonUrl() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonUrl) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonUrl);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonUrl);
 		return *(const MTPDkeyboardButtonUrl*)data;
 	}
 
 	MTPDkeyboardButtonCallback &_keyboardButtonCallback() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonCallback) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonCallback);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonCallback);
 		split();
 		return *(MTPDkeyboardButtonCallback*)data;
 	}
 	const MTPDkeyboardButtonCallback &c_keyboardButtonCallback() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonCallback) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonCallback);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonCallback);
 		return *(const MTPDkeyboardButtonCallback*)data;
 	}
 
 	MTPDkeyboardButtonRequestPhone &_keyboardButtonRequestPhone() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonRequestPhone) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestPhone);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestPhone);
 		split();
 		return *(MTPDkeyboardButtonRequestPhone*)data;
 	}
 	const MTPDkeyboardButtonRequestPhone &c_keyboardButtonRequestPhone() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonRequestPhone) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestPhone);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestPhone);
 		return *(const MTPDkeyboardButtonRequestPhone*)data;
 	}
 
 	MTPDkeyboardButtonRequestGeoLocation &_keyboardButtonRequestGeoLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonRequestGeoLocation) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestGeoLocation);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestGeoLocation);
 		split();
 		return *(MTPDkeyboardButtonRequestGeoLocation*)data;
 	}
 	const MTPDkeyboardButtonRequestGeoLocation &c_keyboardButtonRequestGeoLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonRequestGeoLocation) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestGeoLocation);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestGeoLocation);
 		return *(const MTPDkeyboardButtonRequestGeoLocation*)data;
 	}
 
 	MTPDkeyboardButtonSwitchInline &_keyboardButtonSwitchInline() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonSwitchInline) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonSwitchInline);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonSwitchInline);
 		split();
 		return *(MTPDkeyboardButtonSwitchInline*)data;
 	}
 	const MTPDkeyboardButtonSwitchInline &c_keyboardButtonSwitchInline() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonSwitchInline) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonSwitchInline);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonSwitchInline);
 		return *(const MTPDkeyboardButtonSwitchInline*)data;
 	}
 
 	MTPDkeyboardButtonGame &_keyboardButtonGame() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonGame) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonGame);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonGame);
 		split();
 		return *(MTPDkeyboardButtonGame*)data;
 	}
 	const MTPDkeyboardButtonGame &c_keyboardButtonGame() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_keyboardButtonGame) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonGame);
+		t_assert(data != nullptr && _type == mtpc_keyboardButtonGame);
 		return *(const MTPDkeyboardButtonGame*)data;
 	}
 
@@ -7980,12 +7562,12 @@ public:
 	}
 
 	MTPDkeyboardButtonRow &_keyboardButtonRow() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDkeyboardButtonRow*)data;
 	}
 	const MTPDkeyboardButtonRow &c_keyboardButtonRow() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDkeyboardButtonRow*)data;
 	}
 
@@ -8012,50 +7594,42 @@ public:
 	}
 
 	MTPDreplyKeyboardHide &_replyKeyboardHide() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardHide) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardHide);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardHide);
 		split();
 		return *(MTPDreplyKeyboardHide*)data;
 	}
 	const MTPDreplyKeyboardHide &c_replyKeyboardHide() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardHide) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardHide);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardHide);
 		return *(const MTPDreplyKeyboardHide*)data;
 	}
 
 	MTPDreplyKeyboardForceReply &_replyKeyboardForceReply() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardForceReply) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardForceReply);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardForceReply);
 		split();
 		return *(MTPDreplyKeyboardForceReply*)data;
 	}
 	const MTPDreplyKeyboardForceReply &c_replyKeyboardForceReply() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardForceReply) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardForceReply);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardForceReply);
 		return *(const MTPDreplyKeyboardForceReply*)data;
 	}
 
 	MTPDreplyKeyboardMarkup &_replyKeyboardMarkup() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardMarkup) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardMarkup);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardMarkup);
 		split();
 		return *(MTPDreplyKeyboardMarkup*)data;
 	}
 	const MTPDreplyKeyboardMarkup &c_replyKeyboardMarkup() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyKeyboardMarkup) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardMarkup);
+		t_assert(data != nullptr && _type == mtpc_replyKeyboardMarkup);
 		return *(const MTPDreplyKeyboardMarkup*)data;
 	}
 
 	MTPDreplyInlineMarkup &_replyInlineMarkup() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyInlineMarkup) throw mtpErrorWrongTypeId(_type, mtpc_replyInlineMarkup);
+		t_assert(data != nullptr && _type == mtpc_replyInlineMarkup);
 		split();
 		return *(MTPDreplyInlineMarkup*)data;
 	}
 	const MTPDreplyInlineMarkup &c_replyInlineMarkup() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_replyInlineMarkup) throw mtpErrorWrongTypeId(_type, mtpc_replyInlineMarkup);
+		t_assert(data != nullptr && _type == mtpc_replyInlineMarkup);
 		return *(const MTPDreplyInlineMarkup*)data;
 	}
 
@@ -8088,14 +7662,12 @@ public:
 	}
 
 	MTPDhelp_appChangelog &_help_appChangelog() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_help_appChangelog) throw mtpErrorWrongTypeId(_type, mtpc_help_appChangelog);
+		t_assert(data != nullptr && _type == mtpc_help_appChangelog);
 		split();
 		return *(MTPDhelp_appChangelog*)data;
 	}
 	const MTPDhelp_appChangelog &c_help_appChangelog() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_help_appChangelog) throw mtpErrorWrongTypeId(_type, mtpc_help_appChangelog);
+		t_assert(data != nullptr && _type == mtpc_help_appChangelog);
 		return *(const MTPDhelp_appChangelog*)data;
 	}
 
@@ -8125,158 +7697,132 @@ public:
 	}
 
 	MTPDmessageEntityUnknown &_messageEntityUnknown() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityUnknown) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityUnknown);
+		t_assert(data != nullptr && _type == mtpc_messageEntityUnknown);
 		split();
 		return *(MTPDmessageEntityUnknown*)data;
 	}
 	const MTPDmessageEntityUnknown &c_messageEntityUnknown() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityUnknown) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityUnknown);
+		t_assert(data != nullptr && _type == mtpc_messageEntityUnknown);
 		return *(const MTPDmessageEntityUnknown*)data;
 	}
 
 	MTPDmessageEntityMention &_messageEntityMention() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityMention) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityMention);
+		t_assert(data != nullptr && _type == mtpc_messageEntityMention);
 		split();
 		return *(MTPDmessageEntityMention*)data;
 	}
 	const MTPDmessageEntityMention &c_messageEntityMention() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityMention) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityMention);
+		t_assert(data != nullptr && _type == mtpc_messageEntityMention);
 		return *(const MTPDmessageEntityMention*)data;
 	}
 
 	MTPDmessageEntityHashtag &_messageEntityHashtag() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityHashtag) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityHashtag);
+		t_assert(data != nullptr && _type == mtpc_messageEntityHashtag);
 		split();
 		return *(MTPDmessageEntityHashtag*)data;
 	}
 	const MTPDmessageEntityHashtag &c_messageEntityHashtag() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityHashtag) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityHashtag);
+		t_assert(data != nullptr && _type == mtpc_messageEntityHashtag);
 		return *(const MTPDmessageEntityHashtag*)data;
 	}
 
 	MTPDmessageEntityBotCommand &_messageEntityBotCommand() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityBotCommand) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityBotCommand);
+		t_assert(data != nullptr && _type == mtpc_messageEntityBotCommand);
 		split();
 		return *(MTPDmessageEntityBotCommand*)data;
 	}
 	const MTPDmessageEntityBotCommand &c_messageEntityBotCommand() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityBotCommand) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityBotCommand);
+		t_assert(data != nullptr && _type == mtpc_messageEntityBotCommand);
 		return *(const MTPDmessageEntityBotCommand*)data;
 	}
 
 	MTPDmessageEntityUrl &_messageEntityUrl() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityUrl) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityUrl);
+		t_assert(data != nullptr && _type == mtpc_messageEntityUrl);
 		split();
 		return *(MTPDmessageEntityUrl*)data;
 	}
 	const MTPDmessageEntityUrl &c_messageEntityUrl() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityUrl) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityUrl);
+		t_assert(data != nullptr && _type == mtpc_messageEntityUrl);
 		return *(const MTPDmessageEntityUrl*)data;
 	}
 
 	MTPDmessageEntityEmail &_messageEntityEmail() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityEmail) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityEmail);
+		t_assert(data != nullptr && _type == mtpc_messageEntityEmail);
 		split();
 		return *(MTPDmessageEntityEmail*)data;
 	}
 	const MTPDmessageEntityEmail &c_messageEntityEmail() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityEmail) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityEmail);
+		t_assert(data != nullptr && _type == mtpc_messageEntityEmail);
 		return *(const MTPDmessageEntityEmail*)data;
 	}
 
 	MTPDmessageEntityBold &_messageEntityBold() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityBold) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityBold);
+		t_assert(data != nullptr && _type == mtpc_messageEntityBold);
 		split();
 		return *(MTPDmessageEntityBold*)data;
 	}
 	const MTPDmessageEntityBold &c_messageEntityBold() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityBold) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityBold);
+		t_assert(data != nullptr && _type == mtpc_messageEntityBold);
 		return *(const MTPDmessageEntityBold*)data;
 	}
 
 	MTPDmessageEntityItalic &_messageEntityItalic() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityItalic) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityItalic);
+		t_assert(data != nullptr && _type == mtpc_messageEntityItalic);
 		split();
 		return *(MTPDmessageEntityItalic*)data;
 	}
 	const MTPDmessageEntityItalic &c_messageEntityItalic() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityItalic) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityItalic);
+		t_assert(data != nullptr && _type == mtpc_messageEntityItalic);
 		return *(const MTPDmessageEntityItalic*)data;
 	}
 
 	MTPDmessageEntityCode &_messageEntityCode() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityCode) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityCode);
+		t_assert(data != nullptr && _type == mtpc_messageEntityCode);
 		split();
 		return *(MTPDmessageEntityCode*)data;
 	}
 	const MTPDmessageEntityCode &c_messageEntityCode() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityCode) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityCode);
+		t_assert(data != nullptr && _type == mtpc_messageEntityCode);
 		return *(const MTPDmessageEntityCode*)data;
 	}
 
 	MTPDmessageEntityPre &_messageEntityPre() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityPre) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityPre);
+		t_assert(data != nullptr && _type == mtpc_messageEntityPre);
 		split();
 		return *(MTPDmessageEntityPre*)data;
 	}
 	const MTPDmessageEntityPre &c_messageEntityPre() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityPre) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityPre);
+		t_assert(data != nullptr && _type == mtpc_messageEntityPre);
 		return *(const MTPDmessageEntityPre*)data;
 	}
 
 	MTPDmessageEntityTextUrl &_messageEntityTextUrl() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityTextUrl) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityTextUrl);
+		t_assert(data != nullptr && _type == mtpc_messageEntityTextUrl);
 		split();
 		return *(MTPDmessageEntityTextUrl*)data;
 	}
 	const MTPDmessageEntityTextUrl &c_messageEntityTextUrl() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityTextUrl) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityTextUrl);
+		t_assert(data != nullptr && _type == mtpc_messageEntityTextUrl);
 		return *(const MTPDmessageEntityTextUrl*)data;
 	}
 
 	MTPDmessageEntityMentionName &_messageEntityMentionName() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityMentionName) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityMentionName);
+		t_assert(data != nullptr && _type == mtpc_messageEntityMentionName);
 		split();
 		return *(MTPDmessageEntityMentionName*)data;
 	}
 	const MTPDmessageEntityMentionName &c_messageEntityMentionName() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageEntityMentionName) throw mtpErrorWrongTypeId(_type, mtpc_messageEntityMentionName);
+		t_assert(data != nullptr && _type == mtpc_messageEntityMentionName);
 		return *(const MTPDmessageEntityMentionName*)data;
 	}
 
 	MTPDinputMessageEntityMentionName &_inputMessageEntityMentionName() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMessageEntityMentionName) throw mtpErrorWrongTypeId(_type, mtpc_inputMessageEntityMentionName);
+		t_assert(data != nullptr && _type == mtpc_inputMessageEntityMentionName);
 		split();
 		return *(MTPDinputMessageEntityMentionName*)data;
 	}
 	const MTPDinputMessageEntityMentionName &c_inputMessageEntityMentionName() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMessageEntityMentionName) throw mtpErrorWrongTypeId(_type, mtpc_inputMessageEntityMentionName);
+		t_assert(data != nullptr && _type == mtpc_inputMessageEntityMentionName);
 		return *(const MTPDinputMessageEntityMentionName*)data;
 	}
 
@@ -8318,14 +7864,12 @@ public:
 	}
 
 	MTPDinputChannel &_inputChannel() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputChannel);
+		t_assert(data != nullptr && _type == mtpc_inputChannel);
 		split();
 		return *(MTPDinputChannel*)data;
 	}
 	const MTPDinputChannel &c_inputChannel() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputChannel);
+		t_assert(data != nullptr && _type == mtpc_inputChannel);
 		return *(const MTPDinputChannel*)data;
 	}
 
@@ -8354,12 +7898,12 @@ public:
 	}
 
 	MTPDcontacts_resolvedPeer &_contacts_resolvedPeer() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDcontacts_resolvedPeer*)data;
 	}
 	const MTPDcontacts_resolvedPeer &c_contacts_resolvedPeer() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDcontacts_resolvedPeer*)data;
 	}
 
@@ -8385,12 +7929,12 @@ public:
 	}
 
 	MTPDmessageRange &_messageRange() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessageRange*)data;
 	}
 	const MTPDmessageRange &c_messageRange() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessageRange*)data;
 	}
 
@@ -8417,38 +7961,32 @@ public:
 	}
 
 	MTPDupdates_channelDifferenceEmpty &_updates_channelDifferenceEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifferenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceEmpty);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceEmpty);
 		split();
 		return *(MTPDupdates_channelDifferenceEmpty*)data;
 	}
 	const MTPDupdates_channelDifferenceEmpty &c_updates_channelDifferenceEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifferenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceEmpty);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceEmpty);
 		return *(const MTPDupdates_channelDifferenceEmpty*)data;
 	}
 
 	MTPDupdates_channelDifferenceTooLong &_updates_channelDifferenceTooLong() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifferenceTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceTooLong);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceTooLong);
 		split();
 		return *(MTPDupdates_channelDifferenceTooLong*)data;
 	}
 	const MTPDupdates_channelDifferenceTooLong &c_updates_channelDifferenceTooLong() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifferenceTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceTooLong);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceTooLong);
 		return *(const MTPDupdates_channelDifferenceTooLong*)data;
 	}
 
 	MTPDupdates_channelDifference &_updates_channelDifference() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifference) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifference);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifference);
 		split();
 		return *(MTPDupdates_channelDifference*)data;
 	}
 	const MTPDupdates_channelDifference &c_updates_channelDifference() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_updates_channelDifference) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifference);
+		t_assert(data != nullptr && _type == mtpc_updates_channelDifference);
 		return *(const MTPDupdates_channelDifference*)data;
 	}
 
@@ -8480,14 +8018,12 @@ public:
 	}
 
 	MTPDchannelMessagesFilter &_channelMessagesFilter() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelMessagesFilter) throw mtpErrorWrongTypeId(_type, mtpc_channelMessagesFilter);
+		t_assert(data != nullptr && _type == mtpc_channelMessagesFilter);
 		split();
 		return *(MTPDchannelMessagesFilter*)data;
 	}
 	const MTPDchannelMessagesFilter &c_channelMessagesFilter() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelMessagesFilter) throw mtpErrorWrongTypeId(_type, mtpc_channelMessagesFilter);
+		t_assert(data != nullptr && _type == mtpc_channelMessagesFilter);
 		return *(const MTPDchannelMessagesFilter*)data;
 	}
 
@@ -8517,74 +8053,62 @@ public:
 	}
 
 	MTPDchannelParticipant &_channelParticipant() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipant) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipant);
+		t_assert(data != nullptr && _type == mtpc_channelParticipant);
 		split();
 		return *(MTPDchannelParticipant*)data;
 	}
 	const MTPDchannelParticipant &c_channelParticipant() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipant) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipant);
+		t_assert(data != nullptr && _type == mtpc_channelParticipant);
 		return *(const MTPDchannelParticipant*)data;
 	}
 
 	MTPDchannelParticipantSelf &_channelParticipantSelf() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantSelf) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantSelf);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantSelf);
 		split();
 		return *(MTPDchannelParticipantSelf*)data;
 	}
 	const MTPDchannelParticipantSelf &c_channelParticipantSelf() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantSelf) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantSelf);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantSelf);
 		return *(const MTPDchannelParticipantSelf*)data;
 	}
 
 	MTPDchannelParticipantModerator &_channelParticipantModerator() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantModerator) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantModerator);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantModerator);
 		split();
 		return *(MTPDchannelParticipantModerator*)data;
 	}
 	const MTPDchannelParticipantModerator &c_channelParticipantModerator() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantModerator) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantModerator);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantModerator);
 		return *(const MTPDchannelParticipantModerator*)data;
 	}
 
 	MTPDchannelParticipantEditor &_channelParticipantEditor() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantEditor) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantEditor);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantEditor);
 		split();
 		return *(MTPDchannelParticipantEditor*)data;
 	}
 	const MTPDchannelParticipantEditor &c_channelParticipantEditor() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantEditor) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantEditor);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantEditor);
 		return *(const MTPDchannelParticipantEditor*)data;
 	}
 
 	MTPDchannelParticipantKicked &_channelParticipantKicked() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantKicked) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantKicked);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantKicked);
 		split();
 		return *(MTPDchannelParticipantKicked*)data;
 	}
 	const MTPDchannelParticipantKicked &c_channelParticipantKicked() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantKicked) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantKicked);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantKicked);
 		return *(const MTPDchannelParticipantKicked*)data;
 	}
 
 	MTPDchannelParticipantCreator &_channelParticipantCreator() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantCreator) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantCreator);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantCreator);
 		split();
 		return *(MTPDchannelParticipantCreator*)data;
 	}
 	const MTPDchannelParticipantCreator &c_channelParticipantCreator() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_channelParticipantCreator) throw mtpErrorWrongTypeId(_type, mtpc_channelParticipantCreator);
+		t_assert(data != nullptr && _type == mtpc_channelParticipantCreator);
 		return *(const MTPDchannelParticipantCreator*)data;
 	}
 
@@ -8666,12 +8190,12 @@ public:
 	}
 
 	MTPDchannels_channelParticipants &_channels_channelParticipants() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDchannels_channelParticipants*)data;
 	}
 	const MTPDchannels_channelParticipants &c_channels_channelParticipants() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDchannels_channelParticipants*)data;
 	}
 
@@ -8697,12 +8221,12 @@ public:
 	}
 
 	MTPDchannels_channelParticipant &_channels_channelParticipant() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDchannels_channelParticipant*)data;
 	}
 	const MTPDchannels_channelParticipant &c_channels_channelParticipant() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDchannels_channelParticipant*)data;
 	}
 
@@ -8728,12 +8252,12 @@ public:
 	}
 
 	MTPDhelp_termsOfService &_help_termsOfService() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDhelp_termsOfService*)data;
 	}
 	const MTPDhelp_termsOfService &c_help_termsOfService() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDhelp_termsOfService*)data;
 	}
 
@@ -8760,26 +8284,22 @@ public:
 	}
 
 	MTPDfoundGif &_foundGif() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_foundGif) throw mtpErrorWrongTypeId(_type, mtpc_foundGif);
+		t_assert(data != nullptr && _type == mtpc_foundGif);
 		split();
 		return *(MTPDfoundGif*)data;
 	}
 	const MTPDfoundGif &c_foundGif() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_foundGif) throw mtpErrorWrongTypeId(_type, mtpc_foundGif);
+		t_assert(data != nullptr && _type == mtpc_foundGif);
 		return *(const MTPDfoundGif*)data;
 	}
 
 	MTPDfoundGifCached &_foundGifCached() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_foundGifCached) throw mtpErrorWrongTypeId(_type, mtpc_foundGifCached);
+		t_assert(data != nullptr && _type == mtpc_foundGifCached);
 		split();
 		return *(MTPDfoundGifCached*)data;
 	}
 	const MTPDfoundGifCached &c_foundGifCached() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_foundGifCached) throw mtpErrorWrongTypeId(_type, mtpc_foundGifCached);
+		t_assert(data != nullptr && _type == mtpc_foundGifCached);
 		return *(const MTPDfoundGifCached*)data;
 	}
 
@@ -8809,12 +8329,12 @@ public:
 	}
 
 	MTPDmessages_foundGifs &_messages_foundGifs() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_foundGifs*)data;
 	}
 	const MTPDmessages_foundGifs &c_messages_foundGifs() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_foundGifs*)data;
 	}
 
@@ -8841,14 +8361,12 @@ public:
 	}
 
 	MTPDmessages_savedGifs &_messages_savedGifs() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_savedGifs) throw mtpErrorWrongTypeId(_type, mtpc_messages_savedGifs);
+		t_assert(data != nullptr && _type == mtpc_messages_savedGifs);
 		split();
 		return *(MTPDmessages_savedGifs*)data;
 	}
 	const MTPDmessages_savedGifs &c_messages_savedGifs() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_savedGifs) throw mtpErrorWrongTypeId(_type, mtpc_messages_savedGifs);
+		t_assert(data != nullptr && _type == mtpc_messages_savedGifs);
 		return *(const MTPDmessages_savedGifs*)data;
 	}
 
@@ -8878,74 +8396,62 @@ public:
 	}
 
 	MTPDinputBotInlineMessageMediaAuto &_inputBotInlineMessageMediaAuto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaAuto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaAuto);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaAuto);
 		split();
 		return *(MTPDinputBotInlineMessageMediaAuto*)data;
 	}
 	const MTPDinputBotInlineMessageMediaAuto &c_inputBotInlineMessageMediaAuto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaAuto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaAuto);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaAuto);
 		return *(const MTPDinputBotInlineMessageMediaAuto*)data;
 	}
 
 	MTPDinputBotInlineMessageText &_inputBotInlineMessageText() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageText) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageText);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageText);
 		split();
 		return *(MTPDinputBotInlineMessageText*)data;
 	}
 	const MTPDinputBotInlineMessageText &c_inputBotInlineMessageText() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageText) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageText);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageText);
 		return *(const MTPDinputBotInlineMessageText*)data;
 	}
 
 	MTPDinputBotInlineMessageMediaGeo &_inputBotInlineMessageMediaGeo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaGeo);
 		split();
 		return *(MTPDinputBotInlineMessageMediaGeo*)data;
 	}
 	const MTPDinputBotInlineMessageMediaGeo &c_inputBotInlineMessageMediaGeo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaGeo);
 		return *(const MTPDinputBotInlineMessageMediaGeo*)data;
 	}
 
 	MTPDinputBotInlineMessageMediaVenue &_inputBotInlineMessageMediaVenue() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaVenue);
 		split();
 		return *(MTPDinputBotInlineMessageMediaVenue*)data;
 	}
 	const MTPDinputBotInlineMessageMediaVenue &c_inputBotInlineMessageMediaVenue() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaVenue);
 		return *(const MTPDinputBotInlineMessageMediaVenue*)data;
 	}
 
 	MTPDinputBotInlineMessageMediaContact &_inputBotInlineMessageMediaContact() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaContact);
 		split();
 		return *(MTPDinputBotInlineMessageMediaContact*)data;
 	}
 	const MTPDinputBotInlineMessageMediaContact &c_inputBotInlineMessageMediaContact() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaContact);
 		return *(const MTPDinputBotInlineMessageMediaContact*)data;
 	}
 
 	MTPDinputBotInlineMessageGame &_inputBotInlineMessageGame() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageGame) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageGame);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageGame);
 		split();
 		return *(MTPDinputBotInlineMessageGame*)data;
 	}
 	const MTPDinputBotInlineMessageGame &c_inputBotInlineMessageGame() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineMessageGame) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageGame);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageGame);
 		return *(const MTPDinputBotInlineMessageGame*)data;
 	}
 
@@ -8980,50 +8486,42 @@ public:
 	}
 
 	MTPDinputBotInlineResult &_inputBotInlineResult() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResult);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResult);
 		split();
 		return *(MTPDinputBotInlineResult*)data;
 	}
 	const MTPDinputBotInlineResult &c_inputBotInlineResult() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResult);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResult);
 		return *(const MTPDinputBotInlineResult*)data;
 	}
 
 	MTPDinputBotInlineResultPhoto &_inputBotInlineResultPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultPhoto);
 		split();
 		return *(MTPDinputBotInlineResultPhoto*)data;
 	}
 	const MTPDinputBotInlineResultPhoto &c_inputBotInlineResultPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultPhoto);
 		return *(const MTPDinputBotInlineResultPhoto*)data;
 	}
 
 	MTPDinputBotInlineResultDocument &_inputBotInlineResultDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultDocument);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultDocument);
 		split();
 		return *(MTPDinputBotInlineResultDocument*)data;
 	}
 	const MTPDinputBotInlineResultDocument &c_inputBotInlineResultDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultDocument);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultDocument);
 		return *(const MTPDinputBotInlineResultDocument*)data;
 	}
 
 	MTPDinputBotInlineResultGame &_inputBotInlineResultGame() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultGame) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultGame);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultGame);
 		split();
 		return *(MTPDinputBotInlineResultGame*)data;
 	}
 	const MTPDinputBotInlineResultGame &c_inputBotInlineResultGame() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputBotInlineResultGame) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultGame);
+		t_assert(data != nullptr && _type == mtpc_inputBotInlineResultGame);
 		return *(const MTPDinputBotInlineResultGame*)data;
 	}
 
@@ -9056,62 +8554,52 @@ public:
 	}
 
 	MTPDbotInlineMessageMediaAuto &_botInlineMessageMediaAuto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaAuto) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaAuto);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaAuto);
 		split();
 		return *(MTPDbotInlineMessageMediaAuto*)data;
 	}
 	const MTPDbotInlineMessageMediaAuto &c_botInlineMessageMediaAuto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaAuto) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaAuto);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaAuto);
 		return *(const MTPDbotInlineMessageMediaAuto*)data;
 	}
 
 	MTPDbotInlineMessageText &_botInlineMessageText() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageText) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageText);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageText);
 		split();
 		return *(MTPDbotInlineMessageText*)data;
 	}
 	const MTPDbotInlineMessageText &c_botInlineMessageText() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageText) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageText);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageText);
 		return *(const MTPDbotInlineMessageText*)data;
 	}
 
 	MTPDbotInlineMessageMediaGeo &_botInlineMessageMediaGeo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaGeo);
 		split();
 		return *(MTPDbotInlineMessageMediaGeo*)data;
 	}
 	const MTPDbotInlineMessageMediaGeo &c_botInlineMessageMediaGeo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaGeo);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaGeo);
 		return *(const MTPDbotInlineMessageMediaGeo*)data;
 	}
 
 	MTPDbotInlineMessageMediaVenue &_botInlineMessageMediaVenue() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaVenue);
 		split();
 		return *(MTPDbotInlineMessageMediaVenue*)data;
 	}
 	const MTPDbotInlineMessageMediaVenue &c_botInlineMessageMediaVenue() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaVenue);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaVenue);
 		return *(const MTPDbotInlineMessageMediaVenue*)data;
 	}
 
 	MTPDbotInlineMessageMediaContact &_botInlineMessageMediaContact() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaContact);
 		split();
 		return *(MTPDbotInlineMessageMediaContact*)data;
 	}
 	const MTPDbotInlineMessageMediaContact &c_botInlineMessageMediaContact() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaContact);
+		t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaContact);
 		return *(const MTPDbotInlineMessageMediaContact*)data;
 	}
 
@@ -9145,26 +8633,22 @@ public:
 	}
 
 	MTPDbotInlineResult &_botInlineResult() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_botInlineResult);
+		t_assert(data != nullptr && _type == mtpc_botInlineResult);
 		split();
 		return *(MTPDbotInlineResult*)data;
 	}
 	const MTPDbotInlineResult &c_botInlineResult() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_botInlineResult);
+		t_assert(data != nullptr && _type == mtpc_botInlineResult);
 		return *(const MTPDbotInlineResult*)data;
 	}
 
 	MTPDbotInlineMediaResult &_botInlineMediaResult() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMediaResult) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMediaResult);
+		t_assert(data != nullptr && _type == mtpc_botInlineMediaResult);
 		split();
 		return *(MTPDbotInlineMediaResult*)data;
 	}
 	const MTPDbotInlineMediaResult &c_botInlineMediaResult() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_botInlineMediaResult) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMediaResult);
+		t_assert(data != nullptr && _type == mtpc_botInlineMediaResult);
 		return *(const MTPDbotInlineMediaResult*)data;
 	}
 
@@ -9194,12 +8678,12 @@ public:
 	}
 
 	MTPDmessages_botResults &_messages_botResults() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_botResults*)data;
 	}
 	const MTPDmessages_botResults &c_messages_botResults() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_botResults*)data;
 	}
 
@@ -9225,12 +8709,12 @@ public:
 	}
 
 	MTPDexportedMessageLink &_exportedMessageLink() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDexportedMessageLink*)data;
 	}
 	const MTPDexportedMessageLink &c_exportedMessageLink() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDexportedMessageLink*)data;
 	}
 
@@ -9256,12 +8740,12 @@ public:
 	}
 
 	MTPDmessageFwdHeader &_messageFwdHeader() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessageFwdHeader*)data;
 	}
 	const MTPDmessageFwdHeader &c_messageFwdHeader() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessageFwdHeader*)data;
 	}
 
@@ -9312,50 +8796,42 @@ public:
 	}
 
 	MTPDauth_sentCodeTypeApp &_auth_sentCodeTypeApp() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeApp) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeApp);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeApp);
 		split();
 		return *(MTPDauth_sentCodeTypeApp*)data;
 	}
 	const MTPDauth_sentCodeTypeApp &c_auth_sentCodeTypeApp() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeApp) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeApp);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeApp);
 		return *(const MTPDauth_sentCodeTypeApp*)data;
 	}
 
 	MTPDauth_sentCodeTypeSms &_auth_sentCodeTypeSms() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeSms) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeSms);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeSms);
 		split();
 		return *(MTPDauth_sentCodeTypeSms*)data;
 	}
 	const MTPDauth_sentCodeTypeSms &c_auth_sentCodeTypeSms() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeSms) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeSms);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeSms);
 		return *(const MTPDauth_sentCodeTypeSms*)data;
 	}
 
 	MTPDauth_sentCodeTypeCall &_auth_sentCodeTypeCall() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeCall);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeCall);
 		split();
 		return *(MTPDauth_sentCodeTypeCall*)data;
 	}
 	const MTPDauth_sentCodeTypeCall &c_auth_sentCodeTypeCall() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeCall);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeCall);
 		return *(const MTPDauth_sentCodeTypeCall*)data;
 	}
 
 	MTPDauth_sentCodeTypeFlashCall &_auth_sentCodeTypeFlashCall() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeFlashCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeFlashCall);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeFlashCall);
 		split();
 		return *(MTPDauth_sentCodeTypeFlashCall*)data;
 	}
 	const MTPDauth_sentCodeTypeFlashCall &c_auth_sentCodeTypeFlashCall() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCodeTypeFlashCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeFlashCall);
+		t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeFlashCall);
 		return *(const MTPDauth_sentCodeTypeFlashCall*)data;
 	}
 
@@ -9387,12 +8863,12 @@ public:
 	}
 
 	MTPDmessages_botCallbackAnswer &_messages_botCallbackAnswer() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_botCallbackAnswer*)data;
 	}
 	const MTPDmessages_botCallbackAnswer &c_messages_botCallbackAnswer() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_botCallbackAnswer*)data;
 	}
 
@@ -9418,12 +8894,12 @@ public:
 	}
 
 	MTPDmessages_messageEditData &_messages_messageEditData() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_messageEditData*)data;
 	}
 	const MTPDmessages_messageEditData &c_messages_messageEditData() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_messageEditData*)data;
 	}
 
@@ -9449,12 +8925,12 @@ public:
 	}
 
 	MTPDinputBotInlineMessageID &_inputBotInlineMessageID() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinputBotInlineMessageID*)data;
 	}
 	const MTPDinputBotInlineMessageID &c_inputBotInlineMessageID() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinputBotInlineMessageID*)data;
 	}
 
@@ -9480,12 +8956,12 @@ public:
 	}
 
 	MTPDinlineBotSwitchPM &_inlineBotSwitchPM() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDinlineBotSwitchPM*)data;
 	}
 	const MTPDinlineBotSwitchPM &c_inlineBotSwitchPM() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDinlineBotSwitchPM*)data;
 	}
 
@@ -9511,12 +8987,12 @@ public:
 	}
 
 	MTPDmessages_peerDialogs &_messages_peerDialogs() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_peerDialogs*)data;
 	}
 	const MTPDmessages_peerDialogs &c_messages_peerDialogs() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_peerDialogs*)data;
 	}
 
@@ -9542,12 +9018,12 @@ public:
 	}
 
 	MTPDtopPeer &_topPeer() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDtopPeer*)data;
 	}
 	const MTPDtopPeer &c_topPeer() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDtopPeer*)data;
 	}
 
@@ -9597,12 +9073,12 @@ public:
 	}
 
 	MTPDtopPeerCategoryPeers &_topPeerCategoryPeers() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDtopPeerCategoryPeers*)data;
 	}
 	const MTPDtopPeerCategoryPeers &c_topPeerCategoryPeers() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDtopPeerCategoryPeers*)data;
 	}
 
@@ -9629,14 +9105,12 @@ public:
 	}
 
 	MTPDcontacts_topPeers &_contacts_topPeers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_topPeers) throw mtpErrorWrongTypeId(_type, mtpc_contacts_topPeers);
+		t_assert(data != nullptr && _type == mtpc_contacts_topPeers);
 		split();
 		return *(MTPDcontacts_topPeers*)data;
 	}
 	const MTPDcontacts_topPeers &c_contacts_topPeers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_contacts_topPeers) throw mtpErrorWrongTypeId(_type, mtpc_contacts_topPeers);
+		t_assert(data != nullptr && _type == mtpc_contacts_topPeers);
 		return *(const MTPDcontacts_topPeers*)data;
 	}
 
@@ -9666,14 +9140,12 @@ public:
 	}
 
 	MTPDdraftMessage &_draftMessage() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_draftMessage) throw mtpErrorWrongTypeId(_type, mtpc_draftMessage);
+		t_assert(data != nullptr && _type == mtpc_draftMessage);
 		split();
 		return *(MTPDdraftMessage*)data;
 	}
 	const MTPDdraftMessage &c_draftMessage() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_draftMessage) throw mtpErrorWrongTypeId(_type, mtpc_draftMessage);
+		t_assert(data != nullptr && _type == mtpc_draftMessage);
 		return *(const MTPDdraftMessage*)data;
 	}
 
@@ -9703,14 +9175,12 @@ public:
 	}
 
 	MTPDmessages_featuredStickers &_messages_featuredStickers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_featuredStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_featuredStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_featuredStickers);
 		split();
 		return *(MTPDmessages_featuredStickers*)data;
 	}
 	const MTPDmessages_featuredStickers &c_messages_featuredStickers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_featuredStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_featuredStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_featuredStickers);
 		return *(const MTPDmessages_featuredStickers*)data;
 	}
 
@@ -9740,14 +9210,12 @@ public:
 	}
 
 	MTPDmessages_recentStickers &_messages_recentStickers() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_recentStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_recentStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_recentStickers);
 		split();
 		return *(MTPDmessages_recentStickers*)data;
 	}
 	const MTPDmessages_recentStickers &c_messages_recentStickers() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_recentStickers) throw mtpErrorWrongTypeId(_type, mtpc_messages_recentStickers);
+		t_assert(data != nullptr && _type == mtpc_messages_recentStickers);
 		return *(const MTPDmessages_recentStickers*)data;
 	}
 
@@ -9776,12 +9244,12 @@ public:
 	}
 
 	MTPDmessages_archivedStickers &_messages_archivedStickers() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_archivedStickers*)data;
 	}
 	const MTPDmessages_archivedStickers &c_messages_archivedStickers() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_archivedStickers*)data;
 	}
 
@@ -9808,14 +9276,12 @@ public:
 	}
 
 	MTPDmessages_stickerSetInstallResultArchive &_messages_stickerSetInstallResultArchive() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_stickerSetInstallResultArchive) throw mtpErrorWrongTypeId(_type, mtpc_messages_stickerSetInstallResultArchive);
+		t_assert(data != nullptr && _type == mtpc_messages_stickerSetInstallResultArchive);
 		split();
 		return *(MTPDmessages_stickerSetInstallResultArchive*)data;
 	}
 	const MTPDmessages_stickerSetInstallResultArchive &c_messages_stickerSetInstallResultArchive() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messages_stickerSetInstallResultArchive) throw mtpErrorWrongTypeId(_type, mtpc_messages_stickerSetInstallResultArchive);
+		t_assert(data != nullptr && _type == mtpc_messages_stickerSetInstallResultArchive);
 		return *(const MTPDmessages_stickerSetInstallResultArchive*)data;
 	}
 
@@ -9845,26 +9311,22 @@ public:
 	}
 
 	MTPDstickerSetCovered &_stickerSetCovered() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_stickerSetCovered) throw mtpErrorWrongTypeId(_type, mtpc_stickerSetCovered);
+		t_assert(data != nullptr && _type == mtpc_stickerSetCovered);
 		split();
 		return *(MTPDstickerSetCovered*)data;
 	}
 	const MTPDstickerSetCovered &c_stickerSetCovered() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_stickerSetCovered) throw mtpErrorWrongTypeId(_type, mtpc_stickerSetCovered);
+		t_assert(data != nullptr && _type == mtpc_stickerSetCovered);
 		return *(const MTPDstickerSetCovered*)data;
 	}
 
 	MTPDstickerSetMultiCovered &_stickerSetMultiCovered() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_stickerSetMultiCovered) throw mtpErrorWrongTypeId(_type, mtpc_stickerSetMultiCovered);
+		t_assert(data != nullptr && _type == mtpc_stickerSetMultiCovered);
 		split();
 		return *(MTPDstickerSetMultiCovered*)data;
 	}
 	const MTPDstickerSetMultiCovered &c_stickerSetMultiCovered() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_stickerSetMultiCovered) throw mtpErrorWrongTypeId(_type, mtpc_stickerSetMultiCovered);
+		t_assert(data != nullptr && _type == mtpc_stickerSetMultiCovered);
 		return *(const MTPDstickerSetMultiCovered*)data;
 	}
 
@@ -9894,12 +9356,12 @@ public:
 	}
 
 	MTPDmaskCoords &_maskCoords() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmaskCoords*)data;
 	}
 	const MTPDmaskCoords &c_maskCoords() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmaskCoords*)data;
 	}
 
@@ -9926,26 +9388,22 @@ public:
 	}
 
 	MTPDinputStickeredMediaPhoto &_inputStickeredMediaPhoto() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickeredMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputStickeredMediaPhoto);
 		split();
 		return *(MTPDinputStickeredMediaPhoto*)data;
 	}
 	const MTPDinputStickeredMediaPhoto &c_inputStickeredMediaPhoto() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickeredMediaPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaPhoto);
+		t_assert(data != nullptr && _type == mtpc_inputStickeredMediaPhoto);
 		return *(const MTPDinputStickeredMediaPhoto*)data;
 	}
 
 	MTPDinputStickeredMediaDocument &_inputStickeredMediaDocument() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickeredMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_inputStickeredMediaDocument);
 		split();
 		return *(MTPDinputStickeredMediaDocument*)data;
 	}
 	const MTPDinputStickeredMediaDocument &c_inputStickeredMediaDocument() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputStickeredMediaDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputStickeredMediaDocument);
+		t_assert(data != nullptr && _type == mtpc_inputStickeredMediaDocument);
 		return *(const MTPDinputStickeredMediaDocument*)data;
 	}
 
@@ -9975,12 +9433,12 @@ public:
 	}
 
 	MTPDgame &_game() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDgame*)data;
 	}
 	const MTPDgame &c_game() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDgame*)data;
 	}
 
@@ -10007,26 +9465,22 @@ public:
 	}
 
 	MTPDinputGameID &_inputGameID() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGameID) throw mtpErrorWrongTypeId(_type, mtpc_inputGameID);
+		t_assert(data != nullptr && _type == mtpc_inputGameID);
 		split();
 		return *(MTPDinputGameID*)data;
 	}
 	const MTPDinputGameID &c_inputGameID() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGameID) throw mtpErrorWrongTypeId(_type, mtpc_inputGameID);
+		t_assert(data != nullptr && _type == mtpc_inputGameID);
 		return *(const MTPDinputGameID*)data;
 	}
 
 	MTPDinputGameShortName &_inputGameShortName() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGameShortName) throw mtpErrorWrongTypeId(_type, mtpc_inputGameShortName);
+		t_assert(data != nullptr && _type == mtpc_inputGameShortName);
 		split();
 		return *(MTPDinputGameShortName*)data;
 	}
 	const MTPDinputGameShortName &c_inputGameShortName() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputGameShortName) throw mtpErrorWrongTypeId(_type, mtpc_inputGameShortName);
+		t_assert(data != nullptr && _type == mtpc_inputGameShortName);
 		return *(const MTPDinputGameShortName*)data;
 	}
 
@@ -10056,12 +9510,12 @@ public:
 	}
 
 	MTPDhighScore &_highScore() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDhighScore*)data;
 	}
 	const MTPDhighScore &c_highScore() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDhighScore*)data;
 	}
 
@@ -10087,12 +9541,12 @@ public:
 	}
 
 	MTPDmessages_highScores &_messages_highScores() {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		split();
 		return *(MTPDmessages_highScores*)data;
 	}
 	const MTPDmessages_highScores &c_messages_highScores() const {
-		if (!data) throw mtpErrorUninitialized();
+		t_assert(data != nullptr);
 		return *(const MTPDmessages_highScores*)data;
 	}
 
@@ -25416,7 +24870,7 @@ inline uint32 MTPserver_DH_Params::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPserver_DH_Params::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPserver_DH_Params::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -25561,7 +25015,7 @@ inline uint32 MTPset_client_DH_params_answer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPset_client_DH_params_answer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPset_client_DH_params_answer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -25678,7 +25132,7 @@ inline uint32 MTPbadMsgNotification::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPbadMsgNotification::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPbadMsgNotification::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -25836,7 +25290,7 @@ inline uint32 MTPmsgDetailedInfo::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmsgDetailedInfo::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmsgDetailedInfo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -25961,7 +25415,7 @@ inline uint32 MTPrpcDropAnswer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPrpcDropAnswer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPrpcDropAnswer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26114,7 +25568,7 @@ inline uint32 MTPdestroySessionRes::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPdestroySessionRes::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPdestroySessionRes::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26229,7 +25683,7 @@ inline uint32 MTPbool::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPbool::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPbool::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26330,7 +25784,7 @@ inline uint32 MTPinputPeer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputPeer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26418,7 +25872,7 @@ inline uint32 MTPinputUser::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputUser::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputUser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26511,7 +25965,7 @@ inline uint32 MTPinputFile::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputFile::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26624,7 +26078,7 @@ inline uint32 MTPinputMedia::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputMedia::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26895,7 +26349,7 @@ inline uint32 MTPinputChatPhoto::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputChatPhoto::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputChatPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -26959,7 +26413,7 @@ inline uint32 MTPinputGeoPoint::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputGeoPoint::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputGeoPoint::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27010,7 +26464,7 @@ inline uint32 MTPinputPhoto::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputPhoto::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27069,7 +26523,7 @@ inline uint32 MTPinputFileLocation::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputFileLocation::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputFileLocation::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27194,7 +26648,7 @@ inline uint32 MTPpeer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPpeer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPpeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27262,7 +26716,7 @@ inline uint32 MTPstorage_fileType::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPstorage_fileType::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPstorage_fileType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27342,7 +26796,7 @@ inline uint32 MTPfileLocation::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPfileLocation::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPfileLocation::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27415,7 +26869,7 @@ inline uint32 MTPuser::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPuser::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPuser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27497,7 +26951,7 @@ inline uint32 MTPuserProfilePhoto::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPuserProfilePhoto::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPuserProfilePhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27554,7 +27008,7 @@ inline uint32 MTPuserStatus::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPuserStatus::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPuserStatus::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27649,7 +27103,7 @@ inline uint32 MTPchat::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchat::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27798,7 +27252,7 @@ inline uint32 MTPchatFull::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchatFull::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchatFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27906,7 +27360,7 @@ inline uint32 MTPchatParticipant::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchatParticipant::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchatParticipant::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -27992,7 +27446,7 @@ inline uint32 MTPchatParticipants::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchatParticipants::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchatParticipants::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28060,7 +27514,7 @@ inline uint32 MTPchatPhoto::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchatPhoto::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchatPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28119,7 +27573,7 @@ inline uint32 MTPmessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28257,7 +27711,7 @@ inline uint32 MTPmessageMedia::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessageMedia::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessageMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28455,7 +27909,7 @@ inline uint32 MTPmessageAction::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessageAction::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessageAction::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28708,7 +28162,7 @@ inline uint32 MTPphoto::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPphoto::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPphoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28784,7 +28238,7 @@ inline uint32 MTPphotoSize::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPphotoSize::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPphotoSize::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -28874,7 +28328,7 @@ inline uint32 MTPgeoPoint::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPgeoPoint::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPgeoPoint::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29049,7 +28503,7 @@ inline uint32 MTPinputNotifyPeer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputNotifyPeer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputNotifyPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29102,7 +28556,7 @@ inline uint32 MTPinputPeerNotifyEvents::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputPeerNotifyEvents::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputPeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29164,7 +28618,7 @@ inline uint32 MTPpeerNotifyEvents::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPpeerNotifyEvents::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPpeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29200,7 +28654,7 @@ inline uint32 MTPpeerNotifySettings::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPpeerNotifySettings::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPpeerNotifySettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29286,7 +28740,7 @@ inline uint32 MTPwallPaper::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPwallPaper::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPwallPaper::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29357,7 +28811,7 @@ inline uint32 MTPreportReason::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPreportReason::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPreportReason::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29603,7 +29057,7 @@ inline uint32 MTPcontacts_contacts::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPcontacts_contacts::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPcontacts_contacts::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29689,7 +29143,7 @@ inline uint32 MTPcontacts_blocked::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPcontacts_blocked::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPcontacts_blocked::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29758,7 +29212,7 @@ inline uint32 MTPmessages_dialogs::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_dialogs::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_dialogs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -29839,7 +29293,7 @@ inline uint32 MTPmessages_messages::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_messages::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_messages::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -30016,7 +29470,7 @@ inline uint32 MTPmessagesFilter::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessagesFilter::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -30281,7 +29735,7 @@ inline uint32 MTPupdate::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPupdate::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -31282,7 +30736,7 @@ inline uint32 MTPupdates_difference::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPupdates_difference::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPupdates_difference::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -31398,7 +30852,7 @@ inline uint32 MTPupdates::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPupdates::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPupdates::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -31603,7 +31057,7 @@ inline uint32 MTPphotos_photos::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPphotos_photos::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPphotos_photos::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -31867,7 +31321,7 @@ inline uint32 MTPhelp_appUpdate::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPhelp_appUpdate::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPhelp_appUpdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -31965,7 +31419,7 @@ inline uint32 MTPencryptedChat::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPencryptedChat::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPencryptedChat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32128,7 +31582,7 @@ inline uint32 MTPencryptedFile::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPencryptedFile::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPencryptedFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32193,7 +31647,7 @@ inline uint32 MTPinputEncryptedFile::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputEncryptedFile::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputEncryptedFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32288,7 +31742,7 @@ inline uint32 MTPencryptedMessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPencryptedMessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPencryptedMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32365,7 +31819,7 @@ inline uint32 MTPmessages_dhConfig::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_dhConfig::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_dhConfig::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32434,7 +31888,7 @@ inline uint32 MTPmessages_sentEncryptedMessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_sentEncryptedMessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_sentEncryptedMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32495,7 +31949,7 @@ inline uint32 MTPinputDocument::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputDocument::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputDocument::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32550,7 +32004,7 @@ inline uint32 MTPdocument::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPdocument::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPdocument::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32654,7 +32108,7 @@ inline uint32 MTPnotifyPeer::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPnotifyPeer::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPnotifyPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32725,7 +32179,7 @@ inline uint32 MTPsendMessageAction::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPsendMessageAction::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPsendMessageAction::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32879,7 +32333,7 @@ inline uint32 MTPinputPrivacyKey::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputPrivacyKey::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputPrivacyKey::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32909,7 +32363,7 @@ inline uint32 MTPprivacyKey::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPprivacyKey::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPprivacyKey::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -32949,7 +32403,7 @@ inline uint32 MTPinputPrivacyRule::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputPrivacyRule::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputPrivacyRule::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33032,7 +32486,7 @@ inline uint32 MTPprivacyRule::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPprivacyRule::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPprivacyRule::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33183,7 +32637,7 @@ inline uint32 MTPdocumentAttribute::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPdocumentAttribute::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPdocumentAttribute::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33319,7 +32773,7 @@ inline uint32 MTPmessages_stickers::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_stickers::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_stickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33399,7 +32853,7 @@ inline uint32 MTPmessages_allStickers::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_allStickers::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_allStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33502,7 +32956,7 @@ inline uint32 MTPcontactLink::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPcontactLink::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPcontactLink::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33556,7 +33010,7 @@ inline uint32 MTPwebPage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPwebPage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33745,7 +33199,7 @@ inline uint32 MTPaccount_password::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPaccount_password::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPaccount_password::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33933,7 +33387,7 @@ inline uint32 MTPexportedChatInvite::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPexportedChatInvite::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPexportedChatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -33986,7 +33440,7 @@ inline uint32 MTPchatInvite::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchatInvite::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34058,7 +33512,7 @@ inline uint32 MTPinputStickerSet::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputStickerSet::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputStickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34279,7 +33733,7 @@ inline uint32 MTPkeyboardButton::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPkeyboardButton::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPkeyboardButton::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34461,7 +33915,7 @@ inline uint32 MTPreplyMarkup::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPreplyMarkup::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPreplyMarkup::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34555,7 +34009,7 @@ inline uint32 MTPhelp_appChangelog::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPhelp_appChangelog::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPhelp_appChangelog::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34652,7 +34106,7 @@ inline uint32 MTPmessageEntity::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessageEntity::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessageEntity::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -34910,7 +34364,7 @@ inline uint32 MTPinputChannel::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputChannel::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputChannel::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35029,7 +34483,7 @@ inline uint32 MTPupdates_channelDifference::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPupdates_channelDifference::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPupdates_channelDifference::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35140,7 +34594,7 @@ inline uint32 MTPchannelMessagesFilter::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchannelMessagesFilter::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchannelMessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35212,7 +34666,7 @@ inline uint32 MTPchannelParticipant::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchannelParticipant::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchannelParticipant::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35343,7 +34797,7 @@ inline uint32 MTPchannelParticipantsFilter::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchannelParticipantsFilter::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchannelParticipantsFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35383,7 +34837,7 @@ inline uint32 MTPchannelParticipantRole::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPchannelParticipantRole::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPchannelParticipantRole::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35515,7 +34969,7 @@ inline uint32 MTPfoundGif::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPfoundGif::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPfoundGif::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35617,7 +35071,7 @@ inline uint32 MTPmessages_savedGifs::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_savedGifs::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_savedGifs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35688,7 +35142,7 @@ inline uint32 MTPinputBotInlineMessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputBotInlineMessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputBotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -35861,7 +35315,7 @@ inline uint32 MTPinputBotInlineResult::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputBotInlineResult::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36014,7 +35468,7 @@ inline uint32 MTPbotInlineMessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPbotInlineMessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPbotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36161,7 +35615,7 @@ inline uint32 MTPbotInlineResult::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPbotInlineResult::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPbotInlineResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36353,7 +35807,7 @@ inline uint32 MTPauth_codeType::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPauth_codeType::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPauth_codeType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36406,7 +35860,7 @@ inline uint32 MTPauth_sentCodeType::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPauth_sentCodeType::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPauth_sentCodeType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36673,7 +36127,7 @@ inline uint32 MTPtopPeerCategory::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPtopPeerCategory::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPtopPeerCategory::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36755,7 +36209,7 @@ inline uint32 MTPcontacts_topPeers::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPcontacts_topPeers::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPcontacts_topPeers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36808,7 +36262,7 @@ inline uint32 MTPdraftMessage::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPdraftMessage::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPdraftMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36866,7 +36320,7 @@ inline uint32 MTPmessages_featuredStickers::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_featuredStickers::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_featuredStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36919,7 +36373,7 @@ inline uint32 MTPmessages_recentStickers::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_recentStickers::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_recentStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -36999,7 +36453,7 @@ inline uint32 MTPmessages_stickerSetInstallResult::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPmessages_stickerSetInstallResult::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPmessages_stickerSetInstallResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -37052,7 +36506,7 @@ inline uint32 MTPstickerSetCovered::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPstickerSetCovered::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPstickerSetCovered::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -37152,7 +36606,7 @@ inline uint32 MTPinputStickeredMedia::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputStickeredMedia::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputStickeredMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
@@ -37257,7 +36711,7 @@ inline uint32 MTPinputGame::innerLength() const {
 	return 0;
 }
 inline mtpTypeId MTPinputGame::type() const {
-	if (!_type) throw mtpErrorUninitialized();
+	t_assert(_type != 0);
 	return _type;
 }
 inline void MTPinputGame::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
