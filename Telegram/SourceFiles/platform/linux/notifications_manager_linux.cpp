@@ -156,7 +156,7 @@ private:
 
 		if (auto manager = ManagerInstance.data()) {
 			if (manager->hasActionsSupport()) {
-				auto label = lang(lng_context_reply_msg).toUtf8();
+				auto label = lang(lng_notification_reply).toUtf8();
 				auto actionReceiver = _data;
 				auto actionHandler = &NotificationData::notificationClicked;
 				auto actionLabel = label.constData();

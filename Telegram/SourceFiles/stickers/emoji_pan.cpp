@@ -2419,14 +2419,14 @@ EmojiPanel::EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool 
 , _setId(setId)
 , _special(special)
 , _deleteVisible(false)
-, _delete(special ? 0 : new IconedButton(this, st::notifyClose)) { // Stickers::NoneSetId if in emoji
+, _delete(special ? 0 : new IconedButton(this, st::simpleClose)) { // Stickers::NoneSetId if in emoji
 	resize(st::emojiPanWidth, st::emojiPanHeader);
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
 	setText(text);
 	if (_delete) {
 		_delete->hide();
-		_delete->moveToRight(st::emojiPanHeaderLeft - ((_delete->width() - st::notifyClose.icon.pxWidth()) / 2), (st::emojiPanHeader - _delete->height()) / 2, width());
+		_delete->moveToRight(st::emojiPanHeaderLeft - ((_delete->width() - st::simpleClose.icon.pxWidth()) / 2), (st::emojiPanHeader - _delete->height()) / 2, width());
 		connect(_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
 	}
 }
@@ -2444,7 +2444,7 @@ void EmojiPanel::updateText() {
 	int32 availw = st::emojiPanWidth - st::emojiPanHeaderLeft * 2;
 	if (_deleteVisible) {
 		if (!_special && _setId != Stickers::NoneSetId) {
-			availw -= st::notifyClose.icon.pxWidth() + st::emojiPanHeaderLeft;
+			availw -= st::simpleClose.icon.pxWidth() + st::emojiPanHeaderLeft;
 		}
 	} else {
 		auto switchText = ([this]() {

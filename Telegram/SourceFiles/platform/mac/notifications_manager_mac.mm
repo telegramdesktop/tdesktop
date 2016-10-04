@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "pspecific.h"
 #include "platform/mac/mac_utilities.h"
+#include "styles/style_window.h"
 
 #include <Cocoa/Cocoa.h>
 

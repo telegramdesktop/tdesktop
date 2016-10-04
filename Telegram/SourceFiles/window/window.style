@@ -1,0 +1,69 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+
+using "basic.style";
+
+notifyBg: white;
+notifyBorder: #f1f1f1;
+notifyBorderWidth: 1px;
+notifySlowHide: 4000;
+notifyPhotoSize: 62px;
+notifyMacPhotoSize: 64px;
+notifyPhotoPos: point(9px, 9px);
+notifyClosePos: point(1px, 2px);
+notifyClose: iconedButton(simpleClose) {
+}
+notifyItemTop: 12px;
+notifyTextLeft: 12px;
+notifyTextTop: 7px;
+notifySlowHideFunc: transition(easeInCirc);
+notifyWaitShortHide: 0;
+notifyWaitLongHide: 20000;
+notifyFastAnim: 150;
+notifyMinWidth: 316px;
+notifyMinHeight: 80px;
+notifyDeltaX: 6px;
+notifyDeltaY: 7px;
+notifyActionsDuration: 200;
+
+notifyFadeRight: icon {{ "fade_horizontal_right", notifyBg }};
+notifyReplyArea: InputArea(defaultInputArea) {
+	font: normalFont;
+	textMargins: margins(8px, 8px, 8px, 6px);
+	heightMin: 36px;
+	heightMax: 72px;
+	border: 0px;
+	borderActive: 0px;
+	borderError: 0px;
+}
+notifySendReply: IconButton {
+	width: 36px;
+	height: 36px;
+
+	opacity: 0.78;
+	overOpacity: 1.;
+
+	icon: icon {{ "notification_send", windowActiveBg, point(3px, 9px) }};
+	iconPosition: point(0px, 0px);
+	downIconPosition: point(0px, 1px);
+
+	duration: notifyFastAnim;
+}

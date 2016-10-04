@@ -872,6 +872,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1.5 GB :(";
 "lng_send_folder" = "Could not send «{name}» because it is a directory :(";
 
+"lng_notification_reply" = "Reply";
+
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_confirm" = "Forward to {recipient}?";

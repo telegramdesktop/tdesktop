@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/notifications_manager.h"
 
+namespace Ui {
+class IconButton;
+} // namespace Ui
+
 namespace Window {
 namespace Notifications {
 namespace Default {
@@ -88,22 +92,20 @@ class Widget : public TWidget {
 public:
 	Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, int x, int y);
 
-	void step_appearance(float64 ms, bool timer);
-	void animHide(float64 duration, anim::transition func);
 	void startHiding();
 	void stopHiding();
-	void moveTo(int x, int y, int index = -1);
+	void moveTop(int top, int bottom);
 
 	void updateNotifyDisplay();
 	void updatePeerPhoto();
 
 	void itemRemoved(HistoryItem *del);
 
-	int index() const {
-		return _history ? _index : -1;
+	int isUnlinked() const {
+		return !_history;
 	}
 
-	void unlinkHistory(History *hist = 0);
+	void unlinkHistory(History *history = nullptr);
 
 	~Widget();
 
@@ -116,9 +118,20 @@ protected:
 private slots:
 	void hideByTimer();
 	void checkLastInput();
+	void onReplyResize();
+	void onReplySubmit(bool ctrlShiftEnter);
+	void onReplyCancel();
 
 private:
+	void animHide(float64 duration, anim::transition func);
+	void step_appearance(float64 ms, bool timer);
+	void step_movement(float64 ms, bool timer);
 	void unlinkHistoryAndNotify();
+	void toggleActionButtons(bool visible);
+	void prepareActionsCache();
+	void actionsOpacityCallback();
+	void showReplyField();
+	void sendReply();
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
 	uint64 _started;
@@ -129,16 +142,26 @@ private:
 	PeerData *_author;
 	HistoryItem *_item;
 	int _forwardedCount;
-	IconedButton _close;
+	ChildWidget<IconedButton> _close;
+	ChildWidget<BoxButton> _reply;
+	ChildWidget<InputArea> _replyArea = { nullptr };
+	ChildWidget<Ui::IconButton> _replySend = { nullptr };
 	QPixmap _cache;
-	float64 _alphaDuration, _posDuration;
+	float64 _alphaDuration;
 	QTimer _hideTimer, _inputTimer;
 	bool _hiding = false;
-	int _index = 0;
+
+	anim::ivalue a_top, a_bottom;
+	Animation _a_movement;
+
 	anim::fvalue a_opacity;
 	anim::transition a_func;
-	anim::ivalue a_y;
 	Animation _a_appearance;
+
+	int _replyPadding = 0;
+	bool _actionsVisible = false;
+	FloatAnimation a_actionsOpacity;
+	QPixmap _buttonsCache;
 
 	ImagePtr peerPhoto;
 

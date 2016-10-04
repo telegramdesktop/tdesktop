@@ -40,6 +40,7 @@
         '<(src_loc)/settings/settings.style',
         '<(src_loc)/stickers/stickers.style',
         '<(src_loc)/ui/widgets/widgets.style',
+        '<(src_loc)/window/window.style',
       ],
       'langpacks': [
         'en',
@@ -512,6 +513,8 @@
           '<(src_loc)/pspecific_linux.h',
           '<(src_loc)/platform/linux/linux_gdk_helper.cpp',
           '<(src_loc)/platform/linux/linux_gdk_helper.h',
+          '<(src_loc)/platform/linux/linux_libnotify.cpp',
+          '<(src_loc)/platform/linux/linux_libnotify.h',
           '<(src_loc)/platform/linux/linux_libs.cpp',
           '<(src_loc)/platform/linux/linux_libs.h',
           '<(src_loc)/platform/linux/file_dialog_linux.cpp',

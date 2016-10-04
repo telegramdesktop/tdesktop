@@ -123,8 +123,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					p.fillRect(0, 0, w, st::mentionHeight, (selected ? st::mentionBgOver : st::white)->b);
 					if (!paintingOther) {
 						if (selected) {
-							int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-							p.drawSprite(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), st::notifyClose.icon);
+							int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
+							p.drawSprite(QPoint(w - st::simpleClose.icon.pxWidth() - skip, skip), st::simpleClose.icon);
 						}
 						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + _hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + _hashtagResults.at(from)) : _hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
 						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);

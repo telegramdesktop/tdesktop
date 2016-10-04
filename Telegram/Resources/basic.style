@@ -1400,15 +1400,7 @@ btnCancelSearch: iconedButton(btnAddContact) {
 	downIcon: sprite(188px, 43px, 18px, 18px);
 }
 
-notifyBG: white;
-notifyBorder: #f1f1f1;
-notifyBorderWidth: 1px;
-notifySlowHide: 4000;
-notifyPhotoSize: 62px;
-notifyMacPhotoSize: 64px;
-notifyPhotoPos: point(9px, 9px);
-notifyClosePos: point(1px, 2px);
-notifyClose: iconedButton(btnDefIconed) {
+simpleClose: iconedButton(btnDefIconed) {
 	icon: sprite(167px, 130px, 10px, 10px);
 	iconPos: point(10px, 10px);
 	downIcon: sprite(167px, 130px, 10px, 10px);
@@ -1417,17 +1409,6 @@ notifyClose: iconedButton(btnDefIconed) {
 	width: 30px;
 	height: 30px;
 }
-notifyItemTop: 12px;
-notifyTextLeft: 12px;
-notifyTextTop: 7px;
-notifySlowHideFunc: transition(easeInCirc);
-notifyWaitShortHide: 0;
-notifyWaitLongHide: 20000;
-notifyFastAnim: 150;
-notifyWidth: 316px;
-notifyHeight: 80px;
-notifyDeltaX: 6px;
-notifyDeltaY: 7px;
 
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
@@ -2031,7 +2012,7 @@ sessionInfoFont: msgFont;
 sessionInfoColor: #888888;
 sessionTerminateTop: 30px;
 sessionTerminateSkip: 18px;
-sessionTerminate: iconedButton(notifyClose) {
+sessionTerminate: iconedButton(simpleClose) {
 	iconPos: point(3px, 3px);
 	downIconPos: point(3px, 4px);
 	width: 16px;
@@ -2044,6 +2025,8 @@ webPageTitleFont: semiboldFont;
 webPageDescriptionFont: normalFont;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
+
+mediaPlayerSuppressDuration: 150;
 
 botDescSkip: 8px;
 

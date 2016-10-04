@@ -600,9 +600,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			bool selected = (i == _sel);
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
-				int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+				int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					p.drawSprite(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::notifyClose.icon);
+					p.drawSprite(QPoint(width() - st::simpleClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::simpleClose.icon);
 				}
 			}
 			p.setPen(st::black->p);
