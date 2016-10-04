@@ -2011,10 +2011,11 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 	} else {
 		gameTitle = lang(lng_deleted_message);
 	}
+	auto scoreNumber = gamescore ? gamescore->score : 0;
 	if (_from->isSelf()) {
-		*outText = lng_action_game_you_scored(lt_count, gamescore->score, lt_game, gameTitle);
+		*outText = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
 	} else {
-		*outText = lng_action_game_score(lt_from, from, lt_count, gamescore->score, lt_game, gameTitle);
+		*outText = lng_action_game_score(lt_from, from, lt_count, scoreNumber, lt_game, gameTitle);
 	}
 	if (second) {
 		outLinks->push_back(second);
@@ -2212,12 +2213,13 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 }
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
+	if (message.vaction.type() == mtpc_messageActionGameScore) {
+		UpdateComponents(HistoryServiceGameScore::Bit());
+		Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
+	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {
 			UpdateComponents(HistoryServicePinned::Bit());
-		} else if (message.vaction.type() == mtpc_messageActionGameScore) {
-			UpdateComponents(HistoryServiceGameScore::Bit());
-			Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
 		}
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;

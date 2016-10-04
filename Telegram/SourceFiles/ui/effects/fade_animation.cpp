@@ -103,7 +103,7 @@ void FadeAnimation::startAnimation(int duration) {
 }
 
 void FadeAnimation::updateCallback() {
-	if (_animation.animating(getms())) {
+	if (_animation.animating()) {
 		_widget->update();
 		if (_updatedCallback) {
 			_updatedCallback(_animation.current(_visible ? 1. : 0.));

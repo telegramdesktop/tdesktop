@@ -83,11 +83,11 @@ void ReportBox::onChange() {
 			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
 			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
 		}
+		_reasonOtherText->setFocus();
 	} else if (_reasonOtherText) {
 		_reasonOtherText.destroy();
 		updateMaxHeight();
 	}
-	_reasonOtherText->setFocus();
 }
 
 void ReportBox::doSetInnerFocus() {

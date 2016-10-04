@@ -155,6 +155,7 @@ public:
 
 	void start(const MTPUser &user);
 
+	void checkStartUrl();
 	void openLocalUrl(const QString &str);
 	void openPeerByName(const QString &name, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
