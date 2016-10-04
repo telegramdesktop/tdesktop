@@ -51,7 +51,6 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 	onBeforeNotificationActivated(peerId, msgId);
 	if (auto window = App::wnd()) {
 		auto history = App::history(peerId);
-
 		window->showFromTray();
 		if (App::passcoded()) {
 			window->setInnerFocus();

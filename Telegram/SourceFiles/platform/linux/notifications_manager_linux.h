@@ -39,6 +39,8 @@ class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager();
 
+	bool init();
+
 	void clearNotification(PeerId peerId, MsgId msgId);
 	bool hasPoorSupport() const;
 	bool hasActionsSupport() const;

@@ -247,12 +247,12 @@ extern f_gtk_dialog_run gtk_dialog_run;
 typedef gulong (*f_g_signal_connect_data)(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data, GConnectFlags connect_flags);
 extern f_g_signal_connect_data g_signal_connect_data;
 
-inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, (GConnectFlags)0);
+inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
+	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, (GConnectFlags)0);
 }
 
-inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, G_CONNECT_SWAPPED);
+inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
+	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, G_CONNECT_SWAPPED);
 }
 
 typedef void (*f_g_signal_handler_disconnect)(gpointer instance, gulong handler_id);
