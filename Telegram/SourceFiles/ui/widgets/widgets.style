@@ -34,3 +34,14 @@ defaultLabelSimple: LabelSimple {
 }
 
 widgetSlideDuration: 200;
+
+discreteSliderHeight: 39px;
+discreteSliderTop: 5px;
+discreteSliderSkip: 3px;
+discreteSliderThickness: 3px;
+discreteSliderActiveFg: #4bb5e7;
+discreteSliderInactiveFg: #e1eaef;
+discreteSliderLabelTop: 17px;
+discreteSliderLabelFont: normalFont;
+discreteSliderLabelFg: #1485c2;
+discreteSliderDuration: 200;

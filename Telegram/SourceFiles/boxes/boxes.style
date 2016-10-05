@@ -89,3 +89,12 @@ shareColumnSkip: 6px;
 shareSelectDuration: 150;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
+
+notificationsBoxHeight: 450px;
+notificationsBoxMonitorTop: 63px;
+notificationsBoxMonitor: icon {{ "monitor", #000000 }};
+notificationsBoxScreenTop: 10px;
+notificationsBoxScreenSize: size(280px, 160px);
+notificationsBoxScreenBg: titleBg;
+notificationsBoxCountLabelTop: 80px;
+notificationsBoxCountTop: 30px;

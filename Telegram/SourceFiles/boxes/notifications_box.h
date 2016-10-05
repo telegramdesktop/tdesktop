@@ -20,34 +20,33 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "abstractbox.h"
 
-class Checkbox;
+class BoxButton;
+class LinkButton;
 
 namespace Ui {
 class DiscreteSlider;
 } // namespace Ui
 
-namespace Settings {
-
-class ScaleWidget : public BlockWidget {
+class NotificationsBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-	ScaleWidget(QWidget *parent, UserData *self);
+	NotificationsBox();
 
-private slots:
-	void onAutoChosen();
-	void onSectionActivated();
-	void onRestartNow();
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
-	void createControls();
-	void setScale(DBIScale newScale);
+	QRect getScreenRect() const;
+	int getContentLeft() const;
 
-	ChildWidget<Checkbox> _auto = { nullptr };
-	ChildWidget<Ui::DiscreteSlider> _scale = { nullptr };
+	ChildWidget<Ui::DiscreteSlider> _countSlider;
+	ChildWidget<BoxButton> _save, _cancel;
 
 };
-
-} // namespace Settings

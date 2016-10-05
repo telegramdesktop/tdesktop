@@ -37,6 +37,7 @@ private slots:
 	void onNativeNotifications();
 	void onPlaySound();
 	void onIncludeMuted();
+	void onAdvanced();
 
 private:
 	void createControls();
@@ -49,6 +50,7 @@ private:
 	ChildWidget<Checkbox> _nativeNotifications = { nullptr };
 	ChildWidget<Checkbox> _playSound = { nullptr };
 	ChildWidget<Checkbox> _includeMuted = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _advanced = { nullptr };
 
 };
 

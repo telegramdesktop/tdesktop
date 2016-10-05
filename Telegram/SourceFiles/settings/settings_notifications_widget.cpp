@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatcheckbox.h"
 #include "mainwindow.h"
 #include "window/notifications_manager.h"
+#include "boxes/notifications_box.h"
 
 namespace Settings {
 
@@ -73,6 +74,10 @@ void NotificationsWidget::createControls() {
 #endif // Q_OS_WIN
 	if (!nativeNotificationsLabel.isEmpty()) {
 		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, SLOT(onNativeNotifications()), Global::NativeNotifications());
+	}
+	addChildRow(_advanced, margin, slidedPadding, lang(lng_settings_advanced_notifications), SLOT(onAdvanced()));
+	if (!nativeNotificationsLabel.isEmpty() && Global::NativeNotifications()) {
+		_advanced->hideFast();
 	}
 }
 
@@ -149,6 +154,16 @@ void NotificationsWidget::onNativeNotifications() {
 	Window::Notifications::manager()->clearAllFast();
 	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
+
+	if (Global::NativeNotifications()) {
+		_advanced->slideUp();
+	} else {
+		_advanced->slideDown();
+	}
+}
+
+void NotificationsWidget::onAdvanced() {
+	Ui::showLayer(new NotificationsBox());
 }
 
 void NotificationsWidget::onPlaySound() {
