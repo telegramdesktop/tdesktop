@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/notifications_manager.h"
+#include "core/single_timer.h"
 
 namespace Window {
 namespace Notifications {

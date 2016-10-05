@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 #include "pspecific.h"
+#include "core/single_timer.h"
 
 class UpdateChecker;
 class Application : public QApplication {

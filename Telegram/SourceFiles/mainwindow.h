@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
+#include "core/single_timer.h"
 
 class MediaView;
 class TitleWidget;
@@ -40,14 +41,6 @@ class ClearManager;
 namespace Settings {
 class Widget;
 } // namespace Settings
-
-namespace Window {
-namespace Notifications {
-namespace Default {
-class Widget;
-} // namespace Default
-} // namespace Notifications
-} // namespace Window
 
 class ConnectingWidget : public QWidget {
 	Q_OBJECT

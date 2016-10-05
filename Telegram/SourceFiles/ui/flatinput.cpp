@@ -735,7 +735,7 @@ void InputArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::white);
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}

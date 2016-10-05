@@ -28,6 +28,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "fileuploader.h"
 
+namespace {
+
+// a new message from the same sender is attached to previous within 15 minutes
+constexpr int kAttachMessageToPreviousSecondsDelta = 900;
+
+} // namespace
+
 ReplyMarkupClickHandler::ReplyMarkupClickHandler(const HistoryItem *item, int row, int col)
 : _itemId(item->fullId())
 , _row(row)
@@ -629,7 +636,7 @@ void HistoryItem::recountAttachToPrevious() {
 				&& !previos->serviceMsg()
 				&& !previos->isEmpty()
 				&& previos->from() == from()
-				&& (qAbs(previos->date.secsTo(date)) < AttachMessageToPreviousSecondsDelta);
+				&& (qAbs(previos->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
 		}
 	}
 	if (attach && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {

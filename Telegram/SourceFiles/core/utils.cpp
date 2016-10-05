@@ -345,36 +345,6 @@ uint64 getms(bool checked) {
 #endif
 }
 
-SingleTimer::SingleTimer() : _finishing(0), _inited(false) {
-	QTimer::setSingleShot(true);
-	if (App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
-}
-
-void SingleTimer::start(int msec) {
-	_finishing = getms(true) + (msec < 0 ? 0 : uint64(msec));
-	if (!_inited && App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
-	QTimer::start(msec);
-}
-
-void SingleTimer::startIfNotActive(int msec) {
-	if (isActive()) {
-		int remains = remainingTime();
-		if (remains > msec) {
-			start(msec);
-		} else if (!remains) {
-			start(1);
-		}
-	} else {
-		start(msec);
-	}
-}
-
 uint64 msgid() {
 #ifdef Q_OS_WIN
     LARGE_INTEGER li;

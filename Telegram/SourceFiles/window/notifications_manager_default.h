@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/notifications_manager.h"
+#include "core/single_timer.h"
 
 namespace Ui {
 class IconButton;
@@ -29,9 +30,12 @@ class IconButton;
 namespace Window {
 namespace Notifications {
 namespace Default {
+namespace internal {
+class Notification;
+class HideAllButton;
+} // namespace internal
 
 class Manager;
-class Widget;
 
 void start();
 Manager *manager();
@@ -41,21 +45,21 @@ class Manager : public Notifications::Manager, private base::Subscriber {
 public:
 	Manager();
 
-	void showNextFromQueue();
-	void removeFromShown(Widget *remove);
-	void startAllHiding();
-	void stopAllHiding();
-
 	template <typename Method>
-	void enumerateWidgets(Method method) {
-		for_const (auto widget, _widgets) {
-			method(widget);
+	void enumerateNotifications(Method method) {
+		for_const (auto notification, _notifications) {
+			method(notification);
 		}
 	}
 
 	~Manager();
 
 private:
+	using Notification = internal::Notification;
+	friend class Notification;
+	using HideAllButton = internal::HideAllButton;
+	friend class HideAllButton;
+
 	void doUpdateAll() override;
 	void doShowNotification(HistoryItem *item, int forwardedCount) override;
 	void doClearAll() override;
@@ -63,8 +67,25 @@ private:
 	void doClearFromHistory(History *history) override;
 	void doClearFromItem(HistoryItem *item) override;
 
-	using Widgets = QList<Widget*>;
-	Widgets _widgets;
+	void showNextFromQueue();
+	void unlinkFromShown(Notification *remove);
+	void removeFromShown(Notification *remove);
+	void removeHideAll(HideAllButton *remove);
+	void startAllHiding();
+	void stopAllHiding();
+	void checkLastInput();
+
+	QPoint notificationStartPosition() const;
+	void moveWidgets();
+	void changeNotificationHeight(Notification *widget, int newHeight);
+
+	using Notifications = QList<Notification*>;
+	Notifications _notifications;
+
+	HideAllButton *_hideAll = nullptr;
+
+	bool _positionsOutdated = false;
+	SingleTimer _inputCheckTimer;
 
 	struct QueuedNotification {
 		QueuedNotification(HistoryItem *item, int forwardedCount)
@@ -86,52 +107,109 @@ private:
 
 };
 
+namespace internal {
+
 class Widget : public TWidget {
-	Q_OBJECT
-
 public:
-	Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, int x, int y);
+	Widget(QPoint position);
 
-	void startHiding();
-	void stopHiding();
-	void moveTop(int top, int bottom);
-
-	void updateNotifyDisplay();
-	void updatePeerPhoto();
-
-	void itemRemoved(HistoryItem *del);
-
-	int isUnlinked() const {
-		return !_history;
+	bool isShowing() const {
+		return _a_appearance.animating() && !_hiding;
 	}
+	void moveTop(int top);
 
-	void unlinkHistory(History *history = nullptr);
-
-	~Widget();
+	enum class AddToHeight {
+		Above,
+		Below,
+	};
+	void addToHeight(int add, AddToHeight aboveOrBelow);
+	void addToTop(int add);
 
 protected:
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+	void hideSlow();
+	void hideFast();
+	void hideStop();
 
-private slots:
-	void hideByTimer();
-	void checkLastInput();
-	void onReplyResize();
-	void onReplySubmit(bool ctrlShiftEnter);
-	void onReplyCancel();
+	virtual void updateGeometry(int x, int y, int width, int height);
 
 private:
 	void animHide(float64 duration, anim::transition func);
 	void step_appearance(float64 ms, bool timer);
 	void step_movement(float64 ms, bool timer);
-	void unlinkHistoryAndNotify();
+
+	bool _hiding = false;
+	float64 _opacityDuration;
+	anim::fvalue a_opacity;
+	anim::transition a_func;
+	Animation _a_appearance;
+
+	anim::ivalue a_top;
+	Animation _a_movement;
+
+};
+
+class Background : public TWidget {
+public:
+	Background(QWidget *parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+};
+
+class Notification : public Widget {
+	Q_OBJECT
+
+public:
+	Notification(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint position);
+
+	void startHiding();
+	void stopHiding();
+
+	void updateNotifyDisplay();
+	void updatePeerPhoto();
+
+	bool isUnlinked() const {
+		return !_history;
+	}
+	bool isReplying() const {
+		return (_replyArea != nullptr) && !isUnlinked();
+	}
+
+	// Called only by Manager.
+	void itemRemoved(HistoryItem *del);
+	bool unlinkHistory(History *history = nullptr);
+	bool checkLastInput();
+
+	~Notification();
+
+protected:
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+private slots:
+	void onHideByTimer();
+	void onReplyResize();
+	void onReplySubmit(bool ctrlShiftEnter);
+	void onReplyCancel();
+
+private:
+	void unlinkHistoryInManager();
 	void toggleActionButtons(bool visible);
 	void prepareActionsCache();
-	void actionsOpacityCallback();
 	void showReplyField();
 	void sendReply();
+	void changeHeight(int newHeight);
+	void updateGeometry(int x, int y, int width, int height) override;
+	void actionsOpacityCallback();
+
+	QPixmap _cache;
+
+	bool _actionsVisible = false;
+	FloatAnimation a_actionsOpacity;
+	QPixmap _buttonsCache;
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
 	uint64 _started;
@@ -144,29 +222,43 @@ private:
 	int _forwardedCount;
 	ChildWidget<IconedButton> _close;
 	ChildWidget<BoxButton> _reply;
+	ChildWidget<Background> _background = { nullptr };
 	ChildWidget<InputArea> _replyArea = { nullptr };
 	ChildWidget<Ui::IconButton> _replySend = { nullptr };
-	QPixmap _cache;
-	float64 _alphaDuration;
-	QTimer _hideTimer, _inputTimer;
-	bool _hiding = false;
+	bool _waitingForInput = true;
 
-	anim::ivalue a_top, a_bottom;
-	Animation _a_movement;
-
-	anim::fvalue a_opacity;
-	anim::transition a_func;
-	Animation _a_appearance;
+	QTimer _hideTimer;
 
 	int _replyPadding = 0;
-	bool _actionsVisible = false;
-	FloatAnimation a_actionsOpacity;
-	QPixmap _buttonsCache;
 
-	ImagePtr peerPhoto;
+	bool _userpicLoaded = false;
 
 };
 
+class HideAllButton : public Widget {
+public:
+	HideAllButton(QPoint position);
+
+	void startHiding();
+	void startHidingFast();
+	void stopHiding();
+
+	~HideAllButton();
+
+protected:
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	bool _mouseOver = false;
+	bool _mouseDown = false;
+
+};
+
+} // namespace internal
 } // namespace Default
 } // namespace Notifications
 } // namespace Window

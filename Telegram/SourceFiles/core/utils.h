@@ -172,37 +172,6 @@ void finish();
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
 
-class SingleTimer : public QTimer { // single shot timer with check
-	Q_OBJECT
-
-public:
-
-	SingleTimer();
-
-	void setSingleShot(bool); // is not available
-	void start(); // is not available
-
-	public slots:
-
-	void start(int msec);
-	void startIfNotActive(int msec);
-	void adjust() {
-		uint64 n = getms(true);
-		if (isActive()) {
-			if (n >= _finishing) {
-				start(0);
-			} else {
-				start(_finishing - n);
-			}
-		}
-	}
-
-private:
-	uint64 _finishing;
-	bool _inited;
-
-};
-
 const static uint32 _md5_block_size = 64;
 class HashMd5 {
 public:

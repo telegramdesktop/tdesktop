@@ -49,6 +49,10 @@ int notificationWidth() {
 	return result;
 }
 
+int notificationMaxHeight() {
+	return st::notifyMinHeight + st::notifyReplyArea.heightMax + st::notifyBorderWidth;
+}
+
 } // namespace
 
 void start() {
@@ -65,69 +69,173 @@ void finish() {
 
 Manager::Manager() {
 	subscribe(FileDownload::ImageLoaded(), [this] {
-		for_const (auto widget, _widgets) {
-			widget->updatePeerPhoto();
+		for_const (auto notification, _notifications) {
+			notification->updatePeerPhoto();
 		}
 	});
+	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
+}
+
+void Manager::checkLastInput() {
+	auto waiting = false;
+	for_const (auto notification, _notifications) {
+		if (!notification->checkLastInput()) {
+			waiting = true;
+		}
+	}
+	if (waiting) {
+		_inputCheckTimer.start(300);
+	}
 }
 
 void Manager::startAllHiding() {
-	for_const (auto widget, _widgets) {
-		widget->startHiding();
+	auto hasReplyingNotification = false;
+	for_const (auto notification, _notifications) {
+		if (notification->isReplying()) {
+			hasReplyingNotification = true;
+			break;
+		}
+	}
+	if (!hasReplyingNotification) {
+		int notHidingCount = 0;
+		for_const (auto notification, _notifications) {
+			if (notification->isShowing()) {
+				++notHidingCount;
+			} else {
+				notification->startHiding();
+			}
+		}
+		notHidingCount += _queuedNotifications.size();
+		if (_hideAll && notHidingCount < 2) {
+			_hideAll->startHiding();
+		}
 	}
 }
 
 void Manager::stopAllHiding() {
-	for_const (auto widget, _widgets) {
-		widget->stopHiding();
+	for_const (auto notification, _notifications) {
+		notification->stopHiding();
+	}
+	if (_hideAll) {
+		_hideAll->stopHiding();
 	}
 }
 
 void Manager::showNextFromQueue() {
-	if (_queuedNotifications.isEmpty()) {
-		return;
+	if (!_queuedNotifications.isEmpty()) {
+		int count = kNotifyWindowsCount;
+		for_const (auto notification, _notifications) {
+			if (notification->isUnlinked()) continue;
+			--count;
+		}
+		if (count > 0) {
+			auto position = notificationStartPosition();
+			do {
+				auto queued = _queuedNotifications.front();
+				_queuedNotifications.pop_front();
+
+				auto notification = std_::make_unique<Notification>(
+					queued.history,
+					queued.peer,
+					queued.author,
+					queued.item,
+					queued.forwardedCount,
+					position);
+				Platform::Notifications::defaultNotificationShown(notification.get());
+				_notifications.push_back(notification.release());
+				--count;
+			} while (count > 0 && !_queuedNotifications.isEmpty());
+
+			_positionsOutdated = true;
+			checkLastInput();
+		}
 	}
-
-	int count = kNotifyWindowsCount;
-	for_const (auto widget, _widgets) {
-		if (widget->isUnlinked()) continue;
-		--count;
-	}
-	if (count <= 0) {
-		return;
-	}
-
-	auto r = psDesktopRect();
-	auto x = r.x() + r.width() - notificationWidth() - st::notifyDeltaX;
-	auto y = r.y() + r.height();
-	do {
-		auto queued = _queuedNotifications.front();
-		_queuedNotifications.pop_front();
-
-		auto widget = std_::make_unique<Widget>(queued.history, queued.peer, queued.author, queued.item, queued.forwardedCount, x, y);
-		Platform::Notifications::defaultNotificationShown(widget.get());
-		_widgets.push_back(widget.release());
-		--count;
-	} while (count > 0 && !_queuedNotifications.isEmpty());
-
-	auto bottom = y - st::notifyDeltaY;
-	for_const (auto widget, _widgets) {
-		if (widget->isUnlinked() < 0) continue;
-		widget->moveTop(y - widget->height(), y);
-		y -= widget->height() + st::notifyDeltaY;
+	if (_positionsOutdated) {
+		moveWidgets();
 	}
 }
 
-void Manager::removeFromShown(Widget *remove) {
+QPoint Manager::notificationStartPosition() const {
+	auto r = psDesktopRect();
+	auto x = r.x() + r.width() - notificationWidth() - st::notifyDeltaX;
+	auto y = r.y() + r.height();
+	return QPoint(x, y);
+}
+
+void Manager::moveWidgets() {
+	auto startPosition = notificationStartPosition();
+	auto top = startPosition.y();
+	int firstLeft = 0, firstTopCurrent = 0, firstTop = 0, count = 0;
+	for (int i = _notifications.size(); i != 0;) {
+		auto notification = _notifications[--i];
+		if (notification->isUnlinked()) continue;
+
+		top -= notification->height() + st::notifyDeltaY;
+		notification->moveTop(top);
+
+		firstLeft = notification->x();
+		firstTopCurrent = notification->y();
+		firstTop = top;
+
+		++count;
+	}
+
+	if (count > 1 || !_queuedNotifications.isEmpty()) {
+		auto deltaY = st::notifyHideAll.height + st::notifyDeltaY;
+		if (!_hideAll) {
+			_hideAll = new HideAllButton(QPoint(firstLeft, firstTopCurrent - deltaY));
+		}
+		_hideAll->moveTop(firstTop - deltaY);
+		_hideAll->stopHiding();
+	} else if (_hideAll) {
+		_hideAll->startHidingFast();
+	}
+}
+
+void Manager::changeNotificationHeight(Notification *notification, int newHeight) {
+	auto deltaHeight = newHeight - notification->height();
+	if (!deltaHeight) return;
+
+	notification->addToHeight(deltaHeight, Notification::AddToHeight::Above);
+	auto index = _notifications.indexOf(notification);
+	if (index > 0) {
+		for (int i = 0; i != index; ++i) {
+			auto notification = _notifications[i];
+			if (notification->isUnlinked()) continue;
+
+			notification->addToTop(-deltaHeight);
+		}
+	}
+	if (_hideAll) {
+		_hideAll->addToTop(-deltaHeight);
+	}
+}
+
+void Manager::unlinkFromShown(Notification *remove) {
 	if (remove) {
-		auto index = _widgets.indexOf(remove);
-		if (index >= 0) {
-			_widgets.removeAt(index);
+		if (remove->unlinkHistory()) {
+			_positionsOutdated = true;
 		}
 	}
 	showNextFromQueue();
 }
 
+void Manager::removeFromShown(Notification *remove) {
+	if (remove) {
+		auto index = _notifications.indexOf(remove);
+		if (index >= 0) {
+			_notifications.removeAt(index);
+			_positionsOutdated = true;
+		}
+	}
+	showNextFromQueue();
+}
+
+void Manager::removeHideAll(HideAllButton *remove) {
+	if (remove == _hideAll) {
+		_hideAll = nullptr;
+	}
+}
 void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
 	_queuedNotifications.push_back(QueuedNotification(item, forwardedCount));
 	showNextFromQueue();
@@ -135,18 +243,19 @@ void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
 
 void Manager::doClearAll() {
 	_queuedNotifications.clear();
-	for_const (auto widget, _widgets) {
-		widget->unlinkHistory();
+	for_const (auto notification, _notifications) {
+		notification->unlinkHistory();
 	}
+	showNextFromQueue();
 }
 
 void Manager::doClearAllFast() {
 	_queuedNotifications.clear();
-
-	auto widgets = createAndSwap(_widgets);
-	for_const (auto widget, widgets) {
-		widget->deleteLater();
+	auto notifications = createAndSwap(_notifications);
+	for_const (auto notification, notifications) {
+		notification->deleteLater();
 	}
+	showNextFromQueue();
 }
 
 void Manager::doClearFromHistory(History *history) {
@@ -157,21 +266,24 @@ void Manager::doClearFromHistory(History *history) {
 			++i;
 		}
 	}
-	for_const (auto widget, _widgets) {
-		widget->unlinkHistory(history);
+	for_const (auto notification, _notifications) {
+		if (notification->unlinkHistory(history)) {
+			_positionsOutdated = true;
+		}
 	}
 	showNextFromQueue();
 }
 
 void Manager::doClearFromItem(HistoryItem *item) {
-	for_const (auto widget, _widgets) {
-		widget->itemRemoved(item);
+	for_const (auto notification, _notifications) {
+		// Calls unlinkFromShown() -> showNextFromQueue()
+		notification->itemRemoved(item);
 	}
 }
 
 void Manager::doUpdateAll() {
-	for_const (auto widget, _widgets) {
-		widget->updateNotifyDisplay();
+	for_const (auto notification, _notifications) {
+		notification->updateNotifyDisplay();
 	}
 }
 
@@ -179,7 +291,116 @@ Manager::~Manager() {
 	clearAllFast();
 }
 
-Widget::Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *msg, int forwardedCount, int x, int y) : TWidget(nullptr)
+namespace internal {
+
+Widget::Widget(QPoint position) : TWidget(nullptr)
+, _opacityDuration(st::notifyFastAnim)
+, a_opacity(0, 1)
+, a_func(anim::linear)
+, _a_appearance(animation(this, &Widget::step_appearance))
+, a_top(position.y())
+, _a_movement(animation(this, &Notification::step_movement)) {
+	setWindowOpacity(0.);
+
+	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
+	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	setAttribute(Qt::WA_NoSystemBackground, true);
+	setAttribute(Qt::WA_TranslucentBackground, true);
+
+	_a_appearance.start();
+}
+
+void Widget::step_appearance(float64 ms, bool timer) {
+	float64 dt = ms / float64(_opacityDuration);
+	if (dt >= 1) {
+		a_opacity.finish();
+		_a_appearance.stop();
+		if (_hiding) {
+			deleteLater();
+		}
+	} else {
+		a_opacity.update(dt, a_func);
+	}
+	setWindowOpacity(a_opacity.current());
+	update();
+}
+
+void Widget::step_movement(float64 ms, bool timer) {
+	float64 dt = ms / float64(st::notifyFastAnim);
+	if (dt >= 1) {
+		a_top.finish();
+	} else {
+		a_top.update(dt, anim::linear);
+	}
+	move(x(), a_top.current());
+	update();
+}
+
+void Widget::hideSlow() {
+	animHide(st::notifySlowHide, st::notifySlowHideFunc);
+}
+
+void Widget::hideFast() {
+	animHide(st::notifyFastAnim, anim::linear);
+}
+
+void Widget::hideStop() {
+	if (_hiding) {
+		_opacityDuration = st::notifyFastAnim;
+		a_func = anim::linear;
+		a_opacity.start(1);
+		_hiding = false;
+		_a_appearance.start();
+	}
+}
+
+void Widget::animHide(float64 duration, anim::transition func) {
+	_opacityDuration = duration;
+	a_func = func;
+	a_opacity.start(0);
+	_hiding = true;
+	_a_appearance.start();
+}
+
+void Widget::moveTop(int top) {
+	a_top.start(top);
+	_a_movement.start();
+}
+
+void Widget::addToHeight(int add, AddToHeight aboveOrBelow) {
+	int newHeight = height() + add;
+	if (aboveOrBelow == AddToHeight::Above) {
+		a_top.add(-add);
+	}
+	updateGeometry(x(), a_top.current(), width(), newHeight);
+}
+
+void Widget::updateGeometry(int x, int y, int width, int height) {
+	setGeometry(x, y, width, height);
+	update();
+}
+
+void Widget::addToTop(int add) {
+	a_top.add(add);
+	move(x(), a_top.current());
+}
+
+Background::Background(QWidget *parent) : TWidget(parent) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void Background::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(rect(), st::notifyBg);
+	p.fillRect(0, 0, st::notifyBorderWidth, height(), st::notifyBorder);
+	p.fillRect(width() - st::notifyBorderWidth, 0, st::notifyBorderWidth, height(), st::notifyBorder);
+	p.fillRect(st::notifyBorderWidth, height() - st::notifyBorderWidth, width() - 2 * st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
+}
+
+Notification::Notification(History *history, PeerData *peer, PeerData *author, HistoryItem *msg, int forwardedCount, QPoint position) : Widget(position)
 , _history(history)
 , _peer(peer)
 , _author(author)
@@ -189,26 +410,17 @@ Widget::Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *
 , _started(GetTickCount())
 #endif // Q_OS_WIN && !Q_OS_WINRT
 , _close(this, st::notifyClose)
-, _reply(this, lang(lng_notification_reply), st::defaultBoxButton)
-, _alphaDuration(st::notifyFastAnim)
-, a_opacity(0)
-, a_func(anim::linear)
-, a_top(y)
-, a_bottom(y + st::notifyMinHeight)
-, _a_movement(animation(this, &Widget::step_movement))
-, _a_appearance(animation(this, &Widget::step_appearance)) {
-	setGeometry(x, a_top.current(), notificationWidth(), a_bottom.current() - a_top.current());
+, _reply(this, lang(lng_notification_reply), st::defaultBoxButton) {
+	updateGeometry(position.x(), position.y(), notificationWidth(), st::notifyMinHeight);
 
+	_userpicLoaded = _peer ? _peer->userpicLoaded() : true;
 	updateNotifyDisplay();
 
 	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideByTimer()));
-
-	_inputTimer.setSingleShot(true);
-	connect(&_inputTimer, SIGNAL(timeout()), this, SLOT(checkLastInput()));
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideByTimer()));
 
 	_close->setClickedCallback([this] {
-		unlinkHistoryAndNotify();
+		unlinkHistoryInManager();
 	});
 	_close->setAcceptBoth(true);
 	_close->moveToRight(st::notifyClosePos.x(), st::notifyClosePos.y());
@@ -223,21 +435,15 @@ Widget::Widget(History *history, PeerData *peer, PeerData *author, HistoryItem *
 
 	prepareActionsCache();
 
-	a_opacity.start(1);
-	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
+	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	setAttribute(Qt::WA_NoSystemBackground, true);
+	setAttribute(Qt::WA_TranslucentBackground, true);
 
 	show();
-
-	setWindowOpacity(a_opacity.current());
-
-	_alphaDuration = st::notifyFastAnim;
-	_a_appearance.start();
-
-	checkLastInput();
 }
 
-void Widget::prepareActionsCache() {
+void Notification::prepareActionsCache() {
 	auto replyCache = myGrab(_reply);
 	auto fadeWidth = st::notifyFadeRight.width();
 	auto actionsTop = st::notifyTextTop + st::msgNameFont->height;
@@ -254,53 +460,73 @@ void Widget::prepareActionsCache() {
 	_buttonsCache = App::pixmapFromImageInPlace(std_::move(actionsCacheImg));
 }
 
-void Widget::checkLastInput() {
+bool Notification::checkLastInput() {
+	if (!_waitingForInput) return true;
+
+	auto wasUserInput = true; // TODO
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	BOOL res = GetLastInputInfo(&lii);
-	if (!res || lii.dwTime >= _started) {
-		_hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		_inputTimer.start(300);
+	wasUserInput = (!res || lii.dwTime >= _started);
+#endif // Q_OS_WIN && !Q_OS_WINRT
+	if (wasUserInput) {
+		_waitingForInput = false;
+		if (!isReplying()) {
+			_hideTimer.start(st::notifyWaitLongHide);
+		}
+		return true;
 	}
-#else // Q_OS_WIN && !Q_OS_WINRT
-	// TODO
-	if (true) {
-		_hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		_inputTimer.start(300);
-	}
-#endif // else for Q_OS_WIN && !Q_OS_WINRT
+	return false;
 }
 
-void Widget::onReplyResize() {
-	_a_movement.stop();
-	auto newHeight = st::notifyMinHeight + _replyArea->height() + st::notifyBorderWidth;
-	auto delta = height() - newHeight;
-	if (delta != 0) {
-		auto top = a_top.current() + delta;
-		a_top = anim::ivalue(top, top);
-		setGeometry(x(), top, width(), a_bottom.current() - top);
-		update();
-	}
+void Notification::onReplyResize() {
+	changeHeight(st::notifyMinHeight + _replyArea->height() + st::notifyBorderWidth);
 }
 
-void Widget::onReplySubmit(bool ctrlShiftEnter) {
+void Notification::onReplySubmit(bool ctrlShiftEnter) {
 	sendReply();
 }
 
-void Widget::onReplyCancel() {
-	unlinkHistoryAndNotify();
+void Notification::onReplyCancel() {
+	unlinkHistoryInManager();
 }
 
-void Widget::moveTop(int top, int bottom) {
-	a_top.start(top);
-	a_bottom.start(bottom);
-	_a_movement.start();
+void Notification::updateGeometry(int x, int y, int width, int height) {
+	if (height > st::notifyMinHeight) {
+		if (!_background) {
+			_background = new Background(this);
+		}
+		_background->setGeometry(0, st::notifyMinHeight, width, height - st::notifyMinHeight);
+	} else if (_background) {
+		_background.destroy();
+	}
+	Widget::updateGeometry(x, y, width, height);
 }
 
-void Widget::updateNotifyDisplay() {
+void Notification::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.setClipRect(e->rect());
+	p.drawPixmap(0, 0, _cache);
+
+	auto buttonsLeft = st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft;
+	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
+	if (a_actionsOpacity.animating(getms())) {
+		p.setOpacity(a_actionsOpacity.current());
+		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
+	} else if (_actionsVisible) {
+		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
+	}
+}
+
+void Notification::actionsOpacityCallback() {
+	update();
+	if (!a_actionsOpacity.animating() && _actionsVisible) {
+		_reply->show();
+	}
+}
+
+void Notification::updateNotifyDisplay() {
 	if (!_history || !_peer || (!_item && _forwardedCount < 2)) return;
 
 	int32 w = width(), h = height();
@@ -372,50 +598,48 @@ void Widget::updateNotifyDisplay() {
 	update();
 }
 
-void Widget::updatePeerPhoto() {
-	if (!peerPhoto->isNull() && peerPhoto->loaded()) {
-		auto img = _cache.toImage();
-		{
-			Painter p(&img);
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
-		}
-		peerPhoto = ImagePtr();
-		_cache = App::pixmapFromImageInPlace(std_::move(img));
-		update();
+void Notification::updatePeerPhoto() {
+	if (_userpicLoaded || !_peer || !_peer->userpicLoaded()) {
+		return;
 	}
+	_userpicLoaded = true;
+
+	auto img = _cache.toImage();
+	{
+		Painter p(&img);
+		_peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
+	}
+	_cache = App::pixmapFromImageInPlace(std_::move(img));
 }
 
-void Widget::itemRemoved(HistoryItem *deleted) {
+void Notification::itemRemoved(HistoryItem *deleted) {
 	if (_item && _item == deleted) {
 		_item = nullptr;
-		unlinkHistoryAndNotify();
+		unlinkHistoryInManager();
 	}
 }
 
-void Widget::unlinkHistoryAndNotify() {
-	unlinkHistory();
+void Notification::unlinkHistoryInManager() {
 	if (auto manager = ManagerInstance.data()) {
-		manager->showNextFromQueue();
+		manager->unlinkFromShown(this);
 	}
 }
 
-void Widget::toggleActionButtons(bool visible) {
+void Notification::toggleActionButtons(bool visible) {
 	if (_actionsVisible != visible) {
 		_actionsVisible = visible;
-		_reply->hide();
 		a_actionsOpacity.start([this] { actionsOpacityCallback(); }, _actionsVisible ? 0. : 1., _actionsVisible ? 1. : 0., st::notifyActionsDuration);
+		_reply->hide();
 	}
 }
 
-void Widget::actionsOpacityCallback() {
-	update();
-	if (!a_actionsOpacity.animating() && _actionsVisible) {
-		_reply->show();
-	}
-}
-
-void Widget::showReplyField() {
+void Notification::showReplyField() {
 	if (_replyArea) return;
+	stopHiding();
+
+	_background = new Background(this);
+	_background->setGeometry(0, st::notifyMinHeight, width(), st::notifySendReply.height + st::notifyBorderWidth);
+	_background->show();
 
 	_replyArea = new InputArea(this, st::notifyReplyArea, lang(lng_message_ph), QString());
 	_replyArea->resize(width() - st::notifySendReply.width - 2 * st::notifyBorderWidth, st::notifySendReply.height);
@@ -435,37 +659,42 @@ void Widget::showReplyField() {
 
 	toggleActionButtons(false);
 
-	a_top.finish();
-	a_bottom.finish();
-
-	_a_movement.stop();
-	auto top = a_top.current() - _replyArea->height() - st::notifyBorderWidth;
-	auto bottom = a_top.current() + st::notifyMinHeight;
-	a_top = anim::ivalue(top, top);
-	a_bottom = anim::ivalue(bottom, bottom);
-	setGeometry(x(), top, width(), bottom - top);
+	onReplyResize();
 	update();
 }
 
-void Widget::sendReply() {
+void Notification::sendReply() {
 	if (!_history) return;
 
 	if (auto manager = ManagerInstance.data()) {
 		auto peerId = _history->peer->id;
 		auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
 		manager->notificationReplied(peerId, msgId, _replyArea->getLastText());
+
+		manager->startAllHiding();
 	}
 }
 
-void Widget::unlinkHistory(History *history) {
-	if (!history || history == _history) {
-		animHide(st::notifyFastAnim, anim::linear);
+void Notification::changeHeight(int newHeight) {
+	if (auto manager = ManagerInstance.data()) {
+		manager->changeNotificationHeight(this, newHeight);
+	}
+}
+
+bool Notification::unlinkHistory(History *history) {
+	auto unlink = _history && (history == _history || !history);
+	if (unlink) {
+		if (_history->peer->id != 4456802837) {
+			int a = 0;
+		}
+		hideFast();
 		_history = nullptr;
 		_item = nullptr;
 	}
+	return unlink;
 }
 
-void Widget::enterEvent(QEvent *e) {
+void Notification::enterEvent(QEvent *e) {
 	if (!_history) return;
 	if (auto manager = ManagerInstance.data()) {
 		manager->stopAllHiding();
@@ -475,7 +704,7 @@ void Widget::enterEvent(QEvent *e) {
 	}
 }
 
-void Widget::leaveEvent(QEvent *e) {
+void Notification::leaveEvent(QEvent *e) {
 	if (!_history) return;
 	if (auto manager = ManagerInstance.data()) {
 		manager->startAllHiding();
@@ -483,15 +712,16 @@ void Widget::leaveEvent(QEvent *e) {
 	toggleActionButtons(false);
 }
 
-void Widget::startHiding() {
-	_hideTimer.start(st::notifyWaitShortHide);
+void Notification::startHiding() {
+	if (!_history) return;
+	hideSlow();
 }
 
-void Widget::mousePressEvent(QMouseEvent *e) {
+void Notification::mousePressEvent(QMouseEvent *e) {
 	if (!_history) return;
 
 	if (e->button() == Qt::RightButton) {
-		unlinkHistoryAndNotify();
+		unlinkHistoryInManager();
 	} else {
 		e->ignore();
 		if (auto manager = ManagerInstance.data()) {
@@ -502,88 +732,89 @@ void Widget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void Widget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.drawPixmap(0, 0, _cache);
-
-	auto buttonsLeft = st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft;
-	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
-	if (a_actionsOpacity.animating(getms())) {
-		p.setOpacity(a_actionsOpacity.current());
-		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
-	} else if (_actionsVisible) {
-		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
-	}
-
-	if (height() > st::notifyMinHeight) {
-		auto replyAreaHeight = height() - st::notifyMinHeight - st::notifyBorderWidth;
-		if (replyAreaHeight > 0) {
-			p.fillRect(st::notifyBorderWidth, st::notifyMinHeight, width() - 2 * st::notifyBorderWidth, replyAreaHeight, st::notifyBg);
-		}
-		p.fillRect(0, st::notifyMinHeight, st::notifyBorderWidth, height() - st::notifyMinHeight, st::notifyBorder);
-		p.fillRect(width() - st::notifyBorderWidth, st::notifyMinHeight, st::notifyBorderWidth, height() - st::notifyMinHeight, st::notifyBorder);
-		p.fillRect(st::notifyBorderWidth, height() - st::notifyBorderWidth, width() - 2 * st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
-	}
-}
-
-void Widget::animHide(float64 duration, anim::transition func) {
+void Notification::stopHiding() {
 	if (!_history) return;
-	_alphaDuration = duration;
-	a_func = func;
-	a_opacity.start(0);
-	_hiding = true;
-	_a_appearance.start();
-}
-
-void Widget::stopHiding() {
-	if (!_history) return;
-	_alphaDuration = st::notifyFastAnim;
-	a_func = anim::linear;
-	a_opacity.start(1);
-	_hiding = false;
 	_hideTimer.stop();
-	_a_appearance.start();
+	Widget::hideStop();
 }
 
-void Widget::hideByTimer() {
-	if (!_history) return;
-	animHide(st::notifySlowHide, st::notifySlowHideFunc);
+void Notification::onHideByTimer() {
+	startHiding();
 }
 
-void Widget::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / float64(_alphaDuration);
-	if (dt >= 1) {
-		a_opacity.finish();
-		_a_appearance.stop();
-		if (_hiding) {
-			deleteLater();
-		}
-	} else {
-		a_opacity.update(dt, a_func);
-	}
-	setWindowOpacity(a_opacity.current());
-	update();
-}
-
-void Widget::step_movement(float64 ms, bool timer) {
-	float64 dt = ms / float64(st::notifyFastAnim);
-	if (dt >= 1) {
-		a_top.finish();
-		a_bottom.finish();
-	} else {
-		a_top.update(dt, anim::linear);
-		a_bottom.update(dt, anim::linear);
-	}
-	setGeometry(x(), a_top.current(), width(), a_bottom.current() - a_top.current());
-	update();
-}
-
-Widget::~Widget() {
+Notification::~Notification() {
 	if (auto manager = ManagerInstance.data()) {
 		manager->removeFromShown(this);
 	}
 }
 
+HideAllButton::HideAllButton(QPoint position) : Widget(position) {
+	setCursor(style::cur_pointer);
+
+	updateGeometry(position.x(), position.y(), notificationWidth(), st::notifyHideAll.height);
+	hide();
+	createWinId();
+
+	show();
+}
+
+void HideAllButton::startHiding() {
+	hideSlow();
+}
+
+void HideAllButton::startHidingFast() {
+	hideFast();
+}
+
+void HideAllButton::stopHiding() {
+	hideStop();
+}
+
+HideAllButton::~HideAllButton() {
+	if (auto manager = ManagerInstance.data()) {
+		manager->removeHideAll(this);
+	}
+}
+
+void HideAllButton::enterEvent(QEvent *e) {
+	_mouseOver = true;
+	update();
+}
+
+void HideAllButton::leaveEvent(QEvent *e) {
+	_mouseOver = false;
+	update();
+}
+
+void HideAllButton::mousePressEvent(QMouseEvent *e) {
+	_mouseDown = true;
+}
+
+void HideAllButton::mouseReleaseEvent(QMouseEvent *e) {
+	auto mouseDown = createAndSwap(_mouseDown);
+	if (mouseDown && _mouseOver) {
+		if (auto manager = ManagerInstance.data()) {
+			manager->clearAll();
+		}
+	}
+}
+
+void HideAllButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.setClipRect(e->rect());
+
+	p.fillRect(rect(), _mouseOver ? st::notifyHideAll.textBgOver : st::notifyHideAll.textBg);
+	p.fillRect(0, 0, width(), st::notifyBorderWidth, st::notifyBorder);
+	p.fillRect(0, height() - st::notifyBorderWidth, width(), st::notifyBorderWidth, st::notifyBorder);
+	p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);
+	p.fillRect(width() - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);
+
+	p.setFont(st::btnDefLink.font);
+	p.setPen(st::btnDefLink.color);
+	p.drawText(rect(), lang(lng_notification_hide_all), style::al_center);
+}
+
+} // namespace internal
 } // namespace Default
 } // namespace Notifications
 } // namespace Window

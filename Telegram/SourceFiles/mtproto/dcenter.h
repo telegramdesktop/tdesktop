@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/single_timer.h"
+
 namespace MTP {
 namespace internal {
 
@@ -27,7 +29,6 @@ class Dcenter : public QObject {
 	Q_OBJECT
 
 public:
-
 	Dcenter(int32 id, const AuthKeyPtr &key);
 
 	QReadWriteLock *keyMutex() const;
@@ -46,21 +47,19 @@ public:
 	}
 
 signals:
-
 	void authKeyCreated();
 	void layerWasInited(bool was);
 
 private slots:
-
 	void authKeyWrite();
 
 private:
-
 	mutable QReadWriteLock keyLock;
 	mutable QMutex initLock;
 	int32 _id;
 	AuthKeyPtr _key;
 	bool _connectionInited;
+
 };
 
 typedef QSharedPointer<Dcenter> DcenterPtr;
@@ -70,21 +69,17 @@ class ConfigLoader : public QObject {
 	Q_OBJECT
 
 public:
-
 	ConfigLoader();
 	void load();
 	void done();
 
 public slots:
-
 	void enumDC();
 
 signals:
-
 	void loaded();
 
 private:
-
 	SingleTimer _enumDCTimer;
 	int32 _enumCurrent;
 	mtpRequestId _enumRequest;

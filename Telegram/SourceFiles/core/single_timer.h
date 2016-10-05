@@ -20,45 +20,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/toast/toast.h"
-#include "core/single_timer.h"
+#include "core/basic_types.h"
+#include "core/lambda_wrap.h"
 
-namespace Ui {
-namespace Toast {
-namespace internal {
-
-class Widget;
-class Manager : public QObject {
+class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
 
 public:
-	Manager(const Manager &other) = delete;
-	Manager &operator=(const Manager &other) = delete;
+	SingleTimer();
 
-	static Manager *instance(QWidget *parent);
+	void setSingleShot(bool); // is not available
+	void start(); // is not available
 
-	void addToast(std_::unique_ptr<Instance> &&toast);
+	void setTimeoutHandler(base::lambda_unique<void()> &&handler);
 
-	~Manager();
+public slots:
+	void start(int msec);
+	void startIfNotActive(int msec);
 
 private slots:
-	void onHideTimeout();
-	void onToastWidgetDestroyed(QObject *widget);
-	void onToastWidgetParentResized();
+	void adjust();
+	void onTimeout();
 
 private:
-	Manager(QWidget *parent);
-	void startNextHideTimer();
-
-	SingleTimer _hideTimer;
-	uint64 _nextHide = 0;
-
-	QMultiMap<uint64, Instance*> _toastByHideTime;
-	QMap<Widget*, Instance*> _toastByWidget;
-	QList<Instance*> _toasts;
+	uint64 _finishing = 0;
+	bool _inited = false;
+	base::lambda_unique<void()> _handler;
 
 };
-
-} // namespace internal
-} // namespace Toast
-} // namespace Ui

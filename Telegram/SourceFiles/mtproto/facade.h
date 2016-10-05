@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mtproto/core_types.h"
 #include "mtproto/session.h"
+#include "core/single_timer.h"
 
 namespace MTP {
 
@@ -57,17 +58,15 @@ class GlobalSlotCarrier : public QObject {
 	Q_OBJECT
 
 public:
-
 	GlobalSlotCarrier();
 
 public slots:
-
 	void checkDelayed();
 	void connectionFinished(Connection *connection);
 
 private:
-
 	SingleTimer _timer;
+
 };
 
 GlobalSlotCarrier *globalSlotCarrier();

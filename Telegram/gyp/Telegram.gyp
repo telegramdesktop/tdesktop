@@ -205,6 +205,8 @@
       '<(src_loc)/core/qthelp_url.h',
       '<(src_loc)/core/runtime_composer.cpp',
       '<(src_loc)/core/runtime_composer.h',
+      '<(src_loc)/core/single_timer.cpp',
+      '<(src_loc)/core/single_timer.h',
       '<(src_loc)/core/stl_subset.h',
       '<(src_loc)/core/utils.cpp',
       '<(src_loc)/core/utils.h',

@@ -39,7 +39,7 @@ namespace Platform {
 
 void MacPrivate::activeSpaceChanged() {
 	if (auto manager = Window::Notifications::Default::manager()) {
-		manager->enumerateWidgets([](QWidget *widget) {
+		manager->enumerateNotifications([](QWidget *widget) {
 			objc_activateWnd(widget->winId());
 		});
 	}
