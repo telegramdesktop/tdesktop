@@ -549,6 +549,8 @@ enum {
 	dbiVideoVolume = 0x42,
 	dbiStickersRecentLimit = 0x43,
 	dbiNativeNotifications = 0x44,
+	dbiNotificationsCount  = 0x45,
+	dbiNotificationsCorner = 0x46,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1002,6 +1004,22 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetNativeNotifications(v == 1);
+	} break;
+
+	case dbiNotificationsCount: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetNotificationsCount((v > 0 ? v : 3));
+	} break;
+
+	case dbiNotificationsCorner: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetNotificationsCorner(static_cast<Notify::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
 	} break;
 
 	case dbiWorkMode: {
@@ -1572,7 +1590,7 @@ void _writeUserSettings() {
 		_writeMap(WriteMapFast);
 	}
 
-	uint32 size = 18 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 20 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1597,6 +1615,8 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
+	data.stream << quint32(dbiNotificationsCount) << qint32(Global::NotificationsCount());
+	data.stream << quint32(dbiNotificationsCorner) << qint32(Global::NotificationsCorner());
 	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
 	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());

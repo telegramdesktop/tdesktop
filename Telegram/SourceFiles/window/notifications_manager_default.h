@@ -31,6 +31,7 @@ namespace Window {
 namespace Notifications {
 namespace Default {
 namespace internal {
+class Widget;
 class Notification;
 class HideAllButton;
 } // namespace internal
@@ -59,6 +60,7 @@ private:
 	friend class Notification;
 	using HideAllButton = internal::HideAllButton;
 	friend class HideAllButton;
+	friend class internal::Widget;
 
 	void doUpdateAll() override;
 	void doShowNotification(HistoryItem *item, int forwardedCount) override;
@@ -75,9 +77,14 @@ private:
 	void stopAllHiding();
 	void checkLastInput();
 
-	QPoint notificationStartPosition() const;
+	float64 demoMasterOpacity() const;
+	void demoMasterOpacityCallback();
+
 	void moveWidgets();
 	void changeNotificationHeight(Notification *widget, int newHeight);
+	void settingsChanged(const Notify::ChangeType &change);
+
+	bool hasReplyingNotification() const;
 
 	using Notifications = QList<Notification*>;
 	Notifications _notifications;
@@ -105,46 +112,57 @@ private:
 	using QueuedNotifications = QList<QueuedNotification>;
 	QueuedNotifications _queuedNotifications;
 
+	FloatAnimation _demoMasterOpacity;
+
 };
 
 namespace internal {
 
 class Widget : public TWidget {
 public:
-	Widget(QPoint position);
+	enum class Direction {
+		Up,
+		Down,
+	};
+	Widget(QPoint startPosition, int shift, Direction shiftDirection);
 
 	bool isShowing() const {
-		return _a_appearance.animating() && !_hiding;
+		return _a_opacity.animating() && !_hiding;
 	}
-	void moveTop(int top);
 
-	enum class AddToHeight {
-		Above,
-		Below,
-	};
-	void addToHeight(int add, AddToHeight aboveOrBelow);
-	void addToTop(int add);
+	void updateOpacity();
+	void changeShift(int top);
+	int currentShift() const {
+		return a_shift.current();
+	}
+	void updatePosition(QPoint startPosition, Direction shiftDirection);
+	void addToHeight(int add);
+	void addToShift(int add);
 
 protected:
 	void hideSlow();
 	void hideFast();
 	void hideStop();
+	QPoint computePosition(int height) const;
 
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 private:
-	void animHide(float64 duration, anim::transition func);
-	void step_appearance(float64 ms, bool timer);
-	void step_movement(float64 ms, bool timer);
+	void moveByShift();
+	void hideAnimated(float64 duration, anim::transition func);
+	void step_opacity(float64 ms, bool timer);
+	void step_shift(float64 ms, bool timer);
 
 	bool _hiding = false;
 	float64 _opacityDuration;
 	anim::fvalue a_opacity;
 	anim::transition a_func;
-	Animation _a_appearance;
+	Animation _a_opacity;
 
-	anim::ivalue a_top;
-	Animation _a_movement;
+	QPoint _startPosition;
+	Direction _direction;
+	anim::ivalue a_shift;
+	Animation _a_shift;
 
 };
 
@@ -161,7 +179,7 @@ class Notification : public Widget {
 	Q_OBJECT
 
 public:
-	Notification(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint position);
+	Notification(History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection);
 
 	void startHiding();
 	void stopHiding();
@@ -179,7 +197,7 @@ public:
 	// Called only by Manager.
 	void itemRemoved(HistoryItem *del);
 	bool unlinkHistory(History *history = nullptr);
-	bool checkLastInput();
+	bool checkLastInput(bool hasReplyingNotifications);
 
 	~Notification();
 
@@ -237,7 +255,7 @@ private:
 
 class HideAllButton : public Widget {
 public:
-	HideAllButton(QPoint position);
+	HideAllButton(QPoint startPosition, int shift, Direction shiftDirection);
 
 	void startHiding();
 	void startHidingFast();

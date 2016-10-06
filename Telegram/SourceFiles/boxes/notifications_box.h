@@ -30,23 +30,48 @@ class DiscreteSlider;
 } // namespace Ui
 
 class NotificationsBox : public AbstractBox {
-	Q_OBJECT
-
 public:
 	NotificationsBox();
+	~NotificationsBox();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	using ScreenCorner = Notify::ScreenCorner;
+	void countChanged();
+	void setOverCorner(ScreenCorner corner);
+	void clearOverCorner();
+
+	class SampleWidget;
+	void removeSample(SampleWidget *widget);
+
+	int currentCount() const;
+
 	QRect getScreenRect() const;
 	int getContentLeft() const;
+	void prepareNotificationSampleSmall();
+	void prepareNotificationSampleLarge();
 
+	QPixmap _notificationSampleSmall;
+	QPixmap _notificationSampleLarge;
+	ScreenCorner _chosenCorner;
+	std_::vector_of_moveable<FloatAnimation> _sampleOpacities;
+
+	bool _isOverCorner = false;
+	ScreenCorner _overCorner = ScreenCorner::TopLeft;
+	bool _isDownCorner = false;
+	ScreenCorner _downCorner = ScreenCorner::TopLeft;
+
+	int _oldCount;
 	ChildWidget<Ui::DiscreteSlider> _countSlider;
-	ChildWidget<BoxButton> _save, _cancel;
+	ChildWidget<BoxButton> _done;
+
+	QVector<SampleWidget*> _cornerSamples[4];
 
 };

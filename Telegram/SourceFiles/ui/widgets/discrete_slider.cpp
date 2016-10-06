@@ -30,11 +30,17 @@ DiscreteSlider::DiscreteSlider(QWidget *parent) : TWidget(parent)
 	setCursor(style::cur_pointer);
 }
 
+void DiscreteSlider::setSectionActivatedCallback(SectionActivatedCallback &&callback) {
+	_callback = std_::move(callback);
+}
+
 void DiscreteSlider::setActiveSection(int index) {
 	setSelectedSection(index);
 	if (_activeIndex != index) {
 		_activeIndex = index;
-		emit sectionActivated();
+		if (_callback) {
+			_callback();
+		}
 	}
 }
 

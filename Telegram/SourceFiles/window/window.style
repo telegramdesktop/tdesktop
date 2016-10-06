@@ -37,7 +37,7 @@ notifyTextTop: 7px;
 notifySlowHideFunc: transition(easeInCirc);
 notifyWaitLongHide: 3000;
 notifyFastAnim: 150;
-notifyMinWidth: 316px;
+notifyWidth: 320px;
 notifyMinHeight: 80px;
 notifyDeltaX: 6px;
 notifyDeltaY: 7px;

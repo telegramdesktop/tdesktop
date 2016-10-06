@@ -59,8 +59,7 @@ void ScaleWidget::createControls() {
 	_scale->addSection(scaleLabel(dbisOneAndHalf));
 	_scale->addSection(scaleLabel(dbisTwo));
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
-
-	connect(_scale, SIGNAL(sectionActivated()), this, SLOT(onSectionActivated()));
+	_scale->setSectionActivatedCallback([this] { scaleChanged(); });
 }
 
 void ScaleWidget::onAutoChosen() {
@@ -102,7 +101,7 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	}
 }
 
-void ScaleWidget::onSectionActivated() {
+void ScaleWidget::scaleChanged() {
 	auto newScale = dbisAuto;
 	switch (_scale->activeSection()) {
 	case 0: newScale = dbisOne; break;

@@ -23,17 +23,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 class DiscreteSlider : public TWidget {
-	Q_OBJECT
-
 public:
 	DiscreteSlider(QWidget *parent);
+
+	void addSection(const QString &label);
 
 	int activeSection() const {
 		return _activeIndex;
 	}
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
-	void addSection(const QString &label);
+
+	using SectionActivatedCallback = base::lambda_unique<void()>;
+	void setSectionActivatedCallback(SectionActivatedCallback &&callback);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -42,9 +44,6 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
-
-signals:
-	void sectionActivated();
 
 private:
 	void resizeSections(int newWidth);
@@ -61,6 +60,8 @@ private:
 	};
 	QList<Section> _sections;
 	int _activeIndex = 0;
+
+	SectionActivatedCallback _callback;
 
 	bool _pressed = false;
 	int _selected = 0;

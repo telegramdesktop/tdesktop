@@ -98,3 +98,15 @@ notificationsBoxScreenSize: size(280px, 160px);
 notificationsBoxScreenBg: titleBg;
 notificationsBoxCountLabelTop: 80px;
 notificationsBoxCountTop: 30px;
+
+notificationsSampleSkip: 5px;
+notificationsSampleTopSkip: 5px;
+notificationsSampleBottomSkip: 5px;
+notificationsSampleMargin: 2px;
+
+notificationSampleOpacity: 0.5;
+notificationSampleSize: size(64px, 16px);
+notificationSampleUserpicFg: #40ace3;
+notificationSampleCloseFg: #d7d7d7;
+notificationSampleTextFg: #d7d7d7;
+notificationSampleNameFg: #939393;

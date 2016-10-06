@@ -38,10 +38,10 @@ public:
 
 private slots:
 	void onAutoChosen();
-	void onSectionActivated();
 	void onRestartNow();
 
 private:
+	void scaleChanged();
 	void createControls();
 	void setScale(DBIScale newScale);
 
