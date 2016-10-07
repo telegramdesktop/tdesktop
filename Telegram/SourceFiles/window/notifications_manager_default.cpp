@@ -296,9 +296,12 @@ void Manager::doClearAllFast() {
 	_queuedNotifications.clear();
 	auto notifications = createAndSwap(_notifications);
 	for_const (auto notification, notifications) {
-		notification->deleteLater();
+		delete notification;
 	}
-	showNextFromQueue();
+	if (_hideAll) {
+		auto hideAll = createAndSwap(_hideAll);
+		delete hideAll;
+	}
 }
 
 void Manager::doClearFromHistory(History *history) {
@@ -347,12 +350,24 @@ Widget::Widget(QPoint startPosition, int shift, Direction shiftDirection) : TWid
 , _a_shift(animation(this, &Widget::step_shift)) {
 	setWindowOpacity(0.);
 
-	setAttribute(Qt::WA_OpaquePaintEvent);
-
 	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 
 	_a_opacity.start();
+}
+
+void Widget::destroyDelayed() {
+	hide();
+	if (_deleted) return;
+	_deleted = true;
+
+	// Ubuntu has a lag if deleteLater() called immediately.
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	QTimer::singleShot(1000, [this] { delete this; });
+#else // Q_OS_LINUX32 || Q_OS_LINUX64
+	deleteLater();
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
 void Widget::step_opacity(float64 ms, bool timer) {
@@ -361,7 +376,7 @@ void Widget::step_opacity(float64 ms, bool timer) {
 		a_opacity.finish();
 		_a_opacity.stop();
 		if (_hiding) {
-			deleteLater();
+			destroyDelayed();
 		}
 	} else {
 		a_opacity.update(dt, a_func);
@@ -499,11 +514,6 @@ Notification::Notification(History *history, PeerData *peer, PeerData *author, H
 	_reply->hide();
 
 	prepareActionsCache();
-
-	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
-	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
-	setAttribute(Qt::WA_NoSystemBackground, true);
-	setAttribute(Qt::WA_TranslucentBackground, true);
 
 	show();
 }

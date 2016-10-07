@@ -84,14 +84,27 @@ private:
 				_owner->removeSample(this);
 			}
 			hide();
-			deleteLater();
+			destroyDelayed();
 		}
+	}
+
+	void destroyDelayed() {
+		if (_deleted) return;
+		_deleted = true;
+
+		// Ubuntu has a lag if deleteLater() called immediately.
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+		QTimer::singleShot(1000, [this] { delete this; });
+#else // Q_OS_LINUX32 || Q_OS_LINUX64
+		deleteLater();
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 	}
 
 	NotificationsBox *_owner;
 	QPixmap _cache;
 	FloatAnimation _opacity;
 	bool _hiding = false;
+	bool _deleted = false;
 
 };
 

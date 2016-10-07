@@ -148,12 +148,14 @@ protected:
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 private:
+	void destroyDelayed();
 	void moveByShift();
 	void hideAnimated(float64 duration, anim::transition func);
 	void step_opacity(float64 ms, bool timer);
 	void step_shift(float64 ms, bool timer);
 
 	bool _hiding = false;
+	bool _deleted = false;
 	float64 _opacityDuration;
 	anim::fvalue a_opacity;
 	anim::transition a_func;
