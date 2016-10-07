@@ -57,7 +57,9 @@ private:
 	int getContentLeft() const;
 	void prepareNotificationSampleSmall();
 	void prepareNotificationSampleLarge();
+	void prepareNotificationSampleUserpic();
 
+	QPixmap _notificationSampleUserpic;
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;

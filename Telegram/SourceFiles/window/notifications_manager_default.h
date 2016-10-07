@@ -56,11 +56,11 @@ public:
 	~Manager();
 
 private:
-	using Notification = internal::Notification;
-	friend class Notification;
-	using HideAllButton = internal::HideAllButton;
-	friend class HideAllButton;
+	friend class internal::Notification;
+	friend class internal::HideAllButton;
 	friend class internal::Widget;
+	using Notification = internal::Notification;
+	using HideAllButton = internal::HideAllButton;
 
 	void doUpdateAll() override;
 	void doShowNotification(HistoryItem *item, int forwardedCount) override;

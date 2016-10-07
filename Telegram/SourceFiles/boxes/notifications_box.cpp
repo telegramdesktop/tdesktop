@@ -235,6 +235,13 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
+void NotificationsBox::prepareNotificationSampleUserpic() {
+	if (_notificationSampleUserpic.isNull()) {
+		_notificationSampleUserpic = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize * cIntRetinaFactor(), st::notifyPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_notificationSampleUserpic.setDevicePixelRatio(cRetinaFactor());
+	}
+}
+
 void NotificationsBox::prepareNotificationSampleLarge() {
 	int w = st::notifyWidth, h = st::notifyMinHeight;
 	auto sampleImage = QImage(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
@@ -247,14 +254,14 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
-		static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-		p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
+		prepareNotificationSampleUserpic();
+		p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), _notificationSampleUserpic);
 
 		int itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		auto rectForName = rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
 
-		static QString notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
+		auto notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
 		p.setFont(st::dialogsTextFont);
 		p.setPen(st::dialogsTextFgService);
 		p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
@@ -262,8 +269,11 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		p.setPen(st::dialogsNameFg);
 		p.setFont(st::msgNameFont);
 
-		static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
+		auto notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
+
+		p.setOpacity(st::notifyClose.opacity);
+		p.drawSpriteLeft(w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPos.x(), st::notifyClosePos.y() + st::notifyClose.iconPos.y(), w, st::notifyClose.icon);
 	}
 
 	_notificationSampleLarge = App::pixmapFromImageInPlace(std_::move(sampleImage));

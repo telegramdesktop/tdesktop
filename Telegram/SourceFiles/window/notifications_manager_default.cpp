@@ -515,6 +515,7 @@ void Notification::prepareActionsCache() {
 	auto actionsCacheWidth = _reply->width() + _replyPadding + fadeWidth;
 	auto actionsCacheHeight = height() - actionsTop;
 	auto actionsCacheImg = QImage(actionsCacheWidth * cIntRetinaFactor(), actionsCacheHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	actionsCacheImg.setDevicePixelRatio(cRetinaFactor());
 	actionsCacheImg.fill(st::transparent->c);
 	{
 		Painter p(&actionsCacheImg);
@@ -611,6 +612,7 @@ void Notification::updateNotifyDisplay() {
 			_history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
 			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			icon.setDevicePixelRatio(cRetinaFactor());
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
 		}
 
