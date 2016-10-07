@@ -62,6 +62,15 @@ void NotificationsWidget::createControls() {
 	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
 	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
 
+	if (cPlatform() != dbipMac) {
+		createNotificationsControls();
+	}
+}
+
+void NotificationsWidget::createNotificationsControls() {
+	style::margins margin(0, 0, 0, st::settingsSkip);
+	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
+
 	QString nativeNotificationsLabel;
 #ifdef Q_OS_WIN
 	if (App::wnd()->psHasNativeNotifications()) {

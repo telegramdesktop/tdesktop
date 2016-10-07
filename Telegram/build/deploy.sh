@@ -181,20 +181,18 @@ fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ]; then
   if [ "$BuildTarget" != "mac" ] || [ "$DeployMac" == "1" ]; then
-    scp "$DeployPath/$UpdateFile" "tmaster:tdesktop/www/$RemoteFolder/"
-    scp "$DeployPath/$SetupFile" "tmaster:tdesktop/www/$RemoteFolder/"
+    rsync -av --progress "$DeployPath/$UpdateFile" "$DeployPath/$SetupFile" "tmaster:tdesktop/www/$RemoteFolder/"
   fi
   if [ "$BuildTarget" == "mac" ]; then
     if [ "$DeployMac32" == "1" ]; then
-      scp "$Mac32DeployPath/$Mac32UpdateFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
-      scp "$Mac32DeployPath/$Mac32SetupFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
+      rsync -av --progress "$Mac32DeployPath/$Mac32UpdateFile" "$Mac32DeployPath/$Mac32SetupFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
     fi
     if [ "$DeployWin" == "1" ]; then
-      scp "$WinDeployPath/$WinUpdateFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
       if [ "$BetaVersion" == "0" ]; then
-        scp "$WinDeployPath/$WinSetupFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinSetupFile" "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+      else
+        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
       fi
-      scp "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
     fi
 
     if [ "$DeployMac" == "1" ]; then
