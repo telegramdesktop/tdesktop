@@ -95,7 +95,7 @@ namespace Platform {
 namespace Notifications {
 
 void start() {
-	if (false && cPlatform() != dbipMacOld) {
+	if (cPlatform() != dbipMacOld) {
 		ManagerInstance.makeIfNull();
 	}
 }
