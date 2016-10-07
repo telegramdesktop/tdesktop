@@ -525,7 +525,7 @@ void FFMpegReaderImplementation::finishPacket() {
 
 void FFMpegReaderImplementation::clearPacketQueue() {
 	finishPacket();
-	auto packets = createAndSwap(_packetQueue);
+	auto packets = base::take(_packetQueue);
 	for (auto &packetData : packets) {
 		AVPacket packet;
 		FFMpeg::packetFromDataWrap(packet, packetData);

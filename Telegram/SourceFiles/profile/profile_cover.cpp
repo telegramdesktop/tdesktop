@@ -444,7 +444,7 @@ void CoverWidget::setChannelButtons() {
 }
 
 void CoverWidget::clearButtons() {
-	auto buttons = createAndSwap(_buttons);
+	auto buttons = base::take(_buttons);
 	for_const (auto button, buttons) {
 		delete button.widget;
 		delete button.replacement;

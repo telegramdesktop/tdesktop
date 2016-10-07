@@ -593,7 +593,7 @@ void MembersWidget::onUpdateOnlineDisplay() {
 }
 
 MembersWidget::~MembersWidget() {
-	auto members = createAndSwap(_membersByUser);
+	auto members = base::take(_membersByUser);
 	for_const (auto member, members) {
 		delete member;
 	}

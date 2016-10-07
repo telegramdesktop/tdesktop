@@ -766,7 +766,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 PhotoData::~PhotoData() {
-	deleteAndMark(uploadingData);
+	delete base::take(uploadingData);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {

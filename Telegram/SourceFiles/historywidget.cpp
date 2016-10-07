@@ -3372,7 +3372,7 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 		}
 	}
 
-	if (!_editMsgId) {
+	if (!_editMsgId && !_inlineBot) {
 		_saveCloudDraftTimer.start(SaveCloudDraftIdleTimeout);
 	}
 }
@@ -5985,7 +5985,6 @@ bool HistoryWidget::hasSilentToggle() const {
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
-	_inlineBotUsername = QString();
 	UserData *resolvedBot = nullptr;
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const auto &d(result.c_contacts_resolvedPeer());
@@ -8863,6 +8862,6 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 }
 
 HistoryWidget::~HistoryWidget() {
-	deleteAndMark(_pinnedBar);
-	deleteAndMark(_list);
+	delete base::take(_pinnedBar);
+	delete base::take(_list);
 }

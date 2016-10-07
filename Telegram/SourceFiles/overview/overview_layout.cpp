@@ -105,7 +105,7 @@ void RadialProgressItem::checkRadialFinished() {
 }
 
 RadialProgressItem::~RadialProgressItem() {
-	deleteAndMark(_radial);
+	delete base::take(_radial);
 }
 
 void FileBase::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {

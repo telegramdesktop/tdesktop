@@ -197,7 +197,7 @@ void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets
 }
 
 ChildFFMpegLoader::~ChildFFMpegLoader() {
-	auto queue = createAndSwap(_queue);
+	auto queue = base::take(_queue);
 	for (auto &packetData : queue) {
 		AVPacket packet;
 		FFMpeg::packetFromDataWrap(packet, packetData);

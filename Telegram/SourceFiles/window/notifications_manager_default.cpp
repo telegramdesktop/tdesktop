@@ -294,14 +294,11 @@ void Manager::doClearAll() {
 
 void Manager::doClearAllFast() {
 	_queuedNotifications.clear();
-	auto notifications = createAndSwap(_notifications);
+	auto notifications = base::take(_notifications);
 	for_const (auto notification, notifications) {
 		delete notification;
 	}
-	if (_hideAll) {
-		auto hideAll = createAndSwap(_hideAll);
-		delete hideAll;
-	}
+	delete base::take(_hideAll);
 }
 
 void Manager::doClearFromHistory(History *history) {
@@ -321,6 +318,12 @@ void Manager::doClearFromHistory(History *history) {
 }
 
 void Manager::doClearFromItem(HistoryItem *item) {
+	for (auto i = 0, queuedCount = _queuedNotifications.size(); i != queuedCount; ++i) {
+		if (_queuedNotifications[i].item == item) {
+			_queuedNotifications.removeAt(i);
+			break;
+		}
+	}
 	for_const (auto notification, _notifications) {
 		// Calls unlinkFromShown() -> showNextFromQueue()
 		notification->itemRemoved(item);
@@ -866,7 +869,7 @@ void HideAllButton::mousePressEvent(QMouseEvent *e) {
 }
 
 void HideAllButton::mouseReleaseEvent(QMouseEvent *e) {
-	auto mouseDown = createAndSwap(_mouseDown);
+	auto mouseDown = base::take(_mouseDown);
 	if (mouseDown && _mouseOver) {
 		if (auto manager = ManagerInstance.data()) {
 			manager->clearAll();

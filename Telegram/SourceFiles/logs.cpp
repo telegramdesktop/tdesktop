@@ -1015,8 +1015,7 @@ namespace internal {
 
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 		if (internal::BreakpadExceptionHandler) {
-			google_breakpad::ExceptionHandler *h = getPointerAndReset(internal::BreakpadExceptionHandler);
-			delete h;
+			delete base::take(internal::BreakpadExceptionHandler);
 		}
 #endif // !Q_OS_MAC || MAC_USE_BREAKPAD
 

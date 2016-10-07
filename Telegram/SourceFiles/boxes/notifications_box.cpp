@@ -274,7 +274,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 
 		auto rectForName = rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
 
-		auto notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
+		auto notifyText = st::dialogsTextFont->elided(lang(lng_notification_sample), itemWidth);
 		p.setFont(st::dialogsTextFont);
 		p.setPen(st::dialogsTextFgService);
 		p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
@@ -398,7 +398,7 @@ void NotificationsBox::mousePressEvent(QMouseEvent *e) {
 }
 
 void NotificationsBox::mouseReleaseEvent(QMouseEvent *e) {
-	auto isDownCorner = createAndSwap(_isDownCorner);
+	auto isDownCorner = base::take(_isDownCorner);
 	if (isDownCorner && _isOverCorner && _downCorner == _overCorner && _downCorner != _chosenCorner) {
 		_chosenCorner = _downCorner;
 		update();

@@ -115,7 +115,7 @@ void ActionsWidget::resizeButton(Ui::LeftOutlineButton *button, int newWidth, in
 }
 
 void ActionsWidget::refreshButtons() {
-	auto buttons = createAndSwap(_buttons);
+	auto buttons = base::take(_buttons);
 	for_const (auto &button, buttons) {
 		delete button;
 	}

@@ -619,7 +619,7 @@ void MediaView::clearData() {
 }
 
 MediaView::~MediaView() {
-	deleteAndMark(_menu);
+	delete base::take(_menu);
 }
 
 void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {

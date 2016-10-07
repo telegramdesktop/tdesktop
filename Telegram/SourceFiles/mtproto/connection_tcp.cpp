@@ -298,7 +298,7 @@ void AbstractTCPConnection::tcpSend(mtpBuffer &buffer) {
 		// prepare decryption key/iv
 		char reversed[48];
 		memcpy(reversed, nonce + 8, sizeof(reversed));
-		std::reverse(reversed, reversed + arraysize(reversed));
+		std::reverse(reversed, reversed + base::array_size(reversed));
 		memcpy(_receiveKey, reversed, CTRState::KeySize);
 		memcpy(_receiveState.ivec, reversed + CTRState::KeySize, CTRState::IvecSize);
 

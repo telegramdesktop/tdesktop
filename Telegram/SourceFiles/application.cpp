@@ -336,8 +336,7 @@ void Application::closeApplication() {
 		manager->clearAllFast();
 	}
 
-	delete AppObject;
-	AppObject = 0;
+	delete base::take(AppObject);
 
 	Sandbox::finish();
 
@@ -1103,8 +1102,7 @@ void AppClass::checkMapVersion() {
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
-	auto window = createAndSwap(_window);
-	delete window;
+	delete base::take(_window);
 
 	Window::Notifications::finish();
 
@@ -1117,8 +1115,8 @@ AppClass::~AppClass() {
 	MTP::finish();
 
 	AppObject = nullptr;
-	deleteAndMark(_uploader);
-	deleteAndMark(_translator);
+	delete base::take(_uploader);
+	delete base::take(_translator);
 
 	Window::chatBackground()->reset();
 

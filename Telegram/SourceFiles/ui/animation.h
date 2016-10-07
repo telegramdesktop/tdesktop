@@ -37,7 +37,7 @@ public:
 	}
 	ReaderPointer(const ReaderPointer &other) = delete;
 	ReaderPointer &operator=(const ReaderPointer &other) = delete;
-	ReaderPointer(ReaderPointer &&other) : _pointer(createAndSwap(other._pointer)) {
+	ReaderPointer(ReaderPointer &&other) : _pointer(base::take(other._pointer)) {
 	}
 	ReaderPointer &operator=(ReaderPointer &&other) {
 		swap(other);
@@ -323,7 +323,7 @@ public:
 
 	void start() { _implementation->start();  }
 	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
-	~AnimationCallbacks() { deleteAndMark(_implementation); }
+	~AnimationCallbacks() { delete base::take(_implementation); }
 
 private:
 	AnimationImplementation *_implementation;

@@ -212,7 +212,7 @@ Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
 8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
 Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 -----END RSA PUBLIC KEY-----"};
-	keysCount = arraysize(keys);
+	keysCount = base::array_size(keys);
 	return keys;
 }
 

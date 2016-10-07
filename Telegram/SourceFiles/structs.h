@@ -246,7 +246,7 @@ protected:
 public:
 	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
-			deleteAndMark(notify);
+			delete base::take(notify);
 		}
 	}
 

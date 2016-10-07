@@ -232,7 +232,7 @@ void HistoryFileMedia::checkAnimationFinished() {
 }
 
 HistoryFileMedia::~HistoryFileMedia() {
-	deleteAndMark(_animation);
+	delete base::take(_animation);
 }
 
 HistoryPhoto::HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString &caption) : HistoryFileMedia(parent)

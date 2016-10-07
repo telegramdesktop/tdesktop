@@ -226,7 +226,7 @@ void start() {
 }
 
 Manager *manager() {
-	if (Global::NativeNotifications()) {
+	if (Global::started() && Global::NativeNotifications()) {
 		return ManagerInstance.data();
 	}
 	return nullptr;
@@ -412,7 +412,7 @@ void Manager::Impl::showNextNotification() {
 void Manager::Impl::clearAll() {
 	_queuedNotifications.clear();
 
-	auto temp = createAndSwap(_notifications);
+	auto temp = base::take(_notifications);
 	for_const (auto &notifications, temp) {
 		for_const (auto notification, notifications) {
 			notification->close();
@@ -431,7 +431,7 @@ void Manager::Impl::clearFromHistory(History *history) {
 
 	auto i = _notifications.find(history->peer->id);
 	if (i != _notifications.cend()) {
-		auto temp = createAndSwap(i.value());
+		auto temp = base::take(i.value());
 		_notifications.erase(i);
 
 		for_const (auto notification, temp) {
