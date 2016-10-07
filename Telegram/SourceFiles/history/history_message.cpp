@@ -366,7 +366,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	CreateConfig config;
 
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
-		const auto &f(msg.vfwd_from.c_messageFwdHeader());
+		auto &f = msg.vfwd_from.c_messageFwdHeader();
 		if (f.has_from_id() || f.has_channel_id()) {
 			config.authorIdOriginal = f.has_channel_id() ? peerFromChannel(f.vchannel_id) : peerFromUser(f.vfrom_id);
 			config.fromIdOriginal = f.has_from_id() ? peerFromUser(f.vfrom_id) : peerFromChannel(f.vchannel_id);
@@ -376,7 +376,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	if (msg.has_reply_to_msg_id()) config.replyTo = msg.vreply_to_msg_id.v;
 	if (msg.has_via_bot_id()) config.viaBotId = msg.vvia_bot_id.v;
 	if (msg.has_views()) config.viewsCount = msg.vviews.v;
-	if (msg.has_reply_markup()) config.markup = &msg.vreply_markup;
+	if (msg.has_reply_markup()) config.mtpMarkup = &msg.vreply_markup;
 	if (msg.has_edit_date()) config.editDate = ::date(msg.vedit_date);
 
 	createComponents(config);
@@ -435,9 +435,15 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 		config.viewsCount = 1;
 	}
 
+	// Copy inline keyboard when forwarding messages with a game.
+	auto mediaOriginal = fwd->getMedia();
+	if (mediaOriginal && mediaOriginal->type() == MediaTypeGame) {
+		config.inlineMarkup = fwd->inlineReplyMarkup();
+	}
+
 	createComponents(config);
 
-	if (HistoryMedia *mediaOriginal = fwd->getMedia()) {
+	if (mediaOriginal) {
 		_media.reset(mediaOriginal->clone(this));
 	}
 	setText(fwd->originalText());
@@ -479,7 +485,7 @@ void HistoryMessage::createComponentsHelper(MTPDmessage::Flags flags, MsgId repl
 
 	if (flags & MTPDmessage::Flag::f_via_bot_id) config.viaBotId = viaBotId;
 	if (flags & MTPDmessage::Flag::f_reply_to_msg_id) config.replyTo = replyTo;
-	if (flags & MTPDmessage::Flag::f_reply_markup) config.markup = &markup;
+	if (flags & MTPDmessage::Flag::f_reply_markup) config.mtpMarkup = &markup;
 	if (isPost()) config.viewsCount = 1;
 
 	createComponents(config);
@@ -518,17 +524,16 @@ void HistoryMessage::updateMediaInBubbleState() {
 	_media->setInBubbleState(computeState());
 }
 
-bool HistoryMessage::displayEditedBadge(bool hasViaBot) const {
-	if (!(_flags & MTPDmessage::Flag::f_edit_date)) {
+bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
+	if (hasViaBotOrInlineMarkup) {
+		return false;
+	} else if (!(_flags & MTPDmessage::Flag::f_edit_date)) {
 		return false;
 	}
 	if (auto fromUser = from()->asUser()) {
 		if (fromUser->botInfo) {
 			return false;
 		}
-	}
-	if (hasViaBot) {
-		return false;
 	}
 	return true;
 }
@@ -548,20 +553,31 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (isPost() && _from->isUser()) {
 		mask |= HistoryMessageSigned::Bit();
 	}
-	if (displayEditedBadge(config.viaBotId != 0)) {
+	auto hasViaBot = (config.viaBotId != 0);
+	auto hasInlineMarkup = [&config] {
+		if (config.mtpMarkup) {
+			return (config.mtpMarkup->type() == mtpc_replyInlineMarkup);
+		}
+		return (config.inlineMarkup != nullptr);
+	};
+	if (displayEditedBadge(hasViaBot || hasInlineMarkup())) {
 		mask |= HistoryMessageEdited::Bit();
 	}
 	if (config.authorIdOriginal && config.fromIdOriginal) {
 		mask |= HistoryMessageForwarded::Bit();
 	}
-	if (config.markup) {
+	if (config.mtpMarkup) {
 		// optimization: don't create markup component for the case
 		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-		if (config.markup->type() != mtpc_replyKeyboardHide || config.markup->c_replyKeyboardHide().vflags.v != 0) {
+		if (config.mtpMarkup->type() != mtpc_replyKeyboardHide || config.mtpMarkup->c_replyKeyboardHide().vflags.v != 0) {
 			mask |= HistoryMessageReplyMarkup::Bit();
 		}
+	} else if (config.inlineMarkup) {
+		mask |= HistoryMessageReplyMarkup::Bit();
 	}
+
 	UpdateComponents(mask);
+
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this) && App::api()) {
@@ -586,7 +602,11 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		fwd->_originalId = config.originalId;
 	}
 	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
-		markup->create(*config.markup);
+		if (config.mtpMarkup) {
+			markup->create(*config.mtpMarkup);
+		} else if (config.inlineMarkup) {
+			markup->create(*config.inlineMarkup);
+		}
 		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button) {
 			_flags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
 		}
@@ -829,7 +849,9 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	if (message.has_edit_date()) {
 		_flags |= MTPDmessage::Flag::f_edit_date;
-		if (displayEditedBadge(Has<HistoryMessageVia>())) {
+		auto hasViaBotId = Has<HistoryMessageVia>();
+		auto hasInlineMarkup = (inlineReplyMarkup() != nullptr);
+		if (displayEditedBadge(hasViaBotId || hasInlineMarkup)) {
 			if (!Has<HistoryMessageEdited>()) {
 				AddComponents(HistoryMessageEdited::Bit());
 			}
@@ -2009,13 +2031,21 @@ bool HistoryService::prepareGameScoreText(const QString &from, QString *outText,
 		gameTitle = lang(lng_contacts_loading);
 		result = true;
 	} else {
-		gameTitle = lang(lng_deleted_message);
+		gameTitle = QString();
 	}
 	auto scoreNumber = gamescore ? gamescore->score : 0;
 	if (_from->isSelf()) {
-		*outText = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
+		if (gameTitle.isEmpty()) {
+			*outText = lng_action_game_you_scored_no_game(lt_count, scoreNumber);
+		} else {
+			*outText = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
+		}
 	} else {
-		*outText = lng_action_game_score(lt_from, from, lt_count, scoreNumber, lt_game, gameTitle);
+		if (gameTitle.isEmpty()) {
+			*outText = lng_action_game_score_no_game(lt_from, from, lt_count, scoreNumber);
+		} else {
+			*outText = lng_action_game_score(lt_from, from, lt_count, scoreNumber, lt_game, gameTitle);
+		}
 	}
 	if (second) {
 		outLinks->push_back(second);

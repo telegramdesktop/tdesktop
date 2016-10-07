@@ -199,6 +199,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 	}
 
 	void create(const MTPReplyMarkup &markup);
+	void create(const HistoryMessageReplyMarkup &markup);
 
 	struct Button {
 		enum class Type {
@@ -758,13 +759,13 @@ public:
 	}
 
 	PeerData *fromOriginal() const {
-		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {
+		if (auto fwd = Get<HistoryMessageForwarded>()) {
 			return fwd->_fromOriginal;
 		}
 		return from();
 	}
 	PeerData *authorOriginal() const {
-		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {
+		if (auto fwd = Get<HistoryMessageForwarded>()) {
 			return fwd->_authorOriginal;
 		}
 		return author();
@@ -898,6 +899,12 @@ protected:
 	void recountAttachToPrevious();
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
+		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
+	}
+	const ReplyKeyboard *inlineReplyKeyboard() const {
+		return const_cast<HistoryItem*>(this)->inlineReplyKeyboard();
+	}
+	HistoryMessageReplyMarkup *inlineReplyMarkup() {
 		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
 				return markup;
@@ -905,17 +912,11 @@ protected:
 		}
 		return nullptr;
 	}
-	const ReplyKeyboard *inlineReplyKeyboard() const {
+	ReplyKeyboard *inlineReplyKeyboard() {
 		if (auto markup = inlineReplyMarkup()) {
 			return markup->inlineKeyboard.get();
 		}
 		return nullptr;
-	}
-	HistoryMessageReplyMarkup *inlineReplyMarkup() {
-		return const_cast<HistoryMessageReplyMarkup*>(static_cast<const HistoryItem*>(this)->inlineReplyMarkup());
-	}
-	ReplyKeyboard *inlineReplyKeyboard() {
-		return const_cast<ReplyKeyboard*>(static_cast<const HistoryItem*>(this)->inlineReplyKeyboard());
 	}
 
 	TextSelection toMediaSelection(TextSelection selection) const {

@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
+#include "application.h"
 #include "playerwidget.h"
 #include "apiwrap.h"
 
@@ -1078,6 +1079,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetAutoUpdate(v == 1);
+		if (!cAutoUpdate()) {
+			Sandbox::stopUpdate();
+		}
 	} break;
 
 	case dbiLastUpdateCheck: {

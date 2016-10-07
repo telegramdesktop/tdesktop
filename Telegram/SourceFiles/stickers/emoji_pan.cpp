@@ -116,6 +116,9 @@ void EmojiColorPicker::leaveEvent(QEvent *e) {
 }
 
 void EmojiColorPicker::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	}
 	_lastMousePos = e->globalPos();
 	updateSelected();
 	_pressedSel = _selected;
@@ -411,7 +414,7 @@ bool EmojiPanInner::checkPickerHide() {
 void EmojiPanInner::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateSelected();
-	if (checkPickerHide()) {
+	if (checkPickerHide() || e->button() != Qt::LeftButton) {
 		return;
 	}
 	_pressedSel = _selected;
@@ -1160,6 +1163,9 @@ QRect StickerPanInner::featuredAddRect(int index) const {
 }
 
 void StickerPanInner::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	}
 	_lastMousePos = e->globalPos();
 	updateSelected();
 
@@ -2895,7 +2901,7 @@ void EmojiPan::otherLeave() {
 }
 
 void EmojiPan::mousePressEvent(QMouseEvent *e) {
-	if (!_stickersShown) return;
+	if (!_stickersShown || e->button() != Qt::LeftButton) return;
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	updateSelected();
 

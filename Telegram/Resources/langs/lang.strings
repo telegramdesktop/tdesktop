@@ -590,6 +590,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "the game «{game}»";
 "lng_action_game_score" = "{from} scored {count:#|#|#} in {game}";
 "lng_action_game_you_scored" = "You scored {count:#|#|#} in {game}";
+"lng_action_game_score_no_game" = "{from} scored {count:#|#|#}";
+"lng_action_game_you_scored_no_game" = "You scored {count:#|#|#}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";

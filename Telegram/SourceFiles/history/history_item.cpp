@@ -359,7 +359,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 			if (!b.isEmpty()) {
 				ButtonRow buttonRow;
 				buttonRow.reserve(b.size());
-				for_const (const auto &button, b) {
+				for_const (auto &button, b) {
 					switch (button.type()) {
 					case mtpc_keyboardButton: {
 						buttonRow.push_back({ Button::Type::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
@@ -408,28 +408,43 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
-		const auto &d(markup.c_replyKeyboardMarkup());
+		auto &d = markup.c_replyKeyboardMarkup();
 		flags = d.vflags.v;
 
 		createFromButtonRows(d.vrows.c_vector().v);
 	} break;
 
 	case mtpc_replyInlineMarkup: {
-		const auto &d(markup.c_replyInlineMarkup());
+		auto &d = markup.c_replyInlineMarkup();
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
 
 		createFromButtonRows(d.vrows.c_vector().v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {
-		const auto &d(markup.c_replyKeyboardHide());
+		auto &d = markup.c_replyKeyboardHide();
 		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
 	} break;
 
 	case mtpc_replyKeyboardForceReply: {
-		const auto &d(markup.c_replyKeyboardForceReply());
+		auto &d = markup.c_replyKeyboardForceReply();
 		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
 	} break;
+	}
+}
+
+void HistoryMessageReplyMarkup::create(const HistoryMessageReplyMarkup &markup) {
+	flags = markup.flags;
+	inlineKeyboard = nullptr;
+
+	rows.clear();
+	for_const (auto &row, markup.rows) {
+		ButtonRow buttonRow;
+		buttonRow.reserve(row.size());
+		for_const (auto &button, row) {
+			buttonRow.push_back({ button.type, button.text, button.data, 0 });
+		}
+		if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
 	}
 }
 
