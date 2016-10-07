@@ -41,6 +41,7 @@ private slots:
 
 private:
 	void createControls();
+	void createNotificationsControls();
 	void desktopEnabledUpdated();
 	void viewParamUpdated();
 
