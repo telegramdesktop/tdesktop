@@ -216,6 +216,8 @@ private slots:
 	void onReplyCancel();
 
 private:
+	bool canReply() const;
+
 	void unlinkHistoryInManager();
 	void toggleActionButtons(bool visible);
 	void prepareActionsCache();

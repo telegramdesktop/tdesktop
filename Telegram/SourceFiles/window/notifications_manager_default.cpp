@@ -615,10 +615,10 @@ void Notification::updateNotifyDisplay() {
 
 	{
 		Painter p(&img);
-		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
+		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
+		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
+		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
+		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
 
 		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
 			_history->peer->loadUserpic(true, true);
@@ -675,6 +675,9 @@ void Notification::updateNotifyDisplay() {
 	}
 
 	_cache = App::pixmapFromImageInPlace(std_::move(img));
+	if (!canReply()) {
+		toggleActionButtons(false);
+	}
 	update();
 }
 
@@ -690,6 +693,7 @@ void Notification::updatePeerPhoto() {
 		_peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 	}
 	_cache = App::pixmapFromImageInPlace(std_::move(img));
+	update();
 }
 
 void Notification::itemRemoved(HistoryItem *deleted) {
@@ -697,6 +701,10 @@ void Notification::itemRemoved(HistoryItem *deleted) {
 		_item = nullptr;
 		unlinkHistoryInManager();
 	}
+}
+
+bool Notification::canReply() const {
+	return (_item != nullptr) && !App::passcoded() && (Global::NotifyView() <= dbinvShowPreview);
 }
 
 void Notification::unlinkHistoryInManager() {
@@ -776,7 +784,7 @@ void Notification::enterEvent(QEvent *e) {
 	if (auto manager = ManagerInstance.data()) {
 		manager->stopAllHiding();
 	}
-	if (!_replyArea) {
+	if (!_replyArea && canReply()) {
 		toggleActionButtons(true);
 	}
 }
