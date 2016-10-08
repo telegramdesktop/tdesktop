@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/icon_button.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
+#include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
@@ -35,11 +36,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
+class CoverWidget::PlayButton : public Button {
+public:
+	PlayButton(QWidget *parent);
+
+	using State = PlayButtonLayout::State;
+	void setState(State state);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	PlayButtonLayout _layout;
+
+};
+
+CoverWidget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
+, _layout(st::mediaPlayerButton, State::Pause, [this] { update(); }) {
+	resize(st::mediaPlayerButtonSize);
+}
+
+void CoverWidget::PlayButton::setState(State state) {
+	_layout.setState(state);
+}
+
+void CoverWidget::PlayButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
+	_layout.paint(p, st::mediaPlayerActiveFg);
+}
+
 CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _playback(this, st::mediaPlayerPlayback)
-, _playPause(this, st::mediaPlayerPlayButton)
+, _playPause(this)
 , _volumeController(this)
 , _repeatTrack(this, st::mediaPlayerRepeatButton) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -51,9 +83,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 		handleSeekFinished(value);
 	});
 
-	if (_showPause) {
-		_playPause->setIcon(&st::mediaPlayerPauseIcon);
-	}
+	_playPause->setState(_showPause ? PlayButton::State::Pause : PlayButton::State::Play);
 	_playPause->setClickedCallback([this]() {
 		if (exists()) {
 			if (_showPause) {
@@ -173,7 +203,7 @@ void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
 	}
 	if (_showPause != showPause) {
 		_showPause = showPause;
-		_playPause->setIcon(_showPause ? &st::mediaPlayerPauseIcon : nullptr);
+		_playPause->setState(showPause ? PlayButton::State::Pause : PlayButton::State::Play);
 	}
 
 	updateTimeText(audioId, playbackState);

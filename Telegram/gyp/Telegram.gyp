@@ -268,6 +268,8 @@
       '<(src_loc)/media/player/media_player_instance.h',
       '<(src_loc)/media/player/media_player_list.cpp',
       '<(src_loc)/media/player/media_player_list.h',
+      '<(src_loc)/media/player/media_player_title_button.cpp',
+      '<(src_loc)/media/player/media_player_title_button.h',
       '<(src_loc)/media/player/media_player_volume_controller.cpp',
       '<(src_loc)/media/player/media_player_volume_controller.h',
       '<(src_loc)/media/player/media_player_widget.cpp',

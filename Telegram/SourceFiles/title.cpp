@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
 #include "media/media_audio.h"
-#include "media/player/media_player_button.h"
+#include "media/player/media_player_title_button.h"
 #include "media/player/media_player_widget.h"
 #include "media/player/media_player_instance.h"
 

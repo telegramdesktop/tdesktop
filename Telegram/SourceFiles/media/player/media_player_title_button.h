@@ -21,40 +21,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/button.h"
-#include "styles/style_media_player.h"
 
 namespace Media {
 namespace Player {
 
-class PlayButtonLayout {
-public:
-	enum class State {
-		Play,
-		Pause,
-		Cancel,
-	};
-	using UpdateCallback = FloatAnimation::Callback;
-	PlayButtonLayout(const style::MediaPlayerButton &st, State state, UpdateCallback &&callback);
+class PlayButtonLayout;
 
-	void setState(State state);
-	void paint(Painter &p, const QBrush &brush);
+class TitleButton : public Button, private base::Subscriber {
+public:
+	TitleButton(QWidget *parent);
+
+	void updatePauseState();
+
+	~TitleButton();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 private:
-	void animationCallback();
-	void startTransform(float64 from, float64 to);
+	void paintIcon(Painter &p);
+	void setShowPause(bool showPause);
 
-	void paintPlay(Painter &p, const QBrush &brush);
-	void paintPlayToPause(Painter &p, const QBrush &brush, float64 progress);
-	void paintPlayToCancel(Painter &p, const QBrush &brush, float64 progress);
-	void paintPauseToCancel(Painter &p, const QBrush &brush, float64 progress);
-
-	const style::MediaPlayerButton &_st;
-
-	State _state, _oldState, _nextState;
-	FloatAnimation _transformProgress;
-	bool _transformBackward = false;
-
-	UpdateCallback _callback;
+	bool _showPause = true;
+	std_::unique_ptr<PlayButtonLayout> _layout;
+	ColorAnimation _iconFg;
 
 };
 

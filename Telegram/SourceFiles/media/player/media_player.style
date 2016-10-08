@@ -22,16 +22,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "ui/widgets/widgets.style";
 
+MediaPlayerButton {
+	playPosition: point;
+	playOuter: size;
+	pausePosition: point;
+	pauseOuter: size;
+	pauseStroke: pixels;
+	cancelPosition: point;
+	cancelOuter: size;
+	cancelStroke: pixels;
+}
+
 mediaPlayerTitleButtonSize: size(titleHeight, titleHeight);
 mediaPlayerTitleButtonInner: size(25px, 25px);
 mediaPlayerTitleButtonInnerBg: #49708f;
-mediaPlayerTitleButtonTransformDuration: 200;
+mediaPlayerButtonTransformDuration: 200;
 
-mediaPlayerTitleButtonPauseLeft: 8px;
-mediaPlayerTitleButtonPauseTop: 8px;
-mediaPlayerTitleButtonPauseStroke: 3px;
-mediaPlayerTitleButtonPlayLeft: 10px;
-mediaPlayerTitleButtonPlayTop: 7px;
+mediaPlayerTitleButton: MediaPlayerButton {
+	playPosition: point(10px, 7px);
+	playOuter: size(29px, 25px);
+	pausePosition: point(8px, 8px);
+	pauseOuter: size(25px, 25px);
+	pauseStroke: 3px;
+	cancelPosition: point(8px, 8px);
+	cancelOuter: size(25px, 25px);
+	cancelStroke: 2px;
+}
+mediaPlayerButton: MediaPlayerButton {
+	playPosition: point(3px, 0px);
+	playOuter: size(22px, 18px);
+	pausePosition: point(1px, 1px);
+	pauseOuter: size(16px, 18px);
+	pauseStroke: 5px;
+	cancelPosition: point(0px, 1px);
+	cancelOuter: size(16px, 18px);
+	cancelStroke: 3px;
+}
 
 mediaPlayerMarginLeft: 10px;
 mediaPlayerMarginBottom: 10px;
@@ -41,35 +67,28 @@ mediaPlayerCoverHeight: 102px;
 mediaPlayerActiveFg: #54b5ed;
 mediaPlayerInactiveFg: #dfebf2;
 
-mediaPlayerPlayButton: IconButton {
-	width: 32px;
+mediaPlayerButtonSize: size(32px, 32px);
+mediaPlayerButtonPosition: point(8px, 7px);
+
+mediaPlayerRepeatButton: IconButton {
+	width: 31px;
 	height: 32px;
 
 	opacity: 1.;
 	overOpacity: 1.;
 
 	icon: icon {
-		{ "player_play", mediaPlayerActiveFg, point(6px, 7px) },
+		{ "player_repeat", mediaPlayerActiveFg, point(9px, 9px)}
 	};
 	iconPosition: point(0px, 0px);
 	downIconPosition: point(0px, 0px);
 
 	duration: 0;
 }
-mediaPlayerPauseIcon: icon {
-	{ "player_pause", mediaPlayerActiveFg, point(9px, 8px) }
-};
-
-mediaPlayerRepeatButton: IconButton(mediaPlayerPlayButton) {
-	width: 31px;
-	icon: icon {
-		{ "player_repeat", mediaPlayerActiveFg, point(9px, 9px)}
-	};
-}
 mediaPlayerRepeatDisabledIcon: icon {
 	{ "player_repeat", mediaPlayerInactiveFg, point(9px, 9px)}
 };
-mediaPlayerPreviousButton: IconButton(mediaPlayerPlayButton) {
+mediaPlayerPreviousButton: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
 	icon: icon {
 		{ "player_previous", mediaPlayerActiveFg, point(10px, 10px) },

@@ -21,84 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_button.h"
 
-#include "styles/style_media_player.h"
-#include "media/media_audio.h"
-#include "media/player/media_player_instance.h"
-#include "shortcuts.h"
-
 namespace Media {
 namespace Player {
-
-TitleButton::TitleButton(QWidget *parent) : Button(parent) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	resize(st::mediaPlayerTitleButtonSize);
-
-	setClickedCallback([this]() {
-		if (exists()) {
-			if (_showPause) {
-				instance()->pause();
-			} else {
-				instance()->play();
-			}
-		}
-	});
-
-	if (exists()) {
-		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
-			updatePauseState();
-		});
-		updatePauseState();
-		finishIconTransform();
-	}
-}
-
-void TitleButton::updatePauseState() {
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
-	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-	if (exists() && instance()->isSeeking()) {
-		showPause = true;
-	}
-	setShowPause(showPause);
-}
-
-void TitleButton::setShowPause(bool showPause) {
-	if (_showPause != showPause) {
-		_showPause = showPause;
-		_iconTransformToPause.start([this] { update(); }, _showPause ? 0. : 1., _showPause ? 1. : 0., st::mediaPlayerTitleButtonTransformDuration);
-		update();
-	}
-}
-
-void TitleButton::finishIconTransform() {
-	if (_iconTransformToPause.animating(getms())) {
-		_iconTransformToPause.finish();
-		update();
-	}
-}
-
-void TitleButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(rect(), st::titleBg);
-
-	p.setBrush(st::mediaPlayerTitleButtonInnerBg);
-	p.setPen(Qt::NoPen);
-
-	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-	p.drawEllipse((width() - st::mediaPlayerTitleButtonInner.width()) / 2, (height() - st::mediaPlayerTitleButtonInner.height()) / 2, st::mediaPlayerTitleButtonInner.width(), st::mediaPlayerTitleButtonInner.height());
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-
-	paintIcon(p);
-}
-
-void TitleButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
-	if ((oldState & StateOver) != (_state & StateOver)) {
-		auto over = (_state & StateOver);
-		_iconFg.start([this] { update(); }, over ? st::titleButtonFg->c : st::titleButtonActiveFg->c, over ? st::titleButtonActiveFg->c : st::titleButtonFg->c, st::titleButtonDuration);
-	}
-}
-
 namespace {
 
 template <int N>
@@ -119,64 +43,146 @@ QPainterPath interpolatePaths(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
 
 } // namespace
 
-void TitleButton::paintIcon(Painter &p) {
-	auto over = (_state & StateOver);
-	auto icon = _iconFg.current(getms(), over ? st::titleButtonActiveFg->c : st::titleButtonFg->c);
-	auto showPause = _iconTransformToPause.current(getms(), _showPause ? 1. : 0.);
-	auto pauseWidth = st::mediaPlayerTitleButtonInner.width() - 2 * st::mediaPlayerTitleButtonPauseLeft;
-	auto playWidth = pauseWidth;
-	auto pauseHeight = st::mediaPlayerTitleButtonInner.height() - 2 * st::mediaPlayerTitleButtonPauseTop;
-	auto playHeight = st::mediaPlayerTitleButtonInner.height() - 2 * st::mediaPlayerTitleButtonPlayTop;
-	auto pauseStroke = st::mediaPlayerTitleButtonPauseStroke;
+PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, State state, UpdateCallback &&callback)
+: _st(st)
+, _state(state)
+, _oldState(state)
+, _nextState(state)
+, _callback(std_::move(callback)) {
+}
 
-	qreal left = (width() - st::mediaPlayerTitleButtonInner.width()) / 2;
-	qreal top = (height() - st::mediaPlayerTitleButtonInner.height()) / 2;
+void PlayButtonLayout::setState(State state) {
+	if (_nextState == state) return;
 
-	auto pauseLeft = left + st::mediaPlayerTitleButtonPauseLeft;
-	auto playLeft = left + st::mediaPlayerTitleButtonPlayLeft;
-	auto pauseTop = top + st::mediaPlayerTitleButtonPauseTop;
-	auto playTop = top + st::mediaPlayerTitleButtonPlayTop;
-
-	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-	p.setPen(Qt::NoPen);
-
-	if (showPause == 0.) {
-		QPainterPath pathPlay;
-		pathPlay.moveTo(playLeft, playTop);
-		pathPlay.lineTo(playLeft + playWidth, playTop + (playHeight / 2.));
-		pathPlay.lineTo(playLeft, playTop + playHeight);
-		pathPlay.lineTo(playLeft, playTop);
-		p.fillPath(pathPlay, icon);
-	} else {
-		QPointF pathLeftPause[] = {
-			{ pauseLeft, pauseTop },
-			{ pauseLeft + pauseStroke, pauseTop },
-			{ pauseLeft + pauseStroke, pauseTop + pauseHeight },
-			{ pauseLeft, pauseTop + pauseHeight },
-		};
-		QPointF pathLeftPlay[] = {
-			{ playLeft, playTop },
-			{ playLeft + (playWidth / 2.), playTop + (playHeight / 4.) },
-			{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
-			{ playLeft, playTop + playHeight },
-		};
-		p.fillPath(interpolatePaths(pathLeftPause, pathLeftPlay, showPause), icon);
-
-		QPointF pathRightPause[] = {
-			{ pauseLeft + pauseWidth - pauseStroke, pauseTop },
-			{ pauseLeft + pauseWidth, pauseTop },
-			{ pauseLeft + pauseWidth, pauseTop + pauseHeight },
-			{ pauseLeft + pauseWidth - pauseStroke, pauseTop + pauseHeight },
-		};
-		QPointF pathRightPlay[] = {
-			{ playLeft + (playWidth / 2.), playTop + (playHeight / 4.) },
-			{ playLeft + playWidth, playTop + (playHeight / 2.) },
-			{ playLeft + playWidth, playTop + (playHeight / 2.) },
-			{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
-		};
-		p.fillPath(interpolatePaths(pathRightPause, pathRightPlay, showPause), icon);
+	_nextState = state;
+	if (!_transformProgress.animating(getms())) {
+		_oldState = _state;
+		_state = _nextState;
+		_transformBackward = false;
+		if (_state != _oldState) startTransform(0., 1.);
+	} else if (_oldState == _nextState) {
+		qSwap(_oldState, _state);
+		startTransform(_transformBackward ? 0. : 1., _transformBackward ? 1. : 0.);
+		_transformBackward = !_transformBackward;
 	}
+}
+
+void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
+	if (_transformProgress.animating(getms())) {
+		auto from = _oldState, to = _state;
+		auto backward = _transformBackward;
+		auto progress = _transformProgress.current(1.);
+		if (from == State::Cancel || (from == State::Pause && to == State::Play)) {
+			qSwap(from, to);
+			backward = !backward;
+		}
+		if (backward) progress = 1. - progress;
+
+		t_assert(from != to);
+		if (from == State::Play) {
+			if (to == State::Pause) {
+				paintPlayToPause(p, brush, progress);
+			} else {
+				t_assert(to == State::Cancel);
+				paintPlayToCancel(p, brush, progress);
+			}
+		} else {
+			t_assert(from == State::Pause && to == State::Cancel);
+			paintPauseToCancel(p, brush, progress);
+		}
+	} else {
+		switch (_state) {
+		case State::Play: paintPlay(p, brush); break;
+		case State::Pause: paintPlayToPause(p, brush, 1.); break;
+		case State::Cancel: paintPlayToCancel(p, brush, 1.); break;
+		}
+	}
+}
+
+void PlayButtonLayout::paintPlay(Painter &p, const QBrush &brush) {
+	auto playLeft = 0. + _st.playPosition.x();
+	auto playTop = 0. + _st.playPosition.y();
+	auto playWidth = _st.playOuter.width() - 2 * playLeft;
+	auto playHeight = _st.playOuter.height() - 2 * playTop;
+
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+	QPainterPath pathPlay;
+	pathPlay.moveTo(playLeft, playTop);
+	pathPlay.lineTo(playLeft + playWidth, playTop + (playHeight / 2.));
+	pathPlay.lineTo(playLeft, playTop + playHeight);
+	pathPlay.lineTo(playLeft, playTop);
+	p.fillPath(pathPlay, brush);
+
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+}
+
+void PlayButtonLayout::paintPlayToPause(Painter &p, const QBrush &brush, float64 progress) {
+	auto playLeft = 0. + _st.playPosition.x();
+	auto playTop = 0. + _st.playPosition.y();
+	auto playWidth = _st.playOuter.width() - 2 * playLeft;
+	auto playHeight = _st.playOuter.height() - 2 * playTop;
+
+	auto pauseLeft = 0. + _st.pausePosition.x();
+	auto pauseTop = 0. + _st.pausePosition.y();
+	auto pauseWidth = _st.pauseOuter.width() - 2 * pauseLeft;
+	auto pauseHeight = _st.pauseOuter.height() - 2 * pauseTop;
+	auto pauseStroke = 0. + _st.pauseStroke;
+
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+	QPointF pathLeftPause[] = {
+		{ pauseLeft, pauseTop },
+		{ pauseLeft + pauseStroke, pauseTop },
+		{ pauseLeft + pauseStroke, pauseTop + pauseHeight },
+		{ pauseLeft, pauseTop + pauseHeight },
+	};
+	QPointF pathLeftPlay[] = {
+		{ playLeft, playTop },
+		{ playLeft + (playWidth / 2.), playTop + (playHeight / 4.) },
+		{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
+		{ playLeft, playTop + playHeight },
+	};
+	p.fillPath(interpolatePaths(pathLeftPause, pathLeftPlay, progress), brush);
+
+	QPointF pathRightPause[] = {
+		{ pauseLeft + pauseWidth - pauseStroke, pauseTop },
+		{ pauseLeft + pauseWidth, pauseTop },
+		{ pauseLeft + pauseWidth, pauseTop + pauseHeight },
+		{ pauseLeft + pauseWidth - pauseStroke, pauseTop + pauseHeight },
+	};
+	QPointF pathRightPlay[] = {
+		{ playLeft + (playWidth / 2.), playTop + (playHeight / 4.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
+	};
+	p.fillPath(interpolatePaths(pathRightPause, pathRightPlay, progress), brush);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+}
+
+void PlayButtonLayout::paintPlayToCancel(Painter &p, const QBrush &brush, float64 progress) {
+
+}
+
+void PlayButtonLayout::paintPauseToCancel(Painter &p, const QBrush &brush, float64 progress) {
+
+}
+
+void PlayButtonLayout::animationCallback() {
+	if (!_transformProgress.animating()) {
+		auto finalState = _nextState;
+		_nextState = _state;
+		setState(finalState);
+	}
+	_callback();
+}
+
+void PlayButtonLayout::startTransform(float64 from, float64 to) {
+	_transformProgress.start([this] { animationCallback(); }, from, to, st::mediaPlayerButtonTransformDuration);
 }
 
 } // namespace Player

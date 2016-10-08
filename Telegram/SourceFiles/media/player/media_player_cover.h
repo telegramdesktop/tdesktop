@@ -69,11 +69,12 @@ private:
 	int64 _lastDurationMs = 0;
 	QString _time;
 
+	class PlayButton;
 	ChildWidget<FlatLabel> _nameLabel;
 	ChildWidget<Ui::LabelSimple> _timeLabel;
 	ChildWidget<Clip::Playback> _playback;
 	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
-	ChildWidget<Ui::IconButton> _playPause;
+	ChildWidget<PlayButton> _playPause;
 	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
 	ChildWidget<VolumeController> _volumeController;
 	ChildWidget<Ui::IconButton> _repeatTrack;
