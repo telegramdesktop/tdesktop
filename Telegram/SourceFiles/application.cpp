@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "ui/filedialog.h"
+#include "ui/popupmenu.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
@@ -35,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "window/chat_background.h"
 #include "media/player/media_player_instance.h"
+#include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
 
 namespace {
@@ -303,9 +305,8 @@ void Application::readClients() {
 	if (!startUrl.isEmpty()) {
 		cSetStartUrl(startUrl);
 	}
-	if (!cStartUrl().isEmpty() && App::main() && App::self()) {
-		App::main()->openLocalUrl(cStartUrl());
-		cSetStartUrl(QString());
+	if (auto main = App::main()) {
+		main->checkStartUrl();
 	}
 }
 
@@ -332,8 +333,11 @@ void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
-	delete AppObject;
-	AppObject = 0;
+	if (auto manager = Window::Notifications::manager()) {
+		manager->clearAllFast();
+	}
+
+	delete base::take(AppObject);
 
 	Sandbox::finish();
 
@@ -729,6 +733,7 @@ AppClass::AppClass() : QObject()
 	anim::startManager();
 	historyInit();
 	Media::Player::start();
+	Window::Notifications::start();
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -742,7 +747,8 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: starting app..."));
 
-	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
+	// Create mime database, so it won't be slow later.
+	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = new MainWindow();
 	_window->createWinId();
@@ -1080,8 +1086,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10003) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New cute design for the Settings page");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10012) {
+				versionFeatures = QString::fromUtf8("Windows and Linux:\n\xe2\x80\x94 Quick reply from notifications\n\xe2\x80\x94 Hide all notifications button added\n\xe2\x80\x94 Change notifications location and maximum count\n\nLinux:\n\xe2\x80\x94 You can enable native notifications in Settings");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10005) {
 				versionFeatures = langNewVersionText();
 			} else {
@@ -1098,8 +1104,9 @@ void AppClass::checkMapVersion() {
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
-	auto window = createAndSwap(_window);
-	delete window;
+	delete base::take(_window);
+
+	Window::Notifications::finish();
 
 	anim::stopManager();
 
@@ -1110,8 +1117,8 @@ AppClass::~AppClass() {
 	MTP::finish();
 
 	AppObject = nullptr;
-	deleteAndMark(_uploader);
-	deleteAndMark(_translator);
+	delete base::take(_uploader);
+	delete base::take(_translator);
 
 	Window::chatBackground()->reset();
 
@@ -1128,9 +1135,9 @@ AppClass *AppClass::app() {
 }
 
 MainWindow *AppClass::wnd() {
-	return AppObject ? AppObject->_window : 0;
+	return AppObject ? AppObject->_window : nullptr;
 }
 
 MainWidget *AppClass::main() {
-	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : 0;
+	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : nullptr;
 }

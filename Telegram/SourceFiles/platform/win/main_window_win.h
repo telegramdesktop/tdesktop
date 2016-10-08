@@ -21,10 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/main_window.h"
-
 #include <windows.h>
 
-class NotifyWindow;
+class PopupMenu;
 
 namespace Platform {
 
@@ -62,15 +61,9 @@ public:
 		return posInited;
 	}
 
-	void psActivateNotify(NotifyWindow *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
-	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
-
 	void psUpdateCounter();
 
 	bool psHasNativeNotifications();
-	void psCleanNotifyPhotosIn(int32 dt);
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
@@ -106,15 +99,10 @@ public:
 	~MainWindow();
 
 public slots:
-
-	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 
-	void psCleanNotifyPhotos();
-
 protected:
-
 	bool psHasTrayIcon() const {
 		return trayIcon;
 	}
@@ -144,8 +132,6 @@ private:
 	HICON ps_iconBig = nullptr;
 	HICON ps_iconSmall = nullptr;
 	HICON ps_iconOverlay = nullptr;
-
-	SingleTimer ps_cleanNotifyPhotosTimer;
 
 	int _deltaLeft = 0;
 	int _deltaTop = 0;

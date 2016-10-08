@@ -27,7 +27,11 @@ inline QString psServerPrefix() {
 inline void psCheckLocalSocket(const QString &) {
 }
 
-class NotifyWindow;
+namespace Window {
+namespace Notifications {
+class Widget;
+} // namespace Notifications
+} // namespace Window
 
 class PsMainWindow : public QMainWindow {
 	Q_OBJECT

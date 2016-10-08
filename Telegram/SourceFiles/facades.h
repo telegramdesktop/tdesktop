@@ -148,8 +148,25 @@ enum class ChangeType {
 	IncludeMuted,
 	DesktopEnabled,
 	ViewParams,
-	UseNative,
+	MaxCount,
+	Corner,
+	DemoIsShown,
 };
+
+enum class ScreenCorner {
+	TopLeft     = 0,
+	TopRight    = 1,
+	BottomRight = 2,
+	BottomLeft  = 3,
+};
+
+inline bool IsLeftCorner(ScreenCorner corner) {
+	return (corner == ScreenCorner::TopLeft) || (corner == ScreenCorner::BottomLeft);
+}
+
+inline bool IsTopCorner(ScreenCorner corner) {
+	return (corner == ScreenCorner::TopLeft) || (corner == ScreenCorner::TopRight);
+}
 
 } // namespace Notify
 
@@ -309,8 +326,10 @@ DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);
 DeclareVar(bool, IncludeMuted);
 DeclareVar(DBINotifyView, NotifyView);
-DeclareVar(bool, WindowsNotifications);
-DeclareVar(bool, CustomNotifies);
+DeclareVar(bool, NativeNotifications);
+DeclareVar(int, NotificationsCount);
+DeclareVar(Notify::ScreenCorner, NotificationsCorner);
+DeclareVar(bool, NotificationsDemoIsShown);
 DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DeclareVar(DBIConnectionType, ConnectionType);

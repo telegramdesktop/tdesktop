@@ -29,7 +29,7 @@ constexpr const str_const LanguageCodes[] = {
 	"pt_BR",
 	"ko",
 };
-constexpr const int languageTest = -1, languageDefault = 0, languageCount = arraysize(LanguageCodes);
+constexpr const int languageTest = -1, languageDefault = 0, languageCount = base::array_size(LanguageCodes);
 
 class LangString : public QString {
 public:

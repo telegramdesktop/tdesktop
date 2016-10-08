@@ -125,17 +125,6 @@ settingsLargeSkip: 23px;
 
 settingsActionPadding: margins(0px, 4px, 0px, 5px);
 
-settingsSliderHeight: 39px;
-settingsSliderTop: 5px;
-settingsSliderSkip: 3px;
-settingsSliderThickness: 3px;
-settingsSliderActiveFg: #4bb5e7;
-settingsSliderInactiveFg: #e1eaef;
-settingsSliderLabelTop: 17px;
-settingsSliderLabelFont: normalFont;
-settingsSliderLabelFg: #1485c2;
-settingsSliderDuration: 200;
-
 settingsBackgroundSize: 120px;
 
 settingsUpdateFg: #999999;

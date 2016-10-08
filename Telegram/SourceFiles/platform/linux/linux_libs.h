@@ -247,13 +247,16 @@ extern f_gtk_dialog_run gtk_dialog_run;
 typedef gulong (*f_g_signal_connect_data)(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data, GConnectFlags connect_flags);
 extern f_g_signal_connect_data g_signal_connect_data;
 
-inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, (GConnectFlags)0);
+inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
+	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, (GConnectFlags)0);
 }
 
-inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, NULL, G_CONNECT_SWAPPED);
+inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
+	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, G_CONNECT_SWAPPED);
 }
+
+typedef void (*f_g_signal_handler_disconnect)(gpointer instance, gulong handler_id);
+extern f_g_signal_handler_disconnect g_signal_handler_disconnect;
 
 typedef AppIndicator* (*f_app_indicator_new)(const gchar *id, const gchar *icon_name, AppIndicatorCategory category);
 extern f_app_indicator_new app_indicator_new;
@@ -272,6 +275,9 @@ extern f_gdk_init_check gdk_init_check;
 
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
 extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
+
+typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file)(const gchar *filename, GError **error);
+extern f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file;
 
 typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_pixbuf)(GdkPixbuf *pixbuf);
 extern f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf;
@@ -320,6 +326,18 @@ extern f_g_idle_add g_idle_add;
 
 typedef void (*f_g_free)(gpointer mem);
 extern f_g_free g_free;
+
+typedef void (*f_g_list_foreach)(GList *list, GFunc func, gpointer user_data);
+extern f_g_list_foreach g_list_foreach;
+
+typedef void (*f_g_list_free)(GList *list);
+extern f_g_list_free g_list_free;
+
+typedef void (*f_g_list_free_full)(GList *list, GDestroyNotify free_func);
+extern f_g_list_free_full g_list_free_full;
+
+typedef void (*f_g_error_free)(GError *error);
+extern f_g_error_free g_error_free;
 
 typedef void (*f_g_slist_free)(GSList *list);
 extern f_g_slist_free g_slist_free;

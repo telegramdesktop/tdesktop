@@ -19,8 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "platform/win/windows_toasts.h"
+#include "platform/win/notifications_manager_win.h"
 
+#include "window/notifications_utilities.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
@@ -44,10 +45,10 @@ using namespace ABI::Windows::Data::Xml::Dom;
 using namespace Windows::Foundation;
 
 namespace Platform {
-namespace Toasts {
+namespace Notifications {
 namespace {
 
-bool _supported = false;
+NeverFreedPointer<Manager> ManagerInstance;
 
 ComPtr<IToastNotificationManagerStatics> _notificationManager;
 ComPtr<IToastNotifier> _notifier;
@@ -62,13 +63,6 @@ struct NotificationPtr {
 };
 using Notifications = QMap<PeerId, QMap<MsgId, NotificationPtr>>;
 Notifications _notifications;
-struct Image {
-	uint64 until;
-	QString path;
-};
-using Images = QMap<StorageKey, Image>;
-Images _images;
-bool _imageSavedFlag = false;
 
 class StringReferenceWrapper {
 public:
@@ -152,74 +146,7 @@ bool init() {
 	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
 		return false;
 	}
-	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 	return true;
-}
-
-} // namespace
-
-void start() {
-	_supported = init();
-}
-
-bool supported() {
-	return _supported;
-}
-
-uint64 clearImages(uint64 ms) {
-	uint64 result = 0;
-	for (auto i = _images.begin(); i != _images.end();) {
-		if (!i->until) {
-			++i;
-			continue;
-		}
-		if (i->until <= ms) {
-			QFile(i->path).remove();
-			i = _images.erase(i);
-		} else {
-			if (!result) {
-				result = i->until;
-			} else {
-				accumulate_min(result, i->until);
-			}
-			++i;
-		}
-	}
-	return result;
-}
-
-void clearNotifies(PeerId peerId) {
-	if (!_notifier) return;
-
-	if (peerId) {
-		auto i = _notifications.find(peerId);
-		if (i != _notifications.cend()) {
-			auto temp = createAndSwap(i.value());
-			_notifications.erase(i);
-
-			for (auto j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
-				_notifier->Hide(j->p.Get());
-			}
-		}
-	} else {
-		auto temp = createAndSwap(_notifications);
-		for_const (auto &notifications, temp) {
-			for_const (auto &notification, notifications) {
-				_notifier->Hide(notification.p.Get());
-			}
-		}
-	}
-}
-
-void finish() {
-	_notifications.clear();
-	if (_notificationManager) _notificationManager.Reset();
-	if (_notifier) _notifier.Reset();
-	if (_notificationFactory) _notificationFactory.Reset();
-
-	if (_imageSavedFlag) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
-	}
 }
 
 HRESULT SetNodeValueString(_In_ HSTRING inputString, _In_ IXmlNode *node, _In_ IXmlDocument *xml) {
@@ -308,7 +235,6 @@ typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFa
 
 class ToastEventHandler : public Implements<DesktopToastActivatedEventHandler, DesktopToastDismissedEventHandler, DesktopToastFailedEventHandler> {
 public:
-
 	ToastEventHandler::ToastEventHandler(const PeerId &peer, MsgId msg) : _ref(1), _peerId(peer), _msgId(msg) {
 	}
 	~ToastEventHandler() {
@@ -316,32 +242,8 @@ public:
 
 	// DesktopToastActivatedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
-		auto i = _notifications.find(_peerId);
-		if (i != _notifications.cend()) {
-			i.value().remove(_msgId);
-			if (i.value().isEmpty()) {
-				_notifications.erase(i);
-			}
-		}
-		if (App::wnd()) {
-			History *history = App::history(_peerId);
-
-			App::wnd()->showFromTray();
-			if (App::passcoded()) {
-				App::wnd()->setInnerFocus();
-				App::wnd()->notifyClear();
-			} else {
-				bool tomsg = !history->peer->isUser() && (_msgId > 0);
-				if (tomsg) {
-					HistoryItem *item = App::histItemById(peerToChannel(_peerId), _msgId);
-					if (!item || !item->mentionsMe()) {
-						tomsg = false;
-					}
-				}
-				Ui::showPeerHistory(history, tomsg ? _msgId : ShowAtUnreadMsgId);
-				App::wnd()->notifyClear(history);
-			}
-			SetForegroundWindow(App::wnd()->psHwnd());
+		if (auto manager = ManagerInstance.data()) {
+			manager->notificationActivated(_peerId, _msgId);
 		}
 		return S_OK;
 	}
@@ -356,13 +258,9 @@ public:
 			case ToastDismissalReason_UserCanceled:
 			case ToastDismissalReason_TimedOut:
 			default:
-			auto i = _notifications.find(_peerId);
-			if (i != _notifications.cend()) {
-				i.value().remove(_msgId);
-				if (i.value().isEmpty()) {
-					_notifications.erase(i);
+				if (auto manager = ManagerInstance.data()) {
+					manager->clearNotification(_peerId, _msgId);
 				}
-			}
 			break;
 			}
 		}
@@ -371,12 +269,8 @@ public:
 
 	// DesktopToastFailedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastFailedEventArgs *e) {
-		auto i = _notifications.find(_peerId);
-		if (i != _notifications.cend()) {
-			i.value().remove(_msgId);
-			if (i.value().isEmpty()) {
-				_notifications.erase(i);
-			}
+		if (auto manager = ManagerInstance.data()) {
+			manager->clearNotification(_peerId, _msgId);
 		}
 		return S_OK;
 	}
@@ -412,42 +306,105 @@ public:
 	}
 
 private:
-
 	ULONG _ref;
 	PeerId _peerId;
 	MsgId _msgId;
+
 };
 
-QString getImage(const StorageKey &key, PeerData *peer) {
-	uint64 ms = getms(true);
-	auto i = _images.find(key);
-	if (i != _images.cend()) {
-		if (i->until) {
-			i->until = ms + NotifyDeletePhotoAfter;
-			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
-		}
-	} else {
-		Image v;
-		if (key.first) {
-			v.until = ms + NotifyDeletePhotoAfter;
-			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
-		} else {
-			v.until = 0;
-		}
-		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
-		if (key.first || key.second) {
-			peer->saveUserpic(v.path, st::notifyMacPhotoSize);
-		} else {
-			App::wnd()->iconLarge().save(v.path, "PNG");
-		}
-		i = _images.insert(key, v);
-		_imageSavedFlag = true;
+} // namespace
+
+void start() {
+	if (init()) {
+		ManagerInstance.makeIfNull();
 	}
-	return i->path;
 }
 
-bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg) {
-	if (!supported() || !_notificationManager || !_notifier || !_notificationFactory) return false;
+Manager *manager() {
+	if (Global::started() && Global::NativeNotifications()) {
+		return ManagerInstance.data();
+	}
+	return nullptr;
+}
+
+bool supported() {
+	return ManagerInstance.data() != nullptr;
+}
+
+void finish() {
+	ManagerInstance.clear();
+}
+
+class Manager::Impl {
+public:
+	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
+	void clearAll();
+	void clearFromHistory(History *history);
+	void beforeNotificationActivated(PeerId peerId, MsgId msgId);
+	void afterNotificationActivated(PeerId peerId, MsgId msgId);
+	void clearNotification(PeerId peerId, MsgId msgId);
+
+	~Impl();
+
+private:
+	Window::Notifications::CachedUserpics _cachedUserpics;
+
+};
+
+Manager::Impl::~Impl() {
+	_notifications.clear();
+	if (_notificationManager) _notificationManager.Reset();
+	if (_notifier) _notifier.Reset();
+	if (_notificationFactory) _notificationFactory.Reset();
+}
+
+void Manager::Impl::clearAll() {
+	if (!_notifier) return;
+
+	auto temp = base::take(_notifications);
+	for_const (auto &notifications, temp) {
+		for_const (auto &notification, notifications) {
+			_notifier->Hide(notification.p.Get());
+		}
+	}
+}
+
+void Manager::Impl::clearFromHistory(History *history) {
+	if (!_notifier) return;
+
+	auto i = _notifications.find(history->peer->id);
+	if (i != _notifications.cend()) {
+		auto temp = base::take(i.value());
+		_notifications.erase(i);
+
+		for_const (auto &notification, temp) {
+			_notifier->Hide(notification.p.Get());
+		}
+	}
+}
+
+void Manager::Impl::beforeNotificationActivated(PeerId peerId, MsgId msgId) {
+	clearNotification(peerId, msgId);
+}
+
+void Manager::Impl::afterNotificationActivated(PeerId peerId, MsgId msgId) {
+	if (auto window = App::wnd()) {
+		SetForegroundWindow(window->psHwnd());
+	}
+}
+
+void Manager::Impl::clearNotification(PeerId peerId, MsgId msgId) {
+	auto i = _notifications.find(peerId);
+	if (i != _notifications.cend()) {
+		i.value().remove(msgId);
+		if (i.value().isEmpty()) {
+			_notifications.erase(i);
+		}
+	}
+}
+
+bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
 
 	ComPtr<IXmlDocument> toastXml;
 	bool withSubtitle = !subtitle.isEmpty();
@@ -459,16 +416,15 @@ bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, con
 	if (!SUCCEEDED(hr)) return false;
 
 	StorageKey key;
-	QString imagePath;
-	if (showpix) {
-		key = peer->userpicUniqueKey();
-	} else {
+	if (hideNameAndPhoto) {
 		key = StorageKey(0, 0);
+	} else {
+		key = peer->userpicUniqueKey();
 	}
-	QString image = getImage(key, peer);
-	std::wstring wimage = QDir::toNativeSeparators(image).toStdWString();
+	auto userpicPath = _cachedUserpics.get(key, peer);
+	auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
-	hr = SetImageSrc(wimage.c_str(), toastXml.Get());
+	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
 	ComPtr<IXmlNodeList> nodeList;
@@ -549,5 +505,34 @@ bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, con
 	return true;
 }
 
-} // namespace Toasts
+Manager::Manager() : _impl(std_::make_unique<Impl>()) {
+}
+
+void Manager::clearNotification(PeerId peerId, MsgId msgId) {
+	_impl->clearNotification(peerId, msgId);
+}
+
+Manager::~Manager() = default;
+
+void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
+}
+
+void Manager::doClearAllFast() {
+	_impl->clearAll();
+}
+
+void Manager::doClearFromHistory(History *history) {
+	_impl->clearFromHistory(history);
+}
+
+void Manager::onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
+	_impl->beforeNotificationActivated(peerId, msgId);
+}
+
+void Manager::onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
+	_impl->afterNotificationActivated(peerId, msgId);
+}
+
+} // namespace Notifications
 } // namespace Platform

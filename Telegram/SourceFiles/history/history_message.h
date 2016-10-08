@@ -63,7 +63,7 @@ public:
 
 		return (!emptyText() || !_media || !_media->isDisplayed() || Has<HistoryMessageReply>() || Has<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
 	}
-	bool displayEditedBadge(bool hasViaBot) const;
+	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const {
 		return _media && _media->uploading();
 	}
@@ -191,7 +191,12 @@ private:
 		PeerId fromIdOriginal = 0;
 		MsgId originalId = 0;
 		QDateTime editDate;
-		const MTPReplyMarkup *markup = nullptr;
+
+		// For messages created from MTP structs.
+		const MTPReplyMarkup *mtpMarkup = nullptr;
+
+		// For messages created from existing messages (forwarded).
+		const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
 	};
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);

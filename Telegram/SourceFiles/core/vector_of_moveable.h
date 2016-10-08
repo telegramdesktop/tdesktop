@@ -36,9 +36,9 @@ public:
 	vector_of_moveable(const vector_of_moveable &other) = delete;
 	vector_of_moveable &operator=(const vector_of_moveable &other) = delete;
 	vector_of_moveable(vector_of_moveable &&other)
-		: _size(createAndSwap(other._size))
-		, _capacity(createAndSwap(other._capacity))
-		, _plaindata(createAndSwap(other._plaindata)) {
+		: _size(base::take(other._size))
+		, _capacity(base::take(other._capacity))
+		, _plaindata(base::take(other._plaindata)) {
 	}
 	vector_of_moveable &operator=(vector_of_moveable &&other) {
 		std_::swap_moveable(_size, other._size);

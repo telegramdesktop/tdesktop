@@ -309,7 +309,7 @@ struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
 		return *this;
 	}
 	~HistoryDocumentVoice() {
-		deleteAndMark(_playback);
+		delete base::take(_playback);
 	}
 	void ensurePlayback(const HistoryDocument *interfaces) const;
 	void checkPlaybackFinished() const;

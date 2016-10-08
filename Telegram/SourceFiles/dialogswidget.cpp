@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "ui/buttons/round_button.h"
+#include "ui/popupmenu.h"
 #include "data/data_drafts.h"
 #include "lang.h"
 #include "application.h"
@@ -122,8 +123,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					p.fillRect(0, 0, w, st::mentionHeight, (selected ? st::mentionBgOver : st::white)->b);
 					if (!paintingOther) {
 						if (selected) {
-							int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-							p.drawSprite(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), st::notifyClose.icon);
+							int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
+							p.drawSprite(QPoint(w - st::simpleClose.icon.pxWidth() - skip, skip), st::simpleClose.icon);
 						}
 						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + _hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + _hashtagResults.at(from)) : _hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
 						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
@@ -478,7 +479,6 @@ void DialogsInner::removeDialog(History *history) {
 	if (importantDialogs) {
 		history->removeFromChatList(Dialogs::Mode::Important, importantDialogs.get());
 	}
-	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
 	if (contacts->contains(history->peer->id)) {
 		if (!contactsNoDialogs->contains(history->peer->id)) {

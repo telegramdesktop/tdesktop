@@ -122,7 +122,7 @@ void Dropdown::resizeEvent(QResizeEvent *e) {
 }
 
 void Dropdown::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	if (_a_appearance.animating()) {
 		p.setOpacity(a_opacity.current());
@@ -358,7 +358,7 @@ void DragArea::setText(const QString &text, const QString &subtext) {
 }
 
 void DragArea::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	if (_a_appearance.animating()) {
 		p.setOpacity(a_opacity.current());

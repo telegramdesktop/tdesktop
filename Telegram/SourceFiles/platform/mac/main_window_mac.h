@@ -23,17 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include "pspecific_mac_p.h"
 
-class NotifyWindow;
-
 namespace Platform {
 
 class MacPrivate : public PsMacWindowPrivate {
 public:
-
 	void activeSpaceChanged();
 	void darkModeChanged();
-	void notifyClicked(unsigned long long peer, int msgid);
-	void notifyReplied(unsigned long long peer, int msgid, const char *str);
 
 };
 
@@ -70,11 +65,6 @@ public:
 
 	bool psFilterNativeEvent(void *event);
 
-	void psActivateNotify(NotifyWindow *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
-	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
-
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
 	void psUpdateCounter();
@@ -90,7 +80,6 @@ public:
 	~MainWindow();
 
 public slots:
-	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 

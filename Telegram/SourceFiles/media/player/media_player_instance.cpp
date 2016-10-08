@@ -44,8 +44,7 @@ bool exists() {
 }
 
 void finish() {
-	auto temp = createAndSwap(SingleInstance);
-	delete temp;
+	delete base::take(SingleInstance);
 
 	audioFinish();
 }

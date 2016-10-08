@@ -20,19 +20,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "window/notifications_manager.h"
+
 namespace Platform {
-namespace Toasts {
+namespace Notifications {
+
+class Manager;
 
 void start();
+Manager *manager();
 void finish();
 
-bool supported();
-bool create(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg);
+void defaultNotificationShown(QWidget *widget);
 
-// Returns the next ms when clearImages() should be called.
-uint64 clearImages(uint64 ms);
+class Manager : public Window::Notifications::NativeManager {
+public:
+	Manager();
 
-void clearNotifies(PeerId peerId);
+	void updateDelegate();
 
-} // namespace Toasts
+	~Manager();
+
+protected:
+	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) override;
+	void doClearAllFast() override;
+	void doClearFromHistory(History *history) override;
+
+private:
+	class Impl;
+	std_::unique_ptr<Impl> _impl;
+
+};
+
+} // namespace Notifications
 } // namespace Platform

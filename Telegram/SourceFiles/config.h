@@ -97,9 +97,6 @@ enum {
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 
-	// a new message from the same sender is attached to previous within 15 minutes
-	AttachMessageToPreviousSecondsDelta = 900,
-
 	AudioSimultaneousLimit = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
 	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
@@ -215,7 +212,7 @@ Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
 8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
 Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 -----END RSA PUBLIC KEY-----"};
-	keysCount = arraysize(keys);
+	keysCount = base::array_size(keys);
 	return keys;
 }
 
@@ -291,6 +288,10 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 static const int32 ApiId = 17349;
 static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #endif
+
+#if Q_BYTE_ORDER == Q_BIG_ENDIAN
+#error "Only little endian is supported!"
+#endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
 
 #ifndef BETA_VERSION_MACRO
 #error "Beta version macro is not defined."
@@ -375,9 +376,7 @@ enum {
 	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
-	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
-	NotifyDeletePhotoAfter = 60000, // delete notify photo after 1 minute
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 

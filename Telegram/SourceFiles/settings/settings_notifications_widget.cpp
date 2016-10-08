@@ -27,6 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/widget_slide_wrap.h"
 #include "ui/flatcheckbox.h"
 #include "mainwindow.h"
+#include "window/notifications_manager.h"
+#include "boxes/notifications_box.h"
 
 namespace Settings {
 
@@ -57,13 +59,35 @@ void NotificationsWidget::createControls() {
 		_showSenderName->hideFast();
 		_showMessagePreview->hideFast();
 	}
-#ifdef Q_OS_WIN
-	if (App::wnd()->psHasNativeNotifications()) {
-		addChildRow(_windowsNative, margin, lang(lng_settings_use_windows), SLOT(onWindowsNative()), Global::WindowsNotifications());
-	}
-#endif // Q_OS_WIN
 	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), SLOT(onPlaySound()), Global::SoundNotify());
 	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), SLOT(onIncludeMuted()), Global::IncludeMuted());
+
+	if (cPlatform() != dbipMac) {
+		createNotificationsControls();
+	}
+}
+
+void NotificationsWidget::createNotificationsControls() {
+	style::margins margin(0, 0, 0, st::settingsSkip);
+	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
+
+	QString nativeNotificationsLabel;
+#ifdef Q_OS_WIN
+	if (App::wnd()->psHasNativeNotifications()) {
+		nativeNotificationsLabel = lang(lng_settings_use_windows);
+	}
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+	if (App::wnd()->psHasNativeNotifications()) {
+		nativeNotificationsLabel = lang(lng_settings_use_native_notifications);
+	}
+#endif // Q_OS_WIN
+	if (!nativeNotificationsLabel.isEmpty()) {
+		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, SLOT(onNativeNotifications()), Global::NativeNotifications());
+	}
+	addChildRow(_advanced, margin, slidedPadding, lang(lng_settings_advanced_notifications), SLOT(onAdvanced()));
+	if (!nativeNotificationsLabel.isEmpty() && Global::NativeNotifications()) {
+		_advanced->hideFast();
+	}
 }
 
 void NotificationsWidget::onDesktopNotifications() {
@@ -131,17 +155,24 @@ void NotificationsWidget::viewParamUpdated() {
 	}
 }
 
-void NotificationsWidget::onWindowsNative() {
-#ifdef Q_OS_WIN
-	if (Global::WindowsNotifications() == _windowsNative->checked()) {
+void NotificationsWidget::onNativeNotifications() {
+	if (Global::NativeNotifications() == _nativeNotifications->checked()) {
 		return;
 	}
 
-	Global::SetWindowsNotifications(_windowsNative->checked());
-	Global::SetCustomNotifies(!Global::WindowsNotifications());
+	Window::Notifications::manager()->clearAllFast();
+	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::UseNative);
-#endif // Q_OS_WIN
+
+	if (Global::NativeNotifications()) {
+		_advanced->slideUp();
+	} else {
+		_advanced->slideDown();
+	}
+}
+
+void NotificationsWidget::onAdvanced() {
+	Ui::showLayer(new NotificationsBox());
 }
 
 void NotificationsWidget::onPlaySound() {

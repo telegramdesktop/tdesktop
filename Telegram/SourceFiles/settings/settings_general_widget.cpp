@@ -193,6 +193,9 @@ void GeneralWidget::refreshControls() {
 	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
+	if (!cAutoUpdate()) {
+		_updateRow->hideFast();
+	}
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {

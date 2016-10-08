@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
 #include "mtproto/rpc_sender.h"
+#include "core/single_timer.h"
 
 namespace MTP {
 namespace internal {
@@ -31,7 +32,6 @@ class Session;
 
 class SessionData {
 public:
-
 	SessionData(Session *creator)
 	: _session(0)
 	, _salt(0)
@@ -227,7 +227,6 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-
 	Session(int32 dcenter);
 
 	void restart();
@@ -237,7 +236,6 @@ public:
 	void unpaused();
 
 	int32 getDcWithShift() const;
-	~Session();
 
 	QReadWriteLock *keyMutex() const;
 	void notifyKeyCreated(const AuthKeyPtr &key);
@@ -255,15 +253,15 @@ public:
 
 	void sendPrepared(const mtpRequest &request, uint64 msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
 
-signals:
+	~Session();
 
+signals:
 	void authKeyCreated();
 	void needToSend();
 	void needToPing();
 	void needToRestart();
 
 public slots:
-
 	void needToResumeAndSend();
 
 	mtpRequestId resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
@@ -283,7 +281,6 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
-
 	Connection *_connection;
 
 	bool _killed;

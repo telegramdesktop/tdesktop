@@ -32,8 +32,11 @@ uint32 colorKey(const QColor &c) {
 using IconPixmaps = QMap<QPair<const IconMask*, uint32>, QPixmap>;
 NeverFreedPointer<IconPixmaps> iconPixmaps;
 
-int pxAdjust(int value, int scale) {
-	return qRound((value * scale) / 4. - 0.01);
+inline int pxAdjust(int value, int scale) {
+	if (value < 0) {
+		return -pxAdjust(-value, scale);
+	}
+	return qFloor((value * scale / 4.) + 0.1);
 }
 
 QPixmap createIconPixmap(const IconMask *mask, const Color &color) {

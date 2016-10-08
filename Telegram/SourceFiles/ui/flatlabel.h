@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+class PopupMenu;
+
 class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 

@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
+#include "ui/widgets/discrete_slider.h"
 
 namespace Settings {
 namespace {
@@ -43,139 +44,6 @@ QString scaleLabel(DBIScale scale) {
 
 } // namespace
 
-Slider::Slider(QWidget *parent) : TWidget(parent)
-, _a_left(animation(this, &Slider::step_left)) {
-	setCursor(style::cur_pointer);
-}
-
-void Slider::setActiveSection(int index) {
-	setSelectedSection(index);
-	if (_activeIndex != index) {
-		_activeIndex = index;
-		emit sectionActivated();
-	}
-}
-
-void Slider::setActiveSectionFast(int index) {
-	setActiveSection(index);
-	a_left.finish();
-	_a_left.stop();
-	update();
-}
-
-void Slider::addSection(const QString &label) {
-	auto section = Section(label);
-	_sections.push_back(section);
-}
-
-void Slider::resizeSections(int newWidth) {
-	auto count = _sections.size();
-	if (!count) return;
-
-	auto skips = count - 1;
-	auto sectionsWidth = newWidth - skips * st::settingsSliderSkip;
-	auto sectionWidth = sectionsWidth / float64(count);
-	auto x = 0.;
-	for (int i = 0; i != count; ++i) {
-		auto &section = _sections[i];
-		auto skip = i * st::settingsSliderThickness;
-		section.left = qFloor(x) + skip;
-		x += sectionWidth;
-		section.width = qRound(x) - (section.left - skip);
-	}
-	a_left = anim::ivalue(_sections[_activeIndex].left, _sections[_activeIndex].left);
-	_a_left.stop();
-}
-
-void Slider::mousePressEvent(QMouseEvent *e) {
-	setSelectedSection(getIndexFromPosition(e->pos()));
-	_pressed = true;
-}
-
-void Slider::mouseMoveEvent(QMouseEvent *e) {
-	if (!_pressed) return;
-	setSelectedSection(getIndexFromPosition(e->pos()));
-}
-
-void Slider::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_pressed) return;
-	_pressed = false;
-	setActiveSection(getIndexFromPosition(e->pos()));
-}
-
-void Slider::setSelectedSection(int index) {
-	if (index < 0) return;
-
-	if (_selected != index) {
-		_selected = index;
-		a_left.start(_sections[_selected].left);
-		_a_left.start();
-	}
-}
-
-void Slider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	int activeLeft = a_left.current();
-
-	p.setFont(st::settingsSliderLabelFont);
-	p.setPen(st::settingsSliderLabelFg);
-	for (int i = 0, count = _sections.size(); i != count; ++i) {
-		auto &section = _sections.at(i);
-		auto from = section.left, tofill = section.width;
-		if (activeLeft > from) {
-			auto fill = qMin(tofill, activeLeft - from);
-			p.fillRect(myrtlrect(from, st::settingsSliderTop, fill, st::settingsSliderThickness), st::settingsSliderInactiveFg);
-			from += fill;
-			tofill -= fill;
-		}
-		if (activeLeft + section.width > from) {
-			if (auto fill = qMin(tofill, activeLeft + section.width - from)) {
-				p.fillRect(myrtlrect(from, st::settingsSliderTop, fill, st::settingsSliderThickness), st::settingsSliderActiveFg);
-				from += fill;
-				tofill -= fill;
-			}
-		}
-		if (tofill) {
-			p.fillRect(myrtlrect(from, st::settingsSliderTop, tofill, st::settingsSliderThickness), st::settingsSliderInactiveFg);
-		}
-		p.drawTextLeft(section.left + (section.width - section.labelWidth) / 2, st::settingsSliderLabelTop, width(), section.label, section.labelWidth);
-	}
-}
-
-int Slider::resizeGetHeight(int newWidth) {
-	resizeSections(newWidth);
-	return st::settingsSliderHeight;
-}
-
-int Slider::getIndexFromPosition(QPoint pos) {
-	int count = _sections.size();
-	for (int i = 0; i != count; ++i) {
-		if (_sections[i].left + _sections[i].width > pos.x()) {
-			return i;
-		}
-	}
-	return count - 1;
-}
-
-void Slider::step_left(float64 ms, bool timer) {
-	auto dt = ms / st::settingsSliderDuration;
-	if (dt >= 1) {
-		a_left.finish();
-		_a_left.stop();
-	} else {
-		a_left.update(dt, anim::linear);
-	}
-	if (timer) {
-		update();
-	}
-}
-
-Slider::Section::Section(const QString &label)
-: label(label)
-, labelWidth(st::settingsSliderLabelFont->width(label)) {
-}
-
 ScaleWidget::ScaleWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_scale)) {
 	createControls();
 }
@@ -191,8 +59,7 @@ void ScaleWidget::createControls() {
 	_scale->addSection(scaleLabel(dbisOneAndHalf));
 	_scale->addSection(scaleLabel(dbisTwo));
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
-
-	connect(_scale, SIGNAL(sectionActivated()), this, SLOT(onSectionActivated()));
+	_scale->setSectionActivatedCallback([this] { scaleChanged(); });
 }
 
 void ScaleWidget::onAutoChosen() {
@@ -234,7 +101,7 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	}
 }
 
-void ScaleWidget::onSectionActivated() {
+void ScaleWidget::scaleChanged() {
 	auto newScale = dbisAuto;
 	switch (_scale->activeSection()) {
 	case 0: newScale = dbisOne; break;

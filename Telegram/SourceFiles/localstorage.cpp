@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "lang.h"
 #include "media/media_audio.h"
+#include "application.h"
 #include "apiwrap.h"
 
 namespace Local {
@@ -534,7 +535,7 @@ enum {
 	dbiDcOption = 0x27,
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
-	dbiWindowsNotifications = 0x30,
+	dbiWindowsNotificationsOld = 0x30,
 	dbiIncludeMuted = 0x31,
 	dbiMegagroupSizeMax = 0x32,
 	dbiDownloadPath = 0x33,
@@ -548,6 +549,9 @@ enum {
 	dbiModerateMode = 0x41,
 	dbiVideoVolume = 0x42,
 	dbiStickersRecentLimit = 0x43,
+	dbiNativeNotifications = 0x44,
+	dbiNotificationsCount  = 0x45,
+	dbiNotificationsCorner = 0x46,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -989,15 +993,34 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (App::wnd()) App::wnd()->updateTrayMenu();
 	} break;
 
-	case dbiWindowsNotifications: {
+	case dbiWindowsNotificationsOld: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+	} break;
+
+	case dbiNativeNotifications: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetWindowsNotifications(v == 1);
-		if (cPlatform() == dbipWindows) {
-			Global::SetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !Global::WindowsNotifications());
-		}
+		Global::SetNativeNotifications(v == 1);
+	} break;
+
+	case dbiNotificationsCount: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetNotificationsCount((v > 0 ? v : 3));
+	} break;
+
+	case dbiNotificationsCorner: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetNotificationsCorner(static_cast<Notify::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
 	} break;
 
 	case dbiWorkMode: {
@@ -1056,6 +1079,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetAutoUpdate(v == 1);
+		if (!cAutoUpdate()) {
+			Sandbox::stopUpdate();
+		}
 	} break;
 
 	case dbiLastUpdateCheck: {
@@ -1568,7 +1594,7 @@ void _writeUserSettings() {
 		_writeMap(WriteMapFast);
 	}
 
-	uint32 size = 18 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 20 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1592,7 +1618,9 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
-	data.stream << quint32(dbiWindowsNotifications) << qint32(Global::WindowsNotifications());
+	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
+	data.stream << quint32(dbiNotificationsCount) << qint32(Global::NotificationsCount());
+	data.stream << quint32(dbiNotificationsCorner) << qint32(Global::NotificationsCorner());
 	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
 	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
@@ -2627,7 +2655,7 @@ public:
 	virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) = 0;
 	virtual void clearInMap() = 0;
 	virtual ~AbstractCachedLoadTask() {
-		deleteAndMark(_result);
+		delete base::take(_result);
 	}
 
 protected:
@@ -2903,7 +2931,7 @@ public:
 		}
 	}
 	virtual ~WebFileLoadTask() {
-		deleteAndMark(_result);
+		delete base::take(_result);
 	}
 
 protected:

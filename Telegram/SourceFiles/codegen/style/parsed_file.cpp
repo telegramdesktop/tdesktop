@@ -769,10 +769,6 @@ structure::Value ParsedFile::readIconValue() {
 				}
 			}
 
-			if (parts.empty()) {
-				logErrorUnexpectedToken() << "at least one icon part";
-				return {};
-			}
 			return { structure::data::icon { parts } };
 		}
 		file_.putBack();

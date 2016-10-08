@@ -37,7 +37,7 @@ public:
 	}
 	ReaderPointer(const ReaderPointer &other) = delete;
 	ReaderPointer &operator=(const ReaderPointer &other) = delete;
-	ReaderPointer(ReaderPointer &&other) : _pointer(createAndSwap(other._pointer)) {
+	ReaderPointer(ReaderPointer &&other) : _pointer(base::take(other._pointer)) {
 	}
 	ReaderPointer &operator=(ReaderPointer &&other) {
 		swap(other);
@@ -106,13 +106,12 @@ namespace anim {
 	public:
 		using ValueType = float64;
 
-		fvalue() {
+		fvalue() = default;
+		fvalue(float64 from) : _cur(from), _from(from) {
 		}
-		fvalue(const float64 &from) : _cur(from), _from(from), _delta(0) {
+		fvalue(float64 from, float64 to) : _cur(from), _from(from), _delta(to - from) {
 		}
-		fvalue(const float64 &from, const float64 &to) : _cur(from), _from(from), _delta(to - from) {
-		}
-		void start(const float64 &to) {
+		void start(float64 to) {
 			_from = _cur;
 			_delta = to - _from;
 		}
@@ -120,13 +119,21 @@ namespace anim {
 			_delta = _from + _delta - _cur;
 			_from = _cur;
 		}
-		const float64 &current() const {
+
+		float64 from() const {
+			return _from;
+		}
+		float64 current() const {
 			return _cur;
 		}
 		float64 to() const {
 			return _from + _delta;
 		}
-		fvalue &update(const float64 &dt, transition func) {
+		void add(float64 delta) {
+			_from += delta;
+			_cur += delta;
+		}
+		fvalue &update(float64 dt, transition func) {
 			_cur = _from + (*func)(_delta, dt);
 			return *this;
 		}
@@ -137,19 +144,20 @@ namespace anim {
 		}
 
 	private:
-		float64 _cur, _from, _delta;
+		float64 _cur = 0.;
+		float64 _from = 0.;
+		float64 _delta = 0.;
 
 	};
 
 	class ivalue { // int animated value
 	public:
-		using ValueType = int32;
+		using ValueType = int;
 
-		ivalue() {
+		ivalue() = default;
+		ivalue(int from) : _cur(from), _from(float64(from)) {
 		}
-		ivalue(int32 from) : _cur(from), _from(float64(from)), _delta(0) {
-		}
-		ivalue(int32 from, int32 to) : _cur(from), _from(float64(from)), _delta(float64(to - from)) {
+		ivalue(int from, int to) : _cur(from), _from(float64(from)), _delta(float64(to - from)) {
 		}
 		void start(int32 to) {
 			_from = float64(_cur);
@@ -159,13 +167,21 @@ namespace anim {
 			_delta = _from + _delta - float64(_cur);
 			_from = float64(_cur);
 		}
-		int32 current() const {
+
+		int from() const {
+			return _from;
+		}
+		int current() const {
 			return _cur;
 		}
-		int32 to() const {
-			return _from + _delta;
+		int to() const {
+			return qRound(_from + _delta);
 		}
-		ivalue &update(const float64 &dt, transition func) {
+		void add(int delta) {
+			_from += delta;
+			_cur += delta;
+		}
+		ivalue &update(float64 dt, transition func) {
 			_cur = qRound(_from + (*func)(_delta, dt));
 			return *this;
 		}
@@ -176,8 +192,9 @@ namespace anim {
 		}
 
 	private:
-		int32 _cur;
-		float64 _from, _delta;
+		int _cur = 0;
+		float64 _from = 0.;
+		float64 _delta = 0.;
 
 	};
 
@@ -185,15 +202,24 @@ namespace anim {
 	public:
 		using ValueType = QColor;
 
-		cvalue() {
-		}
-		cvalue(const QColor &from) : _cur(from), _from_r(from.redF()), _from_g(from.greenF()), _from_b(from.blueF()), _from_a(from.alphaF()), _delta_r(0), _delta_g(0), _delta_b(0), _delta_a(0) {
+		cvalue() = default;
+		cvalue(const QColor &from)
+			: _cur(from)
+			, _from_r(from.redF())
+			, _from_g(from.greenF())
+			, _from_b(from.blueF())
+			, _from_a(from.alphaF()) {
 		}
 		cvalue(const QColor &from, const QColor &to)
 			: _cur(from)
-			, _from_r(from.redF()), _from_g(from.greenF()), _from_b(from.blueF()), _from_a(from.alphaF())
-			, _delta_r(to.redF() - from.redF()), _delta_g(to.greenF() - from.greenF()), _delta_b(to.blueF() - from.blueF()), _delta_a(to.alphaF() - from.alphaF())
-		{
+			, _from_r(from.redF())
+			, _from_g(from.greenF())
+			, _from_b(from.blueF())
+			, _from_a(from.alphaF())
+			, _delta_r(to.redF() - from.redF())
+			, _delta_g(to.greenF() - from.greenF())
+			, _delta_b(to.blueF() - from.blueF())
+			, _delta_a(to.alphaF() - from.alphaF()) {
 		}
 		void start(const QColor &to) {
 			_from_r = _cur.redF();
@@ -214,6 +240,14 @@ namespace anim {
 			_from_g = _cur.greenF();
 			_from_b = _cur.blueF();
 			_from_a = _cur.alphaF();
+		}
+		QColor from() const {
+			QColor result;
+			result.setRedF(_from_r);
+			result.setGreenF(_from_g);
+			result.setBlueF(_from_b);
+			result.setAlphaF(_from_a);
+			return result;
 		}
 		const QColor &current() const {
 			return _cur;
@@ -247,7 +281,14 @@ namespace anim {
 
 	private:
 		QColor _cur;
-		float64 _from_r, _from_g, _from_b, _from_a, _delta_r, _delta_g, _delta_b, _delta_a;
+		float64 _from_r = 0.;
+		float64 _from_g = 0.;
+		float64 _from_b = 0.;
+		float64 _from_a = 0.;
+		float64 _delta_r = 0.;
+		float64 _delta_g = 0.;
+		float64 _delta_b = 0.;
+		float64 _delta_a = 0.;
 
 	};
 
@@ -282,7 +323,7 @@ public:
 
 	void start() { _implementation->start();  }
 	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
-	~AnimationCallbacks() { deleteAndMark(_implementation); }
+	~AnimationCallbacks() { delete base::take(_implementation); }
 
 private:
 	AnimationImplementation *_implementation;

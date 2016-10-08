@@ -60,7 +60,7 @@ public:
 	Subscription() = default;
 	Subscription(const Subscription &) = delete;
 	Subscription &operator=(const Subscription &) = delete;
-	Subscription(Subscription &&other) : _node(createAndSwap(other._node)), _removeMethod(other._removeMethod) {
+	Subscription(Subscription &&other) : _node(base::take(other._node)), _removeMethod(other._removeMethod) {
 	}
 	Subscription &operator=(Subscription &&other) {
 		qSwap(_node, other._node);
@@ -258,7 +258,7 @@ public:
 private:
 	void callHandlers() {
 		_handling = true;
-		auto events = createAndSwap(_events);
+		auto events = base::take(_events);
 		for (auto &event : events) {
 			this->notifyEnumerate([this, &event]() {
 				this->_current->handler(event);
@@ -305,7 +305,7 @@ public:
 private:
 	void callHandlers() {
 		_handling = true;
-		auto eventsCount = createAndSwap(_eventsCount);
+		auto eventsCount = base::take(_eventsCount);
 		for (int i = 0; i != eventsCount; ++i) {
 			this->notifyEnumerate([this]() {
 				this->_current->handler();
@@ -352,7 +352,7 @@ protected:
 	}
 
 	~Subscriber() {
-		auto subscriptions = createAndSwap(_subscriptions);
+		auto subscriptions = base::take(_subscriptions);
 		for (auto &subscription : subscriptions) {
 			subscription.destroy();
 		}

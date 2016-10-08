@@ -985,13 +985,13 @@ void AudioPlayerFader::onTimer() {
 			} else if (ms > _suppressAllStart + notifyLengthMs - AudioFadeDuration) {
 				if (_suppressAllGain.to() != 1.) _suppressAllGain.start(1.);
 				_suppressAllGain.update(1. - ((_suppressAllStart + notifyLengthMs - ms) / float64(AudioFadeDuration)), anim::linear);
-			} else if (ms >= _suppressAllStart + st::notifyFastAnim) {
+			} else if (ms >= _suppressAllStart + st::mediaPlayerSuppressDuration) {
 				if (_suppressAllAnim) {
 					_suppressAllGain.finish();
 					_suppressAllAnim = false;
 				}
 			} else if (ms > _suppressAllStart) {
-				_suppressAllGain.update((ms - _suppressAllStart) / st::notifyFastAnim, anim::linear);
+				_suppressAllGain.update((ms - _suppressAllStart) / st::mediaPlayerSuppressDuration, anim::linear);
 			}
 			suppressAllGain = _suppressAllGain.current();
 			suppressAudioChanged = (suppressAllGain != wasAudio);

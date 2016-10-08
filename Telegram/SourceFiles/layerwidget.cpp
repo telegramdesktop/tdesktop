@@ -83,7 +83,7 @@ private:
 	QRect _box, _hiddenSpecialBox;
 	float64 _opacity = 0.;
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 
 };
 

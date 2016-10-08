@@ -22,8 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/main_window.h"
 
-class NotifyWindow;
-
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -58,16 +56,9 @@ public:
 		return posInited;
 	}
 
-	void psActivateNotify(NotifyWindow *w);
-	void psClearNotifies(PeerId peerId = 0);
-	void psNotifyShown(NotifyWindow *w);
-	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
-
 	void psUpdateCounter();
 
-	bool psHasNativeNotifications() {
-		return false;
-	}
+	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
@@ -76,8 +67,6 @@ public:
 	~MainWindow();
 
 public slots:
-
-	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 

@@ -28,13 +28,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
 , _inner(this, &_mrows, &_hrows, &_brows, &_srows)
-, _chat(0)
-, _user(0)
-, _channel(0)
-, _hiding(false)
 , a_opacity(0)
-, _a_appearance(animation(this, &FieldAutocomplete::step_appearance))
-, _shadow(st::dropdownDef.shadow) {
+, _a_appearance(animation(this, &FieldAutocomplete::step_appearance)) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 
@@ -605,9 +600,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			bool selected = (i == _sel);
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
-				int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+				int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					p.drawSprite(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::notifyClose.icon);
+					p.drawSprite(QPoint(width() - st::simpleClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::simpleClose.icon);
 				}
 			}
 			p.setPen(st::black->p);

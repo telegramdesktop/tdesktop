@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/linux/main_window_linux.h"
 
 #include "platform/linux/linux_libs.h"
+#include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "lang.h"
@@ -63,21 +64,10 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
     return FALSE;
 }
 
-#if Q_BYTE_ORDER == Q_BIG_ENDIAN
-
-#define QT_RED 3
-#define QT_GREEN 2
-#define QT_BLUE 1
-#define QT_ALPHA 0
-
-#else
-
 #define QT_RED 0
 #define QT_GREEN 1
 #define QT_BLUE 2
 #define QT_ALPHA 3
-
-#endif
 
 #define GTK_RED 2
 #define GTK_GREEN 1
@@ -262,13 +252,19 @@ void MainWindow::psSetupTrayIcon() {
 
 			trayIcon->setToolTip(str_const_toString(AppName));
 			connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+
+			// This is very important for native notifications via libnotify!
+			// Some notification servers compose several notifications with a "Reply"
+			// action into one and after that a click on "Reply" button does not call
+			// the specified callback from any of the sent notification - libnotify
+			// just ignores ibus messages, but Qt tray icon at least emits this signal.
 			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+
 			App::wnd()->updateTrayMenu();
 		}
 		psUpdateCounter();
 
 		trayIcon->show();
-		psUpdateDelegate();
 	}
 }
 
@@ -367,6 +363,10 @@ void MainWindow::psUpdateCounter() {
 	}
 }
 
+bool MainWindow::psHasNativeNotifications() {
+	return Notifications::supported();
+}
+
 void MainWindow::LibsLoaded() {
 	QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
 	noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
@@ -428,9 +428,6 @@ void MainWindow::LibsLoaded() {
 		DEBUG_LOG(("Unity count api loaded!"));
 	}
 #endif // TDESKTOP_DISABLE_UNITY_INTEGRATION
-}
-
-void MainWindow::psUpdateDelegate() {
 }
 
 void MainWindow::psInitSize() {
@@ -661,18 +658,6 @@ void MainWindow::psUpdateMargins() {
 }
 
 void MainWindow::psFlash() {
-}
-
-void MainWindow::psActivateNotify(NotifyWindow *w) {
-}
-
-void MainWindow::psClearNotifies(PeerId peerId) {
-}
-
-void MainWindow::psNotifyShown(NotifyWindow *w) {
-}
-
-void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
 MainWindow::~MainWindow() {

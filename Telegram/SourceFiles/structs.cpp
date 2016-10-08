@@ -766,7 +766,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 PhotoData::~PhotoData() {
-	deleteAndMark(uploadingData);
+	delete base::take(uploadingData);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
@@ -1161,7 +1161,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {
-			const auto &d(attributes[i].c_documentAttributeVideo());
+			auto &d = attributes[i].c_documentAttributeVideo();
 			if (type == FileDocument) {
 				type = VideoDocument;
 			}
@@ -1169,7 +1169,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
-			const auto &d(attributes[i].c_documentAttributeAudio());
+			auto &d = attributes[i].c_documentAttributeAudio();
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;
@@ -1428,7 +1428,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	auto loader = createAndSwap(_loader);
+	auto loader = base::take(_loader);
 	_loader = CancelledMtpFileLoader;
 	loader->cancel();
 	loader->deleteLater();

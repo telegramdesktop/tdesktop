@@ -20,29 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class BoxShadow {
-public:
-
-	enum {
-		Left = 1,
-		Top = 2,
-		Right = 4,
-		Bottom = 8
-	};
-
-	BoxShadow(const style::sprite &topLeft);
-
-	void paint(QPainter &p, const QRect &box, int32 shifty, int32 flags = Left | Top | Right | Bottom);
-	style::margins getDimensions(int32 shifty) const;
-
-private:
-
-	int32 _size, _pixsize;
-	QPixmap _corners, _left, _top, _right, _bottom;
-	QVector<style::color> _colors;
-
-};
-
 namespace Ui {
 
 class RectShadow {
@@ -62,7 +39,6 @@ public:
 	style::margins getDimensions(int shifty) const;
 
 private:
-
 	int _size, _pixsize;
 	int _thickness = 0;
 	QPixmap _corners, _left, _top, _right, _bottom;

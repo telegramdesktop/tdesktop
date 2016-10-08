@@ -67,7 +67,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::NameChanged
-		| UpdateFlag::UserOnlineChanged;
+		| UpdateFlag::UserOnlineChanged
+		| UpdateFlag::MembersChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
@@ -336,7 +337,7 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & UpdateFlag::NameChanged) {
 		refreshNameText();
 	}
-	if (update.flags & UpdateFlag::UserOnlineChanged) {
+	if (update.flags & (UpdateFlag::UserOnlineChanged | UpdateFlag::MembersChanged)) {
 		refreshStatusText();
 	}
 }
@@ -443,7 +444,7 @@ void CoverWidget::setChannelButtons() {
 }
 
 void CoverWidget::clearButtons() {
-	auto buttons = createAndSwap(_buttons);
+	auto buttons = base::take(_buttons);
 	for_const (auto button, buttons) {
 		delete button.widget;
 		delete button.replacement;

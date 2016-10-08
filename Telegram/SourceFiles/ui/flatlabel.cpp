@@ -19,8 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "ui/flatlabel.h"
+
+#include "ui/popupmenu.h"
 #include "mainwindow.h"
 #include "lang.h"
 

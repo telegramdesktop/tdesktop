@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
 
 class Dropdown : public TWidget {
 	Q_OBJECT
@@ -91,7 +91,7 @@ private:
 
 	QTimer _hideTimer;
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 
 };
 
@@ -100,13 +100,6 @@ class DragArea : public TWidget {
 
 public:
 	DragArea(QWidget *parent);
-
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void dragEnterEvent(QDragEnterEvent *e);
-	void dragLeaveEvent(QDragLeaveEvent *e);
-	void dropEvent(QDropEvent *e);
-	void dragMoveEvent(QDragMoveEvent *e);
 
 	void setText(const QString &text, const QString &subtext);
 
@@ -127,6 +120,14 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+	void dropEvent(QDropEvent *e) override;
+	void dragMoveEvent(QDragMoveEvent *e) override;
+
 signals:
 	void dropped(const QMimeData *data);
 
@@ -143,7 +144,7 @@ private:
 	anim::cvalue a_color;
 	Animation _a_appearance;
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 
 	QString _text, _subtext;
 

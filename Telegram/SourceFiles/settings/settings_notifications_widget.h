@@ -34,21 +34,24 @@ private slots:
 	void onDesktopNotifications();
 	void onShowSenderName();
 	void onShowMessagePreview();
-	void onWindowsNative();
+	void onNativeNotifications();
 	void onPlaySound();
 	void onIncludeMuted();
+	void onAdvanced();
 
 private:
 	void createControls();
+	void createNotificationsControls();
 	void desktopEnabledUpdated();
 	void viewParamUpdated();
 
 	ChildWidget<Checkbox> _desktopNotifications = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _showSenderName = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _showMessagePreview = { nullptr };
-	ChildWidget<Checkbox> _windowsNative = { nullptr };
+	ChildWidget<Checkbox> _nativeNotifications = { nullptr };
 	ChildWidget<Checkbox> _playSound = { nullptr };
 	ChildWidget<Checkbox> _includeMuted = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _advanced = { nullptr };
 
 };
 

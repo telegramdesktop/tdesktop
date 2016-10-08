@@ -22,8 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "title.h"
 #include "pspecific.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
+#include "core/single_timer.h"
 
 class MediaView;
 class TitleWidget;
@@ -32,9 +33,11 @@ class IntroWidget;
 class MainWidget;
 class LayerStackWidget;
 class LayerWidget;
+
 namespace Local {
 class ClearManager;
 } // namespace Local
+
 namespace Settings {
 class Widget;
 } // namespace Settings
@@ -43,86 +46,20 @@ class ConnectingWidget : public QWidget {
 	Q_OBJECT
 
 public:
-
 	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
 	void set(const QString &text, const QString &reconnect);
 	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void onReconnect();
 
 private:
-
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 	QString _text;
 	int32 _textWidth;
 	LinkButton _reconnect;
 
 };
-
-class NotifyWindow : public TWidget {
-	Q_OBJECT
-
-public:
-
-	NotifyWindow(HistoryItem *item, int32 x, int32 y, int32 fwdCount);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-
-	void step_appearance(float64 ms, bool timer);
-	void animHide(float64 duration, anim::transition func);
-	void startHiding();
-	void stopHiding();
-	void moveTo(int32 x, int32 y, int32 index = -1);
-
-	void updateNotifyDisplay();
-	void updatePeerPhoto();
-
-	void itemRemoved(HistoryItem *del);
-
-	int32 index() const {
-		return history ? _index : -1;
-	}
-
-	void unlinkHistory(History *hist = 0);
-
-	~NotifyWindow();
-
-public slots:
-
-	void hideByTimer();
-	void checkLastInput();
-
-	void unlinkHistoryAndNotify();
-
-private:
-
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-	DWORD started;
-#endif // Q_OS_WIN && !Q_OS_WINRT
-	History *history;
-	HistoryItem *item;
-	int32 fwdCount;
-	IconedButton close;
-	QPixmap pm;
-	float64 alphaDuration, posDuration;
-	QTimer hideTimer, inputTimer;
-	bool hiding;
-	int32 _index;
-	anim::fvalue a_opacity;
-	anim::transition a_func;
-	anim::ivalue a_y;
-	Animation _a_appearance;
-
-	ImagePtr peerPhoto;
-
-};
-
-typedef QList<NotifyWindow*> NotifyWindows;
 
 class MediaPreviewWidget;
 
@@ -204,12 +141,7 @@ public:
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
-	void notifyShowNext(NotifyWindow *remove = 0);
-	void notifyItemRemoved(HistoryItem *item);
-	void notifyStopHiding();
-	void notifyStartHiding();
 	void notifyUpdateAll();
-	void notifyActivateAll();
 
 	QImage iconLarge() const;
 
@@ -266,7 +198,7 @@ public slots:
 	void onClearFinished(int task, void *manager);
 	void onClearFailed(int task, void *manager);
 
-	void notifyFire();
+	void notifyShowNext();
 	void updateTrayMenu(bool force = false);
 
 	void onShowAddContact();
@@ -277,8 +209,6 @@ public slots:
 	void updateGlobalMenu(); // for OS X top menu
 
 	void onReActivate();
-
-	void notifyUpdateAllPhotos();
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
@@ -333,28 +263,30 @@ private:
 	SingleTimer _autoLockTimer;
 	uint64 _shouldLockAt = 0;
 
-	typedef QMap<MsgId, uint64> NotifyWhenMap;
-	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
-	NotifyWhenMaps notifyWhenMaps;
+	using NotifyWhenMap = QMap<MsgId, uint64>;
+	using NotifyWhenMaps = QMap<History*, NotifyWhenMap>;
+	NotifyWhenMaps _notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
+		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom)
+		: msg(msg)
+		, when(when)
+		, notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
 		uint64 when;
 		PeerData *notifyByFrom;
 	};
-	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
-	NotifyWaiters notifyWaiters;
-	NotifyWaiters notifySettingWaiters;
-	SingleTimer notifyWaitTimer;
+	using NotifyWaiters = QMap<History*, NotifyWaiter>;
+	NotifyWaiters _notifyWaiters;
+	NotifyWaiters _notifySettingWaiters;
+	SingleTimer _notifyWaitTimer;
 
-	typedef QMap<uint64, PeerData*> NotifyWhenAlert;
-	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
-	NotifyWhenAlerts notifyWhenAlerts;
-
-	NotifyWindows notifyWindows;
+	using NotifyWhenAlert = QMap<uint64, PeerData*>;
+	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
+	NotifyWhenAlerts _notifyWhenAlerts;
 
 	MediaView *_mediaView = nullptr;
+
 };
 
 class PreLaunchWindow : public TWidget {

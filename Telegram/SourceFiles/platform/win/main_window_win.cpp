@@ -21,12 +21,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/main_window_win.h"
 
-#include "platform/win/windows_toasts.h"
+#include "platform/platform_notifications_manager.h"
 #include "platform/win/windows_dlls.h"
+#include "window/notifications_manager.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "lang.h"
 #include "localstorage.h"
+#include "ui/popupmenu.h"
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -138,24 +140,15 @@ public:
 	}
 
 	bool init(QColor c) {
-		_fullsize = st::wndShadow.rect().width();
+		_fullsize = st::wndShadow.width();
 		_shift = st::wndShadowShift;
 		QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&cornersImage);
-			p.drawSprite(0, 0, st::wndShadow);
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			st::wndShadow.paint(p, 0, 0, _fullsize);
 		}
 		if (rtl()) cornersImage = cornersImage.mirrored(true, false);
-		uchar *bits = cornersImage.bits();
-		if (bits) {
-			for (
-				quint32 *p = (quint32*)bits, *end = (quint32*)(bits + cornersImage.byteCount());
-				p < end;
-				++p
-				) {
-				*p = (*p ^ 0x00ffffff) << 24;
-			}
-		}
 
 		_metaSize = _fullsize + 2 * _shift;
 		_alphas.reserve(_metaSize);
@@ -252,6 +245,12 @@ public:
 
 			SelectObject(dcs[i], bitmaps[i]);
 		}
+
+		QStringList alphasForLog;
+		for_const (auto alpha, _alphas) {
+			alphasForLog.append(QString::number(alpha));
+		}
+		LOG(("Window Shadow: %1").arg(alphasForLog.join(", ")));
 
 		initCorners();
 		return true;
@@ -618,7 +617,6 @@ MainWindow::MainWindow()
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
-	connect(&ps_cleanNotifyPhotosTimer, SIGNAL(timeout()), this, SLOT(psCleanNotifyPhotos()));
 }
 
 void MainWindow::TaskbarCreated() {
@@ -643,22 +641,6 @@ void MainWindow::shadowsDeactivate() {
 
 void MainWindow::psShowTrayMenu() {
 	trayIconMenu->popup(QCursor::pos());
-}
-
-void MainWindow::psCleanNotifyPhotosIn(int32 dt) {
-	if (dt < 0) {
-		if (ps_cleanNotifyPhotosTimer.isActive() && ps_cleanNotifyPhotosTimer.remainingTime() <= -dt) return;
-		dt = -dt;
-	}
-	ps_cleanNotifyPhotosTimer.start(dt);
-}
-
-void MainWindow::psCleanNotifyPhotos() {
-	auto ms = getms(true);
-	auto minuntil = Toasts::clearImages(ms);
-	if (minuntil) {
-		psCleanNotifyPhotosIn(int32(minuntil - ms));
-	}
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
@@ -692,7 +674,6 @@ void MainWindow::psSetupTrayIcon() {
 	psUpdateCounter();
 
 	trayIcon->show();
-	psUpdateDelegate();
 }
 
 void MainWindow::psUpdateWorkmode() {
@@ -763,9 +744,6 @@ void MainWindow::psUpdateCounter() {
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-void MainWindow::psUpdateDelegate() {
-}
-
 namespace {
 HMONITOR enumMonitor = 0;
 RECT enumMonitorWork;
@@ -821,8 +799,8 @@ void MainWindow::psInitFrameless() {
 	psUpdatedPositionTimer.setSingleShot(true);
 	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
 
-	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
-	ps_hWnd = static_cast<HWND>(i->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
+	auto platformInterface = QGuiApplication::platformNativeInterface();
+	ps_hWnd = static_cast<HWND>(platformInterface->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
 
 	if (!ps_hWnd) return;
 
@@ -832,7 +810,6 @@ void MainWindow::psInitFrameless() {
 	}
 
 //	RegisterApplicationRestart(NULL, 0);
-	Toasts::start();
 
 	psInitSysMenu();
 }
@@ -880,17 +857,11 @@ void MainWindow::psUpdatedPosition() {
 }
 
 bool MainWindow::psHasNativeNotifications() {
-	return Toasts::supported();
+	return Notifications::supported();
 }
 
 Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psFirstShow() {
-	if (Toasts::supported()) {
-		Global::SetCustomNotifies(!Global::WindowsNotifications());
-	} else {
-		Global::SetCustomNotifies(true);
-	}
-
 	_psShadowWindows.init(_shActive);
 	_shadowsWorking = true;
 
@@ -1068,32 +1039,11 @@ MainWindow::~MainWindow() {
 
 	if (taskbarList) taskbarList.Reset();
 
-	Toasts::finish();
-
 	_shadowsWorking = false;
 	if (ps_menu) DestroyMenu(ps_menu);
 	psDestroyIcons();
 	_psShadowWindows.destroy();
 	if (ps_tbHider_hWnd) DestroyWindow(ps_tbHider_hWnd);
-}
-
-void MainWindow::psActivateNotify(NotifyWindow *w) {
-}
-
-void MainWindow::psClearNotifies(PeerId peerId) {
-	Toasts::clearNotifies(peerId);
-}
-
-void MainWindow::psNotifyShown(NotifyWindow *w) {
-}
-
-void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-	QString title = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
-	QString subtitle = (!App::passcoded() && Global::NotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
-	bool showpix = (!App::passcoded() && Global::NotifyView() <= dbinvShowName);
-	QString msg = (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
-
-	Toasts::create(item->history()->peer, item->id, showpix, title, subtitle, msg);
 }
 
 } // namespace Platform

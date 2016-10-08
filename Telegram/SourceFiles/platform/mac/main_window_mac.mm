@@ -24,6 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "playerwidget.h"
 #include "historywidget.h"
 #include "localstorage.h"
+#include "window/notifications_manager_default.h"
+#include "platform/mac/notifications_manager_mac.h"
 
 #include "lang.h"
 
@@ -36,45 +38,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 
 void MacPrivate::activeSpaceChanged() {
-	if (App::wnd()) {
-		App::wnd()->notifyActivateAll();
+	if (auto manager = Window::Notifications::Default::manager()) {
+		manager->enumerateNotifications([](QWidget *widget) {
+			objc_activateWnd(widget->winId());
+		});
 	}
 }
 
 void MacPrivate::darkModeChanged() {
 	Notify::unreadCounterUpdated();
-}
-
-void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
-	History *history = App::history(PeerId(peer));
-
-	App::wnd()->showFromTray();
-	if (App::passcoded()) {
-		App::wnd()->setInnerFocus();
-		App::wnd()->notifyClear();
-	} else {
-		bool tomsg = !history->peer->isUser() && (msgid > 0);
-		if (tomsg) {
-			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));
-			if (!item || !item->mentionsMe()) {
-				tomsg = false;
-			}
-		}
-		Ui::showPeerHistory(history, tomsg ? msgid : ShowAtUnreadMsgId);
-		App::wnd()->notifyClear(history);
-	}
-}
-
-void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
-	History *history = App::history(PeerId(peer));
-
-	MainWidget::MessageToSend message;
-	message.history = history;
-	message.textWithTags = { QString::fromUtf8(str), TextWithTags::Tags() };
-	message.replyTo = (msgid > 0 && !history->peer->isUser()) ? msgid : 0;
-	message.silent = false;
-	message.clearDraft = false;
-	App::main()->sendMessage(message);
 }
 
 MainWindow::MainWindow()
@@ -148,10 +120,12 @@ void MainWindow::psUpdateWorkmode() {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;
+			trayIcon = nullptr;
 		}
-		trayIcon = 0;
 	}
-	psUpdateDelegate();
+	if (auto manager = Platform::Notifications::manager()) {
+		manager->updateDelegate();
+	}
 	setWindowIcon(wndIcon);
 }
 
@@ -215,10 +189,6 @@ void MainWindow::psUpdateCounter() {
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
-}
-
-void MainWindow::psUpdateDelegate() {
-	_private.updateDelegate();
 }
 
 void MainWindow::psInitSize() {
@@ -463,34 +433,8 @@ void MainWindow::psFlash() {
 	_private.startBounce();
 }
 
-void MainWindow::psClearNotifies(PeerId peerId) {
-	_private.clearNotifies(peerId);
-}
-
-void MainWindow::psActivateNotify(NotifyWindow *w) {
-	objc_activateWnd(w->winId());
-}
-
 bool MainWindow::psFilterNativeEvent(void *event) {
 	return _private.filterNativeEvent(event);
-}
-
-void MainWindow::psNotifyShown(NotifyWindow *w) {
-	w->hide();
-	objc_holdOnTop(w->winId());
-	w->show();
-	psShowOverAll(w, false);
-}
-
-void MainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
-	QString title = (!App::passcoded() && Global::NotifyView() <= dbinvShowName && !Global::ScreenIsLocked()) ? item->history()->peer->name : qsl("Telegram Desktop");
-	QString subtitle = (!App::passcoded() && Global::NotifyView() <= dbinvShowName && !Global::ScreenIsLocked()) ? item->notificationHeader() : QString();
-	QPixmap pix = (!App::passcoded() && Global::NotifyView() <= dbinvShowName && !Global::ScreenIsLocked()) ? item->history()->peer->genUserpic(st::notifyMacPhotoSize) : QPixmap();
-	QString msg = (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview && !Global::ScreenIsLocked()) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
-
-	bool withReply = !App::passcoded() && (Global::NotifyView() <= dbinvShowPreview && !Global::ScreenIsLocked()) && item->history()->peer->canWrite();
-
-	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, withReply);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {

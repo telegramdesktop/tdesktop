@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "flattextarea.h"
 
+#include "ui/popupmenu.h"
 #include "mainwindow.h"
 
 QByteArray FlatTextarea::serializeTagsList(const TagList &tags) {

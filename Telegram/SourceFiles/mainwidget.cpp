@@ -3324,10 +3324,7 @@ void MainWidget::start(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
-	if (!cStartUrl().isEmpty()) {
-		openLocalUrl(cStartUrl());
-		cSetStartUrl(QString());
-	}
+
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
 	Local::readInstalledStickers();
@@ -3335,10 +3332,21 @@ void MainWidget::start(const MTPUser &user) {
 	Local::readRecentStickers();
 	Local::readSavedGifs();
 	_history->start();
+
+	checkStartUrl();
 }
 
 bool MainWidget::started() {
 	return _started;
+}
+
+void MainWidget::checkStartUrl() {
+	if (!cStartUrl().isEmpty() && App::self() && !App::passcoded()) {
+		auto url = cStartUrl();
+		cSetStartUrl(QString());
+
+		openLocalUrl(url);
+	}
 }
 
 void MainWidget::openLocalUrl(const QString &url) {

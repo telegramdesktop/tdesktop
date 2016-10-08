@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/filedialog.h"
+#include "ui/popupmenu.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
@@ -95,6 +96,12 @@ MediaView::MediaView() : TWidget(App::wnd())
 	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
+
+	subscribe(FileDownload::ImageLoaded(), [this] {
+		if (!isHidden()) {
+			updateControls();
+		}
+	});
 
 	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush.rect()));
 
@@ -612,7 +619,7 @@ void MediaView::clearData() {
 }
 
 MediaView::~MediaView() {
-	deleteAndMark(_menu);
+	delete base::take(_menu);
 }
 
 void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {

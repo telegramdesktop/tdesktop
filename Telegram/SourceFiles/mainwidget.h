@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "history/history_common.h"
+#include "core/single_timer.h"
 
 namespace Dialogs {
 class Row;
@@ -156,6 +157,7 @@ public:
 
 	void start(const MTPUser &user);
 
+	void checkStartUrl();
 	void openLocalUrl(const QString &str);
 	void openPeerByName(const QString &name, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);

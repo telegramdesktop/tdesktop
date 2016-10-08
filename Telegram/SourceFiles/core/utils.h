@@ -22,23 +22,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 
+namespace base {
+
 template <typename T, size_t N>
-inline constexpr size_t arraysize(T(&ArrahSizeHelper)[N]) {
+inline constexpr size_t array_size(T(&)[N]) {
 	return N;
 }
 
 template <typename T>
-void deleteAndMark(T *&link) {
-	delete link;
-	link = reinterpret_cast<T*>(0x00000BAD);
+inline T take(T &source) {
+	T result = T();
+	std_::swap_moveable(result, source);
+	return std_::move(result);
 }
 
-template <typename T>
-T *getPointerAndReset(T *&ptr) {
-	T *result = nullptr;
-	qSwap(result, ptr);
-	return result;
-}
+} // namespace base
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -86,13 +84,6 @@ inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 
 template <typename T>
 inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
-
-template <typename T>
-T createAndSwap(T &value) {
-	T result = T();
-	std_::swap_moveable(result, value);
-	return std_::move(result);
-}
 
 static volatile int *t_assert_nullptr = nullptr;
 inline void t_noop() {}
@@ -171,37 +162,6 @@ void finish();
 
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
-
-class SingleTimer : public QTimer { // single shot timer with check
-	Q_OBJECT
-
-public:
-
-	SingleTimer();
-
-	void setSingleShot(bool); // is not available
-	void start(); // is not available
-
-	public slots:
-
-	void start(int msec);
-	void startIfNotActive(int msec);
-	void adjust() {
-		uint64 n = getms(true);
-		if (isActive()) {
-			if (n >= _finishing) {
-				start(0);
-			} else {
-				start(_finishing - n);
-			}
-		}
-	}
-
-private:
-	uint64 _finishing;
-	bool _inited;
-
-};
 
 const static uint32 _md5_block_size = 64;
 class HashMd5 {
@@ -508,7 +468,7 @@ public:
 		return _p;
 	}
 	T *release() {
-		return getPointerAndReset(_p);
+		return base::take(_p);
 	}
 	void reset(T *p = nullptr) {
 		delete _p;
@@ -551,7 +511,7 @@ public:
 		return _p;
 	}
 	T *release() {
-		return getPointerAndReset(_p);
+		return base::take(_p);
 	}
 	void reset(T *p = nullptr) {
 		delete _p;

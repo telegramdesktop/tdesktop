@@ -232,7 +232,7 @@ void HistoryFileMedia::checkAnimationFinished() {
 }
 
 HistoryFileMedia::~HistoryFileMedia() {
-	deleteAndMark(_animation);
+	delete base::take(_animation);
 }
 
 HistoryPhoto::HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString &caption) : HistoryFileMedia(parent)
@@ -2562,7 +2562,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 		return _height;
 	}
 
-	_width = width = qMin(width, _maxw);
+	_width = width/* = qMin(width, _maxw)*/;
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	int32 linesMax = 5;
@@ -2686,9 +2686,9 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		} else {
 			pix = _data->photo->thumb->pixBlurredSingle(ImageRoundRadius::Small, pixw, pixh, pw, ph);
 		}
-		p.drawPixmapLeft(padding.left() + width - pw, 0, _width, pix);
+		p.drawPixmapLeft(padding.left() + width - pw, tshift, _width, pix);
 		if (selected) {
-			App::roundRect(p, rtlrect(padding.left() + width - pw, 0, pw, _pixh, _width), textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
+			App::roundRect(p, rtlrect(padding.left() + width - pw, tshift, pw, _pixh, _width), textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 		}
 		width -= pw + st::webPagePhotoDelta;
 	}

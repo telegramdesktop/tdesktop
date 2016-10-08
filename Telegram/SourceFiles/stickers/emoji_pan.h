@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -108,7 +108,7 @@ private:
 
 	QTimer _hideTimer;
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 
 };
 
@@ -616,7 +616,7 @@ private:
 
 	QTimer _hideTimer;
 
-	BoxShadow _shadow;
+	Ui::RectShadow _shadow;
 
 	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
 	QList<internal::StickerIcon> _icons;

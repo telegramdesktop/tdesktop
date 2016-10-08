@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
+#include "ui/popupmenu.h"
 #include "zip.h"
 #include "lang.h"
 #include "shortcuts.h"
@@ -42,8 +43,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
+#include "window/notifications_manager.h"
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
+ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
+, _shadow(st::boxShadow)
+, _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
 }
@@ -57,308 +61,25 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	} else {
 		_reconnect.setText(reconnect);
 		_reconnect.show();
-		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.pxHeight() + st::connectingPadding.top());
+		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
 		_reconnectWidth = _reconnect.width();
 	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.pxWidth(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
+	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();
 }
 
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), 0, BoxShadow::Top | BoxShadow::Right);
-	p.fillRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight(), st::connectingBG->b);
+	_shadow.paint(p, QRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height()), 0, Ui::RectShadow::Side::Top | Ui::RectShadow::Side::Right);
+	p.fillRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height(), st::connectingBG->b);
 	p.setFont(st::linkFont->f);
 	p.setPen(st::connectingColor->p);
-	p.drawText(st::connectingPadding.left(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->ascent, _text);
+	p.drawText(st::connectingPadding.left(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->ascent, _text);
 }
 
 void ConnectingWidget::onReconnect() {
 	MTP::restart();
-}
-
-NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) : TWidget(0)
-, history(msg->history())
-, item(msg)
-, fwdCount(fwdCount)
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-, started(GetTickCount())
-#endif // Q_OS_WIN && !Q_OS_WINRT
-, close(this, st::notifyClose)
-, alphaDuration(st::notifyFastAnim)
-, posDuration(st::notifyFastAnim)
-, hiding(false)
-, _index(0)
-, a_opacity(0)
-, a_func(anim::linear)
-, a_y(y + st::notifyHeight + st::notifyDeltaY)
-, _a_appearance(animation(this, &NotifyWindow::step_appearance)) {
-
-	updateNotifyDisplay();
-
-	hideTimer.setSingleShot(true);
-	connect(&hideTimer, SIGNAL(timeout()), this, SLOT(hideByTimer()));
-
-	inputTimer.setSingleShot(true);
-	connect(&inputTimer, SIGNAL(timeout()), this, SLOT(checkLastInput()));
-
-	connect(&close, SIGNAL(clicked()), this, SLOT(unlinkHistoryAndNotify()));
-	close.setAcceptBoth(true);
-	close.move(st::notifyWidth - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
-	close.show();
-
-	a_y.start(y);
-	setGeometry(x, a_y.current(), st::notifyWidth, st::notifyHeight);
-
-	a_opacity.start(1);
-    setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
-    setAttribute(Qt::WA_MacAlwaysShowToolWindow);
-
-	show();
-
-	setWindowOpacity(a_opacity.current());
-
-	alphaDuration = posDuration = st::notifyFastAnim;
-	_a_appearance.start();
-
-	checkLastInput();
-}
-
-void NotifyWindow::checkLastInput() {
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
-	LASTINPUTINFO lii;
-	lii.cbSize = sizeof(LASTINPUTINFO);
-	BOOL res = GetLastInputInfo(&lii);
-	if (!res || lii.dwTime >= started) {
-		hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		inputTimer.start(300);
-	}
-#else // Q_OS_WIN && !Q_OS_WINRT
-    // TODO
-	if (true) {
-		hideTimer.start(st::notifyWaitLongHide);
-	} else {
-		inputTimer.start(300);
-	}
-#endif // else for Q_OS_WIN && !Q_OS_WINRT
-}
-
-void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
-	if (index >= 0) {
-		_index = index;
-	}
-	move(x, a_y.current());
-	a_y.start(y);
-	a_opacity.restart();
-	posDuration = st::notifyFastAnim;
-	_a_appearance.start();
-}
-
-void NotifyWindow::updateNotifyDisplay() {
-	if (!item) return;
-
-	int32 w = st::notifyWidth, h = st::notifyHeight;
-	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
-	img.fill(st::notifyBG->c);
-
-	{
-		Painter p(&img);
-		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			history->peer->loadUserpic(true, true);
-			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
-		} else {
-			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
-		}
-
-		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
-
-		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(history->peer, false)) {
-				chatTypeIcon->paint(p, rectForName.topLeft(), w);
-				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
-			}
-		}
-
-		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt = lastTime.toString(cTimeFormat());
-		int32 dtWidth = st::dialogsTextFont->width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dialogsDateSkip);
-		p.setFont(st::dialogsDateFont);
-		p.setPen(st::dialogsDateFg);
-		p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::dialogsTextFont->ascent, dt);
-
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) {
-			const HistoryItem *textCachedFor = 0;
-			Text itemTextCache(itemWidth);
-			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
-			if (fwdCount < 2) {
-				bool active = false;
-				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
-			} else {
-				p.setFont(st::dialogsTextFont);
-				if (item->hasFromName() && !item->isPost()) {
-					itemTextCache.setText(st::dialogsTextFont, item->author()->name);
-					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
-					r.setTop(r.top() + st::dialogsTextFont->height);
-				}
-				p.setPen(st::dialogsTextFg);
-				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, lng_forward_messages(lt_count, fwdCount));
-			}
-		} else {
-			static QString notifyText = st::dialogsTextFont->elided(lang(lng_notification_preview), itemWidth);
-			p.setPen(st::dialogsTextFgService);
-			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
-		}
-
-		p.setPen(st::dialogsNameFg);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
-			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-		} else {
-			p.setFont(st::msgNameFont->f);
-			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
-			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
-		}
-	}
-
-	pm = App::pixmapFromImageInPlace(std_::move(img));
-	update();
-}
-
-void NotifyWindow::updatePeerPhoto() {
-	if (!peerPhoto->isNull() && peerPhoto->loaded()) {
-		QImage img(pm.toImage());
-		{
-			QPainter p(&img);
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
-		}
-		peerPhoto = ImagePtr();
-		pm = App::pixmapFromImageInPlace(std_::move(img));
-		update();
-	}
-}
-
-void NotifyWindow::itemRemoved(HistoryItem *del) {
-	if (item == del) {
-		item = 0;
-		unlinkHistoryAndNotify();
-	}
-}
-
-void NotifyWindow::unlinkHistoryAndNotify() {
-	unlinkHistory();
-	App::wnd()->notifyShowNext();
-}
-
-void NotifyWindow::unlinkHistory(History *hist) {
-	if (!hist || hist == history) {
-		animHide(st::notifyFastAnim, anim::linear);
-		history = 0;
-		item = 0;
-	}
-}
-
-void NotifyWindow::enterEvent(QEvent *e) {
-	if (!history) return;
-	if (App::wnd()) App::wnd()->notifyStopHiding();
-}
-
-void NotifyWindow::leaveEvent(QEvent *e) {
-	if (!history) return;
-	App::wnd()->notifyStartHiding();
-}
-
-void NotifyWindow::startHiding() {
-	hideTimer.start(st::notifyWaitShortHide);
-}
-
-void NotifyWindow::mousePressEvent(QMouseEvent *e) {
-	if (!history) return;
-
-	PeerId peer = history->peer->id;
-	MsgId msgId = (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId;
-
-	if (e->button() == Qt::RightButton) {
-		unlinkHistoryAndNotify();
-	} else {
-		App::wnd()->showFromTray();
-		if (App::passcoded()) {
-			App::wnd()->setInnerFocus();
-			App::wnd()->notifyClear();
-		} else {
-			Ui::showPeerHistory(peer, msgId);
-		}
-		e->ignore();
-	}
-}
-
-void NotifyWindow::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	p.drawPixmap(0, 0, pm);
-}
-
-void NotifyWindow::animHide(float64 duration, anim::transition func) {
-	if (!history) return;
-	alphaDuration = duration;
-	a_func = func;
-	a_opacity.start(0);
-	a_y.restart();
-	hiding = true;
-	_a_appearance.start();
-}
-
-void NotifyWindow::stopHiding() {
-	if (!history) return;
-	alphaDuration = st::notifyFastAnim;
-	a_func = anim::linear;
-	a_opacity.start(1);
-	a_y.restart();
-	hiding = false;
-	hideTimer.stop();
-	_a_appearance.start();
-}
-
-void NotifyWindow::hideByTimer() {
-	if (!history) return;
-	animHide(st::notifySlowHide, st::notifySlowHideFunc);
-}
-
-void NotifyWindow::step_appearance(float64 ms, bool timer) {
-	float64 dtAlpha = ms / alphaDuration, dtPos = ms / posDuration;
-	if (dtAlpha >= 1) {
-		a_opacity.finish();
-		if (hiding) {
-			_a_appearance.stop();
-			deleteLater();
-		} else if (dtPos >= 1) {
-			_a_appearance.stop();
-		}
-	} else {
-		a_opacity.update(dtAlpha, a_func);
-	}
-	setWindowOpacity(a_opacity.current());
-	if (dtPos >= 1) {
-		a_y.finish();
-	} else {
-		a_y.update(dtPos, anim::linear);
-	}
-	move(x(), a_y.current());
-	update();
-}
-
-NotifyWindow::~NotifyWindow() {
-	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
 MainWindow::MainWindow() {
@@ -375,8 +96,6 @@ MainWindow::MainWindow() {
 			notifyClear();
 		} else if (type == Notify::ChangeType::ViewParams) {
 			notifyUpdateAll();
-		} else if (type == Notify::ChangeType::UseNative) {
-			notifyClearFast();
 		} else if (type == Notify::ChangeType::IncludeMuted) {
 			Notify::unreadCounterUpdated();
 		}
@@ -397,14 +116,13 @@ MainWindow::MainWindow() {
 	_inactiveTimer.setSingleShot(true);
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
 
-	connect(&notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyFire()));
+	connect(&_notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyShowNext()));
 
 	_isActiveTimer.setSingleShot(true);
 	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
-	subscribe(FileDownload::ImageLoaded(), [this] { notifyUpdateAllPhotos(); });
 	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
 
 	setAttribute(Qt::WA_NoSystemBackground);
@@ -547,6 +265,10 @@ void MainWindow::clearPasscode() {
 	notifyUpdateAll();
 	title->updateControlsVisibility();
 	updateGlobalMenu();
+
+	if (auto main = App::main()) {
+		main->checkStartUrl();
+	}
 }
 
 void MainWindow::setupPasscode(bool anim) {
@@ -1030,9 +752,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
-				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
-					App::main()->openLocalUrl(cStartUrl());
-					cSetStartUrl(QString());
+				if (auto main = App::main()) {
+					main->checkStartUrl();
 				}
 			}
 			activate();
@@ -1402,72 +1123,66 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 //	LOG(("Is online: %1, otherOnline: %2, currentTime: %3, otherNotOld: %4, otherLaterThanMe: %5").arg(Logs::b(isOnline)).arg(cOtherOnline()).arg(t).arg(Logs::b(otherNotOld)).arg(Logs::b(otherLaterThanMe)));
 
 	uint64 when = ms + delay;
-	notifyWhenAlerts[history].insert(when, notifyByFrom);
+	_notifyWhenAlerts[history].insert(when, notifyByFrom);
 	if (Global::DesktopNotify() && !psSkipDesktopNotify()) {
-		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
-		if (i == notifyWhenMaps.end()) {
-			i = notifyWhenMaps.insert(history, NotifyWhenMap());
+		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
+		if (i == _notifyWhenMaps.end()) {
+			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
 		}
 		if (i.value().constFind(item->id) == i.value().cend()) {
 			i.value().insert(item->id, when);
 		}
-		NotifyWaiters *addTo = haveSetting ? &notifyWaiters : &notifySettingWaiters;
+		NotifyWaiters *addTo = haveSetting ? &_notifyWaiters : &_notifySettingWaiters;
 		NotifyWaiters::const_iterator it = addTo->constFind(history);
 		if (it == addTo->cend() || it->when > when) {
 			addTo->insert(history, NotifyWaiter(item->id, when, notifyByFrom));
 		}
 	}
 	if (haveSetting) {
-		if (!notifyWaitTimer.isActive() || notifyWaitTimer.remainingTime() > delay) {
-			notifyWaitTimer.start(delay);
+		if (!_notifyWaitTimer.isActive() || _notifyWaitTimer.remainingTime() > delay) {
+			_notifyWaitTimer.start(delay);
 		}
 	}
-}
-
-void MainWindow::notifyFire() {
-	notifyShowNext();
 }
 
 void MainWindow::notifyClear(History *history) {
 	if (!history) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->unlinkHistory();
-		}
-		psClearNotifies();
-		for (NotifyWhenMaps::const_iterator i = notifyWhenMaps.cbegin(), e = notifyWhenMaps.cend(); i != e; ++i) {
+		Window::Notifications::manager()->clearAll();
+
+		for (auto i = _notifyWhenMaps.cbegin(), e = _notifyWhenMaps.cend(); i != e; ++i) {
 			i.key()->clearNotifications();
 		}
-		notifyWaiters.clear();
-		notifySettingWaiters.clear();
-		notifyWhenMaps.clear();
+		_notifyWhenMaps.clear();
+		_notifyWhenAlerts.clear();
+		_notifyWaiters.clear();
+		_notifySettingWaiters.clear();
 		return;
 	}
-	notifyWaiters.remove(history);
-	notifySettingWaiters.remove(history);
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		(*i)->unlinkHistory(history);
-	}
-	psClearNotifies(history->peer->id);
-	notifyWhenMaps.remove(history);
-	notifyWhenAlerts.remove(history);
+
+	Window::Notifications::manager()->clearFromHistory(history);
+
+	history->clearNotifications();
+	_notifyWhenMaps.remove(history);
+	_notifyWhenAlerts.remove(history);
+	_notifyWaiters.remove(history);
+	_notifySettingWaiters.remove(history);
+
+	_notifyWaitTimer.stop();
 	notifyShowNext();
 }
 
 void MainWindow::notifyClearFast() {
-	notifyWaiters.clear();
-	notifySettingWaiters.clear();
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		(*i)->deleteLater();
-	}
-	psClearNotifies();
-	notifyWindows.clear();
-	notifyWhenMaps.clear();
-	notifyWhenAlerts.clear();
+	Window::Notifications::manager()->clearAllFast();
+
+	_notifyWhenMaps.clear();
+	_notifyWhenAlerts.clear();
+	_notifyWaiters.clear();
+	_notifySettingWaiters.clear();
 }
 
 void MainWindow::notifySettingGot() {
 	int32 t = unixtime();
-	for (NotifyWaiters::iterator i = notifySettingWaiters.begin(); i != notifySettingWaiters.end();) {
+	for (NotifyWaiters::iterator i = _notifySettingWaiters.begin(); i != _notifySettingWaiters.end();) {
 		History *history = i.key();
 		bool loaded = false, muted = false;
 		if (history->peer->notify != UnknownNotifySettings) {
@@ -1496,34 +1211,24 @@ void MainWindow::notifySettingGot() {
 		}
 		if (loaded) {
 			if (!muted) {
-				notifyWaiters.insert(i.key(), i.value());
+				_notifyWaiters.insert(i.key(), i.value());
 			}
-			i = notifySettingWaiters.erase(i);
+			i = _notifySettingWaiters.erase(i);
 		} else {
 			++i;
 		}
 	}
-	notifyWaitTimer.stop();
+	_notifyWaitTimer.stop();
 	notifyShowNext();
 }
 
-void MainWindow::notifyShowNext(NotifyWindow *remove) {
+void MainWindow::notifyShowNext() {
 	if (App::quitting()) return;
-
-	int32 count = NotifyWindowsCount;
-	if (remove) {
-		for (NotifyWindows::iterator i = notifyWindows.begin(), e = notifyWindows.end(); i != e; ++i) {
-			if ((*i) == remove) {
-				notifyWindows.erase(i);
-				break;
-			}
-		}
-	}
 
 	uint64 ms = getms(true), nextAlert = 0;
 	bool alert = false;
 	int32 now = unixtime();
-	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
+	for (NotifyWhenAlerts::iterator i = _notifyWhenAlerts.begin(); i != _notifyWhenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
 			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
 			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
@@ -1536,7 +1241,7 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 			}
 		}
 		if (i.value().isEmpty()) {
-			i = notifyWhenAlerts.erase(i);
+			i = _notifyWhenAlerts.erase(i);
 		} else {
 			if (!nextAlert || nextAlert > i.value().begin().key()) {
 				nextAlert = i.value().begin().key();
@@ -1549,33 +1254,24 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 		App::playSound();
 	}
 
-    if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            int32 ind = (*i)->index();
-            if (ind < 0) continue;
-            --count;
-        }
-    }
-	if (count <= 0 || notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
+	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
 		if (nextAlert) {
-			notifyWaitTimer.start(nextAlert - ms);
+			_notifyWaitTimer.start(nextAlert - ms);
 		}
 		return;
 	}
 
-	QRect r = psDesktopRect();
-	int32 x = r.x() + r.width() - st::notifyWidth - st::notifyDeltaX, y = r.y() + r.height() - st::notifyHeight - st::notifyDeltaY;
-	while (count > 0) {
+	while (true) {
 		uint64 next = 0;
 		HistoryItem *notifyItem = 0;
 		History *notifyHistory = 0;
-		for (NotifyWaiters::iterator i = notifyWaiters.begin(); i != notifyWaiters.end();) {
+		for (NotifyWaiters::iterator i = _notifyWaiters.begin(); i != _notifyWaiters.end();) {
 			History *history = i.key();
 			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
-				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.end()) {
+				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
+				if (j == _notifyWhenMaps.end()) {
 					history->clearNotifications();
-					i = notifyWaiters.erase(i);
+					i = _notifyWaiters.erase(i);
 					continue;
 				}
 				do {
@@ -1589,8 +1285,8 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 				} while (history->currentNotification());
 			}
 			if (!history->currentNotification()) {
-				notifyWhenMaps.remove(history);
-				i = notifyWaiters.erase(i);
+				_notifyWhenMaps.remove(history);
+				i = _notifyWaiters.erase(i);
 				continue;
 			}
 			uint64 when = i.value().when;
@@ -1607,7 +1303,7 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 					next = nextAlert;
 					nextAlert = 0;
 				}
-				notifyWaitTimer.start(next - ms);
+				_notifyWaitTimer.start(next - ms);
 				break;
 			} else {
 				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
@@ -1615,8 +1311,8 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
-				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.cend()) {
+				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
+				if (j == _notifyWhenMaps.cend()) {
 					history->clearNotifications();
 				} else {
 					HistoryItem *nextNotify = 0;
@@ -1631,7 +1327,7 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
 							if (k != j.value().cend()) {
 								nextNotify = history->currentNotification();
-								notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
+								_notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
 								break;
 							}
 							history->skipNotification();
@@ -1652,18 +1348,11 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 					} while (nextNotify);
 				}
 
-				if (Global::CustomNotifies()) {
-					NotifyWindow *notify = new NotifyWindow(notifyItem, x, y, fwdCount);
-					notifyWindows.push_back(notify);
-					psNotifyShown(notify);
-					--count;
-				} else {
-					psPlatformNotify(notifyItem, fwdCount);
-				}
+				Window::Notifications::manager()->showNotification(notifyItem, fwdCount);
 
 				if (!history->hasNotification()) {
-					notifyWaiters.remove(history);
-					notifyWhenMaps.remove(history);
+					_notifyWaiters.remove(history);
+					_notifyWhenMaps.remove(history);
 					continue;
 				}
 			}
@@ -1672,49 +1361,8 @@ void MainWindow::notifyShowNext(NotifyWindow *remove) {
 		}
 	}
 	if (nextAlert) {
-		notifyWaitTimer.start(nextAlert - ms);
+		_notifyWaitTimer.start(nextAlert - ms);
 	}
-
-	count = NotifyWindowsCount - count;
-	for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-		int32 ind = (*i)->index();
-		if (ind < 0) continue;
-		--count;
-		(*i)->moveTo(x, y - count * (st::notifyHeight + st::notifyDeltaY));
-	}
-}
-
-void MainWindow::notifyItemRemoved(HistoryItem *item) {
-	if (Global::CustomNotifies()) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->itemRemoved(item);
-		}
-	}
-}
-
-void MainWindow::notifyStopHiding() {
-    if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->stopHiding();
-        }
-    }
-}
-
-void MainWindow::notifyStartHiding() {
-    if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->startHiding();
-        }
-    }
-}
-
-void MainWindow::notifyUpdateAllPhotos() {
-    if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            (*i)->updatePeerPhoto();
-        }
-    }
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
 void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
@@ -1722,20 +1370,7 @@ void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButt
 }
 
 void MainWindow::notifyUpdateAll() {
-	if (Global::CustomNotifies()) {
-		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-			(*i)->updateNotifyDisplay();
-		}
-	}
-	psClearNotifies();
-}
-
-void MainWindow::notifyActivateAll() {
-	if (Global::CustomNotifies()) {
-        for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
-            psActivateNotify(*i);
-        }
-    }
+	Window::Notifications::manager()->updateAll();
 }
 
 QImage MainWindow::iconLarge() const {

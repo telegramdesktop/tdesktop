@@ -98,8 +98,8 @@ void peerUpdatedSendDelayed() {
 
 	if (!SmallUpdates || !AllUpdates || SmallUpdates->empty()) return;
 
-	auto smallList = createAndSwap(*SmallUpdates);
-	auto allList = createAndSwap(*AllUpdates);
+	auto smallList = base::take(*SmallUpdates);
+	auto allList = base::take(*AllUpdates);
 	for (auto &update : smallList) {
 		PeerUpdated().notify(std_::move(update), true);
 	}

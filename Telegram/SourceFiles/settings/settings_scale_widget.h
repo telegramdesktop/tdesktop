@@ -24,54 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class Checkbox;
 
+namespace Ui {
+class DiscreteSlider;
+} // namespace Ui
+
 namespace Settings {
-
-class Slider : public TWidget {
-	Q_OBJECT
-
-public:
-	Slider(QWidget *parent);
-
-	int activeSection() const {
-		return _activeIndex;
-	}
-	void setActiveSection(int index);
-	void setActiveSectionFast(int index);
-	void addSection(const QString &label);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-
-	int resizeGetHeight(int newWidth) override;
-
-signals:
-	void sectionActivated();
-
-private:
-	void resizeSections(int newWidth);
-	int getIndexFromPosition(QPoint pos);
-	void setSelectedSection(int index);
-	void step_left(float64 ms, bool timer);
-
-	struct Section {
-		Section(const QString &label);
-
-		int left, width;
-		QString label;
-		int labelWidth;
-	};
-	QList<Section> _sections;
-	int _activeIndex = 0;
-
-	bool _pressed = false;
-	int _selected = 0;
-	anim::ivalue a_left = { 0 };
-	Animation _a_left;
-
-};
 
 class ScaleWidget : public BlockWidget {
 	Q_OBJECT
@@ -81,15 +38,15 @@ public:
 
 private slots:
 	void onAutoChosen();
-	void onSectionActivated();
 	void onRestartNow();
 
 private:
+	void scaleChanged();
 	void createControls();
 	void setScale(DBIScale newScale);
 
 	ChildWidget<Checkbox> _auto = { nullptr };
-	ChildWidget<Slider> _scale = { nullptr };
+	ChildWidget<Ui::DiscreteSlider> _scale = { nullptr };
 
 };
 

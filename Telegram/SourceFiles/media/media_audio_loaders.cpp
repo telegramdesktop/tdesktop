@@ -75,7 +75,7 @@ AudioPlayerLoaders::~AudioPlayerLoaders() {
 }
 
 void AudioPlayerLoaders::clearFromVideoQueue() {
-	auto queue = createAndSwap(_fromVideoQueue);
+	auto queue = base::take(_fromVideoQueue);
 	for (auto &packetData : queue) {
 		AVPacket packet;
 		FFMpeg::packetFromDataWrap(packet, packetData);

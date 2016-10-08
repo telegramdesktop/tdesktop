@@ -21,10 +21,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "localimageloader.h"
-#include "ui/boxshadow.h"
+#include "ui/effects/rect_shadow.h"
+#include "ui/popupmenu.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
+#include "core/single_timer.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -479,30 +481,31 @@ private:
 	void init();
 	MainWidget *parent();
 
-	UserData *_sharedContact;
-	bool _forwardSelected, _sendPath;
+	UserData *_sharedContact = nullptr;
+	bool _forwardSelected = false;
+	bool _sendPath = false;
 
 	QString _shareUrl, _shareText;
 	QString _botAndQuery;
 
 	BoxButton _send, _cancel;
-	PeerData *offered;
+	PeerData *_offered = nullptr;
 
 	anim::fvalue a_opacity;
 	Animation _a_appearance;
 
-	QRect box;
-	bool hiding;
+	QRect _box;
+	bool _hiding = false;
 
-	mtpRequestId _forwardRequest;
+	mtpRequestId _forwardRequest = 0;
 
-	int32 _chooseWidth;
+	int _chooseWidth = 0;
 
-	Text toText;
-	int32 toTextWidth;
-	QPixmap cacheForAnim;
+	Text _toText;
+	int32 _toTextWidth = 0;
+	QPixmap _cacheForAnim;
 
-	BoxShadow shadow;
+	Ui::RectShadow _shadow;
 
 };
 

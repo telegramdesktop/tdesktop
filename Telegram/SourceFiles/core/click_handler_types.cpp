@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "localstorage.h"
+#include "ui/popupmenu.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/flatinput.h"
 
+#include "ui/popupmenu.h"
 #include "mainwindow.h"
 #include "countryinput.h"
 #include "lang.h"
@@ -734,7 +735,7 @@ void InputArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::white);
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}

@@ -1405,7 +1405,7 @@ void RevokePublicLinkBox::mousePressEvent(QMouseEvent *e) {
 }
 
 void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = createAndSwap(_pressed);
+	auto pressed = base::take(_pressed);
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;

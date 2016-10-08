@@ -106,7 +106,7 @@ bool QtGifReaderImplementation::start(Mode mode, int64 &positionMs) {
 }
 
 QtGifReaderImplementation::~QtGifReaderImplementation() {
-	deleteAndMark(_reader);
+	delete base::take(_reader);
 }
 
 bool QtGifReaderImplementation::jumpToStart() {
