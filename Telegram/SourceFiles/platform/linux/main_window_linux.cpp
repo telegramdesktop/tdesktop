@@ -252,7 +252,14 @@ void MainWindow::psSetupTrayIcon() {
 
 			trayIcon->setToolTip(str_const_toString(AppName));
 			connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+
+			// This is very important for native notifications via libnotify!
+			// Some notification servers compose several notifications with a "Reply"
+			// action into one and after that a click on "Reply" button does not call
+			// the specified callback from any of the sent notification - libnotify
+			// just ignores ibus messages, but Qt tray icon at least emits this signal.
 			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+
 			App::wnd()->updateTrayMenu();
 		}
 		psUpdateCounter();

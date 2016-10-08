@@ -229,6 +229,7 @@ private:
 
 	QPixmap _cache;
 
+	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
 	FloatAnimation a_actionsOpacity;
 	QPixmap _buttonsCache;

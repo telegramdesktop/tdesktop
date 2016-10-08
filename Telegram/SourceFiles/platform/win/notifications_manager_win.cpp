@@ -337,7 +337,7 @@ void finish() {
 
 class Manager::Impl {
 public:
-	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
+	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
 	void beforeNotificationActivated(PeerId peerId, MsgId msgId);
@@ -403,7 +403,7 @@ void Manager::Impl::clearNotification(PeerId peerId, MsgId msgId) {
 	}
 }
 
-bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
 	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
 
 	ComPtr<IXmlDocument> toastXml;
@@ -416,10 +416,10 @@ bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	if (!SUCCEEDED(hr)) return false;
 
 	StorageKey key;
-	if (showUserpic) {
-		key = peer->userpicUniqueKey();
-	} else {
+	if (hideNameAndPhoto) {
 		key = StorageKey(0, 0);
+	} else {
+		key = peer->userpicUniqueKey();
 	}
 	auto userpicPath = _cachedUserpics.get(key, peer);
 	auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
@@ -514,8 +514,8 @@ void Manager::clearNotification(PeerId peerId, MsgId msgId) {
 
 Manager::~Manager() = default;
 
-void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	_impl->showNotification(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
+void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
 }
 
 void Manager::doClearAllFast() {

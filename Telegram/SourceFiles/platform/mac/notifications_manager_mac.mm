@@ -118,7 +118,7 @@ void defaultNotificationShown(QWidget *widget) {
 class Manager::Impl {
 public:
 	Impl();
-	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
+	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
 	void updateDelegate();
@@ -133,7 +133,7 @@ private:
 Manager::Impl::Impl() : _delegate([[NotificationDelegate alloc] init]) {
 }
 
-void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
 	@autoreleasepool {
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
@@ -147,13 +147,13 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
 	[notification setInformativeText:Q2NSString(msg)];
-	if (showUserpic && [notification respondsToSelector:@selector(setContentImage:)]) {
+	if (!hideNameAndPhoto && [notification respondsToSelector:@selector(setContentImage:)]) {
 		auto userpic = peer->genUserpic(st::notifyMacPhotoSize);
 		NSImage *img = [qt_mac_create_nsimage(userpic) autorelease];
 		[notification setContentImage:img];
 	}
 
-	if (showReplyButton && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
+	if (!hideReplyButton && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
 		[notification setHasReplyButton:YES];
 	}
 
@@ -214,8 +214,8 @@ void Manager::updateDelegate() {
 
 Manager::~Manager() = default;
 
-void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	_impl->showNotification(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
+void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
 }
 
 void Manager::doClearAllFast() {

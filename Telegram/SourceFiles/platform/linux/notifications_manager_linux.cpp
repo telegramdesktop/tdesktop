@@ -247,7 +247,7 @@ class Manager::Impl {
 public:
 	bool init();
 
-	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton);
+	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
 	void clearNotification(PeerId peerId, MsgId msgId);
@@ -267,7 +267,7 @@ private:
 		MsgId msgId = 0;
 		QString title;
 		QString body;
-		bool showUserpic = false;
+		bool hideNameAndPhoto = false;
 	};
 
 	QString _serverName;
@@ -327,7 +327,7 @@ bool Manager::Impl::init() {
 	return !_serverName.isEmpty();
 }
 
-void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
+void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
 	auto titleText = escapeNotificationHtml(title);
 	auto subtitleText = escapeNotificationHtml(subtitle);
 	auto msgText = escapeNotificationHtml(msg);
@@ -341,7 +341,7 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	notification.msgId = msgId;
 	notification.title = titleText;
 	notification.body = bodyText;
-	notification.showUserpic = showUserpic;
+	notification.hideNameAndPhoto = hideNameAndPhoto;
 	_queuedNotifications.push_back(notification);
 
 	showNextNotification();
@@ -378,10 +378,10 @@ void Manager::Impl::showNextNotification() {
 	}
 
 	StorageKey key;
-	if (data.showUserpic) {
-		key = data.peer->userpicUniqueKey();
-	} else {
+	if (data.hideNameAndPhoto) {
 		key = StorageKey(0, 0);
+	} else {
+		key = data.peer->userpicUniqueKey();
 	}
 	notification->setImage(_cachedUserpics.get(key, data.peer));
 
@@ -475,8 +475,8 @@ bool Manager::hasActionsSupport() const {
 
 Manager::~Manager() = default;
 
-void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) {
-	_impl->showNotification(peer, msgId, title, subtitle, showUserpic, msg, showReplyButton);
+void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
 }
 
 void Manager::doClearAllFast() {

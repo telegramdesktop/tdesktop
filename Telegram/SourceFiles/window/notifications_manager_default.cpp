@@ -608,6 +608,9 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || !_peer || (!_item && _forwardedCount < 2)) return;
 
+	auto options = Manager::getNotificationOptions(_item);
+	_hideReplyButton = options.hideReplyButton;
+
 	int32 w = width(), h = height();
 	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
@@ -620,7 +623,7 @@ void Notification::updateNotifyDisplay() {
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
 
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
+		if (!options.hideNameAndPhoto) {
 			_history->peer->loadUserpic(true, true);
 			_history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
@@ -632,14 +635,14 @@ void Notification::updateNotifyDisplay() {
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
+		if (!options.hideNameAndPhoto) {
 			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 			}
 		}
 
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowPreview) {
+		if (!options.hideMessageText) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
 			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
@@ -665,7 +668,7 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dialogsNameFg);
-		if (!App::passcoded() && Global::NotifyView() <= dbinvShowName) {
+		if (!options.hideNameAndPhoto) {
 			_history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont);
@@ -704,7 +707,7 @@ void Notification::itemRemoved(HistoryItem *deleted) {
 }
 
 bool Notification::canReply() const {
-	return (_item != nullptr) && !App::passcoded() && (Global::NotifyView() <= dbinvShowPreview);
+	return !_hideReplyButton && (_item != nullptr) && !App::passcoded() && (Global::NotifyView() <= dbinvShowPreview);
 }
 
 void Notification::unlinkHistoryInManager() {

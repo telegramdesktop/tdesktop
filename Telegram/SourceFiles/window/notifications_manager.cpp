@@ -47,6 +47,16 @@ void finish() {
 	Default::finish();
 }
 
+Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
+	auto hideEverything = (App::passcoded() || Global::ScreenIsLocked());
+
+	DisplayOptions result;
+	result.hideNameAndPhoto = hideEverything || (Global::NotifyView() > dbinvShowName);
+	result.hideMessageText = hideEverything || (Global::NotifyView() > dbinvShowPreview);
+	result.hideReplyButton = result.hideMessageText || !item || !item->history()->peer->canWrite();
+	return result;
+}
+
 void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 	onBeforeNotificationActivated(peerId, msgId);
 	if (auto window = App::wnd()) {
@@ -87,18 +97,13 @@ void Manager::notificationReplied(PeerId peerId, MsgId msgId, const QString &rep
 }
 
 void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
-	auto hideEverything = (App::passcoded() || Global::ScreenIsLocked());
-	auto hideName = hideEverything || (Global::NotifyView() > dbinvShowName);
-	auto hidePreview = hideEverything || (Global::NotifyView() > dbinvShowPreview);
+	auto options = getNotificationOptions(item);
 
-	QString title = hideName ? qsl("Telegram Desktop") : item->history()->peer->name;
-	QString subtitle = hideName ? QString() : item->notificationHeader();
-	bool showUserpic = hideName ? false : true;
+	QString title = options.hideNameAndPhoto ? qsl("Telegram Desktop") : item->history()->peer->name;
+	QString subtitle = options.hideNameAndPhoto ? QString() : item->notificationHeader();
+	QString text = options.hideMessageText ? lang(lng_notification_preview) : (forwardedCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, forwardedCount));
 
-	QString msg = hidePreview ? lang(lng_notification_preview) : (forwardedCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, forwardedCount));
-	bool showReplyButton = hidePreview ? false : item->history()->peer->canWrite();
-
-	doShowNativeNotification(item->history()->peer, item->id, title, subtitle, showUserpic, msg, showReplyButton);
+	doShowNativeNotification(item->history()->peer, item->id, title, subtitle, text, options.hideNameAndPhoto, options.hideReplyButton);
 }
 
 } // namespace Notifications

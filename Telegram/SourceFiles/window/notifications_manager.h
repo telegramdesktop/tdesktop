@@ -53,6 +53,13 @@ public:
 	void notificationActivated(PeerId peerId, MsgId msgId);
 	void notificationReplied(PeerId peerId, MsgId msgId, const QString &reply);
 
+	struct DisplayOptions {
+		bool hideNameAndPhoto;
+		bool hideMessageText;
+		bool hideReplyButton;
+	};
+	static DisplayOptions getNotificationOptions(HistoryItem *item);
+
 	virtual ~Manager() = default;
 
 protected:
@@ -81,7 +88,7 @@ protected:
 	}
 	void doShowNotification(HistoryItem *item, int forwardedCount) override;
 
-	virtual void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, bool showUserpic, const QString &msg, bool showReplyButton) = 0;
+	virtual void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) = 0;
 
 };
 
