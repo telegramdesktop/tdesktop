@@ -29,7 +29,7 @@ template <int N>
 QPainterPath interpolatePaths(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
 	static_assert(N > 1, "Wrong points count in path!");
 
-	auto from_coef = k, to_coef = 1. - k;
+	auto from_coef = 1. - k, to_coef = k;
 	QPainterPath result;
 	auto x = from[0].x() * from_coef + to[0].x() * to_coef;
 	auto y = from[0].y() * from_coef + to[0].y() * to_coef;
@@ -43,11 +43,8 @@ QPainterPath interpolatePaths(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
 
 } // namespace
 
-PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, State state, UpdateCallback &&callback)
+PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, UpdateCallback &&callback)
 : _st(st)
-, _state(state)
-, _oldState(state)
-, _nextState(state)
 , _callback(std_::move(callback)) {
 }
 
@@ -59,12 +56,21 @@ void PlayButtonLayout::setState(State state) {
 		_oldState = _state;
 		_state = _nextState;
 		_transformBackward = false;
-		if (_state != _oldState) startTransform(0., 1.);
+		if (_state != _oldState) {
+			startTransform(0., 1.);
+			if (_callback) _callback();
+		}
 	} else if (_oldState == _nextState) {
 		qSwap(_oldState, _state);
 		startTransform(_transformBackward ? 0. : 1., _transformBackward ? 1. : 0.);
 		_transformBackward = !_transformBackward;
 	}
+}
+
+void PlayButtonLayout::finishTransform() {
+	_transformProgress.finish();
+	_transformBackward = false;
+	if (_callback) _callback();
 }
 
 void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
@@ -145,7 +151,7 @@ void PlayButtonLayout::paintPlayToPause(Painter &p, const QBrush &brush, float64
 		{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
 		{ playLeft, playTop + playHeight },
 	};
-	p.fillPath(interpolatePaths(pathLeftPause, pathLeftPlay, progress), brush);
+	p.fillPath(interpolatePaths(pathLeftPlay, pathLeftPause, progress), brush);
 
 	QPointF pathRightPause[] = {
 		{ pauseLeft + pauseWidth - pauseStroke, pauseTop },
@@ -159,17 +165,108 @@ void PlayButtonLayout::paintPlayToPause(Painter &p, const QBrush &brush, float64
 		{ playLeft + playWidth, playTop + (playHeight / 2.) },
 		{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
 	};
-	p.fillPath(interpolatePaths(pathRightPause, pathRightPlay, progress), brush);
+	p.fillPath(interpolatePaths(pathRightPlay, pathRightPause, progress), brush);
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 void PlayButtonLayout::paintPlayToCancel(Painter &p, const QBrush &brush, float64 progress) {
+	static const auto sqrt2 = sqrt(2.);
 
+	auto playLeft = 0. + _st.playPosition.x();
+	auto playTop = 0. + _st.playPosition.y();
+	auto playWidth = _st.playOuter.width() - 2 * playLeft;
+	auto playHeight = _st.playOuter.height() - 2 * playTop;
+
+	auto cancelLeft = 0. + _st.cancelPosition.x();
+	auto cancelTop = 0. + _st.cancelPosition.y();
+	auto cancelWidth = _st.cancelOuter.width() - 2 * cancelLeft;
+	auto cancelHeight = _st.cancelOuter.height() - 2 * cancelTop;
+	auto cancelStroke = (0. + _st.cancelStroke) / sqrt2;
+
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+	QPointF pathPlay[] = {
+		{ playLeft, playTop },
+		{ playLeft, playTop },
+		{ playLeft + (playWidth / 2.), playTop + (playHeight / 4.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + playWidth, playTop + (playHeight / 2.) },
+		{ playLeft + (playWidth / 2.), playTop + (3 * playHeight / 4.) },
+		{ playLeft, playTop + playHeight },
+		{ playLeft, playTop + playHeight },
+		{ playLeft, playTop + (playHeight / 2.) },
+	};
+	QPointF pathCancel[] = {
+		{ cancelLeft, cancelTop + cancelStroke },
+		{ cancelLeft + cancelStroke, cancelTop },
+		{ cancelLeft + (cancelWidth / 2.), cancelTop + (cancelHeight / 2.) - cancelStroke },
+		{ cancelLeft + cancelWidth - cancelStroke, cancelTop },
+		{ cancelLeft + cancelWidth, cancelTop + cancelStroke },
+		{ cancelLeft + (cancelWidth / 2.) + cancelStroke, cancelTop + (cancelHeight / 2.) },
+		{ cancelLeft + cancelWidth, cancelTop + cancelHeight - cancelStroke },
+		{ cancelLeft + cancelWidth - cancelStroke, cancelTop + cancelHeight },
+		{ cancelLeft + (cancelWidth / 2.), cancelTop + (cancelHeight / 2.) + cancelStroke },
+		{ cancelLeft + cancelStroke, cancelTop + cancelHeight },
+		{ cancelLeft, cancelTop + cancelHeight - cancelStroke },
+		{ cancelLeft + (cancelWidth / 2.) - cancelStroke, cancelTop + (cancelHeight / 2.) },
+	};
+	p.fillPath(interpolatePaths(pathPlay, pathCancel, progress), brush);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 void PlayButtonLayout::paintPauseToCancel(Painter &p, const QBrush &brush, float64 progress) {
+	static const auto sqrt2 = sqrt(2.);
 
+	auto pauseLeft = 0. + _st.pausePosition.x();
+	auto pauseTop = 0. + _st.pausePosition.y();
+	auto pauseWidth = _st.pauseOuter.width() - 2 * pauseLeft;
+	auto pauseHeight = _st.pauseOuter.height() - 2 * pauseTop;
+	auto pauseStroke = 0. + _st.pauseStroke;
+
+	auto cancelLeft = 0. + _st.cancelPosition.x();
+	auto cancelTop = 0. + _st.cancelPosition.y();
+	auto cancelWidth = _st.cancelOuter.width() - 2 * cancelLeft;
+	auto cancelHeight = _st.cancelOuter.height() - 2 * cancelTop;
+	auto cancelStroke = (0. + _st.cancelStroke) / sqrt2;
+
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+	QPointF pathLeftPause[] = {
+		{ pauseLeft, pauseTop },
+		{ pauseLeft + pauseStroke, pauseTop },
+		{ pauseLeft + pauseStroke, pauseTop + pauseHeight },
+		{ pauseLeft, pauseTop + pauseHeight },
+	};
+	QPointF pathLeftCancel[] = {
+		{ cancelLeft, cancelTop + cancelStroke },
+		{ cancelLeft + cancelStroke, cancelTop },
+		{ cancelLeft + cancelWidth, cancelTop + cancelHeight - cancelStroke },
+		{ cancelLeft + cancelWidth - cancelStroke, cancelTop + cancelHeight },
+	};
+	p.fillPath(interpolatePaths(pathLeftPause, pathLeftCancel, progress), brush);
+
+	QPointF pathRightPause[] = {
+		{ pauseLeft + pauseWidth - pauseStroke, pauseTop },
+		{ pauseLeft + pauseWidth, pauseTop },
+		{ pauseLeft + pauseWidth, pauseTop + pauseHeight },
+		{ pauseLeft + pauseWidth - pauseStroke, pauseTop + pauseHeight },
+	};
+	QPointF pathRightCancel[] = {
+		{ cancelLeft + cancelWidth - cancelStroke, cancelTop },
+		{ cancelLeft + cancelWidth, cancelTop + cancelStroke },
+		{ cancelLeft + cancelStroke, cancelTop + cancelHeight },
+		{ cancelLeft, cancelTop + cancelHeight - cancelStroke },
+	};
+	p.fillPath(interpolatePaths(pathRightPause, pathRightCancel, progress), brush);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 void PlayButtonLayout::animationCallback() {

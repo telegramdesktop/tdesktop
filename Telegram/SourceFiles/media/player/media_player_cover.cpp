@@ -36,12 +36,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
+using State = PlayButtonLayout::State;
+
 class CoverWidget::PlayButton : public Button {
 public:
 	PlayButton(QWidget *parent);
 
-	using State = PlayButtonLayout::State;
-	void setState(State state);
+	void setState(State state) {
+		_layout.setState(state);
+	}
+	void finishTransform() {
+		_layout.finishTransform();
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -52,12 +58,9 @@ private:
 };
 
 CoverWidget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
-, _layout(st::mediaPlayerButton, State::Pause, [this] { update(); }) {
+, _layout(st::mediaPlayerButton, [this] { update(); }) {
 	resize(st::mediaPlayerButtonSize);
-}
-
-void CoverWidget::PlayButton::setState(State state) {
-	_layout.setState(state);
+	setCursor(style::cur_pointer);
 }
 
 void CoverWidget::PlayButton::paintEvent(QPaintEvent *e) {
@@ -82,15 +85,9 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 	_playback->setChangeFinishedCallback([this](float64 value) {
 		handleSeekFinished(value);
 	});
-
-	_playPause->setState(_showPause ? PlayButton::State::Pause : PlayButton::State::Play);
 	_playPause->setClickedCallback([this]() {
 		if (exists()) {
-			if (_showPause) {
-				instance()->pause();
-			} else {
-				instance()->play();
-			}
+			instance()->playPauseCancelClicked();
 		}
 	});
 
@@ -115,6 +112,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 			AudioMsgId playing;
 			auto playbackState = player->currentState(&playing, AudioMsgId::Type::Song);
 			handleSongUpdate(UpdatedEvent(&playing, &playbackState));
+			_playPause->finishTransform();
 		}
 	}
 }
@@ -201,10 +199,15 @@ void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
 	if (exists() && instance()->isSeeking()) {
 		showPause = true;
 	}
-	if (_showPause != showPause) {
-		_showPause = showPause;
-		_playPause->setState(showPause ? PlayButton::State::Pause : PlayButton::State::Play);
-	}
+	auto state = [audio = audioId.audio(), showPause] {
+		if (audio->loading()) {
+			return State::Cancel;
+		} else if (showPause) {
+			return State::Pause;
+		}
+		return State::Play;
+	};
+	_playPause->setState(state());
 
 	updateTimeText(audioId, playbackState);
 }
@@ -222,15 +225,15 @@ void CoverWidget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackS
 
 	_lastDurationMs = (playbackState.duration * 1000LL) / frequency;
 
-	if (duration || !audioId.audio()->loading()) {
-		display = display / frequency;
-		_time = formatDurationText(display);
-		_playback->setDisabled(false);
-	} else {
+	if (audioId.audio()->loading()) {
 		auto loaded = audioId.audio()->loadOffset();
 		auto loadProgress = snap(float64(loaded) / qMax(audioId.audio()->size, 1), 0., 1.);
 		_time = QString::number(qRound(loadProgress * 100)) + '%';
 		_playback->setDisabled(true);
+	} else {
+		display = display / frequency;
+		_time = formatDurationText(display);
+		_playback->setDisabled(false);
 	}
 	if (_seekPositionMs < 0) {
 		updateTimeLabel();

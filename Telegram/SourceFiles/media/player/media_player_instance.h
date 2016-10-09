@@ -62,6 +62,8 @@ public:
 	void next();
 	void previous();
 
+	void playPauseCancelClicked();
+
 	void play(const AudioMsgId &audioId);
 	const AudioMsgId &current() const {
 		return _current;

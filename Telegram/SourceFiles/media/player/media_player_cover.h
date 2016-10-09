@@ -64,7 +64,6 @@ private:
 	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
 	void updateTimeLabel();
 
-	bool _showPause = true;
 	int64 _seekPositionMs = -1;
 	int64 _lastDurationMs = 0;
 	QString _time;

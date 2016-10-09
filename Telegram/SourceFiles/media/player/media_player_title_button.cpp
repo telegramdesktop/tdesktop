@@ -32,17 +32,13 @@ namespace Player {
 using State = PlayButtonLayout::State;
 
 TitleButton::TitleButton(QWidget *parent) : Button(parent)
-, _layout(std_::make_unique<PlayButtonLayout>(st::mediaPlayerTitleButton, State::Pause, [this] { update(); })) {
+, _layout(std_::make_unique<PlayButtonLayout>(st::mediaPlayerTitleButton, [this] { update(); })) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(st::mediaPlayerTitleButtonSize);
 
 	setClickedCallback([this]() {
 		if (exists()) {
-			if (_showPause) {
-				instance()->pause();
-			} else {
-				instance()->play();
-			}
+			instance()->playPauseCancelClicked();
 		}
 	});
 
@@ -51,6 +47,7 @@ TitleButton::TitleButton(QWidget *parent) : Button(parent)
 			updatePauseState();
 		});
 		updatePauseState();
+		_layout->finishTransform();
 	}
 }
 
@@ -62,15 +59,15 @@ void TitleButton::updatePauseState() {
 	if (exists() && instance()->isSeeking()) {
 		showPause = true;
 	}
-	setShowPause(showPause);
-}
-
-void TitleButton::setShowPause(bool showPause) {
-	if (_showPause != showPause) {
-		_showPause = showPause;
-		_layout->setState(_showPause ? PlayButtonLayout::State::Pause : PlayButtonLayout::State::Play);
-		update();
-	}
+	auto state = [audio = playing.audio(), showPause] {
+		if (audio && audio->loading()) {
+			return State::Cancel;
+		} else if (showPause) {
+			return State::Pause;
+		}
+		return State::Play;
+	};
+	_layout->setState(state());
 }
 
 void TitleButton::paintEvent(QPaintEvent *e) {

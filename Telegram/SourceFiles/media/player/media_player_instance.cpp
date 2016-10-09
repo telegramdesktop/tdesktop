@@ -209,6 +209,25 @@ void Instance::previous() {
 	moveInPlaylist(-1);
 }
 
+void Instance::playPauseCancelClicked() {
+	if (isSeeking()) {
+		return;
+	}
+
+	AudioMsgId playing;
+	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
+	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+	auto audio = playing.audio();
+	if (audio && audio->loading()) {
+		audio->cancel();
+	} else if (showPause) {
+		pause();
+	} else {
+		play();
+	}
+}
+
 void Instance::startSeeking() {
 	_seeking = _current;
 	pause();

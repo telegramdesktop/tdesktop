@@ -42,9 +42,7 @@ protected:
 
 private:
 	void paintIcon(Painter &p);
-	void setShowPause(bool showPause);
 
-	bool _showPause = true;
 	std_::unique_ptr<PlayButtonLayout> _layout;
 	ColorAnimation _iconFg;
 
