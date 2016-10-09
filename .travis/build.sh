@@ -77,27 +77,27 @@ build() {
 
   # Configure the build
   if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_AUTOUPDATE"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
   fi
 
   if [[ $BUILD_VERSION == *"disable_register_custom_scheme"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME"
   fi
 
   if [[ $BUILD_VERSION == *"disable_crash_reports"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_CRASH_REPORTS"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_CRASH_REPORTS"
   fi
 
   if [[ $BUILD_VERSION == *"disable_network_proxy"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_NETWORK_PROXY"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_NETWORK_PROXY"
   fi
 
   if [[ $BUILD_VERSION == *"disable_desktop_file_generation"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION"
   fi
 
   if [[ $BUILD_VERSION == *"disable_unity_integration"* ]]; then
-    GYP_DEFINES += ",TDESKTOP_DISABLE_UNITY_INTEGRATION"
+    GYP_DEFINES+=",TDESKTOP_DISABLE_UNITY_INTEGRATION"
   fi
 
   info_msg "Build defines: ${GYP_DEFINES}"
