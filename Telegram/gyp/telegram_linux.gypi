@@ -27,15 +27,23 @@
 # QApplication() -> createPlatformIntegration -> QXcbIntegrationPlugin::create
         #'xkbcommon',
       ],
+      'linux_path_ffmpeg%': '/usr/local',
+      'linux_path_openal%': '/usr/local',
+      'linux_path_libexif_lib%': '<(libs_loc)/libexif-0.6.20/libexif/.libs',
+      'linux_path_va%': '/usr/local',
     },
     'include_dirs': [
       '/usr/local/include',
-      '<(libs_loc)/openssl-xcode/include'
+      '<(linux_path_ffmpeg)/include',
+      '<(linux_path_openal)/include',
     ],
     'library_dirs': [
       '/usr/local/lib',
-      '<(libs_loc)/libexif-0.6.20/libexif/.libs',
-      '<(libs_loc)/breakpad/src/client/linux',
+      '<(linux_path_ffmpeg)/lib',
+      '<(linux_path_openal)/lib',
+      '<(linux_path_breakpad)/lib',
+      '<(linux_path_libexif_lib)',
+      '<(linux_path_va)/lib',
     ],
     'libraries': [
       'breakpad_client',
@@ -53,6 +61,7 @@
       'libva-x11.a',
       'libva-drm.a',
       'libva.a',
+      'libdrm.a',
       'libz.a',
 #      '<!(pkg-config 2> /dev/null --libs <@(pkgconfig_libs))',
     ],
