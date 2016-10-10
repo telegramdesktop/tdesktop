@@ -36,7 +36,7 @@ By git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and r
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to **tdesktop** to have **D:\TBuild\tdesktop\Telegram.sln** solution
+or [download in ZIP](https://github.com/telegramdesktop/tdesktop/archive/master.zip) and extract to **D:\TBuild\**, rename **tdesktop-master** to **tdesktop** to have **D:\TBuild\tdesktop\Telegram.sln** solution
 
 ## Prepare libraries
 
