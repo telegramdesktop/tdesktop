@@ -26,8 +26,6 @@ By git – in Terminal go to **/home/user/TBuild** and run
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master** to **tdesktop** to have **/home/user/TBuild/tdesktop/Telegram/Telegram.pro** project
-
 ###Prepare libraries
 
 Install dev libraries
