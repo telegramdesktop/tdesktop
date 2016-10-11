@@ -63,7 +63,7 @@ def handle_qrc_dependencies(file_path):
       if latest_modified < dependency_modified:
         latest_modified = dependency_modified
     else:
-      eprint('File not found: ' + full_path)
+      eprint('File not found: ' + path)
   if file_modified < latest_modified:
     os.utime(file_path, None);
     one_modified = 1
