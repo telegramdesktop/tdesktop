@@ -450,15 +450,8 @@ public:
 	NeverFreedPointer(const NeverFreedPointer<T> &other) = delete;
 	NeverFreedPointer &operator=(const NeverFreedPointer<T> &other) = delete;
 
-	template <typename U>
-	void createIfNull(U creator) {
-		if (isNull()) {
-			reset(creator());
-		}
-	}
-
 	template <typename... Args>
-	void makeIfNull(Args&&... args) {
+	void createIfNull(Args&&... args) {
 		if (isNull()) {
 			reset(new T(std_::forward<Args>(args)...));
 		}

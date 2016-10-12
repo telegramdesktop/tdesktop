@@ -120,52 +120,59 @@ public:
 	}
 };
 
-#define T_WIDGET public: \
-TWidget *tparent() { \
-return qobject_cast<TWidget*>(parentWidget()); \
-} \
-const TWidget *tparent() const { \
-	return qobject_cast<const TWidget*>(parentWidget()); \
-} \
-virtual void leaveToChildEvent(QEvent *e, QWidget *child) { /* e -- from enterEvent() of child TWidget */ \
-} \
-virtual void enterFromChildEvent(QEvent *e, QWidget *child) { /* e -- from leaveEvent() of child TWidget */ \
-} \
-void moveToLeft(int x, int y, int outerw = 0) { \
-	move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
-} \
-void moveToRight(int x, int y, int outerw = 0) { \
-	move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
-} \
-QPoint myrtlpoint(int x, int y) const { \
-	return rtlpoint(x, y, width()); \
-} \
-QPoint myrtlpoint(const QPoint p) const { \
-	return rtlpoint(p, width()); \
-} \
-QRect myrtlrect(int x, int y, int w, int h) const { \
-	return rtlrect(x, y, w, h, width()); \
-} \
-QRect myrtlrect(const QRect &r) { \
-	return rtlrect(r, width()); \
-} \
-void rtlupdate(const QRect &r) { \
-	update(myrtlrect(r)); \
-} \
-void rtlupdate(int x, int y, int w, int h) { \
-	update(myrtlrect(x, y, w, h)); \
-} \
+#define T_WIDGET \
+public: \
+	TWidget *tparent() { \
+		return qobject_cast<TWidget*>(parentWidget()); \
+	} \
+	const TWidget *tparent() const { \
+		return qobject_cast<const TWidget*>(parentWidget()); \
+	} \
+	virtual void leaveToChildEvent(QEvent *e, QWidget *child) { /* e -- from enterEvent() of child TWidget */ \
+	} \
+	virtual void enterFromChildEvent(QEvent *e, QWidget *child) { /* e -- from leaveEvent() of child TWidget */ \
+	} \
+	void moveToLeft(int x, int y, int outerw = 0) { \
+		move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
+	} \
+	void moveToRight(int x, int y, int outerw = 0) { \
+		move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
+	} \
+	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) { \
+		setGeometry(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - w) : x, y, w, h); \
+	} \
+	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) { \
+		setGeometry(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - w), y, w, h); \
+	} \
+	QPoint myrtlpoint(int x, int y) const { \
+		return rtlpoint(x, y, width()); \
+	} \
+	QPoint myrtlpoint(const QPoint p) const { \
+		return rtlpoint(p, width()); \
+	} \
+	QRect myrtlrect(int x, int y, int w, int h) const { \
+		return rtlrect(x, y, w, h, width()); \
+	} \
+	QRect myrtlrect(const QRect &r) const { \
+		return rtlrect(r, width()); \
+	} \
+	void rtlupdate(const QRect &r) { \
+		update(myrtlrect(r)); \
+	} \
+	void rtlupdate(int x, int y, int w, int h) { \
+		update(myrtlrect(x, y, w, h)); \
+	} \
 protected: \
-void enterEvent(QEvent *e) override { \
-	TWidget *p(tparent()); \
-	if (p) p->leaveToChildEvent(e, this); \
-	return enterEventHook(e); \
-} \
-void leaveEvent(QEvent *e) override { \
-	TWidget *p(tparent()); \
-	if (p) p->enterFromChildEvent(e, this); \
-	return leaveEventHook(e); \
-}
+	void enterEvent(QEvent *e) override { \
+		TWidget *p(tparent()); \
+		if (p) p->leaveToChildEvent(e, this); \
+		return enterEventHook(e); \
+	} \
+	void leaveEvent(QEvent *e) override { \
+		TWidget *p(tparent()); \
+		if (p) p->enterFromChildEvent(e, this); \
+		return leaveEventHook(e); \
+	}
 
 class TWidget : public QWidget {
 	Q_OBJECT
@@ -238,48 +245,6 @@ protected:
 
 void myEnsureResized(QWidget *target);
 QPixmap myGrab(TWidget *target, QRect rect = QRect());
-
-class PlainShadow : public TWidget {
-public:
-	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override {
-		Painter(this).fillRect(e->rect(), _color->b);
-	}
-
-private:
-	const style::color &_color;
-
-};
-
-class ToggleableShadow : public TWidget {
-public:
-	ToggleableShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
-	}
-
-	enum class Mode {
-		Shown,
-		ShownFast,
-		Hidden,
-		HiddenFast
-	};
-	void setMode(Mode mode);
-
-	bool isFullyShown() const {
-		return _shown && !_a_opacity.animating();
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const style::color &_color;
-	FloatAnimation _a_opacity;
-	bool _shown = true;
-
-};
 
 class SingleDelayedCall : public QObject {
 	Q_OBJECT

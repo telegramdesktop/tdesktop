@@ -32,7 +32,7 @@ NeverFreedPointer<DataStructures> structures;
 namespace internal {
 
 void registerAbstractStructure(AbstractStructure **p) {
-	structures.makeIfNull();
+	structures.createIfNull();
 	structures->insert(p);
 }
 

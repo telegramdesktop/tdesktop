@@ -20,32 +20,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/widgets/media_slider.h"
+#include "ui/widgets/continuous_slider.h"
 
 struct AudioPlaybackState;
-namespace style {
-struct MediaSlider;
-} // namespace style
-namespace Ui {
-class MediaSlider;
-} // namespace Ui
 
 namespace Media {
 namespace Clip {
 
 class Playback {
 public:
-	Playback(QWidget *parent, const style::MediaSlider &st);
+	Playback(Ui::ContinuousSlider *slider);
 
 	void updateState(const AudioPlaybackState &playbackState);
 
 	void setFadeOpacity(float64 opacity) {
 		_slider->setFadeOpacity(opacity);
 	}
-	void setChangeProgressCallback(Ui::MediaSlider::Callback &&callback) {
+	void setChangeProgressCallback(Ui::ContinuousSlider::Callback &&callback) {
 		_slider->setChangeProgressCallback(std_::move(callback));
 	}
-	void setChangeFinishedCallback(Ui::MediaSlider::Callback &&callback) {
+	void setChangeFinishedCallback(Ui::ContinuousSlider::Callback &&callback) {
 		_slider->setChangeFinishedCallback(std_::move(callback));
 	}
 	void setGeometry(int x, int y, int w, int h) {
@@ -68,7 +62,7 @@ public:
 	}
 
 private:
-	Ui::MediaSlider *_slider;
+	Ui::ContinuousSlider *_slider;
 
 	int64 _position = 0;
 	int64 _duration = 0;

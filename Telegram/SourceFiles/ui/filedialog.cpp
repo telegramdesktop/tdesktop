@@ -282,13 +282,13 @@ using QueryList = QList<Query>;
 NeverFreedPointer<QueryList> Queries;
 
 void StartCallback() {
-	Queries.makeIfNull();
+	Queries.createIfNull();
 }
 
 } // namespace
 
 QueryId queryReadFile(const QString &caption, const QString &filter) {
-	Queries.makeIfNull();
+	Queries.createIfNull();
 
 	Queries->push_back(Query(Query::Type::ReadFile, caption, filter));
 	Global::RefHandleFileDialogQueue().call();
@@ -296,7 +296,7 @@ QueryId queryReadFile(const QString &caption, const QString &filter) {
 }
 
 QueryId queryReadFiles(const QString &caption, const QString &filter) {
-	Queries.makeIfNull();
+	Queries.createIfNull();
 
 	Queries->push_back(Query(Query::Type::ReadFiles, caption, filter));
 	Global::RefHandleFileDialogQueue().call();
@@ -304,7 +304,7 @@ QueryId queryReadFiles(const QString &caption, const QString &filter) {
 }
 
 QueryId queryWriteFile(const QString &caption, const QString &filter, const QString &filePath) {
-	Queries.makeIfNull();
+	Queries.createIfNull();
 
 	Queries->push_back(Query(Query::Type::WriteFile, caption, filter, filePath));
 	Global::RefHandleFileDialogQueue().call();
@@ -312,7 +312,7 @@ QueryId queryWriteFile(const QString &caption, const QString &filter, const QStr
 }
 
 QueryId queryReadFolder(const QString &caption) {
-	Queries.makeIfNull();
+	Queries.createIfNull();
 
 	Queries->push_back(Query(Query::Type::ReadFolder, caption));
 	Global::RefHandleFileDialogQueue().call();

@@ -38,6 +38,7 @@ class Result;
 namespace Ui {
 class HistoryDownButton;
 class InnerDropdown;
+class PlainShadow;
 } // namespace Ui
 
 class Dropdown;
@@ -530,7 +531,6 @@ class HistoryWidget : public TWidget, public RPCSender, private base::Subscriber
 	Q_OBJECT
 
 public:
-
 	HistoryWidget(QWidget *parent);
 
 	void start();
@@ -701,15 +701,8 @@ public:
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grapWithoutTopBarShadow() {
-		grabStart();
-		_topShadow.hide();
-	}
-	void grabFinish() override {
-		_inGrab = false;
-		resizeEvent(0);
-		_topShadow.show();
-	}
+	void grapWithoutTopBarShadow();
+	void grabFinish() override;
 
 	bool isItemVisible(HistoryItem *item);
 
@@ -902,8 +895,8 @@ private:
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
 		Text text;
-		IconedButton cancel;
-		PlainShadow shadow;
+		ChildWidget<IconedButton> cancel;
+		ChildWidget<Ui::PlainShadow> shadow;
 	};
 	PinnedBar *_pinnedBar = nullptr;
 	void updatePinnedBar(bool force = false);
@@ -1163,7 +1156,7 @@ private:
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
-	PlainShadow _topShadow;
+	ChildWidget<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
 
 };

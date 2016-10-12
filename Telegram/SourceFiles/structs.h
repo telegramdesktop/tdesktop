@@ -1083,6 +1083,7 @@ public:
 	};
 	bool loaded(FilePathResolveType type = FilePathResolveCached) const;
 	bool loading() const;
+	QString loadingFilePath() const;
 	bool displayLoading() const;
 	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
 	void cancel();
@@ -1320,7 +1321,7 @@ protected:
 class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
-	static void doOpen(DocumentData *document, ActionOnLoad action = ActionOnLoadOpen);
+	static void doOpen(DocumentData *document, HistoryItem *context, ActionOnLoad action = ActionOnLoadOpen);
 protected:
 	void onClickImpl() const override;
 };

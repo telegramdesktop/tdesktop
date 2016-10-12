@@ -46,7 +46,7 @@ void stopModules() {
 } // namespace
 
 void registerModule(ModuleBase *module) {
-	styleModules.makeIfNull();
+	styleModules.createIfNull();
 	styleModules->push_back(module);
 }
 

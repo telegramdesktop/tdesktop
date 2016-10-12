@@ -209,7 +209,7 @@ const DocumentItems *documentItems() {
 namespace internal {
 
 void regDocumentItem(DocumentData *document, ItemBase *item) {
-	documentItemsMap.makeIfNull();
+	documentItemsMap.createIfNull();
 	(*documentItemsMap)[document].insert(item);
 }
 

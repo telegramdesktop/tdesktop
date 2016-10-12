@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_volume_controller.h"
 #include "styles/style_mediaview.h"
 #include "ui/widgets/label_simple.h"
+#include "ui/widgets/media_slider.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/buttons/icon_button.h"
 #include "media/media_audio.h"
@@ -34,7 +35,7 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(this, st::mediaviewPlayback)
+, _playback(new Ui::MediaSlider(this, st::mediaviewPlayback))
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)

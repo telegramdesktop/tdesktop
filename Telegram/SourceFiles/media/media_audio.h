@@ -55,7 +55,7 @@ struct AudioPlaybackState {
 	int32 frequency = 0;
 };
 
-class AudioPlayer : public QObject, public base::Observable<AudioMsgId> {
+class AudioPlayer : public QObject, public base::Observable<AudioMsgId>, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -103,9 +103,6 @@ signals:
 	void unsuppressSong();
 	void suppressAll();
 
-	void songVolumeChanged();
-	void videoVolumeChanged();
-
 private:
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
 	bool updateCurrentStarted(AudioMsgId::Type type, int32 pos = -1);
@@ -150,10 +147,10 @@ private:
 	int *currentIndex(AudioMsgId::Type type);
 	const int *currentIndex(AudioMsgId::Type type) const;
 
-	int _audioCurrent;
+	int _audioCurrent = 0;
 	AudioMsg _audioData[AudioSimultaneousLimit];
 
-	int _songCurrent;
+	int _songCurrent = 0;
 	AudioMsg _songData[AudioSimultaneousLimit];
 
 	AudioMsg _videoData;
@@ -252,11 +249,17 @@ private:
 
 	QTimer _timer, _pauseTimer;
 	QMutex _pauseMutex;
-	bool _pauseFlag, _paused;
+	bool _pauseFlag = false;
+	bool _paused = true;
 
-	bool _suppressAll, _suppressAllAnim, _suppressSong, _suppressSongAnim, _songVolumeChanged, _videoVolumeChanged;
+	bool _suppressAll = false;
+	bool _suppressAllAnim = false;
+	bool _suppressSong = false;
+	bool _suppressSongAnim = false;
+	bool _songVolumeChanged, _videoVolumeChanged;
 	anim::fvalue _suppressAllGain, _suppressSongGain;
-	uint64 _suppressAllStart, _suppressSongStart;
+	uint64 _suppressAllStart = 0;
+	uint64 _suppressSongStart = 0;
 
 };
 

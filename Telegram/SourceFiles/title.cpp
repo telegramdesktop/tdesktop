@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/aboutbox.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_title_button.h"
-#include "media/player/media_player_widget.h"
+#include "media/player/media_player_panel.h"
 #include "media/player/media_player_instance.h"
 
 class TitleWidget::Hider : public TWidget {
@@ -103,10 +103,16 @@ TitleWidget::TitleWidget(QWidget *parent) : TWidget(parent)
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 	if (Media::Player::exists()) {
-		subscribe(Media::Player::instance()->createdNotifier(), [this](const Media::Player::CreatedEvent &e) {
+		subscribe(Media::Player::instance()->createdNotifier(), [this](const Media::Player::PanelEvent &e) {
 			if (!_player) {
 				_player.create(this);
-				_player->installEventFilter(e.widget);
+				updateControlsVisibility();
+			}
+			_player->installEventFilter(e.panel);
+		});
+		subscribe(Media::Player::instance()->destroyedNotifier(), [this](const Media::Player::PanelEvent &e) {
+			if (_player) {
+				_player.destroyDelayed();
 				updateControlsVisibility();
 			}
 		});

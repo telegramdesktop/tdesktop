@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/buttons/round_button.h"
+#include "ui/widgets/shadow.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
@@ -34,7 +35,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogswidget.h"
 #include "historywidget.h"
 #include "overviewwidget.h"
-#include "playerwidget.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "fileuploader.h"
@@ -50,11 +50,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
+#include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
+#include "media/player/media_player_volume_controller.h"
 #include "media/player/media_player_instance.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "window/chat_background.h"
+#include "window/player_wrap_widget.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {
@@ -63,15 +66,12 @@ StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&me
 StackItemSection::~StackItemSection() {
 }
 
-#include "boxes/confirmphonebox.h"
-
 MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _a_show(animation(this, &MainWidget::step_show))
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowColor)
 , _dialogs(this)
 , _history(this)
-, _player(this)
 , _topBar(this)
 , _mediaType(this)
 , _api(new ApiWrap(this)) {
@@ -130,8 +130,6 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	}
 	App::wnd()->getTitle()->updateControlsVisibility();
 	_topBar->hide();
-
-	_player->hidePlayer();
 
 	orderWidgets();
 
@@ -1344,7 +1342,6 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 }
 
 void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (!_player->isHidden()) _player->mediaOverviewUpdated(peer, type);
 	if (_overview && (_overview->peer() == peer || _overview->peer()->migrateFrom() == peer)) {
 		_overview->mediaOverviewUpdated(peer, type);
 
@@ -1581,24 +1578,8 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		if (!_mediaPlayer && Media::Player::exists()) {
-			_mediaPlayer.create(this);
-			updateMediaPlayerPosition();
-			orderWidgets();
-			Media::Player::instance()->createdNotifier().notify(Media::Player::CreatedEvent(_mediaPlayer), true);
-		}
-
-		_player->updateState(playing, playbackState);
-
-		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-			if (!_player->isOpened()) {
-				_player->openPlayer();
-				if (_player->isHidden() && !_a_show.animating()) {
-					_player->showPlayer();
-					_playerHeight = _contentScrollAddToY = _player->height();
-					resizeEvent(0);
-				}
-			}
+		if (!_playerPanel && !_player && Media::Player::exists()) {
+			createPlayer();
 		}
 	}
 
@@ -1612,15 +1593,59 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 }
 
-void MainWidget::closePlayer() {
-	if (_player->isOpened()) {
-		_player->closePlayer();
-		if (!_player->isHidden() && !_a_show.animating()) {
-			_player->hidePlayer();
-			_contentScrollAddToY = -_player->height();
-			_playerHeight = 0;
-			resizeEvent(0);
+void MainWidget::switchToPanelPlayer() {
+	_player->slideUp();
+	_playerVolume.destroyDelayed();
+	if (!_playerPanel) {
+		_playerPanel.create(this, Media::Player::Panel::Layout::Full);
+		_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
+		updateMediaPlayerPosition();
+		orderWidgets();
+		Media::Player::instance()->createdNotifier().notify(Media::Player::PanelEvent(_playerPanel), true);
+	}
+}
+
+void MainWidget::switchToFixedPlayer() {
+	_playerPanel.destroyDelayed();
+	if (!_player) {
+		createPlayer();
+	} else {
+		_player->slideDown();
+		if (!_playerVolume) {
+			_playerVolume.create(this);
+			_player->entity()->volumeWidgetCreated(_playerVolume);
+			updateMediaPlayerPosition();
 		}
+	}
+}
+
+void MainWidget::createPlayer() {
+	_player.create(this, [this] { playerHeightUpdated(); });
+	_player->entity()->setCloseCallback([this] { switchToPanelPlayer(); });
+	_playerVolume.create(this);
+	_player->entity()->volumeWidgetCreated(_playerVolume);
+	orderWidgets();
+	if (_a_show.animating()) {
+		_player->showFast();
+		_player->hide();
+	} else {
+		_player->hideFast();
+		_player->slideDown();
+		_playerHeight = _contentScrollAddToY = _player->contentHeight();
+		updateControlsGeometry();
+	}
+}
+
+void MainWidget::playerHeightUpdated() {
+	auto playerHeight = _player->contentHeight();
+	if (playerHeight != _playerHeight) {
+		_contentScrollAddToY += playerHeight - _playerHeight;
+		_playerHeight = playerHeight;
+		updateControlsGeometry();
+	}
+	if (_playerPanel && !_playerHeight && _player->isHidden()) {
+		_playerVolume.destroyDelayed();
+		_player.destroyDelayed();
 	}
 }
 
@@ -1645,13 +1670,6 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 	App::wnd()->documentUpdated(document);
 
 	if (!document->loaded() && document->song()) {
-		if (audioPlayer() && document->loading()) {
-			AudioMsgId playing;
-			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-			if (playing.audio() == document && !_player->isHidden()) {
-				_player->updateState(playing, playbackState);
-			}
-		}
 		if (Media::Player::exists()) {
 			Media::Player::instance()->documentLoadProgress(document);
 		}
@@ -2314,6 +2332,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		result.withTopBarShadow = false;
 	}
 
+	if (_player) {
+		_player->hideShadow();
+	}
 	if (selectingPeer() && Adaptive::OneColumn()) {
 		result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else if (_wideSection) {
@@ -2329,12 +2350,15 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		if (Adaptive::OneColumn()) {
 			result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 		} else {
-			_sideShadow.hide();
+			_sideShadow->hide();
 			result.oldContentCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-			_sideShadow.show();
+			_sideShadow->show();
 		}
 		if (_overview) _overview->grabFinish();
 		_history->grabFinish();
+	}
+	if (_player) {
+		_player->showShadow();
 	}
 
 	return result;
@@ -2432,11 +2456,16 @@ void MainWidget::showBackFromStack() {
 
 void MainWidget::orderWidgets() {
 	_topBar->raise();
-	_player->raise();
 	_dialogs->raise();
+	if (_player) {
+		_player->raise();
+	}
+	if (_playerVolume) {
+		_playerVolume->raise();
+	}
 	_mediaType->raise();
-	_sideShadow.raise();
-	if (_mediaPlayer) _mediaPlayer->raise();
+	_sideShadow->raise();
+	if (_playerPanel) _playerPanel->raise();
 	if (_hider) _hider->raise();
 }
 
@@ -2450,12 +2479,18 @@ QRect MainWidget::historyRect() const {
 QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->stopAnim();
 	QPixmap result;
+	if (_player) {
+		_player->hideShadow();
+	}
 	if (Adaptive::OneColumn()) {
 		result = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else {
-		_sideShadow.hide();
+		_sideShadow->hide();
 		result = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-		_sideShadow.show();
+		_sideShadow->show();
+	}
+	if (_player) {
+		_player->showShadow();
 	}
 	return result;
 }
@@ -2602,11 +2637,11 @@ void MainWidget::hideAll() {
 	if (_overview) {
 		_overview->hide();
 	}
-	_sideShadow.hide();
+	_sideShadow->hide();
 	_topBar->hide();
 	_mediaType->hide();
-	if (_player->isOpened() && !_player->isHidden()) {
-		_player->hidePlayer();
+	if (_player) {
+		_player->hide();
 		_playerHeight = 0;
 	}
 }
@@ -2617,7 +2652,7 @@ void MainWidget::showAll() {
 		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
 	if (Adaptive::OneColumn()) {
-		_sideShadow.hide();
+		_sideShadow->hide();
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
@@ -2654,7 +2689,7 @@ void MainWidget::showAll() {
 			}
 		}
 	} else {
-		_sideShadow.show();
+		_sideShadow->show();
 		if (_hider) {
 			_hider->show();
 			if (_forwardConfirm) {
@@ -2677,9 +2712,9 @@ void MainWidget::showAll() {
 			_topBar->show();
 		}
 	}
-	if (_player->isOpened() && _player->isHidden()) {
-		_player->showPlayer();
-		_playerHeight = _player->height();
+	if (_player) {
+		_player->show();
+		_playerHeight = _player->contentHeight();
 	}
 	resizeEvent(0);
 
@@ -2695,30 +2730,35 @@ inline int chatsListWidth(int windowWidth) {
 } // namespace
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
-	int32 tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
-	updateMediaPlayerPosition();
+	updateControlsGeometry();
+}
+
+void MainWidget::updateControlsGeometry() {
+	auto tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
 	if (Adaptive::OneColumn()) {
 		_dialogsWidth = width();
-		_player->setGeometry(0, 0, _dialogsWidth, _player->height());
+		if (_player) {
+			_player->resizeToWidth(_dialogsWidth);
+			_player->moveToLeft(0, 0);
+		}
 		_dialogs->setGeometry(0, _playerHeight, _dialogsWidth, height() - _playerHeight);
 		_topBar->setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight);
 		_history->setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
 		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
 	} else {
 		_dialogsWidth = chatsListWidth(width());
-		_dialogs->resize(_dialogsWidth, height());
-		_dialogs->moveToLeft(0, 0);
-		_sideShadow.resize(st::lineWidth, height());
-		_sideShadow.moveToLeft(_dialogsWidth, 0);
-		_player->resize(width() - _dialogsWidth, _player->height());
-		_player->moveToLeft(_dialogsWidth, 0);
-		_topBar->resize(width() - _dialogsWidth, st::topBarHeight);
-		_topBar->moveToLeft(_dialogsWidth, _playerHeight);
-		_history->resize(width() - _dialogsWidth, height() - _playerHeight - tbh);
-		_history->moveToLeft(_dialogsWidth, _playerHeight + tbh);
+		auto sectionWidth = width() - _dialogsWidth;
+
+		_dialogs->setGeometryToLeft(0, 0, _dialogsWidth, height());
+		_sideShadow->setGeometryToLeft(_dialogsWidth, 0, st::lineWidth, height());
+		if (_player) {
+			_player->resizeToWidth(sectionWidth);
+			_player->moveToLeft(_dialogsWidth, 0);
+		}
+		_topBar->setGeometryToLeft(_dialogsWidth, _playerHeight, sectionWidth, st::topBarHeight);
+		_history->setGeometryToLeft(_dialogsWidth, _playerHeight + tbh, sectionWidth, height() - _playerHeight - tbh);
 		if (_hider) {
-			_hider->resize(width() - _dialogsWidth, height());
-			_hider->moveToLeft(_dialogsWidth, 0);
+			_hider->setGeometryToLeft(_dialogsWidth, 0, sectionWidth, height());
 		}
 	}
 	_mediaType->moveToLeft(width() - _mediaType->width(), _playerHeight + st::topBarHeight);
@@ -2727,12 +2767,18 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 		_wideSection->setGeometryWithTopMoved(wideSectionGeometry, _contentScrollAddToY);
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
+	updateMediaPlayerPosition();
 	_contentScrollAddToY = 0;
 }
 
 void MainWidget::updateMediaPlayerPosition() {
-	if (_mediaPlayer) {
-		_mediaPlayer->moveToRight(0, 0);
+	if (_playerPanel) {
+		_playerPanel->moveToRight(0, 0);
+	}
+	if (_playerVolume && _player) {
+		auto relativePosition = _player->entity()->getPositionForVolumeWidget();
+		auto playerMargins = _playerVolume->getMargin();
+		_playerVolume->moveToLeft(_player->x() + relativePosition.x() - playerMargins.left(), _player->y() + relativePosition.y() - playerMargins.top());
 	}
 }
 
@@ -2745,7 +2791,10 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 
 void MainWidget::updateAdaptiveLayout() {
 	showAll();
-	_sideShadow.setVisible(!Adaptive::OneColumn());
+	_sideShadow->setVisible(!Adaptive::OneColumn());
+	if (_player) {
+		_player->updateAdaptiveLayout();
+	}
 }
 
 bool MainWidget::needBackButton() {
@@ -2807,8 +2856,8 @@ Window::TopBarWidget *MainWidget::topBar() {
 	return _topBar;
 }
 
-PlayerWidget *MainWidget::player() {
-	return _player;
+int MainWidget::backgroundFromY() const {
+	return (_topBar->isHidden() ? 0 : (-st::topBarHeight)) - _playerHeight;
 }
 
 void MainWidget::onTopBarClick() {
@@ -3486,6 +3535,8 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect) ||
+			(_playerPanel && _playerPanel->overlaps(globalRect)) ||
+			(_playerVolume && _playerVolume->overlaps(globalRect)) ||
 			_mediaType->overlaps(globalRect));
 }
 

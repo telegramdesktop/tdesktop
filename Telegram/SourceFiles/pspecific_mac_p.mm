@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "playerwidget.h"
 #include "localstorage.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/mac_utilities.h"

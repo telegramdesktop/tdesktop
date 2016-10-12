@@ -182,12 +182,16 @@ signals:
 protected:
 	void readImage(const QSize &shrinkBox) const;
 
-	FileLoader *_prev, *_next;
-	int32 _priority;
+	FileLoader *_prev = nullptr;
+	FileLoader *_next = nullptr;
+	int _priority = 0;
 	FileLoaderQueue *_queue;
 
-	bool _paused, _autoLoading, _inQueue, _complete;
-	mutable LocalLoadStatus _localStatus;
+	bool _paused = false;
+	bool _autoLoading = false;
+	bool _inQueue = false;
+	bool _complete = false;
+	mutable LocalLoadStatus _localStatus = LocalNotTried;
 
 	virtual bool tryLoadLocal() = 0;
 	virtual void cancelRequests() = 0;
@@ -201,7 +205,7 @@ protected:
 
 	QFile _file;
 	QString _fname;
-	bool _fileIsOpen;
+	bool _fileIsOpen = false;
 
 	LoadToCacheSetting _toCache;
 	LoadFromCloudSetting _fromCloud;
@@ -212,7 +216,7 @@ protected:
 	mtpTypeId _type;
 	LocationType _locationType;
 
-	TaskId _localTaskId;
+	TaskId _localTaskId = 0;
 	mutable QByteArray _imageFormat;
 	mutable QPixmap _imagePixmap;
 

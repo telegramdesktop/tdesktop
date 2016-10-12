@@ -584,8 +584,11 @@ struct Data {
 
 	int32 DebugLoggingFlags = 0;
 
+	float64 RememberedSongVolume = kDefaultVolume;
 	float64 SongVolume = kDefaultVolume;
+	base::Observable<void> SongVolumeChanged;
 	float64 VideoVolume = kDefaultVolume;
+	base::Observable<void> VideoVolumeChanged;
 
 	// config
 	int32 ChatSizeMax = 200;
@@ -694,8 +697,11 @@ DefineVar(Global, bool, ScreenIsLocked);
 
 DefineVar(Global, int32, DebugLoggingFlags);
 
+DefineVar(Global, float64, RememberedSongVolume);
 DefineVar(Global, float64, SongVolume);
+DefineRefVar(Global, base::Observable<void>, SongVolumeChanged);
 DefineVar(Global, float64, VideoVolume);
+DefineRefVar(Global, base::Observable<void>, VideoVolumeChanged);
 
 // config
 DefineVar(Global, int32, ChatSizeMax);

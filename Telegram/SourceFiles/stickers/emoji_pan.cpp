@@ -1249,7 +1249,7 @@ void StickerPanInner::selectInlineResult(int row, int column) {
 		} else if (document->loading()) {
 			document->cancel();
 		} else {
-			DocumentOpenClickHandler::doOpen(document, ActionOnLoadNone);
+			DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
 		}
 	} else if (auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {

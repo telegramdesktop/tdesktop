@@ -20,62 +20,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/widgets/continuous_slider.h"
+
 namespace style {
 struct MediaSlider;
 } // namespace style
 
 namespace Ui {
 
-class MediaSlider : public TWidget {
+class MediaSlider : public ContinuousSlider {
 public:
 	MediaSlider(QWidget *parent, const style::MediaSlider &st);
 
-	float64 value() const;
-	void setValue(float64 value, bool animated);
-	void setFadeOpacity(float64 opacity);
-	void setDisabled(bool disabled);
-
-	using Callback = base::lambda_unique<void(float64)>;
-	void setChangeProgressCallback(Callback &&callback) {
-		_changeProgressCallback = std_::move(callback);
-	}
-	void setChangeFinishedCallback(Callback &&callback) {
-		_changeFinishedCallback = std_::move(callback);
+	void setAlwaysDisplayMarker(bool alwaysDisplayMarker) {
+		_alwaysDisplayMarker = alwaysDisplayMarker;
+		update();
 	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
 
 private:
-	void step_value(float64 ms, bool timer);
-	void setOver(bool over);
-	void updateDownValueFromPos(int pos);
-
-	int lineLeft() const;
-	int lineWidth() const;
+	QRect getSeekRect() const override;
+	float64 getOverDuration() const override;
 
 	const style::MediaSlider &_st;
-
-	bool _disabled = false;
-
-	Callback _changeProgressCallback;
-	Callback _changeFinishedCallback;
-
-	bool _over = false;
-	FloatAnimation _a_over;
-
-	anim::fvalue a_value = { 0., 0. };
-	Animation _a_value;
-
-	bool _mouseDown = false;
-	float64 _downValue = 0.;
-
-	float64 _fadeOpacity = 1.;
+	bool _alwaysDisplayMarker = false;
 
 };
 

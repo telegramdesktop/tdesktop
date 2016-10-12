@@ -24,13 +24,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "inline_bots/inline_bot_result.h"
+#include "media/media_audio.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
-#include "playerwidget.h"
 
 namespace InlineBots {
 namespace Layout {

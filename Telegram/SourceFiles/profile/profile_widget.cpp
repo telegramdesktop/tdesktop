@@ -38,7 +38,7 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
 
-	_fixedBarShadow->setMode(ToggleableShadow::Mode::HiddenFast);
+	_fixedBarShadow->setMode(Ui::ToggleableShadow::Mode::HiddenFast);
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
@@ -85,7 +85,7 @@ bool Widget::showInternal(const Window::SectionMemento *memento) {
 void Widget::setInternalState(const SectionMemento *memento) {
 	myEnsureResized(this);
 	_scroll->scrollToY(memento->_scrollTop);
-	_fixedBarShadow->setMode(memento->_scrollTop > 0 ? ToggleableShadow::Mode::ShownFast : ToggleableShadow::Mode::HiddenFast);
+	_fixedBarShadow->setMode(memento->_scrollTop > 0 ? Ui::ToggleableShadow::Mode::ShownFast : Ui::ToggleableShadow::Mode::HiddenFast);
 }
 
 std_::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
@@ -116,14 +116,14 @@ void Widget::resizeEvent(QResizeEvent *e) {
 		}
 		int scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-		_fixedBarShadow->setMode((scrollTop > 0) ? ToggleableShadow::Mode::Shown : ToggleableShadow::Mode::Hidden);
+		_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::Shown : Ui::ToggleableShadow::Mode::Hidden);
 	}
 }
 
 void Widget::onScroll() {
 	int scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	_fixedBarShadow->setMode((scrollTop > 0) ? ToggleableShadow::Mode::Shown : ToggleableShadow::Mode::Hidden);
+	_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::Shown : Ui::ToggleableShadow::Mode::Hidden);
 }
 
 void Widget::showAnimatedHook() {

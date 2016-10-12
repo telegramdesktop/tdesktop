@@ -26,64 +26,216 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/media_slider.h"
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
+#include "mainwindow.h"
 
 namespace Media {
 namespace Player {
 
 VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
-, _toggle(this, st::mediaPlayerVolumeToggle)
-, _slider(this, st::mediaPlayerPlayback) {
-	_toggle->setClickedCallback([this]() {
-		setVolume(_slider->value() ? 0. : _rememberedVolume);
-	});
+, _slider(this, st::mediaPlayerPanelPlayback) {
 	_slider->setChangeProgressCallback([this](float64 volume) {
 		applyVolumeChange(volume);
 	});
 	_slider->setChangeFinishedCallback([this](float64 volume) {
 		if (volume > 0) {
-			_rememberedVolume = volume;
+			Global::SetRememberedSongVolume(volume);
 		}
 		applyVolumeChange(volume);
+	});
+	subscribe(Global::RefSongVolumeChanged(), [this] {
+		if (!_slider->isChanging()) {
+			_slider->setValue(Global::SongVolume(), true);
+		}
 	});
 
 	auto animated = false;
 	setVolume(Global::SongVolume(), animated);
 
-	resize(st::mediaPlayerVolumeWidth, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlayback.width);
+	resize(st::mediaPlayerPanelVolumeWidth, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
+}
+
+void VolumeController::setIsVertical(bool vertical) {
+	using Direction = Ui::MediaSlider::Direction;
+	_slider->setDirection(vertical ? Direction::Vertical : Direction::Horizontal);
+	_slider->setAlwaysDisplayMarker(vertical);
 }
 
 void VolumeController::resizeEvent(QResizeEvent *e) {
-	_slider->resize(st::mediaPlayerVolumeLength, height());
-	_slider->moveToRight(0, 0);
-	_toggle->moveToLeft(0, (height() - _toggle->height()) / 2);
+	_slider->setGeometry(rect());
 }
 
 void VolumeController::setVolume(float64 volume, bool animated) {
 	_slider->setValue(volume, animated);
 	if (volume > 0) {
-		_rememberedVolume = volume;
+		Global::SetRememberedSongVolume(volume);
 	}
 	applyVolumeChange(volume);
 }
 
 void VolumeController::applyVolumeChange(float64 volume) {
-	if (volume > 0) {
-		if (volume < 1 / 3.) {
-			_toggle->setIcon(&st::mediaPlayerVolumeIcon1);
-		} else if (volume < 2 / 3.) {
-			_toggle->setIcon(&st::mediaPlayerVolumeIcon2);
-		} else {
-			_toggle->setIcon(&st::mediaPlayerVolumeIcon3);
-		}
-	} else {
-		_toggle->setIcon(nullptr);
-	}
 	if (volume != Global::SongVolume()) {
 		Global::SetSongVolume(volume);
-		if (auto player = audioPlayer()) {
-			emit player->songVolumeChanged();
-		}
+		Global::RefSongVolumeChanged().notify();
 	}
+}
+
+VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
+, _shadow(st::defaultInnerDropdown.shadow)
+, _controller(this) {
+	hide();
+	_controller->setIsVertical(true);
+
+	_hideTimer.setSingleShot(true);
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
+
+	_showTimer.setSingleShot(true);
+	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShowStart()));
+
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));
+	}
+
+	hide();
+	auto margin = getMargin();
+	resize(margin.left() + st::mediaPlayerVolumeSize.width() + margin.right(), margin.top() + st::mediaPlayerVolumeSize.height() + margin.bottom());
+}
+
+QMargins VolumeWidget::getMargin() const {
+	return QMargins(st::mediaPlayerVolumeMargin, st::mediaPlayerPlayback.fullWidth, st::mediaPlayerVolumeMargin, st::mediaPlayerVolumeMargin);
+}
+
+bool VolumeWidget::overlaps(const QRect &globalRect) {
+	if (isHidden() || _a_appearance.animating()) return false;
+
+	return rect().marginsRemoved(getMargin()).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+}
+
+void VolumeWidget::onWindowActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
+		leaveEvent(nullptr);
+	}
+}
+
+void VolumeWidget::resizeEvent(QResizeEvent *e) {
+	auto inner = rect().marginsRemoved(getMargin());
+	_controller->setGeometry(inner.x(), inner.y() - st::lineWidth, inner.width(), inner.height() + st::lineWidth - ((st::mediaPlayerVolumeSize.width() - st::mediaPlayerPanelPlayback.width) / 2));
+}
+
+void VolumeWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	if (!_cache.isNull()) {
+		bool animating = _a_appearance.animating(getms());
+		if (animating) {
+			p.setOpacity(_a_appearance.current(_hiding));
+		} else if (_hiding) {
+			hidingFinished();
+			return;
+		}
+		p.drawPixmap(0, 0, _cache);
+		if (!animating) {
+			showChildren();
+			_cache = QPixmap();
+		}
+		return;
+	}
+
+	// draw shadow
+	auto shadowedRect = rect().marginsRemoved(getMargin());
+	using ShadowSide = Ui::RectShadow::Side;
+	auto shadowedSides = ShadowSide::Left | ShadowSide::Right | ShadowSide::Bottom;
+	_shadow.paint(p, shadowedRect, st::defaultInnerDropdown.shadowShift, shadowedSides);
+	p.fillRect(shadowedRect.x(), 0, shadowedRect.width(), shadowedRect.y() + shadowedRect.height(), st::windowBg);
+}
+
+void VolumeWidget::enterEvent(QEvent *e) {
+	_hideTimer.stop();
+	if (_a_appearance.animating(getms())) {
+		onShowStart();
+	} else {
+		_showTimer.start(0);
+	}
+	return TWidget::enterEvent(e);
+}
+
+void VolumeWidget::leaveEvent(QEvent *e) {
+	_showTimer.stop();
+	if (_a_appearance.animating(getms())) {
+		onHideStart();
+	} else {
+		_hideTimer.start(300);
+	}
+	return TWidget::leaveEvent(e);
+}
+
+void VolumeWidget::otherEnter() {
+	_hideTimer.stop();
+	if (_a_appearance.animating(getms())) {
+		onShowStart();
+	} else {
+		_showTimer.start(0);
+	}
+}
+
+void VolumeWidget::otherLeave() {
+	_showTimer.stop();
+	if (_a_appearance.animating(getms())) {
+		onHideStart();
+	} else {
+		_hideTimer.start(0);
+	}
+}
+
+void VolumeWidget::onShowStart() {
+	if (isHidden()) {
+		show();
+	} else if (!_hiding) {
+		return;
+	}
+	_hiding = false;
+	startAnimation();
+}
+
+void VolumeWidget::onHideStart() {
+	if (_hiding) return;
+
+	_hiding = true;
+	startAnimation();
+}
+
+void VolumeWidget::startAnimation() {
+	auto from = _hiding ? 1. : 0.;
+	auto to = _hiding ? 0. : 1.;
+	if (_cache.isNull()) {
+		showChildren();
+		_cache = myGrab(this);
+	}
+	hideChildren();
+	_a_appearance.start([this] { appearanceCallback(); }, from, to, st::defaultInnerDropdown.duration);
+}
+
+void VolumeWidget::appearanceCallback() {
+	if (!_a_appearance.animating() && _hiding) {
+		_hiding = false;
+		hidingFinished();
+	} else {
+		update();
+	}
+}
+
+void VolumeWidget::hidingFinished() {
+	hide();
+	showChildren();
+	_cache = QPixmap();
+}
+
+bool VolumeWidget::eventFilter(QObject *obj, QEvent *e) {
+	if (e->type() == QEvent::Enter) {
+		otherEnter();
+	} else if (e->type() == QEvent::Leave) {
+		otherLeave();
+	}
+	return false;
 }
 
 } // namespace Player

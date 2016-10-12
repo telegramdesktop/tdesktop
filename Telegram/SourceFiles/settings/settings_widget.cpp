@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
 #include "styles/style_settings.h"
+#include "ui/widgets/shadow.h"
 #include "ui/scrollarea.h"
 #include "mainwindow.h"
 #include "mainwidget.h"

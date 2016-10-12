@@ -175,29 +175,22 @@ void TaskQueueWorker::onTaskAdded() {
 FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
-, _duration(0)
 , _type(type)
-, _confirm(confirm)
-, _result(0) {
+, _confirm(confirm) {
 }
 
 FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(rand_value<uint64>())
 , _to(to)
 , _content(content)
-, _duration(0)
-, _type(type)
-, _confirm(FileLoadNoForceConfirm)
-, _result(0) {
+, _type(type) {
 }
 
 FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(rand_value<uint64>())
 , _to(to)
 , _image(image)
-, _duration(0)
 , _type(type)
 , _confirm(confirm)
-, _originalText(originalText)
-, _result(0) {
+, _originalText(originalText) {
 }
 
 FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to) : _id(rand_value<uint64>())
@@ -205,9 +198,7 @@ FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceW
 , _content(voice)
 , _duration(duration)
 , _waveform(waveform)
-, _type(PrepareAudio)
-, _confirm(FileLoadNoForceConfirm)
-, _result(0) {
+, _type(PrepareAudio) {
 }
 
 void FileLoadTask::process() {

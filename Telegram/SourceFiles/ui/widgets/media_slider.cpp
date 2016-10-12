@@ -25,148 +25,78 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-MediaSlider::MediaSlider(QWidget *parent, const style::MediaSlider &st) : TWidget(parent)
-, _st(st)
-, _a_value(animation(this, &MediaSlider::step_value)) {
-	setCursor(style::cur_pointer);
+MediaSlider::MediaSlider(QWidget *parent, const style::MediaSlider &st) : ContinuousSlider(parent)
+, _st(st) {
 }
 
-float64 MediaSlider::value() const {
-	return a_value.current();
+QRect MediaSlider::getSeekRect() const {
+	return isHorizontal()
+		? QRect(_st.seekSize.width() / 2, 0, width() - _st.seekSize.width(), height())
+		: QRect(0, _st.seekSize.height() / 2, width(), height() - _st.seekSize.width());
 }
 
-void MediaSlider::setDisabled(bool disabled) {
-	if (_disabled != disabled) {
-		_disabled = disabled;
-		setCursor(_disabled ? style::cur_default : style::cur_pointer);
-		update();
-	}
-}
-
-void MediaSlider::setValue(float64 value, bool animated) {
-	if (animated) {
-		a_value.start(value);
-		_a_value.start();
-	} else {
-		a_value = anim::fvalue(value, value);
-		_a_value.stop();
-	}
-	update();
-}
-
-void MediaSlider::setFadeOpacity(float64 opacity) {
-	_fadeOpacity = opacity;
-	update();
-}
-
-void MediaSlider::step_value(float64 ms, bool timer) {
-	float64 dt = ms / (2 * AudioVoiceMsgUpdateView);
-	if (dt >= 1) {
-		_a_value.stop();
-		a_value.finish();
-	} else {
-		a_value.update(qMin(dt, 1.), anim::linear);
-	}
-	if (timer) update();
-}
-
-int MediaSlider::lineLeft() const {
-	return (_st.seekSize.width() / 2);
-}
-
-int MediaSlider::lineWidth() const {
-	return (width() - _st.seekSize.width());
+float64 MediaSlider::getOverDuration() const {
+	return _st.duration;
 }
 
 void MediaSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-
-	int radius = _st.width / 2;
-	p.setOpacity(_fadeOpacity);
 	p.setPen(Qt::NoPen);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 
+	auto horizontal = isHorizontal();
 	auto ms = getms();
-	_a_value.step(ms);
-	auto over = _a_over.current(ms, _over ? 1. : 0.);
-	int skip = lineLeft();
-	int length = lineWidth();
-	float64 prg = _mouseDown ? _downValue : a_value.current();
-	int32 from = skip, mid = _disabled ? 0 : qRound(from + prg * length), end = from + length;
+	auto masterOpacity = fadeOpacity();
+	auto radius = _st.width / 2;
+	auto disabled = isDisabled();
+	auto over = getCurrentOverFactor(ms);
+	auto seekRect = getSeekRect();
+	auto value = getCurrentValue(ms);
+
+	// invert colors and value for vertical
+	if (!horizontal) value = 1. - value;
+
+	auto markerFrom = (horizontal ? seekRect.x() : seekRect.y());
+	auto markerLength = (horizontal ? seekRect.width() : seekRect.height());
+	auto from = _alwaysDisplayMarker ? 0 : markerFrom;
+	auto length = _alwaysDisplayMarker ? (horizontal ? width() : height()) : markerLength;
+	auto mid = disabled ? from : qRound(from + value * length);
+	auto end = from + length;
 	if (mid > from) {
-		p.setClipRect(0, 0, mid, height());
-		p.setOpacity(_fadeOpacity * (over * _st.activeOpacity + (1. - over) * _st.inactiveOpacity));
-		p.setBrush(_st.activeFg);
-		p.drawRoundedRect(from, (height() - _st.width) / 2, mid + radius - from, _st.width, radius, radius);
+		auto fromClipRect = horizontal ? QRect(0, 0, mid, height()) : QRect(0, 0, width(), mid);
+		auto fromRect = horizontal
+			? QRect(from, (height() - _st.width) / 2, mid + radius - from, _st.width)
+			: QRect((width() - _st.width) / 2, from, _st.width, mid + radius - from);
+		p.setClipRect(fromClipRect);
+		p.setOpacity(masterOpacity * (over * _st.activeOpacity + (1. - over) * _st.inactiveOpacity));
+		p.setBrush(horizontal ? _st.activeFg : _st.inactiveFg);
+		p.drawRoundedRect(fromRect, radius, radius);
 	}
 	if (end > mid) {
-		p.setClipRect(mid, 0, width() - mid, height());
-		p.setOpacity(_fadeOpacity);
-		p.setBrush(_st.inactiveFg);
-		p.drawRoundedRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width, radius, radius);
+		auto endClipRect = horizontal ? QRect(mid, 0, width() - mid, height()) : QRect(0, mid, width(), height() - mid);
+		auto endRect = horizontal
+			? QRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width)
+			: QRect((width() - _st.width) / 2, mid - radius, _st.width, end - (mid - radius));
+		p.setClipRect(endClipRect);
+		p.setOpacity(masterOpacity);
+		p.setBrush(horizontal ? _st.inactiveFg : _st.activeFg);
+		p.drawRoundedRect(endRect, radius, radius);
 	}
-	if (!_disabled && over > 0) {
-		int x = mid - skip;
-		p.setClipRect(rect());
-		p.setOpacity(_fadeOpacity * _st.activeOpacity);
-		auto seekButton = QRect(x, (height() - _st.seekSize.height()) / 2, _st.seekSize.width(), _st.seekSize.height());
-		int remove = ((1. - over) * _st.seekSize.width()) / 2.;
-		if (remove * 2 < _st.seekSize.width()) {
+	auto markerSizeRatio = disabled ? 0. : (_alwaysDisplayMarker ? 1. : over);
+	if (markerSizeRatio > 0) {
+		auto position = qRound(markerFrom + value * markerLength) - (horizontal ? seekRect.x() : seekRect.y());
+		auto seekButton = horizontal
+			? QRect(position, (height() - _st.seekSize.height()) / 2, _st.seekSize.width(), _st.seekSize.height())
+			: QRect((width() - _st.seekSize.width()) / 2, position, _st.seekSize.width(), _st.seekSize.height());
+		auto size = horizontal ? _st.seekSize.width() : _st.seekSize.height();
+		auto remove = static_cast<int>(((1. - markerSizeRatio) * size) / 2.);
+		if (remove * 2 < size) {
+			p.setClipRect(rect());
+			p.setOpacity(masterOpacity * _st.activeOpacity);
 			p.setBrush(_st.activeFg);
 			p.drawEllipse(seekButton.marginsRemoved(QMargins(remove, remove, remove, remove)));
 		}
 	}
-}
-
-void MediaSlider::mouseMoveEvent(QMouseEvent *e) {
-	if (_mouseDown) {
-		updateDownValueFromPos(e->pos().x());
-	}
-}
-
-void MediaSlider::mousePressEvent(QMouseEvent *e) {
-	_mouseDown = true;
-	_downValue = snap((e->pos().x() - lineLeft()) / float64(lineWidth()), 0., 1.);
-	update();
-	if (_changeProgressCallback) {
-		_changeProgressCallback(_downValue);
-	}
-}
-
-void MediaSlider::mouseReleaseEvent(QMouseEvent *e) {
-	if (_mouseDown) {
-		_mouseDown = false;
-		if (_changeFinishedCallback) {
-			_changeFinishedCallback(_downValue);
-		}
-		a_value = anim::fvalue(_downValue, _downValue);
-		_a_value.stop();
-		update();
-	}
-}
-
-void MediaSlider::updateDownValueFromPos(int pos) {
-	_downValue = snap((pos - lineLeft()) / float64(lineWidth()), 0., 1.);
-	update();
-	if (_changeProgressCallback) {
-		_changeProgressCallback(_downValue);
-	}
-}
-
-void MediaSlider::enterEvent(QEvent *e) {
-	setOver(true);
-}
-
-void MediaSlider::leaveEvent(QEvent *e) {
-	setOver(false);
-}
-
-void MediaSlider::setOver(bool over) {
-	if (_over == over) return;
-
-	_over = over;
-	auto from = _over ? 0. : 1., to = _over ? 1. : 0.;
-	_a_over.start([this] { update(); }, from, to, _st.duration);
 }
 
 } // namespace Ui

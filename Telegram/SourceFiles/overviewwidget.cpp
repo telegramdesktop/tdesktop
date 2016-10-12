@@ -32,9 +32,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "overviewwidget.h"
 #include "application.h"
-#include "playerwidget.h"
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
+#include "media/media_audio.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -1903,13 +1903,8 @@ OverviewInner::~OverviewInner() {
 OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type) : TWidget(parent)
 , _scroll(this, st::historyScroll, false)
 , _inner(this, &_scroll, peer, type)
-, _noDropResizeIndex(false)
 , _a_show(animation(this, &OverviewWidget::step_show))
-, _scrollSetAfterShow(0)
-, _scrollDelta(0)
-, _selCount(0)
-, _topShadow(this, st::shadowColor)
-, _inGrab(false) {
+, _topShadow(this, st::shadowColor) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
@@ -1922,8 +1917,6 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	_scrollTimer.setSingleShot(false);
-
-//	connect(App::main()->player(), SIGNAL(playerSongChanged(const FullMsgId&)), this, SLOT(onPlayerSongChanged(const FullMsgId&)));
 
 	switchType(type);
 }
@@ -1963,8 +1956,8 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 	}
 	_noDropResizeIndex = false;
 
-	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow->resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow->moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 }
 
 void OverviewWidget::paintEvent(QPaintEvent *e) {
@@ -2129,9 +2122,9 @@ void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window
 
 	_cacheUnder = params.oldContentCache;
 	show();
-	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
-	_topShadow.setVisible(params.withTopBarShadow ? true : false);
+	_topShadow->setVisible(params.withTopBarShadow ? true : false);
 	App::main()->topBar()->startAnim();
 
 	_scrollSetAfterShow = _scroll.scrollTop();
@@ -2159,7 +2152,7 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_topShadow.show();
+		_topShadow->show();
 
 		a_coordUnder.finish();
 		a_coordOver.finish();
@@ -2200,6 +2193,17 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (peer() == row->history()->peer || migratePeer() == row->history()->peer) {
 		_inner.changingMsgId(row, newId);
 	}
+}
+
+void OverviewWidget::grapWithoutTopBarShadow() {
+	grabStart();
+	_topShadow->hide();
+}
+
+void OverviewWidget::grabFinish() {
+	_inGrab = false;
+	resizeEvent(0);
+	_topShadow->show();
 }
 
 void OverviewWidget::ui_repaintHistoryItem(const HistoryItem *item) {
@@ -2262,15 +2266,6 @@ void OverviewWidget::onScrollTimer() {
 	int32 d = (_scrollDelta > 0) ? qMin(_scrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_scrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
 	_scroll.scrollToY(_scroll.scrollTop() + d);
 }
-
-//void OverviewWidget::onPlayerSongChanged(const FullMsgId &msgId) {
-//	if (type() == OverviewMusicFiles) {
-//		int32 top = _inner.itemTop(msgId);
-//		if (top > 0) {
-//			_scroll.scrollToY(snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax()));
-//		}
-//	}
-//}
 
 void OverviewWidget::checkSelectingScroll(QPoint point) {
 	if (point.y() < _scroll.scrollTop()) {

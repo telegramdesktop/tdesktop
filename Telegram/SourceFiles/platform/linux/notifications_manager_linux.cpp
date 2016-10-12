@@ -214,7 +214,7 @@ using Notification = QSharedPointer<NotificationData>;
 void start() {
 	if (LibNotifyLoaded()) {
 		if (Libs::notify_is_initted() || Libs::notify_init("Telegram Desktop")) {
-			ManagerInstance.makeIfNull();
+			ManagerInstance.createIfNull();
 			if (!ManagerInstance->init()) {
 				ManagerInstance.clear();
 				LOG(("LibNotify Error: manager failed to init!"));

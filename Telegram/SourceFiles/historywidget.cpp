@@ -51,7 +51,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "window/chat_background.h"
 #include "observer_peer.h"
-#include "playerwidget.h"
 #include "core/qthelp_regex.h"
 
 namespace {
@@ -3124,7 +3123,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachDragDocument->hide();
 	_attachDragPhoto->hide();
 
-	_topShadow.hide();
+	_topShadow->hide();
 
 	connect(_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
 	connect(_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
@@ -4474,7 +4473,7 @@ bool HistoryWidget::canWriteMessage() const {
 
 void HistoryWidget::updateControlsVisibility() {
 	if (!_a_show.animating()) {
-		_topShadow.setVisible(_peer ? true : false);
+		_topShadow->setVisible(_peer ? true : false);
 	}
 	updateToEndVisibility();
 	if (!_history || _a_show.animating()) {
@@ -4501,15 +4500,15 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachType->hide();
 		_emojiPan->hide();
 		if (_pinnedBar) {
-			_pinnedBar->cancel.hide();
-			_pinnedBar->shadow.hide();
+			_pinnedBar->cancel->hide();
+			_pinnedBar->shadow->hide();
 		}
 		return;
 	}
 
 	if (_pinnedBar) {
-		_pinnedBar->cancel.show();
-		_pinnedBar->shadow.show();
+		_pinnedBar->cancel->show();
+		_pinnedBar->shadow->show();
 	}
 	if (_firstLoadRequest && !_scroll.isHidden()) {
 		_scroll.hide();
@@ -5431,11 +5430,11 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 
 	_cacheUnder = params.oldContentCache;
 	show();
-	_topShadow.setVisible(params.withTopBarShadow ? false : true);
+	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_historyToEnd->finishAnimation();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	App::main()->topBar()->startAnim();
-	_topShadow.setVisible(params.withTopBarShadow ? true : false);
+	_topShadow->setVisible(params.withTopBarShadow ? true : false);
 
 	_scroll.hide();
 	_kbScroll.hide();
@@ -5458,8 +5457,8 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_joinChannel.hide();
 	_muteUnmute.hide();
 	if (_pinnedBar) {
-		_pinnedBar->shadow.hide();
-		_pinnedBar->cancel.hide();
+		_pinnedBar->shadow->hide();
+		_pinnedBar->cancel->hide();
 	}
 
 	int delta = st::slideShift;
@@ -5484,7 +5483,7 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_topShadow.setVisible(_peer ? true : false);
+		_topShadow->setVisible(_peer ? true : false);
 		_historyToEnd->finishAnimation();
 
 		a_coordUnder.finish();
@@ -5525,7 +5524,7 @@ void HistoryWidget::doneShow() {
 void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
-	_topShadow.setVisible(_peer ? true : false);
+	_topShadow->setVisible(_peer ? true : false);
 	_historyToEnd->finishAnimation();
 }
 
@@ -6916,6 +6915,17 @@ void HistoryWidget::peerMessagesUpdated() {
 	if (_list) peerMessagesUpdated(_peer->id);
 }
 
+void HistoryWidget::grapWithoutTopBarShadow() {
+	grabStart();
+	_topShadow->hide();
+}
+
+void HistoryWidget::grabFinish() {
+	_inGrab = false;
+	resizeEvent(0);
+	_topShadow->show();
+}
+
 bool HistoryWidget::isItemVisible(HistoryItem *item) {
 	if (isHidden() || _a_show.animating() || !_list) {
 		return false;
@@ -6993,8 +7003,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 			_reportSpamPanel.move(0, st::replyHeight);
 			_fieldAutocomplete->setBoundings(_scroll.geometry());
 		}
-		_pinnedBar->cancel.move(width() - _pinnedBar->cancel.width(), 0);
-		_pinnedBar->shadow.setGeometry(0, st::replyHeight, width(), st::lineWidth);
+		_pinnedBar->cancel->move(width() - _pinnedBar->cancel->width(), 0);
+		_pinnedBar->shadow->setGeometry(0, st::replyHeight, width(), st::lineWidth);
 	} else if (_scroll.y() != 0) {
 		_scroll.move(0, 0);
 		_reportSpamPanel.move(0, 0);
@@ -7029,8 +7039,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	break;
 	}
 
-	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow->resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow->moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {
@@ -7532,7 +7542,6 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 
 HistoryWidget::PinnedBar::PinnedBar(MsgId msgId, HistoryWidget *parent)
 : msgId(msgId)
-, msg(0)
 , cancel(parent, st::replyCancel)
 , shadow(parent, st::shadowColor) {
 }
@@ -7582,15 +7591,15 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 		if (!_pinnedBar) {
 			_pinnedBar = new PinnedBar(pinnedMsgId, this);
 			if (_a_show.animating()) {
-				_pinnedBar->cancel.hide();
-				_pinnedBar->shadow.hide();
+				_pinnedBar->cancel->hide();
+				_pinnedBar->shadow->hide();
 			} else {
-				_pinnedBar->cancel.show();
-				_pinnedBar->shadow.show();
+				_pinnedBar->cancel->show();
+				_pinnedBar->shadow->show();
 			}
-			connect(&_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
+			connect(_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
 			_reportSpamPanel.raise();
-			_topShadow.raise();
+			_topShadow->raise();
 			if (_membersDropdown) {
 				_membersDropdown->raise();
 			}
@@ -8676,11 +8685,11 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.drawText(left, st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
 		p.setPen((((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
-		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel.width() - st::msgReplyPadding.right());
+		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgInDateFg);
-		p.drawText(left, st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - left - _pinnedBar->cancel.width() - st::msgReplyPadding.right()));
+		p.drawText(left, st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right()));
 	}
 }
 
@@ -8715,7 +8724,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	QRect fill(0, 0, width(), App::main()->height());
-	int fromy = (hasTopBar ? (-st::topBarHeight) : 0), x = 0, y = 0;
+	int fromy = App::main()->backgroundFromY(), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
 		auto &pix = Window::chatBackground()->image();
@@ -8751,7 +8760,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 				if (_recording) drawRecording(p);
 			}
 		}
-		if (_pinnedBar && !_pinnedBar->cancel.isHidden()) {
+		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {
 			drawPinnedBar(p);
 		}
 		if (_scroll.isHidden()) {

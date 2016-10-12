@@ -24,6 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/vector_of_moveable.h"
 
 class ConfirmBox;
+namespace Ui {
+class PlainShadow;
+} // namespace Ui
 
 class StickerSetInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
@@ -188,7 +191,7 @@ private:
 	ChildWidget<BoxButton> _cancel = { nullptr };
 	OrderedSet<mtpRequestId> _disenableRequests;
 	mtpRequestId _reorderRequest = 0;
-	ChildWidget<PlainShadow> _topShadow = { nullptr };
+	ChildWidget<Ui::PlainShadow> _topShadow = { nullptr };
 	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
 	QTimer _scrollTimer;

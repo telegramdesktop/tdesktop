@@ -57,7 +57,7 @@ internal::Widget::Direction notificationShiftDirection() {
 } // namespace
 
 void start() {
-	ManagerInstance.makeIfNull();
+	ManagerInstance.createIfNull();
 }
 
 Manager *manager() {

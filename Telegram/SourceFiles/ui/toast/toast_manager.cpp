@@ -40,7 +40,7 @@ Manager::Manager(QWidget *parent) : QObject(parent) {
 }
 
 Manager *Manager::instance(QWidget *parent) {
-	_managers.makeIfNull();
+	_managers.createIfNull();
 	auto i = _managers->constFind(parent);
 	if (i == _managers->cend()) {
 		i = _managers->insert(parent, new Manager(parent));

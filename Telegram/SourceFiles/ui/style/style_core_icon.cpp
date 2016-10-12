@@ -159,7 +159,7 @@ void MonoIcon::ensureLoaded() const {
 		if (_owningPixmap) {
 			_pixmap = createIconPixmap(_mask, _color);
 		} else {
-			iconPixmaps.makeIfNull();
+			iconPixmaps.createIfNull();
 			auto key = qMakePair(_mask, colorKey(_color->c));
 			auto i = iconPixmaps->constFind(key);
 			if (i == iconPixmaps->cend()) {

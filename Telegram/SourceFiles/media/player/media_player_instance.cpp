@@ -84,6 +84,8 @@ void Instance::handleSongUpdate(const AudioMsgId &audioId) {
 void Instance::setCurrent(const AudioMsgId &audioId) {
 	if (_current != audioId) {
 		_current = audioId;
+		_isPlaying = false;
+
 		auto history = _history, migrated = _migrated;
 		auto item = _current ? App::histItemById(_current.contextId()) : nullptr;
 		if (item) {
@@ -263,7 +265,36 @@ void Instance::emitUpdate(CheckCallback check) {
 			next();
 		}
 	}
-	_isPlaying = !(playbackState.state & AudioPlayerStoppedMask);
+	auto isPlaying = !(playbackState.state & AudioPlayerStoppedMask);
+	if (_isPlaying != isPlaying) {
+		_isPlaying = isPlaying;
+		if (_isPlaying) {
+			preloadNext();
+		}
+	}
+}
+
+void Instance::preloadNext() {
+	if (!_current) {
+		return;
+	}
+	auto index = _playlist.indexOf(_current.contextId());
+	if (index < 0) {
+		return;
+	}
+	auto nextIndex = index + 1;
+	if (nextIndex >= _playlist.size()) {
+		return;
+	}
+	if (auto item = App::histItemById(_playlist[nextIndex])) {
+		if (auto media = item->getMedia()) {
+			if (auto document = media->getDocument()) {
+				if (!document->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
+					DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
+				}
+			}
+		}
+	}
 }
 
 } // namespace Player

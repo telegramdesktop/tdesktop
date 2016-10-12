@@ -25,20 +25,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Overview {
 namespace Layout {
-
 class AbstractItem;
 class ItemBase;
 class Date;
-
 } // namespace Layout
 } // namespace Overview
+
+namespace Ui {
+class PlainShadow;
+} // namespace Ui
 
 class OverviewWidget;
 class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-
 	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
 
 	void activate();
@@ -96,7 +97,6 @@ public:
 	~OverviewInner();
 
 public slots:
-
 	void onUpdateSelected();
 
 	void copyContextUrl();
@@ -123,7 +123,6 @@ public slots:
 	void onNeedSearchMessages();
 
 private:
-
 	MsgId complexMsgId(const HistoryItem *item) const;
 
 	bool itemMigrated(MsgId msgId) const;
@@ -253,7 +252,6 @@ class OverviewWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type);
 
 	void clear();
@@ -309,15 +307,8 @@ public:
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grapWithoutTopBarShadow() {
-		grabStart();
-		_topShadow.hide();
-	}
-	void grabFinish() override {
-		_inGrab = false;
-		resizeEvent(0);
-		_topShadow.show();
-	}
+	void grapWithoutTopBarShadow();
+	void grabFinish() override;
 	void rpcClear() override {
 		_inner.rpcClear();
 		RPCSender::rpcClear();
@@ -330,12 +321,10 @@ public:
 	~OverviewWidget();
 
 public slots:
-
 	void activate();
 	void onScroll();
 
 	void onScrollTimer();
-//	void onPlayerSongChanged(const FullMsgId &msgId);
 
 	void onForwardSelected();
 	void onDeleteSelected();
@@ -344,10 +333,9 @@ public slots:
 	void onClearSelected();
 
 private:
-
 	ScrollArea _scroll;
 	OverviewInner _inner;
-	bool _noDropResizeIndex;
+	bool _noDropResizeIndex = false;
 
 	QString _header;
 
@@ -356,15 +344,15 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_progress;
 
-	int32 _scrollSetAfterShow;
+	int32 _scrollSetAfterShow = 0;
 
 	QTimer _scrollTimer;
-	int32 _scrollDelta;
+	int32 _scrollDelta = 0;
 
-	int32 _selCount;
+	int32 _selCount = 0;
 
-	PlainShadow _topShadow;
-	bool _inGrab;
+	ChildWidget<Ui::PlainShadow> _topShadow;
+	bool _inGrab = false;
 
 };
 

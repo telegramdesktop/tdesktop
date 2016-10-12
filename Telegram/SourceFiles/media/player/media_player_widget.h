@@ -20,63 +20,79 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
+class AudioMsgId;
+struct AudioPlaybackState;
+class FlatLabel;
 
-class ScrollArea;
+namespace Ui {
+class LabelSimple;
+class IconButton;
+class PlainShadow;
+} // namespace Ui
 
 namespace Media {
+namespace Clip {
+class Playback;
+} // namespace Clip
+
 namespace Player {
 
-class CoverWidget;
-class ListWidget;
+class PlayButton;
+class VolumeWidget;
+struct UpdatedEvent;
 
 class Widget : public TWidget, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	Widget(QWidget *parent);
 
-	bool overlaps(const QRect &globalRect);
+	using CloseCallback = base::lambda_unique<void()>;
+	void setCloseCallback(CloseCallback &&callback);
 
-	void otherEnter();
-	void otherLeave();
+	void setShadowGeometryToLeft(int x, int y, int w, int h);
+	void showShadow();
+	void hideShadow();
+
+	QPoint getPositionForVolumeWidget() const;
+	void volumeWidgetCreated(VolumeWidget *widget);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
-private slots:
-	void onShowStart();
-	void onHideStart();
-	void onScroll();
-
-	void onWindowActiveChanged();
 
 private:
-	void hidingFinished();
-	int contentLeft() const;
-	int contentWidth() const {
-		return width() - contentLeft();
-	}
+	void handleSeekProgress(float64 progress);
+	void handleSeekFinished(float64 progress);
 
-	void startAnimation();
+	void updatePlayPrevNextPositions();
+	void updateLabelsGeometry();
+	void updateRepeatTrackIcon();
+	void createPrevNextButtons();
+	void destroyPrevNextButtons();
 
-	bool _hiding = false;
+	void updateVolumeToggleIcon();
 
-	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	void handleSongUpdate(const UpdatedEvent &e);
+	void handleSongChange();
+	void handlePlaylistUpdate();
 
-	QTimer _hideTimer, _showTimer;
+	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeLabel();
 
-	Ui::RectShadow _shadow;
-	ChildWidget<CoverWidget> _cover;
-	ChildWidget<ListWidget> _list = { nullptr };
-	ChildWidget<ScrollArea> _scroll = { nullptr };
+	int64 _seekPositionMs = -1;
+	int64 _lastDurationMs = 0;
+	QString _time;
 
+	class PlayButton;
+	ChildWidget<FlatLabel> _nameLabel;
+	ChildWidget<Ui::LabelSimple> _timeLabel;
+	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
+	ChildWidget<PlayButton> _playPause;
+	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
+	ChildWidget<Ui::IconButton> _volumeToggle;
+	ChildWidget<Ui::IconButton> _repeatTrack;
+	ChildWidget<Ui::IconButton> _close;
+	ChildWidget<Ui::PlainShadow> _shadow = { nullptr };
+	ChildWidget<Clip::Playback> _playback;
 
 };
 

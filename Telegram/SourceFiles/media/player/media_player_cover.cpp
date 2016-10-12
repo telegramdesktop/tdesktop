@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/flatlabel.h"
 #include "ui/widgets/label_simple.h"
+#include "ui/widgets/media_slider.h"
 #include "ui/buttons/icon_button.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
@@ -31,7 +32,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
 #include "styles/style_mediaview.h"
-#include "shortcuts.h"
 
 namespace Media {
 namespace Player {
@@ -42,7 +42,7 @@ class CoverWidget::PlayButton : public Button {
 public:
 	PlayButton(QWidget *parent);
 
-	void setState(State state) {
+	void setState(PlayButtonLayout::State state) {
 		_layout.setState(state);
 	}
 	void finishTransform() {
@@ -58,24 +58,26 @@ private:
 };
 
 CoverWidget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
-, _layout(st::mediaPlayerButton, [this] { update(); }) {
-	resize(st::mediaPlayerButtonSize);
+, _layout(st::mediaPlayerPanelButton, [this] { update(); }) {
+	resize(st::mediaPlayerPanelButtonSize);
 	setCursor(style::cur_pointer);
 }
 
 void CoverWidget::PlayButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
+	p.translate(st::mediaPlayerPanelButtonPosition.x(), st::mediaPlayerPanelButtonPosition.y());
 	_layout.paint(p, st::mediaPlayerActiveFg);
 }
 
 CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
-, _playback(this, st::mediaPlayerPlayback)
+, _playback(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback))
 , _playPause(this)
+, _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _volumeController(this)
+, _pinPlayer(this, st::mediaPlayerPanelPinButton)
 , _repeatTrack(this, st::mediaPlayerRepeatButton) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -85,26 +87,34 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 	_playback->setChangeFinishedCallback([this](float64 value) {
 		handleSeekFinished(value);
 	});
-	_playPause->setClickedCallback([this]() {
+	_playPause->setClickedCallback([this] {
 		if (exists()) {
 			instance()->playPauseCancelClicked();
 		}
 	});
 
 	updateRepeatTrackIcon();
-	_repeatTrack->setClickedCallback([this]() {
+	_repeatTrack->setClickedCallback([this] {
 		instance()->toggleRepeat();
-		updateRepeatTrackIcon();
 	});
 
+	updateVolumeToggleIcon();
+	_volumeToggle->setClickedCallback([this]() {
+		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
+		Global::RefSongVolumeChanged().notify();
+	});
+	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
 	if (exists()) {
-		subscribe(instance()->playlistChangedNotifier(), [this]() {
+		subscribe(instance()->repeatChangedNotifier(), [this] {
+			updateRepeatTrackIcon();
+		});
+		subscribe(instance()->playlistChangedNotifier(), [this] {
 			handlePlaylistUpdate();
 		});
 		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
 			handleSongUpdate(e);
 		});
-		subscribe(instance()->songChangedNotifier(), [this]() {
+		subscribe(instance()->songChangedNotifier(), [this] {
 			handleSongChange();
 		});
 		handleSongChange();
@@ -115,6 +125,10 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 			_playPause->finishTransform();
 		}
 	}
+}
+
+void CoverWidget::setPinCallback(PinCallback &&callback) {
+	_pinPlayer->setClickedCallback(std_::move(callback));
 }
 
 void CoverWidget::handleSeekProgress(float64 progress) {
@@ -148,15 +162,22 @@ void CoverWidget::handleSeekFinished(float64 progress) {
 }
 
 void CoverWidget::resizeEvent(QResizeEvent *e) {
-	_nameLabel->resizeToWidth(width() - 2 * (st::mediaPlayerPadding) - _timeLabel->width() - st::normalFont->spacew);
+	auto widthForName = width() - 2 * (st::mediaPlayerPanelPadding);
+	widthForName -= _timeLabel->width() + 2 * st::normalFont->spacew;
+	_nameLabel->resizeToWidth(widthForName);
 	updateLabelPositions();
 
-	int skip = (st::mediaPlayerPlayback.seekSize.width() / 2);
-	int length = (width() - 2 * st::mediaPlayerPadding + st::mediaPlayerPlayback.seekSize.width());
-	_playback->setGeometry(st::mediaPlayerPadding - skip, st::mediaPlayerPlaybackTop, length, 2 * st::mediaPlayerPlaybackPadding + st::mediaPlayerPlayback.width);
+	int skip = (st::mediaPlayerPanelPlayback.seekSize.width() / 2);
+	int length = (width() - 2 * st::mediaPlayerPanelPadding + st::mediaPlayerPanelPlayback.seekSize.width());
+	_playback->setGeometry(st::mediaPlayerPanelPadding - skip, st::mediaPlayerPanelPlaybackTop, length, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
 
-	_repeatTrack->moveToRight(st::mediaPlayerPlayLeft, st::mediaPlayerPlayTop);
-	_volumeController->moveToRight(st::mediaPlayerVolumeRight, st::mediaPlayerVolumeTop);
+	auto top = st::mediaPlayerPanelVolumeToggleTop;
+	auto right = st::mediaPlayerPanelPlayLeft;
+	_repeatTrack->moveToRight(right, top); right += _repeatTrack->width();
+	_pinPlayer->moveToRight(right, top); right += _pinPlayer->width() + st::mediaPlayerPanelVolumeSkip;
+	_volumeController->moveToRight(right, st::mediaPlayerPanelVolumeTop); right += _volumeController->width() + st::mediaPlayerPanelVolumeToggleSkip;
+	_volumeToggle->moveToRight(right, top);
+
 	updatePlayPrevNextPositions();
 }
 
@@ -166,23 +187,24 @@ void CoverWidget::paintEvent(QPaintEvent *e) {
 }
 
 void CoverWidget::updatePlayPrevNextPositions() {
+	auto left = st::mediaPlayerPanelPlayLeft;
+	auto top = st::mediaPlayerPanelPlayTop;
 	if (_previousTrack) {
-		auto left = st::mediaPlayerPlayLeft;
-		_previousTrack->moveToLeft(left, st::mediaPlayerPlayTop); left += _previousTrack->width() + st::mediaPlayerPlaySkip;
-		_playPause->moveToLeft(left, st::mediaPlayerPlayTop); left += _playPause->width() + st::mediaPlayerPlaySkip;
-		_nextTrack->moveToLeft(left, st::mediaPlayerPlayTop);
+		_previousTrack->moveToLeft(left, top); left += _previousTrack->width() + st::mediaPlayerPanelPlaySkip;
+		_playPause->moveToLeft(left, top); left += _playPause->width() + st::mediaPlayerPanelPlaySkip;
+		_nextTrack->moveToLeft(left, top);
 	} else {
-		_playPause->moveToLeft(st::mediaPlayerPlayLeft, st::mediaPlayerPlayTop);
+		_playPause->moveToLeft(left, top);
 	}
 }
 
 void CoverWidget::updateLabelPositions() {
-	_nameLabel->moveToLeft(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerName.font->ascent);
-	_timeLabel->moveToRight(st::mediaPlayerPadding, st::mediaPlayerNameTop - st::mediaPlayerTime.font->ascent);
+	_nameLabel->moveToLeft(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerName.font->ascent);
+	_timeLabel->moveToRight(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerTime.font->ascent);
 }
 
 void CoverWidget::updateRepeatTrackIcon() {
-	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatDisabledIcon);
+	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
 }
 
 void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
@@ -249,7 +271,7 @@ void CoverWidget::updateTimeLabel() {
 		_timeLabel->setText(_time);
 	}
 	if (timeLabelWidth != _timeLabel->width()) {
-		_nameLabel->resizeToWidth(width() - 2 * (st::mediaPlayerPadding) - _timeLabel->width() - st::normalFont->spacew);
+		_nameLabel->resizeToWidth(width() - 2 * (st::mediaPlayerPanelPadding) - _timeLabel->width() - st::normalFont->spacew);
 		updateLabelPositions();
 	}
 }
@@ -281,17 +303,17 @@ void CoverWidget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		auto previousEnabled = (index > 0);
 		auto nextEnabled = (index + 1 < playlist.size());
-		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);
 		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 	}
 }
 
 void CoverWidget::createPrevNextButtons() {
 	if (!_previousTrack) {
-		_previousTrack.create(this, st::mediaPlayerPreviousButton);
-		_nextTrack.create(this, st::mediaPlayerNextButton);
+		_previousTrack.create(this, st::mediaPlayerPanelPreviousButton);
+		_nextTrack.create(this, st::mediaPlayerPanelNextButton);
 		_previousTrack->setClickedCallback([this]() {
 			if (exists()) {
 				instance()->previous();
@@ -312,6 +334,22 @@ void CoverWidget::destroyPrevNextButtons() {
 		_nextTrack.destroy();
 		updatePlayPrevNextPositions();
 	}
+}
+
+void CoverWidget::updateVolumeToggleIcon() {
+	auto icon = []() -> const style::icon * {
+		auto volume = Global::SongVolume();
+		if (volume > 0) {
+			if (volume < 1 / 3.) {
+				return &st::mediaPlayerVolumeIcon1;
+			} else if (volume < 2 / 3.) {
+				return &st::mediaPlayerVolumeIcon2;
+			}
+			return &st::mediaPlayerVolumeIcon3;
+		}
+		return nullptr;
+	};
+	_volumeToggle->setIcon(icon());
 }
 
 } // namespace Player

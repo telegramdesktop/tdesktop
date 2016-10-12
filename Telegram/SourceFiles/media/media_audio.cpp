@@ -286,21 +286,21 @@ void AudioPlayer::AudioMsg::clear() {
 	videoPlayId = 0;
 }
 
-AudioPlayer::AudioPlayer() : _audioCurrent(0), _songCurrent(0),
-_fader(new AudioPlayerFader(&_faderThread)),
-_loader(new AudioPlayerLoaders(&_loaderThread)) {
+AudioPlayer::AudioPlayer()
+: _fader(new AudioPlayerFader(&_faderThread))
+, _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(this, SIGNAL(faderOnTimer()), _fader, SLOT(onTimer()));
 	connect(this, SIGNAL(suppressSong()), _fader, SLOT(onSuppressSong()));
 	connect(this, SIGNAL(unsuppressSong()), _fader, SLOT(onUnsuppressSong()));
 	connect(this, SIGNAL(suppressAll()), _fader, SLOT(onSuppressAll()));
-	connect(this, SIGNAL(songVolumeChanged()), _fader, SLOT(onSongVolumeChanged()));
-	connect(this, SIGNAL(videoVolumeChanged()), _fader, SLOT(onVideoVolumeChanged()));
+	subscribe(Global::RefSongVolumeChanged(), [this] {
+		QMetaObject::invokeMethod(_fader, "onSongVolumeChanged");
+	});
+	subscribe(Global::RefVideoVolumeChanged(), [this] {
+		QMetaObject::invokeMethod(_fader, "onVideoVolumeChanged");
+	});
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&,qint64)), _loader, SLOT(onStart(const AudioMsgId&,qint64)));
 	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
-	connect(&_faderThread, SIGNAL(started()), _fader, SLOT(onInit()));
-	connect(&_loaderThread, SIGNAL(started()), _loader, SLOT(onInit()));
-	connect(&_faderThread, SIGNAL(finished()), _fader, SLOT(deleteLater()));
-	connect(&_loaderThread, SIGNAL(finished()), _loader, SLOT(deleteLater()));
 	connect(_loader, SIGNAL(needToCheck()), _fader, SLOT(onTimer()));
 	connect(_loader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
 	connect(_fader, SIGNAL(needToPreload(const AudioMsgId&)), _loader, SLOT(onLoad(const AudioMsgId&)));
@@ -309,6 +309,7 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
 	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(updated(const AudioMsgId&)), Qt::QueuedConnection);
 	connect(this, SIGNAL(updated(const AudioMsgId&)), this, SLOT(onUpdated(const AudioMsgId&)));
+
 	_loaderThread.start();
 	_faderThread.start();
 }
@@ -446,6 +447,7 @@ bool AudioPlayer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 	auto type = audio.type();
 	AudioMsgId stopped;
+	auto notLoadedYet = false;
 	{
 		QMutexLocker lock(&playerMutex);
 
@@ -479,14 +481,11 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 		current->file = audio.audio()->location(true);
 		current->data = audio.audio()->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
+			notLoadedYet = true;
 			if (audio.type() == AudioMsgId::Type::Song) {
 				setStoppedState(current);
-				if (!audio.audio()->loading()) {
-					DocumentOpenClickHandler::doOpen(audio.audio());
-				}
 			} else {
 				setStoppedState(current, AudioPlayerStoppedAtError);
-				onError(audio);
 			}
 		} else {
 			current->playbackState.position = position;
@@ -498,7 +497,16 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 			}
 		}
 	}
-	if (stopped) emit updated(stopped);
+	if (notLoadedYet) {
+		if (audio.type() == AudioMsgId::Type::Song) {
+			DocumentOpenClickHandler::doOpen(audio.audio(), App::histItemById(audio.contextId()));
+		} else {
+			onError(audio);
+		}
+	}
+	if (stopped) {
+		emit updated(stopped);
+	}
 }
 
 void AudioPlayer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
@@ -949,13 +957,15 @@ AudioCapture *audioCapture() {
 	return capture;
 }
 
-AudioPlayerFader::AudioPlayerFader(QThread *thread) : _timer(this), _pauseFlag(false), _paused(true),
-_suppressAll(false), _suppressAllAnim(false), _suppressSong(false), _suppressSongAnim(false),
-_suppressAllGain(1., 1.), _suppressSongGain(1., 1.),
-_suppressAllStart(0), _suppressSongStart(0) {
+AudioPlayerFader::AudioPlayerFader(QThread *thread) : QObject()
+, _timer(this)
+, _suppressAllGain(1., 1.)
+, _suppressSongGain(1., 1.) {
 	moveToThread(thread);
 	_timer.moveToThread(thread);
 	_pauseTimer.moveToThread(thread);
+	connect(thread, SIGNAL(started()), this, SLOT(onInit()));
+	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 
 	_timer.setSingleShot(true);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));

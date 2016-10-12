@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "layerwidget.h"
+#include "ui/widgets/shadow.h"
 
 class BlueTitleShadow : public TWidget {
 public:
@@ -93,9 +94,9 @@ private:
 
 };
 
-class ScrollableBoxShadow : public PlainShadow {
+class ScrollableBoxShadow : public Ui::PlainShadow {
 public:
-	ScrollableBoxShadow(QWidget *parent) : PlainShadow(parent, st::boxScrollShadowBg) {
+	ScrollableBoxShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxScrollShadowBg) {
 	}
 };
 

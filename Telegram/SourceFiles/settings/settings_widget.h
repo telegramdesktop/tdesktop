@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "layerwidget.h"
 
+namespace Ui {
+class PlainShadow;
+} // namespace Ui
+
 namespace Settings {
 
 class InnerWidget;
@@ -50,7 +54,7 @@ private:
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
 	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+	ChildWidget<Ui::PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
 
 	int _contentLeft = 0;
 

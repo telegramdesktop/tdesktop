@@ -1359,25 +1359,25 @@ void StickersBox::setup() {
 	int bottomSkip = st::boxPadding.bottom();
 	if (_section == Section::Installed) {
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		_topShadow = new PlainShadow(this, st::contactsAboutShadow);
+		_topShadow.create(this, st::contactsAboutShadow);
 
-		_save = new BoxButton(this, lang(lng_settings_save), st::defaultBoxButton);
+		_save.create(this, lang(lng_settings_save), st::defaultBoxButton);
 		connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
 
-		_cancel = new BoxButton(this, lang(lng_cancel), st::cancelBoxButton);
+		_cancel.create(this, lang(lng_cancel), st::cancelBoxButton);
 		connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-		_bottomShadow = new ScrollableBoxShadow(this);
+		_bottomShadow.create(this);
 		bottomSkip = st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	} else if (_section == Section::ArchivedPart) {
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		_topShadow = new PlainShadow(this, st::contactsAboutShadow);
+		_topShadow.create(this, st::contactsAboutShadow);
 
-		_save = new BoxButton(this, lang(lng_box_ok), st::defaultBoxButton);
+		_save.create(this, lang(lng_box_ok), st::defaultBoxButton);
 		connect(_save, SIGNAL(clicked()), this, SLOT(onClose()));
 	} else if (_section == Section::Archived) {
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		_topShadow = new PlainShadow(this, st::contactsAboutShadow);
+		_topShadow.create(this, st::contactsAboutShadow);
 	}
 	ItemListBox::init(_inner, bottomSkip, st::boxTitleHeight + _aboutHeight);
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));

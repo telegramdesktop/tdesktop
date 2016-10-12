@@ -83,7 +83,7 @@ void ChatBackground::setTile(bool tile) {
 }
 
 ChatBackground *chatBackground() {
-	instance.makeIfNull();
+	instance.createIfNull();
 	return instance.data();
 }
 

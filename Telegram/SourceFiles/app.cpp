@@ -400,9 +400,9 @@ namespace {
 
 		switch (user.type()) {
 		case mtpc_userEmpty: {
-			auto &d(user.c_userEmpty());
+			auto &d = user.c_userEmpty();
 
-			PeerId peer(peerFromUser(d.vid.v));
+			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
 			wasContact = data->isContact();
@@ -421,10 +421,10 @@ namespace {
 			if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
 		} break;
 		case mtpc_user: {
-			auto &d(user.c_user());
+			auto &d = user.c_user();
 			minimal = d.is_min();
 
-			PeerId peer(peerFromUser(d.vid.v));
+			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
 			wasContact = data->isContact();
@@ -1095,11 +1095,11 @@ namespace {
 	}
 
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
-		PeerId peerId = peerFromMTP(m.vto_id);
+		auto peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
-		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
+		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			auto text = qs(m.vmessage);
 			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText();
 			existing->setText({ text, entities });
@@ -1951,7 +1951,7 @@ namespace {
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
 		if (!itemId) return nullptr;
 
-		MsgsData *data = fetchMsgsData(channelId, false);
+		auto data = fetchMsgsData(channelId, false);
 		if (!data) return nullptr;
 
 		auto i = data->constFind(itemId);

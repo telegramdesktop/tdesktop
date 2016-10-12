@@ -189,7 +189,10 @@ public:
 		std::swap(_p, other._p);
 	}
 	~unique_ptr() noexcept {
-		delete _p;
+		if (_p) {
+			delete _p;
+			_p = nullptr;
+		}
 	}
 
 	T &operator*() const {

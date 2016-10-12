@@ -263,10 +263,10 @@ protected:
 	QString _filepath;
 	QImage _image;
 	QByteArray _content;
-	int32 _duration;
+	int32 _duration = 0;
 	VoiceWaveform _waveform;
 	PrepareMediaType _type;
-	FileLoadForceConfirmType _confirm;
+	FileLoadForceConfirmType _confirm = FileLoadNoForceConfirm;
 	QString _originalText;
 
 	FileLoadResultPtr _result;

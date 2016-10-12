@@ -93,7 +93,7 @@ public:
 		if (!_active || !*_active) {
 			return;
 		}
-		_pressed.makeIfNull();
+		_pressed.createIfNull();
 		*_pressed = *_active;
 		if ((_pressedHost = _activeHost)) {
 			_pressedHost->clickHandlerPressedChanged(*_pressed, true);

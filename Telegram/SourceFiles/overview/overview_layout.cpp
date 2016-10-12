@@ -31,7 +31,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwindow.h"
-#include "playerwidget.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "localstorage.h"

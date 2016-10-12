@@ -61,23 +61,14 @@ namespace {
 }
 
 FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
-: _prev(0)
-, _next(0)
-, _priority(0)
-, _paused(false)
-, _autoLoading(autoLoading)
-, _inQueue(false)
-, _complete(false)
-, _localStatus(LocalNotTried)
+: _autoLoading(autoLoading)
 , _file(toFile)
 , _fname(toFile)
-, _fileIsOpen(false)
 , _toCache(toCache)
 , _fromCloud(fromCloud)
 , _size(size)
 , _type(mtpc_storage_fileUnknown)
-, _locationType(locationType)
-, _localTaskId(0) {
+, _locationType(locationType) {
 }
 
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
@@ -124,7 +115,9 @@ int32 FileLoader::fullSize() const {
 }
 
 bool FileLoader::setFileName(const QString &fileName) {
-	if (_toCache != LoadToCacheAsWell || !_fname.isEmpty()) return fileName.isEmpty();
+	if (_toCache != LoadToCacheAsWell || !_fname.isEmpty()) {
+		return fileName.isEmpty() || (fileName == _fname);
+	}
 	_fname = fileName;
 	_file.setFileName(_fname);
 	return true;
@@ -591,6 +584,7 @@ bool mtpFileLoader::tryLoadLocal() {
 			}
 		}
 	}
+	emit progress(this);
 
 	if (_localStatus != LocalNotTried) {
 		return _complete;

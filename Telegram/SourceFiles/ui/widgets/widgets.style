@@ -43,6 +43,14 @@ MediaSlider {
 	duration: int;
 }
 
+FilledSlider {
+	fullWidth: pixels;
+	lineWidth: pixels;
+	activeFg: color;
+	inactiveFg: color;
+	duration: int;
+}
+
 widgetSlideDuration: 200;
 
 discreteSliderHeight: 39px;

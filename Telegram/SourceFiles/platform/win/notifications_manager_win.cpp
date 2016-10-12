@@ -316,7 +316,7 @@ private:
 
 void start() {
 	if (init()) {
-		ManagerInstance.makeIfNull();
+		ManagerInstance.createIfNull();
 	}
 }
 

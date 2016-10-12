@@ -84,9 +84,9 @@ void RectShadow::paint(Painter &p, const QRect &box, int shifty, Sides sides) {
 
 	bool wasSmooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
 	if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-	if (left) p.drawPixmap(box.left() - countsize + shifty, box.top() + (top ? minus : 0) + shifty, countsize - shifty, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _left, 0, 0, count - rshifty, 1);
+	if (left) p.drawPixmap(box.left() - countsize + shifty, box.top() + (top ? (minus + shifty) : 0), countsize - shifty, box.height() - (bottom ? (minus - shifty) : 0) - (top ? (minus + shifty) : 0), _left, 0, 0, count - rshifty, 1);
 	if (top) p.drawPixmap(box.left() + (left ? minus : 0), box.top() - countsize + 2 * shifty, box.width() - (right ? minus : 0) - (left ? minus : 0), countsize - 2 * shifty, _top, 0, 0, 1, count - 2 * rshifty);
-	if (right) p.drawPixmap(box.left() + box.width(), box.top() + (top ? minus : 0) + shifty, countsize - shifty, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _right, rshifty, 0, count - rshifty, 1);
+	if (right) p.drawPixmap(box.left() + box.width(), box.top() + (top ? (minus + shifty) : 0), countsize - shifty, box.height() - (bottom ? (minus - shifty) : 0) - (top ? (minus + shifty) : 0), _right, rshifty, 0, count - rshifty, 1);
 	if (bottom) p.drawPixmap(box.left() + (left ? minus : 0), box.top() + box.height(), box.width() - (right ? minus : 0) - (left ? minus : 0), countsize, _bottom, 0, 0, 1, count);
 	if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform);
 }

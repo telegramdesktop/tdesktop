@@ -232,7 +232,7 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			} else if (_document->loading()) {
 				_document->cancel();
 			} else {
-				DocumentOpenClickHandler::doOpen(_document, ActionOnLoadNone);
+				DocumentOpenClickHandler::doOpen(_document, nullptr, ActionOnLoadNone);
 			}
 			return false;
 		}

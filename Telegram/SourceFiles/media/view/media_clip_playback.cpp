@@ -22,13 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_playback.h"
 
 #include "styles/style_mediaview.h"
-#include "ui/widgets/media_slider.h"
 #include "media/media_audio.h"
 
 namespace Media {
 namespace Clip {
 
-Playback::Playback(QWidget *parent, const style::MediaSlider &st) : _slider(new Ui::MediaSlider(parent, st)) {
+Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
 }
 
 void Playback::updateState(const AudioPlaybackState &playbackState) {

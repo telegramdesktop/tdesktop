@@ -792,7 +792,7 @@ void MediaView::onDocClick() {
 	if (_doc->loading()) {
 		onSaveCancel();
 	} else {
-		DocumentOpenClickHandler::doOpen(_doc, ActionOnLoadNone);
+		DocumentOpenClickHandler::doOpen(_doc, nullptr, ActionOnLoadNone);
 		if (_doc->loading() && !_radial.animating()) {
 			_radial.start(_doc->progress());
 		}
@@ -1477,7 +1477,7 @@ void MediaView::onVideoSeekFinished(int64 positionMs) {
 
 void MediaView::onVideoVolumeChanged(float64 volume) {
 	Global::SetVideoVolume(volume);
-	emit audioPlayer()->videoVolumeChanged();
+	Global::RefVideoVolumeChanged().notify();
 }
 
 void MediaView::onVideoToggleFullScreen() {

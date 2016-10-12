@@ -27,19 +27,20 @@ namespace Ui {
 template <typename Widget>
 class WidgetSlideWrap : public TWidget {
 public:
+	using UpdateCallback = base::lambda_unique<void()>;
 	WidgetSlideWrap(QWidget *parent, Widget *entity
 		, style::margins entityPadding
-		, base::lambda_unique<void()> &&updateCallback
+		, UpdateCallback &&updateCallback
 		, int duration = st::widgetSlideDuration) : TWidget(parent)
-		, _entity(entity)
-		, _padding(entityPadding)
-		, _duration(duration)
-		, _updateCallback(std_::move(updateCallback))
-		, _a_height(animation(this, &WidgetSlideWrap<Widget>::step_height)) {
-		entity->setParent(this);
-		entity->moveToLeft(_padding.left(), _padding.top());
-		_realSize = entity->rect().marginsAdded(_padding).size();
-		entity->installEventFilter(this);
+	, _entity(entity)
+	, _padding(entityPadding)
+	, _duration(duration)
+	, _updateCallback(std_::move(updateCallback))
+	, _a_height(animation(this, &WidgetSlideWrap<Widget>::step_height)) {
+		_entity->setParent(this);
+		_entity->moveToLeft(_padding.left(), _padding.top());
+		_realSize = _entity->rect().marginsAdded(_padding).size();
+		_entity->installEventFilter(this);
 		resize(_realSize);
 	}
 
@@ -91,6 +92,7 @@ public:
 	}
 
 	void showFast() {
+		show();
 		_a_height.stop();
 		resize(_realSize);
 		if (_updateCallback) {
@@ -152,7 +154,7 @@ private:
 	bool _inResizeToWidth = false;
 	style::margins _padding;
 	int _duration;
-	base::lambda_unique<void()> _updateCallback;
+	UpdateCallback _updateCallback;
 
 	style::size _realSize;
 	int _forceHeight = -1;

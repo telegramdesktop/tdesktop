@@ -252,8 +252,6 @@ bool started();
 void start();
 void finish();
 
-constexpr float64 kDefaultVolume = 0.9;
-
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
@@ -273,8 +271,13 @@ DeclareVar(bool, ScreenIsLocked);
 
 DeclareVar(int32, DebugLoggingFlags);
 
+constexpr float64 kDefaultVolume = 0.9;
+
+DeclareVar(float64, RememberedSongVolume);
 DeclareVar(float64, SongVolume);
+DeclareRefVar(base::Observable<void>, SongVolumeChanged);
 DeclareVar(float64, VideoVolume);
+DeclareRefVar(base::Observable<void>, VideoVolumeChanged);
 
 // config
 DeclareVar(int32, ChatSizeMax);

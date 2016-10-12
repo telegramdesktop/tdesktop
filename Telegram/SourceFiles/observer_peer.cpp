@@ -37,8 +37,8 @@ using AllUpdatesList = QMap<PeerData*, PeerUpdate>;
 NeverFreedPointer<AllUpdatesList> AllUpdates;
 
 void StartCallback() {
-	SmallUpdates.makeIfNull();
-	AllUpdates.makeIfNull();
+	SmallUpdates.createIfNull();
+	AllUpdates.createIfNull();
 }
 void FinishCallback() {
 	SmallUpdates.clear();
@@ -63,8 +63,8 @@ void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 }
 
 void peerUpdatedDelayed(const PeerUpdate &update) {
-	SmallUpdates.makeIfNull();
-	AllUpdates.makeIfNull();
+	SmallUpdates.createIfNull();
+	AllUpdates.createIfNull();
 
 	Global::RefHandleDelayedPeerUpdates().call();
 

@@ -25,9 +25,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "localstorage.h"
-#include "playerwidget.h"
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
+#include "media/player/media_player_instance.h"
 #include "boxes/confirmbox.h"
 #include "boxes/addcontactbox.h"
 #include "core/click_handler_types.h"
@@ -1463,8 +1463,8 @@ bool HistoryDocument::updateStatusText() const {
 					showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
 				} else {
 				}
-				if (!showPause && (playing == AudioMsgId(_data, _parent->fullId())) && App::main() && App::main()->player()->seekingSong(playing)) {
-					showPause = true;
+				if (!showPause && (playing == AudioMsgId(_data, _parent->fullId()))) {
+					showPause = (Media::Player::exists() && Media::Player::instance()->isSeeking());
 				}
 			}
 		}

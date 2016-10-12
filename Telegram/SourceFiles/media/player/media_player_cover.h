@@ -35,13 +35,15 @@ class Playback;
 
 namespace Player {
 
-class PlaybackWidget;
 class VolumeController;
 struct UpdatedEvent;
 
 class CoverWidget : public TWidget, private base::Subscriber {
 public:
 	CoverWidget(QWidget *parent);
+
+	using PinCallback = base::lambda_unique<void()>;
+	void setPinCallback(PinCallback &&callback);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -56,6 +58,8 @@ private:
 	void updateRepeatTrackIcon();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
+
+	void updateVolumeToggleIcon();
 
 	void handleSongUpdate(const UpdatedEvent &e);
 	void handleSongChange();
@@ -75,7 +79,9 @@ private:
 	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
 	ChildWidget<PlayButton> _playPause;
 	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
+	ChildWidget<Ui::IconButton> _volumeToggle;
 	ChildWidget<VolumeController> _volumeController;
+	ChildWidget<Ui::IconButton> _pinPlayer;
 	ChildWidget<Ui::IconButton> _repeatTrack;
 
 };

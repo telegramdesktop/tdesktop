@@ -27,6 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 AudioPlayerLoaders::AudioPlayerLoaders(QThread *thread) : _fromVideoNotify(this, "onVideoSoundAdded") {
 	moveToThread(thread);
+	connect(thread, SIGNAL(started()), this, SLOT(onInit()));
+	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 }
 
 void AudioPlayerLoaders::feedFromVideo(VideoSoundPart &&part) {

@@ -31,14 +31,18 @@ class Row;
 namespace Media {
 namespace Player {
 class Widget;
+class VolumeWidget;
+class Panel;
 } // namespace Player
 } // namespace Media
 
 namespace Ui {
 class PeerAvatarButton;
+class PlainShadow;
 } // namespace Ui
 
 namespace Window {
+class PlayerWrapWidget;
 class TopBarWidget;
 class SectionMemento;
 class SectionWidget;
@@ -51,7 +55,6 @@ class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
 class OverviewWidget;
-class PlayerWidget;
 class HistoryHider;
 class Dropdown;
 
@@ -128,9 +131,7 @@ enum NotifySettingStatus {
 
 namespace InlineBots {
 namespace Layout {
-
 class ItemBase;
-
 } // namespace Layout
 } // namespace InlineBots
 
@@ -147,8 +148,8 @@ public:
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	Window::TopBarWidget *topBar();
+	int backgroundFromY() const;
 
-	PlayerWidget *player();
 	int contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
@@ -379,8 +380,6 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
-	void closePlayer();
-
 	void documentLoadProgress(DocumentData *document);
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
@@ -488,6 +487,12 @@ private:
 	void updateAdaptiveLayout();
 	void handleAudioUpdate(const AudioMsgId &audioId);
 	void updateMediaPlayerPosition();
+	void updateControlsGeometry();
+
+	void createPlayer();
+	void switchToPanelPlayer();
+	void switchToFixedPlayer();
+	void playerHeightUpdated();
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
@@ -581,15 +586,15 @@ private:
 
 	int _dialogsWidth;
 
-	PlainShadow _sideShadow;
-
+	ChildWidget<Ui::PlainShadow> _sideShadow;
 	ChildWidget<DialogsWidget> _dialogs;
 	ChildWidget<HistoryWidget> _history;
 	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
-	ChildWidget<PlayerWidget> _player;
 	ChildWidget<Window::TopBarWidget> _topBar;
-	ChildWidget<Media::Player::Widget> _mediaPlayer = { nullptr };
+	ChildWidget<Window::PlayerWrapWidget> _player = { nullptr };
+	ChildWidget<Media::Player::VolumeWidget> _playerVolume = { nullptr };
+	ChildWidget<Media::Player::Panel> _playerPanel = { nullptr };
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
 	ChildWidget<HistoryHider> _hider = { nullptr };
 	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;

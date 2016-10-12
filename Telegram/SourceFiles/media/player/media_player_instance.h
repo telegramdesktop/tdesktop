@@ -40,11 +40,11 @@ bool exists();
 class Instance;
 Instance *instance();
 
-class Widget;
-struct CreatedEvent {
-	explicit CreatedEvent(Widget *widget) : widget(widget) {
+class Panel;
+struct PanelEvent {
+	explicit PanelEvent(Panel *panel) : panel(panel) {
 	}
-	Widget *widget;
+	Panel *panel;
 };
 struct UpdatedEvent {
 	UpdatedEvent(const AudioMsgId *audioId, const AudioPlaybackState *playbackState) : audioId(audioId), playbackState(playbackState) {
@@ -74,6 +74,7 @@ public:
 	}
 	void toggleRepeat() {
 		_repeatEnabled = !_repeatEnabled;
+		_repeatChangedNotifier.notify();
 	}
 
 	bool isSeeking() const {
@@ -86,8 +87,11 @@ public:
 		return _playlist;
 	}
 
-	base::Observable<CreatedEvent> &createdNotifier() {
+	base::Observable<PanelEvent> &createdNotifier() {
 		return _createdNotifier;
+	}
+	base::Observable<PanelEvent> &destroyedNotifier() {
+		return _destroyedNotifier;
 	}
 	base::Observable<UpdatedEvent> &updatedNotifier() {
 		return _updatedNotifier;
@@ -97,6 +101,9 @@ public:
 	}
 	base::Observable<void> &songChangedNotifier() {
 		return _songChangedNotifier;
+	}
+	base::Observable<void> &repeatChangedNotifier() {
+		return _repeatChangedNotifier;
 	}
 
 	void documentLoadProgress(DocumentData *document);
@@ -112,6 +119,7 @@ private:
 	void setCurrent(const AudioMsgId &audioId);
 	void rebuildPlaylist();
 	void moveInPlaylist(int delta);
+	void preloadNext();
 
 	template <typename CheckCallback>
 	void emitUpdate(CheckCallback check);
@@ -125,10 +133,12 @@ private:
 	QList<FullMsgId> _playlist;
 	bool _isPlaying = false;
 
-	base::Observable<CreatedEvent> _createdNotifier;
+	base::Observable<PanelEvent> _createdNotifier;
+	base::Observable<PanelEvent> _destroyedNotifier;
 	base::Observable<UpdatedEvent> _updatedNotifier;
 	base::Observable<void> _playlistChangedNotifier;
 	base::Observable<void> _songChangedNotifier;
+	base::Observable<void> _repeatChangedNotifier;
 
 };
 

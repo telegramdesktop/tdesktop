@@ -2035,33 +2035,6 @@ botDescSkip: 8px;
 suppressAll: 0.2;
 suppressSong: 0.05;
 
-playerHeight: 44px;
-playerBg: #e4e9ef;
-playerFg: #54748f;
-playerTimeFg: #a4afba;
-playerLineHeight: 3px;
-playerMoverSize: size(2px, 7px);
-playerLineActive: #6389a8;
-playerLineInactive: #bac7d4;
-playerSkip: 8px;
-playerNameStyle: textStyle(defaultTextStyle) {
-	linkFg: #6389a8;
-	linkFgDown: #6389a8;
-	linkFlags: semiboldFont;
-	linkFlagsOver: semiboldFont;
-}
-playerPlay: sprite(377px, 109px, 19px, 22px);
-playerPause: sprite(379px, 131px, 17px, 20px);
-playerNext: sprite(374px, 151px, 22px, 14px);
-playerPrev: sprite(374px, 165px, 22px, 14px);
-playerClose: sprite(361px, 97px, 12px, 12px);
-playerFull: sprite(365px, 109px, 12px, 12px);
-playerRepeat: sprite(365px, 121px, 12px, 14px);
-playerVolume: sprite(352px, 179px, 44px, 12px);
-playerInactiveOpacity: 0.8;
-playerUnavailableOpacity: 0.3;
-playerDuration: 200;
-
 inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;

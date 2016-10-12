@@ -27,7 +27,7 @@ class MainWindow;
 namespace Media {
 namespace Player {
 class TitleButton;
-class CreatedEvent;
+class PanelEvent;
 } // namespace Player
 } // namespace Media
 class AudioMsgId;
@@ -70,8 +70,6 @@ private:
 	void updateMenuButtonsVisibility();
 	void updateSystemButtonsVisibility();
 	void updateControlsPosition();
-
-	void handleMediaPlayerCreated(const Media::Player::CreatedEvent &e);
 
 	style::color statusColor;
 
