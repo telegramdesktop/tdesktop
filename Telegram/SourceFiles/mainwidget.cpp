@@ -427,37 +427,11 @@ void MainWidget::rpcClear() {
 	RPCSender::rpcClear();
 }
 
-QPixmap MainWidget::grabInner() {
-	if (_overview && !_overview->isHidden()) {
-		return myGrab(_overview);
-	} else if (_wideSection && !_wideSection->isHidden()) {
-		return myGrab(_wideSection, QRect(0, st::topBarHeight, _history->width(), _history->height() - st::topBarHeight));
-	} else if (Adaptive::OneColumn() && _history->isHidden()) {
-		return myGrab(_dialogs, QRect(0, st::topBarHeight, _dialogs->width(), _dialogs->height() - st::topBarHeight));
-	} else if (_history->peer()) {
-		return myGrab(_history);
-	} else {
-		return myGrab(_history, QRect(0, st::topBarHeight, _history->width(), _history->height() - st::topBarHeight));
-	}
-}
-
 bool MainWidget::isItemVisible(HistoryItem *item) {
 	if (isHidden() || _a_show.animating()) {
 		return false;
 	}
 	return _history->isItemVisible(item);
-}
-
-QPixmap MainWidget::grabTopBar() {
-	if (!_topBar->isHidden()) {
-		return myGrab(_topBar);
-	} else if (_wideSection) {
-		return myGrab(_wideSection, QRect(0, 0, _wideSection->width(), st::topBarHeight));
-	} else if (Adaptive::OneColumn() && _history->isHidden()) {
-		return myGrab(_dialogs, QRect(0, 0, _dialogs->width(), st::topBarHeight));
-	} else {
-		return myGrab(_history, QRect(0, 0, _history->width(), st::topBarHeight));
-	}
 }
 
 void MainWidget::notify_botCommandsChanged(UserData *bot) {
@@ -2335,6 +2309,10 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 	if (_player) {
 		_player->hideShadow();
 	}
+	auto playerVolumeVisible = _playerVolume && !_playerVolume->isHidden();
+	if (playerVolumeVisible) {
+		_playerVolume->hide();
+	}
 	if (selectingPeer() && Adaptive::OneColumn()) {
 		result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else if (_wideSection) {
@@ -2356,6 +2334,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		}
 		if (_overview) _overview->grabFinish();
 		_history->grabFinish();
+	}
+	if (playerVolumeVisible) {
+		_playerVolume->show();
 	}
 	if (_player) {
 		_player->showShadow();
@@ -2482,12 +2463,19 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (_player) {
 		_player->hideShadow();
 	}
+	auto playerVolumeVisible = _playerVolume && !_playerVolume->isHidden();
+	if (playerVolumeVisible) {
+		_playerVolume->hide();
+	}
 	if (Adaptive::OneColumn()) {
 		result = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else {
 		_sideShadow->hide();
 		result = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
 		_sideShadow->show();
+	}
+	if (playerVolumeVisible) {
+		_playerVolume->show();
 	}
 	if (_player) {
 		_player->showShadow();

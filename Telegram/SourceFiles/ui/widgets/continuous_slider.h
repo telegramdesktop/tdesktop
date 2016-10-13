@@ -51,10 +51,13 @@ public:
 		return _mouseDown;
 	}
 
+	void setMoveByWheel(bool moveByWheel);
+
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
@@ -89,6 +92,9 @@ private:
 
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
+
+	bool _moveByWheel = false;
+	std_::unique_ptr<SingleTimer> _byWheelFinished;
 
 	Callback _changeProgressCallback;
 	Callback _changeFinishedCallback;

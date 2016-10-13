@@ -373,9 +373,6 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	QPixmap grabTopBar();
-	QPixmap grabInner();
-
 	void rpcClear() override;
 
 	bool isItemVisible(HistoryItem *item);

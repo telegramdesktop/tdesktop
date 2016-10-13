@@ -22,6 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/continuous_slider.h"
 
 namespace Ui {
+namespace {
+
+constexpr auto kByWheelFinishedTimeout = 1000;
+
+} // namespace
 
 ContinuousSlider::ContinuousSlider(QWidget *parent) : TWidget(parent)
 , _a_value(animation(this, &ContinuousSlider::step_value)) {
@@ -37,6 +42,22 @@ void ContinuousSlider::setDisabled(bool disabled) {
 		_disabled = disabled;
 		setCursor(_disabled ? style::cur_default : style::cur_pointer);
 		update();
+	}
+}
+
+void ContinuousSlider::setMoveByWheel(bool moveByWheel) {
+	if (_moveByWheel != moveByWheel) {
+		_moveByWheel = moveByWheel;
+		if (_moveByWheel) {
+			_byWheelFinished = std_::make_unique<SingleTimer>();
+			_byWheelFinished->setTimeoutHandler([this] {
+				if (_changeFinishedCallback) {
+					_changeFinishedCallback(getCurrentValue(getms()));
+				}
+			});
+		} else {
+			_byWheelFinished.reset();
+		}
 	}
 }
 
@@ -100,6 +121,34 @@ void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 		_a_value.stop();
 		update();
 	}
+}
+
+void ContinuousSlider::wheelEvent(QWheelEvent *e) {
+	if (_mouseDown) {
+		return;
+	}
+#ifdef OS_MAC_OLD
+	constexpr auto step = 120;
+#else // OS_MAC_OLD
+	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+#endif // OS_MAC_OLD
+	constexpr auto coef = 1. / (step * 5.);
+
+	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+		deltaY *= -1;
+	}
+	if (deltaX * deltaY < 0) {
+		return;
+	}
+
+	auto delta = (deltaX >= 0 && deltaY >= 0) ? qMax(deltaX, deltaY) : qMin(deltaX, deltaY);
+	auto finalValue = snap(a_value.to() + delta * coef, 0., 1.);
+	setValue(finalValue, false);
+	if (_changeProgressCallback) {
+		_changeProgressCallback(finalValue);
+	}
+	_byWheelFinished->start(kByWheelFinishedTimeout);
 }
 
 void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {

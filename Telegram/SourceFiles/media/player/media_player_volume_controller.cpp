@@ -33,6 +33,7 @@ namespace Player {
 
 VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
 , _slider(this, st::mediaPlayerPanelPlayback) {
+	_slider->setMoveByWheel(true);
 	_slider->setChangeProgressCallback([this](float64 volume) {
 		applyVolumeChange(volume);
 	});
