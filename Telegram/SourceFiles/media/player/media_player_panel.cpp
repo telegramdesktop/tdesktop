@@ -25,32 +25,35 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_list.h"
 #include "media/player/media_player_instance.h"
 #include "styles/style_media_player.h"
+#include "ui/widgets/shadow.h"
 #include "mainwindow.h"
 
 namespace Media {
 namespace Player {
 
 Panel::Panel(QWidget *parent, Layout layout) : TWidget(parent)
-, _shadow(st::defaultInnerDropdown.shadow) {
+, _shadow(st::defaultInnerDropdown.shadow)
+, _scroll(this, st::mediaPlayerScroll)
+, _scrollShadow(this, st::mediaPlayerScrollShadow) {
 	if (layout == Layout::Full) {
 		_cover.create(this);
 	}
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
 
+	auto list = std_::make_unique<ListWidget>();
+	connect(list.get(), SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
+	_scroll->setOwnedWidget(list.release());
+
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShowStart()));
-
-	if (_scroll) {
-		connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-	}
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));
 	}
 
 	hide();
-	resize(contentLeft() + st::mediaPlayerPanelWidth, st::mediaPlayerCoverHeight + st::mediaPlayerPanelMarginBottom);
+	onListHeightUpdated();
 }
 
 bool Panel::overlaps(const QRect &globalRect) {
@@ -68,26 +71,59 @@ void Panel::onWindowActiveChanged() {
 }
 
 void Panel::resizeEvent(QResizeEvent *e) {
-	_cover->resize(width() - contentLeft(), st::mediaPlayerCoverHeight);
+	auto width = contentWidth();
+	_cover->resize(width, st::mediaPlayerCoverHeight);
 	_cover->moveToRight(0, 0);
-	if (_scroll) {
-		_scroll->resize(width(), height() - _cover->height());
-		_scroll->moveToRight(0, _cover->height());
-		_list->resizeToWidth(width());
+
+	auto scrollTop = _cover->height();
+	auto scrollHeight = qMax(contentHeight() - scrollTop - st::mediaPlayerListMarginBottom, 0);
+	if (scrollHeight > 0) {
+		_scroll->setGeometryToRight(0, scrollTop, width, scrollHeight);
+		_scrollShadow->resizeToWidth(width);
+		_scrollShadow->moveToRight(0, scrollTop);
 	}
-	//_scroll->setGeometry(rect().marginsRemoved(_st.padding).marginsRemoved(_st.scrollMargin));
-	//if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
-	//	widget->resizeToWidth(_scroll->width());
-	//	onScroll();
-	//}
+	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+		widget->resizeToWidth(width);
+		onScroll();
+	}
+}
+
+void Panel::onListHeightUpdated() {
+	updateSize();
+}
+
+void Panel::ui_repaintHistoryItem(const HistoryItem *item) {
+	if (auto list = static_cast<ListWidget*>(_scroll->widget())) {
+		list->ui_repaintHistoryItem(item);
+	}
+}
+
+void Panel::itemRemoved(HistoryItem *item) {
+	if (auto list = static_cast<ListWidget*>(_scroll->widget())) {
+		list->itemRemoved(item);
+	}
 }
 
 void Panel::onScroll() {
-	//if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
-	//	int visibleTop = _scroll->scrollTop();
-	//	int visibleBottom = visibleTop + _scroll->height();
-	//	widget->setVisibleTopBottom(visibleTop, visibleBottom);
-	//}
+	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+		int visibleTop = _scroll->scrollTop();
+		int visibleBottom = visibleTop + _scroll->height();
+		widget->setVisibleTopBottom(visibleTop, visibleBottom);
+	}
+}
+
+void Panel::updateSize() {
+	auto listHeight = 0;
+	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+		listHeight = widget->height();
+	}
+	auto scrollVisible = (listHeight > 0);
+	auto scrollHeight = scrollVisible ? (qMin(listHeight, st::mediaPlayerListHeightMax) + st::mediaPlayerListMarginBottom) : 0;
+	auto width = contentLeft() + st::mediaPlayerPanelWidth;
+	auto height = st::mediaPlayerCoverHeight + scrollHeight + st::mediaPlayerPanelMarginBottom;
+	resize(width, height);
+	_scroll->setVisible(scrollVisible);
+	_scrollShadow->setVisible(scrollVisible);
 }
 
 void Panel::paintEvent(QPaintEvent *e) {
@@ -96,8 +132,8 @@ void Panel::paintEvent(QPaintEvent *e) {
 	if (!_cache.isNull()) {
 		bool animating = _a_appearance.animating(getms());
 		if (animating) {
-			p.setOpacity(_a_appearance.current(_hiding));
-		} else if (_hiding) {
+			p.setOpacity(_a_appearance.current(_hiding ? 0. : 1.));
+		} else if (_hiding || isHidden()) {
 			hidingFinished();
 			return;
 		}
@@ -186,7 +222,7 @@ void Panel::onHideStart() {
 void Panel::startAnimation() {
 	auto from = _hiding ? 1. : 0.;
 	auto to = _hiding ? 0. : 1.;
-	if (!_a_appearance.animating()) {
+	if (_cache.isNull()) {
 		showChildren();
 		_cache = myGrab(this);
 	}
@@ -205,11 +241,15 @@ void Panel::appearanceCallback() {
 
 void Panel::hidingFinished() {
 	hide();
-	showChildren();
+	_cache = QPixmap();
 }
 
 int Panel::contentLeft() const {
 	return st::mediaPlayerPanelMarginLeft;
+}
+
+int Panel::contentHeight() const {
+	return height() - st::mediaPlayerPanelMarginBottom;
 }
 
 bool Panel::eventFilter(QObject *obj, QEvent *e) {

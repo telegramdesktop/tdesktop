@@ -129,7 +129,7 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 		bool animating = _a_appearance.animating(getms());
 		if (animating) {
 			p.setOpacity(_a_appearance.current(_hiding));
-		} else if (_hiding) {
+		} else if (_hiding || isHidden()) {
 			hidingFinished();
 			return;
 		}
@@ -226,7 +226,6 @@ void VolumeWidget::appearanceCallback() {
 
 void VolumeWidget::hidingFinished() {
 	hide();
-	showChildren();
 	_cache = QPixmap();
 }
 

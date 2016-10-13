@@ -50,17 +50,6 @@ public:
 	bool preloadLocal();
 	void preloadMore();
 
-	bool event(QEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
 	void dragActionStart(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
@@ -95,6 +84,18 @@ public:
 	QPoint tooltipPos() const override;
 
 	~OverviewInner();
+
+protected:
+	bool event(QEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 public slots:
 	void onUpdateSelected();
@@ -256,10 +257,6 @@ public:
 
 	void clear();
 
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-
 	void scrollBy(int32 add);
 	void scrollReset();
 
@@ -319,6 +316,11 @@ public:
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
 	~OverviewWidget();
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 public slots:
 	void activate();

@@ -219,34 +219,41 @@ bool isMediaViewShown() {
 }
 
 bool isInlineItemBeingChosen() {
-	if (MainWidget *m = App::main()) return m->ui_isInlineItemBeingChosen();
+	if (auto main = App::main()) {
+		return main->ui_isInlineItemBeingChosen();
+	}
 	return false;
 }
 
 void repaintHistoryItem(const HistoryItem *item) {
-	if (!item) return;
-	if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
+	if (auto main = App::main()) {
+		main->ui_repaintHistoryItem(item);
+	}
 }
 
 void repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	if (!layout) return;
-	if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
+	if (auto main = App::main()) {
+		main->ui_repaintInlineItem(layout);
+	}
 }
 
 bool isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
-	if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
+	if (auto main = App::main()) {
+		return main->ui_isInlineItemVisible(layout);
+	}
 	return false;
 }
 
 void autoplayMediaInlineAsync(const FullMsgId &msgId) {
-	if (MainWidget *m = App::main()) {
-		QMetaObject::invokeMethod(m, "ui_autoplayMediaInlineAsync", Qt::QueuedConnection, Q_ARG(qint32, msgId.channel), Q_ARG(qint32, msgId.msg));
+	if (auto main = App::main()) {
+		QMetaObject::invokeMethod(main, "ui_autoplayMediaInlineAsync", Qt::QueuedConnection, Q_ARG(qint32, msgId.channel), Q_ARG(qint32, msgId.msg));
 	}
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (auto m = App::main()) {
-		m->showWideSection(Profile::SectionMemento(App::peer(peer)));
+	if (auto main = App::main()) {
+		main->showWideSection(Profile::SectionMemento(App::peer(peer)));
 	}
 }
 

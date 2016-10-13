@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "layout.h"
 #include "core/click_handler_types.h"
 #include "ui/effects/radial_animation.h"
+#include "styles/style_overview.h"
 
 namespace Overview {
 namespace Layout {
@@ -261,7 +262,7 @@ private:
 
 class Document : public FileBase {
 public:
-	Document(DocumentData *document, HistoryItem *parent);
+	Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st);
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const override;
@@ -289,11 +290,14 @@ private:
 	DocumentData *_data;
 	ClickHandlerPtr _msgl, _namel;
 
-	mutable bool _thumbForLoaded;
+	const style::OverviewFileLayout &_st;
+
+	mutable bool _thumbForLoaded = false;
 	mutable QPixmap _thumb;
 
-	QString _name, _date, _ext;
-	int32 _namew, _datew, _extw;
+	Text _name;
+	QString _date, _ext;
+	int32 _datew, _extw;
 	int32 _thumbw, _colorIndex;
 
 	bool withThumb() const {

@@ -38,6 +38,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Overview {
 namespace Layout {
+namespace {
+
+TextParseOptions _documentNameOptions = {
+	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMono, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+} // namespace
 
 void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	App::hoveredLinkItem(active ? _parent : nullptr);
@@ -404,8 +414,8 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent) : FileBase(parent)
 }
 
 void Voice::initDimensions() {
-	_maxw = st::profileMaxWidth;
-	_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::lineWidth;
+	_maxw = st::overviewFileLayout.maxWidth;
+	_minh = st::overviewFileLayout.songPadding.top() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.bottom() + st::lineWidth;
 }
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
@@ -429,16 +439,16 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 
-	nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-	nameright = st::msgFilePadding.left();
-	nametop = st::msgFileNameTop;
-	statustop = st::msgFileStatusTop;
+	nameleft = st::overviewFileLayout.songPadding.left() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.right();
+	nameright = st::overviewFileLayout.songPadding.left();
+	nametop = st::overviewFileLayout.songNameTop;
+	statustop = st::overviewFileLayout.songStatusTop;
 
 	if (selected) {
 		p.fillRect(clip.intersected(QRect(0, 0, _width, _height)), st::msgInBgSelected);
 	}
 
-	QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+	QRect inner(rtlrect(st::overviewFileLayout.songPadding.left(), st::overviewFileLayout.songPadding.top(), st::overviewFileLayout.songThumbSize, st::overviewFileLayout.songThumbSize, _width));
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
 		if (selected) {
@@ -514,12 +524,12 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
 
-	nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-	nameright = st::msgFilePadding.left();
-	nametop = st::msgFileNameTop;
-	statustop = st::msgFileStatusTop;
+	nameleft = st::overviewFileLayout.songPadding.left() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.right();
+	nameright = st::overviewFileLayout.songPadding.left();
+	nametop = st::overviewFileLayout.songNameTop;
+	statustop = st::overviewFileLayout.songStatusTop;
 
-	QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+	auto inner = rtlrect(st::overviewFileLayout.songPadding.left(), st::overviewFileLayout.songPadding.top(), st::overviewFileLayout.songThumbSize, st::overviewFileLayout.songThumbSize, _width);
 	if (inner.contains(x, y)) {
 		link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _openl);
 		return;
@@ -577,16 +587,16 @@ bool Voice::updateStatusText() const {
 	return showPause;
 }
 
-Document::Document(DocumentData *document, HistoryItem *parent) : FileBase(parent)
+Document::Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st) : FileBase(parent)
 , _data(document)
 , _msgl(new GoToMessageClickHandler(parent))
 , _namel(new DocumentOpenClickHandler(_data))
-, _thumbForLoaded(false)
-, _name(documentName(_data))
+, _st(st)
 , _date(langDateTime(date(_data->date)))
-, _namew(st::semiboldFont->width(_name))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
+	_name.setMarkedText(st::normalFont, documentNameWithEntities(_data), _documentNameOptions);
+
 	AddComponents(Info::Bit());
 
 	setDocumentLinks(_data);
@@ -597,27 +607,27 @@ Document::Document(DocumentData *document, HistoryItem *parent) : FileBase(paren
 		_data->thumb->load();
 		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
-			_thumbw = (tw * st::overviewFileSize) / th;
+			_thumbw = (tw * _st.fileThumbSize) / th;
 		} else {
-			_thumbw = st::overviewFileSize;
+			_thumbw = _st.fileThumbSize;
 		}
 	} else {
 		_thumbw = 0;
 	}
 
 	_extw = st::overviewFileExtFont->width(_ext);
-	if (_extw > st::overviewFileSize - st::overviewFileExtPadding * 2) {
-		_ext = st::overviewFileExtFont->elided(_ext, st::overviewFileSize - st::overviewFileExtPadding * 2, Qt::ElideMiddle);
+	if (_extw > _st.fileThumbSize - st::overviewFileExtPadding * 2) {
+		_ext = st::overviewFileExtFont->elided(_ext, _st.fileThumbSize - st::overviewFileExtPadding * 2, Qt::ElideMiddle);
 		_extw = st::overviewFileExtFont->width(_ext);
 	}
 }
 
 void Document::initDimensions() {
-	_maxw = st::profileMaxWidth;
+	_maxw = _st.maxWidth;
 	if (_data->song()) {
-		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
+		_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom();
 	} else {
-		_minh = st::overviewFilePadding.top() + st::overviewFileSize + st::overviewFilePadding.bottom() + st::lineWidth;
+		_minh = _st.filePadding.top() + _st.fileThumbSize + _st.filePadding.bottom() + st::lineWidth;
 	}
 }
 
@@ -640,16 +650,16 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	bool wthumb = withThumb();
 
 	if (_data->song()) {
-		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		nameright = st::msgFilePadding.left();
-		nametop = st::msgFileNameTop;
-		statustop = st::msgFileStatusTop;
+		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
+		nameright = _st.songPadding.left();
+		nametop = _st.songNameTop;
+		statustop = _st.songStatusTop;
 
 		if (selected) {
 			p.fillRect(QRect(0, 0, _width, _height), st::msgInBgSelected);
 		}
 
-		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+		auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
 		if (clip.intersects(inner)) {
 			p.setPen(Qt::NoPen);
 			if (selected) {
@@ -668,7 +678,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 			if (radial) {
-				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
 				style::color bg(selected ? st::msgInBgSelected : st::msgInBg);
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
@@ -686,17 +696,17 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			icon->paintInCenter(p, inner);
 		}
 	} else {
-		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
-		nametop = st::linksBorder + st::overviewFileNameTop;
-		statustop = st::linksBorder + st::overviewFileStatusTop;
-		datetop = st::linksBorder + st::overviewFileDateTop;
+		nameleft = _st.fileThumbSize + _st.filePadding.right();
+		nametop = st::linksBorder + _st.fileNameTop;
+		statustop = st::linksBorder + _st.fileStatusTop;
+		datetop = st::linksBorder + _st.fileDateTop;
 
 		QRect border(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
 		if (!context->isAfterDate && clip.intersects(border)) {
 			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
+		QRect rthumb(rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				if (_data->thumb->loaded()) {
@@ -704,7 +714,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 						_thumbForLoaded = loaded;
 						ImagePixOptions options = ImagePixSmooth;
 						if (!_thumbForLoaded) options |= ImagePixBlurred;
-						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, st::overviewFileSize, st::overviewFileSize);
+						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -723,7 +733,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
-				QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+				QRect inner(rthumb.x() + (rthumb.width() - _st.songThumbSize) / 2, rthumb.y() + (rthumb.height() - _st.songThumbSize) / 2, _st.songThumbSize, _st.songThumbSize);
 				if (clip.intersects(inner)) {
 					float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
@@ -772,19 +782,14 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		}
 	}
 
-	int32 namewidth = _width - nameleft - nameright;
-
-	if (clip.intersects(rtlrect(nameleft, nametop, qMin(namewidth, _namew), st::semiboldFont->height, _width))) {
-		p.setFont(st::semiboldFont);
+	int availwidth = _width - nameleft - nameright;
+	int namewidth = qMin(availwidth, _name.maxWidth());
+	if (clip.intersects(rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
 		p.setPen(st::black);
-		if (namewidth < _namew) {
-			p.drawTextLeft(nameleft, nametop, _width, st::semiboldFont->elided(_name, namewidth));
-		} else {
-			p.drawTextLeft(nameleft, nametop, _width, _name, _namew);
-		}
+		_name.drawLeftElided(p, nameleft, nametop, namewidth, _width);
 	}
 
-	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
+	if (clip.intersects(rtlrect(nameleft, statustop, availwidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen(st::mediaInFg);
 		p.drawTextLeft(nameleft, statustop, _width, _statusText);
@@ -805,12 +810,12 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 	bool wthumb = withThumb();
 
 	if (_data->song()) {
-		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		nameright = st::msgFilePadding.left();
-		nametop = st::msgFileNameTop;
-		statustop = st::msgFileStatusTop;
+		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
+		nameright = _st.songPadding.left();
+		nametop = _st.songNameTop;
+		statustop = _st.songStatusTop;
 
-		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+		auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
 		if (inner.contains(x, y)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _openl);
 			return;
@@ -820,12 +825,12 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 			return;
 		}
 	} else {
-		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
-		nametop = st::linksBorder + st::overviewFileNameTop;
-		statustop = st::linksBorder + st::overviewFileStatusTop;
-		datetop = st::linksBorder + st::overviewFileDateTop;
+		nameleft = _st.fileThumbSize + _st.filePadding.right();
+		nametop = st::linksBorder + _st.fileNameTop;
+		statustop = st::linksBorder + _st.fileStatusTop;
+		datetop = st::linksBorder + _st.fileDateTop;
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
+		auto rthumb = rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width);
 
 		if (rthumb.contains(x, y)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _savel);
@@ -843,7 +848,7 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 				link = _namel;
 				return;
 			}
-			if (rtlrect(nameleft, nametop, qMin(_width - nameleft - nameright, _namew), st::semiboldFont->height, _width).contains(x, y)) {
+			if (rtlrect(nameleft, nametop, qMin(_width - nameleft - nameright, _name.maxWidth()), st::semiboldFont->height, _width).contains(x, y)) {
 				link = _namel;
 				return;
 			}

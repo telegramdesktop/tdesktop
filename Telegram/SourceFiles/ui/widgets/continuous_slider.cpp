@@ -137,6 +137,8 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		deltaY *= -1;
+	} else {
+		deltaX *= -1;
 	}
 	if (deltaX * deltaY < 0) {
 		return;

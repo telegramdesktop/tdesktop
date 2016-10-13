@@ -20,11 +20,45 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Overview {
+namespace Layout {
+class Document;
+} // namespace Layout
+} // namespace Overview
+
 namespace Media {
 namespace Player {
 
-class ListWidget : public ScrolledWidget {
+class ListWidget : public ScrolledWidget, private base::Subscriber {
 public:
+	ListWidget();
+
+	void ui_repaintHistoryItem(const HistoryItem *item);
+	void itemRemoved(HistoryItem *item);
+
+	~ListWidget();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	int marginTop() const;
+	void repaintItem(const HistoryItem *item);
+	void playlistUpdated();
+
+	using Layout = Overview::Layout::Document;
+	using Layouts = QMap<FullMsgId, Layout*>;
+	Layouts _layouts;
+
+	using List = QList<Layout*>;
+	List _list;
+
+	style::cursor _cursor = style::cur_default;
 
 };
 

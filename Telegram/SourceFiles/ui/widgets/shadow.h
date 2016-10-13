@@ -44,4 +44,23 @@ private:
 
 };
 
+class GradientShadow : public TWidget {
+public:
+	GradientShadow(QWidget *parent, const style::icon &icon) : TWidget(parent), _icon(icon) {
+	}
+
+protected:
+	int resizeGetHeight(int newWidth) override {
+		return _icon.height();
+	}
+	void paintEvent(QPaintEvent *e) override {
+		Painter p(this);
+		_icon.fill(p, e->rect());
+	}
+
+private:
+	const style::icon &_icon;
+
+};
+
 } // namespace Ui

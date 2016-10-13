@@ -20,6 +20,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
 
+OverviewFileLayout {
+	maxWidth: pixels;
+	songPadding: margins;
+	songThumbSize: pixels;
+	songNameTop: pixels;
+	songStatusTop: pixels;
+	filePadding: margins;
+	fileThumbSize: pixels;
+	fileNameTop: pixels;
+	fileStatusTop: pixels;
+	fileDateTop: pixels;
+}
+
 overviewCheckBg: #0006;
 overviewCheckedBg: #2fa9e2;
 
@@ -36,16 +49,24 @@ overviewPhotoChecked: icon {
 };
 overviewPhotoSelectOverlay: #0a7bb03f;
 
-overviewFilePadding: margins(0px, 3px, 16px, 3px);
-overviewFileSize: 70px;
-overviewFileNameTop: 7px;
-overviewFileStatusTop: 27px;
-overviewFileDateTop: 49px;
 overviewFileChecked: #2fa9e2;
 overviewFileCheck: #00000066;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
 overviewFileExtFont: font(18px semibold);
+
+overviewFileLayout: OverviewFileLayout {
+	maxWidth: 410px;
+	songPadding: msgFilePadding;
+	songThumbSize: msgFileSize;
+	songNameTop: msgFileNameTop;
+	songStatusTop: msgFileStatusTop;
+	filePadding: margins(0px, 3px, 16px, 3px);
+	fileThumbSize: 70px;
+	fileNameTop: 7px;
+	fileStatusTop: 24px;
+	fileDateTop: 49px;
+}
 
 overviewLoader: size(34px, 14px);
 overviewLoaderPoint: size(4px, 4px);

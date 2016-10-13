@@ -24,6 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ScrollArea;
 
+namespace Ui {
+class GradientShadow;
+} // namespace Ui
+
 namespace Media {
 namespace Player {
 
@@ -49,6 +53,9 @@ public:
 	using PinCallback = base::lambda_unique<void()>;
 	void setPinCallback(PinCallback &&callback);
 
+	void ui_repaintHistoryItem(const HistoryItem *item);
+	void itemRemoved(HistoryItem *item);
+
 	~Panel();
 
 protected:
@@ -64,15 +71,19 @@ private slots:
 	void onHideStart();
 	void onScroll();
 
+	void onListHeightUpdated();
+
 	void onWindowActiveChanged();
 
 private:
+	void updateSize();
 	void appearanceCallback();
 	void hidingFinished();
 	int contentLeft() const;
 	int contentWidth() const {
 		return width() - contentLeft();
 	}
+	int contentHeight() const;
 
 	void startAnimation();
 
@@ -85,8 +96,8 @@ private:
 
 	Ui::RectShadow _shadow;
 	ChildWidget<CoverWidget> _cover = { nullptr };
-	ChildWidget<ListWidget> _list = { nullptr };
-	ChildWidget<ScrollArea> _scroll = { nullptr };
+	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::GradientShadow> _scrollShadow;
 
 };
 

@@ -1308,7 +1308,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	} else if (_type == OverviewLinks) {
 		_rowWidth = qMin(_width - st::linksSearchMargin.left() - st::linksSearchMargin.right(), int32(st::linksMaxWidth));
 	} else {
-		_rowWidth = qMin(_width - st::profilePadding.left() - st::profilePadding.right(), int32(st::profileMaxWidth));
+		_rowWidth = qMin(_width - st::profilePadding.left() - st::profilePadding.right(), st::overviewFileLayout.maxWidth);
 	}
 	_rowsLeft = (_width - _rowWidth) / 2;
 
@@ -1859,7 +1859,7 @@ Overview::Layout::ItemBase *OverviewInner::layoutPrepare(HistoryItem *item) {
 	} else if (_type == OverviewFiles || _type == OverviewMusicFiles) {
 		if (media && (media->type() == MediaTypeFile || media->type() == MediaTypeMusicFile || media->type() == MediaTypeGif)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Document(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Document(media->getDocument(), item, st::overviewFileLayout));
 				i.value()->initDimensions();
 			}
 		}

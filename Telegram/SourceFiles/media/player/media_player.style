@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 using "basic.style";
 using "ui/widgets/widgets.style";
+using "overview/overview.style";
 
 MediaPlayerButton {
 	playPosition: point;
@@ -231,3 +232,20 @@ mediaPlayerPanelVolumeSkip: 3px;
 mediaPlayerPanelVolumeWidth: 64px;
 mediaPlayerPanelVolumeToggleSkip: 0px;
 mediaPlayerPanelVolumeToggleTop: 57px;
+
+mediaPlayerScroll: flatScroll(solidScroll) {
+	deltat: 10px;
+	deltab: 0px;
+}
+mediaPlayerListHeightMax: 280px;
+mediaPlayerListMarginBottom: 10px;
+mediaPlayerScrollShadow: icon {{ "player_playlist_shadow", #000000 }};
+
+mediaPlayerListMarginTop: 8px;
+mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
+	maxWidth: 344px;
+	songPadding: margins(17px, 7px, 10px, 6px);
+	songThumbSize: 36px;
+	songNameTop: 7px;
+	songStatusTop: 25px;
+}

@@ -6302,7 +6302,7 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 
 void HistoryWidget::onMembersDropdownShow() {
 	if (!_membersDropdown) {
-		_membersDropdown = new Ui::InnerDropdown(this, st::membersInnerDropdown, st::membersInnerScroll);
+		_membersDropdown.create(this, st::membersInnerDropdown, st::membersInnerScroll);
 		_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
 		_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
 

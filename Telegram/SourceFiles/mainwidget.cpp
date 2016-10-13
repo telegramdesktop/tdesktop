@@ -489,6 +489,9 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (item->history()->lastMsg == item) {
 		item->history()->updateChatListEntry();
 	}
+	if (_playerPanel && !_playerPanel->isHidden()) {
+		_playerPanel->ui_repaintHistoryItem(item);
+	}
 	if (_overview) _overview->ui_repaintHistoryItem(item);
 }
 
@@ -1363,6 +1366,9 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 	}
 	if (_overview && (_overview->peer() == item->history()->peer || (_overview->peer() && _overview->peer() == item->history()->peer->migrateTo()))) {
 		_overview->itemRemoved(item);
+	}
+	if (_playerPanel) {
+		_playerPanel->itemRemoved(item);
 	}
 	if (!_toForward.isEmpty()) {
 		SelectedItemSet::iterator i = _toForward.find(item->id);
