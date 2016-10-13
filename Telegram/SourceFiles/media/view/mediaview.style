@@ -32,6 +32,8 @@ mediaviewPlayback: MediaSlider {
 	width: 3px;
 	activeFg: mediaviewPlaybackActive;
 	inactiveFg: mediaviewPlaybackInactive;
+	disabledActiveFg: mediaviewPlaybackActive;
+	disabledInactiveFg: mediaviewPlaybackInactive;
 	activeOpacity: mediaviewActiveOpacity;
 	inactiveOpacity: mediaviewInactiveOpacity;
 	seekSize: size(11px, 11px);

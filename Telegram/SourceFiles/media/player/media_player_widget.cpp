@@ -267,7 +267,11 @@ void Widget::handleSongUpdate(const UpdatedEvent &e) {
 		return;
 	}
 
-	_playback->updateState(*e.playbackState);
+	if (audioId.audio()->loading()) {
+		_playback->updateLoadingState(audioId.audio()->progress());
+	} else {
+		_playback->updateState(*e.playbackState);
+	}
 
 	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
 	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
@@ -301,9 +305,7 @@ void Widget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState 
 	_lastDurationMs = (playbackState.duration * 1000LL) / frequency;
 
 	if (audioId.audio()->loading()) {
-		auto loaded = audioId.audio()->loadOffset();
-		auto loadProgress = snap(float64(loaded) / qMax(audioId.audio()->size, 1), 0., 1.);
-		_time = QString::number(qRound(loadProgress * 100)) + '%';
+		_time = QString::number(qRound(audioId.audio()->progress() * 100)) + '%';
 		_playback->setDisabled(true);
 	} else {
 		display = display / frequency;

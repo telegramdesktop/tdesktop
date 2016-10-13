@@ -33,6 +33,7 @@ Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
 void Playback::updateState(const AudioPlaybackState &playbackState) {
 	qint64 position = 0, duration = playbackState.duration;
 
+	setDisabled(false);
 	_playing = !(playbackState.state & AudioPlayerStoppedMask);
 	if (_playing || playbackState.state == AudioPlayerStopped) {
 		position = playbackState.position;
@@ -55,6 +56,12 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 		_duration = duration;
 	}
 	_slider->update();
+}
+
+void Playback::updateLoadingState(float64 progress) {
+	setDisabled(true);
+	auto animated = progress > _slider->value();
+	_slider->setValue(progress, animated);
 }
 
 } // namespace Clip

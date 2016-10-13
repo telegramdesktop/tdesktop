@@ -69,7 +69,7 @@ protected:
 		return _mouseDown ? _downValue : a_value.current();
 	}
 	float64 getCurrentOverFactor(uint64 ms) {
-		return _a_over.current(ms, _over ? 1. : 0.);
+		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
 	}
 	bool isDisabled() const {
 		return _disabled;

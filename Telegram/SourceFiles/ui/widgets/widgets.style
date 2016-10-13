@@ -37,6 +37,8 @@ MediaSlider {
 	width: pixels;
 	activeFg: color;
 	inactiveFg: color;
+	disabledActiveFg: color;
+	disabledInactiveFg: color;
 	activeOpacity: double;
 	inactiveOpacity: double;
 	seekSize: size;
@@ -48,6 +50,7 @@ FilledSlider {
 	lineWidth: pixels;
 	activeFg: color;
 	inactiveFg: color;
+	disabledFg: color;
 	duration: int;
 }
 

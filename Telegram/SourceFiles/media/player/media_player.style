@@ -151,6 +151,7 @@ mediaPlayerPlayback: FilledSlider {
 	lineWidth: 2px;
 	activeFg: mediaPlayerActiveFg;
 	inactiveFg: mediaPlayerInactiveFg;
+	disabledFg: #9dd1ef;
 	duration: 150;
 }
 
@@ -217,6 +218,8 @@ mediaPlayerPanelPlayback: MediaSlider {
 	width: 3px;
 	activeFg: mediaPlayerActiveFg;
 	inactiveFg: mediaPlayerInactiveFg;
+	disabledActiveFg: mediaPlayerInactiveFg;
+	disabledInactiveFg: windowBg;
 	activeOpacity: 1.;
 	inactiveOpacity: 1.;
 	seekSize: size(9px, 9px);

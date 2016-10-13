@@ -32,6 +32,7 @@ public:
 	Playback(Ui::ContinuousSlider *slider);
 
 	void updateState(const AudioPlaybackState &playbackState);
+	void updateLoadingState(float64 progress);
 
 	void setFadeOpacity(float64 opacity) {
 		_slider->setFadeOpacity(opacity);

@@ -1368,12 +1368,9 @@ bool DocumentData::displayLoading() const {
 
 float64 DocumentData::progress() const {
 	if (uploading()) {
-		if (size > 0) {
-			return float64(uploadOffset) / size;
-		}
-		return 0;
+		return snap((size > 0) ? float64(uploadOffset) / size : 0., 0., 1.);
 	}
-	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
+	return loading() ? _loader->currentProgress() : (loaded() ? 1. : 0.);
 }
 
 int32 DocumentData::loadOffset() const {

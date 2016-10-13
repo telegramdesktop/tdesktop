@@ -132,7 +132,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 #else // OS_MAC_OLD
 	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
 #endif // OS_MAC_OLD
-	constexpr auto coef = 1. / (step * 5.);
+	constexpr auto coef = 1. / (step * 10.);
 
 	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {

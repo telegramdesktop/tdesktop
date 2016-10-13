@@ -51,13 +51,13 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	auto lineWidthPartial = lineWidth - lineWidthRounded;
 	auto seekRect = getSeekRect();
 	auto value = getCurrentValue(ms);
-	auto from = seekRect.x(), mid = disabled ? from : qRound(from + value * seekRect.width()), end = from + seekRect.width();
+	auto from = seekRect.x(), mid = qRound(from + value * seekRect.width()), end = from + seekRect.width();
 	if (mid > from) {
 		p.setOpacity(masterOpacity);
-		p.fillRect(from, height() - lineWidthRounded, (mid - from), lineWidthRounded, _st.activeFg);
+		p.fillRect(from, height() - lineWidthRounded, (mid - from), lineWidthRounded, disabled ? _st.disabledFg : _st.activeFg);
 		if (lineWidthPartial > 0.01) {
 			p.setOpacity(masterOpacity * lineWidthPartial);
-			p.fillRect(from, height() - lineWidthRounded - 1, (mid - from), 1, _st.activeFg);
+			p.fillRect(from, height() - lineWidthRounded - 1, (mid - from), 1, disabled ? _st.disabledFg : _st.activeFg);
 		}
 	}
 	if (end > mid && over > 0) {

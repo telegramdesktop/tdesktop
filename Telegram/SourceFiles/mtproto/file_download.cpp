@@ -105,9 +105,9 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 }
 
 float64 FileLoader::currentProgress() const {
-	if (_complete) return 1;
-	if (!fullSize()) return 0;
-	return float64(currentOffset()) / fullSize();
+	if (_complete) return 1.;
+	if (!fullSize()) return 0.;
+	return snap(float64(currentOffset()) / fullSize(), 0., 1.);
 }
 
 int32 FileLoader::fullSize() const {
