@@ -127,6 +127,8 @@ Go to **D:\\TBuild\\Libraries** and run
 * Install [CMake](http://www.cmake.org/)
 * Go to **D:\\TBuild\\Libraries\\openal-soft\\build** and run
 
+<!-- -->
+
     cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
 
 * Open in VS2015 **D:\\TBuild\\Libraries\\openal-soft\\build\\OpenAL.sln** and build Debug and Release configurations
@@ -180,6 +182,8 @@ Go to **D:\\msys64** and launch **msys2_shell.bat**, there run
 * Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
 * Go to **D:\\TBuild\\Libraries** and run
 
+<!-- -->
+
     git clone git://code.qt.io/qt/qt5.git qt5_6_0
     cd qt5_6_0
     git checkout 5.6
@@ -223,6 +227,8 @@ Breakpad is a set of client and server components which implement a crash-report
 * Install Python 2.7.12 from https://www.python.org/downloads/release/python-2712/ > [**Windows x86 MSI installer**](https://www.python.org/ftp/python/2.7.12/python-2.7.12.msi). Make sure that python is added to your `PATH` (there is an option for this in the python installer).
 * Go to **D:\\TBuild\\Libraries** and run
 
+<!-- -->
+
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd depot_tools
     gclient config "https://chromium.googlesource.com/breakpad/breakpad.git"
@@ -247,6 +253,8 @@ Breakpad is a set of client and server components which implement a crash-report
 
 * Download [Ninja binaries](https://github.com/ninja-build/ninja/releases/download/v1.7.1/ninja-win.zip) and unpack them to **D:\\TBuild\\Libraries\\ninja** to have **D:\\TBuild\\Libraries\\ninja\\ninja.exe**
 * Go to **D:\\TBuild\\Libraries** and run
+
+<!-- -->
 
     git clone https://chromium.googlesource.com/external/gyp
     SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
