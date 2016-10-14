@@ -48,7 +48,6 @@ class DialogsInner : public SplittedWidget, public RPCSender, private base::Subs
 	Q_OBJECT
 
 public:
-
 	DialogsInner(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
@@ -119,7 +118,6 @@ public:
 
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
-	void itemRemoved(HistoryItem *item);
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
@@ -131,7 +129,6 @@ public:
 	~DialogsInner();
 
 public slots:
-
 	void onUpdateSelected(bool force = false);
 	void onParentGeometryChanged();
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
@@ -152,7 +149,6 @@ public slots:
 	void peerUpdated(PeerData *peer);
 
 signals:
-
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
@@ -162,10 +158,10 @@ signals:
 	void refreshHashtags();
 
 protected:
-
 	void paintRegion(Painter &p, const QRegion &region, bool paintingOther);
 
 private:
+	void itemRemoved(HistoryItem *item);
 
 	int dialogsOffset() const;
 	int filteredOffset() const;
@@ -287,8 +283,6 @@ public:
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();
-
-	void itemRemoved(HistoryItem *item);
 
 	void updateNotifySettings(PeerData *peer);
 

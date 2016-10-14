@@ -2018,8 +2018,8 @@ namespace {
 		if (auto manager = Window::Notifications::manager()) {
 			manager->clearFromItem(item);
 		}
-		if (App::main() && !App::quitting()) {
-			App::main()->itemRemoved(item);
+		if (Global::started() && !App::quitting()) {
+			Global::RefItemRemoved().notify(item, true);
 		}
 	}
 

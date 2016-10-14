@@ -33,7 +33,9 @@ Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
 void Playback::updateState(const AudioPlaybackState &playbackState) {
 	qint64 position = 0, duration = playbackState.duration;
 
-	setDisabled(false);
+	auto wasDisabled = _slider->isDisabled();
+	if (wasDisabled) setDisabled(false);
+
 	_playing = !(playbackState.state & AudioPlayerStoppedMask);
 	if (_playing || playbackState.state == AudioPlayerStopped) {
 		position = playbackState.position;
@@ -49,7 +51,7 @@ void Playback::updateState(const AudioPlaybackState &playbackState) {
 	} else if (duration) {
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 	}
-	if (duration != _duration || position != _position) {
+	if (duration != _duration || position != _position || wasDisabled) {
 		auto animated = (duration && _duration && progress > _slider->value());
 		_slider->setValue(progress, animated);
 		_position = position;

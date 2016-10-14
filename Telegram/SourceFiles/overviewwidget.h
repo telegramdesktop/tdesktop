@@ -36,7 +36,7 @@ class PlainShadow;
 } // namespace Ui
 
 class OverviewWidget;
-class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
+class OverviewInner : public TWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -73,7 +73,6 @@ public:
 	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void repaintItem(const HistoryItem *msg);
-	void itemRemoved(HistoryItem *item);
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
@@ -124,6 +123,7 @@ public slots:
 	void onNeedSearchMessages();
 
 private:
+	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
 
 	bool itemMigrated(MsgId msgId) const;
@@ -152,7 +152,8 @@ private:
 
 	OverviewWidget *_overview;
 	ScrollArea *_scroll;
-	int32 _resizeIndex, _resizeSkip;
+	int _resizeIndex = -1;
+	int _resizeSkip = 0;
 
 	PeerData *_peer;
 	MediaOverviewType _type;
@@ -160,10 +161,11 @@ private:
 	History *_migrated, *_history;
 	ChannelId _channel;
 
-	bool _selMode;
+	bool _selMode = false;
 	TextSelection itemSelectedValue(int32 index) const;
 
-	int32 _rowsLeft, _rowWidth;
+	int _rowsLeft = 0;
+	int _rowWidth = 0;
 
 	typedef QVector<Overview::Layout::AbstractItem*> Items;
 	Items _items;
@@ -181,15 +183,18 @@ private:
 	int32 _itemsToBeLoaded;
 
 	// photos
-	int32 _photosInRow;
+	int32 _photosInRow = 1;
 
 	QTimer _searchTimer;
 	QString _searchQuery;
-	bool _inSearch, _searchFull, _searchFullMigrated;
-	mtpRequestId _searchRequest;
+	bool _inSearch = false;
+	bool _searchFull = false;
+	bool _searchFullMigrated = false;
+	mtpRequestId _searchRequest = 0;
 	History::MediaOverview _searchResults;
-	MsgId _lastSearchId, _lastSearchMigratedId;
-	int32 _searchedCount;
+	MsgId _lastSearchId = 0;
+	MsgId _lastSearchMigratedId = 0;
+	int _searchedCount = 0;
 	enum SearchRequestType {
 		SearchFromStart,
 		SearchFromOffset,
@@ -205,13 +210,17 @@ private:
 	typedef QMap<mtpRequestId, QString> SearchQueries;
 	SearchQueries _searchQueries;
 
-	int32 _width, _height, _minHeight, _marginTop, _marginBottom;
+	int _width = 0;
+	int _height = 0;
+	int _minHeight = 0;
+	int _marginTop = 0;
+	int _marginBottom = 0;
 
 	QTimer _linkTipTimer;
 
 	// selection support, like in HistoryWidget
-	Qt::CursorShape _cursor;
-	HistoryCursorState _cursorState;
+	style::cursor _cursor = style::cur_default;
+	HistoryCursorState _cursorState = HistoryDefaultCursorState;
 	using SelectedItems = QMap<MsgId, TextSelection>;
 	SelectedItems _selected;
 	enum DragAction {
@@ -221,32 +230,40 @@ private:
 		PrepareSelect = 0x03,
 		Selecting = 0x04,
 	};
-	DragAction _dragAction;
+	DragAction _dragAction = NoDrag;
 	QPoint _dragStartPos, _dragPos;
-	MsgId _dragItem, _selectedMsgId;
-	int32 _dragItemIndex;
-	MsgId _mousedItem;
-	int32 _mousedItemIndex;
+	MsgId _dragItem = 0;
+	MsgId _selectedMsgId = 0;
+	int _dragItemIndex = -1;
+	MsgId _mousedItem = 0;
+	int _mousedItemIndex = -1;
 	uint16 _dragSymbol;
-	bool _dragWasInactive;
+	bool _dragWasInactive = false;
 
 	ClickHandlerPtr _contextMenuLnk;
 
-	MsgId _dragSelFrom, _dragSelTo;
-	int32 _dragSelFromIndex, _dragSelToIndex;
-	bool _dragSelecting;
+	MsgId _dragSelFrom = 0;
+	MsgId _dragSelTo = 0;
+	int _dragSelFromIndex = -1;
+	int _dragSelToIndex = -1;
+	bool _dragSelecting = false;
 
-	bool _touchScroll, _touchSelect, _touchInProgress;
+	bool _touchScroll = false;
+	bool _touchSelect = false;
+	bool _touchInProgress = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
 
-	TouchScrollState _touchScrollState;
-	bool _touchPrevPosValid, _touchWaitingAcceleration;
+	TouchScrollState _touchScrollState = TouchScrollManual;
+	bool _touchPrevPosValid = false;
+	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
+	uint64 _touchSpeedTime = 0;
+	uint64 _touchAccelerationTime = 0;
+	uint64 _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	PopupMenu *_menu;
+	PopupMenu *_menu = nullptr;
 };
 
 class OverviewWidget : public TWidget, public RPCSender {

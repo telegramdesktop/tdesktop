@@ -81,7 +81,11 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _shadow(this, st::shadowColor)
 , _playback(new Ui::FilledSlider(this, st::mediaPlayerPlayback)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+	setMouseTracking(true);
 	resize(st::wndMinWidth, st::mediaPlayerHeight + st::lineWidth);
+
+	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_playback->setChangeProgressCallback([this](float64 value) {
 		handleSeekProgress(value);
@@ -226,6 +230,28 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void Widget::leaveEvent(QEvent *e) {
+	updateOverLabelsState(false);
+}
+
+void Widget::mouseMoveEvent(QMouseEvent *e) {
+	updateOverLabelsState(e->pos());
+}
+
+void Widget::updateOverLabelsState(QPoint pos) {
+	auto left = getLabelsLeft();
+	auto right = getLabelsRight();
+	auto labels = myrtlrect(left, 0, width() - right - left, height() - st::mediaPlayerPlayback.fullWidth);
+	auto over = labels.contains(pos);
+	updateOverLabelsState(over);
+}
+
+void Widget::updateOverLabelsState(bool over) {
+	if (exists()) {
+		instance()->playerWidgetOver().notify(over, true);
+	}
+}
+
 void Widget::updatePlayPrevNextPositions() {
 	auto left = st::mediaPlayerPlayLeft;
 	auto top = st::mediaPlayerPlayTop;
@@ -238,15 +264,24 @@ void Widget::updatePlayPrevNextPositions() {
 	}
 }
 
-void Widget::updateLabelsGeometry() {
-	auto left = st::mediaPlayerPlayLeft + _playPause->width();
+int Widget::getLabelsLeft() const {
+	auto result = st::mediaPlayerPlayLeft + _playPause->width();
 	if (_previousTrack) {
-		left += _previousTrack->width() + st::mediaPlayerPlaySkip + _nextTrack->width() + st::mediaPlayerPlaySkip;
+		result += _previousTrack->width() + st::mediaPlayerPlaySkip + _nextTrack->width() + st::mediaPlayerPlaySkip;
 	}
-	left += st::mediaPlayerPadding;
+	result += st::mediaPlayerPadding;
+	return result;
+}
 
-	auto right = st::mediaPlayerCloseRight + _close->width() + _repeatTrack->width() + _volumeToggle->width();
-	right += st::mediaPlayerPadding;
+int Widget::getLabelsRight() const {
+	auto result = st::mediaPlayerCloseRight + _close->width() + _repeatTrack->width() + _volumeToggle->width();
+	result += st::mediaPlayerPadding;
+	return result;
+}
+
+void Widget::updateLabelsGeometry() {
+	auto left = getLabelsLeft();
+	auto right = getLabelsRight();
 
 	auto widthForName = width() - left - right;
 	widthForName -= _timeLabel->width() + 2 * st::normalFont->spacew;
@@ -367,12 +402,14 @@ void Widget::handlePlaylistUpdate() {
 void Widget::createPrevNextButtons() {
 	if (!_previousTrack) {
 		_previousTrack.create(this, st::mediaPlayerPreviousButton);
-		_nextTrack.create(this, st::mediaPlayerNextButton);
+		_previousTrack->show();
 		_previousTrack->setClickedCallback([this]() {
 			if (exists()) {
 				instance()->previous();
 			}
 		});
+		_nextTrack.create(this, st::mediaPlayerNextButton);
+		_nextTrack->show();
 		_nextTrack->setClickedCallback([this]() {
 			if (exists()) {
 				instance()->next();

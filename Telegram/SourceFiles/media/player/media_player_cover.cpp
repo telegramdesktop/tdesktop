@@ -80,6 +80,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _pinPlayer(this, st::mediaPlayerPanelPinButton)
 , _repeatTrack(this, st::mediaPlayerRepeatButton) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+	resize(width(), st::mediaPlayerCoverHeight);
 
 	_playback->setChangeProgressCallback([this](float64 value) {
 		handleSeekProgress(value);
@@ -315,12 +316,14 @@ void CoverWidget::handlePlaylistUpdate() {
 void CoverWidget::createPrevNextButtons() {
 	if (!_previousTrack) {
 		_previousTrack.create(this, st::mediaPlayerPanelPreviousButton);
-		_nextTrack.create(this, st::mediaPlayerPanelNextButton);
+		_previousTrack->show();
 		_previousTrack->setClickedCallback([this]() {
 			if (exists()) {
 				instance()->previous();
 			}
 		});
+		_nextTrack.create(this, st::mediaPlayerPanelNextButton);
+		_nextTrack->show();
 		_nextTrack->setClickedCallback([this]() {
 			if (exists()) {
 				instance()->next();

@@ -35,7 +35,7 @@ namespace Settings {
 NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
 	createControls();
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](const Notify::ChangeType &type) {
+	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
 		if (type == Notify::ChangeType::DesktopEnabled) {
 			desktopEnabledUpdated();
 		} else if (type == Notify::ChangeType::ViewParams) {

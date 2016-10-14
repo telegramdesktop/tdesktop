@@ -82,7 +82,7 @@ private:
 
 	void moveWidgets();
 	void changeNotificationHeight(Notification *widget, int newHeight);
-	void settingsChanged(const Notify::ChangeType &change);
+	void settingsChanged(Notify::ChangeType change);
 
 	bool hasReplyingNotification() const;
 

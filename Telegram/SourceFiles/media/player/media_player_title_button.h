@@ -37,6 +37,8 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 

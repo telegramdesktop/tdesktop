@@ -132,6 +132,9 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 	notifyIsBotChanged();
 
 	setMouseTracking(true);
+	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+		itemRemoved(item);
+	});
 }
 
 void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {
@@ -969,7 +972,11 @@ void HistoryInner::onDragExec() {
 }
 
 void HistoryInner::itemRemoved(HistoryItem *item) {
-	SelectedItems::iterator i = _selected.find(item);
+	if (_history != item->history() && _migrated != item->history()) {
+		return;
+	}
+
+	auto i = _selected.find(item);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
 		_widget->updateTopBarSelection();
@@ -3130,7 +3137,10 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 
-	subscribe(Adaptive::Changed(), [this]() { update(); });
+	subscribe(Adaptive::Changed(), [this] { update(); });
+	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+		itemRemoved(item);
+	});
 }
 
 void HistoryWidget::start() {
@@ -7044,7 +7054,6 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {
-	if (_list) _list->itemRemoved(item);
 	if (item == _replyEditMsg) {
 		if (_editMsgId) {
 			cancelEdit();

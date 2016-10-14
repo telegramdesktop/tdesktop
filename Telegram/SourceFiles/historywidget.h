@@ -46,11 +46,10 @@ class DragArea;
 class EmojiPan;
 
 class HistoryWidget;
-class HistoryInner : public TWidget, public AbstractTooltipShower {
+class HistoryInner : public TWidget, public AbstractTooltipShower, private base::Subscriber {
 	Q_OBJECT
 
 public:
-
 	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -92,8 +91,6 @@ public:
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void selectItem(HistoryItem *item);
 
-	void itemRemoved(HistoryItem *item);
-
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;
@@ -126,7 +123,6 @@ protected:
 	bool focusNextPrevChild(bool next) override;
 
 public slots:
-
 	void onUpdateSelected();
 	void onParentGeometryChanged();
 
@@ -146,11 +142,11 @@ public slots:
 	void onDragExec();
 
 private slots:
-
 	void onScrollDateCheck();
 	void onScrollDateHide();
 
 private:
+	void itemRemoved(HistoryItem *item);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -633,7 +629,6 @@ public:
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
-	void itemRemoved(HistoryItem *item);
 	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
@@ -733,12 +728,10 @@ public:
 	~HistoryWidget();
 
 signals:
-
 	void cancelled();
 	void historyShown(History *history, MsgId atMsgId);
 
 public slots:
-
 	void onCancel();
 	void onReplyToMessage();
 	void onEditMessage();
@@ -841,7 +834,6 @@ public slots:
 	void preloadHistoryIfNeeded();
 
 private slots:
-
 	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
@@ -853,6 +845,7 @@ private slots:
 	void updateField();
 
 private:
+	void itemRemoved(HistoryItem *item);
 
 	// Updates position of controls around the message field,
 	// like send button, emoji button and others.

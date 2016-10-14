@@ -307,7 +307,6 @@ public:
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void itemRemoved(HistoryItem *item);
 	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
@@ -340,7 +339,6 @@ public:
 
 	bool hasForwardingItems();
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
-	void updateForwardingTexts();
 	void cancelForwarding();
 	void finishForwarding(History *hist, bool silent); // send them
 
@@ -484,7 +482,11 @@ private:
 	void updateAdaptiveLayout();
 	void handleAudioUpdate(const AudioMsgId &audioId);
 	void updateMediaPlayerPosition();
+	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
+
+	void updateForwardingTexts();
+	void updateForwardingItemRemovedSubscription();
 
 	void createPlayer();
 	void switchToPanelPlayer();
@@ -520,6 +522,7 @@ private:
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
 	int32 _toForwardNameVersion = 0;
+	int _forwardingItemRemovedSubscription = 0;
 
 	OrderedSet<WebPageId> _webPagesUpdated;
 	OrderedSet<GameId> _gamesUpdated;
@@ -589,9 +592,13 @@ private:
 	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
 	ChildWidget<OverviewWidget> _overview = { nullptr };
 	ChildWidget<Window::TopBarWidget> _topBar;
+
 	ChildWidget<Window::PlayerWrapWidget> _player = { nullptr };
 	ChildWidget<Media::Player::VolumeWidget> _playerVolume = { nullptr };
-	ChildWidget<Media::Player::Panel> _playerPanel = { nullptr };
+	ChildWidget<Media::Player::Panel> _playerPlaylist;
+	ChildWidget<Media::Player::Panel> _playerPanel;
+	bool _playerUsingPanel = false;
+
 	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
 	ChildWidget<HistoryHider> _hider = { nullptr };
 	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;

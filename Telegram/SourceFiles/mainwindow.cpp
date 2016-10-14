@@ -90,7 +90,7 @@ MainWindow::MainWindow() {
 	iconbig32 = iconbig256.scaledToWidth(32, Qt::SmoothTransformation);
 	iconbig64 = iconbig256.scaledToWidth(64, Qt::SmoothTransformation);
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](const Notify::ChangeType &type) {
+	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
 		if (type == Notify::ChangeType::DesktopEnabled) {
 			updateTrayMenu();
 			notifyClear();

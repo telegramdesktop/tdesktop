@@ -34,7 +34,8 @@ public:
 	ListWidget();
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void itemRemoved(HistoryItem *item);
+
+	QRect getCurrentTrackGeometry() const;
 
 	~ListWidget();
 
@@ -47,6 +48,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void itemRemoved(HistoryItem *item);
 	int marginTop() const;
 	void repaintItem(const HistoryItem *item);
 	void playlistUpdated();

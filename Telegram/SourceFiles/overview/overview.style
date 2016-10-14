@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
+using "history/history.style";
 
 OverviewFileLayout {
 	maxWidth: pixels;
@@ -26,6 +27,13 @@ OverviewFileLayout {
 	songThumbSize: pixels;
 	songNameTop: pixels;
 	songStatusTop: pixels;
+	songIconBg: color;
+	songOverBg: color;
+	songPause: icon;
+	songPlay: icon;
+	songCancel: icon;
+	songDownload: icon;
+
 	filePadding: margins;
 	fileThumbSize: pixels;
 	fileNameTop: pixels;
@@ -61,6 +69,13 @@ overviewFileLayout: OverviewFileLayout {
 	songThumbSize: msgFileSize;
 	songNameTop: msgFileNameTop;
 	songStatusTop: msgFileStatusTop;
+	songIconBg: msgFileInBg;
+	songOverBg: msgFileInBgOver;
+	songPause: historyFileInPause;
+	songPlay: historyFileInPlay;
+	songCancel: historyFileInCancel;
+	songDownload: historyFileInDownload;
+
 	filePadding: margins(0px, 3px, 16px, 3px);
 	fileThumbSize: 70px;
 	fileNameTop: 7px;

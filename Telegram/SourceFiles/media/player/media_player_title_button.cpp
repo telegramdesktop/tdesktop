@@ -102,6 +102,20 @@ void TitleButton::paintIcon(Painter &p) {
 	_layout->paint(p, icon);
 }
 
+void TitleButton::enterEvent(QEvent *e) {
+	if (exists()) {
+		instance()->titleButtonOver().notify(true, true);
+	}
+	return Button::enterEvent(e);
+}
+
+void TitleButton::leaveEvent(QEvent *e) {
+	if (exists()) {
+		instance()->titleButtonOver().notify(false, true);
+	}
+	return Button::leaveEvent(e);
+}
+
 TitleButton::~TitleButton() = default;
 
 } // namespace Player

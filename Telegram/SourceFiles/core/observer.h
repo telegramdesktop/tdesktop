@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/vector_of_moveable.h"
+#include "core/type_traits.h"
 
 namespace base {
 namespace internal {
@@ -31,8 +32,11 @@ void UnregisterActiveObservable(ObservableCallHandlers *handlers);
 void UnregisterObservable(ObservableCallHandlers *handlers);
 
 template <typename EventType>
+using EventParamType = typename base::type_traits<EventType>::parameter_type;
+
+template <typename EventType>
 struct SubscriptionHandlerHelper {
-	using type = base::lambda_unique<void(const EventType &)>;
+	using type = base::lambda_unique<void(EventParamType<EventType>)>;
 };
 
 template <>
@@ -66,6 +70,9 @@ public:
 		qSwap(_node, other._node);
 		qSwap(_removeMethod, other._removeMethod);
 		return *this;
+	}
+	explicit operator bool() const {
+		return (_node != nullptr);
 	}
 	void destroy() {
 		if (_node) {
@@ -128,14 +135,26 @@ private:
 
 template <typename EventType, typename Handler = internal::SubscriptionHandler<EventType>>
 class Observable : public internal::CommonObservable<EventType, Handler> {
+	using SimpleEventType = typename base::type_traits<EventType>::is_fast_copy_type;
+
 public:
+	template <typename = std_::enable_if_t<!SimpleEventType::value>>
 	void notify(EventType &&event, bool sync = false) {
 		if (this->_data) {
 			this->_data->notify(std_::move(event), sync);
 		}
 	}
+	template <typename = std_::enable_if_t<!SimpleEventType::value>>
 	void notify(const EventType &event, bool sync = false) {
-		notify(EventType(event));
+		if (this->_data) {
+			this->_data->notify(EventType(event), sync);
+		}
+	}
+	template <typename = std_::enable_if_t<SimpleEventType::value>>
+	void notify(EventType event, bool sync = false) {
+		if (this->_data) {
+			this->_data->notify(std_::move(event), sync);
+		}
 	}
 
 };
@@ -338,7 +357,7 @@ protected:
 	template <typename EventType, typename Handler, typename Lambda>
 	int subscribe(base::Observable<EventType, Handler> &observable, Lambda &&handler) {
 		_subscriptions.push_back(observable.add_subscription(std_::forward<Lambda>(handler)));
-		return _subscriptions.size() - 1;
+		return _subscriptions.size();
 	}
 
 	template <typename EventType, typename Handler, typename Lambda>
@@ -347,8 +366,14 @@ protected:
 	}
 
 	void unsubscribe(int index) {
-		t_assert(index >= 0 && index < _subscriptions.size());
-		_subscriptions[index].destroy();
+		if (!index) return;
+		t_assert(index > 0 && index <= _subscriptions.size());
+		_subscriptions[index - 1].destroy();
+		if (index == _subscriptions.size()) {
+			while (index > 0 && !_subscriptions[--index]) {
+				_subscriptions.pop_back();
+			}
+		}
 	}
 
 	~Subscriber() {

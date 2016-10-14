@@ -34,6 +34,9 @@ ListWidget::ListWidget() {
 	if (exists()) {
 		subscribe(instance()->playlistChangedNotifier(), [this] { playlistUpdated(); });
 	}
+	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+		itemRemoved(item);
+	});
 }
 
 ListWidget::~ListWidget() {
@@ -143,8 +146,30 @@ void ListWidget::itemRemoved(HistoryItem *item) {
 	if (layoutIt != _layouts.cend()) {
 		auto layout = layoutIt.value();
 		_layouts.erase(layoutIt);
+
+		for (int i = 0, count = _list.size(); i != count; ++i) {
+			if (_list[i] == layout) {
+				_list.removeAt(i);
+				break;
+			}
+		}
 		delete layout;
 	}
+}
+
+QRect ListWidget::getCurrentTrackGeometry() const {
+	if (exists()) {
+		auto top = marginTop();
+		auto current = instance()->current();
+		for_const (auto layout, _list) {
+			auto layoutHeight = layout->height();
+			if (layout->getItem()->fullId() == current.contextId()) {
+				return QRect(0, top, width(), layoutHeight);
+			}
+			top += layoutHeight;
+		}
+	}
+	return QRect(0, height(), width(), 0);
 }
 
 int ListWidget::resizeGetHeight(int newWidth) {

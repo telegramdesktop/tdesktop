@@ -209,6 +209,7 @@
       '<(src_loc)/core/single_timer.cpp',
       '<(src_loc)/core/single_timer.h',
       '<(src_loc)/core/stl_subset.h',
+      '<(src_loc)/core/type_traits.h',
       '<(src_loc)/core/utils.cpp',
       '<(src_loc)/core/utils.h',
       '<(src_loc)/core/vector_of_moveable.h',

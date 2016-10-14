@@ -103,18 +103,8 @@ TitleWidget::TitleWidget(QWidget *parent) : TWidget(parent)
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 	if (Media::Player::exists()) {
-		subscribe(Media::Player::instance()->createdNotifier(), [this](const Media::Player::PanelEvent &e) {
-			if (!_player) {
-				_player.create(this);
-				updateControlsVisibility();
-			}
-			_player->installEventFilter(e.panel);
-		});
-		subscribe(Media::Player::instance()->destroyedNotifier(), [this](const Media::Player::PanelEvent &e) {
-			if (_player) {
-				_player.destroyDelayed();
-				updateControlsVisibility();
-			}
+		subscribe(Media::Player::instance()->usePanelPlayer(), [this](bool usePanel) {
+			updatePlayerButton(usePanel);
 		});
 	}
 
@@ -177,6 +167,15 @@ void TitleWidget::onContacts() {
 void TitleWidget::onAbout() {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 	Ui::showLayer(new AboutBox());
+}
+
+void TitleWidget::updatePlayerButton(bool usePanel) {
+	if (usePanel && !_player) {
+		_player.create(this);
+	} else if (!usePanel && _player) {
+		_player.destroyDelayed();
+	}
+	updateControlsVisibility();
 }
 
 void TitleWidget::updateControlsPosition() {

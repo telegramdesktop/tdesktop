@@ -27,7 +27,6 @@ class MainWindow;
 namespace Media {
 namespace Player {
 class TitleButton;
-class PanelEvent;
 } // namespace Player
 } // namespace Media
 class AudioMsgId;
@@ -65,6 +64,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void updatePlayerButton(bool usePanel);
 	void updateAdaptiveLayout();
 	void updateRestartButtonVisibility();
 	void updateMenuButtonsVisibility();

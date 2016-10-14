@@ -73,6 +73,8 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _dialogs(this)
 , _history(this)
 , _topBar(this)
+, _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
+, _playerPanel(this, Media::Player::Panel::Layout::Full)
 , _mediaType(this)
 , _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
@@ -119,6 +121,30 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 		}
 	});
 	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
+
+	if (Media::Player::exists()) {
+		_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
+		subscribe(Media::Player::instance()->titleButtonOver(), [this](bool over) {
+			if (over) {
+				_playerPanel->showFromOther();
+			} else {
+				_playerPanel->hideFromOther();
+			}
+		});
+		subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
+			if (over) {
+				if (_playerPlaylist->isHidden()) {
+					auto position = mapFromGlobal(QCursor::pos()).x();
+					auto bestPosition = _playerPlaylist->bestPositionFor(position);
+					if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
+					updateMediaPlaylistPosition(bestPosition);
+				}
+				_playerPlaylist->showFromOther();
+			} else {
+				_playerPlaylist->hideFromOther();
+			}
+		});
+	}
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
@@ -175,6 +201,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 			_toForward.insert(item->id, item);
 		}
 	}
+	updateForwardingItemRemovedSubscription();
 	updateForwardingTexts();
 	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	_history->onClearSelected();
@@ -277,11 +304,31 @@ void MainWidget::updateForwardingTexts() {
 	_toForwardNameVersion = version;
 }
 
+void MainWidget::updateForwardingItemRemovedSubscription() {
+	if (_toForward.isEmpty()) {
+		unsubscribe(_forwardingItemRemovedSubscription);
+		_forwardingItemRemovedSubscription = 0;
+	} else if (!_forwardingItemRemovedSubscription) {
+		_forwardingItemRemovedSubscription = subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+			auto i = _toForward.find(item->id);
+			if (i == _toForward.cend() || i.value() != item) {
+				i = _toForward.find(item->id - ServerMaxMsgId);
+			}
+			if (i != _toForward.cend() && i.value() == item) {
+				_toForward.erase(i);
+				updateForwardingItemRemovedSubscription();
+				updateForwardingTexts();
+			}
+		});
+	}
+}
+
 void MainWidget::cancelForwarding() {
 	if (_toForward.isEmpty()) return;
 
 	_toForward.clear();
 	_history->cancelForwarding();
+	updateForwardingItemRemovedSubscription();
 }
 
 void MainWidget::finishForwarding(History *history, bool silent) {
@@ -489,9 +536,8 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (item->history()->lastMsg == item) {
 		item->history()->updateChatListEntry();
 	}
-	if (_playerPanel && !_playerPanel->isHidden()) {
-		_playerPanel->ui_repaintHistoryItem(item);
-	}
+	_playerPlaylist->ui_repaintHistoryItem(item);
+	_playerPanel->ui_repaintHistoryItem(item);
 	if (_overview) _overview->ui_repaintHistoryItem(item);
 }
 
@@ -1359,32 +1405,6 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (_overview) _overview->changingMsgId(row, newId);
 }
 
-void MainWidget::itemRemoved(HistoryItem *item) {
-	_dialogs->itemRemoved(item);
-	if (_history->peer() == item->history()->peer || (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
-		_history->itemRemoved(item);
-	}
-	if (_overview && (_overview->peer() == item->history()->peer || (_overview->peer() && _overview->peer() == item->history()->peer->migrateTo()))) {
-		_overview->itemRemoved(item);
-	}
-	if (_playerPanel) {
-		_playerPanel->itemRemoved(item);
-	}
-	if (!_toForward.isEmpty()) {
-		SelectedItemSet::iterator i = _toForward.find(item->id);
-		if (i != _toForward.cend() && i.value() == item) {
-			_toForward.erase(i);
-			updateForwardingTexts();
-		} else {
-			i = _toForward.find(item->id - ServerMaxMsgId);
-			if (i != _toForward.cend() && i.value() == item) {
-				_toForward.erase(i);
-				updateForwardingTexts();
-			}
-		}
-	}
-}
-
 void MainWidget::itemEdited(HistoryItem *item) {
 	if (_history->peer() == item->history()->peer || (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
 		_history->itemEdited(item);
@@ -1558,7 +1578,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		if (!_playerPanel && !_player && Media::Player::exists()) {
+		if (!_playerUsingPanel && !_player && Media::Player::exists()) {
 			createPlayer();
 		}
 	}
@@ -1574,19 +1594,20 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 }
 
 void MainWidget::switchToPanelPlayer() {
+	if (_playerUsingPanel) return;
+	_playerUsingPanel = true;
+
 	_player->slideUp();
 	_playerVolume.destroyDelayed();
-	if (!_playerPanel) {
-		_playerPanel.create(this, Media::Player::Panel::Layout::Full);
-		_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
-		updateMediaPlayerPosition();
-		orderWidgets();
-		Media::Player::instance()->createdNotifier().notify(Media::Player::PanelEvent(_playerPanel), true);
-	}
+	_playerPlaylist->hideIgnoringEnterEvents();
+
+	Media::Player::instance()->usePanelPlayer().notify(true, true);
 }
 
 void MainWidget::switchToFixedPlayer() {
-	_playerPanel.destroyDelayed();
+	if (!_playerUsingPanel) return;
+	_playerUsingPanel = false;
+
 	if (!_player) {
 		createPlayer();
 	} else {
@@ -1597,6 +1618,9 @@ void MainWidget::switchToFixedPlayer() {
 			updateMediaPlayerPosition();
 		}
 	}
+
+	Media::Player::instance()->usePanelPlayer().notify(false, true);
+	_playerPanel->hideIgnoringEnterEvents();
 }
 
 void MainWidget::createPlayer() {
@@ -1623,7 +1647,7 @@ void MainWidget::playerHeightUpdated() {
 		_playerHeight = playerHeight;
 		updateControlsGeometry();
 	}
-	if (_playerPanel && !_playerHeight && _player->isHidden()) {
+	if (_playerUsingPanel && !_playerHeight && _player->isHidden()) {
 		_playerVolume.destroyDelayed();
 		_player.destroyDelayed();
 	}
@@ -2319,6 +2343,15 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
 	}
+	auto playerPanelVisible = !_playerPanel->isHidden();
+	if (playerPanelVisible) {
+		_playerPanel->hide();
+	}
+	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
+	if (playerPlaylistVisible) {
+		_playerPlaylist->hide();
+	}
+
 	if (selectingPeer() && Adaptive::OneColumn()) {
 		result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else if (_wideSection) {
@@ -2341,8 +2374,15 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		if (_overview) _overview->grabFinish();
 		_history->grabFinish();
 	}
+
 	if (playerVolumeVisible) {
 		_playerVolume->show();
+	}
+	if (playerPanelVisible) {
+		_playerPanel->show();
+	}
+	if (playerPlaylistVisible) {
+		_playerPlaylist->show();
 	}
 	if (_player) {
 		_player->showShadow();
@@ -2452,7 +2492,8 @@ void MainWidget::orderWidgets() {
 	}
 	_mediaType->raise();
 	_sideShadow->raise();
-	if (_playerPanel) _playerPanel->raise();
+	_playerPlaylist->raise();
+	_playerPanel->raise();
 	if (_hider) _hider->raise();
 }
 
@@ -2473,6 +2514,15 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
 	}
+	auto playerPanelVisible = !_playerPanel->isHidden();
+	if (playerPanelVisible) {
+		_playerPanel->hide();
+	}
+	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
+	if (playerPlaylistVisible) {
+		_playerPlaylist->hide();
+	}
+
 	if (Adaptive::OneColumn()) {
 		result = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 	} else {
@@ -2482,6 +2532,12 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	}
 	if (playerVolumeVisible) {
 		_playerVolume->show();
+	}
+	if (playerPanelVisible) {
+		_playerPanel->show();
+	}
+	if (playerPlaylistVisible) {
+		_playerPlaylist->show();
 	}
 	if (_player) {
 		_player->showShadow();
@@ -2762,17 +2818,31 @@ void MainWidget::updateControlsGeometry() {
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
 	updateMediaPlayerPosition();
+	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
 }
 
 void MainWidget::updateMediaPlayerPosition() {
-	if (_playerPanel) {
-		_playerPanel->moveToRight(0, 0);
-	}
-	if (_playerVolume && _player) {
+	_playerPanel->moveToRight(0, 0);
+	if (_player && _playerVolume) {
 		auto relativePosition = _player->entity()->getPositionForVolumeWidget();
 		auto playerMargins = _playerVolume->getMargin();
 		_playerVolume->moveToLeft(_player->x() + relativePosition.x() - playerMargins.left(), _player->y() + relativePosition.y() - playerMargins.top());
+	}
+}
+
+void MainWidget::updateMediaPlaylistPosition(int x) {
+	if (_player) {
+		auto playlistLeft = x;
+		auto playlistWidth = _playerPlaylist->width();
+		auto playlistTop = _player->y() + _player->height();
+		auto rightEdge = width();
+		if (playlistLeft + playlistWidth > rightEdge) {
+			playlistLeft = rightEdge - playlistWidth;
+		} else if (playlistLeft < 0) {
+			playlistLeft = 0;
+		}
+		_playerPlaylist->move(playlistLeft, playlistTop);
 	}
 }
 
@@ -3529,7 +3599,8 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect) ||
-			(_playerPanel && _playerPanel->overlaps(globalRect)) ||
+			_playerPanel->overlaps(globalRect) ||
+			_playerPlaylist->overlaps(globalRect) ||
 			(_playerVolume && _playerVolume->overlaps(globalRect)) ||
 			_mediaType->overlaps(globalRect));
 }

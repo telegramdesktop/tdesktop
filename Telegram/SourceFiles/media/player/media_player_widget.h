@@ -59,9 +59,17 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+
 private:
 	void handleSeekProgress(float64 progress);
 	void handleSeekFinished(float64 progress);
+
+	int getLabelsLeft() const;
+	int getLabelsRight() const;
+	void updateOverLabelsState(QPoint pos);
+	void updateOverLabelsState(bool over);
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
@@ -81,6 +89,7 @@ private:
 	int64 _seekPositionMs = -1;
 	int64 _lastDurationMs = 0;
 	QString _time;
+	bool _mouseOverLabels = false;
 
 	class PlayButton;
 	ChildWidget<FlatLabel> _nameLabel;

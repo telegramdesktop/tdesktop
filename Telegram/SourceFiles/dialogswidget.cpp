@@ -55,6 +55,9 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	_cancelSearchInPeer.hide();
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+		itemRemoved(item);
+	});
 
 	refresh();
 }
@@ -1898,10 +1901,6 @@ void DialogsWidget::onCancel() {
 	if (!onCancelSearch() || (!_searchInPeer && !App::main()->selectingPeer())) {
 		emit cancelled();
 	}
-}
-
-void DialogsWidget::itemRemoved(HistoryItem *item) {
-	_inner.itemRemoved(item);
 }
 
 void DialogsWidget::updateNotifySettings(PeerData *peer) {

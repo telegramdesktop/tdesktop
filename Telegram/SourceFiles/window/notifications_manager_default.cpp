@@ -74,7 +74,7 @@ Manager::Manager() {
 			notification->updatePeerPhoto();
 		}
 	});
-	subscribe(Global::RefNotifySettingsChanged(), [this](const Notify::ChangeType &change) {
+	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType change) {
 		settingsChanged(change);
 	});
 	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
@@ -89,7 +89,7 @@ bool Manager::hasReplyingNotification() const {
 	return false;
 }
 
-void Manager::settingsChanged(const Notify::ChangeType &change) {
+void Manager::settingsChanged(Notify::ChangeType change) {
 	if (change == Notify::ChangeType::Corner) {
 		auto startPosition = notificationStartPosition();
 		auto shiftDirection = notificationShiftDirection();

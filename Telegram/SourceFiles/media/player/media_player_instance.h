@@ -40,12 +40,6 @@ bool exists();
 class Instance;
 Instance *instance();
 
-class Panel;
-struct PanelEvent {
-	explicit PanelEvent(Panel *panel) : panel(panel) {
-	}
-	Panel *panel;
-};
 struct UpdatedEvent {
 	UpdatedEvent(const AudioMsgId *audioId, const AudioPlaybackState *playbackState) : audioId(audioId), playbackState(playbackState) {
 	}
@@ -87,11 +81,14 @@ public:
 		return _playlist;
 	}
 
-	base::Observable<PanelEvent> &createdNotifier() {
-		return _createdNotifier;
+	base::Observable<bool> &usePanelPlayer() {
+		return _usePanelPlayer;
 	}
-	base::Observable<PanelEvent> &destroyedNotifier() {
-		return _destroyedNotifier;
+	base::Observable<bool> &titleButtonOver() {
+		return _titleButtonOver;
+	}
+	base::Observable<bool> &playerWidgetOver() {
+		return _playerWidgetOver;
 	}
 	base::Observable<UpdatedEvent> &updatedNotifier() {
 		return _updatedNotifier;
@@ -133,8 +130,9 @@ private:
 	QList<FullMsgId> _playlist;
 	bool _isPlaying = false;
 
-	base::Observable<PanelEvent> _createdNotifier;
-	base::Observable<PanelEvent> _destroyedNotifier;
+	base::Observable<bool> _usePanelPlayer;
+	base::Observable<bool> _titleButtonOver;
+	base::Observable<bool> _playerWidgetOver;
 	base::Observable<UpdatedEvent> _updatedNotifier;
 	base::Observable<void> _playlistChangedNotifier;
 	base::Observable<void> _songChangedNotifier;

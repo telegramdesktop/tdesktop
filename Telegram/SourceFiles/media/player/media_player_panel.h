@@ -34,7 +34,7 @@ namespace Player {
 class CoverWidget;
 class ListWidget;
 
-class Panel : public TWidget, private base::Subscriber {
+class Panel : public TWidget {
 	Q_OBJECT
 
 public:
@@ -44,19 +44,19 @@ public:
 	};
 	Panel(QWidget *parent, Layout layout);
 
-	void setLayout(Layout layout);
 	bool overlaps(const QRect &globalRect);
 
-	void otherEnter();
-	void otherLeave();
+	void hideIgnoringEnterEvents();
 
-	using PinCallback = base::lambda_unique<void()>;
+	void showFromOther();
+	void hideFromOther();
+
+	using PinCallback = base::lambda_wrap<void()>;
 	void setPinCallback(PinCallback &&callback);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void itemRemoved(HistoryItem *item);
 
-	~Panel();
+	int bestPositionFor(int left) const;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -64,40 +64,53 @@ protected:
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
 private slots:
 	void onShowStart();
 	void onHideStart();
+
 	void onScroll();
-
 	void onListHeightUpdated();
-
 	void onWindowActiveChanged();
 
 private:
+	void ensureCreated();
+	void performDestroy();
+
+	void updateControlsGeometry();
+
 	void updateSize();
 	void appearanceCallback();
 	void hidingFinished();
 	int contentLeft() const;
+	int contentTop() const;
+	int contentRight() const;
+	int contentBottom() const;
+	int scrollMarginBottom() const;
 	int contentWidth() const {
-		return width() - contentLeft();
+		return width() - contentLeft() - contentRight();
 	}
-	int contentHeight() const;
+	int contentHeight() const {
+		return height() - contentTop() - contentBottom();;
+	}
 
 	void startAnimation();
+	void scrollPlaylistToCurrentTrack();
 
+	Layout _layout;
 	bool _hiding = false;
 
 	QPixmap _cache;
 	FloatAnimation _a_appearance;
 
+	bool _ignoringEnterEvents = false;
+
 	QTimer _hideTimer, _showTimer;
 
 	Ui::RectShadow _shadow;
+	PinCallback _pinCallback;
 	ChildWidget<CoverWidget> _cover = { nullptr };
 	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<Ui::GradientShadow> _scrollShadow;
+	ChildWidget<Ui::GradientShadow> _scrollShadow = { nullptr };
 
 };
 

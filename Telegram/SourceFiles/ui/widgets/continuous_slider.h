@@ -39,6 +39,9 @@ public:
 	void setValue(float64 value, bool animated);
 	void setFadeOpacity(float64 opacity);
 	void setDisabled(bool disabled);
+	bool isDisabled() const {
+		return _disabled;
+	}
 
 	using Callback = base::lambda_unique<void(float64)>;
 	void setChangeProgressCallback(Callback &&callback) {
@@ -70,9 +73,6 @@ protected:
 	}
 	float64 getCurrentOverFactor(uint64 ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
-	}
-	bool isDisabled() const {
-		return _disabled;
 	}
 	Direction getDirection() const {
 		return _direction;

@@ -38,59 +38,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type) : QWidget(0)
+OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type) : TWidget(nullptr)
 , _overview(overview)
 , _scroll(scroll)
-, _resizeIndex(-1)
-, _resizeSkip(0)
 , _peer(peer->migrateTo() ? peer->migrateTo() : peer)
 , _type(type)
 , _reversed(_type != OverviewFiles && _type != OverviewLinks)
 , _migrated(_peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0)
 , _history(App::history(_peer->id))
 , _channel(peerToChannel(_peer->id))
-, _selMode(false)
-, _rowsLeft(0)
 , _rowWidth(st::msgMinWidth)
 , _search(this, st::dlgFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::btnCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
-, _photosInRow(1)
-, _inSearch(false)
-, _searchFull(false)
-, _searchFullMigrated(false)
-, _searchRequest(0)
-, _lastSearchId(0)
-, _lastSearchMigratedId(0)
-, _searchedCount(0)
-, _width(st::wndMinWidth)
-, _height(0)
-, _minHeight(0)
-, _marginTop(0)
-, _marginBottom(0)
-, _cursor(style::cur_default)
-, _cursorState(HistoryDefaultCursorState)
-, _dragAction(NoDrag)
-, _dragItem(0)
-, _selectedMsgId(0)
-, _dragItemIndex(-1)
-, _mousedItem(0)
-, _mousedItemIndex(-1)
-, _dragWasInactive(false)
-, _dragSelFrom(0)
-, _dragSelTo(0)
-, _dragSelecting(false)
-, _touchScroll(false)
-, _touchSelect(false)
-, _touchInProgress(false)
-, _touchScrollState(TouchScrollManual)
-, _touchPrevPosValid(false)
-, _touchWaitingAcceleration(false)
-, _touchSpeedTime(0)
-, _touchAccelerationTime(0)
-, _touchTime(0)
-, _menu(0) {
+, _width(st::wndMinWidth) {
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+		itemRemoved(item);
+	});
 
 	resize(_width, st::wndMinHeight);
 
@@ -1733,6 +1698,10 @@ void OverviewInner::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void OverviewInner::itemRemoved(HistoryItem *item) {
+	if (_history != item->history() && _migrated != item->history()) {
+		return;
+	}
+
 	MsgId msgId = (item->history() == _migrated) ? -item->id : item->id;
 	if (_dragItem == msgId) {
 		dragActionCancel();
@@ -1741,13 +1710,13 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 		_selectedMsgId = 0;
 	}
 
-	SelectedItems::iterator i = _selected.find(msgId);
+	auto i = _selected.find(msgId);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
 		_overview->updateTopBarSelection();
 	}
 
-	LayoutItems::iterator j = _layoutItems.find(item);
+	auto j = _layoutItems.find(item);
 	if (j != _layoutItems.cend()) {
 		int32 index = _items.indexOf(j.value());
 		if (index >= 0) {
@@ -2216,10 +2185,6 @@ void OverviewWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
 		_inner.onUpdateSelected();
 	}
-}
-
-void OverviewWidget::itemRemoved(HistoryItem *row) {
-	_inner.itemRemoved(row);
 }
 
 void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {

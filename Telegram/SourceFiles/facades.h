@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "core/type_traits.h"
+
 class LayerWidget;
 namespace base {
 template <typename Type, typename>
@@ -169,6 +171,10 @@ inline bool IsTopCorner(ScreenCorner corner) {
 }
 
 } // namespace Notify
+
+template <>
+struct base::custom_is_fast_copy_type<Notify::ChangeType> : public std_::true_type {
+};
 
 #define DeclareReadOnlyVar(Type, Name) const Type &Name();
 #define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
@@ -345,6 +351,8 @@ DeclareRefVar(base::Observable<void>, ChooseCustomLang);
 DeclareVar(int, AutoLock);
 DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
+
+DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 
 } // namespace Global
 

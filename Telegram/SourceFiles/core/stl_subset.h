@@ -139,6 +139,19 @@ struct enable_if<true, T> {
 template <bool Test, typename T = void>
 using enable_if_t = typename enable_if<Test, T>::type;
 
+template <bool, typename First, typename Second>
+struct conditional {
+	using type = Second;
+};
+
+template <typename First, typename Second>
+struct conditional<true, First, Second> {
+	using type = First;
+};
+
+template <bool Test, typename First, typename Second>
+using conditional_t = typename conditional<Test, First, Second>::type;
+
 template <typename T>
 struct add_const {
 	using type = const T;

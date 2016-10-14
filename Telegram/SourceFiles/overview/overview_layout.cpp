@@ -667,10 +667,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			} else if (_a_iconOver.animating()) {
 				_a_iconOver.step(context->ms);
 				float64 over = a_iconOver.current();
-				p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
+				p.setBrush(style::interpolate(_st.songIconBg, _st.songOverBg, over));
 			} else {
 				bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
-				p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
+				p.setBrush(over ? _st.songOverBg : _st.songIconBg);
 			}
 
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
@@ -685,13 +685,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			auto icon = ([showPause, loaded, this, selected] {
 				if (showPause) {
-					return &(selected ? st::historyFileInPauseSelected : st::historyFileInPause);
+					return &(selected ? st::historyFileInPauseSelected : _st.songPause);
 				} else if (loaded) {
-					return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
+					return &(selected ? st::historyFileInPlaySelected : _st.songPlay);
 				} else if (_data->loading()) {
-					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+					return &(selected ? st::historyFileInCancelSelected : _st.songCancel);
 				}
-				return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+				return &(selected ? st::historyFileInDownloadSelected : _st.songDownload);
 			})();
 			icon->paintInCenter(p, inner);
 		}
