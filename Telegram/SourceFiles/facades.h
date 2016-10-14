@@ -21,12 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/type_traits.h"
+#include "core/observer.h"
 
 class LayerWidget;
-namespace base {
-template <typename Type, typename>
-class Observable;
-} // namespace base
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;

@@ -39,9 +39,6 @@ public:
 
 	void updateCounter();
 
-	void mousePressEvent(QMouseEvent *e);
-	void mouseDoubleClickEvent(QMouseEvent *e);
-
 	void maximizedChanged(bool maximized, bool force = false);
 
 	HitTestType hitTest(const QPoint &p);
@@ -62,6 +59,8 @@ signals:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
 	void updatePlayerButton(bool usePanel);

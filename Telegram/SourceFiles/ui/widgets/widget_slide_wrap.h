@@ -139,6 +139,7 @@ private:
 			a_height.finish();
 			_a_height.stop();
 			_forceHeight = _hiding ? 0 : -1;
+			sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 			if (_hiding) hide();
 		} else {
 			a_height.update(dt, anim::linear);

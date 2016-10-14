@@ -89,7 +89,6 @@ private:
 	int64 _seekPositionMs = -1;
 	int64 _lastDurationMs = 0;
 	QString _time;
-	bool _mouseOverLabels = false;
 
 	class PlayButton;
 	ChildWidget<FlatLabel> _nameLabel;

@@ -108,10 +108,10 @@ private:
 
 };
 
-template <typename EventType, typename Handler>
-class Observable;
-
 namespace internal {
+
+template <typename EventType, typename Handler, bool EventTypeIsSimple>
+class BaseObservable;
 
 template <typename EventType, typename Handler>
 class CommonObservable {
@@ -127,30 +127,13 @@ private:
 	QSharedPointer<ObservableData<EventType, Handler>> _data;
 
 	friend class CommonObservableData<EventType, Handler>;
-	friend class Observable<EventType, Handler>;
+	friend class BaseObservable<EventType, Handler, base::type_traits<EventType>::is_fast_copy_type::value>;
 
 };
 
-} // namespace internal
-
-template <typename EventType, typename Handler = internal::SubscriptionHandler<EventType>>
-class Observable : public internal::CommonObservable<EventType, Handler> {
-	using SimpleEventType = typename base::type_traits<EventType>::is_fast_copy_type;
-
+template <typename EventType, typename Handler>
+class BaseObservable<EventType, Handler, true> : public internal::CommonObservable<EventType, Handler> {
 public:
-	template <typename = std_::enable_if_t<!SimpleEventType::value>>
-	void notify(EventType &&event, bool sync = false) {
-		if (this->_data) {
-			this->_data->notify(std_::move(event), sync);
-		}
-	}
-	template <typename = std_::enable_if_t<!SimpleEventType::value>>
-	void notify(const EventType &event, bool sync = false) {
-		if (this->_data) {
-			this->_data->notify(EventType(event), sync);
-		}
-	}
-	template <typename = std_::enable_if_t<SimpleEventType::value>>
 	void notify(EventType event, bool sync = false) {
 		if (this->_data) {
 			this->_data->notify(std_::move(event), sync);
@@ -158,6 +141,24 @@ public:
 	}
 
 };
+
+template <typename EventType, typename Handler>
+class BaseObservable<EventType, Handler, false> : public internal::CommonObservable<EventType, Handler> {
+public:
+	void notify(EventType &&event, bool sync = false) {
+		if (this->_data) {
+			this->_data->notify(std_::move(event), sync);
+		}
+	}
+	void notify(const EventType &event, bool sync = false) {
+		if (this->_data) {
+			this->_data->notify(EventType(event), sync);
+		}
+	}
+
+};
+
+} // namespace internal
 
 namespace internal {
 
@@ -339,10 +340,8 @@ private:
 
 };
 
-} // namespace internal
-
 template <typename Handler>
-class Observable<void, Handler> : public internal::CommonObservable<void, Handler> {
+class BaseObservable<void, Handler, base::type_traits<void>::is_fast_copy_type::value> : public internal::CommonObservable<void, Handler> {
 public:
 	void notify(bool sync = false) {
 		if (this->_data) {
@@ -350,6 +349,12 @@ public:
 		}
 	}
 
+};
+
+} // namespace internal
+
+template <typename EventType, typename Handler = internal::SubscriptionHandler<EventType>>
+class Observable : public internal::BaseObservable<EventType, Handler, base::type_traits<EventType>::is_fast_copy_type::value> {
 };
 
 class Subscriber {

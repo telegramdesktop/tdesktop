@@ -44,7 +44,6 @@ public:
 	SysBtn(QWidget *parent, const style::sysButton &st, const QString &text = QString());
 
 	void setText(const QString &text);
-	void paintEvent(QPaintEvent *e);
 	void setSysBtnStyle(const style::sysButton &st);
 
 	HitTestType hitTest(const QPoint &p) const;
@@ -55,6 +54,7 @@ public:
 
 protected:
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	void paintEvent(QPaintEvent *e) override;
 
 	style::sysButton _st;
 	anim::cvalue a_color;

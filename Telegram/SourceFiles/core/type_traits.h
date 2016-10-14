@@ -80,7 +80,20 @@ struct is_member_pointer<T C::*> : public std_::true_type {
 };
 
 template <typename T>
-using is_fast_copy_type = std_::integral_constant<bool, is_std_arith<T>::value || is_pointer<T>::value || is_member_pointer<T>::value || custom_is_fast_copy_type<T>::value>;
+using is_fast_copy_type = std_::integral_constant<bool, is_std_fundamental<T>::value || is_pointer<T>::value || is_member_pointer<T>::value || custom_is_fast_copy_type<T>::value>;
+
+template <typename T>
+struct add_const_reference {
+	using type = const T &;
+};
+
+template <>
+struct add_const_reference<void> {
+	using type = void;
+};
+
+template <typename T>
+using add_const_reference_t = typename add_const_reference<T>::type;
 
 } // namespace internal
 
@@ -96,7 +109,7 @@ struct type_traits {
 	using is_member_pointer = internal::is_member_pointer<T>;
 	using is_fast_copy_type = internal::is_fast_copy_type<T>;
 
-	using parameter_type = std_::conditional_t<is_fast_copy_type::value, T, const T&>;
+	using parameter_type = std_::conditional_t<is_fast_copy_type::value, T, internal::add_const_reference_t<T>>;
 };
 
 } // namespace base

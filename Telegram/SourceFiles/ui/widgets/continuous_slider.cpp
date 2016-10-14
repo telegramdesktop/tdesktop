@@ -140,11 +140,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	} else {
 		deltaX *= -1;
 	}
-	if (deltaX * deltaY < 0) {
-		return;
-	}
-
-	auto delta = (deltaX >= 0 && deltaY >= 0) ? qMax(deltaX, deltaY) : qMin(deltaX, deltaY);
+	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
 	auto finalValue = snap(a_value.to() + delta * coef, 0., 1.);
 	setValue(finalValue, false);
 	if (_changeProgressCallback) {
