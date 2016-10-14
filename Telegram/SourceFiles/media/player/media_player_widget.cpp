@@ -210,14 +210,12 @@ void Widget::handleSeekFinished(float64 progress) {
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
-	updatePlayPrevNextPositions();
-
 	auto right = st::mediaPlayerCloseRight;
 	_close->moveToRight(right, st::mediaPlayerPlayTop); right += _close->width();
 	_repeatTrack->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatTrack->width();
 	_volumeToggle->moveToRight(right, st::mediaPlayerPlayTop); right += _volumeToggle->width();
 
-	updateLabelsGeometry();
+	updatePlayPrevNextPositions();
 
 	_playback->setGeometry(0, height() - st::mediaPlayerPlayback.fullWidth, width(), st::mediaPlayerPlayback.fullWidth);
 }
@@ -262,6 +260,7 @@ void Widget::updatePlayPrevNextPositions() {
 	} else {
 		_playPause->moveToLeft(left, top);
 	}
+	updateLabelsGeometry();
 }
 
 int Widget::getLabelsLeft() const {

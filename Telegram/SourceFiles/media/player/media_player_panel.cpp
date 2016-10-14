@@ -65,7 +65,13 @@ void Panel::resizeEvent(QResizeEvent *e) {
 }
 
 void Panel::onListHeightUpdated() {
-	updateSize();
+	if (auto widget = _scroll->widget()) {
+		if (widget->height() > 0 || _cover) {
+			updateSize();
+		} else {
+			hideIgnoringEnterEvents();
+		}
+	}
 }
 
 void Panel::updateControlsGeometry() {
@@ -108,10 +114,6 @@ void Panel::scrollPlaylistToCurrentTrack() {
 		auto rect = list->getCurrentTrackGeometry();
 		auto top = _scroll->scrollTop(), bottom = top + _scroll->height();
 		_scroll->scrollToY(rect.y());
-		//if (top > rect.y()) {
-		//} else if (bottom < rect.y() + rect.height()) {
-		//	_scroll->scrollToY(rect.y() + rect.height() - _scroll->height());
-		//}
 	}
 }
 
@@ -130,7 +132,7 @@ void Panel::updateSize() {
 		height += _cover->height();
 	}
 	auto listHeight = 0;
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = _scroll->widget()) {
 		listHeight = widget->height();
 	}
 	auto scrollVisible = (listHeight > 0);
@@ -261,6 +263,12 @@ void Panel::setPinCallback(PinCallback &&callback) {
 
 void Panel::onShowStart() {
 	ensureCreated();
+	if (auto widget = _scroll->widget()) {
+		if (widget->height() <= 0 && !_cover) {
+			return;
+		}
+	}
+
 	if (isHidden()) {
 		scrollPlaylistToCurrentTrack();
 		show();

@@ -1752,6 +1752,7 @@ void HistoryInner::leaveEvent(QEvent *e) {
 		App::hoveredItem(nullptr);
 	}
 	ClickHandler::clearActive();
+	PopupTooltip::Hide();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
@@ -2292,9 +2293,11 @@ QPoint HistoryInner::tooltipPos() const {
 }
 
 void HistoryInner::onParentGeometryChanged() {
-	bool needToUpdate = (_dragAction != NoDrag || _touchScroll || rect().contains(mapFromGlobal(QCursor::pos())));
+	auto mousePos = QCursor::pos();
+	auto mouseOver = _widget->rect().contains(_widget->mapFromGlobal(mousePos));
+	auto needToUpdate = (_dragAction != NoDrag || _touchScroll || mouseOver);
 	if (needToUpdate) {
-		dragActionUpdate(QCursor::pos());
+		dragActionUpdate(mousePos);
 	}
 }
 
