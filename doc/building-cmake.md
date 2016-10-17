@@ -23,8 +23,6 @@ By git – in Terminal go to **/home/user/TBuild** and run
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master** to **tdesktop**
-
 ###Prepare libraries
 
 Install dev libraries

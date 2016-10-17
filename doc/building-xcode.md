@@ -14,10 +14,6 @@ By git – in Terminal go to **/Users/user/TBuild** and run:
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or:
-* download in ZIP and extract to **/Users/user/TBuild**
-* rename **tdesktop-master** to **tdesktop**.
-
 ###Prepare libraries
 
 In your build Terminal run:
@@ -50,11 +46,6 @@ From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 * run:
 
 	git clone https://github.com/telegramdesktop/openssl-xcode.git
-
-or:
-
-* download in ZIP and extract to **/Users/user/TBuild/Libraries**,
-* rename **openssl-xcode-master** to **openssl-xcode**
 
 The path to openssl.xcodeproj should now be: **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj**
 
@@ -97,12 +88,6 @@ From https://github.com/telegramdesktop/libexif-0.6.20 with git in Terminal:
 *  run:
 
     	git clone https://github.com/telegramdesktop/libexif-0.6.20.git
-
-or:
-
-* download in ZIP
-* extract to **/Users/user/TBuild/Libraries**
-* rename **libexif-0.6.20-master** to **libexif-0.6.20**
 
 The folder configure should have this path:
 **/Users/user/TBuild/Libraries/libexif-0.6.20/configure**

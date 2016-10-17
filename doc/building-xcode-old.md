@@ -12,7 +12,7 @@ By git – in Terminal go to **/Users/user/TBuild** and run
 
     git clone https://github.com/telegramdesktop/tdesktop.git
 
-or download in ZIP and extract to **/Users/user/TBuild** rename **tdesktop-master** to **tdesktop** to have **/Users/user/TBuild/tdesktop/Telegram/Telegram.xcodeproj** project, then go to **/Users/user/TBuild/tdesktop** and run
+then go to **/Users/user/TBuild/tdesktop** and run
 
     git checkout mac32
 
@@ -43,8 +43,6 @@ In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
 Get sources from https://github.com/telegramdesktop/openssl-xcode, by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
 
     git clone https://github.com/telegramdesktop/openssl-xcode.git
-
-or download in ZIP and extract to **/Users/user/TBuild/Libraries**, rename **openssl-xcode-master** to **openssl-xcode** to have **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj** project
 
 http://www.openssl.org/source/ > Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
 
@@ -78,8 +76,6 @@ Using se system lib
 Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
 
     git clone https://github.com/telegramdesktop/libexif-0.6.20.git
-
-or download in ZIP and extract to **/Users/user/TBuild/Libraries**, rename **libexif-0.6.20-master** to **libexif-0.6.20** to have **/Users/user/TBuild/Libraries/libexif-0.6.20/configure** script
 
 #####Building library
 
