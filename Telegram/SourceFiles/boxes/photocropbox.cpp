@@ -61,9 +61,10 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 	}
 
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-	_thumb = App::pixmapFromImageInPlace(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-	_thumbw = _thumb.width();
-	_thumbh = _thumb.height();
+	_thumb = App::pixmapFromImageInPlace(img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	_thumb.setDevicePixelRatio(cRetinaFactor());
+	_thumbw = _thumb.width() / cIntRetinaFactor();
+	_thumbh = _thumb.height() / cIntRetinaFactor();
 	if (_thumbw > _thumbh) {
 		_cropw = _thumbh - 20;
 	} else {
