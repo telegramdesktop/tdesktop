@@ -35,7 +35,7 @@
             [ 'build_macold', {
               'qt_version%': '5.3.2',
             }, {
-              'qt_version%': '5.6.0',
+              'qt_version%': '5.6.2',
             }]
           ],
         },

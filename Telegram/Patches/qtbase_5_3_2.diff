@@ -93,7 +93,7 @@ index ebff950..4300ca4 100644
  
          // Make sure we're inside the viewport.
 diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
-index 4879ae5..3251354 100644
+index 4879ae5..56cdcba 100644
 --- a/src/gui/text/qtextlayout.cpp
 +++ b/src/gui/text/qtextlayout.cpp
 @@ -654,6 +654,9 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
@@ -128,7 +128,7 @@ index 4879ae5..3251354 100644
          QFixed minw;
          QFixed softHyphenWidth;
          QFixed rightBearing;
-@@ -1634,13 +1641,17 @@ namespace {
+@@ -1634,13 +1641,19 @@ namespace {
              if (currentPosition > 0 &&
                  logClusters[currentPosition - 1] < glyphs.numGlyphs) {
                  previousGlyph = currentGlyph(); // needed to calculate right bearing later
@@ -144,11 +144,13 @@ index 4879ae5..3251354 100644
          {
              qreal rb;
 -            fontEngine->getGlyphBearings(glyph, 0, &rb);
++
++            // Patch: Backport a crash fix.
 +            engine->getGlyphBearings(glyph, 0, &rb);
              rightBearing = qMin(QFixed(), QFixed::fromReal(rb));
          }
  
-@@ -1648,13 +1659,16 @@ namespace {
+@@ -1648,13 +1661,16 @@ namespace {
          {
              if (currentPosition <= 0)
                  return;
