@@ -88,7 +88,7 @@ struct lambda_wrap_empty : public lambda_wrap_helper_base<Return, Args...> {
 };
 
 template <typename Return, typename ...Args>
-const lambda_wrap_empty<Return, Args...> lambda_wrap_empty<Return, Args...>::instance;
+const lambda_wrap_empty<Return, Args...> lambda_wrap_empty<Return, Args...>::instance = {};
 
 template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_move_impl;
 

@@ -170,9 +170,13 @@ inline bool IsTopCorner(ScreenCorner corner) {
 
 } // namespace Notify
 
+namespace base {
+
 template <>
-struct base::custom_is_fast_copy_type<Notify::ChangeType> : public std_::true_type {
+struct custom_is_fast_copy_type<Notify::ChangeType> : public std_::true_type {
 };
+
+} // namespace base
 
 #define DeclareReadOnlyVar(Type, Name) const Type &Name();
 #define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \

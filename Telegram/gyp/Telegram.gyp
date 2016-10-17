@@ -214,6 +214,7 @@
       '<(src_loc)/core/utils.h',
       '<(src_loc)/core/vector_of_moveable.h',
       '<(src_loc)/core/version.h',
+      '<(src_loc)/core/virtual_method.h',
       '<(src_loc)/data/data_abstract_structure.cpp',
       '<(src_loc)/data/data_abstract_structure.h',
       '<(src_loc)/data/data_drafts.cpp',

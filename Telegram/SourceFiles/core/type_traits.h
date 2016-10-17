@@ -95,6 +95,19 @@ struct add_const_reference<void> {
 template <typename T>
 using add_const_reference_t = typename add_const_reference<T>::type;
 
+template <typename T>
+struct remove_pointer {
+	using type = T;
+};
+
+template <typename T>
+struct remove_pointer<T*> {
+	using type = T;
+};
+
+template <typename T>
+using remove_pointer_t = typename remove_pointer<T>::type;
+
 } // namespace internal
 
 template <typename T>
@@ -110,6 +123,7 @@ struct type_traits {
 	using is_fast_copy_type = internal::is_fast_copy_type<T>;
 
 	using parameter_type = std_::conditional_t<is_fast_copy_type::value, T, internal::add_const_reference_t<T>>;
+	using pointed_type = internal::remove_pointer_t<T>;
 };
 
 } // namespace base
