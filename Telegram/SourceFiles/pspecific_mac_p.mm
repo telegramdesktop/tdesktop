@@ -33,9 +33,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <IOKit/hidsystem/ev_keymap.h>
 
+#include <SPMediaKeyTap.h>
+
 using Platform::Q2NSString;
 using Platform::NSlang;
 using Platform::NS2QString;
+
+bool handleMediaKeyEvent(NSEvent *e);
 
 @interface qVisualize : NSObject {
 }
@@ -81,11 +85,16 @@ using Platform::NS2QString;
 @end
 
 @interface ApplicationDelegate : NSObject<NSApplicationDelegate> {
+
+SPMediaKeyTap *keyTap;
+
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
+- (void)applicationDidFinishLaunching:(NSNotification *)aNotification;
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification;
 - (void)receiveWakeNote:(NSNotification*)note;
+- (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
 
 @end
 
@@ -99,12 +108,27 @@ ApplicationDelegate *_sharedDelegate = nil;
 	return YES;
 }
 
+- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+	keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
+		[keyTap startWatchingMediaKeys];
+	} else {
+		LOG(("Media key monitoring disabled"));
+	}
+}
+
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
 	if (App::app()) App::app()->checkLocalTime();
 }
 
 - (void)receiveWakeNote:(NSNotification*)aNotification {
 	if (App::app()) App::app()->checkLocalTime();
+}
+
+- (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
+	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
+		handleMediaKeyEvent(e);
+	}
 }
 
 @end
@@ -173,6 +197,9 @@ PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
 
+	// Register defaults for the whitelist of apps that want to use media keys
+	[[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[SPMediaKeyTap defaultMediaKeyUserBundleIdentifiers], kMediaKeyUsingBundleIdentifiersDefaultsKey, nil]];
+
 	}
 }
 
@@ -225,6 +252,43 @@ void objc_activateWnd(WId winId) {
 	[wnd orderFront:wnd];
 }
 
+bool handleMediaKeyEvent(NSEvent *e) {
+	int keyCode = (([e data1] & 0xFFFF0000) >> 16);
+	int keyFlags = ([e data1] & 0x0000FFFF);
+	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
+	int keyRepeat = (keyFlags & 0x1);
+
+	switch (keyCode) {
+	case NX_KEYTYPE_PLAY:
+		if (keyState == 0) { // Play pressed and released
+			if (Media::Player::exists()) {
+				Media::Player::instance()->playPause();
+			}
+			return true;
+		}
+		break;
+
+	case NX_KEYTYPE_FAST:
+		if (keyState == 0) { // Next pressed and released
+			if (Media::Player::exists()) {
+				Media::Player::instance()->next();
+			}
+			return true;
+		}
+		break;
+
+	case NX_KEYTYPE_REWIND:
+		if (keyState == 0) { // Previous pressed and released
+			if (Media::Player::exists()) {
+				Media::Player::instance()->previous();
+			}
+			return true;
+		}
+		break;
+	}
+	return false;
+}
+
 void PsMacWindowPrivate::enableShadow(WId winId) {
 //	[[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
 //	[[(NSView*)winId window] setHasShadow:YES];
@@ -232,39 +296,10 @@ void PsMacWindowPrivate::enableShadow(WId winId) {
 
 bool PsMacWindowPrivate::filterNativeEvent(void *event) {
 	NSEvent *e = static_cast<NSEvent*>(event);
-	if (e && [e type] == NSSystemDefined && [e subtype] == 8) {
-		int keyCode = (([e data1] & 0xFFFF0000) >> 16);
-		int keyFlags = ([e data1] & 0x0000FFFF);
-		int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
-		int keyRepeat = (keyFlags & 0x1);
-
-		switch (keyCode) {
-		case NX_KEYTYPE_PLAY:
-			if (keyState == 0) { // Play pressed and released
-				if (Media::Player::exists()) {
-					Media::Player::instance()->playPause();
-				}
-				return true;
-			}
-			break;
-
-		case NX_KEYTYPE_FAST:
-			if (keyState == 0) { // Next pressed and released
-				if (Media::Player::exists()) {
-					Media::Player::instance()->next();
-				}
-				return true;
-			}
-			break;
-
-		case NX_KEYTYPE_REWIND:
-			if (keyState == 0) { // Previous pressed and released
-				if (Media::Player::exists()) {
-					Media::Player::instance()->previous();
-				}
-				return true;
-			}
-			break;
+	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
+		// If event tap is not installed, handle events that reach the app instead
+		if (![SPMediaKeyTap usesGlobalMediaKeyTap]) {
+			return handleMediaKeyEvent(e);
 		}
 	}
 	return false;

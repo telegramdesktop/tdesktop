@@ -1,3 +1,17 @@
+diff --git a/configure b/configure
+index 7651e29..11e6f90 100755
+--- a/configure
++++ b/configure
+@@ -527,7 +527,8 @@ if [ "$BUILD_ON_MAC" = "yes" ]; then
+         exit 2
+     fi
+ 
+-    if ! /usr/bin/xcrun -find xcrun >/dev/null 2>&1; then
++    # Patch: Fix Qt for working with Xcode 8.
++    if ! /usr/bin/xcrun -find xcodebuild >/dev/null 2>&1; then
+         echo >&2
+         echo "   Xcode not set up properly. You may need to confirm the license" >&2
+         echo "   agreement by running /usr/bin/xcodebuild without arguments." >&2
 diff --git a/mkspecs/common/msvc-desktop.conf b/mkspecs/common/msvc-desktop.conf
 index eec9e1f..ec3015e 100644
 --- a/mkspecs/common/msvc-desktop.conf
@@ -16,6 +30,21 @@ index eec9e1f..ec3015e 100644
  QMAKE_CFLAGS_YACC       =
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
+diff --git a/mkspecs/features/mac/default_pre.prf b/mkspecs/features/mac/default_pre.prf
+index 0cc8cd6..ca9725b 100644
+--- a/mkspecs/features/mac/default_pre.prf
++++ b/mkspecs/features/mac/default_pre.prf
+@@ -12,7 +12,9 @@ isEmpty(QMAKE_XCODE_DEVELOPER_PATH) {
+         error("Xcode is not installed in $${QMAKE_XCODE_DEVELOPER_PATH}. Please use xcode-select to choose Xcode installation path.")
+ 
+     # Make sure Xcode is set up properly
+-    isEmpty($$list($$system("/usr/bin/xcrun -find xcrun 2>/dev/null"))): \
++
++    # Patch: Fix Qt for working with Xcode 8.
++    isEmpty($$list($$system("/usr/bin/xcrun -find xcodebuild 2>/dev/null"))): \
+         error("Xcode not set up properly. You may need to confirm the license agreement by running /usr/bin/xcodebuild.")
+ }
+ 
 diff --git a/src/corelib/io/qfilesystemengine_win.cpp b/src/corelib/io/qfilesystemengine_win.cpp
 index f1a6019..81ff6ef 100644
 --- a/src/corelib/io/qfilesystemengine_win.cpp
@@ -11250,7 +11279,7 @@ index faea54b..7d85080 100644
  
  contains(QT_CONFIG, xcb-plugin): SUBDIRS += compose
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-index caa8884..b083e65 100644
+index caa8884..72941e4 100644
 --- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 @@ -210,7 +210,8 @@ QT_END_NAMESPACE
@@ -11263,6 +11292,23 @@ index caa8884..b083e65 100644
      }
  
      if ([self canQuit]) {
+@@ -287,11 +288,15 @@ QT_END_NAMESPACE
+ 
+ - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
+ {
++    // We need to catch that notification in delegate.
++    if (reflectionDelegate
++        && [reflectionDelegate respondsToSelector:@selector(applicationDidFinishLaunching:)])
++        [reflectionDelegate applicationDidFinishLaunching:aNotification];
++
+     Q_UNUSED(aNotification);
+     inLaunch = false;
+     // qt_release_apple_event_handler();
+ 
+-
+     // Insert code here to initialize your application
+ }
+ 
 diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.h b/src/plugins/platforms/cocoa/qcocoabackingstore.h
 index 5a199de..5622728 100644
 --- a/src/plugins/platforms/cocoa/qcocoabackingstore.h

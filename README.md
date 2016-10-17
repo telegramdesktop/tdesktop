@@ -34,7 +34,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 ## Build instructions
 
 * [Visual Studio 2015][msvc]
-* [Xcode 7][xcode]
+* [Xcode 8][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 
 ## Projects in Telegram solution

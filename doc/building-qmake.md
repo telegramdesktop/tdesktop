@@ -65,7 +65,7 @@ Building
 
 
     # Build patched Qt
-    cd "$srcdir/Libraries/QtStatic"
+    cd "$qtdir"
     ./configure -prefix "$srcdir/qt" -release -opensource -confirm-license -qt-zlib \
                 -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
                 -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -nomake examples -nomake tests

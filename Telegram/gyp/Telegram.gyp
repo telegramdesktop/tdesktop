@@ -27,7 +27,9 @@
       'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'minizip_loc': '../ThirdParty/minizip',
+      'third_party_loc': '../ThirdParty',
+      'minizip_loc': '<(third_party_loc)/minizip',
+      'sp_media_key_tap_loc': '<(third_party_loc)/SPMediaKeyTap',
       'style_files': [
         '<(res_loc)/basic.style',
         '<(res_loc)/basic_types.style',
@@ -85,6 +87,7 @@
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',
       '<(minizip_loc)',
+      '<(sp_media_key_tap_loc)',
     ],
     'sources': [
       '<@(qrc_files)',
@@ -530,6 +533,11 @@
       '<(src_loc)/window/slide_animation.h',
       '<(src_loc)/window/top_bar_widget.cpp',
       '<(src_loc)/window/top_bar_widget.h',
+
+      '<(sp_media_key_tap_loc)/SPMediaKeyTap.m',
+      '<(sp_media_key_tap_loc)/SPMediaKeyTap.h',
+      '<(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.m',
+      '<(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.h',
     ],
     'conditions': [
       [ '"<(official_build_target)" != ""', {
@@ -570,6 +578,10 @@
           '<(src_loc)/platform/mac/main_window_mac.h',
           '<(src_loc)/platform/mac/notifications_manager_mac.mm',
           '<(src_loc)/platform/mac/notifications_manager_mac.h',
+          '<(sp_media_key_tap_loc)/SPMediaKeyTap.m',
+          '<(sp_media_key_tap_loc)/SPMediaKeyTap.h',
+          '<(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.m',
+          '<(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.h',
         ],
       }],
       [ '"<(build_win)" != "1"', {

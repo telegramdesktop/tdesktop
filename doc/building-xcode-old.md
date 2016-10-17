@@ -6,8 +6,6 @@
 
 Choose a folder for the future build, for example **/Users/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-**IMPORTANT** You are required to build and install Qt 5.6.0 from the [Xcode 7](building-xcode.md) instructions first.
-
 ###Clone source code
 
 By git – in Terminal go to **/Users/user/TBuild** and run
@@ -165,8 +163,8 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-    git clone git://code.qt.io/qt/qt5.git QtStatic
-    cd QtStatic
+    git clone git://code.qt.io/qt/qt5.git qt5_3_2
+    cd qt5_3_2
     git checkout 5.3
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.3.2
@@ -175,19 +173,19 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 #####Apply the patch
 
-From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
+From **/Users/user/TBuild/Libraries/qt5_3_2/qtbase**, run:
 
     git apply ../../../tdesktop/Telegram/Patches/qtbase_5_3_2.diff
 
-From **/Users/user/TBuild/Libraries/QtStatic/qtimageformats**, run:
+From **/Users/user/TBuild/Libraries/qt5_3_2/qtimageformats**, run:
 
     git apply ../../../tdesktop/Telegram/Patches/qtimageformats_5_3_2.diff
 
 #####Building library
 
-Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
+Go to **/Users/user/TBuild/Libraries/qt5_3_2** and run:
 
-    ./configure -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
+    ./configure -prefix "/usr/local/tdesktop/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
     make -j4
     sudo make -j4 install
 

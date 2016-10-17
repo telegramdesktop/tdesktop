@@ -40,6 +40,7 @@
           ],
         },
         'qt_version%': '<(qt_version)',
+        'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
         'conditions': [
           [ 'build_win', {
             'qt_lib_prefix': '<(ld_lib_prefix)',
@@ -65,11 +66,7 @@
               'qcocoa',
             ],
           }],
-          [ 'build_macold', {
-            'qt_loc_unix': '/usr/local/Qt-<(qt_version)'
-          }],
           [ 'build_mac and not build_macold', {
-            'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
             'qt_libs': [
               '<@(qt_libs)',
               'Qt5Core',
@@ -78,7 +75,6 @@
             ],
           }],
           [ 'build_linux', {
-            'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
             'qt_lib_prefix': 'lib',
             'qt_lib_debug_postfix': '.a',
             'qt_lib_release_postfix': '.a',
