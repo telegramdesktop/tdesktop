@@ -547,7 +547,8 @@ buildTelegram() {
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
       -Dlinux_lib_ssl=-lssl \
-      -Dlinux_lib_crypto=-lcrypto\ -licuuc\ -licutu\ -licui18n \
+      -Dlinux_lib_crypto=-lcrypto \
+      -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \
       --depth=. --generator-output=../.. --format=cmake -Goutput_dir=out \
       Telegram.gyp
   cd "$UPSTREAM/out/Debug"

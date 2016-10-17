@@ -132,6 +132,7 @@
     'linux_path_xkbcommon%': '/usr/local',
     'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
     'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
+    'linux_lib_icu%': '/usr/lib/libicutu.a /usr/lib/libicui18n.a /usr/lib/libicuuc.a /usr/lib/libicudata.a',
   },
 
   'configurations': {
@@ -211,6 +212,7 @@
         '<@(qt_libs_release)',
         '<(linux_lib_ssl)',
         '<(linux_lib_crypto)',
+        '<!@(python -c "for s in \'<(linux_lib_icu)\'.split(\' \'): print(s)")',
         'xcb',
         'X11',
         'X11-xcb',
