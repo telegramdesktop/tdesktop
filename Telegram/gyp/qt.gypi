@@ -22,6 +22,15 @@
     'variables': {
       'variables': {
         'variables': {
+          'variables': {
+            'conditions': [
+              [ 'build_macold', {
+                'qt_version%': '5.3.2',
+              }, {
+                'qt_version%': '5.6.2',
+              }]
+            ],
+          },
           'qt_libs': [
             'qwebp',
             'Qt5PrintSupport',
@@ -31,16 +40,11 @@
             'Qt5Gui',
             'qtharfbuzzng',
           ],
-          'conditions': [
-            [ 'build_macold', {
-              'qt_version%': '5.3.2',
-            }, {
-              'qt_version%': '5.6.2',
-            }]
-          ],
+          'qt_version%': '<(qt_version)',
+          'linux_path_qt%': '/usr/local/tdesktop/Qt-<(qt_version)',
         },
         'qt_version%': '<(qt_version)',
-        'qt_loc_unix': '/usr/local/tdesktop/Qt-<(qt_version)',
+        'qt_loc_unix': '<(linux_path_qt)',
         'conditions': [
           [ 'build_win', {
             'qt_lib_prefix': '<(ld_lib_prefix)',
@@ -90,6 +94,7 @@
               'qtpcre',
               'Xi',
               'Xext',
+              'Xfixes',
               'SM',
               'ICE',
               'fontconfig',
@@ -123,6 +128,10 @@
         'qt_loc': '<(qt_loc_unix)',
       }],
     ],
+
+    'linux_path_xkbcommon%': '/usr/local',
+    'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
+    'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
   },
 
   'configurations': {
@@ -198,10 +207,10 @@
         '<(qt_loc)/plugins/platforminputcontexts',
       ],
       'libraries': [
-        '/usr/local/lib/libxkbcommon.a',
+        '<(linux_path_xkbcommon)/lib/libxkbcommon.a',
         '<@(qt_libs_release)',
-        '/usr/local/ssl/lib/libssl.a',
-        '/usr/local/ssl/lib/libcrypto.a',
+        '<(linux_lib_ssl)',
+        '<(linux_lib_crypto)',
         'xcb',
         'X11',
         'X11-xcb',

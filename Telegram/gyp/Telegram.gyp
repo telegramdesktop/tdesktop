@@ -24,7 +24,10 @@
   'targets': [{
     'target_name': 'Telegram',
     'variables': {
-      'libs_loc': '../../../Libraries',
+      'variables': {
+        'libs_loc': '../../../Libraries',
+      },
+      'libs_loc': '<(libs_loc)',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
       'third_party_loc': '../ThirdParty',
@@ -54,6 +57,8 @@
         'ko',
         'pt-BR',
       ],
+      'travis_defines%': '',
+      'linux_path_breakpad%': '<(libs_loc)/breakpad',
     },
     'includes': [
       'common_executable.gypi',
@@ -75,12 +80,13 @@
 
     'defines': [
       'AL_LIBTYPE_STATIC',
+      '<!@(python -c "for s in \'<(travis_defines)\'.split(\',\'): print(s)")',
     ],
 
     'include_dirs': [
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
-      '<(libs_loc)/breakpad/src',
+      '<(linux_path_breakpad)/include/breakpad',
       '<(libs_loc)/lzma/C',
       '<(libs_loc)/libexif-0.6.20',
       '<(libs_loc)/zlib-1.2.8',

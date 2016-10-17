@@ -159,9 +159,9 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     git clone https://chromium.googlesource.com/breakpad/breakpad
     git clone https://chromium.googlesource.com/linux-syscall-support breakpad/src/third_party/lss
     cd breakpad
-    ./configure
+    ./configure --prefix=$PWD
     make
-    sudo make install
+    make install
 
 ####GYP and CMake
 
