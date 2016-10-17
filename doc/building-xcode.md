@@ -175,30 +175,30 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run:
     make
     sudo make install
 
-####Qt 5.6.0, slightly patched
+####Qt 5.6.2, slightly patched
 #####Get the source code
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_0
-    cd qt5_6_0
+    git clone git://code.qt.io/qt/qt5.git qt5_6_2
+    cd qt5_6_2
     git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.0
-    cd qtimageformats && git checkout v5.6.0 && cd ..
-    cd qtbase && git checkout v5.6.0 && cd ..
+    git checkout v5.6.2
+    cd qtimageformats && git checkout v5.6.2 && cd ..
+    cd qtbase && git checkout v5.6.2 && cd ..
 
 #####Apply the patch
 
-From **/Users/user/TBuild/Libraries/qt5_6_0/qtbase**, run:
+From **/Users/user/TBuild/Libraries/qt5_6_2/qtbase**, run:
 
-    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
 
 #####Building library
 
-Go to **/Users/user/TBuild/Libraries/qt5_6_0** and run:
+Go to **/Users/user/TBuild/Libraries/qt5_6_2** and run:
 
-    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make -j4
     sudo make install
 

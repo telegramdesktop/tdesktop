@@ -9,7 +9,7 @@ UPSTREAM="$REPO/upstream"
 EXTERNAL="$REPO/external"
 CACHE="$HOME/travisCacheDir"
 
-QT_VERSION=5.6.0
+QT_VERSION=5.6.2
 
 XKB_PATH="$BUILD/libxkbcommon"
 XKB_CACHE_VERSION="2"

@@ -7,7 +7,7 @@ The following commands assume the following environment variables are set:
 
  * `$srcdir`: The directory into which the source has been downloaded and
    unpacked.
- * `_qtver`: The Qt version being used (eg: `5.6.0`).
+ * `_qtver`: The Qt version being used (eg: `5.6.2`).
  * `$pkgdir`: The directory into which installable files are places. This is
    `/` for local installations, or can be different directory when preparing a
    redistributable package.

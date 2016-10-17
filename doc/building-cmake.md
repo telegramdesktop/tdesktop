@@ -27,7 +27,7 @@ By git – in Terminal go to **/home/user/TBuild** and run
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev
 
 ####zlib 1.2.8
 
@@ -120,31 +120,31 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####Qt 5.6.0, slightly patched
+####Qt 5.6.2, slightly patched
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_0
-    cd qt5_6_0
+    git clone git://code.qt.io/qt/qt5.git qt5_6_2
+    cd qt5_6_2
     git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.0
-    cd qtimageformats && git checkout v5.6.0 && cd ..
-    cd qtbase && git checkout v5.6.0 && cd ..
+    git checkout v5.6.2
+    cd qtimageformats && git checkout v5.6.2 && cd ..
+    cd qtbase && git checkout v5.6.2 && cd ..
 
 #####Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
 #####Building library
 
-Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_0/qtbase/src/plugins/platforms/xcb/README**)
+Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_2/qtbase/src/plugins/platforms/xcb/README**)
 
     sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev
 
-In Terminal go to **/home/user/TBuild/Libraries/qt5_6_0** and there run
+In Terminal go to **/home/user/TBuild/Libraries/qt5_6_2** and there run
 
-    OPENSSL_LIBS='-L/usr/local/ssl/lib -lssl -lcrypto' ./configure -prefix "/usr/local/tdesktop/Qt-5.6.0" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -openssl-linked -nomake examples -nomake tests
+    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -openssl-linked -nomake examples -nomake tests
     make -j4
     sudo make install
 

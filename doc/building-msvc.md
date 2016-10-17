@@ -16,7 +16,7 @@
       - [Building libraries](#building-libraries)
     + [FFmpeg](#ffmpeg)
       - [Building libraries](#building-libraries-1)
-    + [Qt 5.6.0, slightly patched](#qt-560-slightly-patched)
+    + [Qt 5.6.2, slightly patched](#qt-560-slightly-patched)
       - [Apply the patch](#apply-the-patch)
       - [Install Windows SDKs](#install-windows-sdks)
       - [Building library](#building-library-4)
@@ -177,24 +177,24 @@ Go to **D:\\msys64** and launch **msys2_shell.bat**, there run
     make
     make install
 
-### Qt 5.6.0, slightly patched
+### Qt 5.6.2, slightly patched
 
 * Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
 * Go to **D:\\TBuild\\Libraries** and run
 
 <!-- -->
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_0
-    cd qt5_6_0
+    git clone git://code.qt.io/qt/qt5.git qt5_6_2
+    cd qt5_6_2
     git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.0
-    cd qtimageformats && git checkout v5.6.0 && cd ..
-    cd qtbase && git checkout v5.6.0 && cd ..
+    git checkout v5.6.2
+    cd qtimageformats && git checkout v5.6.2 && cd ..
+    cd qtbase && git checkout v5.6.2 && cd ..
 
 #### Apply the patch
 
-    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_0.diff && cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
 #### Install Windows SDKs
 
@@ -265,9 +265,9 @@ Breakpad is a set of client and server components which implement a crash-report
 
 * Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add
-  * Version name: **Qt 5.6.0 Win32**
-  * Path: **D:\TBuild\Libraries\qt5_6_0\qtbase**
-* Default Qt/Win version: **Qt 5.6.0 Win32** – **OK** - You may need to restart Visual Studio for this to take effect.
+  * Version name: **Qt 5.6.22Win32**
+  * Path: **D:\TBuild\Libraries\qt5_6_2\qtbase**
+* Default Qt/Win version: **Qt 5.6.2 Win32** – **OK** - You may need to restart Visual Studio for this to take effect.
 
 #### Build the project
 
