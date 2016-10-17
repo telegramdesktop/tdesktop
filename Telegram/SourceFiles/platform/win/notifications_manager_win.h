@@ -25,15 +25,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
+inline void defaultNotificationShown(QWidget *widget) {
+}
+bool skipAudio();
+bool skipToast();
+
 class Manager;
 
 void start();
 Manager *manager();
 bool supported();
 void finish();
-
-inline void defaultNotificationShown(QWidget *widget) {
-}
 
 class Manager : public Window::Notifications::NativeManager {
 public:

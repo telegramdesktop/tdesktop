@@ -44,6 +44,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 #include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
 , _shadow(st::boxShadow)
@@ -1120,11 +1121,10 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 	} else if (cOtherOnline() >= t) {
 		delay = Global::NotifyDefaultDelay();
 	}
-//	LOG(("Is online: %1, otherOnline: %2, currentTime: %3, otherNotOld: %4, otherLaterThanMe: %5").arg(Logs::b(isOnline)).arg(cOtherOnline()).arg(t).arg(Logs::b(otherNotOld)).arg(Logs::b(otherLaterThanMe)));
 
 	uint64 when = ms + delay;
 	_notifyWhenAlerts[history].insert(when, notifyByFrom);
-	if (Global::DesktopNotify() && !psSkipDesktopNotify()) {
+	if (Global::DesktopNotify() && !Platform::Notifications::skipToast()) {
 		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
 		if (i == _notifyWhenMaps.end()) {
 			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
@@ -1254,7 +1254,7 @@ void MainWindow::notifyShowNext() {
 		App::playSound();
 	}
 
-	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || psSkipDesktopNotify()) {
+	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::skipToast()) {
 		if (nextAlert) {
 			_notifyWaitTimer.start(nextAlert - ms);
 		}

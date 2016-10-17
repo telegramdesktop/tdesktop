@@ -1886,7 +1886,7 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 		_a_show.stop();
 
 		onFilterUpdate();
-		activate();
+		if (App::wnd()) App::wnd()->setInnerFocus();
 
 		if (App::app()) App::app()->mtpUnpause();
 	} else {

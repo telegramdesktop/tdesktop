@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/notifications_utilities.h"
 #include "platform/win/windows_app_user_model_id.h"
+#include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
 
@@ -532,6 +533,88 @@ void Manager::onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
 
 void Manager::onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
 	_impl->afterNotificationActivated(peerId, msgId);
+}
+
+namespace {
+
+bool QuiteHoursEnabled = false;
+DWORD QuiteHoursValue = 0;
+
+void queryQuiteHours() {
+	LPTSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
+	LPTSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
+	HKEY key;
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+
+	auto quiteHoursEnabled = (result == ERROR_SUCCESS);
+	if (QuiteHoursEnabled != quiteHoursEnabled) {
+		QuiteHoursEnabled = quiteHoursEnabled;
+		QuiteHoursValue = value;
+		LOG(("Quite hours changed, entry value: %1").arg(value));
+	} else if (QuiteHoursValue != value) {
+		QuiteHoursValue = value;
+		LOG(("Quite hours value changed, was value: %1, entry value: %2").arg(QuiteHoursValue).arg(value));
+	}
+}
+
+QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
+
+void queryUserNotificationState() {
+	if (Dlls::SHQueryUserNotificationState != nullptr) {
+		QUERY_USER_NOTIFICATION_STATE state;
+		if (SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
+			UserNotificationState = state;
+		}
+	}
+}
+
+static constexpr int QuerySettingsEachMs = 1000;
+uint64 LastSettingsQueryMs = 0;
+
+void querySystemNotificationSettings() {
+	auto ms = getms(true);
+	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + QuerySettingsEachMs) {
+		return;
+	}
+	LastSettingsQueryMs = ms;
+	queryQuiteHours();
+	queryUserNotificationState();
+}
+
+} // namespace
+
+bool skipAudio() {
+	querySystemNotificationSettings();
+
+	if (UserNotificationState == QUNS_NOT_PRESENT || UserNotificationState == QUNS_PRESENTATION_MODE) {
+		return true;
+	}
+	if (QuiteHoursEnabled) {
+		return true;
+	}
+	if (EventFilter::getInstance()->sessionLoggedOff()) {
+		return true;
+	}
+	return false;
+}
+
+bool skipToast() {
+	querySystemNotificationSettings();
+
+	if (UserNotificationState == QUNS_PRESENTATION_MODE || UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN/* || UserNotificationState == QUNS_BUSY*/) {
+		return true;
+	}
+	if (QuiteHoursEnabled) {
+		return true;
+	}
+	return false;
 }
 
 } // namespace Notifications

@@ -531,7 +531,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 			auto sel = _selected.cbegin().value();
 			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
-				App::main()->activate();
+				App::wnd()->setInnerFocus();
 			}
 		}
 	}

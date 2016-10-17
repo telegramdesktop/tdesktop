@@ -142,6 +142,8 @@ void PasscodeWidget::step_show(float64 ms, bool timer) {
 		if (App::wnd()) App::wnd()->setInnerFocus();
 
 		if (App::app()) App::app()->mtpUnpause();
+
+		Ui::showChatsList();
 	} else {
 		a_coordUnder.update(dt, st::slideFunction);
 		a_coordOver.update(dt, st::slideFunction);

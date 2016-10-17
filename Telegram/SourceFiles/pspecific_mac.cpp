@@ -302,14 +302,6 @@ uint64 psIdleTime() {
 	return objc_idleTime(idleTime) ? idleTime : (getms(true) - _lastUserAction);
 }
 
-bool psSkipAudioNotify() {
-	return false;
-}
-
-bool psSkipDesktopNotify() {
-	return false;
-}
-
 QStringList psInitLogs() {
     return _initLogs;
 }

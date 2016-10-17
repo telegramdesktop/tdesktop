@@ -294,14 +294,6 @@ uint64 psIdleTime() {
 	return getms(true) - _lastUserAction;
 }
 
-bool psSkipAudioNotify() {
-	return false;
-}
-
-bool psSkipDesktopNotify() {
-	return false;
-}
-
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }

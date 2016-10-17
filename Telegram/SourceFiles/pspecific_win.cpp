@@ -176,22 +176,6 @@ uint64 psIdleTime() {
 	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (getms(true) - _lastUserAction);
 }
 
-bool psSkipAudioNotify() {
-	QUERY_USER_NOTIFICATION_STATE state;
-	if (useShellapi && SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
-		if (state == QUNS_NOT_PRESENT || state == QUNS_PRESENTATION_MODE) return true;
-	}
-	return EventFilter::getInstance()->sessionLoggedOff();
-}
-
-bool psSkipDesktopNotify() {
-	QUERY_USER_NOTIFICATION_STATE state;
-	if (useShellapi && SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
-		if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN/* || state == QUNS_BUSY*/) return true;
-	}
-	return false;
-}
-
 QStringList psInitLogs() {
     return _initLogs;
 }

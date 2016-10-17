@@ -43,6 +43,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "window/chat_background.h"
 #include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace {
 	App::LaunchState _launchState = App::Launched;
@@ -2399,7 +2400,9 @@ namespace {
 	}
 
 	void playSound() {
-		if (Global::SoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
+		if (Global::SoundNotify() && !Platform::Notifications::skipAudio()) {
+			audioPlayNotify();
+		}
 	}
 
 	void checkImageCacheSize() {

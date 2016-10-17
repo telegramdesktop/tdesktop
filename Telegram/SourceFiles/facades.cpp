@@ -285,11 +285,15 @@ bool hideWindowNoQuit() {
 	if (!App::quitting()) {
 		if (auto w = App::wnd()) {
 			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				return w->minimizeToTray();
+				if (w->minimizeToTray()) {
+					Ui::showChatsList();
+					return true;
+				}
 			} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 				w->closeWithoutDestroy();
 				w->updateIsActive(Global::OfflineBlurTimeout());
 				w->updateGlobalMenu();
+				Ui::showChatsList();
 				return true;
 			}
 		}
