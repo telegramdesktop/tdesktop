@@ -2724,7 +2724,7 @@ void MainWidget::showAll() {
 			_wideSection->show();
 		} else if (_history->peer()) {
 			_history->show();
-			_history->resizeEvent(0);
+			_history->updateControlsGeometry();
 		} else {
 			_dialogs->show();
 			_history->hide();
@@ -2754,7 +2754,7 @@ void MainWidget::showAll() {
 			_wideSection->show();
 		} else {
 			_history->show();
-			_history->resizeEvent(0);
+			_history->updateControlsGeometry();
 		}
 		if (_wideSection) {
 			_topBar->hide();
@@ -3551,7 +3551,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				peer->asUser()->botInfo->startToken = startToken;
 				if (peer == _history->peer()) {
 					_history->updateControlsVisibility();
-					_history->resizeEvent(0);
+					_history->updateControlsGeometry();
 				}
 			}
 			Ui::showPeerHistoryAsync(peer->id, msgId, Ui::ShowWay::Forward);
@@ -3636,7 +3636,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			peer->asUser()->botInfo->startToken = startToken;
 			if (peer == _history->peer()) {
 				_history->updateControlsVisibility();
-				_history->resizeEvent(0);
+				_history->updateControlsGeometry();
 			}
 		}
 		Ui::showPeerHistory(peer->id, msgId, Ui::ShowWay::Forward);

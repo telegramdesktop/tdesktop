@@ -228,12 +228,18 @@ void FlatInput::focusOutEvent(QFocusEvent *e) {
 }
 
 void FlatInput::resizeEvent(QResizeEvent *e) {
+	updatePlaceholderText();
+	return QLineEdit::resizeEvent(e);
+}
+
+void FlatInput::updatePlaceholderText() {
 	int32 availw = width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1;
 	if (_st.font->width(_fullph) > availw) {
 		_ph = _st.font->elided(_fullph, availw);
 	} else {
 		_ph = _fullph;
 	}
+	update();
 }
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
@@ -279,8 +285,7 @@ void FlatInput::step_appearance(float64 ms, bool timer) {
 
 void FlatInput::setPlaceholder(const QString &ph) {
 	_fullph = ph;
-	resizeEvent(0);
-	update();
+	updatePlaceholderText();
 }
 
 void FlatInput::setPlaceholderFast(bool fast) {
@@ -2200,8 +2205,13 @@ void MaskedInputField::focusOutEvent(QFocusEvent *e) {
 }
 
 void MaskedInputField::resizeEvent(QResizeEvent *e) {
-	_placeholder = _st.font->elided(_placeholderFull, width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1);
+	updatePlaceholderText();
 	QLineEdit::resizeEvent(e);
+}
+
+void MaskedInputField::updatePlaceholderText() {
+	_placeholder = _st.font->elided(_placeholderFull, width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1);
+	update();
 }
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
@@ -2267,8 +2277,7 @@ void MaskedInputField::step_border(float64 ms, bool timer) {
 bool MaskedInputField::setPlaceholder(const QString &placeholder) {
 	if (_placeholderFull != placeholder) {
 		_placeholderFull = placeholder;
-		resizeEvent(0);
-		update();
+		updatePlaceholderText();
 		return true;
 	}
 	return false;

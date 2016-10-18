@@ -55,17 +55,6 @@ public:
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	bool event(QEvent *e) override; // calls touchEvent when necessary
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
 	TextWithEntities getSelectedText() const;
@@ -121,6 +110,18 @@ public:
 
 protected:
 	bool focusNextPrevChild(bool next) override;
+
+	bool event(QEvent *e) override; // calls touchEvent when necessary
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 public slots:
 	void onUpdateSelected();
@@ -331,22 +332,20 @@ class ReportSpamPanel : public TWidget {
 	Q_OBJECT
 
 public:
-
 	ReportSpamPanel(HistoryWidget *parent);
-
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
 
 	void setReported(bool reported, PeerData *onPeer);
 
 signals:
-
 	void hideClicked();
 	void reportClicked();
 	void clearClicked();
 
-private:
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
+private:
 	FlatButton _report, _hide;
 	LinkButton _clear;
 
@@ -357,13 +356,6 @@ class BotKeyboard : public TWidget, public AbstractTooltipShower, public ClickHa
 
 public:
 	BotKeyboard();
-
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
 
 	bool moderateKeyActivate(int index);
 
@@ -396,6 +388,13 @@ public:
 
 protected:
 	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 private:
 	void updateSelected();
@@ -537,18 +536,10 @@ public:
 	void windowShown();
 	bool doWeReadServerHistory() const;
 
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-    void dragEnterEvent(QDragEnterEvent *e) override;
-	void dragLeaveEvent(QDragLeaveEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-    void dropEvent(QDropEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
+	void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
 
 	void updateTopBarSelection();
 
@@ -596,6 +587,7 @@ public:
 	void cancelShareContact();
 
 	void updateControlsVisibility();
+	void updateControlsGeometry();
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 
@@ -694,7 +686,7 @@ public:
 
 	void grabStart() override {
 		_inGrab = true;
-		resizeEvent(0);
+		updateControlsGeometry();
 	}
 	void grapWithoutTopBarShadow();
 	void grabFinish() override;
@@ -726,6 +718,16 @@ public:
 	bool cmd_previous_chat();
 
 	~HistoryWidget();
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 signals:
 	void cancelled();

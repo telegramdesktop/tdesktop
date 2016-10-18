@@ -1291,7 +1291,7 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 220px;
+maxFieldHeight: 224px;
 // historyMinHeight: 56px;
 
 reportSpamHide: flatButton(btnDefFlat) {

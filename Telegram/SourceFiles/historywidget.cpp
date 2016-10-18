@@ -3275,8 +3275,7 @@ void HistoryWidget::onTextChange() {
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
-		resizeEvent(0);
-		update();
+		updateControlsGeometry();
 	}
 
 	_saveCloudDraftTimer.stop();
@@ -3597,7 +3596,7 @@ void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 		_list->notifyIsBotChanged();
 		_list->updateBotInfo();
 		updateControlsVisibility();
-		resizeEvent(0);
+		updateControlsGeometry();
 	}
 }
 
@@ -4117,8 +4116,7 @@ void HistoryWidget::applyCloudDraft(History *history) {
 		applyDraft();
 
 		updateControlsVisibility();
-		resizeEvent(nullptr);
-		update();
+		updateControlsGeometry();
 	}
 }
 
@@ -5313,7 +5311,7 @@ void HistoryWidget::onBotStart() {
 		}
 	}
 	updateControlsVisibility();
-	resizeEvent(0);
+	updateControlsGeometry();
 }
 
 void HistoryWidget::onJoinChannel() {
@@ -6918,7 +6916,7 @@ void HistoryWidget::peerMessagesUpdated(PeerId peer) {
 			if (!upd && !unblock && !botStart && !joinChannel) upd = (_muteUnmute.isHidden() == muteUnmute);
 			if (upd) {
 				updateControlsVisibility();
-				resizeEvent(0);
+				updateControlsGeometry();
 			}
 		}
 	}
@@ -7006,6 +7004,10 @@ void HistoryWidget::notify_handlePendingHistoryUpdate() {
 }
 
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void HistoryWidget::updateControlsGeometry() {
 	_reportSpamPanel.resize(width(), _reportSpamPanel.height());
 
 	moveFieldControls();
@@ -8041,8 +8043,7 @@ void HistoryWidget::cancelEdit() {
 
 void HistoryWidget::cancelForwarding() {
 	updateControlsVisibility();
-	resizeEvent(0);
-	update();
+	updateControlsGeometry();
 }
 
 void HistoryWidget::onFieldBarCancel() {
@@ -8243,11 +8244,10 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
-		resizeEvent(0);
-		update();
+		updateControlsGeometry();
 	} else if (!_scroll.isHidden() && _unblock.isHidden() == isBlocked()) {
 		updateControlsVisibility();
-		resizeEvent(0);
+		updateControlsGeometry();
 	}
 }
 
@@ -8293,8 +8293,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 			}
 			updateControlsVisibility();
 			if (resize) {
-				resizeEvent(0);
-				update();
+				updateControlsGeometry();
 			}
 		}
 		App::main()->updateOnlineDisplay();
@@ -8479,8 +8478,7 @@ void HistoryWidget::updateForwarding(bool force) {
 	if (readyToForward()) {
 		updateControlsVisibility();
 	} else {
-		resizeEvent(0);
-		update();
+		updateControlsGeometry();
 	}
 }
 

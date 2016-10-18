@@ -27,17 +27,7 @@ class FlatInput : public QLineEdit {
 	T_WIDGET
 
 public:
-
 	FlatInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
-
-	bool event(QEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void focusInEvent(QFocusEvent *e) override;
-	void focusOutEvent(QFocusEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void notaBene();
 
@@ -62,14 +52,12 @@ public:
 	void setTextMargins(const QMargins &mrg);
 
 public slots:
-
 	void onTextChange(const QString &text);
 	void onTextEdited();
 
 	void onTouchTimer();
 
 signals:
-
 	void changed();
 	void cancelled();
 	void submitted(bool ctrlShiftEnter);
@@ -84,6 +72,15 @@ protected:
 		return QLineEdit::leaveEvent(e);
 	}
 
+	bool event(QEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
 	virtual void correctValue(const QString &was, QString &now);
 
 	style::font phFont() {
@@ -93,6 +90,7 @@ protected:
 	void phPrepare(Painter &p);
 
 private:
+	void updatePlaceholderText();
 
 	QString _oldtext, _ph, _fullph;
 	bool _fastph;
@@ -515,7 +513,6 @@ class MaskedInputField : public QLineEdit {
 	T_WIDGET
 
 public:
-
 	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
 
 	bool event(QEvent *e) override;
@@ -556,7 +553,6 @@ public:
 	}
 
 public slots:
-
 	void onTextChange(const QString &text);
 	void onCursorPositionChanged(int oldPosition, int position);
 
@@ -565,7 +561,6 @@ public slots:
 	void onTouchTimer();
 
 signals:
-
 	void changed();
 	void cancelled();
 	void submitted(bool ctrlShiftEnter);
@@ -595,8 +590,8 @@ protected:
 	const style::InputField &_st;
 
 private:
-
 	void startBorderAnimation();
+	void updatePlaceholderText();
 
 	int32 _maxLength;
 

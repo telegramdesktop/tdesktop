@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
 #ifndef Q_OS_MAC // Retina display support is working fine, others are not.
 	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // Q_OS_MAC
+	QCoreApplication::setApplicationName(qsl("TelegramDesktop"));
 
 	settingsParseArgs(argc, argv);
 	if (cLaunchMode() == LaunchModeFixPrevious) {
