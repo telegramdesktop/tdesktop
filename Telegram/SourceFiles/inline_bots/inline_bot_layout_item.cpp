@@ -146,7 +146,7 @@ ImagePtr ItemBase::getResultThumb() const {
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
-		return userDefPhoto(qHash(_result->_id) % UserColorsCount)->pixCircled(width, height);
+		return userDefPhoto(qHash(_result->_id) % kUserColorsCount)->pixCircled(width, height);
 	}
 	return QPixmap();
 }

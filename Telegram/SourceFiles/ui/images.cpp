@@ -27,28 +27,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 
 namespace {
-	typedef QMap<QString, Image*> LocalImages;
-	LocalImages localImages;
 
-	typedef QMap<QString, WebImage*> WebImages;
-	WebImages webImages;
+using LocalImages = QMap<QString, Image*>;
+LocalImages localImages;
 
-	Image *blank() {
-		static Image *img = internal::getImage(qsl(":/gui/art/blank.gif"), "GIF");
-		return img;
-	}
+using WebImages = QMap<QString, WebImage*>;
+WebImages webImages;
 
-	typedef QMap<StorageKey, StorageImage*> StorageImages;
-	StorageImages storageImages;
-
-	int64 globalAcquiredSize = 0;
-
-	static const uint64 BlurredCacheSkip = 0x1000000000000000LLU;
-	static const uint64 ColoredCacheSkip = 0x2000000000000000LLU;
-	static const uint64 BlurredColoredCacheSkip = 0x3000000000000000LLU;
-	static const uint64 RoundedCacheSkip = 0x4000000000000000LLU;
-	static const uint64 CircledCacheSkip = 0x5000000000000000LLU;
+Image *generateBlankImage() {
+	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	data.fill(QColor(255, 255, 255, 0));
+	data.setDevicePixelRatio(cRetinaFactor());
+	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
 }
+
+Image *blank() {
+	static auto blankImage = generateBlankImage();
+	return blankImage;
+}
+
+using StorageImages = QMap<StorageKey, StorageImage*>;
+StorageImages storageImages;
+
+int64 globalAcquiredSize = 0;
+
+constexpr uint64 BlurredCacheSkip = 0x1000000000000000LLU;
+constexpr uint64 ColoredCacheSkip = 0x2000000000000000LLU;
+constexpr uint64 BlurredColoredCacheSkip = 0x3000000000000000LLU;
+constexpr uint64 RoundedCacheSkip = 0x4000000000000000LLU;
+constexpr uint64 CircledCacheSkip = 0x5000000000000000LLU;
+
+} // namespace
 
 StorageImageLocation StorageImageLocation::Null;
 

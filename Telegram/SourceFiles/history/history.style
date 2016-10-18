@@ -92,3 +92,44 @@ historyViewsInSelectedIcon: icon {{ "history_views", #6a9bc5 }};
 historyViewsOutIcon: icon {{ "history_views", historyOutFg }};
 historyViewsOutSelectedIcon: icon {{ "history_views", historyOutSelectedFg }};
 historyViewsInvertedIcon: icon {{ "history_views", #ffffffe6 }};
+
+historyPeer1NameFg: #c03d33; // red
+historyPeer1UserpicBg: #ed9482;
+historyPeer1UserpicFg: #d3644b;
+historyPeer1UserpicPerson: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_person", historyPeer1UserpicFg }};
+historyPeer1UserpicChat: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_chat", historyPeer1UserpicFg }};
+historyPeer1UserpicChannel: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_channel", historyPeer1UserpicFg }};
+historyPeer2NameFg: #4fad2d; // green
+historyPeer2UserpicBg: #a8db92;
+historyPeer2UserpicFg: #75c057;
+historyPeer2UserpicPerson: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_person", historyPeer2UserpicFg }};
+historyPeer2UserpicChat: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_chat", historyPeer2UserpicFg }};
+historyPeer2UserpicChannel: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_channel", historyPeer2UserpicFg }};
+historyPeer3NameFg: #d09306; // yellow
+historyPeer3UserpicBg: #efd289;
+historyPeer3UserpicFg: #e4a861;
+historyPeer3UserpicPerson: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_person", historyPeer3UserpicFg }};
+historyPeer3UserpicChat: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_chat", historyPeer3UserpicFg }};
+historyPeer3UserpicChannel: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_channel", historyPeer3UserpicFg }};
+historyPeer4NameFg: #348cd4; // blue
+historyPeer4UserpicBg: #8fbfe9;
+historyPeer4UserpicFg: #649fd3;
+historyPeer4UserpicPerson: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_person", historyPeer4UserpicFg }};
+historyPeer4UserpicChat: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_chat", historyPeer4UserpicFg }};
+historyPeer4UserpicChannel: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_channel", historyPeer4UserpicFg }};
+historyPeer5NameFg: #8544d6; // purple
+historyPeer5UserpicBg: #9992e4;
+historyPeer5UserpicFg: #7b72cf;
+historyPeer5UserpicPerson: icon {{ size(120px, 120px), historyPeer5UserpicBg }, { "userpic_person", historyPeer5UserpicFg }};
+historyPeer6NameFg: #cd4073; // pink
+historyPeer6UserpicBg: #ffa9c3;
+historyPeer6UserpicFg: #e87497;
+historyPeer6UserpicPerson: icon {{ size(120px, 120px), historyPeer6UserpicBg }, { "userpic_person", historyPeer6UserpicFg }};
+historyPeer7NameFg: #2996ad; // sea
+historyPeer7UserpicBg: #8eccdb;
+historyPeer7UserpicFg: #5eb2c7;
+historyPeer7UserpicPerson: icon {{ size(120px, 120px), historyPeer7UserpicBg }, { "userpic_person", historyPeer7UserpicFg }};
+historyPeer8NameFg: #ce671b; // orange
+historyPeer8UserpicBg: #f7b37c;
+historyPeer8UserpicFg: #de8d62;
+historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};

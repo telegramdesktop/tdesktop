@@ -58,7 +58,6 @@
         'pt-BR',
       ],
       'travis_defines%': '',
-      'linux_path_breakpad%': '<(libs_loc)/breakpad',
     },
     'includes': [
       'common_executable.gypi',
@@ -86,7 +85,7 @@
     'include_dirs': [
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
-      '<(linux_path_breakpad)/include/breakpad',
+      '<(libs_loc)/breakpad/src',
       '<(libs_loc)/lzma/C',
       '<(libs_loc)/libexif-0.6.20',
       '<(libs_loc)/zlib-1.2.8',

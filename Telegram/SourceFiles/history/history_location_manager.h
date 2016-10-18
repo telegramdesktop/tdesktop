@@ -115,6 +115,6 @@ private:
 	QNetworkAccessManager *manager = nullptr;
 	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
 	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *black = nullptr;
+	ImagePtr *notLoadedPlaceholder = nullptr;
 
 };

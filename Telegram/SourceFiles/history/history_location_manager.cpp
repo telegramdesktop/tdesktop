@@ -76,18 +76,14 @@ void LocationManager::init() {
 #endif // OS_MAC_OLD
 	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
 
-	if (black) {
-		delete black->v();
-		delete black;
+	if (notLoadedPlaceholder) {
+		delete notLoadedPlaceholder->v();
+		delete notLoadedPlaceholder;
 	}
-	QImage b(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	{
-		QPainter p(&b);
-		p.fillRect(QRect(0, 0, cIntRetinaFactor(), cIntRetinaFactor()), st::white->b);
-	}
-	QPixmap p = App::pixmapFromImageInPlace(std_::move(b));
-	p.setDevicePixelRatio(cRetinaFactor());
-	black = new ImagePtr(p, "PNG");
+	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	data.fill(st::white->c);
+	data.setDevicePixelRatio(cRetinaFactor());
+	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
 }
 
 void LocationManager::reinit() {
@@ -99,10 +95,10 @@ void LocationManager::deinit() {
 		delete manager;
 		manager = nullptr;
 	}
-	if (black) {
-		delete black->v();
-		delete black;
-		black = nullptr;
+	if (notLoadedPlaceholder) {
+		delete notLoadedPlaceholder->v();
+		delete notLoadedPlaceholder;
+		notLoadedPlaceholder = nullptr;
 	}
 	dataLoadings.clear();
 	imageLoadings.clear();
@@ -206,7 +202,7 @@ void LocationManager::onFinished(QNetworkReply *reply) {
 				if (format.isEmpty()) format = QByteArray("JPG");
 			}
 			d->loading = false;
-			d->thumb = thumb.isNull() ? (*black) : ImagePtr(thumb, format);
+			d->thumb = thumb.isNull() ? (*notLoadedPlaceholder) : ImagePtr(thumb, format);
 			serverRedirects.remove(d);
 			if (App::main()) App::main()->update();
 		}
@@ -236,7 +232,7 @@ void LocationManager::onFailed(QNetworkReply *reply) {
 
 void LocationManager::failed(LocationData *data) {
 	data->loading = false;
-	data->thumb = *black;
+	data->thumb = *notLoadedPlaceholder;
 	serverRedirects.remove(data);
 }
 

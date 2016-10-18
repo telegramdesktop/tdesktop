@@ -31,19 +31,21 @@
       'linux_path_openal%': '/usr/local',
       'linux_path_libexif_lib%': '<(libs_loc)/libexif-0.6.20/libexif/.libs',
       'linux_path_va%': '/usr/local',
+      'linux_path_breakpad%': '<(libs_loc)/breakpad',
     },
     'include_dirs': [
       '/usr/local/include',
       '<(linux_path_ffmpeg)/include',
       '<(linux_path_openal)/include',
+      '<(linux_path_breakpad)/include/breakpad',
     ],
     'library_dirs': [
       '/usr/local/lib',
       '<(linux_path_ffmpeg)/lib',
       '<(linux_path_openal)/lib',
-      '<(linux_path_breakpad)/lib',
       '<(linux_path_libexif_lib)',
       '<(linux_path_va)/lib',
+      '<(linux_path_breakpad)/lib',
     ],
     'libraries': [
       'breakpad_client',

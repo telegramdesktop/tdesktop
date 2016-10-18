@@ -41,15 +41,6 @@ transparent: #fff0;
 white: #fff;
 black: #000;
 
-color1: #c03d33; // red
-color2: #4fad2d; // green
-color3: #d09306; // yellow
-color4: #348cd4; // blue
-color5: #8544d6; // purple
-color6: #cd4073; // pink
-color7: #2996ad; // sea
-color8: #ce671b; // orange
-
 wndMinWidth: 380px;
 
 adaptiveNormalWidth: 640px;

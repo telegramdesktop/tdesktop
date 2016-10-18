@@ -2296,7 +2296,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, u
 		if (_contact) {
 			_contact->paintUserpic(p, st::msgFileThumbSize, rthumb.x(), rthumb.y());
 		} else {
-			p.drawPixmap(rthumb.topLeft(), userDefPhoto(qAbs(_userId) % UserColorsCount)->pixCircled(st::msgFileThumbSize, st::msgFileThumbSize));
+			p.drawPixmap(rthumb.topLeft(), userDefPhoto(qAbs(_userId) % kUserColorsCount)->pixCircled(st::msgFileThumbSize, st::msgFileThumbSize));
 		}
 		if (selected) {
 			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
@@ -2313,7 +2313,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, u
 		statustop = st::msgFileStatusTop;
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width));
-		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(_parent->id) % UserColorsCount)->pixCircled(st::msgFileSize, st::msgFileSize));
+		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(_parent->id) % kUserColorsCount)->pixCircled(st::msgFileSize, st::msgFileSize));
 	}
 	int32 namewidth = width - nameleft - nameright;
 

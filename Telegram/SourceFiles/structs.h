@@ -199,9 +199,11 @@ inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = 0) {
 	return false;
 }
 
-static const int UserColorsCount = 8;
+static constexpr int kUserColorsCount = 8;
+static constexpr int kChatColorsCount = 4;
+static constexpr int kChannelColorsCount = 4;
 
-style::color peerColor(int index);
+const style::color &peerColor(int index);
 ImagePtr userDefPhoto(int index);
 ImagePtr chatDefPhoto(int index);
 ImagePtr channelDefPhoto(int index);

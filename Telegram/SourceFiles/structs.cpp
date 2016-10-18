@@ -34,64 +34,81 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "localstorage.h"
 #include "history/history_media_types.h"
+#include "styles/style_history.h"
 
 namespace {
-	int peerColorIndex(const PeerId &peer) {
-		UserId myId(MTP::authedId()), peerId(peerToBareInt(peer));
-		QByteArray both(qsl("%1%2").arg(peerId).arg(myId).toUtf8());
-		if (both.size() > 15) {
-			both = both.mid(0, 15);
-		}
-		uchar md5[16];
-		hashMd5(both.constData(), both.size(), md5);
-		return (md5[peerId & 0x0F] & (peerIsUser(peer) ? 0x07 : 0x03));
-	}
+
+int peerColorIndex(const PeerId &peer) {
+	auto myId = MTP::authedId();
+	auto peerId = peerToBareInt(peer);
+	auto both = (QByteArray::number(peerId) + QByteArray::number(myId)).mid(0, 15);
+	uchar md5[16];
+	hashMd5(both.constData(), both.size(), md5);
+	return (md5[peerId & 0x0F] & (peerIsUser(peer) ? 0x07 : 0x03));
 }
 
-style::color peerColor(int index) {
-	static const style::color peerColors[8] = {
-		style::color(st::color1),
-		style::color(st::color2),
-		style::color(st::color3),
-		style::color(st::color4),
-		style::color(st::color5),
-		style::color(st::color6),
-		style::color(st::color7),
-		style::color(st::color8)
+struct ColorReferenceWrap {
+	ColorReferenceWrap(const style::color &data) : data(data) {
+	}
+	const style::color &data;
+};
+
+ImagePtr generateUserpicImage(const style::icon &icon) {
+	auto data = QImage(icon.width() * cIntRetinaFactor(), icon.height() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	{
+		Painter p(&data);
+		icon.paint(p, 0, 0, icon.width());
+	}
+	data.setDevicePixelRatio(cRetinaFactor());
+	return ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "PNG");
+}
+
+} // namespace
+
+const style::color &peerColor(int index) {
+	static const ColorReferenceWrap peerColors[kUserColorsCount] = {
+		st::historyPeer1NameFg,
+		st::historyPeer2NameFg,
+		st::historyPeer3NameFg,
+		st::historyPeer4NameFg,
+		st::historyPeer5NameFg,
+		st::historyPeer6NameFg,
+		st::historyPeer7NameFg,
+		st::historyPeer8NameFg,
 	};
-	return peerColors[index];
+	return peerColors[index].data;
 }
 
 ImagePtr userDefPhoto(int index) {
-	static const ImagePtr userDefPhotos[UserColorsCount] = {
-		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor3.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor4.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor5.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor6.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor7.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/usercolor8.png"), "PNG"),
+	static const ImagePtr userDefPhotos[kUserColorsCount] = {
+		generateUserpicImage(st::historyPeer1UserpicPerson),
+		generateUserpicImage(st::historyPeer2UserpicPerson),
+		generateUserpicImage(st::historyPeer3UserpicPerson),
+		generateUserpicImage(st::historyPeer4UserpicPerson),
+		generateUserpicImage(st::historyPeer5UserpicPerson),
+		generateUserpicImage(st::historyPeer6UserpicPerson),
+		generateUserpicImage(st::historyPeer7UserpicPerson),
+		generateUserpicImage(st::historyPeer8UserpicPerson),
 	};
 	return userDefPhotos[index];
 }
 
 ImagePtr chatDefPhoto(int index) {
-	static const ImagePtr chatDefPhotos[4] = {
-		ImagePtr(qsl(":/ava/art/chatcolor1.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/chatcolor2.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/chatcolor3.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/chatcolor4.png"), "PNG"),
+	static const ImagePtr chatDefPhotos[kChatColorsCount] = {
+		generateUserpicImage(st::historyPeer1UserpicChat),
+		generateUserpicImage(st::historyPeer2UserpicChat),
+		generateUserpicImage(st::historyPeer3UserpicChat),
+		generateUserpicImage(st::historyPeer4UserpicChat),
 	};
 	return chatDefPhotos[index];
 }
 
 ImagePtr channelDefPhoto(int index) {
-	static const ImagePtr channelDefPhotos[4] = {
-		ImagePtr(qsl(":/ava/art/channelcolor1.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/channelcolor2.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/channelcolor3.png"), "PNG"),
-		ImagePtr(qsl(":/ava/art/channelcolor4.png"), "PNG"),
+	static const ImagePtr channelDefPhotos[kChannelColorsCount] = {
+		generateUserpicImage(st::historyPeer1UserpicChannel),
+		generateUserpicImage(st::historyPeer2UserpicChannel),
+		generateUserpicImage(st::historyPeer3UserpicChannel),
+		generateUserpicImage(st::historyPeer4UserpicChannel),
 	};
 	return channelDefPhotos[index];
 }
