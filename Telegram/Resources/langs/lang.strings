@@ -478,8 +478,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_audios_header" = "Voice messages overview";
 "lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links}";
 "lng_profile_shared_links_header" = "Shared links overview";
-"lng_profile_copy_phone" = "Copy phone number";
-"lng_profile_copy_fullname" = "Copy name";
+"lng_profile_copy_phone" = "Copy Phone Number";
+"lng_profile_copy_fullname" = "Copy Name";
 "lng_profile_drop_area_title" = "Drop your image here";
 "lng_profile_drop_area_subtitle" = "to set it as a group photo";
 "lng_profile_drop_area_subtitle_channel" = "to set it as a channel photo";
@@ -837,9 +837,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_copy_link" = "Copy Link";
 "lng_context_copy_post_link" = "Copy Post Link";
-"lng_context_copy_email" = "Copy email address";
-"lng_context_copy_hashtag" = "Copy hashtag";
-"lng_context_copy_mention" = "Copy username";
+"lng_context_copy_email" = "Copy Email Address";
+"lng_context_copy_hashtag" = "Copy Hashtag";
+"lng_context_copy_mention" = "Copy Username";
 "lng_context_save_image" = "Save Image As...";
 "lng_context_forward_image" = "Forward Image";
 "lng_context_delete_image" = "Delete Image";
@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— New cute design for the Settings page\n— Bug fixes and other minor improvements";
+"lng_new_version_text" = "— New audio player design\n\nWindows and Linux:\n— Quick reply from notifications\n— Hide all notifications button added\n— Change notifications location and maximum count\n\nWindows 10:\n— Respecting quite hours for the notifications\n\nLinux:\n— You can enable native notifications in Settings";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

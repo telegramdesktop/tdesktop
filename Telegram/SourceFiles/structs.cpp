@@ -55,11 +55,11 @@ struct ColorReferenceWrap {
 
 ImagePtr generateUserpicImage(const style::icon &icon) {
 	auto data = QImage(icon.width() * cIntRetinaFactor(), icon.height() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	data.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&data);
 		icon.paint(p, 0, 0, icon.width());
 	}
-	data.setDevicePixelRatio(cRetinaFactor());
 	return ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "PNG");
 }
 
