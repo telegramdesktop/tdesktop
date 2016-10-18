@@ -165,7 +165,7 @@ void UpdateStateRow::onReady() {
 void UpdateStateRow::onFailed() {
 	setState(State::Fail);
 }
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang), st::defaultBoxLinkButton) {
@@ -196,7 +196,7 @@ void GeneralWidget::refreshControls() {
 	if (!cAutoUpdate()) {
 		_updateRow->hideFast();
 	}
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
 		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onEnableTrayIcon()), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray));
@@ -269,10 +269,10 @@ void GeneralWidget::onRestart() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 	}
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	cSetRestarting(true);
 	cSetRestartingToSettings(true);
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 	App::quit();
 }
 
@@ -288,7 +288,7 @@ void GeneralWidget::onUpdateAutomatically() {
 		Sandbox::stopUpdate();
 	}
 }
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 void GeneralWidget::onEnableTrayIcon() {
 	if ((!_enableTrayIcon->checked() || cPlatform() != dbipWindows) && _enableTaskbarIcon && !_enableTaskbarIcon->checked()) {

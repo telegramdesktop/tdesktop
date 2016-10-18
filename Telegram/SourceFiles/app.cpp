@@ -2671,7 +2671,7 @@ namespace {
 	void setProxySettings(QNetworkAccessManager &manager) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		manager.setProxy(getHttpProxySettings());
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
@@ -2687,7 +2687,7 @@ namespace {
 		}
 		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	void setProxySettings(QTcpSocket &socket) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
@@ -2697,7 +2697,7 @@ namespace {
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
 	QImage **cornersMask(ImageRoundRadius radius) {

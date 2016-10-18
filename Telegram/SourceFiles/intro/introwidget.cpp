@@ -60,7 +60,7 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 void IntroWidget::langChangeTo(int32 langId) {

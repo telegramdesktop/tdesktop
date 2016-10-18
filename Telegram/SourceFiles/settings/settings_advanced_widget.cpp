@@ -37,7 +37,7 @@ AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(pa
 	subscribe(Global::RefConnectionTypeChanged(), [this]() {
 		connectionTypeUpdated();
 	});
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 void AdvancedWidget::createControls() {
@@ -47,7 +47,7 @@ void AdvancedWidget::createControls() {
 	style::margins marginLocalStorage = ([&marginSmall, &marginLarge]() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginSmall;
-#else // TDESKTOP_DISABLE_NETWORK_PROXY
+#else // !TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginLarge;
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 	})();
@@ -58,7 +58,7 @@ void AdvancedWidget::createControls() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
 	connectionTypeUpdated();
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	if (self()) {
 		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
@@ -95,7 +95,7 @@ void AdvancedWidget::connectionTypeUpdated() {
 void AdvancedWidget::onConnectionType() {
 	Ui::showLayer(new ConnectionBox());
 }
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 void AdvancedWidget::onAskQuestion() {
 	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));

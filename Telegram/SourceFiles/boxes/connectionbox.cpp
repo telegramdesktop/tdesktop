@@ -192,7 +192,7 @@ void ConnectionBox::onSave() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6.checked()) {
 		Global::SetTryIPv6(_tryIPv6.checked());

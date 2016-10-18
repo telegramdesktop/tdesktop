@@ -592,8 +592,8 @@ void _moveOldDataFiles(const QString &wasDir) {
 					}
 					if (!tdataConfig.exists() || tdataConfig.remove()) {
 						LOG(("Removed 'tdata/config'"));
-						LOG(("Could not remove 'tdata/config'"));
 					} else {
+						LOG(("Could not remove 'tdata/config'"));
 					}
 					QDir().rmdir(wasDir + "tdata");
 				}

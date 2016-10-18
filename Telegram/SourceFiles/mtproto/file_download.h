@@ -331,7 +331,7 @@ public:
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void setProxySettings(const QNetworkProxy &proxy);
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	void append(webFileLoader *loader, const QString &url);
 	void stop(webFileLoader *reader);
@@ -364,7 +364,7 @@ private:
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy _proxySettings;
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkAccessManager _manager;
 	typedef QMap<webFileLoader*, webFileLoaderPrivate*> LoaderPointers;
 	LoaderPointers _loaderPointers;

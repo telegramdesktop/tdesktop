@@ -35,7 +35,7 @@ private slots:
 	void onManageLocalStorage();
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void onConnectionType();
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void onAskQuestion();
 	void onAskQuestionSure();
 	void onTelegramFAQ();
@@ -45,13 +45,13 @@ private:
 	void createControls();
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void connectionTypeUpdated();
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void supportGot(const MTPhelp_Support &support);
 
 	ChildWidget<LinkButton> _manageLocalStorage = { nullptr };
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	ChildWidget<LabeledLink> _connectionType = { nullptr };
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	ChildWidget<LinkButton> _askQuestion = { nullptr };
 	ChildWidget<LinkButton> _telegramFAQ = { nullptr };
 	ChildWidget<LinkButton> _logOut = { nullptr };

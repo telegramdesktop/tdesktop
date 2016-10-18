@@ -99,7 +99,7 @@ TitleWidget::TitleWidget(QWidget *parent) : TWidget(parent)
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(updateControlsVisibility()));
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 	if (Media::Player::exists()) {
@@ -248,9 +248,9 @@ void TitleWidget::updateControlsVisibility() {
 void TitleWidget::updateRestartButtonVisibility() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = false;
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 	auto scaleRestarting = cEvalScale(cConfigScale()) != cEvalScale(cRealScale());
 
 	auto updateVisible = _cancel.isHidden() && (updateReady || scaleRestarting);

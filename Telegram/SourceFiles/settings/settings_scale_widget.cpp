@@ -118,9 +118,9 @@ void ScaleWidget::scaleChanged() {
 void ScaleWidget::onRestartNow() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = false;
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 	if (updateReady) {
 		cSetRestartingUpdate(true);
 	} else {

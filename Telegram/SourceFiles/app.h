@@ -276,7 +276,7 @@ namespace App {
 	void setProxySettings(QNetworkAccessManager &manager);
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask(ImageRoundRadius radius);

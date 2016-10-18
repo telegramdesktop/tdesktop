@@ -99,7 +99,7 @@ private:
 	QThread *_updateThread = nullptr;
 	UpdateChecker *_updateChecker = nullptr;
 
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 };
 
 namespace Sandbox {
@@ -129,7 +129,7 @@ namespace Sandbox {
 	void updateFailed();
 	void updateReady();
 
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	void connect(const char *signal, QObject *object, const char *method);
 

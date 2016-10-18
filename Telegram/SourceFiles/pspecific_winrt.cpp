@@ -2264,7 +2264,7 @@ void RegisterCustomScheme() {
 	//if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
 	//if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
 	//if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-#endif
+#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
 void psNewVersion() {

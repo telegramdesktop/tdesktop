@@ -387,7 +387,7 @@ public slots:
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 protected:
 
@@ -450,7 +450,7 @@ private:
 
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
 	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);

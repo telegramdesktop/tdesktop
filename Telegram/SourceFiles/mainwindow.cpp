@@ -1751,7 +1751,7 @@ LastCrashedWindow::LastCrashedWindow()
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 , _updatingCheck(this)
 , _updatingSkip(this, false)
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 {
 	excludeReportUsername();
 
@@ -1846,12 +1846,12 @@ LastCrashedWindow::LastCrashedWindow()
 
 	cSetLastUpdateCheck(0);
 	Sandbox::startUpdateCheck();
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	_updating.setText(qsl("Please check if there is a new version available."));
 	if (_sendingState != SendingNoReport) {
 		_sendingState = SendingNone;
 	}
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 
 	_pleaseSendReport.setText(qsl("Please send us a crash report."));
 	_yourReportName.setText(qsl("Your Report Tag: %1\nYour User Tag: %2").arg(QString(_minidumpName).replace(".dmp", "")).arg(Sandbox::UserTag(), 0, 16));
@@ -2308,7 +2308,7 @@ void LastCrashedWindow::updateControls() {
 			_updatingSkip.hide();
 		}
 	}
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	h += _networkSettings.height() + padding;
 	h += padding + _send.height() + padding;
 	if (_sendingState == SendingNoReport) {
@@ -2380,7 +2380,7 @@ void LastCrashedWindow::updateControls() {
 
 	_getApp.show();
 	h += _networkSettings.height() + padding;
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
 	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
@@ -2409,7 +2409,7 @@ void LastCrashedWindow::onNetworkSettingsSaved(QString host, quint32 port, QStri
 		cSetLastUpdateCheck(0);
 		Sandbox::startUpdateCheck();
 	} else
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
 		onSendReport();
 	}
@@ -2500,7 +2500,7 @@ void LastCrashedWindow::onUpdateReady() {
 void LastCrashedWindow::onUpdateFailed() {
 	setUpdatingState(UpdatingFail);
 }
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 void LastCrashedWindow::onContinue() {
 	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
@@ -2591,7 +2591,7 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 		_updatingCheck.move(width() - padding - _updatingCheck.width(), height() - padding - _updatingCheck.height());
 		_updatingSkip.move(width() - padding - _updatingCheck.width() - padding - _updatingSkip.width(), height() - padding - _updatingSkip.height());
 	}
-#else
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
 	_getApp.move((width() - _getApp.width()) / 2, _updating.y() + _updating.height() + padding);
 
 	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
@@ -2600,7 +2600,7 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 	_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
 
 	_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
-#endif
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 	if (_reportUsername.isEmpty()) {
 		_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
 	} else {

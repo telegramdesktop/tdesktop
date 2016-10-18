@@ -118,7 +118,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	connect(&_updateCheckTimer, SIGNAL(timeout()), this, SLOT(updateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cManyInstance()) {
 		LOG(("Many instance allowed, starting..."));
@@ -210,7 +210,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 		DEBUG_LOG(("Application Info: installing update instead of starting app..."));
 		return App::quit();
 	}
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	singleInstanceChecked();
 }
@@ -359,7 +359,7 @@ void Application::closeApplication() {
 		_updateThread->quit();
 	}
 	_updateThread = 0;
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -510,7 +510,7 @@ void Application::startUpdateCheck(bool forceWait) {
 	}
 }
 
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 inline Application *application() {
 	return qobject_cast<Application*>(QApplication::instance());
@@ -633,7 +633,7 @@ namespace Sandbox {
 		}
 	}
 
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	void connect(const char *signal, QObject *object, const char *method) {
 		if (Application *a = application()) {
@@ -796,7 +796,7 @@ AppClass::AppClass() : QObject()
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();

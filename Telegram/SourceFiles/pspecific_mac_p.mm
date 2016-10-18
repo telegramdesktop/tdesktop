@@ -914,10 +914,10 @@ void objc_finish() {
 }
 
 void objc_registerCustomScheme() {
-	#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
 	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
-	#endif
+#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
 BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {

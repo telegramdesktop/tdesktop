@@ -171,7 +171,7 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
-#endif
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {

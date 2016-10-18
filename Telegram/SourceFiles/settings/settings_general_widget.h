@@ -80,7 +80,7 @@ private:
 	QString _downloadText;
 
 };
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 class GeneralWidget : public BlockWidget {
 	Q_OBJECT
@@ -97,7 +97,7 @@ private slots:
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateAutomatically();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	void onEnableTrayIcon();
 	void onEnableTaskbarIcon();
@@ -118,7 +118,7 @@ private:
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	ChildWidget<Checkbox> _updateAutomatically = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	ChildWidget<Checkbox> _enableTrayIcon = { nullptr };
 	ChildWidget<Checkbox> _enableTaskbarIcon = { nullptr };
 	ChildWidget<Checkbox> _autoStart = { nullptr };

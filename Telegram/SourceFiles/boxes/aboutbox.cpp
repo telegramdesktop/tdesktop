@@ -116,7 +116,7 @@ void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
 	}
-#endif
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void AboutBox::dropEvent(QDropEvent *e) {
