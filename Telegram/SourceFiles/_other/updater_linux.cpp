@@ -366,7 +366,7 @@ int main(int argc, char *argv[]) {
                     writeLog("No workdir, trying to figure it out");
                     struct passwd *pw = getpwuid(getuid());
                     if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
-                        string tryDir = pw->pw_dir + string("/.TelegramDesktop/");
+                        string tryDir = pw->pw_dir + string("/.config/telegram-desktop/");
                         struct stat statbuf;
                         writeLog("Trying to use '%s' as workDir, getting stat() for tupdates/ready", tryDir.c_str());
                         if (!stat((tryDir + "tupdates/ready").c_str(), &statbuf)) {

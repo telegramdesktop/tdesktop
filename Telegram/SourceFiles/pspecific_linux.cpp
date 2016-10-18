@@ -325,7 +325,7 @@ namespace {
 
 QString psAppDataPath() {
     QString home(_psHomeDir());
-    return home.isEmpty() ? QString() : (home + qsl(".TelegramDesktop/"));
+    return home.isEmpty() ? QString() : (home + qsl(".config/telegram-desktop/"));
 }
 
 QString psDownloadPath() {
