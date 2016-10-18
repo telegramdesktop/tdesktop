@@ -51,8 +51,9 @@ public:
 	void showFromOther();
 	void hideFromOther();
 
-	using PinCallback = base::lambda_wrap<void()>;
-	void setPinCallback(PinCallback &&callback);
+	using ButtonCallback = base::lambda_wrap<void()>;
+	void setPinCallback(ButtonCallback &&callback);
+	void setCloseCallback(ButtonCallback &&callback);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 
@@ -107,7 +108,7 @@ private:
 	QTimer _hideTimer, _showTimer;
 
 	Ui::RectShadow _shadow;
-	PinCallback _pinCallback;
+	ButtonCallback _pinCallback, _closeCallback;
 	ChildWidget<CoverWidget> _cover = { nullptr };
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<Ui::GradientShadow> _scrollShadow = { nullptr };

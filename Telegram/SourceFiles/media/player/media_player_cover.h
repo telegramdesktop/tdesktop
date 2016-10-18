@@ -42,14 +42,18 @@ class CoverWidget : public TWidget, private base::Subscriber {
 public:
 	CoverWidget(QWidget *parent);
 
-	using PinCallback = base::lambda_unique<void()>;
-	void setPinCallback(PinCallback &&callback);
+	using ButtonCallback = base::lambda_unique<void()>;
+	void setPinCallback(ButtonCallback &&callback);
+	void setCloseCallback(ButtonCallback &&callback);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 private:
+	void setCloseVisible(bool visible);
 	void handleSeekProgress(float64 progress);
 	void handleSeekFinished(float64 progress);
 
@@ -75,6 +79,7 @@ private:
 	class PlayButton;
 	ChildWidget<FlatLabel> _nameLabel;
 	ChildWidget<Ui::LabelSimple> _timeLabel;
+	ChildWidget<Ui::IconButton> _close;
 	ChildWidget<Clip::Playback> _playback;
 	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
 	ChildWidget<PlayButton> _playPause;

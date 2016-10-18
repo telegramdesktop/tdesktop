@@ -221,6 +221,7 @@ void Panel::ensureCreated() {
 	if (_layout == Layout::Full) {
 		_cover.create(this);
 		setPinCallback(std_::move(_pinCallback));
+		setCloseCallback(std_::move(_closeCallback));
 
 		_scrollShadow.create(this, st::mediaPlayerScrollShadow);
 	}
@@ -254,10 +255,17 @@ void Panel::performDestroy() {
 	}
 }
 
-void Panel::setPinCallback(PinCallback &&callback) {
+void Panel::setPinCallback(ButtonCallback &&callback) {
 	_pinCallback = std_::move(callback);
 	if (_cover) {
-		_cover->setPinCallback(PinCallback(_pinCallback));
+		_cover->setPinCallback(ButtonCallback(_pinCallback));
+	}
+}
+
+void Panel::setCloseCallback(ButtonCallback &&callback) {
+	_closeCallback = std_::move(callback);
+	if (_cover) {
+		_cover->setCloseCallback(ButtonCallback(_closeCallback));
 	}
 }
 

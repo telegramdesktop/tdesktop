@@ -54,7 +54,7 @@ public:
 		return _mouseDown;
 	}
 
-	void setMoveByWheel(bool moveByWheel);
+	void setMoveByWheel(bool move);
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -85,6 +85,10 @@ private:
 	virtual QRect getSeekRect() const = 0;
 	virtual float64 getOverDuration() const = 0;
 
+	bool moveByWheel() const {
+		return _byWheelFinished != nullptr;
+	}
+
 	void step_value(float64 ms, bool timer);
 	void setOver(bool over);
 	float64 computeValue(const QPoint &pos) const;
@@ -93,7 +97,6 @@ private:
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
 
-	bool _moveByWheel = false;
 	std_::unique_ptr<SingleTimer> _byWheelFinished;
 
 	Callback _changeProgressCallback;

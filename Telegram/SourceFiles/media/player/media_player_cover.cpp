@@ -73,6 +73,7 @@ void CoverWidget::PlayButton::paintEvent(QPaintEvent *e) {
 CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
+, _close(this, st::mediaPlayerPanelClose)
 , _playback(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback))
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
@@ -81,6 +82,11 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _repeatTrack(this, st::mediaPlayerRepeatButton) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), st::mediaPlayerCoverHeight);
+
+	_close->hide();
+	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	setMouseTracking(true);
 
 	_playback->setChangeProgressCallback([this](float64 value) {
 		handleSeekProgress(value);
@@ -128,8 +134,12 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 	}
 }
 
-void CoverWidget::setPinCallback(PinCallback &&callback) {
+void CoverWidget::setPinCallback(ButtonCallback &&callback) {
 	_pinPlayer->setClickedCallback(std_::move(callback));
+}
+
+void CoverWidget::setCloseCallback(ButtonCallback &&callback) {
+	_close->setClickedCallback(std_::move(callback));
 }
 
 void CoverWidget::handleSeekProgress(float64 progress) {
@@ -167,6 +177,7 @@ void CoverWidget::resizeEvent(QResizeEvent *e) {
 	widthForName -= _timeLabel->width() + 2 * st::normalFont->spacew;
 	_nameLabel->resizeToWidth(widthForName);
 	updateLabelPositions();
+	_close->moveToRight(0, 0);
 
 	int skip = (st::mediaPlayerPanelPlayback.seekSize.width() / 2);
 	int length = (width() - 2 * st::mediaPlayerPanelPadding + st::mediaPlayerPanelPlayback.seekSize.width());
@@ -185,6 +196,25 @@ void CoverWidget::resizeEvent(QResizeEvent *e) {
 void CoverWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(e->rect(), st::windowBg);
+}
+
+void CoverWidget::mouseMoveEvent(QMouseEvent *e) {
+	auto closeAreaLeft = st::mediaPlayerPanelPadding + _nameLabel->width();
+	auto closeAreaHeight = _nameLabel->y() + _nameLabel->height();
+	auto closeArea = myrtlrect(closeAreaLeft, 0, width() - closeAreaLeft, closeAreaHeight);
+	auto closeVisible = closeArea.contains(e->pos());
+	setCloseVisible(closeVisible);
+}
+
+void CoverWidget::leaveEvent(QEvent *e) {
+	setCloseVisible(false);
+}
+
+void CoverWidget::setCloseVisible(bool visible) {
+	if (visible == _close->isHidden()) {
+		_close->setVisible(visible);
+		_timeLabel->setVisible(!visible);
+	}
 }
 
 void CoverWidget::updatePlayPrevNextPositions() {

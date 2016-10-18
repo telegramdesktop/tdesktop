@@ -1087,7 +1087,7 @@ void AppClass::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10014) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New audio player design\n\xe2\x80\x94 Moved to Qt library version 5.6.2\n\nWindows 10:\n\xe2\x80\x94 Respecting quite hours for the notifications");
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New audio player design\n\xe2\x80\x94 Moved to Qt library version 5.6.2\n\nWindows 10:\n\xe2\x80\x94 Respecting quiet hours for the notifications");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10005) {
 				versionFeatures = langNewVersionText();
 			} else {

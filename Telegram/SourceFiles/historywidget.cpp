@@ -4190,7 +4190,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBar();
-		if (_pinnedBar) destroyPinnedBar();
+		destroyPinnedBar();
 		_history = _migrated = nullptr;
 		updateBotKeyboard();
 	}
@@ -7560,6 +7560,11 @@ HistoryWidget::PinnedBar::PinnedBar(MsgId msgId, HistoryWidget *parent)
 , shadow(parent, st::shadowColor) {
 }
 
+HistoryWidget::PinnedBar::~PinnedBar() {
+	cancel.destroyDelayed();
+	shadow.destroyDelayed();
+}
+
 void HistoryWidget::updatePinnedBar(bool force) {
 	if (!_pinnedBar) {
 		return;
@@ -7603,7 +7608,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	}
 	if (pinnedMsgId) {
 		if (!_pinnedBar) {
-			_pinnedBar = new PinnedBar(pinnedMsgId, this);
+			_pinnedBar = std_::make_unique<PinnedBar>(pinnedMsgId, this);
 			if (_a_show.animating()) {
 				_pinnedBar->cancel->hide();
 				_pinnedBar->shadow->hide();
@@ -7650,8 +7655,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 }
 
 void HistoryWidget::destroyPinnedBar() {
-	delete _pinnedBar;
-	_pinnedBar = nullptr;
+	_pinnedBar.reset();
 	_inPinnedMsg = false;
 }
 
@@ -8881,6 +8885,5 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 }
 
 HistoryWidget::~HistoryWidget() {
-	delete base::take(_pinnedBar);
 	delete base::take(_list);
 }

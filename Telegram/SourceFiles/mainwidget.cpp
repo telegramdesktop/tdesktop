@@ -124,6 +124,7 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 
 	if (Media::Player::exists()) {
 		_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
+		_playerPanel->setCloseCallback([this] { closeBothPlayers(); });
 		subscribe(Media::Player::instance()->titleButtonOver(), [this](bool over) {
 			if (over) {
 				_playerPanel->showFromOther();
@@ -1578,8 +1579,10 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		if (!_playerUsingPanel && !_player && Media::Player::exists()) {
-			createPlayer();
+		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+			if (!_playerUsingPanel && !_player && Media::Player::exists()) {
+				createPlayer();
+			}
 		}
 	}
 
@@ -1621,6 +1624,22 @@ void MainWidget::switchToFixedPlayer() {
 
 	Media::Player::instance()->usePanelPlayer().notify(false, true);
 	_playerPanel->hideIgnoringEnterEvents();
+}
+
+void MainWidget::closeBothPlayers() {
+	_playerUsingPanel = false;
+	_player.destroyDelayed();
+	_playerVolume.destroyDelayed();
+
+	if (Media::Player::exists()) {
+		Media::Player::instance()->usePanelPlayer().notify(false, true);
+	}
+	_playerPanel->hideIgnoringEnterEvents();
+	_playerPlaylist->hideIgnoringEnterEvents();
+
+	if (Media::Player::exists()) {
+		Media::Player::instance()->stop();
+	}
 }
 
 void MainWidget::createPlayer() {

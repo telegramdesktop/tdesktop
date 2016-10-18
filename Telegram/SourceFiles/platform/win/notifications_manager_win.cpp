@@ -537,10 +537,10 @@ void Manager::onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
 
 namespace {
 
-bool QuiteHoursEnabled = false;
-DWORD QuiteHoursValue = 0;
+bool QuietHoursEnabled = false;
+DWORD QuietHoursValue = 0;
 
-void queryQuiteHours() {
+void queryQuietHours() {
 	LPTSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
 	LPTSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
 	HKEY key;
@@ -553,14 +553,14 @@ void queryQuiteHours() {
 	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
 	RegCloseKey(key);
 
-	auto quiteHoursEnabled = (result == ERROR_SUCCESS);
-	if (QuiteHoursEnabled != quiteHoursEnabled) {
-		QuiteHoursEnabled = quiteHoursEnabled;
-		QuiteHoursValue = value;
-		LOG(("Quite hours changed, entry value: %1").arg(value));
-	} else if (QuiteHoursValue != value) {
-		QuiteHoursValue = value;
-		LOG(("Quite hours value changed, was value: %1, entry value: %2").arg(QuiteHoursValue).arg(value));
+	auto quietHoursEnabled = (result == ERROR_SUCCESS);
+	if (QuietHoursEnabled != quietHoursEnabled) {
+		QuietHoursEnabled = quietHoursEnabled;
+		QuietHoursValue = value;
+		LOG(("Quiet hours changed, entry value: %1").arg(value));
+	} else if (QuietHoursValue != value) {
+		QuietHoursValue = value;
+		LOG(("Quiet hours value changed, was value: %1, entry value: %2").arg(QuietHoursValue).arg(value));
 	}
 }
 
@@ -584,7 +584,7 @@ void querySystemNotificationSettings() {
 		return;
 	}
 	LastSettingsQueryMs = ms;
-	queryQuiteHours();
+	queryQuietHours();
 	queryUserNotificationState();
 }
 
@@ -596,7 +596,7 @@ bool skipAudio() {
 	if (UserNotificationState == QUNS_NOT_PRESENT || UserNotificationState == QUNS_PRESENTATION_MODE) {
 		return true;
 	}
-	if (QuiteHoursEnabled) {
+	if (QuietHoursEnabled) {
 		return true;
 	}
 	if (EventFilter::getInstance()->sessionLoggedOff()) {
@@ -611,7 +611,7 @@ bool skipToast() {
 	if (UserNotificationState == QUNS_PRESENTATION_MODE || UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN/* || UserNotificationState == QUNS_BUSY*/) {
 		return true;
 	}
-	if (QuiteHoursEnabled) {
+	if (QuietHoursEnabled) {
 		return true;
 	}
 	return false;

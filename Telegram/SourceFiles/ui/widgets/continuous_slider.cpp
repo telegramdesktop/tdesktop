@@ -45,10 +45,9 @@ void ContinuousSlider::setDisabled(bool disabled) {
 	}
 }
 
-void ContinuousSlider::setMoveByWheel(bool moveByWheel) {
-	if (_moveByWheel != moveByWheel) {
-		_moveByWheel = moveByWheel;
-		if (_moveByWheel) {
+void ContinuousSlider::setMoveByWheel(bool move) {
+	if (move != moveByWheel()) {
+		if (move) {
 			_byWheelFinished = std_::make_unique<SingleTimer>();
 			_byWheelFinished->setTimeoutHandler([this] {
 				if (_changeFinishedCallback) {
@@ -124,7 +123,7 @@ void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void ContinuousSlider::wheelEvent(QWheelEvent *e) {
-	if (_mouseDown) {
+	if (_mouseDown || !moveByWheel()) {
 		return;
 	}
 #ifdef OS_MAC_OLD

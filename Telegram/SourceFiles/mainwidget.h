@@ -491,6 +491,7 @@ private:
 	void createPlayer();
 	void switchToPanelPlayer();
 	void switchToFixedPlayer();
+	void closeBothPlayers();
 	void playerHeightUpdated();
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);

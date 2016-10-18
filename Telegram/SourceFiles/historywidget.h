@@ -886,6 +886,7 @@ private:
 
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
+		~PinnedBar();
 
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
@@ -893,7 +894,7 @@ private:
 		ChildWidget<IconedButton> cancel;
 		ChildWidget<Ui::PlainShadow> shadow;
 	};
-	PinnedBar *_pinnedBar = nullptr;
+	std_::unique_ptr<PinnedBar> _pinnedBar;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();

@@ -143,9 +143,7 @@ mediaPlayerPreviousDisabledIcon: icon {
 };
 mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
-	icon: icon {
-		{ "player_close", #c8c8c8, point(10px, 12px) },
-	};
+	icon: icon {{ "player_close", #c8c8c8, point(10px, 12px) }};
 }
 mediaPlayerPlayback: FilledSlider {
 	fullWidth: 6px;
@@ -190,25 +188,27 @@ mediaPlayerPanelMarginBottom: 10px;
 mediaPlayerPanelWidth: 344px;
 mediaPlayerCoverHeight: 102px;
 
+mediaPlayerPanelClose: IconButton(mediaPlayerClose) {
+	width: 43px;
+	height: 28px;
+	icon: icon {{ "player_close", #c8c8c8, point(16px, 14px) }};
+}
+
 mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
-	icon: icon {
-		{ "player_panel_next", mediaPlayerActiveFg, point(10px, 10px) },
-	};
+	icon: icon {{ "player_panel_next", mediaPlayerActiveFg, point(10px, 10px) }};
 }
 mediaPlayerPanelNextDisabledIcon: icon {
 	{ "player_panel_next", mediaPlayerInactiveFg, point(10px, 10px) },
 };
 mediaPlayerPanelPreviousButton: IconButton(mediaPlayerPanelNextButton) {
-	icon: icon {
-		{ "player_panel_previous", mediaPlayerActiveFg, point(10px, 10px) },
-	};
+	icon: icon {{ "player_panel_previous", mediaPlayerActiveFg, point(10px, 10px) }};
 }
 mediaPlayerPanelPreviousDisabledIcon: icon {
 	{ "player_panel_previous", mediaPlayerInactiveFg, point(10px, 10px) },
 };
 
-mediaPlayerPanelPadding: 18px;
+mediaPlayerPanelPadding: 16px;
 mediaPlayerPanelNameTop: 24px;
 mediaPlayerPanelPlayLeft: 9px;
 mediaPlayerPanelPlaySkip: 7px;
