@@ -108,6 +108,16 @@ void SysBtn::step_color(float64 ms, bool timer) {
 	if (timer) update();
 }
 
+PinBtn::PinBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysPin), wnd(window) {
+   connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
+}
+
+void PinBtn::onClick() {
+   auto flags = wnd->windowFlags();
+   wnd->setWindowFlags(flags ^ Qt::WindowStaysOnTopHint);
+   wnd->show();
+}
+
 MinimizeBtn::MinimizeBtn(QWidget *parent, MainWindow *window) : SysBtn(parent, st::sysMin), wnd(window) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
 }

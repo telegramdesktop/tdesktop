@@ -58,6 +58,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 , _about(this, lang(lng_menu_about), st::titleTextButton)
 , _lock(this, window)
 , _update(this, window, lang(lng_menu_update))
+, _pin(this, window)
 , _minimize(this, window)
 , _maximize(this, window)
 , _restore(this, window)
@@ -92,6 +93,7 @@ TitleWidget::TitleWidget(MainWindow *window) : TWidget(window)
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
     if (cPlatform() != dbipWindows) {
+        _pin.hide();
         _minimize.hide();
         _maximize.hide();
         _restore.hide();
@@ -184,6 +186,9 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
+
+        p.setX(p.x() - _pin.width());
+        _pin.move(p);
     }
 	if (_update.isHidden() && !_lock.isHidden()) {
 		p.setX(p.x() - _lock.width());
@@ -303,6 +308,7 @@ void TitleWidget::showUpdateBtn() {
 		_cancel.show();
 		_lock.hide();
 		_update.hide();
+      _pin.hide();
 		_minimize.hide();
 		_restore.hide();
 		_maximize.hide();
@@ -323,6 +329,7 @@ void TitleWidget::showUpdateBtn() {
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
 		_update.show();
 		resizeEvent(0);
+      _pin.hide();
 		_minimize.hide();
 		_restore.hide();
 		_maximize.hide();
@@ -332,8 +339,9 @@ void TitleWidget::showUpdateBtn() {
 		_update.hide();
 		if (cPlatform() == dbipWindows) {
 			_minimize.show();
-			maximizedChanged(lastMaximized, true);
-			_close.show();
+         maximizedChanged(lastMaximized, true);
+         _pin.show();
+         _close.show();
 		}
 		_a_update.stop();
 	}
@@ -368,12 +376,13 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestType::Icon;
 	} else if (false
-		|| (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestType::SysButton && _lock.isVisible())
-        || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestType::SysButton && _update.isVisible())
-		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestType::SysButton)
-		|| (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestType::SysButton)
-		|| (_restore.hitTest(p - _restore.geometry().topLeft()) == HitTestType::SysButton)
-		|| (_close.hitTest(p - _close.geometry().topLeft()) == HitTestType::SysButton)
+      || (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestType::SysButton && _lock.isVisible())
+      || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestType::SysButton && _update.isVisible())
+      || (_pin.hitTest(p - _pin.geometry().topLeft()) == HitTestType::SysButton)
+      || (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestType::SysButton)
+      || (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestType::SysButton)
+      || (_restore.hitTest(p - _restore.geometry().topLeft()) == HitTestType::SysButton)
+      || (_close.hitTest(p - _close.geometry().topLeft()) == HitTestType::SysButton)
 	) {
 		return HitTestType::SysButton;
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
