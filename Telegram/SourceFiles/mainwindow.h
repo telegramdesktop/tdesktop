@@ -126,6 +126,8 @@ public:
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
 
+	void checkHistoryActivation();
+
 	void fixOrder();
 
 	enum TempDirState {
@@ -178,8 +180,6 @@ public:
 public slots:
 	void updateIsActive(int timeout = 0);
 
-	void checkHistoryActivation();
-
 	void checkAutoLock();
 
 	void showSettings();
@@ -221,6 +221,8 @@ signals:
 private slots:
 	void onStateChanged(Qt::WindowState state);
 	void onSettingsDestroyed(QObject *was);
+
+	void onWindowActiveChanged();
 
 private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());

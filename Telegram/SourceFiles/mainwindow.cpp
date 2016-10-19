@@ -167,7 +167,7 @@ void MainWindow::init() {
 
 	Application::instance()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
-	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
+	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, st::windowBg->c);
@@ -178,24 +178,32 @@ void MainWindow::init() {
     psInitSize();
 }
 
+void MainWindow::onWindowActiveChanged() {
+	checkHistoryActivation();
+	QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
+}
+
 void MainWindow::firstShow() {
 #ifdef Q_OS_WIN
 	trayIconMenu = new PopupMenu();
 	trayIconMenu->deleteOnHide(false);
-#else
+#else // Q_OS_WIN
 	trayIconMenu = new QMenu(this);
-#endif
-	auto notificationItem = lang(Global::DesktopNotify()
-		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
+#endif // else for Q_OS_WIN
 
-	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-		trayIconMenu->addAction(notificationItem, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
-		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
-	} else {
+	auto isLinux = (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64);
+	auto notificationActionText = lang(Global::DesktopNotify()
+		? lng_disable_notifications_from_tray
+		: lng_enable_notifications_from_tray);
+
+	if (isLinux) {
 		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-		trayIconMenu->addAction(notificationItem, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+	} else {
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
 	psUpdateWorkmode();
@@ -594,7 +602,6 @@ void MainWindow::checkHistoryActivation() {
 	if (main && MTP::authedId() && doWeReadServerHistory()) {
 		main->markActiveHistoryAsRead();
 	}
-    QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 }
 
 void MainWindow::layerHidden() {
@@ -744,7 +751,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	case QEvent::ApplicationActivate:
 		if (obj == Application::instance()) {
 			psUserActionDone();
-			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
+			QTimer::singleShot(1, this, SLOT(onWindowActiveChanged()));
 		}
 		break;
 
@@ -817,29 +824,37 @@ bool MainWindow::minimizeToTray() {
 void MainWindow::updateTrayMenu(bool force) {
     if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
-    bool active = isActive(false);
-    QString notificationItem = lang(Global::DesktopNotify()
-        ? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
-
-    if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-        QAction *toggle = trayIconMenu->actions().at(0);
-		disconnect(toggle, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
-		disconnect(toggle, SIGNAL(triggered(bool)), this, SLOT(showFromTray()));
-        connect(toggle, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-		toggle->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
-
-		trayIconMenu->actions().at(1)->setText(notificationItem);
+	auto iconMenu = trayIconMenu;
+	auto actions = iconMenu->actions();
+	auto isLinux = (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64);
+	if (isLinux) {
+		auto minimizeAction = actions.at(1);
+		minimizeAction->setDisabled(!isVisible());
 	} else {
-        QAction *minimize = trayIconMenu->actions().at(1);
-        minimize->setDisabled(!isVisible());
+		auto active = isActive(false);
+		auto toggleAction = actions.at(0);
+		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
+		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(showFromTray()));
+		connect(toggleAction, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
+		toggleAction->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
 
-		trayIconMenu->actions().at(2)->setText(notificationItem);
+		// On macOS just remove trayIcon menu if the window is not active.
+		// So we will activate the window on click instead of showing the menu.
+		if (!active && (cPlatform() == dbipMac || cPlatform() == dbipMacOld)) {
+			iconMenu = nullptr;
+		}
 	}
+	auto notificationAction = actions.at(isLinux ? 2 : 1);
+	auto notificationActionText = lang(Global::DesktopNotify()
+		? lng_disable_notifications_from_tray
+		: lng_enable_notifications_from_tray);
+	notificationAction->setText(notificationActionText);
+
 #ifndef Q_OS_WIN
-    if (trayIcon) {
-        trayIcon->setContextMenu((active || cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) ? trayIconMenu : 0);
+    if (trayIcon && trayIcon->contextMenu() != iconMenu) {
+		trayIcon->setContextMenu(iconMenu);
     }
-#endif
+#endif // !Q_OS_WIN
 
     psTrayMenuUpdated();
 }
@@ -902,7 +917,7 @@ void MainWindow::activate() {
 
 void MainWindow::noIntro(IntroWidget *was) {
 	if (was == intro) {
-		intro = 0;
+		intro = nullptr;
 	}
 }
 
