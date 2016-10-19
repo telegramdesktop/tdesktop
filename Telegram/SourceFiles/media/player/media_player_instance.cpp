@@ -59,6 +59,11 @@ Instance::Instance() {
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
+	subscribe(Global::RefSelfChanged(), [this] {
+		if (!App::self()) {
+			handleLogout();
+		}
+	});
 }
 
 void Instance::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -295,6 +300,18 @@ void Instance::preloadNext() {
 			}
 		}
 	}
+}
+
+void Instance::handleLogout() {
+	_current = _seeking = AudioMsgId();
+	_history = nullptr;
+	_migrated = nullptr;
+
+	_repeatEnabled = _isPlaying = false;
+
+	_playlist.clear();
+
+	_usePanelPlayer.notify(false, true);
 }
 
 } // namespace Player

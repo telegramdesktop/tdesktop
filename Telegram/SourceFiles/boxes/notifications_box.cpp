@@ -161,6 +161,7 @@ void NotificationsBox::paintEvent(QPaintEvent *e) {
 				p.drawPixmapLeft(sampleLeft, sampleTop, width(), _notificationSampleSmall);
 				sampleTop += (isTop ? 1 : -1) * (st::notificationSampleSize.height() + st::notificationsSampleMargin);
 			}
+			p.setOpacity(1.);
 		} else {
 			p.setOpacity(st::notificationSampleOpacity);
 			p.drawPixmapLeft(sampleLeft, sampleTop, width(), _notificationSampleSmall);
@@ -169,6 +170,8 @@ void NotificationsBox::paintEvent(QPaintEvent *e) {
 	}
 
 	auto labelTop = screenRect.y() + screenRect.height() + st::notificationsBoxCountLabelTop;
+	p.setFont(st::boxTitleFont);
+	p.setPen(st::boxTitleFg);
 	p.drawTextLeft(contentLeft, labelTop, width(), lang(lng_settings_notifications_count));
 }
 

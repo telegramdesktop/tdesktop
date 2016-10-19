@@ -105,6 +105,8 @@ public:
 
 	void documentLoadProgress(DocumentData *document);
 
+	void clear();
+
 private:
 	Instance();
 	friend void start();
@@ -117,6 +119,7 @@ private:
 	void rebuildPlaylist();
 	void moveInPlaylist(int delta);
 	void preloadNext();
+	void handleLogout();
 
 	template <typename CheckCallback>
 	void emitUpdate(CheckCallback check);

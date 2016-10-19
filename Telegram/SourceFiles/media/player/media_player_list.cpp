@@ -161,9 +161,10 @@ QRect ListWidget::getCurrentTrackGeometry() const {
 	if (exists()) {
 		auto top = marginTop();
 		auto current = instance()->current();
+		auto fullMsgId = current.contextId();
 		for_const (auto layout, _list) {
 			auto layoutHeight = layout->height();
-			if (layout->getItem()->fullId() == current.contextId()) {
+			if (layout->getItem()->fullId() == fullMsgId) {
 				return QRect(0, top, width(), layoutHeight);
 			}
 			top += layoutHeight;

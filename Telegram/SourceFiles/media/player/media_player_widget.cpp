@@ -367,6 +367,9 @@ void Widget::updateTimeLabel() {
 void Widget::handleSongChange() {
 	auto &current = instance()->current();
 	auto song = current.audio()->song();
+	if (!song) {
+		return;
+	}
 
 	TextWithEntities textWithEntities;
 	if (song->performer.isEmpty()) {

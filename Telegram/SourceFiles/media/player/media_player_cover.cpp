@@ -312,6 +312,9 @@ void CoverWidget::updateTimeLabel() {
 void CoverWidget::handleSongChange() {
 	auto &current = instance()->current();
 	auto song = current.audio()->song();
+	if (!song) {
+		return;
+	}
 
 	TextWithEntities textWithEntities;
 	if (song->performer.isEmpty()) {

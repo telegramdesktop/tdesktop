@@ -975,6 +975,9 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 	if (_history != item->history() && _migrated != item->history()) {
 		return;
 	}
+	if (!App::main()) {
+		return;
+	}
 
 	auto i = _selected.find(item);
 	if (i != _selected.cend()) {

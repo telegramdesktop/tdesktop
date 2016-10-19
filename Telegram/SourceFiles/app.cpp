@@ -2927,8 +2927,8 @@ namespace {
 
 		if (App::main()) {
 			App::main()->updateScrollColors();
-			HistoryLayout::serviceColorsUpdated();
 		}
+		HistoryLayout::serviceColorsUpdated();
 	}
 
 	const style::color &msgServiceBg() {

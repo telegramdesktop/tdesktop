@@ -30,10 +30,9 @@ inline constexpr size_t array_size(T(&)[N]) {
 }
 
 template <typename T>
-inline T take(T &source) {
-	T result = T();
-	std_::swap_moveable(result, source);
-	return std_::move(result);
+inline T take(T &source, T &&new_value = T()) {
+	std_::swap_moveable(new_value, source);
+	return std_::move(new_value);
 }
 
 } // namespace base
