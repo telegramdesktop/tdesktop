@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Mostrar nome de quem enviou";
 "lng_settings_show_preview" = "Mostrar pré-visualização da mensagem";
 "lng_settings_use_windows" = "Usar notificações do Windows";
+"lng_settings_use_native_notifications" = "Usar notificações nativas";
+"lng_settings_advanced_notifications" = "Posição e contador de notificações";
+"lng_settings_notifications_position" = "Localização na tela";
+"lng_settings_notifications_count" = "Contador de notificações";
 "lng_settings_sound_notify" = "Tocar som";
 "lng_settings_include_muted" = "Incluir os chats silenciados no contador";
 
 "lng_notification_preview" = "Você tem uma nova mensagem";
+"lng_notification_reply" = "Responder";
+"lng_notification_hide_all" = "Esconder tudo";
+"lng_notification_sample" = "Esse é um exemplo de notificação";
 
 "lng_settings_section_general" = "Geral";
 "lng_settings_change_lang" = "Alterar idioma";
@@ -471,8 +478,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_audios_header" = "Mensagens de voz";
 "lng_profile_shared_links" = "{count:_not_used_|# link compartilhado|# links compartilhados}";
 "lng_profile_shared_links_header" = "Links";
-"lng_profile_copy_phone" = "Copiar número de telefone";
-"lng_profile_copy_fullname" = "Copiar nome";
+"lng_profile_copy_phone" = "Copiar Número de Telefone";
+"lng_profile_copy_fullname" = "Copiar Nome";
 "lng_profile_drop_area_title" = "Solte sua imagem aqui";
 "lng_profile_drop_area_subtitle" = "para defini-la como foto do grupo";
 "lng_profile_drop_area_subtitle_channel" = "para defini-la como foto do canal";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} alterou o título do grupo para «{title}»";
 "lng_action_changed_title_channel" = "Nome do canal foi alterado para «{title}»";
 "lng_action_created_chat" = "{from} criou o grupo «{title}»";
-"lng_action_created_channel" = "Canal «{title}» criado";
+"lng_action_created_channel" = "Canal criado";
 "lng_action_group_migrate" = "O grupo foi convertido para um supergrupo";
 "lng_action_pinned_message" = "{from} fixou «{text}»";
 "lng_action_pinned_media" = "{from} fixou {media}";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "o jogo «{game}»";
 "lng_action_game_score" = "{from} marcou {count:# pontos|# ponto|# pontos} em {game}";
 "lng_action_game_you_scored" = "Você marcou {count:# pontos|# ponto|# pontos} em {game}";
+"lng_action_game_score_no_game" = "{from} marcou {count:# pontos|# ponto|# pontos}";
+"lng_action_game_you_scored_no_game" = "Você marcou {count:# pontos|# ponto|# pontos}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# membro|# membros} limite alcançado";
 "lng_profile_migrate_body" = "Para ir além desse limite, você pode converter seu grupo em um supergrupo.";
@@ -828,9 +837,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_copy_link" = "Copiar Link";
 "lng_context_copy_post_link" = "Copiar Link do Post";
-"lng_context_copy_email" = "Copiar endereço de email";
-"lng_context_copy_hashtag" = "Copiar hashtag";
-"lng_context_copy_mention" = "Copiar nome de usuário";
+"lng_context_copy_email" = "Copiar Endereço de Email";
+"lng_context_copy_hashtag" = "Copiar Hashtag";
+"lng_context_copy_mention" = "Copiar Nome de Usuário";
 "lng_context_save_image" = "Salvar Imagem Como...";
 "lng_context_forward_image" = "Encaminhar Imagem";
 "lng_context_delete_image" = "Apagar Imagem";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Novo design para a página de Configurações\n— Resolução de bugs e outras menores melhorias";
+"lng_new_version_text" = "— Novo design do reprodutor de músicas\n\nWindows e Linux:\n— Resposta rápida através das notificações\n— Adicionado um botão para esconder as notificações\n— Altere a localização e o contador máximo das notificações\n\nWindows 10\n— Respeitando o período de silêncio para as notificações\n\nLinux:\n— Você pode habilitar as notificações nativas nas Configurações";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

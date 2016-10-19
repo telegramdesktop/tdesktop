@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Afzender weergeven";
 "lng_settings_show_preview" = "Voorvertoning weergeven";
 "lng_settings_use_windows" = "Windows-berichtgeving gebruiken";
+"lng_settings_use_native_notifications" = "Linux-berichtgeving gebruiken";
+"lng_settings_advanced_notifications" = "Plaats en teller voor meldingen";
+"lng_settings_notifications_position" = "Plaats op het beeldscherm";
+"lng_settings_notifications_count" = "Teller weergeven";
 "lng_settings_sound_notify" = "Geluiden afspelen";
 "lng_settings_include_muted" = "Stille chats meetellen in ongelezen";
 
 "lng_notification_preview" = "Je hebt een nieuw bericht";
+"lng_notification_reply" = "Antwoord";
+"lng_notification_hide_all" = "Alles verbergen";
+"lng_notification_sample" = "Berichtgevingsvoorbeeld";
 
 "lng_settings_section_general" = "Algemeen";
 "lng_settings_change_lang" = "Taal wijzigen";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} heeft de groepsnaam gewijzigd naar \"{title}\"";
 "lng_action_changed_title_channel" = "Kanaalnaam gewijzigd naar \"{title}\"";
 "lng_action_created_chat" = "{from} heeft de groep \"{title}\" gemaakt";
-"lng_action_created_channel" = "Het kanaal \"{title}\" is gemaakt";
+"lng_action_created_channel" = "Kanaal aangemaakt";
 "lng_action_group_migrate" = "De groep is opgewaardeerd naar een supergroep";
 "lng_action_pinned_message" = "{from} heeft «{text}» vastgezet";
 "lng_action_pinned_media" = "{from} heeft {media} vastgezet";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "het spel «{game}»";
 "lng_action_game_score" = "{from} heeft met {game} {count:# punten|# punt|# punten} behaald";
 "lng_action_game_you_scored" = "Je hebt met {game} {count:# punten|# punt|# punten} behaald";
+"lng_action_game_score_no_game" = "{from} heeft {count:# punten|# punt|# punten} behaald";
+"lng_action_game_you_scored_no_game" = "Je hebt {count:# punten|# punt|# punten} behaald";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
 "lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Nieuw ontwerp voor het tabblad met instellingen\n— Probleemoplossing en andere kleine verbeteringen";
+"lng_new_version_text" = "— Nieuw ontwerp voor de muziekspeler\n\nWindows en Linux:\n— Snel antwoorden op meldingen.\n— Alle meldingen middels een knop\n— Meldingsplaats en teller zijn aanpasbaar.\n\nWindows 10:\n— Stiltetijd voor meldingen werkt nu.\n\nLinux:\n— Je kunt Linux-berichtgeving inschakelen via de instellingen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

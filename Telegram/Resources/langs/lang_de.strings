@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Absendername anzeigen";
 "lng_settings_show_preview" = "Nachrichtenvorschau anzeigen";
 "lng_settings_use_windows" = "Windows Benachrichtigungen";
+"lng_settings_use_native_notifications" = "Linux Benachrichtigungen";
+"lng_settings_advanced_notifications" = "Position und Anzahl der Benachrichtigungen";
+"lng_settings_notifications_position" = "Position auf dem Bildschirm";
+"lng_settings_notifications_count" = "Anzahl der Benachrichtigungen";
 "lng_settings_sound_notify" = "Ton abspielen";
 "lng_settings_include_muted" = "Stummgeschaltete Chats mitzählen";
 
 "lng_notification_preview" = "Du hast eine neue Nachricht";
+"lng_notification_reply" = "Antworten";
+"lng_notification_hide_all" = "Alle verstecken";
+"lng_notification_sample" = "Eine Beispiel-Benachrichtigung";
 
 "lng_settings_section_general" = "Allgemein";
 "lng_settings_change_lang" = "Sprache ändern";
@@ -472,7 +479,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_shared_links" = "{count:_not_used_|# Geteilter Link|# Geteilte Links} »";
 "lng_profile_shared_links_header" = "Links aus dem Chat";
 "lng_profile_copy_phone" = "Telefonnummer kopieren";
-"lng_profile_copy_fullname" = "Anzeigename kopieren";
+"lng_profile_copy_fullname" = "Name kopieren";
 "lng_profile_drop_area_title" = "Hierher ziehen";
 "lng_profile_drop_area_subtitle" = "um es als Gruppenbild auszuwählen";
 "lng_profile_drop_area_subtitle_channel" = "um es als Kanalbild auszuwählen";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} hat den Gruppennamen zu «{title}» geändert";
 "lng_action_changed_title_channel" = "Kanalname wurde zu «{title}» geändert";
 "lng_action_created_chat" = "{from} hat die Gruppe «{title}» erstellt";
-"lng_action_created_channel" = "Kanal «{title}» erstellt";
+"lng_action_created_channel" = "Kanal erstellt";
 "lng_action_group_migrate" = "Gruppe wurde in eine Supergruppe geändert";
 "lng_action_pinned_message" = "{from} hat «{text}» angeheftet";
 "lng_action_pinned_media" = "{from} hat {media} angeheftet";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "das Spiel «{game}»";
 "lng_action_game_score" = "{from} erzielte {count:# Punkte|# Punkt|# Punkte} bei {game}";
 "lng_action_game_you_scored" = "Du hast {count:# Punkte|# Punkt|# Punkte} bei {game} erzielt";
+"lng_action_game_score_no_game" = "{from} erzielte {count:# Punkte|# Punkt|# Punkte}";
+"lng_action_game_you_scored_no_game" = "Du hast {count:# Punkte erzielt|# Punkt erzielt|# Punkte erzielt}";
 
 "lng_profile_migrate_reached" = "Limit von {count:_not_used_|# Mitglied|# Mitgliedern} erreicht";
 "lng_profile_migrate_body" = "Um das Limit aufzuheben, ändere die Gruppe in eine Supergruppe.";
@@ -935,7 +944,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "Verlassen";
 
 "lng_about_version" = "Version {version}";
-"lng_about_text_1" = "Dieser offizielle Messenger basiert auf [a href=\"https://core.telegram.org/api\"]Telegram API[/a] für Geschwindigkeit und Sicherheit.";
+"lng_about_text_1" = "Offizielle Messaging App basierend auf [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfür Geschwindigkeit und Sicherheit.";
 "lng_about_text_2" = "Diese Software steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3, der Quelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
 "lng_about_text_3" = "Fragen? Besuche doch {faq_open}unsere FAQ{faq_close} für mehr Infos.";
 "lng_about_done" = "Fertig";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Die Einstellungen ab sofort in neuer Optik\n— Fehlerbehebungen und kleinere Verbesserungen";
+"lng_new_version_text" = "— Neues Audio-Player Design\n\nWindows and Linux:\n— Schnellantwortfunktion direkt aus Benachrichtigungen\n— \"Alle Benachrichtigungen verstecken\"-Knopf hinzugefügt\n— Position und Anzahl der Benachrichtigungen einstellbar\n\nWindows 10:\n— Ruhezeiten der Benachrichtigungen werden beachtet\n\nLinux:\n— Native Linux-Benachrichtigungen in den Telegram Einstellungen aktivierbar";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

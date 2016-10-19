@@ -147,7 +147,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_photo_caption" = "Didascalia";
 
-"lng_phone_ph" = "Tuo numero di telefono";
+"lng_phone_ph" = "Il tuo numero di telefono";
 "lng_phone_title" = "Tuo telefono";
 "lng_phone_desc" = "Per favore conferma il tuo prefisso nazionale e\ninserisci il tuo numero di telefono.";
 "lng_phone_notreg" = "Nota: se non hai ancora un account Telegram,\nper favore [b]registrati[/b] con il tuo dispositivo [a href=\"https://telegram.org/\"]iOS / Android[/a] o {signup_start}qui »{signup_end}";
@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Mostra nome del mittente";
 "lng_settings_show_preview" = "Mostra anteprima messaggio";
 "lng_settings_use_windows" = "Usa le notifiche di Windows";
+"lng_settings_use_native_notifications" = "Usa notifiche native";
+"lng_settings_advanced_notifications" = "Posizione e conteggio notifiche";
+"lng_settings_notifications_position" = "Posizione sullo schermo";
+"lng_settings_notifications_count" = "Conteggio notifiche";
 "lng_settings_sound_notify" = "Riproduci suono";
 "lng_settings_include_muted" = "Includi chat silenziate nel badge";
 
 "lng_notification_preview" = "Hai un nuovo messaggio";
+"lng_notification_reply" = "Rispondi";
+"lng_notification_hide_all" = "Nascondi tutte";
+"lng_notification_sample" = "Questa è un esempio di notifica";
 
 "lng_settings_section_general" = "Generali";
 "lng_settings_change_lang" = "Cambia lingua";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
 "lng_action_changed_title_channel" = "Nome del canale cambiato in «{title}»";
 "lng_action_created_chat" = "{from} ha creato il gruppo «{title}»";
-"lng_action_created_channel" = "Canale «{title}» creato";
+"lng_action_created_channel" = "Canale creato";
 "lng_action_group_migrate" = "Il gruppo è stato aggiornato a supergruppo";
 "lng_action_pinned_message" = "{from} ha fissato «{text}»";
 "lng_action_pinned_media" = "{from} ha fissato {media}";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "il gioco «{game}»";
 "lng_action_game_score" = "{from} ha totalizzato {count:# punti|# punto|# punti} a {game}";
 "lng_action_game_you_scored" = "Hai totalizzato {count:# punti|# punto|# punti} a {game}";
+"lng_action_game_score_no_game" = "{from} ha totalizzato {count:# punti|# punto|# punti}";
+"lng_action_game_you_scored_no_game" = "Hai totalizzato {count:# punti|# punto|# punti}";
 
 "lng_profile_migrate_reached" = "Limite di {count:_not_used_|# membro|# membri} raggiunto";
 "lng_profile_migrate_body" = "Per superare questo limite, puoi aggiornare il gruppo a supergruppo.";
@@ -935,7 +944,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "Lascia";
 
 "lng_about_version" = "versione {version}";
-"lng_about_text_1" = "App ufficiale basata sulle [a href=\"https://core.telegram.org/api\"]API di Telegram[/a]\nper velocità e sicurezza";
+"lng_about_text_1" = "App ufficiale basata sulle [a href=\"https://core.telegram.org/api\"]API di Telegram[/a]\nper velocità e sicurezza.";
 "lng_about_text_2" = "Questo software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3.\nIl source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Visita le {faq_open}domande frequenti{faq_close} per maggiori info.";
 "lng_about_done" = "Fatto";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Nuovo design per la pagina delle Impostazioni\n— Risoluzione di problemi e altri miglioramenti minori";
+"lng_new_version_text" = "— Nuovo design del player audio\n\nWindows e Linux:\n— Risposta veloce dalle notifiche\n— Aggiunto pulsante per nascondere tutte le notifiche\n— Cambia la posizione e il conteggio massimo delle notifiche\n\nWindows 10:\n— Rispetta la modalità non disturbare per le notifiche\n\nLinux:\n— Puoi attivare le notifiche native nelle Impostazioni";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

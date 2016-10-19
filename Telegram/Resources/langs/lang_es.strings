@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Mostrar el nombre del remitente";
 "lng_settings_show_preview" = "Mostrar la vista previa del mensaje";
 "lng_settings_use_windows" = "Usar notificaciones de Windows";
+"lng_settings_use_native_notifications" = "Usar notificaciones nativas";
+"lng_settings_advanced_notifications" = "Posición de las notificaciones y conteo";
+"lng_settings_notifications_position" = "Ubicación en la pantalla";
+"lng_settings_notifications_count" = "Conteo de notificaciones";
 "lng_settings_sound_notify" = "Reproducir sonido";
 "lng_settings_include_muted" = "Contar chats silenciados en los “no leídos”";
 
 "lng_notification_preview" = "Tienes un nuevo mensaje";
+"lng_notification_reply" = "Responder";
+"lng_notification_hide_all" = "Ocultar todas";
+"lng_notification_sample" = "Esta es una notificación de ejemplo";
 
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Cambiar idioma";
@@ -471,7 +478,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_audios_header" = "Mensajes de voz";
 "lng_profile_shared_links" = "{count:_not_used_|# enlace|# enlaces}";
 "lng_profile_shared_links_header" = "Enlaces";
-"lng_profile_copy_phone" = "Copiar número";
+"lng_profile_copy_phone" = "Copiar número de teléfono";
 "lng_profile_copy_fullname" = "Copiar nombre";
 "lng_profile_drop_area_title" = "Arrastra tu imagen aquí";
 "lng_profile_drop_area_subtitle" = "para ponerla como foto del grupo";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} cambió el nombre del grupo a «{title}»";
 "lng_action_changed_title_channel" = "El nombre del canal fue cambiado a «{title}»";
 "lng_action_created_chat" = "{from} creó el grupo «{title}»";
-"lng_action_created_channel" = "Se creó el canal «{title}»";
+"lng_action_created_channel" = "Canal creado";
 "lng_action_group_migrate" = "Este grupo fue convertido en un supergrupo";
 "lng_action_pinned_message" = "{from} ancló «{text}»";
 "lng_action_pinned_media" = "{from} ancló {media}";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = "el juego «{game}»";
 "lng_action_game_score" = "{from} consiguió {count:# puntos|# punto|# puntos} en {game}";
 "lng_action_game_you_scored" = "Conseguiste {count:# puntos|# punto|# puntos} en {game}";
+"lng_action_game_score_no_game" = "{from} consiguió {count:# puntos|# punto|# puntos}";
+"lng_action_game_you_scored_no_game" = "Conseguiste {count:# puntos|# punto|# puntos}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_body" = "Para superar este límite, puedes convertir tu grupo en un supergrupo.";
@@ -828,7 +837,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_copy_link" = "Copiar enlace";
 "lng_context_copy_post_link" = "Copiar enlace de la publicación";
-"lng_context_copy_email" = "Copiar dirección de correo electrónico";
+"lng_context_copy_email" = "Copiar e-mail";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_copy_mention" = "Copiar alias";
 "lng_context_save_image" = "Guardar como...";
@@ -935,7 +944,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "Salir";
 
 "lng_about_version" = "versión {version}";
-"lng_about_text_1" = "Aplicación oficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a], para su velocidad y seguridad.";
+"lng_about_text_1" = "Aplicación oficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a]\npara su velocidad y seguridad.";
 "lng_about_text_2" = "Este software está licenciado bajo [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Conoce más en las {faq_open}preguntas frecuentes de Telegram{faq_close}.";
 "lng_about_done" = "Hecho";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nuevo diseño para la ventana de Ajustes\n— Corrección de errores y otras mejoras menores";
+"lng_new_version_text" = "— Nuevo diseño del reproductor de audio\n\nWindows y Linux:\n— Respuesta rápida desde las notificaciones\n— Botón añadido para ocultar todas las notificaciones\n— Opción para cambiar la ubicación y conteo de las notificaciones\n\nWindows 10:\n— Cumplimiento de los períodos sin notificaciones\n\nLinux:\n— Puedes habilitar las notificaciones nativas en Ajustes";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

@@ -244,10 +244,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "발신인 표시";
 "lng_settings_show_preview" = "메시지 미리보기";
 "lng_settings_use_windows" = "윈도우 알림 사용";
+"lng_settings_use_native_notifications" = "기존 알림 사용";
+"lng_settings_advanced_notifications" = "알림 위치 및 개수";
+"lng_settings_notifications_position" = "화면 위치";
+"lng_settings_notifications_count" = "알림 개수";
 "lng_settings_sound_notify" = "소리 재생";
 "lng_settings_include_muted" = "안 읽은 메시지에 음소거된 채팅방 포함";
 
 "lng_notification_preview" = "새로운 메시지가 있습니다.";
+"lng_notification_reply" = "답장";
+"lng_notification_hide_all" = "모두 숨기기";
+"lng_notification_sample" = "샘플 알림입니다";
 
 "lng_settings_section_general" = "일반";
 "lng_settings_change_lang" = "언어 변경";
@@ -567,7 +574,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} 님이 그룹이름을 «{title}» 로 바꾸셨습니다.";
 "lng_action_changed_title_channel" = "채널명이 «{title}»로 수정됨";
 "lng_action_created_chat" = "{from} 님이 그룹 «{title}» 을 생성하셨습니다.";
-"lng_action_created_channel" = "채널명 «{title}» 생성됨";
+"lng_action_created_channel" = "채널 생성됨";
 "lng_action_group_migrate" = "이 그룹방은 슈퍼그룹방으로 변환되었습니다";
 "lng_action_pinned_message" = "{from} 님이 «{text}» 를 고정함";
 "lng_action_pinned_media" = "{from} 님이 {media} 를 고정함";
@@ -584,6 +591,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_game" = " «{game}» 게임";
 "lng_action_game_score" = "{game} 에서 {from} 님이 {count:#|#|#} 점 획득";
 "lng_action_game_you_scored" = "{game} 에서 {count:#|#|#} 점 획득";
+"lng_action_game_score_no_game" = "{from} 에서 {count:#|#|#} 점 획득";
+"lng_action_game_you_scored_no_game" = "{count:#|#|#} 점 획득";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# 명|# 명} 한계치에 도달 되었습니다.";
 "lng_profile_migrate_body" = "제한을 초과하고 싶으실 경우, 슈퍼그룹으로 그룹 업그레이드가 가능합니다.";
@@ -935,7 +944,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "나가기";
 
 "lng_about_version" = "버전 {version}";
-"lng_about_text_1" = "[a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는\n공식 무료 메시징 앱으로 빠르고 안전합니다.";
+"lng_about_text_1" = "[a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는 공식 무료 메시징 앱으로 빠르고 안전합니다.";
 "lng_about_text_2" = "이 소프트웨어는  [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 를 채택하고 있으며,\n소스코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
 "lng_about_text_3" = "자세한 사항은 {faq_open}Telegram FAQ{faq_close} 에서 확인해주세요.";
 "lng_about_done" = "완료";
@@ -967,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 이쁜 설정 페이지 디자인\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 새로운 오디오 플레이어 디자인\n\n윈도우 및 리눅스:\n— 알림에서 빠른 답장 기능\n— 모두 숨기기 버튼 추가\n— 알림 위치 및 최대 개수 설정\n\n윈도우 10:\n— 알림 음소거 시간 설정\n\n리눅스:\n— 설정에서 기본 설정 활성화 가능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
