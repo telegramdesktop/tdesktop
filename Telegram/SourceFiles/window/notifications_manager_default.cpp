@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager_default.h"
 
 #include "platform/platform_notifications_manager.h"
+#include "application.h"
 #include "mainwindow.h"
 #include "lang.h"
 #include "ui/buttons/icon_button.h"
@@ -725,7 +726,12 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
-	if (_replyArea) return;
+	activateWindow();
+
+	if (_replyArea) {
+		_replyArea->setFocus();
+		return;
+	}
 	stopHiding();
 
 	_background = new Background(this);
@@ -739,6 +745,9 @@ void Notification::showReplyField() {
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
 	_replyArea->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+
+	// Catch mouse press event to activate the window.
+	Sandbox::installEventFilter(this);
 	connect(_replyArea, SIGNAL(resized()), this, SLOT(onReplyResize()));
 	connect(_replyArea, SIGNAL(submitted(bool)), this, SLOT(onReplySubmit(bool)));
 	connect(_replyArea, SIGNAL(cancelled()), this, SLOT(onReplyCancel()));
@@ -818,6 +827,17 @@ void Notification::mousePressEvent(QMouseEvent *e) {
 			manager->notificationActivated(peerId, msgId);
 		}
 	}
+}
+
+bool Notification::eventFilter(QObject *o, QEvent *e) {
+	if (e->type() == QEvent::MouseButtonPress) {
+		if (auto receiver = qobject_cast<QWidget*>(o)) {
+			if (isAncestorOf(receiver)) {
+				activateWindow();
+			}
+		}
+	}
+	return false;
 }
 
 void Notification::stopHiding() {

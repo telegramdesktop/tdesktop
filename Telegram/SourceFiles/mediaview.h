@@ -132,6 +132,7 @@ private slots:
 private:
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
+	void displayFinished();
 	void findCurrent();
 	void loadBack();
 

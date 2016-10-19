@@ -1185,14 +1185,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 		_from = _user;
 	}
 	_photo->download();
-	updateControls();
-	if (isHidden()) {
-		psUpdateOverlayed(this);
-		show();
-		psShowOverAll(this);
-		activateWindow();
-		setFocus();
-	}
+	displayFinished();
 }
 
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
@@ -1330,6 +1323,10 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		_from = _user;
 	}
 	_full = 1;
+	displayFinished();
+}
+
+void MediaView::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		psUpdateOverlayed(this);

@@ -208,6 +208,7 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	bool eventFilter(QObject *o, QEvent *e) override;
 
 private slots:
 	void onHideByTimer();
