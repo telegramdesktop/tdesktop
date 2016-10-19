@@ -960,7 +960,6 @@ msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
 msgDogImg: sprite(216px, 92px, 126px, 126px);
-historyPadding: 10px;
 
 collapseButton: flatButton(btnDefFlat) {
 	font: msgServiceFont;

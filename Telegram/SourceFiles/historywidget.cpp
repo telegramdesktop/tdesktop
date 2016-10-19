@@ -1512,14 +1512,11 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 }
 
 void HistoryInner::recountHeight() {
-	int htop = historyTop(), mtop = migratedTop();
-
-	int ph = _scroll->height(), minadd = 0;
-	int wasYSkip = ph - historyHeight() - st::historyPadding;
+	int visibleHeight = _scroll->height();
+	int oldHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
 	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		minadd = st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height;
+		accumulate_max(oldHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
 	}
-	if (wasYSkip < minadd) wasYSkip = minadd;
 
 	_history->resizeGetHeight(_scroll->width());
 	if (_migrated) {
@@ -1559,7 +1556,7 @@ void HistoryInner::recountHeight() {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 		}
 		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(_historyOffset - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
+		int32 descAtY = qMin(_historyPaddingTop - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
 
 		_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 	} else if (_botAbout) {
@@ -1567,17 +1564,17 @@ void HistoryInner::recountHeight() {
 		_botAbout->rect = QRect();
 	}
 
-	int32 newYSkip = ph - historyHeight() - st::historyPadding;
+	int newHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
 	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		minadd = st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height;
+		accumulate_max(newHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
 	}
-	if (newYSkip < minadd) newYSkip = minadd;
 
-	if (newYSkip != wasYSkip) {
+	auto historyPaddingTopDelta = (newHistoryPaddingTop - oldHistoryPaddingTop);
+	if (historyPaddingTopDelta != 0) {
 		if (_history->scrollTopItem) {
-			_history->scrollTopOffset += (newYSkip - wasYSkip);
+			_history->scrollTopOffset += historyPaddingTopDelta;
 		} else if (_migrated && _migrated->scrollTopItem) {
-			_migrated->scrollTopOffset += (newYSkip - wasYSkip);
+			_migrated->scrollTopOffset += historyPaddingTopDelta;
 		}
 	}
 }
@@ -1609,7 +1606,7 @@ void HistoryInner::updateBotInfo(bool recount) {
 		if (_botAbout->height > 0) {
 			int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 			int32 descAtX = (_scroll->width() - _botAbout->width) / 2 - st::msgPadding.left();
-			int32 descAtY = qMin(_historyOffset - descH, (_scroll->height() - descH) / 2) + st::msgMargin.top();
+			int32 descAtY = qMin(_historyPaddingTop - descH, (_scroll->height() - descH) / 2) + st::msgMargin.top();
 
 			_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 		} else {
@@ -1637,7 +1634,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 		return;
 	}
 
-	if (bottom >= historyHeight()) {
+	if (bottom >= _historyPaddingTop + historyHeight() + st::historyPaddingBottom) {
 		_history->forgetScrollState();
 		if (_migrated) {
 			_migrated->forgetScrollState();
@@ -1712,12 +1709,11 @@ void HistoryInner::repaintScrollDateCallback() {
 }
 
 void HistoryInner::updateSize() {
-	int32 ph = _scroll->height(), minadd = 0;
-	int32 newYSkip = ph - historyHeight() - st::historyPadding;
+	int visibleHeight = _scroll->height();
+	int newHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
 	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		minadd = st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height;
+		accumulate_max(newHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
 	}
-	if (newYSkip < minadd) newYSkip = minadd;
 
 	if (_botAbout && _botAbout->height > 0) {
 		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
@@ -1726,17 +1722,16 @@ void HistoryInner::updateSize() {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 		}
 		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(newYSkip - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
+		int32 descAtY = qMin(newHistoryPaddingTop - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
 
 		_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 	}
 
-	int32 yAdded = newYSkip - _historyOffset;
-	_historyOffset = newYSkip;
+	_historyPaddingTop = newHistoryPaddingTop;
 
-	int32 nh = _historyOffset + historyHeight() + st::historyPadding;
-	if (width() != _scroll->width() || height() != nh) {
-		resize(_scroll->width(), nh);
+	int newHeight = _historyPaddingTop + historyHeight() + st::historyPaddingBottom;
+	if (width() != _scroll->width() || height() != newHeight) {
+		resize(_scroll->width(), newHeight);
 
 		dragActionUpdate(QCursor::pos());
 	} else {
@@ -1952,7 +1947,7 @@ void HistoryInner::onUpdateSelected() {
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	bool selectingText = (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection);
-	if (point.y() < _historyOffset) {
+	if (point.y() < _historyPaddingTop) {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 			dragState = _botAbout->info->text.getState(point.x() - _botAbout->rect.left() - st::msgPadding.left(), point.y() - _botAbout->rect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, _botAbout->width);
 			lnkhost = _botAbout.get();
@@ -2143,12 +2138,12 @@ int HistoryInner::historyScrollTop() const {
 }
 
 int HistoryInner::migratedTop() const {
-	return (_migrated && !_migrated->isEmpty()) ? _historyOffset : -1;
+	return (_migrated && !_migrated->isEmpty()) ? _historyPaddingTop : -1;
 }
 
 int HistoryInner::historyTop() const {
 	int mig = migratedTop();
-	return (_history && !_history->isEmpty()) ? (mig >= 0 ? (mig + _migrated->height - _historySkipHeight) : _historyOffset) : -1;
+	return (_history && !_history->isEmpty()) ? (mig >= 0 ? (mig + _migrated->height - _historySkipHeight) : _historyPaddingTop) : -1;
 }
 
 int HistoryInner::historyDrawTop() const {
@@ -7263,7 +7258,6 @@ int HistoryWidget::unreadBarTop() const {
 }
 
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
-	int oldH = _list->historyHeight();
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateListSize();

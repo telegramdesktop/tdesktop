@@ -168,7 +168,7 @@ private:
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
-	int _historyOffset = 0;
+	int _historyPaddingTop = 0;
 
 	// with migrated history we perhaps do not need to display first _history message
 	// (if last _migrated message and first _history message are both isGroupMigrate)
