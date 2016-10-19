@@ -109,12 +109,16 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+#ifndef OS_MAC_STORE
 	keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
 		[keyTap startWatchingMediaKeys];
 	} else {
 		LOG(("Media key monitoring disabled"));
 	}
+#else // !OS_MAC_STORE
+	keyTap = nullptr;
+#endif // else for !OS_MAC_STORE
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
@@ -197,8 +201,10 @@ PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
 
+#ifndef OS_MAC_STORE
 	// Register defaults for the whitelist of apps that want to use media keys
 	[[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[SPMediaKeyTap defaultMediaKeyUserBundleIdentifiers], kMediaKeyUsingBundleIdentifiersDefaultsKey, nil]];
+#endif // OS_MAC_STORE
 
 	}
 }
@@ -297,10 +303,14 @@ void PsMacWindowPrivate::enableShadow(WId winId) {
 bool PsMacWindowPrivate::filterNativeEvent(void *event) {
 	NSEvent *e = static_cast<NSEvent*>(event);
 	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
+#ifndef OS_MAC_STORE
 		// If event tap is not installed, handle events that reach the app instead
 		if (![SPMediaKeyTap usesGlobalMediaKeyTap]) {
 			return handleMediaKeyEvent(e);
 		}
+#else // !OS_MAC_STORE
+		return handleMediaKeyEvent(e);
+#endif // else for !OS_MAC_STORE
 	}
 	return false;
 }
