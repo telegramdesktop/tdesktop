@@ -23,11 +23,30 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "core/lambda_wrap.h"
 
-class BackgroundInner : public TWidget, public RPCSender, private base::Subscriber {
+class BackgroundBox : public ItemListBox {
 	Q_OBJECT
 
 public:
-	BackgroundInner();
+	BackgroundBox();
+
+public slots:
+	void onBackgroundChosen(int index);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	class Inner;
+	ChildWidget<Inner> _inner;
+
+};
+
+// This class is hold in header because it requires Qt preprocessing.
+class BackgroundBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+	Q_OBJECT
+
+public:
+	Inner(QWidget *parent);
 
 signals:
 	void backgroundChosen(int index);
@@ -45,22 +64,5 @@ private:
 
 	int32 _bgCount, _rows;
 	int32 _over, _overDown;
-
-};
-
-class BackgroundBox : public ItemListBox {
-	Q_OBJECT
-
-public:
-	BackgroundBox();
-
-public slots:
-	void onBackgroundChosen(int index);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	BackgroundInner _inner;
 
 };

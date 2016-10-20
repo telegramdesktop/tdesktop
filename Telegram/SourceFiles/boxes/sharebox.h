@@ -31,13 +31,13 @@ class Row;
 class IndexedList;
 } // namespace Dialogs
 
-namespace internal {
-class ShareInner;
-} // namespace internal
-
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
+
+namespace Ui {
+class IconButton;
+} // namespace Ui
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
 void shareGameScoreByHash(const QString &hash);
@@ -82,9 +82,10 @@ private:
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;
 
-	ChildWidget<internal::ShareInner> _inner;
+	class Inner;
+	ChildWidget<Inner> _inner;
 	ChildWidget<InputField> _filter;
-	ChildWidget<IconedButton> _filterCancel;
+	ChildWidget<Ui::IconButton> _filterCancel;
 
 	ChildWidget<BoxButton> _copy;
 	ChildWidget<BoxButton> _share;
@@ -108,13 +109,12 @@ private:
 
 };
 
-namespace internal {
-
-class ShareInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+// This class is hold in header because it requires Qt preprocessing.
+class ShareBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	ShareInner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
+	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
@@ -127,7 +127,7 @@ public:
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void updateFilter(QString filter = QString());
 
-	~ShareInner();
+	~Inner();
 
 public slots:
 	void onSelectActive();
@@ -208,5 +208,3 @@ private:
 	ByUsernameDatas d_byUsernameFiltered;
 
 };
-
-} // namespace internal

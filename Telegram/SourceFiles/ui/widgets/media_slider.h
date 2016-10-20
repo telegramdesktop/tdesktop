@@ -21,10 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/widgets/continuous_slider.h"
-
-namespace style {
-struct MediaSlider;
-} // namespace style
+#include "styles/style_widgets.h"
 
 namespace Ui {
 

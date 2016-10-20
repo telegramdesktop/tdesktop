@@ -68,6 +68,38 @@ aboutRevokePublicLabel: flatLabel(labelDefFlat) {
 	textFg: windowTextFg;
 }
 
+boxSearchField: InputField(defaultInputField) {
+	textMargins: margins(41px, 16px, 41px, 0px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(4px, 0px, 4px, 0px);
+
+	border: 0px;
+	borderActive: 0px;
+	borderError: 0px;
+
+	height: 48px;
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(15px, 14px);
+
+	font: normalFont;
+}
+boxSearchCancel: IconButton {
+	width: 41px;
+	height: 48px;
+
+	opacity: 0.3;
+	overOpacity: 0.4;
+
+	icon: icon {{ "box_search_cancel", #000000 }};
+	iconPosition: point(8px, 18px);
+	downIconPosition: point(8px, 18px);
+
+	duration: 150;
+}
+
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;

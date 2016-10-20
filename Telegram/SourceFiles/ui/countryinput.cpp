@@ -24,8 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "ui/scrollarea.h"
+#include "ui/buttons/icon_button.h"
 #include "boxes/contactsbox.h"
 #include "countries.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -192,7 +194,88 @@ void CountryInput::setText(const QString &newText) {
 	_text = _st.font->elided(newText, width() - _st.textMrg.left() - _st.textMrg.right());
 }
 
-CountrySelectInner::CountrySelectInner() : TWidget()
+CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)
+, _inner(this)
+, _filter(this, st::boxSearchField, lang(lng_country_ph))
+, _filterCancel(this, st::boxSearchCancel)
+, _topShadow(this) {
+	ItemListBox::init(_inner, st::boxScrollSkip, st::boxTitleHeight + _filter->height());
+
+	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
+	connect(_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
+	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
+
+	_filterCancel->setAttribute(Qt::WA_OpaquePaintEvent);
+
+	prepare();
+}
+
+void CountrySelectBox::onSubmit() {
+	_inner->chooseCountry();
+}
+
+void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Down) {
+		_inner->selectSkip(1);
+	} else if (e->key() == Qt::Key_Up) {
+		_inner->selectSkip(-1);
+	} else if (e->key() == Qt::Key_PageDown) {
+		_inner->selectSkipPage(scrollArea()->height(), 1);
+	} else if (e->key() == Qt::Key_PageUp) {
+		_inner->selectSkipPage(scrollArea()->height(), -1);
+	} else {
+		ItemListBox::keyPressEvent(e);
+	}
+}
+
+void CountrySelectBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	paintTitle(p, lang(lng_country_select));
+}
+
+void CountrySelectBox::resizeEvent(QResizeEvent *e) {
+	ItemListBox::resizeEvent(e);
+	_filter->resize(width(), _filter->height());
+	_filter->moveToLeft(0, st::boxTitleHeight);
+	_filterCancel->moveToRight(0, st::boxTitleHeight);
+	_inner->resize(width(), _inner->height());
+	_topShadow.setGeometry(0, st::boxTitleHeight + _filter->height(), width(), st::lineWidth);
+}
+
+void CountrySelectBox::showAll() {
+	_filter->show();
+	if (_filter->getLastText().isEmpty()) {
+		_filterCancel->hide();
+	} else {
+		_filterCancel->show();
+	}
+	_topShadow.show();
+	ItemListBox::showAll();
+}
+
+void CountrySelectBox::onFilterCancel() {
+	_filter->setText(QString());
+}
+
+void CountrySelectBox::onFilterUpdate() {
+	scrollArea()->scrollToY(0);
+	if (_filter->getLastText().isEmpty()) {
+		_filterCancel->hide();
+	} else {
+		_filterCancel->show();
+	}
+	_inner->updateFilter(_filter->getLastText());
+}
+
+void CountrySelectBox::doSetInnerFocus() {
+	_filter->setFocus();
+}
+
+CountrySelectBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
 , _rowHeight(st::countryRowHeight)
 , _sel(0)
 , _mouseSel(false) {
@@ -239,7 +322,7 @@ CountrySelectInner::CountrySelectInner() : TWidget()
 	updateFilter();
 }
 
-void CountrySelectInner::paintEvent(QPaintEvent *e) {
+void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
 	p.setClipRect(r);
@@ -283,11 +366,11 @@ void CountrySelectInner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void CountrySelectInner::enterEvent(QEvent *e) {
+void CountrySelectBox::Inner::enterEvent(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void CountrySelectInner::leaveEvent(QEvent *e) {
+void CountrySelectBox::Inner::leaveEvent(QEvent *e) {
 	_mouseSel = false;
 	setMouseTracking(false);
 	if (_sel >= 0) {
@@ -296,13 +379,13 @@ void CountrySelectInner::leaveEvent(QEvent *e) {
 	}
 }
 
-void CountrySelectInner::mouseMoveEvent(QMouseEvent *e) {
+void CountrySelectBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	_lastMousePos = e->globalPos();
 	updateSel();
 }
 
-void CountrySelectInner::mousePressEvent(QMouseEvent *e) {
+void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	_lastMousePos = e->globalPos();
 	updateSel();
@@ -311,7 +394,7 @@ void CountrySelectInner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void CountrySelectInner::updateFilter(QString filter) {
+void CountrySelectBox::Inner::updateFilter(QString filter) {
 	filter = textSearchKey(filter);
 
 	QStringList f;
@@ -366,7 +449,7 @@ void CountrySelectInner::updateFilter(QString filter) {
 	}
 }
 
-void CountrySelectInner::selectSkip(int32 dir) {
+void CountrySelectBox::Inner::selectSkip(int32 dir) {
 	_mouseSel = false;
 
 	int cur = (_sel >= 0) ? _sel : -1;
@@ -384,13 +467,13 @@ void CountrySelectInner::selectSkip(int32 dir) {
 	update();
 }
 
-void CountrySelectInner::selectSkipPage(int32 h, int32 dir) {
+void CountrySelectBox::Inner::selectSkipPage(int32 h, int32 dir) {
 	int32 points = h / _rowHeight;
 	if (!points) return;
 	selectSkip(points * dir);
 }
 
-void CountrySelectInner::chooseCountry() {
+void CountrySelectBox::Inner::chooseCountry() {
 	QString result;
 	if (_filter.isEmpty()) {
 		if (_sel >= 0 && _sel < countriesAll.size()) {
@@ -404,11 +487,11 @@ void CountrySelectInner::chooseCountry() {
 	emit countryChosen(result);
 }
 
-void CountrySelectInner::refresh() {
+void CountrySelectBox::Inner::refresh() {
 	resize(width(), countriesNow->length() ? (countriesNow->length() * _rowHeight + st::countriesSkip) : st::noContactsHeight);
 }
 
-void CountrySelectInner::updateSel() {
+void CountrySelectBox::Inner::updateSel() {
 	if (!_mouseSel) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));
@@ -422,89 +505,8 @@ void CountrySelectInner::updateSel() {
 	}
 }
 
-void CountrySelectInner::updateSelectedRow() {
+void CountrySelectBox::Inner::updateSelectedRow() {
 	if (_sel >= 0) {
 		update(0, st::countriesSkip + _sel * _rowHeight, width(), _rowHeight);
 	}
-}
-
-CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)
-, _inner()
-, _filter(this, st::boxSearchField, lang(lng_country_ph))
-, _filterCancel(this, st::boxSearchCancel)
-, _topShadow(this) {
-	ItemListBox::init(&_inner, st::boxScrollSkip, st::boxTitleHeight + _filter.height());
-
-	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
-	connect(&_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
-	connect(&_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
-
-	_filterCancel.setAttribute(Qt::WA_OpaquePaintEvent);
-
-	prepare();
-}
-
-void CountrySelectBox::onSubmit() {
-	_inner.chooseCountry();
-}
-
-void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Down) {
-		_inner.selectSkip(1);
-	} else if (e->key() == Qt::Key_Up) {
-		_inner.selectSkip(-1);
-	} else if (e->key() == Qt::Key_PageDown) {
-		_inner.selectSkipPage(scrollArea()->height(), 1);
-	} else if (e->key() == Qt::Key_PageUp) {
-		_inner.selectSkipPage(scrollArea()->height(), -1);
-	} else {
-		ItemListBox::keyPressEvent(e);
-	}
-}
-
-void CountrySelectBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_country_select));
-}
-
-void CountrySelectBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
-	_filter.resize(width(), _filter.height());
-	_filter.moveToLeft(0, st::boxTitleHeight);
-	_filterCancel.moveToRight(0, st::boxTitleHeight);
-	_inner.resize(width(), _inner.height());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _filter.height(), width(), st::lineWidth);
-}
-
-void CountrySelectBox::showAll() {
-	_filter.show();
-	if (_filter.getLastText().isEmpty()) {
-		_filterCancel.hide();
-	} else {
-		_filterCancel.show();
-	}
-	_topShadow.show();
-	ItemListBox::showAll();
-}
-
-void CountrySelectBox::onFilterCancel() {
-	_filter.setText(QString());
-}
-
-void CountrySelectBox::onFilterUpdate() {
-	scrollArea()->scrollToY(0);
-	if (_filter.getLastText().isEmpty()) {
-		_filterCancel.hide();
-	} else {
-		_filterCancel.show();
-	}
-	_inner.updateFilter(_filter.getLastText());
-}
-
-void CountrySelectBox::doSetInnerFocus() {
-	_filter.setFocus();
 }

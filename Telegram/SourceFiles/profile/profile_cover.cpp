@@ -529,14 +529,14 @@ void CoverWidget::onAddMember() {
 		if (_peerChat->count >= Global::ChatSizeMax() && _peerChat->amCreator()) {
 			Ui::showLayer(new ConvertToSupergroupBox(_peerChat));
 		} else {
-			Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+			Ui::showLayer(new ContactsBox(_peerChat, MembersFilter::Recent));
 		}
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
 		for_const (auto user, _peerChannel->mgInfo->lastParticipants) {
 			already.insert(user);
 		}
-		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
+		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilter::Recent, already));
 	}
 }
 

@@ -25,20 +25,58 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ConfirmBox;
 
-struct SessionData {
-	uint64 hash;
-
-	int32 activeTime;
-	int32 nameWidth, activeWidth, infoWidth, ipWidth;
-	QString name, active, info, ip;
-};
-typedef QList<SessionData> SessionsList;
-
-class SessionsInner : public TWidget, public RPCSender {
+class SessionsBox : public ScrollableBox, public RPCSender {
 	Q_OBJECT
 
 public:
-	SessionsInner(SessionsList *list, SessionData *current);
+	SessionsBox();
+
+public slots:
+	void onOneTerminated();
+	void onAllTerminated();
+	void onTerminateAll();
+	void onShortPollAuthorizations();
+	void onNewAuthorization();
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+	void showAll() override;
+
+private:
+	struct Data {
+		uint64 hash;
+
+		int32 activeTime;
+		int32 nameWidth, activeWidth, infoWidth, ipWidth;
+		QString name, active, info, ip;
+	};
+	using List = QList<Data>;
+
+	void gotAuthorizations(const MTPaccount_Authorizations &result);
+
+	bool _loading;
+
+	Data _current;
+	List _list;
+
+	class Inner;
+	ChildWidget<Inner> _inner;
+	ScrollableBoxShadow _shadow;
+	BoxButton _done;
+
+	SingleTimer _shortPollTimer;
+	mtpRequestId _shortPollRequest;
+
+};
+
+// This class is hold in header because it requires Qt preprocessing.
+class SessionsBox::Inner : public ScrolledWidget, public RPCSender {
+	Q_OBJECT
+
+public:
+	Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current);
 
 	void listUpdated();
 
@@ -65,8 +103,8 @@ private:
 	void terminateAllDone(const MTPBool &res);
 	bool terminateAllFail(const RPCError &error);
 
-	SessionsList *_list;
-	SessionData *_current;
+	SessionsBox::List *_list;
+	SessionsBox::Data *_current;
 
 	typedef QMap<uint64, IconedButton*> TerminateButtons;
 	TerminateButtons _terminateButtons;
@@ -74,41 +112,5 @@ private:
 	uint64 _terminating;
 	LinkButton _terminateAll;
 	ConfirmBox *_terminateBox;
-
-};
-
-class SessionsBox : public ScrollableBox, public RPCSender {
-	Q_OBJECT
-
-public:
-	SessionsBox();
-
-public slots:
-	void onOneTerminated();
-	void onAllTerminated();
-	void onTerminateAll();
-	void onShortPollAuthorizations();
-	void onNewAuthorization();
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-	void showAll() override;
-
-private:
-	void gotAuthorizations(const MTPaccount_Authorizations &result);
-
-	bool _loading;
-
-	SessionData _current;
-	SessionsList _list;
-
-	SessionsInner _inner;
-	ScrollableBoxShadow _shadow;
-	BoxButton _done;
-
-	SingleTimer _shortPollTimer;
-	mtpRequestId _shortPollRequest;
 
 };

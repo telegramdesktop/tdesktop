@@ -343,48 +343,6 @@ boxScroll: flatScroll(solidScroll) {
 boxScrollSkip: 6px;
 boxScrollShadowBg: #00000012;
 
-boxSearchField: InputField(defaultInputField) {
-	textMargins: margins(41px, 16px, 41px, 0px);
-
-	placeholderFg: #999;
-	placeholderFgActive: #aaa;
-	placeholderMargins: margins(4px, 0px, 4px, 0px);
-
-	border: 0px;
-	borderActive: 0px;
-	borderError: 0px;
-
-	height: 48px;
-
-	iconSprite: sprite(227px, 21px, 24px, 24px);
-	iconPosition: point(15px, 14px);
-
-	font: normalFont;
-}
-boxSearchCancel: iconedButton {
-	color: white;
-	bgColor: white;
-	overBgColor: white;
-	font: font(fsize);
-
-	opacity: 0.3;
-	overOpacity: 0.4;
-
-	textPos: point(0px, 0px);
-	downTextPos: point(0px, 0px);
-
-	duration: 150;
-	cursor: cursor(pointer);
-
-	icon: sprite(133px, 108px, 12px, 12px);
-	iconPos: point(8px, 18px);
-	downIcon: sprite(133px, 108px, 12px, 12px);
-	downIconPos: point(8px, 18px);
-
-	width: 41px;
-	height: 48px;
-}
-
 titleBg: #6389a8;
 titleHeight: 39px;
 titleIconPos: point(7px, 7px);

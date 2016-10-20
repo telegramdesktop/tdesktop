@@ -700,13 +700,13 @@ int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 
 void ChannelMembersWidget::onAdmins() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilterAdmins));
+		Ui::showLayer(new MembersBox(channel, MembersFilter::Admins));
 	}
 }
 
 void ChannelMembersWidget::onMembers() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilterRecent));
+		Ui::showLayer(new MembersBox(channel, MembersFilter::Recent));
 	}
 }
 

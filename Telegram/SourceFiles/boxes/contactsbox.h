@@ -23,186 +23,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "core/single_timer.h"
 #include "ui/effects/round_image_checkbox.h"
+#include "boxes/members_box.h"
 
 namespace Dialogs {
 class Row;
 class IndexedList;
 } // namespace Dialogs
 
-enum MembersFilter {
-	MembersFilterRecent,
-	MembersFilterAdmins,
-};
-using MembersAlreadyIn = OrderedSet<UserData*>;
+namespace Ui {
+class IconButton;
+} // namespace Ui
 
 QString cantInviteError();
 
-class ConfirmBox;
-class ContactsInner : public TWidget, public RPCSender, private base::Subscriber {
-	Q_OBJECT
-
-private:
-	struct ContactData;
-
-public:
-	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
-	ContactsInner(ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already);
-	ContactsInner(ChatData *chat, MembersFilter membersFilter);
-	ContactsInner(UserData *bot);
-	void init();
-	void initList();
-
-	void updateFilter(QString filter = QString());
-
-	void selectSkip(int32 dir);
-	void selectSkipPage(int32 h, int32 dir);
-
-	QVector<UserData*> selected();
-	QVector<MTPInputUser> selectedInputs();
-	bool allAdmins() const {
-		return _allAdmins.checked();
-	}
-
-	void loadProfilePhotos(int32 yFrom);
-	void chooseParticipant();
-	void changeCheckState(Dialogs::Row *row);
-	void changeCheckState(ContactData *data, PeerData *peer);
-
-	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
-
-	void refresh();
-
-	ChatData *chat() const;
-	ChannelData *channel() const;
-	MembersFilter membersFilter() const;
-	UserData *bot() const;
-	CreatingGroupType creating() const;
-
-	bool sharingBotGame() const;
-
-	int32 selectedCount() const;
-	bool hasAlreadyMembersInChannel() const {
-		return !_already.isEmpty();
-	}
-
-	void saving(bool flag);
-
-	~ContactsInner();
-
-signals:
-	void mustScrollTo(int ymin, int ymax);
-	void selectAllQuery();
-	void searchByUsername();
-	void chosenChanged();
-	void adminAdded();
-	void addRequested();
-
-public slots:
-	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
-
-	void updateSel();
-	void peerUpdated(PeerData *peer);
-	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-
-	void onAddBot();
-	void onAddAdmin();
-	void onNoAddAdminBox(QObject *obj);
-
-	void onAllAdminsChanged();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void updateRowWithTop(int rowTop);
-	int getSelectedRowTop() const;
-	void updateSelectedRow();
-	int getRowTopWithPeer(PeerData *peer) const;
-	void updateRowWithPeer(PeerData *peer);
-	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
-	bool addAdminFail(const RPCError &error, mtpRequestId req);
-
-	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
-	void paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const;
-
-	template <typename FilterCallback>
-	void addDialogsToList(FilterCallback callback);
-
-	bool usingMultiSelect() const {
-		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilterAdmins));
-	}
-
-	int32 _rowHeight;
-	int _newItemHeight = 0;
-	bool _newItemSel = false;
-
-	ChatData *_chat = nullptr;
-	ChannelData *_channel = nullptr;
-	MembersFilter _membersFilter = MembersFilterRecent;
-	UserData *_bot = nullptr;
-	CreatingGroupType _creating = CreatingGroupNone;
-	MembersAlreadyIn _already;
-
-	Checkbox _allAdmins;
-	int32 _aboutWidth;
-	Text _aboutAllAdmins, _aboutAdmins;
-
-	PeerData *_addToPeer = nullptr;
-	UserData *_addAdmin = nullptr;
-	mtpRequestId _addAdminRequestId = 0;
-	ConfirmBox *_addAdminBox = nullptr;
-
-	int32 _time;
-
-	std_::unique_ptr<Dialogs::IndexedList> _customList;
-	Dialogs::IndexedList *_contacts = nullptr;
-	Dialogs::Row *_sel = nullptr;
-	QString _filter;
-	typedef QVector<Dialogs::Row*> FilteredDialogs;
-	FilteredDialogs _filtered;
-	int _filteredSel = -1;
-	bool _mouseSel = false;
-
-	int _selCount = 0;
-
-	struct ContactData {
-		ContactData();
-		ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
-
-		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
-		Text name;
-		QString statusText;
-		bool statusHasOnlineColor = false;
-		bool disabledChecked = false;
+inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
+	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
+		peer->paintUserpicLeft(p, size, x, y, outerWidth);
 	};
-	typedef QMap<PeerData*, ContactData*> ContactsData;
-	ContactsData _contactsData;
-	typedef QMap<PeerData*, bool> CheckedContacts;
-	CheckedContacts _checkedContacts;
-
-	ContactData *contactData(Dialogs::Row *row);
-
-	bool _searching = false;
-	QString _lastQuery;
-	typedef QVector<PeerData*> ByUsernameRows;
-	typedef QVector<ContactData*> ByUsernameDatas;
-	ByUsernameRows _byUsername, _byUsernameFiltered;
-	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
-	ByUsernameDatas _byUsernameDatas;
-	int _byUsernameSel = -1;
-
-	QPoint _lastMousePos;
-	LinkButton _addContactLnk;
-
-	bool _saving = false;
-	bool _allAdminsChecked = false;
-
-};
+}
 
 class ContactsBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
@@ -245,9 +83,10 @@ protected:
 private:
 	void init();
 
-	ContactsInner _inner;
-	InputField _filter;
-	IconedButton _filterCancel;
+	class Inner;
+	ChildWidget<Inner> _inner;
+	ChildWidget<InputField> _filter;
+	ChildWidget<Ui::IconButton> _filterCancel;
 
 	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
@@ -289,50 +128,74 @@ private:
 
 };
 
-class MembersInner : public TWidget, public RPCSender, private base::Subscriber {
+// This class is hold in header because it requires Qt preprocessing.
+class ContactsBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
-private:
-	struct MemberData;
-
 public:
-	MembersInner(ChannelData *channel, MembersFilter filter);
+	Inner(QWidget *parent, CreatingGroupType creating = CreatingGroupNone);
+	Inner(QWidget *parent, ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already);
+	Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter);
+	Inner(QWidget *parent, UserData *bot);
 
-	void paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown);
+	void init();
+	void initList();
+
+	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
 
+	QVector<UserData*> selected();
+	QVector<MTPInputUser> selectedInputs();
+	bool allAdmins() const {
+		return _allAdmins.checked();
+	}
+
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 
+	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
+
 	void refresh();
 
+	ChatData *chat() const;
 	ChannelData *channel() const;
-	MembersFilter filter() const;
+	MembersFilter membersFilter() const;
+	UserData *bot() const;
+	CreatingGroupType creating() const;
 
-	bool isLoaded() const {
-		return !_loading;
+	bool sharingBotGame() const;
+
+	int32 selectedCount() const;
+	bool hasAlreadyMembersInChannel() const {
+		return !_already.isEmpty();
 	}
-	void clearSel();
 
-	MembersAlreadyIn already() const;
+	void saving(bool flag);
 
-	~MembersInner();
+	~Inner();
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
+	void selectAllQuery();
+	void searchByUsername();
+	void chosenChanged();
+	void adminAdded();
 	void addRequested();
-	void loaded();
 
 public slots:
-	void load();
+	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 	void updateSel();
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-	void onKickConfirm();
-	void onKickBoxDestroyed(QObject *obj);
+
+	void onAddBot();
+	void onAddAdmin();
+	void onNoAddAdminBox(QObject *obj);
+
+	void onAllAdminsChanged();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -340,102 +203,94 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-
-private:
-	void updateSelectedRow();
-	MemberData *data(int32 index);
-
-	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
-	bool membersFailed(const RPCError &error, mtpRequestId req);
-
-	void kickDone(const MTPUpdates &result, mtpRequestId req);
-	void kickAdminDone(const MTPUpdates &result, mtpRequestId req);
-	bool kickFail(const RPCError &error, mtpRequestId req);
-	void removeKicked();
-
-	void clear();
-
-	int32 _rowHeight, _newItemHeight;
-	bool _newItemSel;
-
-	ChannelData *_channel;
-	MembersFilter _filter;
-
-	QString _kickText;
-	int32 _time, _kickWidth;
-
-	int32 _sel, _kickSel, _kickDown;
-	bool _mouseSel;
-
-	UserData *_kickConfirm;
-	mtpRequestId _kickRequestId;
-
-	ConfirmBox *_kickBox;
-
-	enum MemberRole {
-		MemberRoleNone,
-		MemberRoleSelf,
-		MemberRoleCreator,
-		MemberRoleEditor,
-		MemberRoleModerator,
-		MemberRoleKicked
-	};
-
-	struct MemberData {
-		Text name;
-		QString online;
-		bool onlineColor;
-		bool canKick;
-	};
-
-	bool _loading;
-	mtpRequestId _loadingRequestId;
-	typedef QVector<UserData*> MemberRows;
-	typedef QVector<QDateTime> MemberDates;
-	typedef QVector<MemberRole> MemberRoles;
-	typedef QVector<MemberData*> MemberDatas;
-	MemberRows _rows;
-	MemberDates _dates;
-	MemberRoles _roles;
-	MemberDatas _datas;
-
-	int32 _aboutWidth;
-	Text _about;
-	int32 _aboutHeight;
-
-	QPoint _lastMousePos;
-
-};
-
-class MembersBox : public ItemListBox {
-	Q_OBJECT
-
-public:
-	MembersBox(ChannelData *channel, MembersFilter filter);
-
-public slots:
-	void onScroll();
-
-	void onAdd();
-	void onAdminAdded();
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	MembersInner _inner;
+	struct ContactData {
+		ContactData();
+		ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
 
-	ContactsBox *_addBox;
+		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
+		Text name;
+		QString statusText;
+		bool statusHasOnlineColor = false;
+		bool disabledChecked = false;
+	};
 
-	SingleTimer _loadTimer;
+	void updateRowWithTop(int rowTop);
+	int getSelectedRowTop() const;
+	void updateSelectedRow();
+	int getRowTopWithPeer(PeerData *peer) const;
+	void updateRowWithPeer(PeerData *peer);
+	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
+	bool addAdminFail(const RPCError &error, mtpRequestId req);
+
+	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
+	void paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const;
+
+	void changeCheckState(Dialogs::Row *row);
+	void changeCheckState(ContactData *data, PeerData *peer);
+
+	template <typename FilterCallback>
+	void addDialogsToList(FilterCallback callback);
+
+	bool usingMultiSelect() const {
+		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilter::Admins));
+	}
+
+	int32 _rowHeight;
+	int _newItemHeight = 0;
+	bool _newItemSel = false;
+
+	ChatData *_chat = nullptr;
+	ChannelData *_channel = nullptr;
+	MembersFilter _membersFilter = MembersFilter::Recent;
+	UserData *_bot = nullptr;
+	CreatingGroupType _creating = CreatingGroupNone;
+	MembersAlreadyIn _already;
+
+	Checkbox _allAdmins;
+	int32 _aboutWidth;
+	Text _aboutAllAdmins, _aboutAdmins;
+
+	PeerData *_addToPeer = nullptr;
+	UserData *_addAdmin = nullptr;
+	mtpRequestId _addAdminRequestId = 0;
+	ConfirmBox *_addAdminBox = nullptr;
+
+	int32 _time;
+
+	std_::unique_ptr<Dialogs::IndexedList> _customList;
+	Dialogs::IndexedList *_contacts = nullptr;
+	Dialogs::Row *_sel = nullptr;
+	QString _filter;
+	typedef QVector<Dialogs::Row*> FilteredDialogs;
+	FilteredDialogs _filtered;
+	int _filteredSel = -1;
+	bool _mouseSel = false;
+
+	int _selCount = 0;
+
+	typedef QMap<PeerData*, ContactData*> ContactsData;
+	ContactsData _contactsData;
+	typedef QMap<PeerData*, bool> CheckedContacts;
+	CheckedContacts _checkedContacts;
+
+	ContactData *contactData(Dialogs::Row *row);
+
+	bool _searching = false;
+	QString _lastQuery;
+	typedef QVector<PeerData*> ByUsernameRows;
+	typedef QVector<ContactData*> ByUsernameDatas;
+	ByUsernameRows _byUsername, _byUsernameFiltered;
+	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
+	ByUsernameDatas _byUsernameDatas;
+	int _byUsernameSel = -1;
+
+	QPoint _lastMousePos;
+	LinkButton _addContactLnk;
+
+	bool _saving = false;
+	bool _allAdminsChecked = false;
 
 };
-
-inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
-	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, size, x, y, outerWidth);
-	};
-}
