@@ -54,6 +54,19 @@ FilledSlider {
 	duration: int;
 }
 
+RoundImageCheckbox {
+	imageRadius: pixels;
+	imageSmallRadius: pixels;
+	selectWidth: pixels;
+	selectFg: color;
+	selectDuration: int;
+	checkBorder: color;
+	checkBg: color;
+	checkRadius: pixels;
+	checkSmallRadius: pixels;
+	checkIcon: icon;
+}
+
 widgetSlideDuration: 200;
 
 discreteSliderHeight: 39px;

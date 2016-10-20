@@ -455,6 +455,8 @@
       '<(src_loc)/ui/effects/radial_animation.h',
       '<(src_loc)/ui/effects/rect_shadow.cpp',
       '<(src_loc)/ui/effects/rect_shadow.h',
+      '<(src_loc)/ui/effects/round_image_checkbox.cpp',
+      '<(src_loc)/ui/effects/round_image_checkbox.h',
       '<(src_loc)/ui/style/style_core.cpp',
       '<(src_loc)/ui/style/style_core.h',
       '<(src_loc)/ui/style/style_core_color.cpp',

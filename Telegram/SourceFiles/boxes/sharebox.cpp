@@ -34,6 +34,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "history/history_media_types.h"
 
+namespace {
+
+Ui::RoundImageCheckbox::PaintRoundImage paintUserpicCallback(PeerData *peer) {
+	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
+		peer->paintUserpicLeft(p, size, x, y, outerWidth);
+	};
+}
+
+} // namespace
+
 ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback) : ItemListBox(st::boxScroll)
 , _copyCallback(std_::move(copyCallback))
 , _submitCallback(std_::move(submitCallback))
@@ -260,8 +270,6 @@ ShareInner::ShareInner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	_filter = qsl("a");
 	updateFilter();
 
-	prepareWideCheckIcons();
-
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
@@ -426,7 +434,8 @@ ShareInner::Chat *ShareInner::getChat(Dialogs::Row *row) {
 		auto peer = row->history()->peer;
 		auto i = _dataMap.constFind(peer);
 		if (i == _dataMap.cend()) {
-			_dataMap.insert(peer, data = new Chat(peer));
+			data = new Chat(peer, [this, peer] { repaintChat(peer); });
+			_dataMap.insert(peer, data);
 			updateChatName(data, peer);
 		} else {
 			data = i.value();
@@ -440,8 +449,8 @@ void ShareInner::setActive(int active) {
 	if (active != _active) {
 		auto changeNameFg = [this](int index, style::color from, style::color to) {
 			if (auto chat = getChatAtIndex(index)) {
-				chat->nameFg.start([this, chat] {
-					repaintChat(chat->peer);
+				chat->nameFg.start([this, peer = chat->peer] {
+					repaintChat(peer);
 				}, from->c, to->c, st::shareActivateDuration);
 			}
 		};
@@ -457,67 +466,10 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 
-	auto selectionLevel = chat->selection.current(chat->selected ? 1. : 0.);
-
-	auto w = width();
-	auto photoLeft = (_rowWidth - (st::sharePhotoRadius * 2)) / 2;
+	auto outerWidth = width();
+	auto photoLeft = (_rowWidth - (st::sharePhotoCheckbox.imageRadius * 2)) / 2;
 	auto photoTop = st::sharePhotoTop;
-	if (chat->selection.animating()) {
-		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-		auto userpicRadius = qRound(WideCacheScale * (st::sharePhotoRadius + (st::sharePhotoSmallRadius - st::sharePhotoRadius) * selectionLevel));
-		auto userpicShift = WideCacheScale * st::sharePhotoRadius - userpicRadius;
-		auto userpicLeft = x + photoLeft - (WideCacheScale - 1) * st::sharePhotoRadius + userpicShift;
-		auto userpicTop = y + photoTop - (WideCacheScale - 1) * st::sharePhotoRadius + userpicShift;
-		auto to = QRect(userpicLeft, userpicTop, userpicRadius * 2, userpicRadius * 2);
-		auto from = QRect(QPoint(0, 0), chat->wideUserpicCache.size());
-		p.drawPixmapLeft(to, w, chat->wideUserpicCache, from);
-		p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-	} else {
-		if (!chat->wideUserpicCache.isNull()) {
-			chat->wideUserpicCache = QPixmap();
-		}
-		auto userpicRadius = chat->selected ? st::sharePhotoSmallRadius : st::sharePhotoRadius;
-		auto userpicShift = st::sharePhotoRadius - userpicRadius;
-		auto userpicLeft = x + photoLeft + userpicShift;
-		auto userpicTop = y + photoTop + userpicShift;
-		chat->peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, w);
-	}
-
-	if (selectionLevel > 0) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		p.setOpacity(snap(selectionLevel, 0., 1.));
-		p.setBrush(Qt::NoBrush);
-		QPen pen = st::shareSelectFg;
-		pen.setWidth(st::shareSelectWidth);
-		p.setPen(pen);
-		p.drawEllipse(myrtlrect(x + photoLeft, y + photoTop, st::sharePhotoRadius * 2, st::sharePhotoRadius * 2));
-		p.setOpacity(1.);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-	}
-
-	removeFadeOutedIcons(chat);
-	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-	for (auto &icon : chat->icons) {
-		auto fadeIn = icon.fadeIn.current(1.);
-		auto fadeOut = icon.fadeOut.current(1.);
-		auto iconRadius = qRound(WideCacheScale * (st::shareCheckSmallRadius + fadeOut * (st::shareCheckRadius - st::shareCheckSmallRadius)));
-		auto iconShift = WideCacheScale * st::shareCheckRadius - iconRadius;
-		auto iconLeft = x + photoLeft + 2 * st::sharePhotoRadius + st::shareSelectWidth - 2 * st::shareCheckRadius - (WideCacheScale - 1) * st::shareCheckRadius + iconShift;
-		auto iconTop = y + photoTop + 2 * st::sharePhotoRadius + st::shareSelectWidth - 2 * st::shareCheckRadius - (WideCacheScale - 1) * st::shareCheckRadius + iconShift;
-		auto to = QRect(iconLeft, iconTop, iconRadius * 2, iconRadius * 2);
-		auto from = QRect(QPoint(0, 0), _wideCheckIconCache.size());
-		auto opacity = fadeIn * fadeOut;
-		p.setOpacity(opacity);
-		if (fadeOut < 1.) {
-			p.drawPixmapLeft(to, w, icon.wideCheckCache, from);
-		} else {
-			auto divider = qRound((WideCacheScale - 2) * st::shareCheckRadius + fadeIn * 3 * st::shareCheckRadius);
-			p.drawPixmapLeft(QRect(iconLeft, iconTop, divider, iconRadius * 2), w, _wideCheckIconCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckIconCache.height()));
-			p.drawPixmapLeft(QRect(iconLeft + divider, iconTop, iconRadius * 2 - divider, iconRadius * 2), w, _wideCheckCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckCache.width() - divider * cIntRetinaFactor(), _wideCheckCache.height()));
-		}
-	}
-	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-	p.setOpacity(1.);
+	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
 
 	if (chat->nameFg.animating()) {
 		p.setPen(chat->nameFg.current());
@@ -527,11 +479,14 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
 	auto nameLeft = st::shareColumnSkip / 2;
-	auto nameTop = photoTop + st::sharePhotoRadius * 2 + st::shareNameTop;
-	chat->name.drawLeftElided(p, x + nameLeft, y + nameTop, nameWidth, w, 2, style::al_top, 0, -1, 0, true);
+	auto nameTop = photoTop + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop;
+	chat->name.drawLeftElided(p, x + nameLeft, y + nameTop, nameWidth, outerWidth, 2, style::al_top, 0, -1, 0, true);
 }
 
-ShareInner::Chat::Chat(PeerData *peer) : peer(peer), name(st::sharePhotoRadius * 2) {
+ShareInner::Chat::Chat(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback)
+: peer(peer)
+, checkbox(st::sharePhotoCheckbox, std_::move(updateCallback), paintUserpicCallback(peer))
+, name(st::sharePhotoCheckbox.imageRadius * 2) {
 }
 
 void ShareInner::paintEvent(QPaintEvent *e) {
@@ -613,7 +568,7 @@ void ShareInner::updateUpon(const QPoint &pos) {
 	auto left = _rowsLeft + qFloor(column * _rowWidthReal) + st::shareColumnSkip / 2;
 	auto top = _rowsTop + row * _rowHeight + st::sharePhotoTop;
 	auto xupon = (x >= left) && (x < left + (_rowWidth - st::shareColumnSkip));
-	auto yupon = (y >= top) && (y < top + st::sharePhotoRadius * 2 + st::shareNameTop + st::shareNameFont->height * 2);
+	auto yupon = (y >= top) && (y < top + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop + st::shareNameFont->height * 2);
 	auto upon = (xupon && yupon) ? (row * _columnCount + column) : -1;
 	if (upon >= displayedChatsCount()) {
 		upon = -1;
@@ -633,26 +588,11 @@ void ShareInner::onSelectActive() {
 }
 
 void ShareInner::resizeEvent(QResizeEvent *e) {
-	_columnSkip = (width() - _columnCount * st::sharePhotoRadius * 2) / float64(_columnCount + 1);
-	_rowWidthReal = st::sharePhotoRadius * 2 + _columnSkip;
+	_columnSkip = (width() - _columnCount * st::sharePhotoCheckbox.imageRadius * 2) / float64(_columnCount + 1);
+	_rowWidthReal = st::sharePhotoCheckbox.imageRadius * 2 + _columnSkip;
 	_rowsLeft = qFloor(_columnSkip / 2);
 	_rowWidth = qFloor(_rowWidthReal);
 	update();
-}
-
-struct AnimBumpy {
-	AnimBumpy(float64 bump) : bump(bump)
-		, dt0(bump - sqrt(bump * (bump - 1.)))
-		, k(1 / (2 * dt0 - 1)) {
-	}
-	float64 bump;
-	float64 dt0;
-	float64 k;
-};
-
-float64 anim_bumpy(const float64 &delta, const float64 &dt) {
-	static AnimBumpy data = { 1.25 };
-	return delta * (data.bump - data.k * (dt - data.dt0) * (dt - data.dt0));
 }
 
 void ShareInner::changeCheckState(Chat *chat) {
@@ -664,108 +604,20 @@ void ShareInner::changeCheckState(Chat *chat) {
 			row = _chatsIndexed->addToEnd(App::history(chat->peer)).value(0);
 		}
 		chat = getChat(row);
-		if (!chat->selected) {
+		if (!chat->checkbox.selected()) {
 			_chatsIndexed->moveToTop(chat->peer);
 		}
 		emit filterCancel();
 	}
 
-	chat->selected = !chat->selected;
-	if (chat->selected) {
+	chat->checkbox.toggleSelected();
+	if (chat->checkbox.selected()) {
 		_selected.insert(chat->peer);
-		chat->icons.push_back(Chat::Icon());
-		chat->icons.back().fadeIn.start([this, chat] {
-			repaintChat(chat->peer);
-		}, 0, 1, st::shareSelectDuration);
+		setActive(chatIndex(chat->peer));
 	} else {
 		_selected.remove(chat->peer);
-		prepareWideCheckIconCache(&chat->icons.back());
-		chat->icons.back().fadeOut.start([this, chat] {
-			repaintChat(chat->peer);
-			removeFadeOutedIcons(chat); // this call can destroy current lambda
-		}, 1, 0, st::shareSelectDuration);
-	}
-	prepareWideUserpicCache(chat);
-	chat->selection.start([this, chat] {
-		repaintChat(chat->peer);
-	}, chat->selected ? 0 : 1, chat->selected ? 1 : 0, st::shareSelectDuration, anim_bumpy);
-	if (chat->selected) {
-		setActive(chatIndex(chat->peer));
 	}
 	emit selectedChanged();
-}
-
-void ShareInner::removeFadeOutedIcons(Chat *chat) {
-	while (!chat->icons.empty() && !chat->icons.front().fadeIn.animating() && !chat->icons.front().fadeOut.animating()) {
-		if (chat->icons.size() > 1 || !chat->selected) {
-			chat->icons.erase(chat->icons.begin());
-		} else {
-			break;
-		}
-	}
-}
-
-void ShareInner::prepareWideUserpicCache(Chat *chat) {
-	if (chat->wideUserpicCache.isNull()) {
-		auto size = st::sharePhotoRadius * 2;
-		auto wideSize = size * WideCacheScale;
-		QImage cache(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(cRetinaFactor());
-		{
-			Painter p(&cache);
-			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(0, 0, wideSize, wideSize, Qt::transparent);
-			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			chat->peer->paintUserpic(p, size, (wideSize - size) / 2, (wideSize - size) / 2);
-		}
-		chat->wideUserpicCache = App::pixmapFromImageInPlace(std_::move(cache));
-		chat->wideUserpicCache.setDevicePixelRatio(cRetinaFactor());
-	}
-}
-
-void ShareInner::prepareWideCheckIconCache(Chat::Icon *icon) {
-	QImage wideCache(_wideCheckCache.width(), _wideCheckCache.height(), QImage::Format_ARGB32_Premultiplied);
-	wideCache.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&wideCache);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		auto iconRadius = WideCacheScale * st::shareCheckRadius;
-		auto divider = qRound((WideCacheScale - 2) * st::shareCheckRadius + icon->fadeIn.current(1.) * 3 * st::shareCheckRadius);
-		p.drawPixmapLeft(QRect(0, 0, divider, iconRadius * 2), width(), _wideCheckIconCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckIconCache.height()));
-		p.drawPixmapLeft(QRect(divider, 0, iconRadius * 2 - divider, iconRadius * 2), width(), _wideCheckCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckCache.width() - divider * cIntRetinaFactor(), _wideCheckCache.height()));
-	}
-	icon->wideCheckCache = App::pixmapFromImageInPlace(std_::move(wideCache));
-	icon->wideCheckCache.setDevicePixelRatio(cRetinaFactor());
-}
-
-void ShareInner::prepareWideCheckIcons() {
-	auto size = st::shareCheckRadius * 2;
-	auto wideSize = size * WideCacheScale;
-	QImage cache(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&cache);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, wideSize, wideSize, Qt::transparent);
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		auto pen = st::shareCheckBorder->p;
-		pen.setWidth(st::shareSelectWidth);
-		p.setPen(pen);
-		p.setBrush(st::shareCheckBg);
-		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
-		p.drawEllipse(ellipse);
-	}
-	QImage cacheIcon = cache;
-	{
-		Painter p(&cacheIcon);
-		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
-		st::shareCheckIcon.paint(p, ellipse.topLeft(), wideSize);
-	}
-	_wideCheckCache = App::pixmapFromImageInPlace(std_::move(cache));
-	_wideCheckCache.setDevicePixelRatio(cRetinaFactor());
-	_wideCheckIconCache = App::pixmapFromImageInPlace(std_::move(cacheIcon));
-	_wideCheckIconCache.setDevicePixelRatio(cRetinaFactor());
 }
 
 bool ShareInner::hasSelected() const {
@@ -867,7 +719,7 @@ void ShareInner::peopleReceived(const QString &query, const QVector<MTPPeer> &pe
 			auto *peer = App::peer(peerId);
 			if (!peer || !_filterCallback(peer)) continue;
 
-			auto chat = new Chat(peer);
+			auto chat = new Chat(peer, [this, peer] { repaintChat(peer); });
 			updateChatName(chat, peer);
 			if (auto row = _chatsIndexed->getRow(peer->id)) {
 				continue;
@@ -902,7 +754,7 @@ QVector<PeerData*> ShareInner::selected() const {
 	QVector<PeerData*> result;
 	result.reserve(_dataMap.size());
 	for_const (auto chat, _dataMap) {
-		if (chat->selected) {
+		if (chat->checkbox.selected()) {
 			result.push_back(chat->peer);
 		}
 	}

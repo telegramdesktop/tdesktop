@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/lambda_wrap.h"
 #include "core/observer.h"
 #include "core/vector_of_moveable.h"
+#include "ui/effects/round_image_checkbox.h"
 
 namespace Dialogs {
 class Row;
@@ -151,30 +152,19 @@ private:
 
 	int displayedChatsCount() const;
 
-	static constexpr int WideCacheScale = 4;
+	static constexpr int kWideCacheScale = Ui::kWideRoundImageCheckboxScale;
 	struct Chat {
-		Chat(PeerData *peer);
+		Chat(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
+
 		PeerData *peer;
+		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		bool selected = false;
-		QPixmap wideUserpicCache;
 		ColorAnimation nameFg;
-		FloatAnimation selection;
-		struct Icon {
-			FloatAnimation fadeIn;
-			FloatAnimation fadeOut;
-			QPixmap wideCheckCache;
-		};
-		std_::vector_of_moveable<Icon> icons;
 	};
 	void paintChat(Painter &p, Chat *chat, int index);
 	void updateChat(PeerData *peer);
 	void updateChatName(Chat *chat, PeerData *peer);
 	void repaintChat(PeerData *peer);
-	void removeFadeOutedIcons(Chat *chat);
-	void prepareWideUserpicCache(Chat *chat);
-	void prepareWideCheckIconCache(Chat::Icon *icon);
-	void prepareWideCheckIcons();
 	int chatIndex(PeerData *peer) const;
 	void repaintChatAtIndex(int index);
 	Chat *getChatAtIndex(int index);
@@ -203,8 +193,6 @@ private:
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;
-
-	QPixmap _wideCheckCache, _wideCheckIconCache;
 
 	using DataMap = QMap<PeerData*, Chat*>;
 	DataMap _dataMap;
