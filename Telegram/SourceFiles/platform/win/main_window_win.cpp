@@ -715,20 +715,28 @@ void MainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadBadge();
 	bool muted = App::histories().unreadOnlyMuted();
 
+	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
+	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
+
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
+	auto iconSmallPixmap16 = App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true));
+	auto iconSmallPixmap32 = App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true));
 	QIcon iconSmall, iconBig;
-	iconSmall.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
-	iconSmall.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
+	iconSmall.addPixmap(iconSmallPixmap16);
+	iconSmall.addPixmap(iconSmallPixmap32);
 	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, false)));
 	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, false)));
 	if (trayIcon) {
-		trayIcon->setIcon(iconSmall);
+		// Force Qt to use right icon size, not the larger one.
+		QIcon forTrayIcon;
+		forTrayIcon.addPixmap(iconSizeSmall.width() >= 32 ? iconSmallPixmap32 : iconSmallPixmap16);
+		trayIcon->setIcon(forTrayIcon);
 	}
 
 	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	psDestroyIcons();
-	ps_iconSmall = createHIconFromQIcon(iconSmall, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
-	ps_iconBig = createHIconFromQIcon(iconBig, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
+	ps_iconSmall = createHIconFromQIcon(iconSmall, iconSizeSmall.width(), iconSizeSmall.height());
+	ps_iconBig = createHIconFromQIcon(iconBig, iconSizeBig.width(), iconSizeBig.height());
 	SendMessage(ps_hWnd, WM_SETICON, 0, (LPARAM)ps_iconSmall);
 	SendMessage(ps_hWnd, WM_SETICON, 1, (LPARAM)(ps_iconBig ? ps_iconBig : ps_iconSmall));
 	if (taskbarList.Get()) {
@@ -738,7 +746,7 @@ void MainWindow::psUpdateCounter() {
 			iconOverlay.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(-32, counter, bg, false)));
 			ps_iconOverlay = createHIconFromQIcon(iconOverlay, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
-		QString description = counter > 0 ? QString("%1 unread messages").arg(counter) : qsl("No unread messages");
+		auto description = (counter > 0) ? lng_unread_bar(lt_count, counter) : LangString();
 		taskbarList->SetOverlayIcon(ps_hWnd, ps_iconOverlay, description.toStdWString().c_str());
 	}
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
