@@ -2106,10 +2106,11 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		for (int i = 0, s = _stack.size(); i < s; ++i) {
 			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer->id == peerId) {
 				foundInStack = true;
-				while (_stack.size() > i) {
+				while (_stack.size() > i + 1) {
 					clearBotStartToken(_stack.back()->peer);
 					_stack.pop_back();
 				}
+				_stack.pop_back();
 				if (!back) {
 					back = true;
 				}
@@ -2144,7 +2145,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
 		animationParams = prepareHistoryAnimation(peerId);
 	}
-	if (_history->peer() && _history->peer()->id != peerId) {
+	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {
 		clearBotStartToken(_history->peer());
 	}
 	_history->showHistory(peerId, showAtMsgId);

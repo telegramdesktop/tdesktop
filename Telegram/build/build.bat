@@ -92,7 +92,9 @@ echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
 echo Dumping debug symbols..
+xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe"
 call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
+del "%ReleasePath%\%BinaryName%.exe.exe"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
@@ -143,7 +145,7 @@ FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHa
 echo Copying %BinaryName%.exe.sym to %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
 if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb
 if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
-xcopy "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%\
+move "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%\
 echo Done!
 
 if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"

@@ -119,7 +119,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 
 	switch (message->type()) {
 	case mtpc_botInlineMessageMediaAuto: {
-		const auto &r(message->c_botInlineMessageMediaAuto());
+		auto &r = message->c_botInlineMessageMediaAuto();
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
 			result->sendData.reset(new internal::SendPhoto(result->_photo, qs(r.vcaption)));
@@ -136,7 +136,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	} break;
 
 	case mtpc_botInlineMessageText: {
-		const auto &r(message->c_botInlineMessageText());
+		auto &r = message->c_botInlineMessageText();
 		EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
 		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
 		if (result->_type == Type::Photo) {
@@ -150,7 +150,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	} break;
 
 	case mtpc_botInlineMessageMediaGeo: {
-		const auto &r(message->c_botInlineMessageMediaGeo());
+		auto &r = message->c_botInlineMessageMediaGeo();
 		if (r.vgeo.type() == mtpc_geoPoint) {
 			result->sendData.reset(new internal::SendGeo(r.vgeo.c_geoPoint()));
 		} else {
@@ -162,7 +162,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	} break;
 
 	case mtpc_botInlineMessageMediaVenue: {
-		const auto &r(message->c_botInlineMessageMediaVenue());
+		auto &r = message->c_botInlineMessageMediaVenue();
 		if (r.vgeo.type() == mtpc_geoPoint) {
 			result->sendData.reset(new internal::SendVenue(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress)));
 		} else {
@@ -174,7 +174,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	} break;
 
 	case mtpc_botInlineMessageMediaContact: {
-		const auto &r(message->c_botInlineMessageMediaContact());
+		auto &r = message->c_botInlineMessageMediaContact();
 		result->sendData.reset(new internal::SendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
