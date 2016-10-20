@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_boxes.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
@@ -36,6 +37,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 QString cantInviteError() {
 	return lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info)));
+}
+
+ContactsInner::ContactData::ContactData() : name(st::boxWideWidth) {
+}
+
+ContactsInner::ContactData::ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback)
+: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer)))
+, name(st::boxWideWidth) {
 }
 
 ContactsInner::ContactsInner(CreatingGroupType creating) : TWidget()
@@ -71,7 +80,7 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 , _chat(chat)
 , _membersFilter(membersFilter)
 , _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::contactsAdminCheckbox)
-, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right() - st::contactsCheckPosition.x() * 2 - st::contactsCheckIcon.pxWidth())
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _aboutAllAdmins(st::boxTextFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::boxTextFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
 , _customList((membersFilter == MembersFilterRecent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
@@ -149,7 +158,7 @@ void ContactsInner::init() {
 }
 
 void ContactsInner::initList() {
-	if (!_chat || _membersFilter != MembersFilterAdmins) return;
+	if (!usingMultiSelect()) return;
 
 	QList<UserData*> admins, others;
 	admins.reserve(_chat->admins.size() + 1);
@@ -370,41 +379,37 @@ ContactsInner::ContactData *ContactsInner::contactData(Dialogs::Row *row) {
 		PeerData *peer = row->history()->peer;
 		ContactsData::const_iterator i = _contactsData.constFind(peer);
 		if (i == _contactsData.cend()) {
-			_contactsData.insert(peer, data = new ContactData());
+			data = usingMultiSelect() ? new ContactData(peer, [this, peer] { updateRowWithPeer(peer); }) : new ContactData();
+			_contactsData.insert(peer, data);
 			if (peer->isUser()) {
 				if (_chat) {
 					if (_membersFilter == MembersFilterRecent) {
-						data->inchat = _chat->participants.contains(peer->asUser());
-					} else {
-						data->inchat = false;
+						data->disabledChecked = _chat->participants.contains(peer->asUser());
 					}
 				} else if (_creating == CreatingGroupGroup) {
-					data->inchat = (peerToUser(peer->id) == MTP::authedId());
+					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId());
 				} else if (_channel) {
-					data->inchat = (peerToUser(peer->id) == MTP::authedId()) || _already.contains(peer->asUser());
-				} else {
-					data->inchat = false;
+					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId()) || _already.contains(peer->asUser());
 				}
-			} else {
-				data->inchat = false;
 			}
-			data->onlineColor = false;
-			data->check = _checkedContacts.contains(peer);
+			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
+				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
+			}
 			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
 			if (peer->isUser()) {
-				data->online = App::onlineText(peer->asUser(), _time);
-				data->onlineColor = App::onlineColorUse(peer->asUser(), _time);
+				data->statusText = App::onlineText(peer->asUser(), _time);
+				data->statusHasOnlineColor = App::onlineColorUse(peer->asUser(), _time);
 			} else if (peer->isChat()) {
 				ChatData *chat = peer->asChat();
 				if (!chat->amIn()) {
-					data->online = lang(lng_chat_status_unaccessible);
+					data->statusText = lang(lng_chat_status_unaccessible);
 				} else {
-					data->online = lng_chat_status_members(lt_count, chat->count);
+					data->statusText = lng_chat_status_members(lt_count, chat->count);
 				}
 			} else if (peer->isMegagroup()) {
-				data->online = lang(lng_group_status);
+				data->statusText = lang(lng_group_status);
 			} else if (peer->isChannel()) {
-				data->online = lang(lng_channel_status);
+				data->statusText = lang(lng_channel_status);
 			}
 		} else {
 			data = i.value();
@@ -417,49 +422,58 @@ ContactsInner::ContactData *ContactsInner::contactData(Dialogs::Row *row) {
 void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel) {
 	UserData *user = peer->asUser();
 
-	bool inverse = data->inchat || data->check;
 	if (_chat && _membersFilter == MembersFilterAdmins) {
-		inverse = false;
 		if (_allAdmins.checked() || peer->id == peerFromUser(_chat->creator) || _saving) {
 			sel = false;
 		}
 	} else {
-		if (data->inchat || data->check || selectedCount() >= Global::MegagroupSizeMax()) {
+		if (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax()) {
 			sel = false;
 		}
 	}
-	p.fillRect(0, 0, width(), _rowHeight, inverse ? st::contactsBgActive : (sel ? st::contactsBgOver : st::white));
-	p.setPen(inverse ? st::white : st::black);
-	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
-	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
-	int32 iconw = (_chat || _creating != CreatingGroupNone) ? (st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth()) : 0;
-	int32 namew = width() - namex - st::contactsPadding.right() - iconw;
+	auto paintDisabledCheck = data->disabledChecked;
+	if (_chat && _membersFilter == MembersFilterAdmins) {
+		if (peer->id == peerFromUser(_chat->creator) || _allAdmins.checked()) {
+			paintDisabledCheck = true;
+		}
+	}
+
+	auto checkedRatio = 0.;
+	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::white);
+	if (paintDisabledCheck) {
+		paintDisabledCheckUserpic(p, peer, st::contactsPadding.left(), st::contactsPadding.top(), width());
+	} else if (usingMultiSelect()) {
+		checkedRatio = data->checkbox->checkedAnimationRatio();
+		data->checkbox->paint(p, st::contactsPadding.left(), st::contactsPadding.top(), width());
+	} else {
+		peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+	}
+
+	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
+	int namew = width() - namex - st::contactsPadding.right();
 	if (peer->isVerified()) {
 		auto icon = &st::dialogsVerifiedIcon;
 		namew -= icon->width();
 		icon->paint(p, namex + qMin(data->name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
+	if (checkedRatio > 0) {
+		if (checkedRatio < 1) {
+			p.setPen(style::interpolate(st::black, st::contactsNameCheckedFg, checkedRatio));
+		} else {
+			p.setPen(st::contactsNameCheckedFg);
+		}
+	} else {
+		p.setPen(st::black);
+	}
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
-	if (_chat || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilterAdmins))) {
-		if (_chat && _membersFilter == MembersFilterAdmins) {
-			if (sel || data->check || peer->id == peerFromUser(_chat->creator) || _allAdmins.checked()) {
-				if (!data->check || peer->id == peerFromUser(_chat->creator) || _allAdmins.checked()) p.setOpacity(0.5);
-				p.drawSpriteRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + st::contactsCheckPosition.y(), width(), st::contactsCheckIcon);
-				if (!data->check || peer->id == peerFromUser(_chat->creator) || _allAdmins.checked()) p.setOpacity(1);
-			}
-		} else if (sel || data->check) {
-			p.drawSpriteRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + st::contactsCheckPosition.y(), width(), (data->check ? st::contactsCheckActiveIcon : st::contactsCheckIcon));
-		}
-	}
-
-	bool uname = (user || peer->isChannel()) && (data->online.at(0) == '@');
+	bool uname = (user || peer->isChannel()) && (data->statusText.at(0) == '@');
 	p.setFont(st::contactsStatusFont->f);
-	if (uname && !data->inchat && !data->check && !_lastQuery.isEmpty() && peer->userName().startsWith(_lastQuery, Qt::CaseInsensitive)) {
-		int32 availw = width() - namex - st::contactsPadding.right() - iconw;
+	if (uname && !_lastQuery.isEmpty() && peer->userName().startsWith(_lastQuery, Qt::CaseInsensitive)) {
+		int availw = width() - namex - st::contactsPadding.right();
 		QString first = '@' + peer->userName().mid(0, _lastQuery.size()), second = peer->userName().mid(_lastQuery.size());
-		int32 w = st::contactsStatusFont->width(first);
+		int w = st::contactsStatusFont->width(first);
 		if (w >= availw || second.isEmpty()) {
 			p.setPen(st::contactsStatusFgOnline);
 			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), st::contactsStatusFont->elided(first, availw));
@@ -472,15 +486,48 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 			p.drawTextLeft(namex + w, st::contactsPadding.top() + st::contactsStatusTop, width() + w, second);
 		}
 	} else {
-		if (inverse) {
-			p.setPen(st::white);
-		} else if ((user && (uname || data->onlineColor)) || (peer->isChannel() && uname)) {
+		if ((user && (uname || data->statusHasOnlineColor)) || (peer->isChannel() && uname)) {
 			p.setPen(st::contactsStatusFgOnline);
 		} else {
 			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
 		}
-		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->online);
+		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->statusText);
 	}
+}
+
+// Emulates Ui::RoundImageCheckbox::paint() in a checked state.
+void ContactsInner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const {
+	auto userpicRadius = st::contactsPhotoCheckbox.imageSmallRadius;
+	auto userpicShift = st::contactsPhotoCheckbox.imageRadius - userpicRadius;
+	auto userpicDiameter = st::contactsPhotoCheckbox.imageRadius * 2;
+	auto userpicLeft = x + userpicShift;
+	auto userpicTop = y + userpicShift;
+	auto userpicEllipse = rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
+	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
+	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
+
+	auto iconDiameter = 2 * st::contactsPhotoCheckbox.checkRadius;
+	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
+	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
+	auto iconEllipse = rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
+	auto iconBorderPen = st::contactsPhotoCheckbox.checkBorder->p;
+	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
+
+	peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, width());
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+	p.setPen(userpicBorderPen);
+	p.setBrush(Qt::NoBrush);
+	p.drawEllipse(userpicEllipse);
+
+	p.setPen(iconBorderPen);
+	p.setBrush(st::contactsPhotoDisabledCheckFg);
+	p.drawEllipse(iconEllipse);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+	st::contactsPhotoCheckbox.checkIcon.paint(p, iconEllipse.topLeft(), outerWidth);
 }
 
 void ContactsInner::paintEvent(QPaintEvent *e) {
@@ -489,7 +536,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 
 	p.setClipRect(r);
 	_time = unixtime();
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::white);
 
 	int32 yFrom = r.y(), yTo = r.y() + r.height();
 	if (_filter.isEmpty()) {
@@ -500,8 +547,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 					p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
 					p.setPen(st::black);
 					p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
-					int32 iconw = st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth();
-					int32 aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right() - iconw;
+					int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 					(_allAdmins.checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
 				} else {
 					p.fillRect(0, 0, width(), st::contactsNewItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
@@ -556,8 +602,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 				p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
 				p.setPen(st::black);
 				p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
-				int32 iconw = st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth();
-				int32 aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right() - iconw;
+				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins.checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
 				p.translate(0, _newItemHeight);
 			} else if (cContactsReceived() && !_searching) {
@@ -618,24 +663,69 @@ void ContactsInner::enterEvent(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void ContactsInner::updateSelectedRow() {
+int ContactsInner::getSelectedRowTop() const {
 	if (_filter.isEmpty()) {
-		if (_newItemSel) {
-			update(0, 0, width(), st::contactsNewItemHeight);
-		}
 		if (_sel) {
-			update(0, _newItemHeight + _sel->pos() * _rowHeight, width(), _rowHeight);
-		}
-		if (_byUsernameSel >= 0) {
-			update(0, _newItemHeight + _contacts->size() * _rowHeight + st::searchedBarHeight + _byUsernameSel * _rowHeight, width(), _rowHeight);
+			return _newItemHeight + (_sel->pos() * _rowHeight);
+		} else if (_byUsernameSel >= 0) {
+			return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_byUsernameSel * _rowHeight);
 		}
 	} else {
 		if (_filteredSel >= 0) {
-			update(0, _filteredSel * _rowHeight, width(), _rowHeight);
+			return (_filteredSel * _rowHeight);
+		} else if (_byUsernameSel >= 0) {
+			return (_filtered.size() * _rowHeight + st::searchedBarHeight + _byUsernameSel * _rowHeight);
 		}
-		if (_byUsernameSel >= 0) {
-			update(0, _filtered.size() * _rowHeight + st::searchedBarHeight + _byUsernameSel * _rowHeight, width(), _rowHeight);
+	}
+	return -1;
+}
+
+void ContactsInner::updateSelectedRow() {
+	if (_filter.isEmpty() && _newItemSel) {
+		update(0, 0, width(), st::contactsNewItemHeight);
+	} else {
+		auto rowTop = getSelectedRowTop();
+		if (rowTop >= 0) {
+			updateRowWithTop(rowTop);
 		}
+	}
+}
+
+void ContactsInner::updateRowWithTop(int rowTop) {
+	update(0, rowTop, width(), _rowHeight);
+}
+
+int ContactsInner::getRowTopWithPeer(PeerData *peer) const {
+	if (_filter.isEmpty()) {
+		for (auto i = _contacts->cbegin(), end = _contacts->cend(); i != end; ++i) {
+			if ((*i)->history()->peer == peer) {
+				return _newItemHeight + ((*i)->pos() * _rowHeight);
+			}
+		}
+		for (auto i = 0, count = _byUsername.size(); i != count; ++i) {
+			if (_byUsername[i] == peer) {
+				return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
+			}
+		}
+	} else {
+		for (auto i = 0, count = _filtered.size(); i != count; ++i) {
+			if (_filtered[i]->history()->peer == peer) {
+				return (i * _rowHeight);
+			}
+		}
+		for (auto i = 0, count = _byUsernameFiltered.size(); i != count; ++i) {
+			if (_byUsernameFiltered[i] == peer) {
+				return (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
+			}
+		}
+	}
+	return -1;
+}
+
+void ContactsInner::updateRowWithPeer(PeerData *peer) {
+	auto rowTop = getRowTopWithPeer(peer);
+	if (rowTop >= 0) {
+		updateRowWithTop(rowTop);
 	}
 }
 
@@ -668,19 +758,19 @@ void ContactsInner::mousePressEvent(QMouseEvent *e) {
 void ContactsInner::chooseParticipant() {
 	if (_saving) return;
 	bool addingAdmin = (_channel && _membersFilter == MembersFilterAdmins);
-	if (!addingAdmin && (_chat || _creating != CreatingGroupNone)) {
+	if (!addingAdmin && usingMultiSelect()) {
 		_time = unixtime();
 		if (_filter.isEmpty()) {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				if (d_byUsername[_byUsernameSel]->inchat) return;
+				if (d_byUsername[_byUsernameSel]->disabledChecked) return;
 				changeCheckState(d_byUsername[_byUsernameSel], _byUsername[_byUsernameSel]);
 			} else {
-				if (!_sel || contactData(_sel)->inchat) return;
+				if (!_sel || contactData(_sel)->disabledChecked) return;
 				changeCheckState(_sel);
 			}
 		} else {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				if (d_byUsernameFiltered[_byUsernameSel]->inchat) return;
+				if (d_byUsernameFiltered[_byUsernameSel]->disabledChecked) return;
 				changeCheckState(d_byUsernameFiltered[_byUsernameSel], _byUsernameFiltered[_byUsernameSel]);
 
 				ContactData *moving = d_byUsernameFiltered[_byUsernameSel];
@@ -703,7 +793,7 @@ void ContactsInner::chooseParticipant() {
 					}
 				}
 			} else {
-				if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->inchat) return;
+				if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->disabledChecked) return;
 				changeCheckState(_filtered[_filteredSel]);
 			}
 			emit selectAllQuery();
@@ -770,13 +860,15 @@ void ContactsInner::changeCheckState(Dialogs::Row *row) {
 }
 
 void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
+	t_assert(usingMultiSelect());
+
 	int32 cnt = _selCount;
-	if (data->check) {
-		data->check = false;
+	if (data->checkbox->checked()) {
+		data->checkbox->setChecked(false);
 		_checkedContacts.remove(peer);
 		--_selCount;
 	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
-		data->check = true;
+		data->checkbox->setChecked(true);
 		_checkedContacts.insert(peer, true);
 		++_selCount;
 	} else if (_channel && !_channel->isMegagroup()) {
@@ -933,14 +1025,14 @@ void ContactsInner::updateFilter(QString filter) {
 			}
 			_filteredSel = -1;
 			if (!_filtered.isEmpty()) {
-				for (_filteredSel = 0; (_filteredSel < _filtered.size()) && contactData(_filtered[_filteredSel])->inchat;) {
+				for (_filteredSel = 0; (_filteredSel < _filtered.size()) && contactData(_filtered[_filteredSel])->disabledChecked;) {
 					++_filteredSel;
 				}
 				if (_filteredSel == _filtered.size()) _filteredSel = -1;
 			}
 			_byUsernameSel = -1;
 			if (_filteredSel < 0 && !_byUsernameFiltered.isEmpty()) {
-				for (_byUsernameSel = 0; (_byUsernameSel < _byUsernameFiltered.size()) && d_byUsernameFiltered[_byUsernameSel]->inchat;) {
+				for (_byUsernameSel = 0; (_byUsernameSel < _byUsernameFiltered.size()) && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
 					++_byUsernameSel;
 				}
 				if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
@@ -993,20 +1085,20 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 	_byUsernameFiltered.reserve(already + people.size());
 	d_byUsernameFiltered.reserve(already + people.size());
 	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
-		PeerId peerId = peerFromMTP(*i);
-		int32 j = 0;
+		auto peerId = peerFromMTP(*i);
+		int j = 0;
 		for (; j < already; ++j) {
 			if (_byUsernameFiltered[j]->id == peerId) break;
 		}
 		if (j == already) {
-			PeerData *p = App::peer(peerId);
-			if (!p) continue;
+			auto peer = App::peer(peerId);
+			if (!peer) continue;
 
 			if (_channel || _chat || _creating != CreatingGroupNone) {
-				if (p->isUser()) {
-					if (p->asUser()->botInfo) {
+				if (peer->isUser()) {
+					if (peer->asUser()->botInfo) {
 						if (_chat || _creating == CreatingGroupGroup) { // skip bot's that can't be invited to groups
-							if (p->asUser()->botInfo->cantJoinGroups) continue;
+							if (peer->asUser()->botInfo->cantJoinGroups) continue;
 						}
 						if (_channel) {
 							if (!_channel->isMegagroup() && _membersFilter != MembersFilterAdmins) continue;
@@ -1016,25 +1108,27 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 					continue; // skip
 				}
 			} else if (sharingBotGame()) {
-				if (!p->canWrite()) {
+				if (!peer->canWrite()) {
 					continue;
 				}
-				if (auto channel = p->asChannel()) {
+				if (auto channel = peer->asChannel()) {
 					if (channel->isBroadcast()) {
 						continue;
 					}
 				}
 			}
 
-			ContactData *d = new ContactData();
-			_byUsernameDatas.push_back(d);
-			d->inchat = _chat ? _chat->participants.contains(p->asUser()) : ((_creating == CreatingGroupGroup || _channel) ? (p == App::self()) : false);
-			d->check = _checkedContacts.contains(p);
-			d->name.setText(st::contactsNameFont, p->name, _textNameOptions);
-			d->online = '@' + p->userName();
+			auto data = usingMultiSelect() ? new ContactData(peer, [this, peer] { updateRowWithPeer(peer); }) : new ContactData();
+			_byUsernameDatas.push_back(data);
+			data->disabledChecked = _chat ? _chat->participants.contains(peer->asUser()) : ((_creating == CreatingGroupGroup || _channel) ? (peer == App::self()) : false);
+			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
+				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
+			}
+			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+			data->statusText = '@' + peer->userName();
 
-			_byUsernameFiltered.push_back(p);
-			d_byUsernameFiltered.push_back(d);
+			_byUsernameFiltered.push_back(peer);
+			d_byUsernameFiltered.push_back(data);
 		}
 	}
 	_searching = false;
@@ -1160,33 +1254,33 @@ void ContactsInner::selectSkip(int32 dir) {
 			_byUsernameSel = -1;
 		}
 		if (dir > 0) {
-			for (auto i = _contacts->cfind(_sel), end = _contacts->cend(); i != end && contactData(*i)->inchat; ++i) {
+			for (auto i = _contacts->cfind(_sel), end = _contacts->cend(); i != end && contactData(*i)->disabledChecked; ++i) {
 				_sel = *i;
 			}
-			if (_sel && contactData(_sel)->inchat) {
+			if (_sel && contactData(_sel)->disabledChecked) {
 				_sel = nullptr;
 			}
 			if (!_sel) {
 				if (!_byUsername.isEmpty()) {
 					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->inchat;) {
+					for (; _byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->disabledChecked;) {
 						++_byUsernameSel;
 					}
 					if (_byUsernameSel == _byUsername.size()) _byUsernameSel = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsername[_byUsernameSel]->inchat) {
+			while (_byUsernameSel >= 0 && d_byUsername[_byUsernameSel]->disabledChecked) {
 				--_byUsernameSel;
 			}
 			if (_byUsernameSel < 0) {
 				if (!_contacts->isEmpty()) {
 					if (!_newItemSel && !_sel) _sel = *(_contacts->cend() - 1);
 					if (_sel) {
-						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->inchat; --i) {
+						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
 							_sel = *i;
 						}
-						if (contactData(_sel)->inchat) {
+						if (contactData(_sel)->disabledChecked) {
 							_sel = nullptr;
 						}
 					}
@@ -1215,27 +1309,27 @@ void ContactsInner::selectSkip(int32 dir) {
 			_byUsernameSel = -1;
 		}
 		if (dir > 0) {
-			while (_filteredSel >= 0 && _filteredSel < _filtered.size() && contactData(_filtered[_filteredSel])->inchat) {
+			while (_filteredSel >= 0 && _filteredSel < _filtered.size() && contactData(_filtered[_filteredSel])->disabledChecked) {
 				++_filteredSel;
 			}
 			if (_filteredSel < 0 || _filteredSel >= _filtered.size()) {
 				_filteredSel = -1;
 				if (!_byUsernameFiltered.isEmpty()) {
 					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsernameFiltered.size() && d_byUsernameFiltered[_byUsernameSel]->inchat;) {
+					for (; _byUsernameSel < _byUsernameFiltered.size() && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
 						++_byUsernameSel;
 					}
 					if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsernameFiltered[_byUsernameSel]->inchat) {
+			while (_byUsernameSel >= 0 && d_byUsernameFiltered[_byUsernameSel]->disabledChecked) {
 				--_byUsernameSel;
 			}
 			if (_byUsernameSel < 0) {
 				if (!_filtered.isEmpty()) {
 					if (_filteredSel < 0) _filteredSel = _filtered.size() - 1;
-					for (; _filteredSel >= 0 && contactData(_filtered[_filteredSel])->inchat;) {
+					for (; _filteredSel >= 0 && contactData(_filtered[_filteredSel])->disabledChecked;) {
 						--_filteredSel;
 					}
 				}
@@ -1259,6 +1353,10 @@ void ContactsInner::selectSkipPage(int32 h, int32 dir) {
 
 QVector<UserData*> ContactsInner::selected() {
 	QVector<UserData*> result;
+	if (!usingMultiSelect()) {
+		return result;
+	}
+
 	for_const (auto row, *_contacts) {
 		if (_checkedContacts.contains(row->history()->peer)) {
 			contactData(row); // fill _contactsData
@@ -1266,12 +1364,12 @@ QVector<UserData*> ContactsInner::selected() {
 	}
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
-		if (i.value()->check && i.key()->isUser()) {
+		if (i.value()->checkbox->checked() && i.key()->isUser()) {
 			result.push_back(i.key()->asUser());
 		}
 	}
 	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
-		if (d_byUsername[i]->check && _byUsername[i]->isUser()) {
+		if (d_byUsername[i]->checkbox->checked() && _byUsername[i]->isUser()) {
 			result.push_back(_byUsername[i]->asUser());
 		}
 	}
@@ -1280,6 +1378,10 @@ QVector<UserData*> ContactsInner::selected() {
 
 QVector<MTPInputUser> ContactsInner::selectedInputs() {
 	QVector<MTPInputUser> result;
+	if (!usingMultiSelect()) {
+		return result;
+	}
+
 	for_const (auto row, *_contacts) {
 		if (_checkedContacts.contains(row->history()->peer)) {
 			contactData(row); // fill _contactsData
@@ -1287,35 +1389,16 @@ QVector<MTPInputUser> ContactsInner::selectedInputs() {
 	}
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
-		if (i.value()->check && i.key()->isUser()) {
+		if (i.value()->checkbox->checked() && i.key()->isUser()) {
 			result.push_back(i.key()->asUser()->inputUser);
 		}
 	}
 	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
-		if (d_byUsername[i]->check && _byUsername[i]->isUser()) {
+		if (d_byUsername[i]->checkbox->checked() && _byUsername[i]->isUser()) {
 			result.push_back(_byUsername[i]->asUser()->inputUser);
 		}
 	}
 	return result;
-}
-
-PeerData *ContactsInner::selectedUser() {
-	for_const (auto row, *_contacts) {
-		if (_checkedContacts.contains(row->history()->peer)) {
-			contactData(row); // fill _contactsData
-		}
-	}
-	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
-		if (i.value()->check) {
-			return i.key();
-		}
-	}
-	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
-		if (d_byUsername[i]->check) {
-			return _byUsername[i];
-		}
-	}
-	return 0;
 }
 
 ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
@@ -1324,9 +1407,7 @@ ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_create_group_next), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0) {
+, _topShadow(this) {
 	init();
 }
 
@@ -1337,8 +1418,6 @@ ContactsBox::ContactsBox(const QString &name, const QImage &photo) : ItemListBox
 , _next(this, lang(lng_create_group_create), st::defaultBoxButton)
 , _cancel(this, lang(lng_create_group_back), st::cancelBoxButton)
 , _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0)
 , _creationName(name)
 , _creationPhoto(photo) {
 	init();
@@ -1350,9 +1429,7 @@ ContactsBox::ContactsBox(ChannelData *channel) : ItemListBox(st::boxScroll)
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_create_group_skip), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0) {
+, _topShadow(this) {
 	init();
 }
 
@@ -1362,9 +1439,7 @@ ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const Membe
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0) {
+, _topShadow(this) {
 	init();
 }
 
@@ -1374,9 +1449,7 @@ ContactsBox::ContactsBox(ChatData *chat, MembersFilter filter) : ItemListBox(st:
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang((filter == MembersFilterAdmins) ? lng_settings_save : lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0) {
+, _topShadow(this) {
 	init();
 }
 
@@ -1386,9 +1459,7 @@ ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_create_group_next), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(0)
-, _saveRequestId(0) {
+, _topShadow(this) {
 	init();
 }
 

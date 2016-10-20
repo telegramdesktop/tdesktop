@@ -24,10 +24,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 namespace {
 
+static constexpr int kWideScale = 4;
+
 void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCache, QPixmap &checkFullCache) {
 	auto size = st->checkRadius * 2;
-	auto wideSize = size * kWideRoundImageCheckboxScale;
-	QImage cache(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto wideSize = size * kWideScale;
+	auto cache = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	cache.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&cache);
@@ -42,7 +44,7 @@ void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCac
 		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
 		p.drawEllipse(ellipse);
 	}
-	QImage cacheIcon = cache;
+	auto cacheIcon = cache;
 	{
 		Painter p(&cacheIcon);
 		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
@@ -80,13 +82,13 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, Upda
 }
 
 void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
-	auto selectionLevel = _selection.current(_selected ? 1. : 0.);
+	auto selectionLevel = _selection.current(_checked ? 1. : 0.);
 	if (_selection.animating()) {
 		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-		auto userpicRadius = qRound(kWideRoundImageCheckboxScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
-		auto userpicShift = kWideRoundImageCheckboxScale * _st.imageRadius - userpicRadius;
-		auto userpicLeft = x - (kWideRoundImageCheckboxScale - 1) * _st.imageRadius + userpicShift;
-		auto userpicTop = y - (kWideRoundImageCheckboxScale - 1) * _st.imageRadius + userpicShift;
+		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
+		auto userpicShift = kWideScale * _st.imageRadius - userpicRadius;
+		auto userpicLeft = x - (kWideScale - 1) * _st.imageRadius + userpicShift;
+		auto userpicTop = y - (kWideScale - 1) * _st.imageRadius + userpicShift;
 		auto to = QRect(userpicLeft, userpicTop, userpicRadius * 2, userpicRadius * 2);
 		auto from = QRect(QPoint(0, 0), _wideCache.size());
 		p.drawPixmapLeft(to, outerWidth, _wideCache, from);
@@ -95,7 +97,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		if (!_wideCache.isNull()) {
 			_wideCache = QPixmap();
 		}
-		auto userpicRadius = _selected ? _st.imageSmallRadius : _st.imageRadius;
+		auto userpicRadius = _checked ? _st.imageSmallRadius : _st.imageRadius;
 		auto userpicShift = _st.imageRadius - userpicRadius;
 		auto userpicLeft = x + userpicShift;
 		auto userpicTop = y + userpicShift;
@@ -106,7 +108,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
 		p.setOpacity(snap(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
-		QPen pen = _st.selectFg;
+		auto pen = _st.selectFg->p;
 		pen.setWidth(_st.selectWidth);
 		p.setPen(pen);
 		p.drawEllipse(rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
@@ -119,10 +121,10 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 	for (auto &icon : _icons) {
 		auto fadeIn = icon.fadeIn.current(1.);
 		auto fadeOut = icon.fadeOut.current(1.);
-		auto iconRadius = qRound(kWideRoundImageCheckboxScale * (_st.checkSmallRadius + fadeOut * (_st.checkRadius - _st.checkSmallRadius)));
-		auto iconShift = kWideRoundImageCheckboxScale * _st.checkRadius - iconRadius;
-		auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideRoundImageCheckboxScale - 1) * _st.checkRadius + iconShift;
-		auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideRoundImageCheckboxScale - 1) * _st.checkRadius + iconShift;
+		auto iconRadius = qRound(kWideScale * (_st.checkSmallRadius + fadeOut * (_st.checkRadius - _st.checkSmallRadius)));
+		auto iconShift = kWideScale * _st.checkRadius - iconRadius;
+		auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideScale - 1) * _st.checkRadius + iconShift;
+		auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideScale - 1) * _st.checkRadius + iconShift;
 		auto to = QRect(iconLeft, iconTop, iconRadius * 2, iconRadius * 2);
 		auto from = QRect(QPoint(0, 0), _wideCheckFullCache.size());
 		auto opacity = fadeIn * fadeOut;
@@ -130,7 +132,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		if (fadeOut < 1.) {
 			p.drawPixmapLeft(to, outerWidth, icon.wideCheckCache, from);
 		} else {
-			auto divider = qRound((kWideRoundImageCheckboxScale - 2) * _st.checkRadius + fadeIn * 3 * _st.checkRadius);
+			auto divider = qRound((kWideScale - 2) * _st.checkRadius + fadeIn * 3 * _st.checkRadius);
 			p.drawPixmapLeft(QRect(iconLeft, iconTop, divider, iconRadius * 2), outerWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
 			p.drawPixmapLeft(QRect(iconLeft + divider, iconTop, iconRadius * 2 - divider, iconRadius * 2), outerWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
 		}
@@ -139,25 +141,50 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 	p.setOpacity(1.);
 }
 
-void RoundImageCheckbox::toggleSelected() {
-	_selected = !_selected;
-	if (_selected) {
+float64 RoundImageCheckbox::checkedAnimationRatio() const {
+	return snap(_selection.current(_checked ? 1. : 0.), 0., 1.);
+}
+
+void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
+	if (_checked == checked) {
+		if (speed != SetStyle::Animated) {
+			if (!_icons.isEmpty()) {
+				_icons.back().fadeIn.finish();
+				_icons.back().fadeOut.finish();
+			}
+			_selection.finish();
+		}
+		return;
+	}
+	_checked = checked;
+	if (_checked) {
 		_icons.push_back(Icon());
 		_icons.back().fadeIn.start(UpdateCallback(_updateCallback), 0, 1, _st.selectDuration);
+		if (speed != SetStyle::Animated) {
+			_icons.back().fadeIn.finish();
+		}
 	} else {
-		prepareWideCheckIconCache(&_icons.back());
 		_icons.back().fadeOut.start([this] {
 			_updateCallback();
 			removeFadeOutedIcons(); // this call can destroy current lambda
 		}, 1, 0, _st.selectDuration);
+		if (speed == SetStyle::Animated) {
+			prepareWideCheckIconCache(&_icons.back());
+		} else {
+			_icons.back().fadeOut.finish();
+		}
 	}
-	prepareWideCache();
-	_selection.start(UpdateCallback(_updateCallback), _selected ? 0 : 1, _selected ? 1 : 0, _st.selectDuration, anim_bumpy<125>);
+	if (speed == SetStyle::Animated) {
+		prepareWideCache();
+		_selection.start(UpdateCallback(_updateCallback), _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim_bumpy<125>);
+	} else {
+		_selection.finish();
+	}
 }
 
 void RoundImageCheckbox::removeFadeOutedIcons() {
 	while (!_icons.empty() && !_icons.front().fadeIn.animating() && !_icons.front().fadeOut.animating()) {
-		if (_icons.size() > 1 || !_selected) {
+		if (_icons.size() > 1 || !_checked) {
 			_icons.erase(_icons.begin());
 		} else {
 			break;
@@ -168,7 +195,7 @@ void RoundImageCheckbox::removeFadeOutedIcons() {
 void RoundImageCheckbox::prepareWideCache() {
 	if (_wideCache.isNull()) {
 		auto size = _st.imageRadius * 2;
-		auto wideSize = size * kWideRoundImageCheckboxScale;
+		auto wideSize = size * kWideScale;
 		QImage cache(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		cache.setDevicePixelRatio(cRetinaFactor());
 		{
@@ -190,8 +217,8 @@ void RoundImageCheckbox::prepareWideCheckIconCache(Icon *icon) {
 	{
 		Painter p(&wideCache);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		auto iconRadius = kWideRoundImageCheckboxScale * _st.checkRadius;
-		auto divider = qRound((kWideRoundImageCheckboxScale - 2) * _st.checkRadius + icon->fadeIn.current(1.) * (kWideRoundImageCheckboxScale - 1) * _st.checkRadius);
+		auto iconRadius = kWideScale * _st.checkRadius;
+		auto divider = qRound((kWideScale - 2) * _st.checkRadius + icon->fadeIn.current(1.) * (kWideScale - 1) * _st.checkRadius);
 		p.drawPixmapLeft(QRect(0, 0, divider, iconRadius * 2), cacheWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
 		p.drawPixmapLeft(QRect(divider, 0, iconRadius * 2 - divider, iconRadius * 2), cacheWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
 	}

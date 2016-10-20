@@ -152,7 +152,6 @@ private:
 
 	int displayedChatsCount() const;
 
-	static constexpr int kWideCacheScale = Ui::kWideRoundImageCheckboxScale;
 	struct Chat {
 		Chat(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
 

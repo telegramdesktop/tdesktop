@@ -68,14 +68,9 @@ aboutRevokePublicLabel: flatLabel(labelDefFlat) {
 	textFg: windowTextFg;
 }
 
-localStorageBoxSkip: 10px;
-
-shareRowsTop: 12px;
-shareRowHeight: 108px;
-sharePhotoTop: 6px;
-sharePhotoCheckbox: RoundImageCheckbox {
-	imageRadius: 28px;
-	imageSmallRadius: 24px;
+contactsPhotoCheckbox: RoundImageCheckbox {
+	imageRadius: 21px;
+	imageSmallRadius: 18px;
 	selectWidth: 2px;
 	selectFg: windowActiveBg;
 	selectDuration: 150;
@@ -84,6 +79,18 @@ sharePhotoCheckbox: RoundImageCheckbox {
 	checkRadius: 10px;
 	checkSmallRadius: 3px;
 	checkIcon: icon {{ "default_checkbox_check", windowBg, point(3px, 6px) }};
+}
+contactsPhotoDisabledCheckFg: #bbbbbb;
+contactsNameCheckedFg: #2b88b8;
+
+localStorageBoxSkip: 10px;
+
+shareRowsTop: 12px;
+shareRowHeight: 108px;
+sharePhotoTop: 6px;
+sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
+	imageRadius: 28px;
+	imageSmallRadius: 24px;
 }
 shareNameFont: font(11px);
 shareNameFg: windowTextFg;

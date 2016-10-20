@@ -33,16 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
 #include "history/history_media_types.h"
-
-namespace {
-
-Ui::RoundImageCheckbox::PaintRoundImage paintUserpicCallback(PeerData *peer) {
-	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, size, x, y, outerWidth);
-	};
-}
-
-} // namespace
+#include "boxes/contactsbox.h"
 
 ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback) : ItemListBox(st::boxScroll)
 , _copyCallback(std_::move(copyCallback))
@@ -485,7 +476,7 @@ void ShareInner::paintChat(Painter &p, Chat *chat, int index) {
 
 ShareInner::Chat::Chat(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback)
 : peer(peer)
-, checkbox(st::sharePhotoCheckbox, std_::move(updateCallback), paintUserpicCallback(peer))
+, checkbox(st::sharePhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer))
 , name(st::sharePhotoCheckbox.imageRadius * 2) {
 }
 
@@ -604,14 +595,14 @@ void ShareInner::changeCheckState(Chat *chat) {
 			row = _chatsIndexed->addToEnd(App::history(chat->peer)).value(0);
 		}
 		chat = getChat(row);
-		if (!chat->checkbox.selected()) {
+		if (!chat->checkbox.checked()) {
 			_chatsIndexed->moveToTop(chat->peer);
 		}
 		emit filterCancel();
 	}
 
-	chat->checkbox.toggleSelected();
-	if (chat->checkbox.selected()) {
+	chat->checkbox.setChecked(!chat->checkbox.checked());
+	if (chat->checkbox.checked()) {
 		_selected.insert(chat->peer);
 		setActive(chatIndex(chat->peer));
 	} else {
@@ -754,7 +745,7 @@ QVector<PeerData*> ShareInner::selected() const {
 	QVector<PeerData*> result;
 	result.reserve(_dataMap.size());
 	for_const (auto chat, _dataMap) {
-		if (chat->checkbox.selected()) {
+		if (chat->checkbox.checked()) {
 			result.push_back(chat->peer);
 		}
 	}

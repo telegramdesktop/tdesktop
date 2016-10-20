@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 #include "core/single_timer.h"
+#include "ui/effects/round_image_checkbox.h"
 
 namespace Dialogs {
 class Row;
@@ -51,7 +52,6 @@ public:
 	void init();
 	void initList();
 
-	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
@@ -59,7 +59,6 @@ public:
 
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
-	PeerData *selectedUser();
 	bool allAdmins() const {
 		return _allAdmins.checked();
 	}
@@ -120,12 +119,23 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void updateRowWithTop(int rowTop);
+	int getSelectedRowTop() const;
 	void updateSelectedRow();
+	int getRowTopWithPeer(PeerData *peer) const;
+	void updateRowWithPeer(PeerData *peer);
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
+	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
+	void paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const;
+
 	template <typename FilterCallback>
 	void addDialogsToList(FilterCallback callback);
+
+	bool usingMultiSelect() const {
+		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilterAdmins));
+	}
 
 	int32 _rowHeight;
 	int _newItemHeight = 0;
@@ -161,11 +171,14 @@ private:
 	int _selCount = 0;
 
 	struct ContactData {
+		ContactData();
+		ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
+
+		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
 		Text name;
-		QString online;
-		bool onlineColor;
-		bool inchat;
-		bool check;
+		QString statusText;
+		bool statusHasOnlineColor = false;
+		bool disabledChecked = false;
 	};
 	typedef QMap<PeerData*, ContactData*> ContactsData;
 	ContactsData _contactsData;
@@ -239,7 +252,8 @@ private:
 	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
 
-	ScrollableBoxShadow _topShadow, *_bottomShadow;
+	ScrollableBoxShadow _topShadow;
+	ScrollableBoxShadow *_bottomShadow = nullptr;
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
@@ -255,7 +269,7 @@ private:
 	typedef QMap<mtpRequestId, QString> PeopleQueries;
 	PeopleQueries _peopleQueries;
 
-	int32 _saveRequestId;
+	mtpRequestId _saveRequestId = 0;
 
 	// saving admins
 	void saveAdminsDone(const MTPUpdates &result);
@@ -419,3 +433,9 @@ private:
 	SingleTimer _loadTimer;
 
 };
+
+inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
+	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
+		peer->paintUserpicLeft(p, size, x, y, outerWidth);
+	};
+}

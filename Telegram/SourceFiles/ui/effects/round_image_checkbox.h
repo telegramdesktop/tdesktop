@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-static constexpr int kWideRoundImageCheckboxScale = 4;
 class RoundImageCheckbox {
 public:
 	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
@@ -32,11 +31,16 @@ public:
 	RoundImageCheckbox(const style::RoundImageCheckbox &st, UpdateCallback &&updateCallback, PaintRoundImage &&paintRoundImage);
 
 	void paint(Painter &p, int x, int y, int outerWidth);
+	float64 checkedAnimationRatio() const;
 
-	void toggleSelected();
-	bool selected() const {
-		return _selected;
+	bool checked() const {
+		return _checked;
 	}
+	enum class SetStyle {
+		Animated,
+		Fast,
+	};
+	void setChecked(bool checked, SetStyle speed = SetStyle::Animated);
 
 private:
 	struct Icon {
@@ -52,7 +56,7 @@ private:
 	UpdateCallback _updateCallback;
 	PaintRoundImage _paintRoundImage;
 
-	bool _selected = false;
+	bool _checked = false;
 	QPixmap _wideCache;
 	FloatAnimation _selection;
 	std_::vector_of_moveable<Icon> _icons;
