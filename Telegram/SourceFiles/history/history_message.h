@@ -97,6 +97,9 @@ public:
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
 	void updateMedia(const MTPMessageMedia *media) override;
+	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
+		setReplyMarkup(markup);
+	}
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
 

@@ -1105,6 +1105,7 @@ namespace {
 			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText();
 			existing->setText({ text, entities });
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
+			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
 

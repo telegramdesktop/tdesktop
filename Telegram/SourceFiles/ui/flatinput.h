@@ -117,25 +117,20 @@ class CountryCodeInput : public FlatInput {
 	Q_OBJECT
 
 public:
-
 	CountryCodeInput(QWidget *parent, const style::flatInput &st);
 
 public slots:
-
 	void startErasing(QKeyEvent *e);
 	void codeSelected(const QString &code);
 
 signals:
-
 	void codeChanged(const QString &code);
 	void addedToNumber(const QString &added);
 
 protected:
-
-	void correctValue(const QString &was, QString &now);
+	void correctValue(const QString &was, QString &now) override;
 
 private:
-
 	bool _nosignal;
 
 };
@@ -144,28 +139,23 @@ class PhonePartInput : public FlatInput {
 	Q_OBJECT
 
 public:
-
 	PhonePartInput(QWidget *parent, const style::flatInput &st);
 
-	void paintEvent(QPaintEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-
 public slots:
-
 	void addedToNumber(const QString &added);
 	void onChooseCode(const QString &code);
 
 signals:
-
 	void voidBackspace(QKeyEvent *e);
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
-	void correctValue(const QString &was, QString &now);
+	void correctValue(const QString &was, QString &now) override;
 
 private:
-
-	QVector<int> pattern;
+	QVector<int> _pattern;
 
 };
 
@@ -179,15 +169,7 @@ class InputArea : public TWidget {
 	Q_OBJECT
 
 public:
-
 	InputArea(QWidget *parent, const style::InputArea &st, const QString &ph = QString(), const QString &val = QString());
-
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void focusInEvent(QFocusEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	void showError();
 
@@ -241,7 +223,6 @@ public:
 	}
 
 public slots:
-
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -251,7 +232,6 @@ public slots:
 	void onRedoAvailable(bool avail);
 
 signals:
-
 	void changed();
 	void submitted(bool ctrlShiftEnter);
 	void cancelled();
@@ -262,7 +242,6 @@ signals:
 	void resized();
 
 protected:
-
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -271,8 +250,14 @@ protected:
 		return qobject_cast<const TWidget*>(parentWidget());
 	}
 
-private:
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	int32 _maxLength;
 	bool heightAutoupdated();
 	void checkContentHeight();
@@ -282,23 +267,24 @@ private:
 	public:
 		InputAreaInner(InputArea *parent);
 
-		bool viewportEvent(QEvent *e);
-		void focusInEvent(QFocusEvent *e);
-		void focusOutEvent(QFocusEvent *e);
-		void keyPressEvent(QKeyEvent *e);
-		void paintEvent(QPaintEvent *e);
-		void contextMenuEvent(QContextMenuEvent *e);
-
-		QMimeData *createMimeDataFromSelection() const;
-
 		QVariant loadResource(int type, const QUrl &name);
 
-	private:
+	protected:
+		bool viewportEvent(QEvent *e) override;
+		void focusInEvent(QFocusEvent *e) override;
+		void focusOutEvent(QFocusEvent *e) override;
+		void keyPressEvent(QKeyEvent *e) override;
+		void paintEvent(QPaintEvent *e) override;
+		void contextMenuEvent(QContextMenuEvent *e) override;
 
+		QMimeData *createMimeDataFromSelection() const override;
+
+	private:
 		InputArea *f() const {
 			return static_cast<InputArea*>(parentWidget());
 		}
 		friend class InputArea;
+
 	};
 
 	void focusInInner();
@@ -337,21 +323,14 @@ private:
 	QPoint _touchStart;
 
 	bool _correcting;
+
 };
 
 class InputField : public TWidget {
 	Q_OBJECT
 
 public:
-
 	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
-
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void focusInEvent(QFocusEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 	void setMaxLength(int32 maxLength) {
 		_maxLength = maxLength;
@@ -363,6 +342,7 @@ public:
 		return _oldtext;
 	}
 	void updatePlaceholder();
+	void setPlaceholderHidden(bool forcePlaceholderHidden);
 
 	void step_placeholderFg(float64 ms, bool timer);
 	void step_placeholderShift(float64 ms, bool timer);
@@ -412,7 +392,6 @@ public:
 	}
 
 public slots:
-
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -424,7 +403,6 @@ public slots:
 	void selectAll();
 
 signals:
-
 	void changed();
 	void submitted(bool ctrlShiftEnter);
 	void cancelled();
@@ -434,7 +412,6 @@ signals:
 	void blurred();
 
 protected:
-
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -443,32 +420,40 @@ protected:
 		return qobject_cast<const TWidget*>(parentWidget());
 	}
 
-private:
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	int32 _maxLength;
+	bool _forcePlaceholderHidden = false;
 
 	friend class InputFieldInner;
 	class InputFieldInner : public QTextEdit {
 	public:
 		InputFieldInner(InputField *parent);
 
-		bool viewportEvent(QEvent *e);
-		void focusInEvent(QFocusEvent *e);
-		void focusOutEvent(QFocusEvent *e);
-		void keyPressEvent(QKeyEvent *e);
-		void paintEvent(QPaintEvent *e);
-		void contextMenuEvent(QContextMenuEvent *e);
-
 		QMimeData *createMimeDataFromSelection() const;
 
 		QVariant loadResource(int type, const QUrl &name);
 
-	private:
+	protected:
+		bool viewportEvent(QEvent *e) override;
+		void focusInEvent(QFocusEvent *e) override;
+		void focusOutEvent(QFocusEvent *e) override;
+		void keyPressEvent(QKeyEvent *e) override;
+		void paintEvent(QPaintEvent *e) override;
+		void contextMenuEvent(QContextMenuEvent *e) override;
 
+	private:
 		InputField *f() const {
 			return static_cast<InputField*>(parentWidget());
 		}
 		friend class InputField;
+
 	};
 
 	void focusInInner();
@@ -624,54 +609,46 @@ private:
 
 class PasswordField : public MaskedInputField {
 public:
-
 	PasswordField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
 
 };
 
 class PortInput : public MaskedInputField {
 public:
-
 	PortInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
 
 protected:
-
-	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
 
 };
 
 class UsernameInput : public MaskedInputField {
 public:
-
 	UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink);
-	void paintPlaceholder(Painter &p);
 
 protected:
-
-	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
+	void paintPlaceholder(Painter &p) override;
 
 private:
-
 	QString _linkPlaceholder;
 
 };
 
 class PhoneInput : public MaskedInputField {
 public:
-
 	PhoneInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
 
-	void focusInEvent(QFocusEvent *e);
 	void clearText();
 
 protected:
+	void focusInEvent(QFocusEvent *e) override;
 
-	void paintPlaceholder(Painter &p);
-	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
+	void paintPlaceholder(Painter &p) override;
 
 private:
-
 	QString _defaultPlaceholder;
-	QVector<int> pattern;
+	QVector<int> _pattern;
 
 };

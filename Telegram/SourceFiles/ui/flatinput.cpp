@@ -454,12 +454,12 @@ void PhonePartInput::paintEvent(QPaintEvent *e) {
 	FlatInput::paintEvent(e);
 
 	Painter p(this);
-	QString t(text());
-	if (!pattern.isEmpty() && !t.isEmpty()) {
-		QString ph = placeholder().mid(t.size());
+	auto t = text();
+	if (!_pattern.isEmpty() && !t.isEmpty()) {
+		auto ph = placeholder().mid(t.size());
 		if (!ph.isEmpty()) {
 			p.setClipRect(rect());
-			QRect phRect(placeholderRect());
+			auto phRect = placeholderRect();
 			int tw = phFont()->width(t);
 			if (tw < phRect.width()) {
 				phRect.setLeft(phRect.left() + tw);
@@ -488,7 +488,7 @@ void PhonePartInput::correctValue(const QString &was, QString &now) {
 	}
 	if (digitCount > MaxPhoneTailLength) digitCount = MaxPhoneTailLength;
 
-	bool inPart = !pattern.isEmpty();
+	bool inPart = !_pattern.isEmpty();
 	int curPart = -1, leftInPart = 0;
 	newText.reserve(oldLen);
 	for (int i = 0; i < oldLen; ++i) {
@@ -507,8 +507,8 @@ void PhonePartInput::correctValue(const QString &was, QString &now) {
 				} else {
 					newText += ' ';
 					++curPart;
-					inPart = curPart < pattern.size();
-					leftInPart = inPart ? (pattern.at(curPart) - 1) : 0;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
 
 					++oldPos;
 				}
@@ -520,8 +520,8 @@ void PhonePartInput::correctValue(const QString &was, QString &now) {
 				} else {
 					newText += ch;
 					++curPart;
-					inPart = curPart < pattern.size();
-					leftInPart = inPart ? pattern.at(curPart) : 0;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? _pattern.at(curPart) : 0;
 				}
 			} else {
 				newText += ch;
@@ -554,26 +554,26 @@ void PhonePartInput::addedToNumber(const QString &added) {
 }
 
 void PhonePartInput::onChooseCode(const QString &code) {
-	pattern = phoneNumberParse(code);
-	if (!pattern.isEmpty() && pattern.at(0) == code.size()) {
-		pattern.pop_front();
+	_pattern = phoneNumberParse(code);
+	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
+		_pattern.pop_front();
 	} else {
-		pattern.clear();
+		_pattern.clear();
 	}
-	if (pattern.isEmpty()) {
+	if (_pattern.isEmpty()) {
 		setPlaceholder(lang(lng_phone_ph));
 	} else {
 		QString ph;
 		ph.reserve(20);
-		for (int i = 0, l = pattern.size(); i < l; ++i) {
+		for (int i = 0, l = _pattern.size(); i < l; ++i) {
 			ph.append(' ');
-			ph.append(QString(pattern.at(i), QChar(0x2212)));
+			ph.append(QString(_pattern.at(i), QChar(0x2212)));
 		}
 		setPlaceholder(ph);
 	}
-	QString newText(getLastText());
+	auto newText = getLastText();
 	correctValue(newText, newText);
-	setPlaceholderFast(!pattern.isEmpty());
+	setPlaceholderFast(!_pattern.isEmpty());
 	updatePlaceholder();
 }
 
@@ -1913,7 +1913,7 @@ void InputField::step_border(float64 ms, bool timer) {
 }
 
 void InputField::updatePlaceholder() {
-	bool placeholderVisible = _oldtext.isEmpty();
+	bool placeholderVisible = _oldtext.isEmpty() && !_forcePlaceholderHidden;
 	if (placeholderVisible != _placeholderVisible) {
 		_placeholderVisible = placeholderVisible;
 
@@ -1921,6 +1921,11 @@ void InputField::updatePlaceholder() {
 		a_placeholderOpacity.start(_placeholderVisible ? 1 : 0);
 		_a_placeholderShift.start();
 	}
+}
+
+void InputField::setPlaceholderHidden(bool forcePlaceholderHidden) {
+	_forcePlaceholderHidden = forcePlaceholderHidden;
+	updatePlaceholder();
 }
 
 QMimeData *InputField::InputFieldInner::createMimeDataFromSelection() const {
@@ -2524,12 +2529,12 @@ void PhoneInput::clearText() {
 }
 
 void PhoneInput::paintPlaceholder(Painter &p) {
-	QString t(getLastText());
-	if (!pattern.isEmpty() && !t.isEmpty()) {
-		QString ph = placeholder().mid(t.size());
+	auto t = getLastText();
+	if (!_pattern.isEmpty() && !t.isEmpty()) {
+		auto ph = placeholder().mid(t.size());
 		if (!ph.isEmpty()) {
 			p.setClipRect(rect());
-			QRect phRect(placeholderRect());
+			auto phRect = placeholderRect();
 			int tw = phFont()->width(t);
 			if (tw < phRect.width()) {
 				phRect.setLeft(phRect.left() + tw);
@@ -2545,34 +2550,34 @@ void PhoneInput::paintPlaceholder(Painter &p) {
 void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
 	QString digits(now);
 	digits.replace(QRegularExpression(qsl("[^\\d]")), QString());
-	pattern = phoneNumberParse(digits);
+	_pattern = phoneNumberParse(digits);
 
 	QString newPlaceholder;
-	if (pattern.isEmpty()) {
+	if (_pattern.isEmpty()) {
 		newPlaceholder = lang(lng_contact_phone);
-	} else if (pattern.size() == 1 && pattern.at(0) == digits.size()) {
-		newPlaceholder = QString(pattern.at(0) + 2, ' ') + lang(lng_contact_phone);
+	} else if (_pattern.size() == 1 && _pattern.at(0) == digits.size()) {
+		newPlaceholder = QString(_pattern.at(0) + 2, ' ') + lang(lng_contact_phone);
 	} else {
 		newPlaceholder.reserve(20);
-		for (int i = 0, l = pattern.size(); i < l; ++i) {
+		for (int i = 0, l = _pattern.size(); i < l; ++i) {
 			if (i) {
 				newPlaceholder.append(' ');
 			} else {
 				newPlaceholder.append('+');
 			}
-			newPlaceholder.append(i ? QString(pattern.at(i), QChar(0x2212)) : digits.mid(0, pattern.at(i)));
+			newPlaceholder.append(i ? QString(_pattern.at(i), QChar(0x2212)) : digits.mid(0, _pattern.at(i)));
 		}
 	}
 	if (setPlaceholder(newPlaceholder)) {
-		setPlaceholderFast(!pattern.isEmpty());
+		setPlaceholderFast(!_pattern.isEmpty());
 		updatePlaceholder();
 	}
 
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), MaxPhoneCodeLength + MaxPhoneTailLength);
 
-	bool inPart = !pattern.isEmpty(), plusFound = false;
-	int curPart = 0, leftInPart = inPart ? pattern.at(curPart) : 0;
+	bool inPart = !_pattern.isEmpty(), plusFound = false;
+	int curPart = 0, leftInPart = inPart ? _pattern.at(curPart) : 0;
 	newText.reserve(oldLen + 1);
 	newText.append('+');
 	for (int i = 0; i < oldLen; ++i) {
@@ -2591,8 +2596,8 @@ void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now,
 				} else {
 					newText += ' ';
 					++curPart;
-					inPart = curPart < pattern.size();
-					leftInPart = inPart ? (pattern.at(curPart) - 1) : 0;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
 
 					++oldPos;
 				}
@@ -2604,8 +2609,8 @@ void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now,
 				} else {
 					newText += ch;
 					++curPart;
-					inPart = curPart < pattern.size();
-					leftInPart = inPart ? pattern.at(curPart) : 0;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? _pattern.at(curPart) : 0;
 				}
 			} else {
 				newText += ch;

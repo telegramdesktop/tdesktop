@@ -623,6 +623,8 @@ public:
 	}
 	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
+	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
+	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
 	}
