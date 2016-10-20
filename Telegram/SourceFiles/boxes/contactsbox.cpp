@@ -30,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/filedialog.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/multi_select.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
@@ -42,8 +42,7 @@ QString cantInviteError() {
 
 ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
 , _inner(this, CreatingGroupNone)
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang(lng_create_group_next), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this) {
@@ -52,8 +51,7 @@ ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
 
 ContactsBox::ContactsBox(const QString &name, const QImage &photo) : ItemListBox(st::boxScroll)
 , _inner(this, CreatingGroupGroup)
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang(lng_create_group_create), st::defaultBoxButton)
 , _cancel(this, lang(lng_create_group_back), st::cancelBoxButton)
 , _topShadow(this)
@@ -64,8 +62,7 @@ ContactsBox::ContactsBox(const QString &name, const QImage &photo) : ItemListBox
 
 ContactsBox::ContactsBox(ChannelData *channel) : ItemListBox(st::boxScroll)
 , _inner(this, channel, MembersFilter::Recent, MembersAlreadyIn())
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang(lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_create_group_skip), st::cancelBoxButton)
 , _topShadow(this) {
@@ -74,8 +71,7 @@ ContactsBox::ContactsBox(ChannelData *channel) : ItemListBox(st::boxScroll)
 
 ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already) : ItemListBox((filter == MembersFilter::Admins) ? st::contactsScroll : st::boxScroll)
 , _inner(this, channel, filter, already)
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang(lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this) {
@@ -84,8 +80,7 @@ ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const Membe
 
 ContactsBox::ContactsBox(ChatData *chat, MembersFilter filter) : ItemListBox(st::boxScroll)
 , _inner(this, chat, filter)
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang((filter == MembersFilter::Admins) ? lng_settings_save : lng_participant_invite), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this) {
@@ -94,8 +89,7 @@ ContactsBox::ContactsBox(ChatData *chat, MembersFilter filter) : ItemListBox(st:
 
 ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
 , _inner(this, bot)
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _next(this, lang(lng_create_group_next), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this) {
@@ -103,10 +97,7 @@ ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
 }
 
 void ContactsBox::init() {
-	bool inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
-	int32 topSkip = st::boxTitleHeight + _filter->height();
-	int32 bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
-	ItemListBox::init(_inner, bottomSkip, topSkip);
+	ItemListBox::init(_inner);
 
 	connect(_inner, SIGNAL(chosenChanged()), this, SLOT(onChosenChanged()));
 	connect(_inner, SIGNAL(addRequested()), App::wnd(), SLOT(onShowAddContact()));
@@ -128,15 +119,11 @@ void ContactsBox::init() {
 	}
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
+	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
+	_select->setSubmittedCallback([this](bool) { onSubmit(); });
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
-	connect(_inner, SIGNAL(selectAllQuery()), _filter, SLOT(selectAll()));
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 	connect(_inner, SIGNAL(adminAdded()), this, SIGNAL(adminAdded()));
-
-	_filterCancel->setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
@@ -145,7 +132,7 @@ void ContactsBox::init() {
 }
 
 bool ContactsBox::onSearchByUsername(bool searchCache) {
-	QString q = _filter->getLastText().trimmed();
+	auto q = _select->getQuery();
 	if (q.isEmpty()) {
 		if (_peopleRequest) {
 			_peopleRequest = 0;
@@ -213,12 +200,7 @@ bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
 }
 
 void ContactsBox::showAll() {
-	_filter->show();
-	if (_filter->getLastText().isEmpty()) {
-		_filterCancel->hide();
-	} else {
-		_filterCancel->show();
-	}
+	_select->show();
 	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
 		_next.hide();
 		_cancel.hide();
@@ -238,7 +220,7 @@ void ContactsBox::showAll() {
 }
 
 void ContactsBox::doSetInnerFocus() {
-	_filter->setFocus();
+	_select->setInnerFocus();
 }
 
 void ContactsBox::onSubmit() {
@@ -246,7 +228,8 @@ void ContactsBox::onSubmit() {
 }
 
 void ContactsBox::keyPressEvent(QKeyEvent *e) {
-	if (_filter->hasFocus()) {
+	auto focused = focusWidget();
+	if (_select == focused || _select->isAncestorOf(focusWidget())) {
 		if (e->key() == Qt::Key_Down) {
 			_inner->selectSkip(1);
 		} else if (e->key() == Qt::Key_Up) {
@@ -285,13 +268,19 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 
 void ContactsBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
-	_filter->resize(width(), _filter->height());
-	_filter->moveToLeft(0, st::boxTitleHeight);
-	_filterCancel->moveToRight(0, st::boxTitleHeight);
+
+	_select->resizeToWidth(width());
+	_select->moveToLeft(0, st::boxTitleHeight);
+
+	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
+	auto topSkip = st::boxTitleHeight + _select->height();
+	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
+	setScrollSkips(bottomSkip, topSkip);
+
 	_inner->resize(width(), _inner->height());
 	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _filter->height(), width(), st::lineWidth);
+	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
 	if (_bottomShadow) _bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _next.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
@@ -301,18 +290,9 @@ void ContactsBox::closePressed() {
 	}
 }
 
-void ContactsBox::onFilterCancel() {
-	_filter->setText(QString());
-}
-
-void ContactsBox::onFilterUpdate() {
+void ContactsBox::onFilterUpdate(const QString &filter) {
 	scrollArea()->scrollToY(0);
-	if (_filter->getLastText().isEmpty()) {
-		_filterCancel->hide();
-	} else {
-		_filterCancel->show();
-	}
-	_inner->updateFilter(_filter->getLastText());
+	_inner->updateFilter(filter);
 }
 
 void ContactsBox::onChosenChanged() {
@@ -322,8 +302,7 @@ void ContactsBox::onChosenChanged() {
 void ContactsBox::onInvite() {
 	QVector<UserData*> users(_inner->selected());
 	if (users.isEmpty()) {
-		_filter->setFocus();
-		_filter->showError();
+		_select->setInnerFocus();
 		return;
 	}
 
@@ -339,14 +318,12 @@ void ContactsBox::onInvite() {
 void ContactsBox::onCreate() {
 	if (_saveRequestId) return;
 
-	MTPVector<MTPInputUser> users(MTP_vector<MTPInputUser>(_inner->selectedInputs()));
-	const auto &v(users.c_vector().v);
-	if (v.isEmpty() || (v.size() == 1 && v.at(0).type() == mtpc_inputUserSelf)) {
-		_filter->setFocus();
-		_filter->showError();
+	auto users = _inner->selectedInputs();
+	if (users.isEmpty() || (users.size() == 1 && users.at(0).type() == mtpc_inputUserSelf)) {
+		_select->setInnerFocus();
 		return;
 	}
-	_saveRequestId = MTP::send(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(v), MTP_string(_creationName)), rpcDone(&ContactsBox::creationDone), rpcFail(&ContactsBox::creationFail));
+	_saveRequestId = MTP::send(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(users), MTP_string(_creationName)), rpcDone(&ContactsBox::creationDone), rpcFail(&ContactsBox::creationFail));
 }
 
 void ContactsBox::onSaveAdmins() {
@@ -493,8 +470,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		onClose();
 		return true;
 	} else if (error.type() == "USERS_TOO_FEW") {
-		_filter->setFocus();
-		_filter->showError();
+		_select->setInnerFocus();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		Ui::showLayer(new InformBox(cantInviteError()), KeepOtherLayers);
@@ -1263,7 +1239,6 @@ void ContactsBox::Inner::chooseParticipant() {
 				if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->disabledChecked) return;
 				changeCheckState(_filtered[_filteredSel]);
 			}
-			emit selectAllQuery();
 		}
 	} else {
 		PeerData *peer = 0;

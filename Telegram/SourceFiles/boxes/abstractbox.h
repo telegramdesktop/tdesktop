@@ -106,6 +106,7 @@ public:
 
 protected:
 	void init(ScrolledWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
+	void setScrollSkips(int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
 
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -114,8 +115,10 @@ protected:
 	}
 
 private:
+	void updateScrollGeometry();
+
 	ChildWidget<ScrollArea> _scroll;
-	int32 _topSkip, _bottomSkip;
+	int _topSkip, _bottomSkip;
 
 };
 

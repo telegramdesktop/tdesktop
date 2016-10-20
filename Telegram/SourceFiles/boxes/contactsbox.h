@@ -31,7 +31,7 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
-class IconButton;
+class MultiSelect;
 } // namespace Ui
 
 QString cantInviteError();
@@ -57,8 +57,6 @@ signals:
 	void adminAdded();
 
 public slots:
-	void onFilterUpdate();
-	void onFilterCancel();
 	void onChosenChanged();
 	void onScroll();
 
@@ -82,11 +80,11 @@ protected:
 
 private:
 	void init();
+	void onFilterUpdate(const QString &filter);
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<InputField> _filter;
-	ChildWidget<Ui::IconButton> _filterCancel;
+	ChildWidget<Ui::MultiSelect> _select;
 
 	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
@@ -178,7 +176,6 @@ public:
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
-	void selectAllQuery();
 	void searchByUsername();
 	void chosenChanged();
 	void adminAdded();

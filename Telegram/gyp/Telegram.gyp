@@ -493,6 +493,8 @@
       '<(src_loc)/ui/widgets/label_simple.h',
       '<(src_loc)/ui/widgets/media_slider.cpp',
       '<(src_loc)/ui/widgets/media_slider.h',
+      '<(src_loc)/ui/widgets/multi_select.cpp',
+      '<(src_loc)/ui/widgets/multi_select.h',
       '<(src_loc)/ui/widgets/shadow.cpp',
       '<(src_loc)/ui/widgets/shadow.h',
       '<(src_loc)/ui/widgets/widget_slide_wrap.h',

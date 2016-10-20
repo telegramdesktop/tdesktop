@@ -100,6 +100,11 @@ boxSearchCancel: IconButton {
 	duration: 150;
 }
 
+contactsMultiSelect: MultiSelect {
+	field: boxSearchField;
+	cancel: boxSearchCancel;
+	maxHeight: 104px;
+}
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;

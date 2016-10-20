@@ -201,7 +201,7 @@ ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : Abstrac
 }
 
 void ScrollableBox::resizeEvent(QResizeEvent *e) {
-	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
+	updateScrollGeometry();
 	AbstractBox::resizeEvent(e);
 }
 
@@ -210,7 +210,19 @@ void ScrollableBox::init(ScrolledWidget *inner, int bottomSkip, int topSkip) {
 	_topSkip = topSkip;
 	_scroll->setOwnedWidget(inner);
 	_scroll->setFocusPolicy(Qt::NoFocus);
-	ScrollableBox::resizeEvent(nullptr);
+	updateScrollGeometry();
+}
+
+void ScrollableBox::setScrollSkips(int bottomSkip, int topSkip) {
+	if (_topSkip != topSkip || _bottomSkip != bottomSkip) {
+		_topSkip = topSkip;
+		_bottomSkip = bottomSkip;
+		updateScrollGeometry();
+	}
+}
+
+void ScrollableBox::updateScrollGeometry() {
+	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
 }
 
 ItemListBox::ItemListBox(const style::flatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {

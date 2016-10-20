@@ -67,6 +67,12 @@ RoundImageCheckbox {
 	checkIcon: icon;
 }
 
+MultiSelect {
+	field: InputField;
+	cancel: IconButton;
+	maxHeight: pixels;
+}
+
 widgetSlideDuration: 200;
 
 discreteSliderHeight: 39px;
