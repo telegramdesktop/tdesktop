@@ -83,7 +83,7 @@ void closeLog() {
 void writeLog(const wstring &msg) {
 	if (!_logFile) return;
 
-	wstring full = msg + L'\n';
+	wstring full = msg + L"\r\n";
 	DWORD written = 0;
 	BOOL result = WriteFile(_logFile, full.c_str(), full.size() * sizeof(wchar_t), &written, 0);
 	if (!result) {
