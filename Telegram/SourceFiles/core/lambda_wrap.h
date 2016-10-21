@@ -359,6 +359,10 @@ public:
 		}
 	}
 
+	lambda_wrap clone() const {
+		return *this;
+	}
+
 	template <typename Lambda, typename = IsOther<Lambda>>
 	lambda_wrap(const Lambda &other) : Parent(&internal::lambda_wrap_helper_copy<Lambda, Return, Args...>::instance, typename Parent::Private()) {
 		internal::lambda_wrap_helper_copy<Lambda, Return, Args...>::construct_copy_lambda_method(this->storage_, &other);

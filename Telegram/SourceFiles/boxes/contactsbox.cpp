@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
@@ -97,10 +98,18 @@ ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
 }
 
 void ContactsBox::init() {
-	ItemListBox::init(_inner);
+	_select->resizeToWidth(st::boxWideWidth);
 
-	connect(_inner, SIGNAL(chosenChanged()), this, SLOT(onChosenChanged()));
+	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
+	auto topSkip = st::boxTitleHeight + _select->height();
+	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
+	ItemListBox::init(_inner, bottomSkip, topSkip);
+
 	connect(_inner, SIGNAL(addRequested()), App::wnd(), SLOT(onShowAddContact()));
+	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
+		onPeerSelectedChanged(peer, checked);
+	});
+
 	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
 		_next.hide();
 		_cancel.hide();
@@ -120,7 +129,14 @@ void ContactsBox::init() {
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
+	_select->setItemRemovedCallback([this](uint64 itemId) {
+		if (auto peer = App::peerLoaded(itemId)) {
+			_inner->peerUnselected(peer);
+			update();
+		}
+	});
 	_select->setSubmittedCallback([this](bool) { onSubmit(); });
+	_select->setResizedCallback([this] { updateScrollSkips(); });
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 	connect(_inner, SIGNAL(adminAdded()), this, SIGNAL(adminAdded()));
@@ -184,7 +200,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 		}
 
 		_peopleRequest = 0;
-		_inner->updateSel();
+		_inner->updateSelection();
 		onScroll();
 	}
 }
@@ -266,21 +282,31 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void ContactsBox::updateScrollSkips() {
+	auto oldScrollHeight = scrollArea()->height();
+	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
+	auto topSkip = st::boxTitleHeight + _select->height();
+	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
+	setScrollSkips(bottomSkip, topSkip);
+	auto scrollHeightDelta = scrollArea()->height() - oldScrollHeight;
+	if (scrollHeightDelta) {
+		scrollArea()->scrollToY(scrollArea()->scrollTop() - scrollHeightDelta);
+	}
+
+	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
+}
+
 void ContactsBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 
 	_select->resizeToWidth(width());
 	_select->moveToLeft(0, st::boxTitleHeight);
 
-	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
-	auto topSkip = st::boxTitleHeight + _select->height();
-	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
-	setScrollSkips(bottomSkip, topSkip);
+	updateScrollSkips();
 
 	_inner->resize(width(), _inner->height());
 	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
 	if (_bottomShadow) _bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _next.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
@@ -295,7 +321,25 @@ void ContactsBox::onFilterUpdate(const QString &filter) {
 	_inner->updateFilter(filter);
 }
 
-void ContactsBox::onChosenChanged() {
+void ContactsBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
+	if (checked) {
+		auto getColor = [peer]() -> const style::color &{
+			switch (peer->colorIndex) {
+			case 1: return st::historyPeer2UserpicFg;
+			case 2: return st::historyPeer3UserpicFg;
+			case 3: return st::historyPeer4UserpicFg;
+			case 4: return st::historyPeer5UserpicFg;
+			case 5: return st::historyPeer6UserpicFg;
+			case 6: return st::historyPeer7UserpicFg;
+			case 7: return st::historyPeer8UserpicFg;
+			default: return st::historyPeer1UserpicFg;
+			}
+		};
+		_select->addItem(peer->id, peer->shortName(), getColor(), PaintUserpicCallback(peer));
+		_select->clearQuery();
+	} else {
+		_select->removeItem(peer->id);
+	}
 	update();
 }
 
@@ -482,12 +526,8 @@ bool ContactsBox::creationFail(const RPCError &error) {
 	return false;
 }
 
-ContactsBox::Inner::ContactData::ContactData() : name(st::boxWideWidth) {
-}
-
-ContactsBox::Inner::ContactData::ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback)
-: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer)))
-, name(st::boxWideWidth) {
+ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback)
+: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer))) {
 }
 
 ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : ScrolledWidget(parent)
@@ -613,7 +653,7 @@ void ContactsBox::Inner::initList() {
 		if (i.key()->id == peerFromUser(_chat->creator)) continue;
 		if (!_allAdmins.checked() && _chat->admins.contains(i.key())) {
 			admins.push_back(i.key());
-			_checkedContacts.insert(i.key(), true);
+			_checkedContacts.insert(i.key());
 		} else {
 			others.push_back(i.key());
 		}
@@ -1186,13 +1226,13 @@ void ContactsBox::Inner::leaveEvent(QEvent *e) {
 void ContactsBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	_lastMousePos = e->globalPos();
-	updateSel();
+	updateSelection();
 }
 
 void ContactsBox::Inner::mousePressEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	_lastMousePos = e->globalPos();
-	updateSel();
+	updateSelection();
 	if (e->button() == Qt::LeftButton) {
 		chooseParticipant();
 	}
@@ -1205,29 +1245,35 @@ void ContactsBox::Inner::chooseParticipant() {
 		_time = unixtime();
 		if (_filter.isEmpty()) {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				if (d_byUsername[_byUsernameSel]->disabledChecked) return;
-				changeCheckState(d_byUsername[_byUsernameSel], _byUsername[_byUsernameSel]);
-			} else {
-				if (!_sel || contactData(_sel)->disabledChecked) return;
+				auto data = d_byUsername[_byUsernameSel];
+				auto peer = _byUsername[_byUsernameSel];
+				if (data->disabledChecked) return;
+
+				changeCheckState(data, peer);
+			} else if (_sel) {
+				auto data = contactData(_sel);
+				auto peer = _sel->history()->peer;
+				if (data->disabledChecked) return;
+
 				changeCheckState(_sel);
 			}
 		} else {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				if (d_byUsernameFiltered[_byUsernameSel]->disabledChecked) return;
-				changeCheckState(d_byUsernameFiltered[_byUsernameSel], _byUsernameFiltered[_byUsernameSel]);
+				auto data = d_byUsernameFiltered[_byUsernameSel];
+				auto peer = _byUsernameFiltered[_byUsernameSel];
+				if (data->disabledChecked) return;
 
-				ContactData *moving = d_byUsernameFiltered[_byUsernameSel];
-				int32 i = 0, l = d_byUsername.size();
+				int i = 0, l = d_byUsername.size();
 				for (; i < l; ++i) {
-					if (d_byUsername[i] == moving) {
+					if (d_byUsername[i] == data) {
 						break;
 					}
 				}
 				if (i == l) {
-					d_byUsername.push_back(moving);
-					_byUsername.push_back(_byUsernameFiltered[_byUsernameSel]);
+					d_byUsername.push_back(data);
+					_byUsername.push_back(peer);
 					for (i = 0, l = _byUsernameDatas.size(); i < l;) {
-						if (_byUsernameDatas[i] == moving) {
+						if (_byUsernameDatas[i] == data) {
 							_byUsernameDatas.removeAt(i);
 							--l;
 						} else {
@@ -1235,9 +1281,14 @@ void ContactsBox::Inner::chooseParticipant() {
 						}
 					}
 				}
-			} else {
-				if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->disabledChecked) return;
-				changeCheckState(_filtered[_filteredSel]);
+
+				changeCheckState(data, peer);
+			} else if (_filteredSel >= 0 && _filteredSel < _filtered.size()) {
+				auto data = contactData(_filtered[_filteredSel]);
+				auto peer = _filtered[_filteredSel]->history()->peer;
+				if (data->disabledChecked) return;
+
+				changeCheckState(data, peer);
 			}
 		}
 	} else {
@@ -1304,25 +1355,43 @@ void ContactsBox::Inner::changeCheckState(Dialogs::Row *row) {
 void ContactsBox::Inner::changeCheckState(ContactData *data, PeerData *peer) {
 	t_assert(usingMultiSelect());
 
-	int32 cnt = _selCount;
 	if (data->checkbox->checked()) {
-		data->checkbox->setChecked(false);
-		_checkedContacts.remove(peer);
-		--_selCount;
+		changePeerCheckState(data, peer, false);
 	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
-		data->checkbox->setChecked(true);
-		_checkedContacts.insert(peer, true);
-		++_selCount;
+		changePeerCheckState(data, peer, true);
 	} else if (_channel && !_channel->isMegagroup()) {
 		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
 	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
-	if (cnt != _selCount) emit chosenChanged();
+}
+
+void ContactsBox::Inner::peerUnselected(PeerData *peer) {
+	// If data is nullptr we simply won't do anything.
+	auto data = _contactsData.value(peer, nullptr);
+	changePeerCheckState(data, peer, false, ChangeStateWay::SkipCallback);
+}
+
+void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback) {
+	_peerSelectedChangedCallback = std_::move(callback);
+}
+
+void ContactsBox::Inner::changePeerCheckState(ContactData *data, PeerData *peer, bool checked, ChangeStateWay useCallback) {
+	if (data) {
+		data->checkbox->setChecked(checked);
+	}
+	if (checked) {
+		_checkedContacts.insert(peer);
+	} else {
+		_checkedContacts.remove(peer);
+	}
+	if (useCallback != ChangeStateWay::SkipCallback) {
+		_peerSelectedChangedCallback(peer, checked);
+	}
 }
 
 int32 ContactsBox::Inner::selectedCount() const {
-	int32 result = _selCount;
+	auto result = _checkedContacts.size();
 	if (_chat) {
 		result += qMax(_chat->count, 1);
 	} else if (_channel) {
@@ -1333,7 +1402,7 @@ int32 ContactsBox::Inner::selectedCount() const {
 	return result;
 }
 
-void ContactsBox::Inner::updateSel() {
+void ContactsBox::Inner::updateSelection() {
 	if (!_mouseSel) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));

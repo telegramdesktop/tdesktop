@@ -193,6 +193,7 @@ defaultInputArea: InputArea {
 	heightMax: 128px;
 }
 defaultInputField: InputField {
+	textBg: white;
 	textFg: black;
 	textMargins: margins(0px, 6px, 0px, 4px);
 	textAlign: align(topleft);
@@ -215,15 +216,6 @@ defaultInputField: InputField {
 	font: boxTextFont;
 
 	height: 32px;
-}
-dialogsSearchField: InputField(defaultInputField) {
-	textMargins: margins(34px, 7px, 34px, 7px);
-
-	iconSprite: sprite(227px, 21px, 24px, 24px);
-	iconPosition: point(6px, 5px);
-
-	width: 240px;
-	height: 34px;
 }
 defaultCheckbox: Checkbox {
 	textFg: black;
@@ -746,12 +738,11 @@ dlgFilter: flatInput(inpDefGray) {
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	imgRect: sprite(227px, 21px, 24px, 24px);
+	icon: icon {{ "box_search_icon", #aaaaaa, point(10px, 9px) }};
 
 	width: 240px;
 	height: 34px;
 	textMrg: margins(34px, 2px, 34px, 4px);
-	imgPos: point(6px, 5px);
 }
 
 topBarHeight: 54px;

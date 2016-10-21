@@ -56,25 +56,9 @@ void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCac
 	checkFullCache.setDevicePixelRatio(cRetinaFactor());
 }
 
-struct AnimBumpy {
-	AnimBumpy(float64 bump) : bump(bump)
-		, dt0(bump - sqrt(bump * (bump - 1.)))
-		, k(1 / (2 * dt0 - 1)) {
-	}
-	float64 bump;
-	float64 dt0;
-	float64 k;
-};
-
-template <int BumpRatioPercent>
-float64 anim_bumpy(const float64 &delta, const float64 &dt) {
-	static AnimBumpy data = { BumpRatioPercent / 100. };
-	return delta * (data.bump - data.k * (dt - data.dt0) * (dt - data.dt0));
-}
-
 } // namespace
 
-RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, UpdateCallback &&updateCallback, PaintRoundImage &&paintRoundImage)
+RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda_wrap<void()> updateCallback, PaintRoundImage paintRoundImage)
 : _st(st)
 , _updateCallback(std_::move(updateCallback))
 , _paintRoundImage(std_::move(paintRoundImage)) {
@@ -84,13 +68,14 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, Upda
 void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 	auto selectionLevel = _selection.current(_checked ? 1. : 0.);
 	if (_selection.animating()) {
-		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
 		auto userpicShift = kWideScale * _st.imageRadius - userpicRadius;
 		auto userpicLeft = x - (kWideScale - 1) * _st.imageRadius + userpicShift;
 		auto userpicTop = y - (kWideScale - 1) * _st.imageRadius + userpicShift;
 		auto to = QRect(userpicLeft, userpicTop, userpicRadius * 2, userpicRadius * 2);
 		auto from = QRect(QPoint(0, 0), _wideCache.size());
+
+		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 		p.drawPixmapLeft(to, outerWidth, _wideCache, from);
 		p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 	} else {
@@ -159,7 +144,7 @@ void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
 	_checked = checked;
 	if (_checked) {
 		_icons.push_back(Icon());
-		_icons.back().fadeIn.start(UpdateCallback(_updateCallback), 0, 1, _st.selectDuration);
+		_icons.back().fadeIn.start(_updateCallback, 0, 1, _st.selectDuration);
 		if (speed != SetStyle::Animated) {
 			_icons.back().fadeIn.finish();
 		}
@@ -176,7 +161,7 @@ void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
 	}
 	if (speed == SetStyle::Animated) {
 		prepareWideCache();
-		_selection.start(UpdateCallback(_updateCallback), _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim_bumpy<125>);
+		_selection.start(_updateCallback, _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim::bumpy<125, 100>);
 	} else {
 		_selection.finish();
 	}

@@ -56,8 +56,7 @@ public:
 signals:
 	void adminAdded();
 
-public slots:
-	void onChosenChanged();
+private slots:
 	void onScroll();
 
 	void onInvite();
@@ -80,7 +79,9 @@ protected:
 
 private:
 	void init();
+	void updateScrollSkips();
 	void onFilterUpdate(const QString &filter);
+	void onPeerSelectedChanged(PeerData *peer, bool checked);
 
 	class Inner;
 	ChildWidget<Inner> _inner;
@@ -136,10 +137,11 @@ public:
 	Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter);
 	Inner(QWidget *parent, UserData *bot);
 
-	void init();
-	void initList();
+	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void peerUnselected(PeerData *peer);
 
 	void updateFilter(QString filter = QString());
+	void updateSelection();
 
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
@@ -177,14 +179,12 @@ public:
 signals:
 	void mustScrollTo(int ymin, int ymax);
 	void searchByUsername();
-	void chosenChanged();
 	void adminAdded();
 	void addRequested();
 
-public slots:
+private slots:
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
-	void updateSel();
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
@@ -204,8 +204,8 @@ protected:
 
 private:
 	struct ContactData {
-		ContactData();
-		ContactData(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
+		ContactData() = default;
+		ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback);
 
 		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
 		Text name;
@@ -213,6 +213,9 @@ private:
 		bool statusHasOnlineColor = false;
 		bool disabledChecked = false;
 	};
+
+	void init();
+	void initList();
 
 	void updateRowWithTop(int rowTop);
 	int getSelectedRowTop() const;
@@ -227,6 +230,11 @@ private:
 
 	void changeCheckState(Dialogs::Row *row);
 	void changeCheckState(ContactData *data, PeerData *peer);
+	enum class ChangeStateWay {
+		Default,
+		SkipCallback,
+	};
+	void changePeerCheckState(ContactData *data, PeerData *peer, bool checked, ChangeStateWay useCallback = ChangeStateWay::Default);
 
 	template <typename FilterCallback>
 	void addDialogsToList(FilterCallback callback);
@@ -234,6 +242,8 @@ private:
 	bool usingMultiSelect() const {
 		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilter::Admins));
 	}
+
+	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	int32 _rowHeight;
 	int _newItemHeight = 0;
@@ -261,24 +271,22 @@ private:
 	Dialogs::IndexedList *_contacts = nullptr;
 	Dialogs::Row *_sel = nullptr;
 	QString _filter;
-	typedef QVector<Dialogs::Row*> FilteredDialogs;
+	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;
 	int _filteredSel = -1;
 	bool _mouseSel = false;
 
-	int _selCount = 0;
-
-	typedef QMap<PeerData*, ContactData*> ContactsData;
+	using ContactsData = QMap<PeerData*, ContactData*>;
 	ContactsData _contactsData;
-	typedef QMap<PeerData*, bool> CheckedContacts;
+	using CheckedContacts = OrderedSet<PeerData*>;
 	CheckedContacts _checkedContacts;
 
 	ContactData *contactData(Dialogs::Row *row);
 
 	bool _searching = false;
 	QString _lastQuery;
-	typedef QVector<PeerData*> ByUsernameRows;
-	typedef QVector<ContactData*> ByUsernameDatas;
+	using ByUsernameRows = QVector<PeerData*>;
+	using ByUsernameDatas = QVector<ContactData*>;
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
 	ByUsernameDatas _byUsernameDatas;

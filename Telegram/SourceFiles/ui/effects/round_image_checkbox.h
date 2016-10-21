@@ -27,8 +27,7 @@ namespace Ui {
 class RoundImageCheckbox {
 public:
 	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	using UpdateCallback = base::lambda_wrap<void()>;
-	RoundImageCheckbox(const style::RoundImageCheckbox &st, UpdateCallback &&updateCallback, PaintRoundImage &&paintRoundImage);
+	RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda_wrap<void()> updateCallback, PaintRoundImage paintRoundImage);
 
 	void paint(Painter &p, int x, int y, int outerWidth);
 	float64 checkedAnimationRatio() const;
@@ -53,7 +52,7 @@ private:
 	void prepareWideCheckIconCache(Icon *icon);
 
 	const style::RoundImageCheckbox &_st;
-	UpdateCallback _updateCallback;
+	base::lambda_wrap<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
 
 	bool _checked = false;

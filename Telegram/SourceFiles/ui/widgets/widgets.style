@@ -67,10 +67,36 @@ RoundImageCheckbox {
 	checkIcon: icon;
 }
 
+MultiSelectItem {
+	padding: margins;
+	maxWidth: pixels;
+	height: pixels;
+	font: font;
+	textBg: color;
+	textFg: color;
+	textActiveBg: color;
+	textActiveFg: color;
+	deleteFg: color;
+	deleteLeft: pixels;
+	deleteStroke: pixels;
+	duration: int;
+	minScale: double;
+}
+
 MultiSelect {
-	field: InputField;
-	cancel: IconButton;
+	padding: margins;
 	maxHeight: pixels;
+	scroll: flatScroll;
+
+	item: MultiSelectItem;
+	itemSkip: pixels;
+
+	field: InputField;
+	fieldIcon: icon;
+	fieldIconSkip: pixels;
+	fieldCancel: IconButton;
+	fieldCancelSkip: pixels;
+	fieldMinWidth: pixels;
 }
 
 widgetSlideDuration: 200;

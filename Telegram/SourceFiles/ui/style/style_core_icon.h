@@ -105,6 +105,9 @@ public:
 		return std_::make_unique<Icon>(ColoredCopy { *this, colors });
 	}
 
+	bool empty() const {
+		return _parts.empty();
+	}
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
 	void paint(QPainter &p, int x, int y, int outerw) const {
 		paint(p, QPoint(x, y), outerw);

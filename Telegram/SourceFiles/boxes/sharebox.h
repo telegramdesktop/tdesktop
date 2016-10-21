@@ -153,7 +153,7 @@ private:
 	int displayedChatsCount() const;
 
 	struct Chat {
-		Chat(PeerData *peer, Ui::RoundImageCheckbox::UpdateCallback &&updateCallback);
+		Chat(PeerData *peer, base::lambda_wrap<void()> updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;

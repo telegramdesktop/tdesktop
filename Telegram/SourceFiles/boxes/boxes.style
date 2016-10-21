@@ -69,20 +69,19 @@ aboutRevokePublicLabel: flatLabel(labelDefFlat) {
 }
 
 boxSearchField: InputField(defaultInputField) {
-	textMargins: margins(41px, 16px, 41px, 0px);
+	textBg: transparent;
+	textMargins: margins(2px, 7px, 2px, 0px);
 
 	placeholderFg: #999;
 	placeholderFgActive: #aaa;
-	placeholderMargins: margins(4px, 0px, 4px, 0px);
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	duration: 150;
 
 	border: 0px;
 	borderActive: 0px;
 	borderError: 0px;
 
-	height: 48px;
-
-	iconSprite: sprite(227px, 21px, 24px, 24px);
-	iconPosition: point(15px, 14px);
+	height: 32px;
 
 	font: normalFont;
 }
@@ -95,15 +94,46 @@ boxSearchCancel: IconButton {
 
 	icon: icon {{ "box_search_cancel", #000000 }};
 	iconPosition: point(8px, 18px);
-	downIconPosition: point(8px, 18px);
+	downIconPosition: point(8px, 19px);
 
 	duration: 150;
 }
 
 contactsMultiSelect: MultiSelect {
-	field: boxSearchField;
-	cancel: boxSearchCancel;
+	padding: margins(8px, 8px, 8px, 8px);
 	maxHeight: 104px;
+	scroll: flatScroll(solidScroll) {
+		deltat: 3px;
+		deltab: 3px;
+		round: 1px;
+		width: 8px;
+		deltax: 3px;
+		hiding: 1000;
+	}
+
+	item: MultiSelectItem {
+		padding: margins(6px, 7px, 12px, 0px);
+		maxWidth: 128px;
+		height: 32px;
+		font: normalFont;
+		textBg: contactsBgOver;
+		textFg: windowTextFg;
+		textActiveBg: titleBg;
+		textActiveFg: white;
+		deleteFg: white;
+		deleteLeft: 9px;
+		deleteStroke: 3px;
+		duration: 150;
+		minScale: 0.3;
+	}
+	itemSkip: 8px;
+
+	field: boxSearchField;
+	fieldIcon: icon {{ "box_search_icon", #aaaaaa, point(11px, 9px) }};
+	fieldIconSkip: 36px;
+	fieldCancel: boxSearchCancel;
+	fieldCancelSkip: 34px;
+	fieldMinWidth: 42px;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;

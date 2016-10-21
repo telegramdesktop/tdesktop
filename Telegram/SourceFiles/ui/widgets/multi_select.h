@@ -34,6 +34,49 @@ public:
 
 	QString getQuery() const;
 	void setInnerFocus();
+	void clearQuery();
+
+	void setQueryChangedCallback(base::lambda_unique<void(const QString &query)> callback);
+	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
+	void setResizedCallback(base::lambda_unique<void()> callback);
+
+	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
+	void addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage);
+	void setItemText(uint64 itemId, const QString &text);
+
+	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
+	void removeItem(uint64 itemId);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	bool eventFilter(QObject *o, QEvent *e) override;
+
+private:
+	void scrollTo(int activeTop, int activeBottom);
+
+	const style::MultiSelect &_st;
+
+	ChildWidget<ScrollArea> _scroll;
+
+	class Inner;
+	ChildWidget<Inner> _inner;
+
+	base::lambda_unique<void()> _resizedCallback;
+	base::lambda_unique<void(const QString &query)> _queryChangedCallback;
+
+};
+
+// This class is hold in header because it requires Qt preprocessing.
+class MultiSelect::Inner : public ScrolledWidget {
+	Q_OBJECT
+
+public:
+	using ScrollCallback = base::lambda_unique<void(int activeTop, int activeBottom)>;
+	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback);
+
+	QString getQuery() const;
+	bool setInnerFocus();
+	void clearQuery();
 
 	void setQueryChangedCallback(base::lambda_unique<void(const QString &query)> callback);
 	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
@@ -43,68 +86,20 @@ public:
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
-	void removeItem(uint64 itemId); // Always calls the itemRemovedCallback().
+	void removeItem(uint64 itemId);
 
-protected:
-	int resizeGetHeight(int newWidth) override;
-
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	ChildWidget<ScrollArea> _scroll;
-
-	class Inner;
-	ChildWidget<Inner> _inner;
-
-	const style::MultiSelect &_st;
-
-};
-
-class MultiSelect::Item {
-public:
-	Item(uint64 id, const QString &text, const style::color &color);
-
-	uint64 id() const {
-		return _id;
-	}
-	void setText(const QString &text);
-	void paint(Painter &p, int x, int y);
-
-	virtual ~Item() = default;
-
-protected:
-	virtual void paintImage(Painter &p, int x, int y, int outerWidth, int size) = 0;
-
-private:
-	uint64 _id;
-
-};
-
-// This class is hold in header because it requires Qt preprocessing.
-class MultiSelect::Inner : public ScrolledWidget {
-	Q_OBJECT
-
-public:
-	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder);
-
-	QString getQuery() const;
-	bool setInnerFocus();
-
-	void setQueryChangedCallback(base::lambda_unique<void(const QString &query)> callback);
-	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
-
-	void addItem(std_::unique_ptr<Item> item);
-	void setItemText(uint64 itemId, const QString &text);
-
-	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
-	void removeItem(uint64 itemId); // Always calls the itemRemovedCallback().
+	void setResizedCallback(base::lambda_unique<void(int heightDelta)> callback);
 
 	~Inner();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private slots:
 	void onQueryChanged();
@@ -113,25 +108,55 @@ private slots:
 			_submittedCallback(ctrlShiftEnter);
 		}
 	}
+	void onFieldFocused();
 
 private:
-	void refreshItemsGeometry(Item *startingFromItem);
+	void computeItemsGeometry(int newWidth);
+	void updateItemsGeometry();
+	void updateFieldGeometry();
+	void updateHasAnyItems(bool hasAnyItems);
+	void updateSelection(QPoint mousePosition);
+	void clearSelection() {
+		updateSelection(QPoint(-1, -1));
+	}
+	void updateCursor();
+	enum class ChangeActiveWay {
+		Default,
+		SkipSetFocus,
+	};
+	void setActiveItem(int active, ChangeActiveWay skipSetFocus = ChangeActiveWay::Default);
+	void setActiveItemPrevious();
+	void setActiveItemNext();
+
+	QMargins itemPaintMargins() const;
 
 	const style::MultiSelect &_st;
+	FloatAnimation _iconOpacity;
 
-	using Row = QList<Item*>;
-	using Rows = QList<Row>;
-	Rows _rows;
+	ScrollCallback _scrollCallback;
 
 	using Items = QList<Item*>;
 	Items _items;
+	using RemovingItems = OrderedSet<Item*>;
+	RemovingItems _removingItems;
 
-	ChildWidget<InputField> _filter;
+	int _selected = -1;
+	int _active = -1;
+	bool _overDelete = false;
+
+	int _fieldLeft = 0;
+	int _fieldTop = 0;
+	int _fieldWidth = 0;
+	ChildWidget<InputField> _field;
 	ChildWidget<Ui::IconButton> _cancel;
+
+	int _newHeight = 0;
+	IntAnimation _height;
 
 	base::lambda_unique<void(const QString &query)> _queryChangedCallback;
 	base::lambda_unique<void(bool ctrlShiftEnter)> _submittedCallback;
 	base::lambda_unique<void(uint64 itemId)> _itemRemovedCallback;
+	base::lambda_unique<void(int heightDelta)> _resizedCallback;
 
 };
 
