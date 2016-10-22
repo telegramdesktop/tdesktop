@@ -186,8 +186,8 @@ public:
 	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
-	QSize sizeHint() const;
-	QSize minimumSizeHint() const;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
@@ -267,7 +267,7 @@ private:
 	public:
 		InputAreaInner(InputArea *parent);
 
-		QVariant loadResource(int type, const QUrl &name);
+		QVariant loadResource(int type, const QUrl &name) override;
 
 	protected:
 		bool viewportEvent(QEvent *e) override;
@@ -348,8 +348,8 @@ public:
 	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
-	QSize sizeHint() const;
-	QSize minimumSizeHint() const;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
@@ -436,9 +436,7 @@ private:
 	public:
 		InputFieldInner(InputField *parent);
 
-		QMimeData *createMimeDataFromSelection() const;
-
-		QVariant loadResource(int type, const QUrl &name);
+		QVariant loadResource(int type, const QUrl &name) override;
 
 	protected:
 		bool viewportEvent(QEvent *e) override;
@@ -447,6 +445,8 @@ private:
 		void keyPressEvent(QKeyEvent *e) override;
 		void paintEvent(QPaintEvent *e) override;
 		void contextMenuEvent(QContextMenuEvent *e) override;
+
+		QMimeData *createMimeDataFromSelection() const override;
 
 	private:
 		InputField *f() const {

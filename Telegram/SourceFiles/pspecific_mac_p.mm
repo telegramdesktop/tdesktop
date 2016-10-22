@@ -87,6 +87,7 @@ bool handleMediaKeyEvent(NSEvent *e);
 @interface ApplicationDelegate : NSObject<NSApplicationDelegate> {
 
 SPMediaKeyTap *keyTap;
+BOOL watchingMediaKeys;
 
 }
 
@@ -94,6 +95,8 @@ SPMediaKeyTap *keyTap;
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification;
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification;
 - (void)receiveWakeNote:(NSNotification*)note;
+- (void)setWatchingMediaKeys:(BOOL)watching;
+- (BOOL)isWatchingMediaKeys;
 - (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
 
 @end
@@ -109,15 +112,14 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+	keyTap = nullptr;
+	watchingMediaKeys = false;
 #ifndef OS_MAC_STORE
-	keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		[keyTap startWatchingMediaKeys];
+		keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 	} else {
 		LOG(("Media key monitoring disabled"));
 	}
-#else // !OS_MAC_STORE
-	keyTap = nullptr;
 #endif // else for !OS_MAC_STORE
 }
 
@@ -127,6 +129,25 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 - (void)receiveWakeNote:(NSNotification*)aNotification {
 	if (App::app()) App::app()->checkLocalTime();
+}
+
+- (void)setWatchingMediaKeys:(BOOL)watching {
+	if (watchingMediaKeys != watching) {
+		watchingMediaKeys = watching;
+		if (keyTap) {
+#ifndef OS_MAC_STORE
+			if (watchingMediaKeys) {
+				[keyTap startWatchingMediaKeys];
+			} else {
+				[keyTap stopWatchingMediaKeys];
+			}
+#endif // else for !OS_MAC_STORE
+		}
+	}
+}
+
+- (BOOL)isWatchingMediaKeys {
+	return watchingMediaKeys;
 }
 
 - (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
@@ -192,6 +213,16 @@ public:
 }
 
 @end
+
+namespace Platform {
+
+void SetWatchingMediaKeys(bool watching) {
+	if (_sharedDelegate) {
+		[_sharedDelegate setWatchingMediaKeys:(watching ? YES : NO)];
+	}
+}
+
+} // namespace Platform
 
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
 	@autoreleasepool {
@@ -263,6 +294,10 @@ bool handleMediaKeyEvent(NSEvent *e) {
 	int keyFlags = ([e data1] & 0x0000FFFF);
 	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
 	int keyRepeat = (keyFlags & 0x1);
+
+	if (!_sharedDelegate || ![_sharedDelegate isWatchingMediaKeys]) {
+		return false;
+	}
 
 	switch (keyCode) {
 	case NX_KEYTYPE_PLAY:

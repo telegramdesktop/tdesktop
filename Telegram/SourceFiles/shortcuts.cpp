@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "mainwidget.h"
 #include "media/player/media_player_instance.h"
+#include "pspecific.h"
 
 namespace ShortcutCommands {
 
@@ -543,6 +544,7 @@ void enableMediaShortcuts() {
 	for_const (auto shortcut, DataPtr->mediaShortcuts) {
 		shortcut->setEnabled(true);
 	}
+	Platform::SetWatchingMediaKeys(true);
 }
 
 void disableMediaShortcuts() {
@@ -550,6 +552,7 @@ void disableMediaShortcuts() {
 	for_const (auto shortcut, DataPtr->mediaShortcuts) {
 		shortcut->setEnabled(false);
 	}
+	Platform::SetWatchingMediaKeys(false);
 }
 
 void finish() {

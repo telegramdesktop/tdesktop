@@ -729,6 +729,9 @@ void finish() {
 	EventFilter::destroy();
 }
 
+void SetWatchingMediaKeys(bool watching) {
+}
+
 namespace ThirdParty {
 
 void start() {

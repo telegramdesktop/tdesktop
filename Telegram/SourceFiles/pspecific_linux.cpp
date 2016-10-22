@@ -406,6 +406,9 @@ void finish() {
 	_psEventFilter = nullptr;
 }
 
+void SetWatchingMediaKeys(bool watching) {
+}
+
 namespace ThirdParty {
 
 void start() {

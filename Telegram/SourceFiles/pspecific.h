@@ -39,6 +39,8 @@ namespace Platform {
 void start();
 void finish();
 
+void SetWatchingMediaKeys(bool watching);
+
 namespace ThirdParty {
 
 void start();

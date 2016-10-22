@@ -1640,6 +1640,8 @@ void MainWidget::closeBothPlayers() {
 	if (Media::Player::exists()) {
 		Media::Player::instance()->stop();
 	}
+
+	Shortcuts::disableMediaShortcuts();
 }
 
 void MainWidget::createPlayer() {
@@ -1657,6 +1659,8 @@ void MainWidget::createPlayer() {
 		_playerHeight = _contentScrollAddToY = _player->contentHeight();
 		updateControlsGeometry();
 	}
+
+	Shortcuts::enableMediaShortcuts();
 }
 
 void MainWidget::playerHeightUpdated() {
