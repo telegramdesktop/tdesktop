@@ -92,11 +92,11 @@ MultiSelect {
 	itemSkip: pixels;
 
 	field: InputField;
+	fieldMinWidth: pixels;
 	fieldIcon: icon;
 	fieldIconSkip: pixels;
 	fieldCancel: IconButton;
 	fieldCancelSkip: pixels;
-	fieldMinWidth: pixels;
 }
 
 widgetSlideDuration: 200;

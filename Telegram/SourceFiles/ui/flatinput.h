@@ -343,6 +343,7 @@ public:
 	}
 	void updatePlaceholder();
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
+	void finishPlaceholderAnimation();
 
 	void step_placeholderFg(float64 ms, bool timer);
 	void step_placeholderShift(float64 ms, bool timer);

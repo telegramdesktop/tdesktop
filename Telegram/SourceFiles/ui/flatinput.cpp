@@ -1890,14 +1890,19 @@ void InputField::step_placeholderFg(float64 ms, bool timer) {
 void InputField::step_placeholderShift(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		_a_placeholderShift.stop();
-		a_placeholderLeft.finish();
-		a_placeholderOpacity.finish();
+		finishPlaceholderAnimation();
 	} else {
 		a_placeholderLeft.update(dt, anim::linear);
 		a_placeholderOpacity.update(dt, anim::linear);
 	}
 	if (timer) update();
+}
+
+void InputField::finishPlaceholderAnimation() {
+	_a_placeholderShift.stop();
+	a_placeholderLeft.finish();
+	a_placeholderOpacity.finish();
+	update();
 }
 
 void InputField::step_border(float64 ms, bool timer) {

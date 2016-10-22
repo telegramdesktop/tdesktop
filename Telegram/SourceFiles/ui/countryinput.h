@@ -29,10 +29,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 QString findValidCode(QString fullCode);
 
 class CountrySelect;
-class InputField;
 
 namespace Ui {
-class IconButton;
+class MultiSelect;
 } // namespace Ui
 
 class CountryInput : public QWidget {
@@ -82,8 +81,6 @@ signals:
 	void countryChosen(const QString &iso);
 
 public slots:
-	void onFilterUpdate();
-	void onFilterCancel();
 	void onSubmit();
 
 protected:
@@ -95,10 +92,11 @@ protected:
 	void showAll() override;
 
 private:
+	void onFilterUpdate(const QString &query);
+
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<InputField> _filter;
-	ChildWidget<Ui::IconButton> _filterCancel;
+	ChildWidget<Ui::MultiSelect> _select;
 
 	ScrollableBoxShadow _topShadow;
 

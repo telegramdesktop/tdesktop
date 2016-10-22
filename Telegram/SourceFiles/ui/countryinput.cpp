@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "ui/scrollarea.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/multi_select.h"
 #include "boxes/contactsbox.h"
 #include "countries.h"
 #include "styles/style_boxes.h"
@@ -65,7 +65,8 @@ namespace {
 		countriesFiltered.reserve(countriesCount);
 		countriesNames.resize(countriesCount);
 	}
-}
+
+} // namespace
 
 const CountriesByCode &countriesByCode() {
 	initCountries();
@@ -196,18 +197,16 @@ void CountryInput::setText(const QString &newText) {
 
 CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)
 , _inner(this)
-, _filter(this, st::boxSearchField, lang(lng_country_ph))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_country_ph))
 , _topShadow(this) {
-	ItemListBox::init(_inner, st::boxScrollSkip, st::boxTitleHeight + _filter->height());
+	_select->resizeToWidth(st::boxWidth);
 
-	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
+	ItemListBox::init(_inner, st::boxScrollSkip, st::boxTitleHeight + _select->height());
+
+	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
+	_select->setSubmittedCallback([this](bool) { onSubmit(); });
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
-
-	_filterCancel->setAttribute(Qt::WA_OpaquePaintEvent);
 
 	prepare();
 }
@@ -239,40 +238,27 @@ void CountrySelectBox::paintEvent(QPaintEvent *e) {
 
 void CountrySelectBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
-	_filter->resize(width(), _filter->height());
-	_filter->moveToLeft(0, st::boxTitleHeight);
-	_filterCancel->moveToRight(0, st::boxTitleHeight);
-	_inner->resize(width(), _inner->height());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _filter->height(), width(), st::lineWidth);
+
+	_select->resizeToWidth(width());
+	_select->moveToLeft(0, st::boxTitleHeight);
+
+	_inner->resizeToWidth(width());
+	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
 }
 
 void CountrySelectBox::showAll() {
-	_filter->show();
-	if (_filter->getLastText().isEmpty()) {
-		_filterCancel->hide();
-	} else {
-		_filterCancel->show();
-	}
+	_select->show();
 	_topShadow.show();
 	ItemListBox::showAll();
 }
 
-void CountrySelectBox::onFilterCancel() {
-	_filter->setText(QString());
-}
-
-void CountrySelectBox::onFilterUpdate() {
+void CountrySelectBox::onFilterUpdate(const QString &query) {
 	scrollArea()->scrollToY(0);
-	if (_filter->getLastText().isEmpty()) {
-		_filterCancel->hide();
-	} else {
-		_filterCancel->show();
-	}
-	_inner->updateFilter(_filter->getLastText());
+	_inner->updateFilter(query);
 }
 
 void CountrySelectBox::doSetInnerFocus() {
-	_filter->setFocus();
+	_select->setInnerFocus();
 }
 
 CountrySelectBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)

@@ -30,7 +30,7 @@ public:
 	using UpdateCallback = base::lambda_unique<void()>;
 	WidgetSlideWrap(QWidget *parent, Widget *entity
 		, style::margins entityPadding
-		, UpdateCallback &&updateCallback
+		, UpdateCallback updateCallback
 		, int duration = st::widgetSlideDuration) : TWidget(parent)
 	, _entity(entity)
 	, _padding(entityPadding)

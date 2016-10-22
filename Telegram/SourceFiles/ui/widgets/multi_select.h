@@ -40,8 +40,12 @@ public:
 	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
 	void setResizedCallback(base::lambda_unique<void()> callback);
 
+	enum class AddItemWay {
+		Default,
+		SkipAnimation,
+	};
 	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	void addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage);
+	void addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage, AddItemWay way = AddItemWay::Default);
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
@@ -82,7 +86,7 @@ public:
 	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
 
 	class Item;
-	void addItem(std_::unique_ptr<Item> item);
+	void addItem(std_::unique_ptr<Item> item, AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
@@ -120,6 +124,8 @@ private:
 		updateSelection(QPoint(-1, -1));
 	}
 	void updateCursor();
+	void updateHeightStep();
+	void finishHeightAnimation();
 	enum class ChangeActiveWay {
 		Default,
 		SkipSetFocus,

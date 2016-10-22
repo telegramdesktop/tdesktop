@@ -32,6 +32,8 @@ class IndexedList;
 
 namespace Ui {
 class MultiSelect;
+template <typename Widget>
+class WidgetSlideWrap;
 } // namespace Ui
 
 QString cantInviteError();
@@ -79,13 +81,15 @@ protected:
 
 private:
 	void init();
+	int getTopScrollSkip() const;
 	void updateScrollSkips();
 	void onFilterUpdate(const QString &filter);
 	void onPeerSelectedChanged(PeerData *peer, bool checked);
+	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::MultiSelect> _select;
+	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
 
 	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
@@ -150,6 +154,9 @@ public:
 	QVector<MTPInputUser> selectedInputs();
 	bool allAdmins() const {
 		return _allAdmins.checked();
+	}
+	void setAllAdminsChangedCallback(base::lambda_unique<void()> allAdminsChangedCallback) {
+		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
 	}
 
 	void loadProfilePhotos(int32 yFrom);
@@ -259,6 +266,7 @@ private:
 	Checkbox _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
+	base::lambda_unique<void()> _allAdminsChangedCallback;
 
 	PeerData *_addToPeer = nullptr;
 	UserData *_addAdmin = nullptr;

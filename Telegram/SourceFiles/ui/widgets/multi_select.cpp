@@ -433,8 +433,8 @@ QString MultiSelect::getQuery() const {
 	return _inner->getQuery();
 }
 
-void MultiSelect::addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage) {
-	_inner->addItem(std_::make_unique<Inner::Item>(_st.item, itemId, text, color, std_::move(paintRoundImage)));
+void MultiSelect::addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage, AddItemWay way) {
+	_inner->addItem(std_::make_unique<Inner::Item>(_st.item, itemId, text, color, std_::move(paintRoundImage)), way);
 }
 
 void MultiSelect::setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback) {
@@ -710,7 +710,7 @@ void MultiSelect::Inner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void MultiSelect::Inner::addItem(std_::unique_ptr<Item> item) {
+void MultiSelect::Inner::addItem(std_::unique_ptr<Item> item, AddItemWay way) {
 	auto wasEmpty = _items.empty();
 	item->setUpdateCallback([this, item = item.get()] {
 		auto itemRect = item->paintArea(width() - _st.padding.left() - _st.padding.top());
@@ -723,7 +723,12 @@ void MultiSelect::Inner::addItem(std_::unique_ptr<Item> item) {
 	if (wasEmpty) {
 		updateHasAnyItems(true);
 	}
-	_items.back()->showAnimated();
+	if (way != AddItemWay::SkipAnimation) {
+		_items.back()->showAnimated();
+	} else {
+		_field->finishPlaceholderAnimation();
+		finishHeightAnimation();
+	}
 }
 
 void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
@@ -765,16 +770,23 @@ void MultiSelect::Inner::updateItemsGeometry() {
 	if (newHeight == _newHeight) return;
 
 	_newHeight = newHeight;
-	_height.start([this] {
-		auto newHeight = _height.current(_newHeight);
-		if (auto heightDelta = newHeight - height()) {
-			resize(width(), newHeight);
-			if (_resizedCallback) {
-				_resizedCallback(heightDelta);
-			}
-			update();
+	_height.start([this] { updateHeightStep(); }, height(), _newHeight, _st.item.duration);
+}
+
+void MultiSelect::Inner::updateHeightStep() {
+	auto newHeight = _height.current(_newHeight);
+	if (auto heightDelta = newHeight - height()) {
+		resize(width(), newHeight);
+		if (_resizedCallback) {
+			_resizedCallback(heightDelta);
 		}
-	}, height(), _newHeight, _st.item.duration);
+		update();
+	}
+}
+
+void MultiSelect::Inner::finishHeightAnimation() {
+	_height.finish();
+	updateHeightStep();
 }
 
 void MultiSelect::Inner::setItemText(uint64 itemId, const QString &text) {

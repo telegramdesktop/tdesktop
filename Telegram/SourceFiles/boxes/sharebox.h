@@ -36,7 +36,7 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Ui {
-class IconButton;
+class MultiSelect;
 } // namespace Ui
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
@@ -52,8 +52,6 @@ public:
 	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
 
 private slots:
-	void onFilterUpdate();
-	void onFilterCancel();
 	void onScroll();
 
 	bool onSearchByUsername(bool searchCache = false);
@@ -61,7 +59,6 @@ private slots:
 
 	void onSubmit();
 	void onCopyLink();
-	void onSelectedChanged();
 
 	void onMustScrollTo(int top, int bottom);
 
@@ -73,8 +70,15 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void onFilterUpdate(const QString &query);
+	void onSelectedChanged();
 	void moveButtons();
 	void updateButtonsVisibility();
+	int getTopScrollSkip() const;
+	void updateScrollSkips();
+
+	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
+	void onPeerSelectedChanged(PeerData *peer, bool checked);
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
@@ -84,8 +88,7 @@ private:
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<InputField> _filter;
-	ChildWidget<Ui::IconButton> _filterCancel;
+	ChildWidget<Ui::MultiSelect> _select;
 
 	ChildWidget<BoxButton> _copy;
 	ChildWidget<BoxButton> _share;
@@ -116,6 +119,9 @@ class ShareBox::Inner : public ScrolledWidget, public RPCSender, private base::S
 public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
+	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void peerUnselected(PeerData *peer);
+
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
 
@@ -134,9 +140,7 @@ public slots:
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
-	void filterCancel();
 	void searchByUsername();
-	void selectedChanged();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -170,6 +174,11 @@ private:
 
 	void loadProfilePhotos(int yFrom);
 	void changeCheckState(Chat *chat);
+	enum class ChangeStateWay {
+		Default,
+		SkipCallback,
+	};
+	void changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback = ChangeStateWay::Default);
 
 	Chat *getChat(Dialogs::Row *row);
 	void setActive(int active);
@@ -197,6 +206,8 @@ private:
 	DataMap _dataMap;
 	using SelectedChats = OrderedSet<PeerData*>;
 	SelectedChats _selected;
+
+	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	ChatData *data(Dialogs::Row *row);
 

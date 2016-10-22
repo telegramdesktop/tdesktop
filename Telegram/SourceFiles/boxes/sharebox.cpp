@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_boxes.h"
+#include "styles/style_history.h"
 #include "observer_peer.h"
 #include "lang.h"
 #include "mainwindow.h"
@@ -32,7 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/multi_select.h"
 #include "history/history_media_types.h"
 #include "boxes/contactsbox.h"
 
@@ -40,30 +41,37 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 , _copyCallback(std_::move(copyCallback))
 , _submitCallback(std_::move(submitCallback))
 , _inner(this, std_::move(filterCallback))
-, _filter(this, st::boxSearchField, lang(lng_participant_filter))
-, _filterCancel(this, st::boxSearchCancel)
+, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _copy(this, lang(lng_share_copy_link), st::defaultBoxButton)
 , _share(this, lang(lng_share_confirm), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this)
 , _bottomShadow(this) {
-	int topSkip = st::boxTitleHeight + _filter->height();
-	int bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
+	_select->resizeToWidth(st::boxWideWidth);
+
+	auto topSkip = getTopScrollSkip();
+	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
 	init(_inner, bottomSkip, topSkip);
 
-	connect(_inner, SIGNAL(selectedChanged()), this, SLOT(onSelectedChanged()));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
 	connect(_copy, SIGNAL(clicked()), this, SLOT(onCopyLink()));
 	connect(_share, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(_filter, SIGNAL(submitted(bool)), _inner, SLOT(onSelectActive()));
-	connect(_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
-	connect(_inner, SIGNAL(filterCancel()), this, SLOT(onFilterCancel()));
+	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
+	_select->setItemRemovedCallback([this](uint64 itemId) {
+		if (auto peer = App::peerLoaded(itemId)) {
+			_inner->peerUnselected(peer);
+			onSelectedChanged();
+			update();
+		}
+	});
+	_select->setResizedCallback([this] { updateScrollSkips(); });
+	_select->setSubmittedCallback([this](bool) { _inner->onSelectActive(); });
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
-
-	_filterCancel->setAttribute(Qt::WA_OpaquePaintEvent);
+	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
+		onPeerSelectedChanged(peer, checked);
+	});
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
@@ -73,8 +81,29 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 	prepare();
 }
 
+int ShareBox::getTopScrollSkip() const {
+	auto result = st::boxTitleHeight;
+	if (!_select->isHidden()) {
+		result += _select->height();
+	}
+	return result;
+}
+
+void ShareBox::updateScrollSkips() {
+	auto oldScrollHeight = scrollArea()->height();
+	auto topSkip = getTopScrollSkip();
+	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
+	setScrollSkips(bottomSkip, topSkip);
+	auto scrollHeightDelta = scrollArea()->height() - oldScrollHeight;
+	if (scrollHeightDelta) {
+		scrollArea()->scrollToY(scrollArea()->scrollTop() - scrollHeightDelta);
+	}
+
+	_topShadow->setGeometry(0, topSkip, width(), st::lineWidth);
+}
+
 bool ShareBox::onSearchByUsername(bool searchCache) {
-	auto query = _filter->getLastText().trimmed();
+	auto query = _select->getQuery();
 	if (query.isEmpty()) {
 		if (_peopleRequest) {
 			_peopleRequest = 0;
@@ -142,7 +171,7 @@ bool ShareBox::peopleFailed(const RPCError &error, mtpRequestId requestId) {
 }
 
 void ShareBox::doSetInnerFocus() {
-	_filter->setFocus();
+	_select->setInnerFocus();
 }
 
 void ShareBox::paintEvent(QPaintEvent *e) {
@@ -154,17 +183,21 @@ void ShareBox::paintEvent(QPaintEvent *e) {
 
 void ShareBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
-	_filter->resize(width(), _filter->height());
-	_filter->moveToLeft(0, st::boxTitleHeight);
-	_filterCancel->moveToRight(0, st::boxTitleHeight);
+
+	_select->resizeToWidth(width());
+	_select->moveToLeft(0, st::boxTitleHeight);
+
+	updateScrollSkips();
+
 	_inner->resizeToWidth(width());
 	moveButtons();
-	_topShadow->setGeometry(0, st::boxTitleHeight + _filter->height(), width(), st::lineWidth);
+	_topShadow->setGeometry(0, getTopScrollSkip(), width(), st::lineWidth);
 	_bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _share->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
 void ShareBox::keyPressEvent(QKeyEvent *e) {
-	if (_filter->hasFocus()) {
+	auto focused = focusWidget();
+	if (_select == focused || _select->isAncestorOf(focusWidget())) {
 		if (e->key() == Qt::Key_Up) {
 			_inner->activateSkipColumn(-1);
 		} else if (e->key() == Qt::Key_Down) {
@@ -194,13 +227,38 @@ void ShareBox::updateButtonsVisibility() {
 	_cancel->setVisible(hasSelected);
 }
 
-void ShareBox::onFilterCancel() {
-	_filter->setText(QString());
+void ShareBox::onFilterUpdate(const QString &query) {
+	scrollArea()->scrollToY(0);
+	_inner->updateFilter(query);
 }
 
-void ShareBox::onFilterUpdate() {
-	_filterCancel->setVisible(!_filter->getLastText().isEmpty());
-	_inner->updateFilter(_filter->getLastText());
+void ShareBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
+	auto getColor = [peer]() -> const style::color & {
+		switch (peer->colorIndex) {
+		case 1: return st::historyPeer2UserpicFg;
+		case 2: return st::historyPeer3UserpicFg;
+		case 3: return st::historyPeer4UserpicFg;
+		case 4: return st::historyPeer5UserpicFg;
+		case 5: return st::historyPeer6UserpicFg;
+		case 6: return st::historyPeer7UserpicFg;
+		case 7: return st::historyPeer8UserpicFg;
+		default: return st::historyPeer1UserpicFg;
+		}
+	};
+	using AddItemWay = Ui::MultiSelect::AddItemWay;
+	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
+	_select->addItem(peer->id, peer->shortName(), getColor(), PaintUserpicCallback(peer), addItemWay);
+}
+
+void ShareBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
+	if (checked) {
+		addPeerToMultiSelect(peer);
+		_select->clearQuery();
+	} else {
+		_select->removeItem(peer->id);
+	}
+	onSelectedChanged();
+	update();
 }
 
 void ShareBox::onSubmit() {
@@ -597,17 +655,34 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 		if (!chat->checkbox.checked()) {
 			_chatsIndexed->moveToTop(chat->peer);
 		}
-		emit filterCancel();
 	}
 
-	chat->checkbox.setChecked(!chat->checkbox.checked());
-	if (chat->checkbox.checked()) {
+	changePeerCheckState(chat, !chat->checkbox.checked());
+}
+
+void ShareBox::Inner::peerUnselected(PeerData *peer) {
+	// If data is nullptr we simply won't do anything.
+	auto chat = _dataMap.value(peer, nullptr);
+	changePeerCheckState(chat, false, ChangeStateWay::SkipCallback);
+}
+
+void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback) {
+	_peerSelectedChangedCallback = std_::move(callback);
+}
+
+void ShareBox::Inner::changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback) {
+	if (chat) {
+		chat->checkbox.setChecked(checked);
+	}
+	if (checked) {
 		_selected.insert(chat->peer);
 		setActive(chatIndex(chat->peer));
 	} else {
 		_selected.remove(chat->peer);
 	}
-	emit selectedChanged();
+	if (useCallback != ChangeStateWay::SkipCallback && _peerSelectedChangedCallback) {
+		_peerSelectedChangedCallback(chat->peer, checked);
+	}
 }
 
 bool ShareBox::Inner::hasSelected() const {
