@@ -4742,7 +4742,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 
 void HistoryWidget::historyToDown(History *history) {
 	history->forgetScrollState();
-	if (History *migrated = App::historyLoaded(history->peer->migrateFrom())) {
+	if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
 		migrated->forgetScrollState();
 	}
 	if (history == _history) {

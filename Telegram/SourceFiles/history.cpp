@@ -957,8 +957,9 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 }
 
 HistoryItem *History::addNewToLastBlock(const MTPMessage &msg, NewMessageType type) {
-	bool applyServiceAction = (type == NewMessageUnread), detachExistingItem = (type != NewMessageLast);
-	HistoryItem *item = createItem(msg, applyServiceAction, detachExistingItem);
+	auto applyServiceAction = (type == NewMessageUnread);
+	auto detachExistingItem = (type != NewMessageLast);
+	auto item = createItem(msg, applyServiceAction, detachExistingItem);
 	if (!item || !item->detached()) {
 		return item;
 	}
@@ -1139,7 +1140,6 @@ void History::newItemAdded(HistoryItem *item) {
 			outboxRead(item);
 		}
 	} else if (item->unread()) {
-		bool skip = false;
 		if (!isChannel() || peer->asChannel()->amIn()) {
 			notifies.push_back(item);
 			App::main()->newUnreadMsg(this, item);

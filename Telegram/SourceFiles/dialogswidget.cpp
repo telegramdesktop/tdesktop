@@ -432,9 +432,14 @@ void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRo
 }
 
 void DialogsInner::createDialog(History *history) {
+	if (history->peer->loadedStatus != PeerData::LoadedStatus::FullLoaded) {
+		LOG(("API Error: DialogsInner::createDialog() called for a non loaded peer!"));
+		return;
+	}
+
 	bool creating = !history->inChatList(Dialogs::Mode::All);
 	if (creating) {
-		Dialogs::Row *mainRow = history->addToChatList(Dialogs::Mode::All, dialogs.get());
+		auto mainRow = history->addToChatList(Dialogs::Mode::All, dialogs.get());
 		contactsNoDialogs->del(history->peer, mainRow);
 	}
 	if (importantDialogs && !history->inChatList(Dialogs::Mode::Important) && !history->mute()) {
@@ -1046,30 +1051,39 @@ bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSe
 	if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
 		clearSearchResults(false);
 	}
-	int32 lastDateFound = 0;
-	for (QVector<MTPMessage>::const_iterator i = messages.cbegin(), e = messages.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
-		int32 lastDate = dateFromMessage(*i);
-		if (lastDate) {
-			_searchResults.push_back(new Dialogs::FakeRow(item));
-			lastDateFound = lastDate;
-			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
-				_lastSearchDate = lastDateFound;
+	auto isGlobalSearch = (type == DialogsSearchFromStart || type == DialogsSearchFromOffset);
+	auto isMigratedSearch = (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset);
+
+	TimeId lastDateFound = 0;
+	for_const (auto message, messages) {
+		if (auto msgId = idFromMessage(message)) {
+			auto peerId = peerFromMessage(message);
+			auto lastDate = dateFromMessage(message);
+			if (auto peer = App::peerLoaded(peerId)) {
+				if (lastDate) {
+					auto item = App::histories().addNewMessage(message, NewMessageExisting);
+					_searchResults.push_back(new Dialogs::FakeRow(item));
+					lastDateFound = lastDate;
+					if (isGlobalSearch) {
+						_lastSearchDate = lastDateFound;
+					}
+				}
+				if (isGlobalSearch) {
+					_lastSearchPeer = peer;
+				}
+			} else {
+				LOG(("API Error: a search results with not loaded peer %1").arg(peerId));
 			}
-		}
-		if (item) {
-			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
-				_lastSearchPeer = item->history()->peer;
+			if (isMigratedSearch) {
+				_lastSearchMigratedId = msgId;
+			} else {
+				_lastSearchId = msgId;
 			}
-		}
-		MsgId msgId = item ? item->id : idFromMessage(*i);
-		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
-			_lastSearchMigratedId = msgId;
 		} else {
-			_lastSearchId = msgId;
+			LOG(("API Error: a search results with not message id"));
 		}
 	}
-	if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+	if (isMigratedSearch) {
 		_searchedMigratedCount = fullCount;
 	} else {
 		_searchedCount = fullCount;
@@ -1085,15 +1099,18 @@ void DialogsInner::peopleReceived(const QString &query, const QVector<MTPPeer> &
 	_peopleQuery = query.toLower().trimmed();
 	_peopleResults.clear();
 	_peopleResults.reserve(people.size());
-	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
-		PeerId peerId = peerFromMTP(*i);
-		if (History *h = App::historyLoaded(peerId)) {
-			if (h->inChatList(Dialogs::Mode::All)) {
+	for (auto i = people.cbegin(), e = people.cend(); i != e; ++i) {
+		auto peerId = peerFromMTP(*i);
+		if (auto history = App::historyLoaded(peerId)) {
+			if (history->inChatList(Dialogs::Mode::All)) {
 				continue; // skip existing chats
 			}
 		}
-
-		_peopleResults.push_back(App::peer(peerId));
+		if (auto peer = App::peerLoaded(peerId)) {
+			_peopleResults.push_back(App::peer(peerId));
+		} else {
+			LOG(("API Error: user %1 was not loaded in DialogsInner::peopleReceived()").arg(peerId));
+		}
 	}
 	refresh();
 }
@@ -1112,8 +1129,12 @@ void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 }
 
 void DialogsInner::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (user->loadedStatus != PeerData::FullLoaded) {
+		LOG(("API Error: notify_userIsContactChanged() called for a not loaded user!"));
+		return;
+	}
 	if (user->contact > 0) {
-		History *history = App::history(user->id);
+		auto history = App::history(user->id);
 		contacts->addByName(history);
 		if (auto row = shownDialogs()->getRow(user->id)) {
 			if (fromThisApp) {
@@ -2050,7 +2071,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 	}
 	if (!_searchInPeer && q.size() >= MinUsernameLength) {
 		if (searchCache) {
-			PeopleCache::const_iterator i = _peopleCache.constFind(q);
+			auto i = _peopleCache.constFind(q);
 			if (i != _peopleCache.cend()) {
 				_peopleQuery = q;
 				_peopleRequest = 0;
@@ -2214,22 +2235,22 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 }
 
 void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId req) {
-	QString q = _peopleQuery;
+	auto q = _peopleQuery;
 	if (_inner.state() == DialogsInner::FilteredState || _inner.state() == DialogsInner::SearchedState) {
-		PeopleQueries::iterator i = _peopleQueries.find(req);
+		auto i = _peopleQueries.find(req);
 		if (i != _peopleQueries.cend()) {
 			q = i.value();
 			_peopleCache[q] = result;
 			_peopleQueries.erase(i);
 		}
 	}
-
 	if (_peopleRequest == req) {
 		switch (result.type()) {
 		case mtpc_contacts_found: {
-			App::feedUsers(result.c_contacts_found().vusers);
-			App::feedChats(result.c_contacts_found().vchats);
-			_inner.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
+			auto &d = result.c_contacts_found();
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			_inner.peopleReceived(q, d.vresults.c_vector().v);
 		} break;
 		}
 

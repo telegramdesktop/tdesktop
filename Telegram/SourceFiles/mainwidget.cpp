@@ -4716,7 +4716,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewChannelMessage: {
 		auto &d = update.c_updateNewChannelMessage();
 		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
+		auto isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
 			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 

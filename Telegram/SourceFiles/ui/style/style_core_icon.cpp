@@ -40,16 +40,15 @@ inline int pxAdjust(int value, int scale) {
 }
 
 QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
-	QImage maskImage, finalImage;
-	bool loaded = maskImage.loadFromData(mask->data(), mask->size(), "PNG");
-	t_assert(loaded != false);
+	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
+	t_assert(!maskImage.isNull());
 
 	// images are layouted like this:
 	// 200x 100x
 	// 150x 125x
 	int width = maskImage.width() / 3;
 	int height = qRound((maskImage.height() * 2) / 7.);
-	QRect r = QRect(0, 0, width * 2, height * 2);
+	auto r = QRect(0, 0, width * 2, height * 2);
 	if (!cRetina() && cScale() != dbisTwo) {
 		if (cScale() == dbisOne) {
 			r = QRect(width * 2, 0, width, height);
@@ -65,7 +64,7 @@ QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
 			}
 		}
 	}
-	finalImage = colorizeImage(maskImage, color, r);
+	auto finalImage = colorizeImage(maskImage, color, r);
 	finalImage.setDevicePixelRatio(cRetinaFactor());
 	return App::pixmapFromImageInPlace(std_::move(finalImage));
 }
