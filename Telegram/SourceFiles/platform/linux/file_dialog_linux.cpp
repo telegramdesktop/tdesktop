@@ -74,7 +74,7 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 	auto parent = App::wnd() ? App::wnd()->filedialogParent() : nullptr;
 	internal::GtkFileDialog dialog(parent, caption, QString(), filter);
 
-    dialog.setModal(true);
+	dialog.setModal(true);
 	if (type == Type::ReadFile || type == Type::ReadFiles) {
 		dialog.setFileMode((type == Type::ReadFiles) ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
@@ -116,17 +116,17 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 namespace internal {
 
 QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
-    Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "response", GCallback(onResponse), this);
-    Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), NULL);
+	Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "response", GCallback(onResponse), this);
+	Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), NULL);
 }
 
 QGtkDialog::~QGtkDialog() {
-    Libs::gtk_clipboard_store(Libs::gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
-    Libs::gtk_widget_destroy(gtkWidget);
+	Libs::gtk_clipboard_store(Libs::gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+	Libs::gtk_widget_destroy(gtkWidget);
 }
 
 GtkDialog *QGtkDialog::gtkDialog() const {
-    return Libs::gtk_dialog_cast(gtkWidget);
+	return Libs::gtk_dialog_cast(gtkWidget);
 }
 
 void QGtkDialog::exec() {
@@ -147,42 +147,42 @@ void QGtkDialog::exec() {
 }
 
 void QGtkDialog::show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent) {
-    connect(parent, &QWindow::destroyed, this, &QGtkDialog::onParentWindowDestroyed,
-            Qt::UniqueConnection);
-    setParent(parent);
-    setFlags(flags);
-    setModality(modality);
+	connect(parent, &QWindow::destroyed, this, &QGtkDialog::onParentWindowDestroyed,
+			Qt::UniqueConnection);
+	setParent(parent);
+	setFlags(flags);
+	setModality(modality);
 
-    Libs::gtk_widget_realize(gtkWidget); // creates X window
+	Libs::gtk_widget_realize(gtkWidget); // creates X window
 
-    if (parent) {
-        Platform::internal::XSetTransientForHint(Libs::gtk_widget_get_window(gtkWidget), parent->winId());
-    }
+	if (parent) {
+		Platform::internal::XSetTransientForHint(Libs::gtk_widget_get_window(gtkWidget), parent->winId());
+	}
 
-    if (modality != Qt::NonModal) {
-        Libs::gdk_window_set_modal_hint(Libs::gtk_widget_get_window(gtkWidget), true);
-        QGuiApplicationPrivate::showModalWindow(this);
-    }
+	if (modality != Qt::NonModal) {
+		Libs::gdk_window_set_modal_hint(Libs::gtk_widget_get_window(gtkWidget), true);
+		QGuiApplicationPrivate::showModalWindow(this);
+	}
 
-    Libs::gtk_widget_show(gtkWidget);
-    Libs::gdk_window_focus(Libs::gtk_widget_get_window(gtkWidget), 0);
+	Libs::gtk_widget_show(gtkWidget);
+	Libs::gdk_window_focus(Libs::gtk_widget_get_window(gtkWidget), 0);
 }
 
 void QGtkDialog::hide() {
-    QGuiApplicationPrivate::hideModalWindow(this);
-    Libs::gtk_widget_hide(gtkWidget);
+	QGuiApplicationPrivate::hideModalWindow(this);
+	Libs::gtk_widget_hide(gtkWidget);
 }
 
 void QGtkDialog::onResponse(QGtkDialog *dialog, int response) {
-    if (response == GTK_RESPONSE_OK)
-        emit dialog->accept();
-    else
-        emit dialog->reject();
+	if (response == GTK_RESPONSE_OK)
+		emit dialog->accept();
+	else
+		emit dialog->reject();
 }
 
 void QGtkDialog::onParentWindowDestroyed() {
-    // The Gtk*DialogHelper classes own this object. Make sure the parent doesn't delete it.
-    setParent(nullptr);
+	// The Gtk*DialogHelper classes own this object. Make sure the parent doesn't delete it.
+	setParent(nullptr);
 }
 
 namespace {
@@ -192,13 +192,13 @@ const char *filterRegExp =
 
 // Makes a list of filters from a normal filter string "Image Files (*.png *.jpg)"
 QStringList cleanFilterList(const QString &filter) {
-    QRegExp regexp(QString::fromLatin1(filterRegExp));
-    Q_ASSERT(regexp.isValid());
-    QString f = filter;
-    int i = regexp.indexIn(f);
-    if (i >= 0)
-        f = regexp.cap(2);
-    return f.split(QLatin1Char(' '), QString::SkipEmptyParts);
+	QRegExp regexp(QString::fromLatin1(filterRegExp));
+	Q_ASSERT(regexp.isValid());
+	QString f = filter;
+	int i = regexp.indexIn(f);
+	if (i >= 0)
+		f = regexp.cap(2);
+	return f.split(QLatin1Char(' '), QString::SkipEmptyParts);
 }
 
 } // namespace
@@ -213,35 +213,35 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
 		_nameFilters << filters[i].simplified();
 	}
 
-    d.reset(new QGtkDialog(Libs::gtk_file_chooser_dialog_new("", nullptr,
+	d.reset(new QGtkDialog(Libs::gtk_file_chooser_dialog_new("", nullptr,
 		GTK_FILE_CHOOSER_ACTION_OPEN,
 		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 		GTK_STOCK_OK, GTK_RESPONSE_OK, NULL)));
-    connect(d.data(), SIGNAL(accept()), this, SLOT(onAccepted()));
-    connect(d.data(), SIGNAL(reject()), this, SLOT(onRejected()));
+	connect(d.data(), SIGNAL(accept()), this, SLOT(onAccepted()));
+	connect(d.data(), SIGNAL(reject()), this, SLOT(onRejected()));
 
-    Libs::g_signal_connect_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
-    Libs::g_signal_connect_swapped_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
+	Libs::g_signal_connect_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
+	Libs::g_signal_connect_swapped_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
 }
 
 GtkFileDialog::~GtkFileDialog() {
 }
 
 void GtkFileDialog::showHelper(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent) {
-    _dir.clear();
-    _selection.clear();
+	_dir.clear();
+	_selection.clear();
 
-    applyOptions();
-    return d->show(flags, modality, parent);
+	applyOptions();
+	return d->show(flags, modality, parent);
 }
 
 void GtkFileDialog::setVisible(bool visible) {
-    if (visible) {
+	if (visible) {
 		if (testAttribute(Qt::WA_WState_ExplicitShowHide) && !testAttribute(Qt::WA_WState_Hidden)) {
-            return;
+			return;
 		}
-    } else if (testAttribute(Qt::WA_WState_ExplicitShowHide) && testAttribute(Qt::WA_WState_Hidden)) {
-        return;
+	} else if (testAttribute(Qt::WA_WState_ExplicitShowHide) && testAttribute(Qt::WA_WState_Hidden)) {
+		return;
 	}
 
 	if (visible) {
@@ -254,64 +254,64 @@ void GtkFileDialog::setVisible(bool visible) {
 	// updates the state correctly, but skips showing the non-native version:
 	setAttribute(Qt::WA_DontShowOnScreen);
 
-    QDialog::setVisible(visible);
+	QDialog::setVisible(visible);
 }
 
 int GtkFileDialog::exec() {
 	d->setModality(windowModality());
 
 	bool deleteOnClose = testAttribute(Qt::WA_DeleteOnClose);
-    setAttribute(Qt::WA_DeleteOnClose, false);
+	setAttribute(Qt::WA_DeleteOnClose, false);
 
-    bool wasShowModal = testAttribute(Qt::WA_ShowModal);
-    setAttribute(Qt::WA_ShowModal, true);
-    setResult(0);
+	bool wasShowModal = testAttribute(Qt::WA_ShowModal);
+	setAttribute(Qt::WA_ShowModal, true);
+	setResult(0);
 
-    show();
+	show();
 
-    QPointer<QDialog> guard = this;
-    d->exec();
-    if (guard.isNull())
-        return QDialog::Rejected;
+	QPointer<QDialog> guard = this;
+	d->exec();
+	if (guard.isNull())
+		return QDialog::Rejected;
 
-    setAttribute(Qt::WA_ShowModal, wasShowModal);
+	setAttribute(Qt::WA_ShowModal, wasShowModal);
 
-    return result();
+	return result();
 }
 
 void GtkFileDialog::hideHelper() {
-    // After GtkFileChooserDialog has been hidden, gtk_file_chooser_get_current_folder()
-    // & gtk_file_chooser_get_filenames() will return bogus values -> cache the actual
-    // values before hiding the dialog
-    _dir = directory().absolutePath();
-    _selection = selectedFiles();
+	// After GtkFileChooserDialog has been hidden, gtk_file_chooser_get_current_folder()
+	// & gtk_file_chooser_get_filenames() will return bogus values -> cache the actual
+	// values before hiding the dialog
+	_dir = directory().absolutePath();
+	_selection = selectedFiles();
 
-    d->hide();
+	d->hide();
 }
 
 bool GtkFileDialog::defaultNameFilterDisables() const {
-    return false;
+	return false;
 }
 
 void GtkFileDialog::setDirectory(const QString &directory) {
-    GtkDialog *gtkDialog = d->gtkDialog();
-    Libs::gtk_file_chooser_set_current_folder(Libs::gtk_file_chooser_cast(gtkDialog), directory.toUtf8());
+	GtkDialog *gtkDialog = d->gtkDialog();
+	Libs::gtk_file_chooser_set_current_folder(Libs::gtk_file_chooser_cast(gtkDialog), directory.toUtf8());
 }
 
 QDir GtkFileDialog::directory() const {
-    // While GtkFileChooserDialog is hidden, gtk_file_chooser_get_current_folder()
-    // returns a bogus value -> return the cached value before hiding
-    if (!_dir.isEmpty())
-        return _dir;
+	// While GtkFileChooserDialog is hidden, gtk_file_chooser_get_current_folder()
+	// returns a bogus value -> return the cached value before hiding
+	if (!_dir.isEmpty())
+		return _dir;
 
-    QString ret;
-    GtkDialog *gtkDialog = d->gtkDialog();
-    gchar *folder = Libs::gtk_file_chooser_get_current_folder(Libs::gtk_file_chooser_cast(gtkDialog));
-    if (folder) {
-        ret = QString::fromUtf8(folder);
-        Libs::g_free(folder);
-    }
-    return QDir(ret);
+	QString ret;
+	GtkDialog *gtkDialog = d->gtkDialog();
+	gchar *folder = Libs::gtk_file_chooser_get_current_folder(Libs::gtk_file_chooser_cast(gtkDialog));
+	if (folder) {
+		ret = QString::fromUtf8(folder);
+		Libs::g_free(folder);
+	}
+	return QDir(ret);
 }
 
 void GtkFileDialog::selectFile(const QString &filename) {
@@ -320,49 +320,49 @@ void GtkFileDialog::selectFile(const QString &filename) {
 }
 
 QStringList GtkFileDialog::selectedFiles() const {
-    // While GtkFileChooserDialog is hidden, gtk_file_chooser_get_filenames()
-    // returns a bogus value -> return the cached value before hiding
-    if (!_selection.isEmpty())
-        return _selection;
+	// While GtkFileChooserDialog is hidden, gtk_file_chooser_get_filenames()
+	// returns a bogus value -> return the cached value before hiding
+	if (!_selection.isEmpty())
+		return _selection;
 
-    QStringList selection;
-    GtkDialog *gtkDialog = d->gtkDialog();
-    GSList *filenames = Libs::gtk_file_chooser_get_filenames(Libs::gtk_file_chooser_cast(gtkDialog));
-    for (GSList *it  = filenames; it; it = it->next)
-        selection += QString::fromUtf8((const char*)it->data);
-    Libs::g_slist_free(filenames);
-    return selection;
+	QStringList selection;
+	GtkDialog *gtkDialog = d->gtkDialog();
+	GSList *filenames = Libs::gtk_file_chooser_get_filenames(Libs::gtk_file_chooser_cast(gtkDialog));
+	for (GSList *it  = filenames; it; it = it->next)
+		selection += QString::fromUtf8((const char*)it->data);
+	Libs::g_slist_free(filenames);
+	return selection;
 }
 
 void GtkFileDialog::setFilter() {
-    applyOptions();
+	applyOptions();
 }
 
 void GtkFileDialog::selectNameFilter(const QString &filter) {
-    GtkFileFilter *gtkFilter = _filters.value(filter);
-    if (gtkFilter) {
-        GtkDialog *gtkDialog = d->gtkDialog();
-        Libs::gtk_file_chooser_set_filter(Libs::gtk_file_chooser_cast(gtkDialog), gtkFilter);
-    }
+	GtkFileFilter *gtkFilter = _filters.value(filter);
+	if (gtkFilter) {
+		GtkDialog *gtkDialog = d->gtkDialog();
+		Libs::gtk_file_chooser_set_filter(Libs::gtk_file_chooser_cast(gtkDialog), gtkFilter);
+	}
 }
 
 QString GtkFileDialog::selectedNameFilter() const {
-    GtkDialog *gtkDialog = d->gtkDialog();
-    GtkFileFilter *gtkFilter = Libs::gtk_file_chooser_get_filter(Libs::gtk_file_chooser_cast(gtkDialog));
-    return _filterNames.value(gtkFilter);
+	GtkDialog *gtkDialog = d->gtkDialog();
+	GtkFileFilter *gtkFilter = Libs::gtk_file_chooser_get_filter(Libs::gtk_file_chooser_cast(gtkDialog));
+	return _filterNames.value(gtkFilter);
 }
 
 void GtkFileDialog::onAccepted() {
 	emit accept();
 
-//    QString filter = selectedNameFilter();
-//    if (filter.isEmpty())
-//        emit filterSelected(filter);
+//	QString filter = selectedNameFilter();
+//	if (filter.isEmpty())
+//		emit filterSelected(filter);
 
-//    QList<QUrl> files = selectedFiles();
-//    emit filesSelected(files);
-//    if (files.count() == 1)
-//        emit fileSelected(files.first());
+//	QList<QUrl> files = selectedFiles();
+//	emit filesSelected(files);
+//	if (files.count() == 1)
+//		emit fileSelected(files.first());
 }
 
 void GtkFileDialog::onRejected() {
@@ -372,36 +372,36 @@ void GtkFileDialog::onRejected() {
 }
 
 void GtkFileDialog::onSelectionChanged(GtkDialog *gtkDialog, GtkFileDialog *helper) {
-//    QString selection;
-//    gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(gtkDialog));
-//    if (filename) {
-//        selection = QString::fromUtf8(filename);
-//        g_free(filename);
-//    }
-//    emit helper->currentChanged(QUrl::fromLocalFile(selection));
+//	QString selection;
+//	gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(gtkDialog));
+//	if (filename) {
+//		selection = QString::fromUtf8(filename);
+//		g_free(filename);
+//	}
+//	emit helper->currentChanged(QUrl::fromLocalFile(selection));
 }
 
 void GtkFileDialog::onCurrentFolderChanged(GtkFileDialog *dialog) {
-//    emit dialog->directoryEntered(dialog->directory());
+//	emit dialog->directoryEntered(dialog->directory());
 }
 
 GtkFileChooserAction gtkFileChooserAction(QFileDialog::FileMode fileMode, QFileDialog::AcceptMode acceptMode) {
-    switch (fileMode) {
-    case QFileDialog::AnyFile:
-    case QFileDialog::ExistingFile:
-    case QFileDialog::ExistingFiles:
-        if (acceptMode == QFileDialog::AcceptOpen)
-            return GTK_FILE_CHOOSER_ACTION_OPEN;
-        else
-            return GTK_FILE_CHOOSER_ACTION_SAVE;
-    case QFileDialog::Directory:
-    case QFileDialog::DirectoryOnly:
-    default:
-        if (acceptMode == QFileDialog::AcceptOpen)
-            return GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;
-        else
-            return GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER;
-    }
+	switch (fileMode) {
+	case QFileDialog::AnyFile:
+	case QFileDialog::ExistingFile:
+	case QFileDialog::ExistingFiles:
+		if (acceptMode == QFileDialog::AcceptOpen)
+			return GTK_FILE_CHOOSER_ACTION_OPEN;
+		else
+			return GTK_FILE_CHOOSER_ACTION_SAVE;
+	case QFileDialog::Directory:
+	case QFileDialog::DirectoryOnly:
+	default:
+		if (acceptMode == QFileDialog::AcceptOpen)
+			return GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;
+		else
+			return GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER;
+	}
 }
 
 bool CustomButtonsSupported() {
@@ -411,41 +411,41 @@ bool CustomButtonsSupported() {
 }
 
 void GtkFileDialog::applyOptions() {
-    GtkDialog *gtkDialog = d->gtkDialog();
+	GtkDialog *gtkDialog = d->gtkDialog();
 
-    Libs::gtk_window_set_title(Libs::gtk_window_cast(gtkDialog), _windowTitle.toUtf8());
-    Libs::gtk_file_chooser_set_local_only(Libs::gtk_file_chooser_cast(gtkDialog), true);
+	Libs::gtk_window_set_title(Libs::gtk_window_cast(gtkDialog), _windowTitle.toUtf8());
+	Libs::gtk_file_chooser_set_local_only(Libs::gtk_file_chooser_cast(gtkDialog), true);
 
-    const GtkFileChooserAction action = gtkFileChooserAction(_fileMode, _acceptMode);
-    Libs::gtk_file_chooser_set_action(Libs::gtk_file_chooser_cast(gtkDialog), action);
+	const GtkFileChooserAction action = gtkFileChooserAction(_fileMode, _acceptMode);
+	Libs::gtk_file_chooser_set_action(Libs::gtk_file_chooser_cast(gtkDialog), action);
 
-    const bool selectMultiple = (_fileMode == QFileDialog::ExistingFiles);
-    Libs::gtk_file_chooser_set_select_multiple(Libs::gtk_file_chooser_cast(gtkDialog), selectMultiple);
+	const bool selectMultiple = (_fileMode == QFileDialog::ExistingFiles);
+	Libs::gtk_file_chooser_set_select_multiple(Libs::gtk_file_chooser_cast(gtkDialog), selectMultiple);
 
-    const bool confirmOverwrite = !_options.testFlag(QFileDialog::DontConfirmOverwrite);
-    Libs::gtk_file_chooser_set_do_overwrite_confirmation(Libs::gtk_file_chooser_cast(gtkDialog), confirmOverwrite);
+	const bool confirmOverwrite = !_options.testFlag(QFileDialog::DontConfirmOverwrite);
+	Libs::gtk_file_chooser_set_do_overwrite_confirmation(Libs::gtk_file_chooser_cast(gtkDialog), confirmOverwrite);
 
-    if (!_nameFilters.isEmpty())
-        setNameFilters(_nameFilters);
+	if (!_nameFilters.isEmpty())
+		setNameFilters(_nameFilters);
 
 	if (!_initialDirectory.isEmpty())
-        setDirectory(_initialDirectory);
+		setDirectory(_initialDirectory);
 
 	for_const (const auto &filename, _initialFiles) {
-	    if (_acceptMode == QFileDialog::AcceptSave) {
-	        QFileInfo fi(filename);
-	        Libs::gtk_file_chooser_set_current_folder(Libs::gtk_file_chooser_cast(gtkDialog), fi.path().toUtf8());
-	        Libs::gtk_file_chooser_set_current_name(Libs::gtk_file_chooser_cast(gtkDialog), fi.fileName().toUtf8());
-	    } else if (filename.endsWith('/')) {
+		if (_acceptMode == QFileDialog::AcceptSave) {
+			QFileInfo fi(filename);
+			Libs::gtk_file_chooser_set_current_folder(Libs::gtk_file_chooser_cast(gtkDialog), fi.path().toUtf8());
+			Libs::gtk_file_chooser_set_current_name(Libs::gtk_file_chooser_cast(gtkDialog), fi.fileName().toUtf8());
+		} else if (filename.endsWith('/')) {
 			Libs::gtk_file_chooser_set_current_folder(Libs::gtk_file_chooser_cast(gtkDialog), filename.toUtf8());
 		} else {
-	        Libs::gtk_file_chooser_select_filename(Libs::gtk_file_chooser_cast(gtkDialog), filename.toUtf8());
-	    }
+			Libs::gtk_file_chooser_select_filename(Libs::gtk_file_chooser_cast(gtkDialog), filename.toUtf8());
+		}
 	}
 
-    const QString initialNameFilter = _nameFilters.isEmpty() ? QString() : _nameFilters.front();
-    if (!initialNameFilter.isEmpty())
-        selectNameFilter(initialNameFilter);
+	const QString initialNameFilter = _nameFilters.isEmpty() ? QString() : _nameFilters.front();
+	if (!initialNameFilter.isEmpty())
+		selectNameFilter(initialNameFilter);
 
 	if (CustomButtonsSupported()) {
 		GtkWidget *acceptButton = Libs::gtk_dialog_get_widget_for_response(gtkDialog, GTK_RESPONSE_OK);
@@ -469,27 +469,40 @@ void GtkFileDialog::applyOptions() {
 }
 
 void GtkFileDialog::setNameFilters(const QStringList &filters) {
-    GtkDialog *gtkDialog = d->gtkDialog();
-    foreach (GtkFileFilter *filter, _filters)
-        Libs::gtk_file_chooser_remove_filter(Libs::gtk_file_chooser_cast(gtkDialog), filter);
+	GtkDialog *gtkDialog = d->gtkDialog();
+	foreach (GtkFileFilter *filter, _filters)
+		Libs::gtk_file_chooser_remove_filter(Libs::gtk_file_chooser_cast(gtkDialog), filter);
 
-    _filters.clear();
-    _filterNames.clear();
+	_filters.clear();
+	_filterNames.clear();
 
-    foreach (const QString &filter, filters) {
-        GtkFileFilter *gtkFilter = Libs::gtk_file_filter_new();
-        const QString name = filter.left(filter.indexOf(QLatin1Char('(')));
-        const QStringList extensions = cleanFilterList(filter);
+	for_const (auto &filter, filters) {
+		GtkFileFilter *gtkFilter = Libs::gtk_file_filter_new();
+		auto name = filter;//.left(filter.indexOf(QLatin1Char('(')));
+		auto extensions = cleanFilterList(filter);
 
-        Libs::gtk_file_filter_set_name(gtkFilter, name.isEmpty() ? extensions.join(QStringLiteral(", ")).toUtf8() : name.toUtf8());
-        foreach (const QString &ext, extensions)
-            Libs::gtk_file_filter_add_pattern(gtkFilter, ext.toUtf8());
+		Libs::gtk_file_filter_set_name(gtkFilter, name.isEmpty() ? extensions.join(QStringLiteral(", ")).toUtf8() : name.toUtf8());
+		for_const (auto &ext, extensions) {
+			auto caseInsensitiveExt = QString();
+			caseInsensitiveExt.reserve(4 * ext.size());
+			for_const (auto ch, ext) {
+				auto chLower = ch.toLower();
+				auto chUpper = ch.toUpper();
+				if (chLower != chUpper) {
+					caseInsensitiveExt.append('[').append(chLower).append(chUpper).append(']');
+				} else {
+					caseInsensitiveExt.append(ch);
+				}
+			}
 
-        Libs::gtk_file_chooser_add_filter(Libs::gtk_file_chooser_cast(gtkDialog), gtkFilter);
+			Libs::gtk_file_filter_add_pattern(gtkFilter, caseInsensitiveExt.toUtf8());
+		}
 
-        _filters.insert(filter, gtkFilter);
-        _filterNames.insert(gtkFilter, filter);
-    }
+		Libs::gtk_file_chooser_add_filter(Libs::gtk_file_chooser_cast(gtkDialog), gtkFilter);
+
+		_filters.insert(filter, gtkFilter);
+		_filterNames.insert(gtkFilter, filter);
+	}
 }
 
 } // namespace internal

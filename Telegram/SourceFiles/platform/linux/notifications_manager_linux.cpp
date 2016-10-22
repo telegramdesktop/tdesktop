@@ -71,10 +71,31 @@ bool LibNotifyLoaded() {
 		&& (Libs::gdk_pixbuf_new_from_file != nullptr);
 }
 
-QString escapeNotificationHtml(QString text) {
-	text = text.replace(QChar('<'), qstr("&lt;"));
-	text = text.replace(QChar('>'), qstr("&gt;"));
-	text = text.replace(QChar('&'), qstr("&amp;"));
+QString escapeHtml(const QString &text) {
+	auto result = QString();
+	auto copyFrom = 0, textSize = text.size();
+	auto data = text.constData();
+	for (auto i = 0; i != textSize; ++i) {
+		auto ch = data[i];
+		if (ch == '<' || ch == '>' || ch == '&') {
+			if (!copyFrom) {
+				result.reserve(textSize * 5);
+			}
+			if (i > copyFrom) {
+				result.append(data + copyFrom, i - copyFrom);
+			}
+			switch (ch.unicode()) {
+			case '<': result.append(qstr("&lt;")); break;
+			case '>': result.append(qstr("&gt;")); break;
+			case '&': result.append(qstr("&amp;")); break;
+			}
+			copyFrom = i + 1;
+		}
+	}
+	if (copyFrom > 0) {
+		result.append(data + copyFrom, textSize - copyFrom);
+		return result;
+	}
 	return text;
 }
 
@@ -260,6 +281,7 @@ public:
 	}
 
 private:
+	QString escapeNotificationText(const QString &text) const;
 	void showNextNotification();
 
 	struct QueuedNotification {
@@ -327,10 +349,14 @@ bool Manager::Impl::init() {
 	return !_serverName.isEmpty();
 }
 
+QString Manager::Impl::escapeNotificationText(const QString &text) const {
+	return _markupSupported ? escapeHtml(text) : text;
+}
+
 void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
-	auto titleText = escapeNotificationHtml(title);
-	auto subtitleText = escapeNotificationHtml(subtitle);
-	auto msgText = escapeNotificationHtml(msg);
+	auto titleText = escapeNotificationText(title);
+	auto subtitleText = escapeNotificationText(subtitle);
+	auto msgText = escapeNotificationText(msg);
 	if (_markupSupported && !subtitleText.isEmpty()) {
 		subtitleText = qstr("<b>") + subtitleText + qstr("</b>");
 	}
