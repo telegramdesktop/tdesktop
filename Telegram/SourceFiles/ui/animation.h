@@ -533,7 +533,8 @@ public:
 
 private:
 	struct Data {
-		Data(const ValueType &from, Callback &&updateCallback)
+		template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
+		Data(const ValueType &from, Lambda &&updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(std_::move(updateCallback)) {
