@@ -100,6 +100,7 @@ ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
 
 void ContactsBox::init() {
 	_select->resizeToWidth(st::boxWideWidth);
+	myEnsureResized(_select);
 
 	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
 	auto topSkip = getTopScrollSkip();
@@ -1073,7 +1074,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				} else {
 					p.fillRect(0, 0, width(), st::contactsNewItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
 					p.setFont(st::contactsNameFont);
-					p.drawSpriteLeft(st::contactsNewItemIconPosition.x(), st::contactsNewItemIconPosition.y(), width(), st::contactsNewItemIcon);
+					st::contactsNewItemIcon.paint(p, 0, 0, width());
 					p.setPen(st::contactsNewItemFg);
 					p.drawTextLeft(st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_add_contact_button));
 				}

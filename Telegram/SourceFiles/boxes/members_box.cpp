@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "boxes/members_box.h"
 
+#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
 #include "mainwidget.h"
@@ -149,7 +150,7 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	} else {
 		if (_newItemHeight) {
 			p.fillRect(0, 0, width(), _newItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
-			p.drawSpriteLeft(st::contactsNewItemIconPosition.x(), st::contactsNewItemIconPosition.y(), width(), st::contactsNewItemIcon);
+			st::contactsNewItemIcon.paint(p, 0, 0, width());
 			p.setFont(st::contactsNameFont);
 			p.setPen(st::contactsNewItemFg);
 			p.drawTextLeft(st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(_filter == MembersFilter::Admins ? lng_channel_add_admins : lng_channel_add_members));

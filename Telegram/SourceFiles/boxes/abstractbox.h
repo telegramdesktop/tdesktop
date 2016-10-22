@@ -52,7 +52,7 @@ class AbstractBox : public LayerWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
-	AbstractBox(int32 w = st::boxWideWidth);
+	AbstractBox(int w = st::boxWideWidth);
 	void parentResized() override;
 	void showDone() override {
 		showAll();
@@ -83,14 +83,14 @@ protected:
 	}
 
 private:
-	int32 _maxHeight;
-	int32 countHeight() const;
+	int _maxHeight = 0;
+	int countHeight() const;
 
-	bool _closed;
+	bool _closed = false;
 
-	bool _blueTitle;
-	BlueTitleClose *_blueClose;
-	BlueTitleShadow *_blueShadow;
+	bool _blueTitle = false;
+	BlueTitleClose *_blueClose = nullptr;
+	BlueTitleShadow *_blueShadow = nullptr;
 
 };
 

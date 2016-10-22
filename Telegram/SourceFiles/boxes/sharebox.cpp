@@ -48,6 +48,7 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 , _topShadow(this)
 , _bottomShadow(this) {
 	_select->resizeToWidth(st::boxWideWidth);
+	myEnsureResized(_select);
 
 	auto topSkip = getTopScrollSkip();
 	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();

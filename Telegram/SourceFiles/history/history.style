@@ -35,6 +35,9 @@ historyToDownPaddingTop: 10px;
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
 
+historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
+historyEmptySize: 128px;
+
 membersInnerScroll: flatScroll(solidScroll) {
 	deltat: 3px;
 	deltab: 3px;

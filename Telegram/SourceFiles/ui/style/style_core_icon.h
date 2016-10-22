@@ -118,6 +118,9 @@ public:
 	void fill(QPainter &p, const QRect &rect) const;
 	int width() const;
 	int height() const;
+	QSize size() const {
+		return QSize(width(), height());
+	}
 
 private:
 	struct ColoredCopy {

@@ -85,19 +85,28 @@ mediaviewClose: icon {{ "mediaview_close", #ffffff }};
 mediaviewSave: icon {{ "mediaview_download", #ffffff }};
 mediaviewMore: icon {{ "mediaview_more", #ffffff }};
 
+mediaviewFileRedCornerFg: #d55959;
+mediaviewFileYellowCornerFg: #e8a659;
+mediaviewFileGreenCornerFg: #49a957;
+mediaviewFileBlueCornerFg: #599dcf;
+
 mediaviewFileRed: icon {
 	{ size(25px, 25px), #ffffff },
-	{ "mediaview_file_corner", #d55959 },
+	{ "mediaview_file_corner", mediaviewFileRedCornerFg },
 };
 mediaviewFileYellow: icon {
 	{ size(25px, 25px), #ffffff },
-	{ "mediaview_file_corner", #e8a659 },
+	{ "mediaview_file_corner", mediaviewFileYellowCornerFg },
 };
 mediaviewFileGreen: icon {
 	{ size(25px, 25px), #ffffff },
-	{ "mediaview_file_corner", #49a957 },
+	{ "mediaview_file_corner", mediaviewFileGreenCornerFg },
 };
 mediaviewFileBlue: icon {
 	{ size(25px, 25px), #ffffff },
-	{ "mediaview_file_corner", #599dcf },
+	{ "mediaview_file_corner", mediaviewFileBlueCornerFg },
 };
+
+mediaviewTransparentBg: #ffffff;
+mediaviewTransparentFg: #cccccc;
+mediaviewTransparentSize: 4px;

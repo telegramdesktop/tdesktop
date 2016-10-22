@@ -715,7 +715,7 @@ HitTestType MainWindow::hitTest(const QPoint &p) const {
 }
 
 QRect MainWindow::iconRect() const {
-	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
+	return title->iconRect();
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *e) {

@@ -39,19 +39,17 @@ class ChatBackground : public base::Observable<ChatBackgroundUpdate> {
 public:
 	bool empty() const;
 	void initIfEmpty();
-	void init(int32 id, QPixmap &&image, QPixmap &&dog);
+	void init(int32 id, QPixmap &&image);
 	void reset();
 
 	int32 id() const;
 	const QPixmap &image() const;
-	const QPixmap &dog() const;
 	bool tile() const;
 	void setTile(bool tile);
 
 private:
 	int32 _id = 0;
 	QPixmap _image;
-	QPixmap _dog;
 	bool _tile = false;
 
 };

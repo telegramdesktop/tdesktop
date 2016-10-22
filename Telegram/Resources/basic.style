@@ -91,15 +91,6 @@ boxTitleFont: font(boxFontSize bold);
 boxTitlePosition: point(26px, 28px);
 boxTitleHeight: 54px;
 
-boxBlueTitleBg: #6393b5;
-boxBlueTitleAdditionalFg: #dae9f5;
-boxBlueTitleAdditionalSkip: 12px;
-boxBlueTitlePosition: point(23px, 18px);
-boxBlueCloseIcon: sprite(120px, 108px, 12px, 12px);
-boxBlueCloseBg: #c8e1f0;
-boxBlueCloseDuration: 150;
-boxBlueShadow: sprite(132px, 108px, 1px, 4px);
-
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton {
 	textFg: #2f9fea;
@@ -337,8 +328,6 @@ boxScrollShadowBg: #00000012;
 
 titleBg: #6389a8;
 titleHeight: 39px;
-titleIconPos: point(7px, 7px);
-titleIconImg: sprite(161px, 100px, 26px, 26px);
 titleFont: font(17px);
 titlePos: point(44px, 29px);
 titleMenuOffset: 36px;
@@ -908,8 +897,6 @@ msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-msgDogImg: sprite(216px, 92px, 126px, 126px);
-
 collapseButton: flatButton(btnDefFlat) {
 	font: msgServiceFont;
 	overFont: msgServiceFont;
@@ -1289,9 +1276,6 @@ layerPadding: margins(10px, 10px, 10px, 10px);
 contactPadding: margins(49px, 22px, 0px, 6px);
 contactSkip: 13px;
 contactPhoneSkip: 30px;
-contactUserIcon: sprite(120px, 90px, 18px, 18px);
-contactPhoneIcon: sprite(138px, 90px, 18px, 18px);
-contactIconTop: 10px;
 
 contactsPhotoSize: 42px;
 contactsPadding: margins(16px, 7px, 16px, 7px);
@@ -1304,11 +1288,6 @@ contactsStatusFgOver: #7c99b2;
 contactsStatusFgOnline: #3b8dcc;
 contactsBgOver: overBg;
 contactsCheckPosition: point(8px, 16px);
-contactsNewItemHeight: 53px;
-contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
-contactsNewItemIconPosition: point(29px, 19px);
-contactsNewItemTop: 18px;
-contactsNewItemFg: #4b82af;
 contactsAboutBg: #f7f7f7;
 contactsAboutShadow: #0000001F;
 contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
@@ -1831,8 +1810,6 @@ medviewSaveMsgShowing: 200;
 medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;
 medviewSaveMsg: #000000b2;
-
-mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
 
 // Mac specific
 

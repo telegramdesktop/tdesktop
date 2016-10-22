@@ -41,10 +41,9 @@ void ChatBackground::initIfEmpty() {
 	}
 }
 
-void ChatBackground::init(int32 id, QPixmap &&image, QPixmap &&dog) {
+void ChatBackground::init(int32 id, QPixmap &&image) {
 	_id = id;
 	_image = std_::move(image);
-	_dog = std_::move(dog);
 
 	notify(ChatBackgroundUpdate(ChatBackgroundUpdate::Type::New, _tile));
 }
@@ -52,7 +51,6 @@ void ChatBackground::init(int32 id, QPixmap &&image, QPixmap &&dog) {
 void ChatBackground::reset() {
 	_id = 0;
 	_image = QPixmap();
-	_dog = QPixmap();
 	_tile = false;
 
 	notify(ChatBackgroundUpdate(ChatBackgroundUpdate::Type::New, _tile));
@@ -64,10 +62,6 @@ int32 ChatBackground::id() const {
 
 const QPixmap &ChatBackground::image() const {
 	return _image;
-}
-
-const QPixmap &ChatBackground::dog() const {
-	return _dog;
 }
 
 bool ChatBackground::tile() const {

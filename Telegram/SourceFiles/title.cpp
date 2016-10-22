@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_title_button.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_instance.h"
+#include "styles/style_window.h"
 
 class TitleWidget::Hider : public TWidget {
 public:
@@ -126,9 +127,9 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 		auto chooseText = lang(inlineSwitchChoose ? lng_inline_switch_choose : lng_forward_choose);
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, chooseText);
 	}
-	p.drawSprite(st::titleIconPos, st::titleIconImg);
+	st::titleIcon.paint(p, st::titleIconPosition, width());
 	if (Adaptive::OneColumn() && !_counter.isNull() && App::main()) {
-		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
+		p.drawPixmap(st::titleCounterPosition, _counter);
 	}
 }
 
@@ -335,11 +336,11 @@ void TitleWidget::updateCounter() {
 		}
 		_counter = App::pixmapFromImageInPlace(App::wnd()->iconWithCounter(size, counter, bg, false));
 		_counter.setDevicePixelRatio(cRetinaFactor());
-		update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
+		update(QRect(st::titleCounterPosition, _counter.size() / cIntRetinaFactor()));
 	} else {
 		if (!_counter.isNull()) {
+			update(QRect(st::titleCounterPosition, _counter.size() / cIntRetinaFactor()));
 			_counter = QPixmap();
-			update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
 		}
 	}
 }
@@ -395,7 +396,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	int x(p.x()), y(p.y()), w(width()), h(height());
 	if (!Adaptive::OneColumn() && _hider && x >= App::main()->dlgsWidth()) return HitTestType::None;
 
-	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
+	if (x >= st::titleIconPosition.x() && y >= st::titleIconPosition.y() && x < st::titleIconPosition.x() + st::titleIcon.width() && y < st::titleIconPosition.y() + st::titleIcon.height()) {
 		return HitTestType::Icon;
 	} else if (false
 		|| (_player && _player->geometry().contains(p))
@@ -419,4 +420,8 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 		return HitTestType::Caption;
 	}
 	return HitTestType::None;
+}
+
+QRect TitleWidget::iconRect() const {
+	return myrtlrect(QRect(st::titleIconPosition, st::titleIcon.size()));
 }
