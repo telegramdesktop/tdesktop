@@ -20,40 +20,46 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/section_memento.h"
+#include "profile/profile_block_widget.h"
+
+namespace Ui {
+class LeftOutlineButton;
+} // namespace Ui
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 namespace Profile {
 
-class Widget;
+class ChannelMembersWidget : public BlockWidget {
+	Q_OBJECT
 
-class SectionMemento : public Window::SectionMemento {
 public:
-	SectionMemento(PeerData *peer) : _peer(peer) {
-	}
+	ChannelMembersWidget(QWidget *parent, PeerData *peer);
 
-	Window::SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const override;
+protected:
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
 
-	PeerData *getPeer() const {
-		return _peer;
-	}
-	void setScrollTop(int scrollTop) {
-		_scrollTop = scrollTop;
-	}
-	int getScrollTop() const {
-		return _scrollTop;
-	}
-	void setCommonGroups(const QList<PeerData*> &groups) {
-		_commonGroups = groups;
-	}
-	const QList<PeerData*> &getCommonGroups() const {
-		return _commonGroups;
-	}
+	private slots:
+	void onAdmins();
+	void onMembers();
 
 private:
-	PeerData *_peer;
-	int _scrollTop = 0;
-	QList<PeerData*> _commonGroups;
+	// Observed notifications.
+	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void refreshButtons();
+	void refreshAdmins();
+	void refreshMembers();
+	void refreshVisibility();
+
+	void addButton(const QString &text, ChildWidget<Ui::LeftOutlineButton> *button, const char *slot);
+
+	ChildWidget<Ui::LeftOutlineButton> _admins = { nullptr };
+	ChildWidget<Ui::LeftOutlineButton> _members = { nullptr };
 
 };
 
-} // namespace Window
+} // namespace Profile

@@ -30,7 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 namespace MTP {
 namespace internal {
 
-static constexpr mtpPrime CurrentLayer = 57;
+static constexpr mtpPrime CurrentLayer = 59;
 
 class TypeCreator;
 
@@ -212,7 +212,7 @@ enum {
 	mtpc_inputReportReasonViolence = 0x1e22c78d,
 	mtpc_inputReportReasonPornography = 0x2e59d922,
 	mtpc_inputReportReasonOther = 0xe1746d0a,
-	mtpc_userFull = 0x5932fc03,
+	mtpc_userFull = 0xf220f3f,
 	mtpc_contact = 0xf911c994,
 	mtpc_importedContact = 0xd0028438,
 	mtpc_contactBlocked = 0x561bc879,
@@ -229,6 +229,7 @@ enum {
 	mtpc_messages_messagesSlice = 0xb446ae3,
 	mtpc_messages_channelMessages = 0x99262e37,
 	mtpc_messages_chats = 0x64ff9fd5,
+	mtpc_messages_chatsSlice = 0x78f69146,
 	mtpc_messages_chatFull = 0xe5d7d19c,
 	mtpc_messages_affectedHistory = 0xb45c69d1,
 	mtpc_inputMessagesFilterEmpty = 0x57e2f66c,
@@ -295,10 +296,12 @@ enum {
 	mtpc_updateRecentStickers = 0x9a422c20,
 	mtpc_updateConfig = 0xa229dd06,
 	mtpc_updatePtsChanged = 0x3354678f,
+	mtpc_updateChannelWebPage = 0x40771900,
 	mtpc_updates_state = 0xa56c2a3e,
 	mtpc_updates_differenceEmpty = 0x5d75a138,
 	mtpc_updates_difference = 0xf49ca0,
 	mtpc_updates_differenceSlice = 0xa8fb1981,
+	mtpc_updates_differenceTooLong = 0x4afe8f6d,
 	mtpc_updatesTooLong = 0xe317af7e,
 	mtpc_updateShortMessage = 0x914fbf11,
 	mtpc_updateShortChatMessage = 0x16812688,
@@ -354,7 +357,6 @@ enum {
 	mtpc_sendMessageGeoLocationAction = 0x176f8ba1,
 	mtpc_sendMessageChooseContactAction = 0x628cbc6f,
 	mtpc_sendMessageGamePlayAction = 0xdd6a8f48,
-	mtpc_sendMessageGameStopAction = 0x15c2c99a,
 	mtpc_contacts_found = 0x1aa1f784,
 	mtpc_inputPrivacyKeyStatusTimestamp = 0x4f96cb18,
 	mtpc_inputPrivacyKeyChatInvite = 0xbdfb0426,
@@ -394,7 +396,8 @@ enum {
 	mtpc_contactLinkContact = 0xd502c2d0,
 	mtpc_webPageEmpty = 0xeb1477e8,
 	mtpc_webPagePending = 0xc586da1c,
-	mtpc_webPage = 0xca820ed7,
+	mtpc_webPage = 0x5f07b4bc,
+	mtpc_webPageNotModified = 0x85849473,
 	mtpc_authorization = 0x7bf2e6f6,
 	mtpc_account_authorizations = 0x1250abde,
 	mtpc_account_noPassword = 0x96dabc18,
@@ -488,7 +491,7 @@ enum {
 	mtpc_botInlineMessageMediaContact = 0x35edb4d4,
 	mtpc_botInlineResult = 0x9bebaeb9,
 	mtpc_botInlineMediaResult = 0x17db940b,
-	mtpc_messages_botResults = 0x256709a6,
+	mtpc_messages_botResults = 0xccd3563d,
 	mtpc_exportedMessageLink = 0x1f486803,
 	mtpc_messageFwdHeader = 0xc786ddcb,
 	mtpc_auth_codeTypeSms = 0x72a3158c,
@@ -498,7 +501,7 @@ enum {
 	mtpc_auth_sentCodeTypeSms = 0xc000bba2,
 	mtpc_auth_sentCodeTypeCall = 0x5353e5a7,
 	mtpc_auth_sentCodeTypeFlashCall = 0xab03c6d9,
-	mtpc_messages_botCallbackAnswer = 0xb10df1fb,
+	mtpc_messages_botCallbackAnswer = 0x36585ea4,
 	mtpc_messages_messageEditData = 0x26b5dde6,
 	mtpc_inputBotInlineMessageID = 0x890c3d89,
 	mtpc_inlineBotSwitchPM = 0x3c20629f,
@@ -531,6 +534,38 @@ enum {
 	mtpc_inputGameShortName = 0xc331e80a,
 	mtpc_highScore = 0x58fffcd0,
 	mtpc_messages_highScores = 0x9a3bfd99,
+	mtpc_textEmpty = 0xdc3d824f,
+	mtpc_textPlain = 0x744694e0,
+	mtpc_textBold = 0x6724abc4,
+	mtpc_textItalic = 0xd912a59c,
+	mtpc_textUnderline = 0xc12622c4,
+	mtpc_textStrike = 0x9bf8bb95,
+	mtpc_textFixed = 0x6c3f19b9,
+	mtpc_textUrl = 0x3c2884c1,
+	mtpc_textEmail = 0xde5a0dd6,
+	mtpc_textConcat = 0x7e6260d7,
+	mtpc_pageBlockTitle = 0x70abc3fd,
+	mtpc_pageBlockSubtitle = 0x8ffa9a1f,
+	mtpc_pageBlockAuthorDate = 0x3d5b64f2,
+	mtpc_pageBlockHeader = 0xbfd064ec,
+	mtpc_pageBlockSubheader = 0xf12bb6e1,
+	mtpc_pageBlockParagraph = 0x467a0766,
+	mtpc_pageBlockPreformatted = 0xc070d93e,
+	mtpc_pageBlockFooter = 0x48870999,
+	mtpc_pageBlockDivider = 0xdb20b188,
+	mtpc_pageBlockList = 0x3a58c7f4,
+	mtpc_pageBlockBlockquote = 0x263d7c26,
+	mtpc_pageBlockPullquote = 0x4f4456d3,
+	mtpc_pageBlockPhoto = 0xe9c69982,
+	mtpc_pageBlockVideo = 0xd9d71866,
+	mtpc_pageBlockCover = 0x39f23300,
+	mtpc_pageBlockEmbed = 0x36b0816,
+	mtpc_pageBlockEmbedPost = 0x7ff81db7,
+	mtpc_pageBlockSlideshow = 0x130c8963,
+	mtpc_embedPostPhoto = 0xe31ee77,
+	mtpc_embedPostVideo = 0xa07f2d66,
+	mtpc_pagePart = 0x8dee6c44,
+	mtpc_pageFull = 0xd7a19d69,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -655,7 +690,7 @@ enum {
 	mtpc_messages_editMessage = 0xce91e4ca,
 	mtpc_messages_editInlineBotMessage = 0x130c2c85,
 	mtpc_messages_getBotCallbackAnswer = 0x810a9fec,
-	mtpc_messages_setBotCallbackAnswer = 0xc927d44b,
+	mtpc_messages_setBotCallbackAnswer = 0xd58f130a,
 	mtpc_messages_getPeerDialogs = 0x2d9776b9,
 	mtpc_messages_saveDraft = 0xbc39e14b,
 	mtpc_messages_getAllDrafts = 0x6a3f8d65,
@@ -671,9 +706,12 @@ enum {
 	mtpc_messages_setInlineGameScore = 0x15ad9f64,
 	mtpc_messages_getGameHighScores = 0xe822649d,
 	mtpc_messages_getInlineGameHighScores = 0xf635e1b,
+	mtpc_messages_getCommonChats = 0xd0a48c4,
+	mtpc_messages_getAllChats = 0xeba80ff0,
+	mtpc_messages_getWebPage = 0x61203e2,
 	mtpc_updates_getState = 0xedd4882a,
-	mtpc_updates_getDifference = 0xa041495,
-	mtpc_updates_getChannelDifference = 0xbb32d7c0,
+	mtpc_updates_getDifference = 0x25939651,
+	mtpc_updates_getChannelDifference = 0x3173d78,
 	mtpc_photos_updateProfilePhoto = 0xf0bb5152,
 	mtpc_photos_uploadProfilePhoto = 0x4f32c098,
 	mtpc_photos_deletePhotos = 0x87cf7f2f,
@@ -689,6 +727,7 @@ enum {
 	mtpc_help_getSupport = 0x9cdf08cd,
 	mtpc_help_getAppChangelog = 0xb921197a,
 	mtpc_help_getTermsOfService = 0x350170f3,
+	mtpc_help_setBotUpdatesStatus = 0xec22cfcd,
 	mtpc_channels_readHistory = 0xcc104937,
 	mtpc_channels_deleteMessages = 0x84c1fd4e,
 	mtpc_channels_deleteUserHistory = 0xd10dd71b,
@@ -1004,6 +1043,7 @@ class MTPDmessages_channelMessages;
 
 class MTPmessages_chats;
 class MTPDmessages_chats;
+class MTPDmessages_chatsSlice;
 
 class MTPmessages_chatFull;
 class MTPDmessages_chatFull;
@@ -1061,6 +1101,7 @@ class MTPDupdateEditMessage;
 class MTPDupdateInlineBotCallbackQuery;
 class MTPDupdateReadChannelOutbox;
 class MTPDupdateDraftMessage;
+class MTPDupdateChannelWebPage;
 
 class MTPupdates_state;
 class MTPDupdates_state;
@@ -1069,6 +1110,7 @@ class MTPupdates_difference;
 class MTPDupdates_differenceEmpty;
 class MTPDupdates_difference;
 class MTPDupdates_differenceSlice;
+class MTPDupdates_differenceTooLong;
 
 class MTPupdates;
 class MTPDupdateShortMessage;
@@ -1438,6 +1480,44 @@ class MTPDhighScore;
 class MTPmessages_highScores;
 class MTPDmessages_highScores;
 
+class MTPrichText;
+class MTPDtextPlain;
+class MTPDtextBold;
+class MTPDtextItalic;
+class MTPDtextUnderline;
+class MTPDtextStrike;
+class MTPDtextFixed;
+class MTPDtextUrl;
+class MTPDtextEmail;
+class MTPDtextConcat;
+
+class MTPpageBlock;
+class MTPDpageBlockTitle;
+class MTPDpageBlockSubtitle;
+class MTPDpageBlockAuthorDate;
+class MTPDpageBlockHeader;
+class MTPDpageBlockSubheader;
+class MTPDpageBlockParagraph;
+class MTPDpageBlockPreformatted;
+class MTPDpageBlockFooter;
+class MTPDpageBlockList;
+class MTPDpageBlockBlockquote;
+class MTPDpageBlockPullquote;
+class MTPDpageBlockPhoto;
+class MTPDpageBlockVideo;
+class MTPDpageBlockCover;
+class MTPDpageBlockEmbed;
+class MTPDpageBlockEmbedPost;
+class MTPDpageBlockSlideshow;
+
+class MTPembedPostMedia;
+class MTPDembedPostPhoto;
+class MTPDembedPostVideo;
+
+class MTPpage;
+class MTPDpagePart;
+class MTPDpageFull;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1622,6 +1702,10 @@ typedef MTPBoxed<MTPgame> MTPGame;
 typedef MTPBoxed<MTPinputGame> MTPInputGame;
 typedef MTPBoxed<MTPhighScore> MTPHighScore;
 typedef MTPBoxed<MTPmessages_highScores> MTPmessages_HighScores;
+typedef MTPBoxed<MTPrichText> MTPRichText;
+typedef MTPBoxed<MTPpageBlock> MTPPageBlock;
+typedef MTPBoxed<MTPembedPostMedia> MTPEmbedPostMedia;
+typedef MTPBoxed<MTPpage> MTPPage;
 
 // Type classes definitions
 
@@ -4758,32 +4842,47 @@ typedef MTPBoxed<MTPmessages_messages> MTPmessages_Messages;
 
 class MTPmessages_chats : private mtpDataOwner {
 public:
-	MTPmessages_chats();
-	MTPmessages_chats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_chats) : mtpDataOwner(0) {
+	MTPmessages_chats() : mtpDataOwner(0), _type(0) {
+	}
+	MTPmessages_chats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
 		read(from, end, cons);
 	}
 
 	MTPDmessages_chats &_messages_chats() {
-		t_assert(data != nullptr);
+		t_assert(data != nullptr && _type == mtpc_messages_chats);
 		split();
 		return *(MTPDmessages_chats*)data;
 	}
 	const MTPDmessages_chats &c_messages_chats() const {
-		t_assert(data != nullptr);
+		t_assert(data != nullptr && _type == mtpc_messages_chats);
 		return *(const MTPDmessages_chats*)data;
+	}
+
+	MTPDmessages_chatsSlice &_messages_chatsSlice() {
+		t_assert(data != nullptr && _type == mtpc_messages_chatsSlice);
+		split();
+		return *(MTPDmessages_chatsSlice*)data;
+	}
+	const MTPDmessages_chatsSlice &c_messages_chatsSlice() const {
+		t_assert(data != nullptr && _type == mtpc_messages_chatsSlice);
+		return *(const MTPDmessages_chatsSlice*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_chats);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
+	explicit MTPmessages_chats(mtpTypeId type);
 	explicit MTPmessages_chats(MTPDmessages_chats *_data);
+	explicit MTPmessages_chats(MTPDmessages_chatsSlice *_data);
 
 	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPmessages_chats> MTPmessages_Chats;
 
@@ -5351,6 +5450,16 @@ public:
 		return *(const MTPDupdateDraftMessage*)data;
 	}
 
+	MTPDupdateChannelWebPage &_updateChannelWebPage() {
+		t_assert(data != nullptr && _type == mtpc_updateChannelWebPage);
+		split();
+		return *(MTPDupdateChannelWebPage*)data;
+	}
+	const MTPDupdateChannelWebPage &c_updateChannelWebPage() const {
+		t_assert(data != nullptr && _type == mtpc_updateChannelWebPage);
+		return *(const MTPDupdateChannelWebPage*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -5407,6 +5516,7 @@ private:
 	explicit MTPupdate(MTPDupdateInlineBotCallbackQuery *_data);
 	explicit MTPupdate(MTPDupdateReadChannelOutbox *_data);
 	explicit MTPupdate(MTPDupdateDraftMessage *_data);
+	explicit MTPupdate(MTPDupdateChannelWebPage *_data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5483,6 +5593,16 @@ public:
 		return *(const MTPDupdates_differenceSlice*)data;
 	}
 
+	MTPDupdates_differenceTooLong &_updates_differenceTooLong() {
+		t_assert(data != nullptr && _type == mtpc_updates_differenceTooLong);
+		split();
+		return *(MTPDupdates_differenceTooLong*)data;
+	}
+	const MTPDupdates_differenceTooLong &c_updates_differenceTooLong() const {
+		t_assert(data != nullptr && _type == mtpc_updates_differenceTooLong);
+		return *(const MTPDupdates_differenceTooLong*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -5495,6 +5615,7 @@ private:
 	explicit MTPupdates_difference(MTPDupdates_differenceEmpty *_data);
 	explicit MTPupdates_difference(MTPDupdates_difference *_data);
 	explicit MTPupdates_difference(MTPDupdates_differenceSlice *_data);
+	explicit MTPupdates_difference(MTPDupdates_differenceTooLong *_data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -9564,6 +9685,432 @@ private:
 };
 typedef MTPBoxed<MTPmessages_highScores> MTPmessages_HighScores;
 
+class MTPrichText : private mtpDataOwner {
+public:
+	MTPrichText() : mtpDataOwner(0), _type(0) {
+	}
+	MTPrichText(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDtextPlain &_textPlain() {
+		t_assert(data != nullptr && _type == mtpc_textPlain);
+		split();
+		return *(MTPDtextPlain*)data;
+	}
+	const MTPDtextPlain &c_textPlain() const {
+		t_assert(data != nullptr && _type == mtpc_textPlain);
+		return *(const MTPDtextPlain*)data;
+	}
+
+	MTPDtextBold &_textBold() {
+		t_assert(data != nullptr && _type == mtpc_textBold);
+		split();
+		return *(MTPDtextBold*)data;
+	}
+	const MTPDtextBold &c_textBold() const {
+		t_assert(data != nullptr && _type == mtpc_textBold);
+		return *(const MTPDtextBold*)data;
+	}
+
+	MTPDtextItalic &_textItalic() {
+		t_assert(data != nullptr && _type == mtpc_textItalic);
+		split();
+		return *(MTPDtextItalic*)data;
+	}
+	const MTPDtextItalic &c_textItalic() const {
+		t_assert(data != nullptr && _type == mtpc_textItalic);
+		return *(const MTPDtextItalic*)data;
+	}
+
+	MTPDtextUnderline &_textUnderline() {
+		t_assert(data != nullptr && _type == mtpc_textUnderline);
+		split();
+		return *(MTPDtextUnderline*)data;
+	}
+	const MTPDtextUnderline &c_textUnderline() const {
+		t_assert(data != nullptr && _type == mtpc_textUnderline);
+		return *(const MTPDtextUnderline*)data;
+	}
+
+	MTPDtextStrike &_textStrike() {
+		t_assert(data != nullptr && _type == mtpc_textStrike);
+		split();
+		return *(MTPDtextStrike*)data;
+	}
+	const MTPDtextStrike &c_textStrike() const {
+		t_assert(data != nullptr && _type == mtpc_textStrike);
+		return *(const MTPDtextStrike*)data;
+	}
+
+	MTPDtextFixed &_textFixed() {
+		t_assert(data != nullptr && _type == mtpc_textFixed);
+		split();
+		return *(MTPDtextFixed*)data;
+	}
+	const MTPDtextFixed &c_textFixed() const {
+		t_assert(data != nullptr && _type == mtpc_textFixed);
+		return *(const MTPDtextFixed*)data;
+	}
+
+	MTPDtextUrl &_textUrl() {
+		t_assert(data != nullptr && _type == mtpc_textUrl);
+		split();
+		return *(MTPDtextUrl*)data;
+	}
+	const MTPDtextUrl &c_textUrl() const {
+		t_assert(data != nullptr && _type == mtpc_textUrl);
+		return *(const MTPDtextUrl*)data;
+	}
+
+	MTPDtextEmail &_textEmail() {
+		t_assert(data != nullptr && _type == mtpc_textEmail);
+		split();
+		return *(MTPDtextEmail*)data;
+	}
+	const MTPDtextEmail &c_textEmail() const {
+		t_assert(data != nullptr && _type == mtpc_textEmail);
+		return *(const MTPDtextEmail*)data;
+	}
+
+	MTPDtextConcat &_textConcat() {
+		t_assert(data != nullptr && _type == mtpc_textConcat);
+		split();
+		return *(MTPDtextConcat*)data;
+	}
+	const MTPDtextConcat &c_textConcat() const {
+		t_assert(data != nullptr && _type == mtpc_textConcat);
+		return *(const MTPDtextConcat*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPrichText(mtpTypeId type);
+	explicit MTPrichText(MTPDtextPlain *_data);
+	explicit MTPrichText(MTPDtextBold *_data);
+	explicit MTPrichText(MTPDtextItalic *_data);
+	explicit MTPrichText(MTPDtextUnderline *_data);
+	explicit MTPrichText(MTPDtextStrike *_data);
+	explicit MTPrichText(MTPDtextFixed *_data);
+	explicit MTPrichText(MTPDtextUrl *_data);
+	explicit MTPrichText(MTPDtextEmail *_data);
+	explicit MTPrichText(MTPDtextConcat *_data);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPrichText> MTPRichText;
+
+class MTPpageBlock : private mtpDataOwner {
+public:
+	MTPpageBlock() : mtpDataOwner(0), _type(0) {
+	}
+	MTPpageBlock(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDpageBlockTitle &_pageBlockTitle() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockTitle);
+		split();
+		return *(MTPDpageBlockTitle*)data;
+	}
+	const MTPDpageBlockTitle &c_pageBlockTitle() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockTitle);
+		return *(const MTPDpageBlockTitle*)data;
+	}
+
+	MTPDpageBlockSubtitle &_pageBlockSubtitle() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSubtitle);
+		split();
+		return *(MTPDpageBlockSubtitle*)data;
+	}
+	const MTPDpageBlockSubtitle &c_pageBlockSubtitle() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSubtitle);
+		return *(const MTPDpageBlockSubtitle*)data;
+	}
+
+	MTPDpageBlockAuthorDate &_pageBlockAuthorDate() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockAuthorDate);
+		split();
+		return *(MTPDpageBlockAuthorDate*)data;
+	}
+	const MTPDpageBlockAuthorDate &c_pageBlockAuthorDate() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockAuthorDate);
+		return *(const MTPDpageBlockAuthorDate*)data;
+	}
+
+	MTPDpageBlockHeader &_pageBlockHeader() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockHeader);
+		split();
+		return *(MTPDpageBlockHeader*)data;
+	}
+	const MTPDpageBlockHeader &c_pageBlockHeader() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockHeader);
+		return *(const MTPDpageBlockHeader*)data;
+	}
+
+	MTPDpageBlockSubheader &_pageBlockSubheader() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSubheader);
+		split();
+		return *(MTPDpageBlockSubheader*)data;
+	}
+	const MTPDpageBlockSubheader &c_pageBlockSubheader() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSubheader);
+		return *(const MTPDpageBlockSubheader*)data;
+	}
+
+	MTPDpageBlockParagraph &_pageBlockParagraph() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockParagraph);
+		split();
+		return *(MTPDpageBlockParagraph*)data;
+	}
+	const MTPDpageBlockParagraph &c_pageBlockParagraph() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockParagraph);
+		return *(const MTPDpageBlockParagraph*)data;
+	}
+
+	MTPDpageBlockPreformatted &_pageBlockPreformatted() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPreformatted);
+		split();
+		return *(MTPDpageBlockPreformatted*)data;
+	}
+	const MTPDpageBlockPreformatted &c_pageBlockPreformatted() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPreformatted);
+		return *(const MTPDpageBlockPreformatted*)data;
+	}
+
+	MTPDpageBlockFooter &_pageBlockFooter() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockFooter);
+		split();
+		return *(MTPDpageBlockFooter*)data;
+	}
+	const MTPDpageBlockFooter &c_pageBlockFooter() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockFooter);
+		return *(const MTPDpageBlockFooter*)data;
+	}
+
+	MTPDpageBlockList &_pageBlockList() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockList);
+		split();
+		return *(MTPDpageBlockList*)data;
+	}
+	const MTPDpageBlockList &c_pageBlockList() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockList);
+		return *(const MTPDpageBlockList*)data;
+	}
+
+	MTPDpageBlockBlockquote &_pageBlockBlockquote() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockBlockquote);
+		split();
+		return *(MTPDpageBlockBlockquote*)data;
+	}
+	const MTPDpageBlockBlockquote &c_pageBlockBlockquote() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockBlockquote);
+		return *(const MTPDpageBlockBlockquote*)data;
+	}
+
+	MTPDpageBlockPullquote &_pageBlockPullquote() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPullquote);
+		split();
+		return *(MTPDpageBlockPullquote*)data;
+	}
+	const MTPDpageBlockPullquote &c_pageBlockPullquote() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPullquote);
+		return *(const MTPDpageBlockPullquote*)data;
+	}
+
+	MTPDpageBlockPhoto &_pageBlockPhoto() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPhoto);
+		split();
+		return *(MTPDpageBlockPhoto*)data;
+	}
+	const MTPDpageBlockPhoto &c_pageBlockPhoto() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockPhoto);
+		return *(const MTPDpageBlockPhoto*)data;
+	}
+
+	MTPDpageBlockVideo &_pageBlockVideo() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockVideo);
+		split();
+		return *(MTPDpageBlockVideo*)data;
+	}
+	const MTPDpageBlockVideo &c_pageBlockVideo() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockVideo);
+		return *(const MTPDpageBlockVideo*)data;
+	}
+
+	MTPDpageBlockCover &_pageBlockCover() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockCover);
+		split();
+		return *(MTPDpageBlockCover*)data;
+	}
+	const MTPDpageBlockCover &c_pageBlockCover() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockCover);
+		return *(const MTPDpageBlockCover*)data;
+	}
+
+	MTPDpageBlockEmbed &_pageBlockEmbed() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockEmbed);
+		split();
+		return *(MTPDpageBlockEmbed*)data;
+	}
+	const MTPDpageBlockEmbed &c_pageBlockEmbed() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockEmbed);
+		return *(const MTPDpageBlockEmbed*)data;
+	}
+
+	MTPDpageBlockEmbedPost &_pageBlockEmbedPost() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockEmbedPost);
+		split();
+		return *(MTPDpageBlockEmbedPost*)data;
+	}
+	const MTPDpageBlockEmbedPost &c_pageBlockEmbedPost() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockEmbedPost);
+		return *(const MTPDpageBlockEmbedPost*)data;
+	}
+
+	MTPDpageBlockSlideshow &_pageBlockSlideshow() {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSlideshow);
+		split();
+		return *(MTPDpageBlockSlideshow*)data;
+	}
+	const MTPDpageBlockSlideshow &c_pageBlockSlideshow() const {
+		t_assert(data != nullptr && _type == mtpc_pageBlockSlideshow);
+		return *(const MTPDpageBlockSlideshow*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPpageBlock(mtpTypeId type);
+	explicit MTPpageBlock(MTPDpageBlockTitle *_data);
+	explicit MTPpageBlock(MTPDpageBlockSubtitle *_data);
+	explicit MTPpageBlock(MTPDpageBlockAuthorDate *_data);
+	explicit MTPpageBlock(MTPDpageBlockHeader *_data);
+	explicit MTPpageBlock(MTPDpageBlockSubheader *_data);
+	explicit MTPpageBlock(MTPDpageBlockParagraph *_data);
+	explicit MTPpageBlock(MTPDpageBlockPreformatted *_data);
+	explicit MTPpageBlock(MTPDpageBlockFooter *_data);
+	explicit MTPpageBlock(MTPDpageBlockList *_data);
+	explicit MTPpageBlock(MTPDpageBlockBlockquote *_data);
+	explicit MTPpageBlock(MTPDpageBlockPullquote *_data);
+	explicit MTPpageBlock(MTPDpageBlockPhoto *_data);
+	explicit MTPpageBlock(MTPDpageBlockVideo *_data);
+	explicit MTPpageBlock(MTPDpageBlockCover *_data);
+	explicit MTPpageBlock(MTPDpageBlockEmbed *_data);
+	explicit MTPpageBlock(MTPDpageBlockEmbedPost *_data);
+	explicit MTPpageBlock(MTPDpageBlockSlideshow *_data);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPpageBlock> MTPPageBlock;
+
+class MTPembedPostMedia : private mtpDataOwner {
+public:
+	MTPembedPostMedia() : mtpDataOwner(0), _type(0) {
+	}
+	MTPembedPostMedia(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDembedPostPhoto &_embedPostPhoto() {
+		t_assert(data != nullptr && _type == mtpc_embedPostPhoto);
+		split();
+		return *(MTPDembedPostPhoto*)data;
+	}
+	const MTPDembedPostPhoto &c_embedPostPhoto() const {
+		t_assert(data != nullptr && _type == mtpc_embedPostPhoto);
+		return *(const MTPDembedPostPhoto*)data;
+	}
+
+	MTPDembedPostVideo &_embedPostVideo() {
+		t_assert(data != nullptr && _type == mtpc_embedPostVideo);
+		split();
+		return *(MTPDembedPostVideo*)data;
+	}
+	const MTPDembedPostVideo &c_embedPostVideo() const {
+		t_assert(data != nullptr && _type == mtpc_embedPostVideo);
+		return *(const MTPDembedPostVideo*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPembedPostMedia(mtpTypeId type);
+	explicit MTPembedPostMedia(MTPDembedPostPhoto *_data);
+	explicit MTPembedPostMedia(MTPDembedPostVideo *_data);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPembedPostMedia> MTPEmbedPostMedia;
+
+class MTPpage : private mtpDataOwner {
+public:
+	MTPpage() : mtpDataOwner(0), _type(0) {
+	}
+	MTPpage(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDpagePart &_pagePart() {
+		t_assert(data != nullptr && _type == mtpc_pagePart);
+		split();
+		return *(MTPDpagePart*)data;
+	}
+	const MTPDpagePart &c_pagePart() const {
+		t_assert(data != nullptr && _type == mtpc_pagePart);
+		return *(const MTPDpagePart*)data;
+	}
+
+	MTPDpageFull &_pageFull() {
+		t_assert(data != nullptr && _type == mtpc_pageFull);
+		split();
+		return *(MTPDpageFull*)data;
+	}
+	const MTPDpageFull &c_pageFull() const {
+		t_assert(data != nullptr && _type == mtpc_pageFull);
+		return *(const MTPDpageFull*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPpage(mtpTypeId type);
+	explicit MTPpage(MTPDpagePart *_data);
+	explicit MTPpage(MTPDpageFull *_data);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPpage> MTPPage;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -11295,7 +11842,7 @@ public:
 
 	MTPDuserFull() {
 	}
-	MTPDuserFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info) : vflags(_flags), vuser(_user), vabout(_about), vlink(_link), vprofile_photo(_profile_photo), vnotify_settings(_notify_settings), vbot_info(_bot_info) {
+	MTPDuserFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info, MTPint _common_chats_count) : vflags(_flags), vuser(_user), vabout(_about), vlink(_link), vprofile_photo(_profile_photo), vnotify_settings(_notify_settings), vbot_info(_bot_info), vcommon_chats_count(_common_chats_count) {
 	}
 
 	MTPflags<MTPDuserFull::Flags> vflags;
@@ -11305,6 +11852,7 @@ public:
 	MTPPhoto vprofile_photo;
 	MTPPeerNotifySettings vnotify_settings;
 	MTPBotInfo vbot_info;
+	MTPint vcommon_chats_count;
 };
 
 class MTPDcontact : public mtpDataImpl<MTPDcontact> {
@@ -11490,6 +12038,18 @@ public:
 	}
 
 	MTPVector<MTPChat> vchats;
+};
+
+class MTPDmessages_chatsSlice : public mtpDataImpl<MTPDmessages_chatsSlice> {
+public:
+	MTPDmessages_chatsSlice() {
+	}
+	MTPDmessages_chatsSlice(MTPint _count, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vcount(_count), vchats(_chats), vusers(_users) {
+	}
+
+	MTPint vcount;
+	MTPVector<MTPChat> vchats;
+	MTPVector<MTPUser> vusers;
 };
 
 class MTPDmessages_chatFull : public mtpDataImpl<MTPDmessages_chatFull> {
@@ -12143,6 +12703,19 @@ public:
 	MTPDraftMessage vdraft;
 };
 
+class MTPDupdateChannelWebPage : public mtpDataImpl<MTPDupdateChannelWebPage> {
+public:
+	MTPDupdateChannelWebPage() {
+	}
+	MTPDupdateChannelWebPage(MTPint _channel_id, const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) : vchannel_id(_channel_id), vwebpage(_webpage), vpts(_pts), vpts_count(_pts_count) {
+	}
+
+	MTPint vchannel_id;
+	MTPWebPage vwebpage;
+	MTPint vpts;
+	MTPint vpts_count;
+};
+
 class MTPDupdates_state : public mtpDataImpl<MTPDupdates_state> {
 public:
 	MTPDupdates_state() {
@@ -12196,6 +12769,16 @@ public:
 	MTPVector<MTPChat> vchats;
 	MTPVector<MTPUser> vusers;
 	MTPupdates_State vintermediate_state;
+};
+
+class MTPDupdates_differenceTooLong : public mtpDataImpl<MTPDupdates_differenceTooLong> {
+public:
+	MTPDupdates_differenceTooLong() {
+	}
+	MTPDupdates_differenceTooLong(MTPint _pts) : vpts(_pts) {
+	}
+
+	MTPint vpts;
 };
 
 class MTPDupdateShortMessage : public mtpDataImpl<MTPDupdateShortMessage> {
@@ -13056,8 +13639,9 @@ public:
 		f_duration = (1 << 7),
 		f_author = (1 << 8),
 		f_document = (1 << 9),
+		f_cached_page = (1 << 10),
 
-		MAX_FIELD = (1 << 9),
+		MAX_FIELD = (1 << 10),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -13074,16 +13658,18 @@ public:
 	bool has_duration() const { return vflags.v & Flag::f_duration; }
 	bool has_author() const { return vflags.v & Flag::f_author; }
 	bool has_document() const { return vflags.v & Flag::f_document; }
+	bool has_cached_page() const { return vflags.v & Flag::f_cached_page; }
 
 	MTPDwebPage() {
 	}
-	MTPDwebPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document) : vflags(_flags), vid(_id), vurl(_url), vdisplay_url(_display_url), vtype(_type), vsite_name(_site_name), vtitle(_title), vdescription(_description), vphoto(_photo), vembed_url(_embed_url), vembed_type(_embed_type), vembed_width(_embed_width), vembed_height(_embed_height), vduration(_duration), vauthor(_author), vdocument(_document) {
+	MTPDwebPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, MTPint _hash, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document, const MTPPage &_cached_page) : vflags(_flags), vid(_id), vurl(_url), vdisplay_url(_display_url), vhash(_hash), vtype(_type), vsite_name(_site_name), vtitle(_title), vdescription(_description), vphoto(_photo), vembed_url(_embed_url), vembed_type(_embed_type), vembed_width(_embed_width), vembed_height(_embed_height), vduration(_duration), vauthor(_author), vdocument(_document), vcached_page(_cached_page) {
 	}
 
 	MTPflags<MTPDwebPage::Flags> vflags;
 	MTPlong vid;
 	MTPstring vurl;
 	MTPstring vdisplay_url;
+	MTPint vhash;
 	MTPstring vtype;
 	MTPstring vsite_name;
 	MTPstring vtitle;
@@ -13096,6 +13682,7 @@ public:
 	MTPint vduration;
 	MTPstring vauthor;
 	MTPDocument vdocument;
+	MTPPage vcached_page;
 };
 
 class MTPDauthorization : public mtpDataImpl<MTPDauthorization> {
@@ -14435,7 +15022,7 @@ public:
 
 	MTPDmessages_botResults() {
 	}
-	MTPDmessages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results) : vflags(_flags), vquery_id(_query_id), vnext_offset(_next_offset), vswitch_pm(_switch_pm), vresults(_results) {
+	MTPDmessages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results, MTPint _cache_time) : vflags(_flags), vquery_id(_query_id), vnext_offset(_next_offset), vswitch_pm(_switch_pm), vresults(_results), vcache_time(_cache_time) {
 	}
 
 	MTPflags<MTPDmessages_botResults::Flags> vflags;
@@ -14443,6 +15030,7 @@ public:
 	MTPstring vnext_offset;
 	MTPInlineBotSwitchPM vswitch_pm;
 	MTPVector<MTPBotInlineResult> vresults;
+	MTPint vcache_time;
 };
 
 class MTPDexportedMessageLink : public mtpDataImpl<MTPDexportedMessageLink> {
@@ -14543,12 +15131,13 @@ public:
 
 	MTPDmessages_botCallbackAnswer() {
 	}
-	MTPDmessages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url) : vflags(_flags), vmessage(_message), vurl(_url) {
+	MTPDmessages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) : vflags(_flags), vmessage(_message), vurl(_url), vcache_time(_cache_time) {
 	}
 
 	MTPflags<MTPDmessages_botCallbackAnswer::Flags> vflags;
 	MTPstring vmessage;
 	MTPstring vurl;
+	MTPint vcache_time;
 };
 
 class MTPDmessages_messageEditData : public mtpDataImpl<MTPDmessages_messageEditData> {
@@ -14838,6 +15427,359 @@ public:
 
 	MTPVector<MTPHighScore> vscores;
 	MTPVector<MTPUser> vusers;
+};
+
+class MTPDtextPlain : public mtpDataImpl<MTPDtextPlain> {
+public:
+	MTPDtextPlain() {
+	}
+	MTPDtextPlain(const MTPstring &_text) : vtext(_text) {
+	}
+
+	MTPstring vtext;
+};
+
+class MTPDtextBold : public mtpDataImpl<MTPDtextBold> {
+public:
+	MTPDtextBold() {
+	}
+	MTPDtextBold(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDtextItalic : public mtpDataImpl<MTPDtextItalic> {
+public:
+	MTPDtextItalic() {
+	}
+	MTPDtextItalic(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDtextUnderline : public mtpDataImpl<MTPDtextUnderline> {
+public:
+	MTPDtextUnderline() {
+	}
+	MTPDtextUnderline(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDtextStrike : public mtpDataImpl<MTPDtextStrike> {
+public:
+	MTPDtextStrike() {
+	}
+	MTPDtextStrike(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDtextFixed : public mtpDataImpl<MTPDtextFixed> {
+public:
+	MTPDtextFixed() {
+	}
+	MTPDtextFixed(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDtextUrl : public mtpDataImpl<MTPDtextUrl> {
+public:
+	MTPDtextUrl() {
+	}
+	MTPDtextUrl(const MTPRichText &_text, const MTPstring &_url, const MTPlong &_webpage_id) : vtext(_text), vurl(_url), vwebpage_id(_webpage_id) {
+	}
+
+	MTPRichText vtext;
+	MTPstring vurl;
+	MTPlong vwebpage_id;
+};
+
+class MTPDtextEmail : public mtpDataImpl<MTPDtextEmail> {
+public:
+	MTPDtextEmail() {
+	}
+	MTPDtextEmail(const MTPRichText &_text, const MTPstring &_email) : vtext(_text), vemail(_email) {
+	}
+
+	MTPRichText vtext;
+	MTPstring vemail;
+};
+
+class MTPDtextConcat : public mtpDataImpl<MTPDtextConcat> {
+public:
+	MTPDtextConcat() {
+	}
+	MTPDtextConcat(const MTPVector<MTPRichText> &_texts) : vtexts(_texts) {
+	}
+
+	MTPVector<MTPRichText> vtexts;
+};
+
+class MTPDpageBlockTitle : public mtpDataImpl<MTPDpageBlockTitle> {
+public:
+	MTPDpageBlockTitle() {
+	}
+	MTPDpageBlockTitle(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockSubtitle : public mtpDataImpl<MTPDpageBlockSubtitle> {
+public:
+	MTPDpageBlockSubtitle() {
+	}
+	MTPDpageBlockSubtitle(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockAuthorDate : public mtpDataImpl<MTPDpageBlockAuthorDate> {
+public:
+	MTPDpageBlockAuthorDate() {
+	}
+	MTPDpageBlockAuthorDate(const MTPstring &_author, MTPint _published_date) : vauthor(_author), vpublished_date(_published_date) {
+	}
+
+	MTPstring vauthor;
+	MTPint vpublished_date;
+};
+
+class MTPDpageBlockHeader : public mtpDataImpl<MTPDpageBlockHeader> {
+public:
+	MTPDpageBlockHeader() {
+	}
+	MTPDpageBlockHeader(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockSubheader : public mtpDataImpl<MTPDpageBlockSubheader> {
+public:
+	MTPDpageBlockSubheader() {
+	}
+	MTPDpageBlockSubheader(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockParagraph : public mtpDataImpl<MTPDpageBlockParagraph> {
+public:
+	MTPDpageBlockParagraph() {
+	}
+	MTPDpageBlockParagraph(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockPreformatted : public mtpDataImpl<MTPDpageBlockPreformatted> {
+public:
+	MTPDpageBlockPreformatted() {
+	}
+	MTPDpageBlockPreformatted(const MTPRichText &_text, const MTPstring &_language) : vtext(_text), vlanguage(_language) {
+	}
+
+	MTPRichText vtext;
+	MTPstring vlanguage;
+};
+
+class MTPDpageBlockFooter : public mtpDataImpl<MTPDpageBlockFooter> {
+public:
+	MTPDpageBlockFooter() {
+	}
+	MTPDpageBlockFooter(const MTPRichText &_text) : vtext(_text) {
+	}
+
+	MTPRichText vtext;
+};
+
+class MTPDpageBlockList : public mtpDataImpl<MTPDpageBlockList> {
+public:
+	MTPDpageBlockList() {
+	}
+	MTPDpageBlockList(MTPBool _ordered, const MTPVector<MTPRichText> &_items) : vordered(_ordered), vitems(_items) {
+	}
+
+	MTPBool vordered;
+	MTPVector<MTPRichText> vitems;
+};
+
+class MTPDpageBlockBlockquote : public mtpDataImpl<MTPDpageBlockBlockquote> {
+public:
+	MTPDpageBlockBlockquote() {
+	}
+	MTPDpageBlockBlockquote(const MTPRichText &_text, const MTPRichText &_caption) : vtext(_text), vcaption(_caption) {
+	}
+
+	MTPRichText vtext;
+	MTPRichText vcaption;
+};
+
+class MTPDpageBlockPullquote : public mtpDataImpl<MTPDpageBlockPullquote> {
+public:
+	MTPDpageBlockPullquote() {
+	}
+	MTPDpageBlockPullquote(const MTPRichText &_text, const MTPRichText &_caption) : vtext(_text), vcaption(_caption) {
+	}
+
+	MTPRichText vtext;
+	MTPRichText vcaption;
+};
+
+class MTPDpageBlockPhoto : public mtpDataImpl<MTPDpageBlockPhoto> {
+public:
+	MTPDpageBlockPhoto() {
+	}
+	MTPDpageBlockPhoto(const MTPlong &_photo_id, const MTPRichText &_caption) : vphoto_id(_photo_id), vcaption(_caption) {
+	}
+
+	MTPlong vphoto_id;
+	MTPRichText vcaption;
+};
+
+class MTPDpageBlockVideo : public mtpDataImpl<MTPDpageBlockVideo> {
+public:
+	enum class Flag : int32 {
+		f_autoplay = (1 << 1),
+		f_loop = (1 << 2),
+
+		MAX_FIELD = (1 << 2),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_autoplay() const { return vflags.v & Flag::f_autoplay; }
+	bool is_loop() const { return vflags.v & Flag::f_loop; }
+
+	MTPDpageBlockVideo() {
+	}
+	MTPDpageBlockVideo(const MTPflags<MTPDpageBlockVideo::Flags> &_flags, const MTPlong &_video_id, const MTPRichText &_caption) : vflags(_flags), vvideo_id(_video_id), vcaption(_caption) {
+	}
+
+	MTPflags<MTPDpageBlockVideo::Flags> vflags;
+	MTPlong vvideo_id;
+	MTPRichText vcaption;
+};
+
+class MTPDpageBlockCover : public mtpDataImpl<MTPDpageBlockCover> {
+public:
+	MTPDpageBlockCover() {
+	}
+	MTPDpageBlockCover(const MTPPageBlock &_cover) : vcover(_cover) {
+	}
+
+	MTPPageBlock vcover;
+};
+
+class MTPDpageBlockEmbed : public mtpDataImpl<MTPDpageBlockEmbed> {
+public:
+	MTPDpageBlockEmbed() {
+	}
+	MTPDpageBlockEmbed(const MTPstring &_url, MTPint _w, MTPint _h, const MTPRichText &_caption) : vurl(_url), vw(_w), vh(_h), vcaption(_caption) {
+	}
+
+	MTPstring vurl;
+	MTPint vw;
+	MTPint vh;
+	MTPRichText vcaption;
+};
+
+class MTPDpageBlockEmbedPost : public mtpDataImpl<MTPDpageBlockEmbedPost> {
+public:
+	enum class Flag : int32 {
+		f_text = (1 << 1),
+		f_medias = (1 << 2),
+		f_author_photo_id = (1 << 3),
+
+		MAX_FIELD = (1 << 3),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_text() const { return vflags.v & Flag::f_text; }
+	bool has_medias() const { return vflags.v & Flag::f_medias; }
+	bool has_author_photo_id() const { return vflags.v & Flag::f_author_photo_id; }
+
+	MTPDpageBlockEmbedPost() {
+	}
+	MTPDpageBlockEmbedPost(const MTPflags<MTPDpageBlockEmbedPost::Flags> &_flags, const MTPstring &_author, MTPint _date, const MTPRichText &_caption, const MTPstring &_url, const MTPlong &_webpage_id, const MTPRichText &_text, const MTPVector<MTPEmbedPostMedia> &_medias, const MTPlong &_author_photo_id) : vflags(_flags), vauthor(_author), vdate(_date), vcaption(_caption), vurl(_url), vwebpage_id(_webpage_id), vtext(_text), vmedias(_medias), vauthor_photo_id(_author_photo_id) {
+	}
+
+	MTPflags<MTPDpageBlockEmbedPost::Flags> vflags;
+	MTPstring vauthor;
+	MTPint vdate;
+	MTPRichText vcaption;
+	MTPstring vurl;
+	MTPlong vwebpage_id;
+	MTPRichText vtext;
+	MTPVector<MTPEmbedPostMedia> vmedias;
+	MTPlong vauthor_photo_id;
+};
+
+class MTPDpageBlockSlideshow : public mtpDataImpl<MTPDpageBlockSlideshow> {
+public:
+	MTPDpageBlockSlideshow() {
+	}
+	MTPDpageBlockSlideshow(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) : vitems(_items), vcaption(_caption) {
+	}
+
+	MTPVector<MTPPageBlock> vitems;
+	MTPRichText vcaption;
+};
+
+class MTPDembedPostPhoto : public mtpDataImpl<MTPDembedPostPhoto> {
+public:
+	MTPDembedPostPhoto() {
+	}
+	MTPDembedPostPhoto(const MTPlong &_photo_id) : vphoto_id(_photo_id) {
+	}
+
+	MTPlong vphoto_id;
+};
+
+class MTPDembedPostVideo : public mtpDataImpl<MTPDembedPostVideo> {
+public:
+	MTPDembedPostVideo() {
+	}
+	MTPDembedPostVideo(const MTPlong &_video_id) : vvideo_id(_video_id) {
+	}
+
+	MTPlong vvideo_id;
+};
+
+class MTPDpagePart : public mtpDataImpl<MTPDpagePart> {
+public:
+	MTPDpagePart() {
+	}
+	MTPDpagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) : vblocks(_blocks), vphotos(_photos), vvideos(_videos) {
+	}
+
+	MTPVector<MTPPageBlock> vblocks;
+	MTPVector<MTPPhoto> vphotos;
+	MTPVector<MTPDocument> vvideos;
+};
+
+class MTPDpageFull : public mtpDataImpl<MTPDpageFull> {
+public:
+	MTPDpageFull() {
+	}
+	MTPDpageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) : vblocks(_blocks), vphotos(_photos), vvideos(_videos) {
+	}
+
+	MTPVector<MTPPageBlock> vblocks;
+	MTPVector<MTPPhoto> vphotos;
+	MTPVector<MTPDocument> vvideos;
 };
 
 // RPC methods
@@ -20730,17 +21672,18 @@ public:
 	MTPlong vquery_id;
 	MTPstring vmessage;
 	MTPstring vurl;
+	MTPint vcache_time;
 
 	MTPmessages_setBotCallbackAnswer() {
 	}
 	MTPmessages_setBotCallbackAnswer(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_setBotCallbackAnswer) {
 		read(from, end, cons);
 	}
-	MTPmessages_setBotCallbackAnswer(const MTPflags<MTPmessages_setBotCallbackAnswer::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_message, const MTPstring &_url) : vflags(_flags), vquery_id(_query_id), vmessage(_message), vurl(_url) {
+	MTPmessages_setBotCallbackAnswer(const MTPflags<MTPmessages_setBotCallbackAnswer::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) : vflags(_flags), vquery_id(_query_id), vmessage(_message), vurl(_url), vcache_time(_cache_time) {
 	}
 
 	uint32 innerLength() const {
-		return vflags.innerLength() + vquery_id.innerLength() + (has_message() ? vmessage.innerLength() : 0) + (has_url() ? vurl.innerLength() : 0);
+		return vflags.innerLength() + vquery_id.innerLength() + (has_message() ? vmessage.innerLength() : 0) + (has_url() ? vurl.innerLength() : 0) + vcache_time.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_setBotCallbackAnswer;
@@ -20750,12 +21693,14 @@ public:
 		vquery_id.read(from, end);
 		if (has_message()) { vmessage.read(from, end); } else { vmessage = MTPstring(); }
 		if (has_url()) { vurl.read(from, end); } else { vurl = MTPstring(); }
+		vcache_time.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vflags.write(to);
 		vquery_id.write(to);
 		if (has_message()) vmessage.write(to);
 		if (has_url()) vurl.write(to);
+		vcache_time.write(to);
 	}
 
 	typedef MTPBool ResponseType;
@@ -20770,7 +21715,7 @@ public:
 	}
 	MTPmessages_SetBotCallbackAnswer(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_setBotCallbackAnswer>(from, end, cons) {
 	}
-	MTPmessages_SetBotCallbackAnswer(const MTPflags<MTPmessages_setBotCallbackAnswer::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_message, const MTPstring &_url) : MTPBoxed<MTPmessages_setBotCallbackAnswer>(MTPmessages_setBotCallbackAnswer(_flags, _query_id, _message, _url)) {
+	MTPmessages_SetBotCallbackAnswer(const MTPflags<MTPmessages_setBotCallbackAnswer::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) : MTPBoxed<MTPmessages_setBotCallbackAnswer>(MTPmessages_setBotCallbackAnswer(_flags, _query_id, _message, _url, _cache_time)) {
 	}
 };
 
@@ -21490,6 +22435,132 @@ public:
 	}
 };
 
+class MTPmessages_getCommonChats { // RPC method 'messages.getCommonChats'
+public:
+	MTPInputUser vuser_id;
+	MTPint vmax_id;
+	MTPint vlimit;
+
+	MTPmessages_getCommonChats() {
+	}
+	MTPmessages_getCommonChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getCommonChats) {
+		read(from, end, cons);
+	}
+	MTPmessages_getCommonChats(const MTPInputUser &_user_id, MTPint _max_id, MTPint _limit) : vuser_id(_user_id), vmax_id(_max_id), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vuser_id.innerLength() + vmax_id.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getCommonChats;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getCommonChats) {
+		vuser_id.read(from, end);
+		vmax_id.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vuser_id.write(to);
+		vmax_id.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPmessages_Chats ResponseType;
+};
+class MTPmessages_GetCommonChats : public MTPBoxed<MTPmessages_getCommonChats> {
+public:
+	MTPmessages_GetCommonChats() {
+	}
+	MTPmessages_GetCommonChats(const MTPmessages_getCommonChats &v) : MTPBoxed<MTPmessages_getCommonChats>(v) {
+	}
+	MTPmessages_GetCommonChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getCommonChats>(from, end, cons) {
+	}
+	MTPmessages_GetCommonChats(const MTPInputUser &_user_id, MTPint _max_id, MTPint _limit) : MTPBoxed<MTPmessages_getCommonChats>(MTPmessages_getCommonChats(_user_id, _max_id, _limit)) {
+	}
+};
+
+class MTPmessages_getAllChats { // RPC method 'messages.getAllChats'
+public:
+	MTPVector<MTPint> vexcept_ids;
+
+	MTPmessages_getAllChats() {
+	}
+	MTPmessages_getAllChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getAllChats) {
+		read(from, end, cons);
+	}
+	MTPmessages_getAllChats(const MTPVector<MTPint> &_except_ids) : vexcept_ids(_except_ids) {
+	}
+
+	uint32 innerLength() const {
+		return vexcept_ids.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getAllChats;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getAllChats) {
+		vexcept_ids.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vexcept_ids.write(to);
+	}
+
+	typedef MTPmessages_Chats ResponseType;
+};
+class MTPmessages_GetAllChats : public MTPBoxed<MTPmessages_getAllChats> {
+public:
+	MTPmessages_GetAllChats() {
+	}
+	MTPmessages_GetAllChats(const MTPmessages_getAllChats &v) : MTPBoxed<MTPmessages_getAllChats>(v) {
+	}
+	MTPmessages_GetAllChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getAllChats>(from, end, cons) {
+	}
+	MTPmessages_GetAllChats(const MTPVector<MTPint> &_except_ids) : MTPBoxed<MTPmessages_getAllChats>(MTPmessages_getAllChats(_except_ids)) {
+	}
+};
+
+class MTPmessages_getWebPage { // RPC method 'messages.getWebPage'
+public:
+	MTPlong vid;
+	MTPint vhash;
+
+	MTPmessages_getWebPage() {
+	}
+	MTPmessages_getWebPage(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getWebPage) {
+		read(from, end, cons);
+	}
+	MTPmessages_getWebPage(const MTPlong &_id, MTPint _hash) : vid(_id), vhash(_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vid.innerLength() + vhash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getWebPage;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getWebPage) {
+		vid.read(from, end);
+		vhash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vid.write(to);
+		vhash.write(to);
+	}
+
+	typedef MTPWebPage ResponseType;
+};
+class MTPmessages_GetWebPage : public MTPBoxed<MTPmessages_getWebPage> {
+public:
+	MTPmessages_GetWebPage() {
+	}
+	MTPmessages_GetWebPage(const MTPmessages_getWebPage &v) : MTPBoxed<MTPmessages_getWebPage>(v) {
+	}
+	MTPmessages_GetWebPage(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getWebPage>(from, end, cons) {
+	}
+	MTPmessages_GetWebPage(const MTPlong &_id, MTPint _hash) : MTPBoxed<MTPmessages_getWebPage>(MTPmessages_getWebPage(_id, _hash)) {
+	}
+};
+
 class MTPupdates_getState { // RPC method 'updates.getState'
 public:
 	MTPupdates_getState() {
@@ -21523,7 +22594,18 @@ public:
 
 class MTPupdates_getDifference { // RPC method 'updates.getDifference'
 public:
+	enum class Flag : int32 {
+		f_pts_total_limit = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_pts_total_limit() const { return vflags.v & Flag::f_pts_total_limit; }
+
+	MTPflags<MTPupdates_getDifference::Flags> vflags;
 	MTPint vpts;
+	MTPint vpts_total_limit;
 	MTPint vdate;
 	MTPint vqts;
 
@@ -21532,28 +22614,34 @@ public:
 	MTPupdates_getDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
 		read(from, end, cons);
 	}
-	MTPupdates_getDifference(MTPint _pts, MTPint _date, MTPint _qts) : vpts(_pts), vdate(_date), vqts(_qts) {
+	MTPupdates_getDifference(const MTPflags<MTPupdates_getDifference::Flags> &_flags, MTPint _pts, MTPint _pts_total_limit, MTPint _date, MTPint _qts) : vflags(_flags), vpts(_pts), vpts_total_limit(_pts_total_limit), vdate(_date), vqts(_qts) {
 	}
 
 	uint32 innerLength() const {
-		return vpts.innerLength() + vdate.innerLength() + vqts.innerLength();
+		return vflags.innerLength() + vpts.innerLength() + (has_pts_total_limit() ? vpts_total_limit.innerLength() : 0) + vdate.innerLength() + vqts.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_updates_getDifference;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
+		vflags.read(from, end);
 		vpts.read(from, end);
+		if (has_pts_total_limit()) { vpts_total_limit.read(from, end); } else { vpts_total_limit = MTPint(); }
 		vdate.read(from, end);
 		vqts.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vpts.write(to);
+		if (has_pts_total_limit()) vpts_total_limit.write(to);
 		vdate.write(to);
 		vqts.write(to);
 	}
 
 	typedef MTPupdates_Difference ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPupdates_getDifference::Flags)
+
 class MTPupdates_GetDifference : public MTPBoxed<MTPupdates_getDifference> {
 public:
 	MTPupdates_GetDifference() {
@@ -21562,12 +22650,22 @@ public:
 	}
 	MTPupdates_GetDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getDifference>(from, end, cons) {
 	}
-	MTPupdates_GetDifference(MTPint _pts, MTPint _date, MTPint _qts) : MTPBoxed<MTPupdates_getDifference>(MTPupdates_getDifference(_pts, _date, _qts)) {
+	MTPupdates_GetDifference(const MTPflags<MTPupdates_getDifference::Flags> &_flags, MTPint _pts, MTPint _pts_total_limit, MTPint _date, MTPint _qts) : MTPBoxed<MTPupdates_getDifference>(MTPupdates_getDifference(_flags, _pts, _pts_total_limit, _date, _qts)) {
 	}
 };
 
 class MTPupdates_getChannelDifference { // RPC method 'updates.getChannelDifference'
 public:
+	enum class Flag : int32 {
+		f_force = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool is_force() const { return vflags.v & Flag::f_force; }
+
+	MTPflags<MTPupdates_getChannelDifference::Flags> vflags;
 	MTPInputChannel vchannel;
 	MTPChannelMessagesFilter vfilter;
 	MTPint vpts;
@@ -21578,22 +22676,24 @@ public:
 	MTPupdates_getChannelDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getChannelDifference) {
 		read(from, end, cons);
 	}
-	MTPupdates_getChannelDifference(const MTPInputChannel &_channel, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : vchannel(_channel), vfilter(_filter), vpts(_pts), vlimit(_limit) {
+	MTPupdates_getChannelDifference(const MTPflags<MTPupdates_getChannelDifference::Flags> &_flags, const MTPInputChannel &_channel, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : vflags(_flags), vchannel(_channel), vfilter(_filter), vpts(_pts), vlimit(_limit) {
 	}
 
 	uint32 innerLength() const {
-		return vchannel.innerLength() + vfilter.innerLength() + vpts.innerLength() + vlimit.innerLength();
+		return vflags.innerLength() + vchannel.innerLength() + vfilter.innerLength() + vpts.innerLength() + vlimit.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_updates_getChannelDifference;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getChannelDifference) {
+		vflags.read(from, end);
 		vchannel.read(from, end);
 		vfilter.read(from, end);
 		vpts.read(from, end);
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vchannel.write(to);
 		vfilter.write(to);
 		vpts.write(to);
@@ -21602,6 +22702,8 @@ public:
 
 	typedef MTPupdates_ChannelDifference ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPupdates_getChannelDifference::Flags)
+
 class MTPupdates_GetChannelDifference : public MTPBoxed<MTPupdates_getChannelDifference> {
 public:
 	MTPupdates_GetChannelDifference() {
@@ -21610,7 +22712,7 @@ public:
 	}
 	MTPupdates_GetChannelDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getChannelDifference>(from, end, cons) {
 	}
-	MTPupdates_GetChannelDifference(const MTPInputChannel &_channel, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : MTPBoxed<MTPupdates_getChannelDifference>(MTPupdates_getChannelDifference(_channel, _filter, _pts, _limit)) {
+	MTPupdates_GetChannelDifference(const MTPflags<MTPupdates_getChannelDifference::Flags> &_flags, const MTPInputChannel &_channel, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : MTPBoxed<MTPupdates_getChannelDifference>(MTPupdates_getChannelDifference(_flags, _channel, _filter, _pts, _limit)) {
 	}
 };
 
@@ -22170,6 +23272,48 @@ public:
 	MTPhelp_GetTermsOfService(const MTPhelp_getTermsOfService &v) : MTPBoxed<MTPhelp_getTermsOfService>(v) {
 	}
 	MTPhelp_GetTermsOfService(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getTermsOfService>(from, end, cons) {
+	}
+};
+
+class MTPhelp_setBotUpdatesStatus { // RPC method 'help.setBotUpdatesStatus'
+public:
+	MTPint vpending_updates_count;
+	MTPstring vmessage;
+
+	MTPhelp_setBotUpdatesStatus() {
+	}
+	MTPhelp_setBotUpdatesStatus(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_setBotUpdatesStatus) {
+		read(from, end, cons);
+	}
+	MTPhelp_setBotUpdatesStatus(MTPint _pending_updates_count, const MTPstring &_message) : vpending_updates_count(_pending_updates_count), vmessage(_message) {
+	}
+
+	uint32 innerLength() const {
+		return vpending_updates_count.innerLength() + vmessage.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_help_setBotUpdatesStatus;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_setBotUpdatesStatus) {
+		vpending_updates_count.read(from, end);
+		vmessage.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpending_updates_count.write(to);
+		vmessage.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPhelp_SetBotUpdatesStatus : public MTPBoxed<MTPhelp_setBotUpdatesStatus> {
+public:
+	MTPhelp_SetBotUpdatesStatus() {
+	}
+	MTPhelp_SetBotUpdatesStatus(const MTPhelp_setBotUpdatesStatus &v) : MTPBoxed<MTPhelp_setBotUpdatesStatus>(v) {
+	}
+	MTPhelp_SetBotUpdatesStatus(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_setBotUpdatesStatus>(from, end, cons) {
+	}
+	MTPhelp_SetBotUpdatesStatus(MTPint _pending_updates_count, const MTPstring &_message) : MTPBoxed<MTPhelp_setBotUpdatesStatus>(MTPhelp_setBotUpdatesStatus(_pending_updates_count, _message)) {
 	}
 };
 
@@ -23822,8 +24966,8 @@ public:
 	inline static MTPreportReason new_inputReportReasonOther(const MTPstring &_text) {
 		return MTPreportReason(new MTPDinputReportReasonOther(_text));
 	}
-	inline static MTPuserFull new_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info) {
-		return MTPuserFull(new MTPDuserFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info));
+	inline static MTPuserFull new_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info, MTPint _common_chats_count) {
+		return MTPuserFull(new MTPDuserFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info, _common_chats_count));
 	}
 	inline static MTPcontact new_contact(MTPint _user_id, MTPBool _mutual) {
 		return MTPcontact(new MTPDcontact(_user_id, _mutual));
@@ -23872,6 +25016,9 @@ public:
 	}
 	inline static MTPmessages_chats new_messages_chats(const MTPVector<MTPChat> &_chats) {
 		return MTPmessages_chats(new MTPDmessages_chats(_chats));
+	}
+	inline static MTPmessages_chats new_messages_chatsSlice(MTPint _count, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
+		return MTPmessages_chats(new MTPDmessages_chatsSlice(_count, _chats, _users));
 	}
 	inline static MTPmessages_chatFull new_messages_chatFull(const MTPChatFull &_full_chat, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 		return MTPmessages_chatFull(new MTPDmessages_chatFull(_full_chat, _chats, _users));
@@ -24071,6 +25218,9 @@ public:
 	inline static MTPupdate new_updatePtsChanged() {
 		return MTPupdate(mtpc_updatePtsChanged);
 	}
+	inline static MTPupdate new_updateChannelWebPage(MTPint _channel_id, const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) {
+		return MTPupdate(new MTPDupdateChannelWebPage(_channel_id, _webpage, _pts, _pts_count));
+	}
 	inline static MTPupdates_state new_updates_state(MTPint _pts, MTPint _qts, MTPint _date, MTPint _seq, MTPint _unread_count) {
 		return MTPupdates_state(new MTPDupdates_state(_pts, _qts, _date, _seq, _unread_count));
 	}
@@ -24082,6 +25232,9 @@ public:
 	}
 	inline static MTPupdates_difference new_updates_differenceSlice(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_intermediate_state) {
 		return MTPupdates_difference(new MTPDupdates_differenceSlice(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _intermediate_state));
+	}
+	inline static MTPupdates_difference new_updates_differenceTooLong(MTPint _pts) {
+		return MTPupdates_difference(new MTPDupdates_differenceTooLong(_pts));
 	}
 	inline static MTPupdates new_updatesTooLong() {
 		return MTPupdates(mtpc_updatesTooLong);
@@ -24248,9 +25401,6 @@ public:
 	inline static MTPsendMessageAction new_sendMessageGamePlayAction() {
 		return MTPsendMessageAction(mtpc_sendMessageGamePlayAction);
 	}
-	inline static MTPsendMessageAction new_sendMessageGameStopAction() {
-		return MTPsendMessageAction(mtpc_sendMessageGameStopAction);
-	}
 	inline static MTPcontacts_found new_contacts_found(const MTPVector<MTPPeer> &_results, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 		return MTPcontacts_found(new MTPDcontacts_found(_results, _chats, _users));
 	}
@@ -24368,8 +25518,11 @@ public:
 	inline static MTPwebPage new_webPagePending(const MTPlong &_id, MTPint _date) {
 		return MTPwebPage(new MTPDwebPagePending(_id, _date));
 	}
-	inline static MTPwebPage new_webPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document) {
-		return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document));
+	inline static MTPwebPage new_webPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, MTPint _hash, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document, const MTPPage &_cached_page) {
+		return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _hash, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document, _cached_page));
+	}
+	inline static MTPwebPage new_webPageNotModified() {
+		return MTPwebPage(mtpc_webPageNotModified);
 	}
 	inline static MTPauthorization new_authorization(const MTPlong &_hash, MTPint _flags, const MTPstring &_device_model, const MTPstring &_platform, const MTPstring &_system_version, MTPint _api_id, const MTPstring &_app_name, const MTPstring &_app_version, MTPint _date_created, MTPint _date_active, const MTPstring &_ip, const MTPstring &_country, const MTPstring &_region) {
 		return MTPauthorization(new MTPDauthorization(_hash, _flags, _device_model, _platform, _system_version, _api_id, _app_name, _app_version, _date_created, _date_active, _ip, _country, _region));
@@ -24650,8 +25803,8 @@ public:
 	inline static MTPbotInlineResult new_botInlineMediaResult(const MTPflags<MTPDbotInlineMediaResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPPhoto &_photo, const MTPDocument &_document, const MTPstring &_title, const MTPstring &_description, const MTPBotInlineMessage &_send_message) {
 		return MTPbotInlineResult(new MTPDbotInlineMediaResult(_flags, _id, _type, _photo, _document, _title, _description, _send_message));
 	}
-	inline static MTPmessages_botResults new_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results) {
-		return MTPmessages_botResults(new MTPDmessages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results));
+	inline static MTPmessages_botResults new_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results, MTPint _cache_time) {
+		return MTPmessages_botResults(new MTPDmessages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results, _cache_time));
 	}
 	inline static MTPexportedMessageLink new_exportedMessageLink(const MTPstring &_link) {
 		return MTPexportedMessageLink(new MTPDexportedMessageLink(_link));
@@ -24680,8 +25833,8 @@ public:
 	inline static MTPauth_sentCodeType new_auth_sentCodeTypeFlashCall(const MTPstring &_pattern) {
 		return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeFlashCall(_pattern));
 	}
-	inline static MTPmessages_botCallbackAnswer new_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url) {
-		return MTPmessages_botCallbackAnswer(new MTPDmessages_botCallbackAnswer(_flags, _message, _url));
+	inline static MTPmessages_botCallbackAnswer new_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) {
+		return MTPmessages_botCallbackAnswer(new MTPDmessages_botCallbackAnswer(_flags, _message, _url, _cache_time));
 	}
 	inline static MTPmessages_messageEditData new_messages_messageEditData(const MTPflags<MTPDmessages_messageEditData::Flags> &_flags) {
 		return MTPmessages_messageEditData(new MTPDmessages_messageEditData(_flags));
@@ -24778,6 +25931,102 @@ public:
 	}
 	inline static MTPmessages_highScores new_messages_highScores(const MTPVector<MTPHighScore> &_scores, const MTPVector<MTPUser> &_users) {
 		return MTPmessages_highScores(new MTPDmessages_highScores(_scores, _users));
+	}
+	inline static MTPrichText new_textEmpty() {
+		return MTPrichText(mtpc_textEmpty);
+	}
+	inline static MTPrichText new_textPlain(const MTPstring &_text) {
+		return MTPrichText(new MTPDtextPlain(_text));
+	}
+	inline static MTPrichText new_textBold(const MTPRichText &_text) {
+		return MTPrichText(new MTPDtextBold(_text));
+	}
+	inline static MTPrichText new_textItalic(const MTPRichText &_text) {
+		return MTPrichText(new MTPDtextItalic(_text));
+	}
+	inline static MTPrichText new_textUnderline(const MTPRichText &_text) {
+		return MTPrichText(new MTPDtextUnderline(_text));
+	}
+	inline static MTPrichText new_textStrike(const MTPRichText &_text) {
+		return MTPrichText(new MTPDtextStrike(_text));
+	}
+	inline static MTPrichText new_textFixed(const MTPRichText &_text) {
+		return MTPrichText(new MTPDtextFixed(_text));
+	}
+	inline static MTPrichText new_textUrl(const MTPRichText &_text, const MTPstring &_url, const MTPlong &_webpage_id) {
+		return MTPrichText(new MTPDtextUrl(_text, _url, _webpage_id));
+	}
+	inline static MTPrichText new_textEmail(const MTPRichText &_text, const MTPstring &_email) {
+		return MTPrichText(new MTPDtextEmail(_text, _email));
+	}
+	inline static MTPrichText new_textConcat(const MTPVector<MTPRichText> &_texts) {
+		return MTPrichText(new MTPDtextConcat(_texts));
+	}
+	inline static MTPpageBlock new_pageBlockTitle(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockTitle(_text));
+	}
+	inline static MTPpageBlock new_pageBlockSubtitle(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockSubtitle(_text));
+	}
+	inline static MTPpageBlock new_pageBlockAuthorDate(const MTPstring &_author, MTPint _published_date) {
+		return MTPpageBlock(new MTPDpageBlockAuthorDate(_author, _published_date));
+	}
+	inline static MTPpageBlock new_pageBlockHeader(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockHeader(_text));
+	}
+	inline static MTPpageBlock new_pageBlockSubheader(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockSubheader(_text));
+	}
+	inline static MTPpageBlock new_pageBlockParagraph(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockParagraph(_text));
+	}
+	inline static MTPpageBlock new_pageBlockPreformatted(const MTPRichText &_text, const MTPstring &_language) {
+		return MTPpageBlock(new MTPDpageBlockPreformatted(_text, _language));
+	}
+	inline static MTPpageBlock new_pageBlockFooter(const MTPRichText &_text) {
+		return MTPpageBlock(new MTPDpageBlockFooter(_text));
+	}
+	inline static MTPpageBlock new_pageBlockDivider() {
+		return MTPpageBlock(mtpc_pageBlockDivider);
+	}
+	inline static MTPpageBlock new_pageBlockList(MTPBool _ordered, const MTPVector<MTPRichText> &_items) {
+		return MTPpageBlock(new MTPDpageBlockList(_ordered, _items));
+	}
+	inline static MTPpageBlock new_pageBlockBlockquote(const MTPRichText &_text, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockBlockquote(_text, _caption));
+	}
+	inline static MTPpageBlock new_pageBlockPullquote(const MTPRichText &_text, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockPullquote(_text, _caption));
+	}
+	inline static MTPpageBlock new_pageBlockPhoto(const MTPlong &_photo_id, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockPhoto(_photo_id, _caption));
+	}
+	inline static MTPpageBlock new_pageBlockVideo(const MTPflags<MTPDpageBlockVideo::Flags> &_flags, const MTPlong &_video_id, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockVideo(_flags, _video_id, _caption));
+	}
+	inline static MTPpageBlock new_pageBlockCover(const MTPPageBlock &_cover) {
+		return MTPpageBlock(new MTPDpageBlockCover(_cover));
+	}
+	inline static MTPpageBlock new_pageBlockEmbed(const MTPstring &_url, MTPint _w, MTPint _h, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockEmbed(_url, _w, _h, _caption));
+	}
+	inline static MTPpageBlock new_pageBlockEmbedPost(const MTPflags<MTPDpageBlockEmbedPost::Flags> &_flags, const MTPstring &_author, MTPint _date, const MTPRichText &_caption, const MTPstring &_url, const MTPlong &_webpage_id, const MTPRichText &_text, const MTPVector<MTPEmbedPostMedia> &_medias, const MTPlong &_author_photo_id) {
+		return MTPpageBlock(new MTPDpageBlockEmbedPost(_flags, _author, _date, _caption, _url, _webpage_id, _text, _medias, _author_photo_id));
+	}
+	inline static MTPpageBlock new_pageBlockSlideshow(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) {
+		return MTPpageBlock(new MTPDpageBlockSlideshow(_items, _caption));
+	}
+	inline static MTPembedPostMedia new_embedPostPhoto(const MTPlong &_photo_id) {
+		return MTPembedPostMedia(new MTPDembedPostPhoto(_photo_id));
+	}
+	inline static MTPembedPostMedia new_embedPostVideo(const MTPlong &_video_id) {
+		return MTPembedPostMedia(new MTPDembedPostVideo(_video_id));
+	}
+	inline static MTPpage new_pagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
+		return MTPpage(new MTPDpagePart(_blocks, _photos, _videos));
+	}
+	inline static MTPpage new_pageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
+		return MTPpage(new MTPDpageFull(_blocks, _photos, _videos));
 	}
 	};
 
@@ -28865,7 +30114,7 @@ inline MTPuserFull::MTPuserFull() : mtpDataOwner(new MTPDuserFull()) {
 
 inline uint32 MTPuserFull::innerLength() const {
 	const MTPDuserFull &v(c_userFull());
-	return v.vflags.innerLength() + v.vuser.innerLength() + (v.has_about() ? v.vabout.innerLength() : 0) + v.vlink.innerLength() + (v.has_profile_photo() ? v.vprofile_photo.innerLength() : 0) + v.vnotify_settings.innerLength() + (v.has_bot_info() ? v.vbot_info.innerLength() : 0);
+	return v.vflags.innerLength() + v.vuser.innerLength() + (v.has_about() ? v.vabout.innerLength() : 0) + v.vlink.innerLength() + (v.has_profile_photo() ? v.vprofile_photo.innerLength() : 0) + v.vnotify_settings.innerLength() + (v.has_bot_info() ? v.vbot_info.innerLength() : 0) + v.vcommon_chats_count.innerLength();
 }
 inline mtpTypeId MTPuserFull::type() const {
 	return mtpc_userFull;
@@ -28882,6 +30131,7 @@ inline void MTPuserFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTyp
 	if (v.has_profile_photo()) { v.vprofile_photo.read(from, end); } else { v.vprofile_photo = MTPPhoto(); }
 	v.vnotify_settings.read(from, end);
 	if (v.has_bot_info()) { v.vbot_info.read(from, end); } else { v.vbot_info = MTPBotInfo(); }
+	v.vcommon_chats_count.read(from, end);
 }
 inline void MTPuserFull::write(mtpBuffer &to) const {
 	const MTPDuserFull &v(c_userFull());
@@ -28892,12 +30142,13 @@ inline void MTPuserFull::write(mtpBuffer &to) const {
 	if (v.has_profile_photo()) v.vprofile_photo.write(to);
 	v.vnotify_settings.write(to);
 	if (v.has_bot_info()) v.vbot_info.write(to);
+	v.vcommon_chats_count.write(to);
 }
 inline MTPuserFull::MTPuserFull(MTPDuserFull *_data) : mtpDataOwner(_data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDuserFull::Flags)
-inline MTPuserFull MTP_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info) {
-	return MTP::internal::TypeCreator::new_userFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info);
+inline MTPuserFull MTP_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info, MTPint _common_chats_count) {
+	return MTP::internal::TypeCreator::new_userFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info, _common_chats_count);
 }
 
 inline MTPcontact::MTPcontact() : mtpDataOwner(new MTPDcontact()) {
@@ -29377,31 +30628,71 @@ inline MTPmessages_messages MTP_messages_channelMessages(const MTPflags<MTPDmess
 	return MTP::internal::TypeCreator::new_messages_channelMessages(_flags, _pts, _count, _messages, _chats, _users);
 }
 
-inline MTPmessages_chats::MTPmessages_chats() : mtpDataOwner(new MTPDmessages_chats()) {
-}
-
 inline uint32 MTPmessages_chats::innerLength() const {
-	const MTPDmessages_chats &v(c_messages_chats());
-	return v.vchats.innerLength();
+	switch (_type) {
+		case mtpc_messages_chats: {
+			const MTPDmessages_chats &v(c_messages_chats());
+			return v.vchats.innerLength();
+		}
+		case mtpc_messages_chatsSlice: {
+			const MTPDmessages_chatsSlice &v(c_messages_chatsSlice());
+			return v.vcount.innerLength() + v.vchats.innerLength() + v.vusers.innerLength();
+		}
+	}
+	return 0;
 }
 inline mtpTypeId MTPmessages_chats::type() const {
-	return mtpc_messages_chats;
+	t_assert(_type != 0);
+	return _type;
 }
 inline void MTPmessages_chats::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_messages_chats) throw mtpErrorUnexpected(cons, "MTPmessages_chats");
-
-	if (!data) setData(new MTPDmessages_chats());
-	MTPDmessages_chats &v(_messages_chats());
-	v.vchats.read(from, end);
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_messages_chats: _type = cons; {
+			if (!data) setData(new MTPDmessages_chats());
+			MTPDmessages_chats &v(_messages_chats());
+			v.vchats.read(from, end);
+		} break;
+		case mtpc_messages_chatsSlice: _type = cons; {
+			if (!data) setData(new MTPDmessages_chatsSlice());
+			MTPDmessages_chatsSlice &v(_messages_chatsSlice());
+			v.vcount.read(from, end);
+			v.vchats.read(from, end);
+			v.vusers.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPmessages_chats");
+	}
 }
 inline void MTPmessages_chats::write(mtpBuffer &to) const {
-	const MTPDmessages_chats &v(c_messages_chats());
-	v.vchats.write(to);
+	switch (_type) {
+		case mtpc_messages_chats: {
+			const MTPDmessages_chats &v(c_messages_chats());
+			v.vchats.write(to);
+		} break;
+		case mtpc_messages_chatsSlice: {
+			const MTPDmessages_chatsSlice &v(c_messages_chatsSlice());
+			v.vcount.write(to);
+			v.vchats.write(to);
+			v.vusers.write(to);
+		} break;
+	}
 }
-inline MTPmessages_chats::MTPmessages_chats(MTPDmessages_chats *_data) : mtpDataOwner(_data) {
+inline MTPmessages_chats::MTPmessages_chats(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_messages_chats: setData(new MTPDmessages_chats()); break;
+		case mtpc_messages_chatsSlice: setData(new MTPDmessages_chatsSlice()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPmessages_chats");
+	}
+}
+inline MTPmessages_chats::MTPmessages_chats(MTPDmessages_chats *_data) : mtpDataOwner(_data), _type(mtpc_messages_chats) {
+}
+inline MTPmessages_chats::MTPmessages_chats(MTPDmessages_chatsSlice *_data) : mtpDataOwner(_data), _type(mtpc_messages_chatsSlice) {
 }
 inline MTPmessages_chats MTP_messages_chats(const MTPVector<MTPChat> &_chats) {
 	return MTP::internal::TypeCreator::new_messages_chats(_chats);
+}
+inline MTPmessages_chats MTP_messages_chatsSlice(MTPint _count, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
+	return MTP::internal::TypeCreator::new_messages_chatsSlice(_count, _chats, _users);
 }
 
 inline MTPmessages_chatFull::MTPmessages_chatFull() : mtpDataOwner(new MTPDmessages_chatFull()) {
@@ -29730,6 +31021,10 @@ inline uint32 MTPupdate::innerLength() const {
 		case mtpc_updateDraftMessage: {
 			const MTPDupdateDraftMessage &v(c_updateDraftMessage());
 			return v.vpeer.innerLength() + v.vdraft.innerLength();
+		}
+		case mtpc_updateChannelWebPage: {
+			const MTPDupdateChannelWebPage &v(c_updateChannelWebPage());
+			return v.vchannel_id.innerLength() + v.vwebpage.innerLength() + v.vpts.innerLength() + v.vpts_count.innerLength();
 		}
 	}
 	return 0;
@@ -30076,6 +31371,14 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 		case mtpc_updateRecentStickers: _type = cons; break;
 		case mtpc_updateConfig: _type = cons; break;
 		case mtpc_updatePtsChanged: _type = cons; break;
+		case mtpc_updateChannelWebPage: _type = cons; {
+			if (!data) setData(new MTPDupdateChannelWebPage());
+			MTPDupdateChannelWebPage &v(_updateChannelWebPage());
+			v.vchannel_id.read(from, end);
+			v.vwebpage.read(from, end);
+			v.vpts.read(from, end);
+			v.vpts_count.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdate");
 	}
 }
@@ -30363,6 +31666,13 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			v.vpeer.write(to);
 			v.vdraft.write(to);
 		} break;
+		case mtpc_updateChannelWebPage: {
+			const MTPDupdateChannelWebPage &v(c_updateChannelWebPage());
+			v.vchannel_id.write(to);
+			v.vwebpage.write(to);
+			v.vpts.write(to);
+			v.vpts_count.write(to);
+		} break;
 	}
 }
 inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -30420,6 +31730,7 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_updateRecentStickers: break;
 		case mtpc_updateConfig: break;
 		case mtpc_updatePtsChanged: break;
+		case mtpc_updateChannelWebPage: setData(new MTPDupdateChannelWebPage()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
@@ -30516,6 +31827,8 @@ inline MTPupdate::MTPupdate(MTPDupdateInlineBotCallbackQuery *_data) : mtpDataOw
 inline MTPupdate::MTPupdate(MTPDupdateReadChannelOutbox *_data) : mtpDataOwner(_data), _type(mtpc_updateReadChannelOutbox) {
 }
 inline MTPupdate::MTPupdate(MTPDupdateDraftMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateDraftMessage) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateChannelWebPage *_data) : mtpDataOwner(_data), _type(mtpc_updateChannelWebPage) {
 }
 inline MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 	return MTP::internal::TypeCreator::new_updateNewMessage(_message, _pts, _pts_count);
@@ -30682,6 +31995,9 @@ inline MTPupdate MTP_updateConfig() {
 inline MTPupdate MTP_updatePtsChanged() {
 	return MTP::internal::TypeCreator::new_updatePtsChanged();
 }
+inline MTPupdate MTP_updateChannelWebPage(MTPint _channel_id, const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) {
+	return MTP::internal::TypeCreator::new_updateChannelWebPage(_channel_id, _webpage, _pts, _pts_count);
+}
 
 inline MTPupdates_state::MTPupdates_state() : mtpDataOwner(new MTPDupdates_state()) {
 }
@@ -30732,6 +32048,10 @@ inline uint32 MTPupdates_difference::innerLength() const {
 			const MTPDupdates_differenceSlice &v(c_updates_differenceSlice());
 			return v.vnew_messages.innerLength() + v.vnew_encrypted_messages.innerLength() + v.vother_updates.innerLength() + v.vchats.innerLength() + v.vusers.innerLength() + v.vintermediate_state.innerLength();
 		}
+		case mtpc_updates_differenceTooLong: {
+			const MTPDupdates_differenceTooLong &v(c_updates_differenceTooLong());
+			return v.vpts.innerLength();
+		}
 	}
 	return 0;
 }
@@ -30768,6 +32088,11 @@ inline void MTPupdates_difference::read(const mtpPrime *&from, const mtpPrime *e
 			v.vusers.read(from, end);
 			v.vintermediate_state.read(from, end);
 		} break;
+		case mtpc_updates_differenceTooLong: _type = cons; {
+			if (!data) setData(new MTPDupdates_differenceTooLong());
+			MTPDupdates_differenceTooLong &v(_updates_differenceTooLong());
+			v.vpts.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdates_difference");
 	}
 }
@@ -30796,6 +32121,10 @@ inline void MTPupdates_difference::write(mtpBuffer &to) const {
 			v.vusers.write(to);
 			v.vintermediate_state.write(to);
 		} break;
+		case mtpc_updates_differenceTooLong: {
+			const MTPDupdates_differenceTooLong &v(c_updates_differenceTooLong());
+			v.vpts.write(to);
+		} break;
 	}
 }
 inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -30803,6 +32132,7 @@ inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : mtpDataOwn
 		case mtpc_updates_differenceEmpty: setData(new MTPDupdates_differenceEmpty()); break;
 		case mtpc_updates_difference: setData(new MTPDupdates_difference()); break;
 		case mtpc_updates_differenceSlice: setData(new MTPDupdates_differenceSlice()); break;
+		case mtpc_updates_differenceTooLong: setData(new MTPDupdates_differenceTooLong()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdates_difference");
 	}
 }
@@ -30812,6 +32142,8 @@ inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_difference *_dat
 }
 inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceSlice *_data) : mtpDataOwner(_data), _type(mtpc_updates_differenceSlice) {
 }
+inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceTooLong *_data) : mtpDataOwner(_data), _type(mtpc_updates_differenceTooLong) {
+}
 inline MTPupdates_difference MTP_updates_differenceEmpty(MTPint _date, MTPint _seq) {
 	return MTP::internal::TypeCreator::new_updates_differenceEmpty(_date, _seq);
 }
@@ -30820,6 +32152,9 @@ inline MTPupdates_difference MTP_updates_difference(const MTPVector<MTPMessage> 
 }
 inline MTPupdates_difference MTP_updates_differenceSlice(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_intermediate_state) {
 	return MTP::internal::TypeCreator::new_updates_differenceSlice(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _intermediate_state);
+}
+inline MTPupdates_difference MTP_updates_differenceTooLong(MTPint _pts) {
+	return MTP::internal::TypeCreator::new_updates_differenceTooLong(_pts);
 }
 
 inline uint32 MTPupdates::innerLength() const {
@@ -32212,7 +33547,6 @@ inline void MTPsendMessageAction::read(const mtpPrime *&from, const mtpPrime *en
 		case mtpc_sendMessageGeoLocationAction: _type = cons; break;
 		case mtpc_sendMessageChooseContactAction: _type = cons; break;
 		case mtpc_sendMessageGamePlayAction: _type = cons; break;
-		case mtpc_sendMessageGameStopAction: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPsendMessageAction");
 	}
 }
@@ -32249,7 +33583,6 @@ inline MTPsendMessageAction::MTPsendMessageAction(mtpTypeId type) : mtpDataOwner
 		case mtpc_sendMessageGeoLocationAction: break;
 		case mtpc_sendMessageChooseContactAction: break;
 		case mtpc_sendMessageGamePlayAction: break;
-		case mtpc_sendMessageGameStopAction: break;
 		default: throw mtpErrorBadTypeId(type, "MTPsendMessageAction");
 	}
 }
@@ -32293,9 +33626,6 @@ inline MTPsendMessageAction MTP_sendMessageChooseContactAction() {
 }
 inline MTPsendMessageAction MTP_sendMessageGamePlayAction() {
 	return MTP::internal::TypeCreator::new_sendMessageGamePlayAction();
-}
-inline MTPsendMessageAction MTP_sendMessageGameStopAction() {
-	return MTP::internal::TypeCreator::new_sendMessageGameStopAction();
 }
 
 inline MTPcontacts_found::MTPcontacts_found() : mtpDataOwner(new MTPDcontacts_found()) {
@@ -33004,7 +34334,7 @@ inline uint32 MTPwebPage::innerLength() const {
 		}
 		case mtpc_webPage: {
 			const MTPDwebPage &v(c_webPage());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_site_name() ? v.vsite_name.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_photo() ? v.vphoto.innerLength() : 0) + (v.has_embed_url() ? v.vembed_url.innerLength() : 0) + (v.has_embed_type() ? v.vembed_type.innerLength() : 0) + (v.has_embed_width() ? v.vembed_width.innerLength() : 0) + (v.has_embed_height() ? v.vembed_height.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0) + (v.has_author() ? v.vauthor.innerLength() : 0) + (v.has_document() ? v.vdocument.innerLength() : 0);
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + v.vhash.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_site_name() ? v.vsite_name.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_photo() ? v.vphoto.innerLength() : 0) + (v.has_embed_url() ? v.vembed_url.innerLength() : 0) + (v.has_embed_type() ? v.vembed_type.innerLength() : 0) + (v.has_embed_width() ? v.vembed_width.innerLength() : 0) + (v.has_embed_height() ? v.vembed_height.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0) + (v.has_author() ? v.vauthor.innerLength() : 0) + (v.has_document() ? v.vdocument.innerLength() : 0) + (v.has_cached_page() ? v.vcached_page.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -33034,6 +34364,7 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			v.vid.read(from, end);
 			v.vurl.read(from, end);
 			v.vdisplay_url.read(from, end);
+			v.vhash.read(from, end);
 			if (v.has_type()) { v.vtype.read(from, end); } else { v.vtype = MTPstring(); }
 			if (v.has_site_name()) { v.vsite_name.read(from, end); } else { v.vsite_name = MTPstring(); }
 			if (v.has_title()) { v.vtitle.read(from, end); } else { v.vtitle = MTPstring(); }
@@ -33046,7 +34377,9 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
 			if (v.has_author()) { v.vauthor.read(from, end); } else { v.vauthor = MTPstring(); }
 			if (v.has_document()) { v.vdocument.read(from, end); } else { v.vdocument = MTPDocument(); }
+			if (v.has_cached_page()) { v.vcached_page.read(from, end); } else { v.vcached_page = MTPPage(); }
 		} break;
+		case mtpc_webPageNotModified: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPwebPage");
 	}
 }
@@ -33067,6 +34400,7 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 			v.vid.write(to);
 			v.vurl.write(to);
 			v.vdisplay_url.write(to);
+			v.vhash.write(to);
 			if (v.has_type()) v.vtype.write(to);
 			if (v.has_site_name()) v.vsite_name.write(to);
 			if (v.has_title()) v.vtitle.write(to);
@@ -33079,6 +34413,7 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 			if (v.has_duration()) v.vduration.write(to);
 			if (v.has_author()) v.vauthor.write(to);
 			if (v.has_document()) v.vdocument.write(to);
+			if (v.has_cached_page()) v.vcached_page.write(to);
 		} break;
 	}
 }
@@ -33087,6 +34422,7 @@ inline MTPwebPage::MTPwebPage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_webPageEmpty: setData(new MTPDwebPageEmpty()); break;
 		case mtpc_webPagePending: setData(new MTPDwebPagePending()); break;
 		case mtpc_webPage: setData(new MTPDwebPage()); break;
+		case mtpc_webPageNotModified: break;
 		default: throw mtpErrorBadTypeId(type, "MTPwebPage");
 	}
 }
@@ -33103,8 +34439,11 @@ inline MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date) {
 	return MTP::internal::TypeCreator::new_webPagePending(_id, _date);
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDwebPage::Flags)
-inline MTPwebPage MTP_webPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document) {
-	return MTP::internal::TypeCreator::new_webPage(_flags, _id, _url, _display_url, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document);
+inline MTPwebPage MTP_webPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, MTPint _hash, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document, const MTPPage &_cached_page) {
+	return MTP::internal::TypeCreator::new_webPage(_flags, _id, _url, _display_url, _hash, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document, _cached_page);
+}
+inline MTPwebPage MTP_webPageNotModified() {
+	return MTP::internal::TypeCreator::new_webPageNotModified();
 }
 
 inline MTPauthorization::MTPauthorization() : mtpDataOwner(new MTPDauthorization()) {
@@ -35709,7 +37048,7 @@ inline MTPmessages_botResults::MTPmessages_botResults() : mtpDataOwner(new MTPDm
 
 inline uint32 MTPmessages_botResults::innerLength() const {
 	const MTPDmessages_botResults &v(c_messages_botResults());
-	return v.vflags.innerLength() + v.vquery_id.innerLength() + (v.has_next_offset() ? v.vnext_offset.innerLength() : 0) + (v.has_switch_pm() ? v.vswitch_pm.innerLength() : 0) + v.vresults.innerLength();
+	return v.vflags.innerLength() + v.vquery_id.innerLength() + (v.has_next_offset() ? v.vnext_offset.innerLength() : 0) + (v.has_switch_pm() ? v.vswitch_pm.innerLength() : 0) + v.vresults.innerLength() + v.vcache_time.innerLength();
 }
 inline mtpTypeId MTPmessages_botResults::type() const {
 	return mtpc_messages_botResults;
@@ -35724,6 +37063,7 @@ inline void MTPmessages_botResults::read(const mtpPrime *&from, const mtpPrime *
 	if (v.has_next_offset()) { v.vnext_offset.read(from, end); } else { v.vnext_offset = MTPstring(); }
 	if (v.has_switch_pm()) { v.vswitch_pm.read(from, end); } else { v.vswitch_pm = MTPInlineBotSwitchPM(); }
 	v.vresults.read(from, end);
+	v.vcache_time.read(from, end);
 }
 inline void MTPmessages_botResults::write(mtpBuffer &to) const {
 	const MTPDmessages_botResults &v(c_messages_botResults());
@@ -35732,12 +37072,13 @@ inline void MTPmessages_botResults::write(mtpBuffer &to) const {
 	if (v.has_next_offset()) v.vnext_offset.write(to);
 	if (v.has_switch_pm()) v.vswitch_pm.write(to);
 	v.vresults.write(to);
+	v.vcache_time.write(to);
 }
 inline MTPmessages_botResults::MTPmessages_botResults(MTPDmessages_botResults *_data) : mtpDataOwner(_data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessages_botResults::Flags)
-inline MTPmessages_botResults MTP_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results) {
-	return MTP::internal::TypeCreator::new_messages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results);
+inline MTPmessages_botResults MTP_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results, MTPint _cache_time) {
+	return MTP::internal::TypeCreator::new_messages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results, _cache_time);
 }
 
 inline MTPexportedMessageLink::MTPexportedMessageLink() : mtpDataOwner(new MTPDexportedMessageLink()) {
@@ -35944,7 +37285,7 @@ inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer() : mtpDataO
 
 inline uint32 MTPmessages_botCallbackAnswer::innerLength() const {
 	const MTPDmessages_botCallbackAnswer &v(c_messages_botCallbackAnswer());
-	return v.vflags.innerLength() + (v.has_message() ? v.vmessage.innerLength() : 0) + (v.has_url() ? v.vurl.innerLength() : 0);
+	return v.vflags.innerLength() + (v.has_message() ? v.vmessage.innerLength() : 0) + (v.has_url() ? v.vurl.innerLength() : 0) + v.vcache_time.innerLength();
 }
 inline mtpTypeId MTPmessages_botCallbackAnswer::type() const {
 	return mtpc_messages_botCallbackAnswer;
@@ -35957,18 +37298,20 @@ inline void MTPmessages_botCallbackAnswer::read(const mtpPrime *&from, const mtp
 	v.vflags.read(from, end);
 	if (v.has_message()) { v.vmessage.read(from, end); } else { v.vmessage = MTPstring(); }
 	if (v.has_url()) { v.vurl.read(from, end); } else { v.vurl = MTPstring(); }
+	v.vcache_time.read(from, end);
 }
 inline void MTPmessages_botCallbackAnswer::write(mtpBuffer &to) const {
 	const MTPDmessages_botCallbackAnswer &v(c_messages_botCallbackAnswer());
 	v.vflags.write(to);
 	if (v.has_message()) v.vmessage.write(to);
 	if (v.has_url()) v.vurl.write(to);
+	v.vcache_time.write(to);
 }
 inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer(MTPDmessages_botCallbackAnswer *_data) : mtpDataOwner(_data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessages_botCallbackAnswer::Flags)
-inline MTPmessages_botCallbackAnswer MTP_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url) {
-	return MTP::internal::TypeCreator::new_messages_botCallbackAnswer(_flags, _message, _url);
+inline MTPmessages_botCallbackAnswer MTP_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) {
+	return MTP::internal::TypeCreator::new_messages_botCallbackAnswer(_flags, _message, _url, _cache_time);
 }
 
 inline MTPmessages_messageEditData::MTPmessages_messageEditData() : mtpDataOwner(new MTPDmessages_messageEditData()) {
@@ -36822,6 +38165,742 @@ inline MTPmessages_highScores::MTPmessages_highScores(MTPDmessages_highScores *_
 }
 inline MTPmessages_highScores MTP_messages_highScores(const MTPVector<MTPHighScore> &_scores, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_messages_highScores(_scores, _users);
+}
+
+inline uint32 MTPrichText::innerLength() const {
+	switch (_type) {
+		case mtpc_textPlain: {
+			const MTPDtextPlain &v(c_textPlain());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textBold: {
+			const MTPDtextBold &v(c_textBold());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textItalic: {
+			const MTPDtextItalic &v(c_textItalic());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textUnderline: {
+			const MTPDtextUnderline &v(c_textUnderline());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textStrike: {
+			const MTPDtextStrike &v(c_textStrike());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textFixed: {
+			const MTPDtextFixed &v(c_textFixed());
+			return v.vtext.innerLength();
+		}
+		case mtpc_textUrl: {
+			const MTPDtextUrl &v(c_textUrl());
+			return v.vtext.innerLength() + v.vurl.innerLength() + v.vwebpage_id.innerLength();
+		}
+		case mtpc_textEmail: {
+			const MTPDtextEmail &v(c_textEmail());
+			return v.vtext.innerLength() + v.vemail.innerLength();
+		}
+		case mtpc_textConcat: {
+			const MTPDtextConcat &v(c_textConcat());
+			return v.vtexts.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPrichText::type() const {
+	t_assert(_type != 0);
+	return _type;
+}
+inline void MTPrichText::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_textEmpty: _type = cons; break;
+		case mtpc_textPlain: _type = cons; {
+			if (!data) setData(new MTPDtextPlain());
+			MTPDtextPlain &v(_textPlain());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textBold: _type = cons; {
+			if (!data) setData(new MTPDtextBold());
+			MTPDtextBold &v(_textBold());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textItalic: _type = cons; {
+			if (!data) setData(new MTPDtextItalic());
+			MTPDtextItalic &v(_textItalic());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textUnderline: _type = cons; {
+			if (!data) setData(new MTPDtextUnderline());
+			MTPDtextUnderline &v(_textUnderline());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textStrike: _type = cons; {
+			if (!data) setData(new MTPDtextStrike());
+			MTPDtextStrike &v(_textStrike());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textFixed: _type = cons; {
+			if (!data) setData(new MTPDtextFixed());
+			MTPDtextFixed &v(_textFixed());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_textUrl: _type = cons; {
+			if (!data) setData(new MTPDtextUrl());
+			MTPDtextUrl &v(_textUrl());
+			v.vtext.read(from, end);
+			v.vurl.read(from, end);
+			v.vwebpage_id.read(from, end);
+		} break;
+		case mtpc_textEmail: _type = cons; {
+			if (!data) setData(new MTPDtextEmail());
+			MTPDtextEmail &v(_textEmail());
+			v.vtext.read(from, end);
+			v.vemail.read(from, end);
+		} break;
+		case mtpc_textConcat: _type = cons; {
+			if (!data) setData(new MTPDtextConcat());
+			MTPDtextConcat &v(_textConcat());
+			v.vtexts.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPrichText");
+	}
+}
+inline void MTPrichText::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_textPlain: {
+			const MTPDtextPlain &v(c_textPlain());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textBold: {
+			const MTPDtextBold &v(c_textBold());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textItalic: {
+			const MTPDtextItalic &v(c_textItalic());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textUnderline: {
+			const MTPDtextUnderline &v(c_textUnderline());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textStrike: {
+			const MTPDtextStrike &v(c_textStrike());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textFixed: {
+			const MTPDtextFixed &v(c_textFixed());
+			v.vtext.write(to);
+		} break;
+		case mtpc_textUrl: {
+			const MTPDtextUrl &v(c_textUrl());
+			v.vtext.write(to);
+			v.vurl.write(to);
+			v.vwebpage_id.write(to);
+		} break;
+		case mtpc_textEmail: {
+			const MTPDtextEmail &v(c_textEmail());
+			v.vtext.write(to);
+			v.vemail.write(to);
+		} break;
+		case mtpc_textConcat: {
+			const MTPDtextConcat &v(c_textConcat());
+			v.vtexts.write(to);
+		} break;
+	}
+}
+inline MTPrichText::MTPrichText(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_textEmpty: break;
+		case mtpc_textPlain: setData(new MTPDtextPlain()); break;
+		case mtpc_textBold: setData(new MTPDtextBold()); break;
+		case mtpc_textItalic: setData(new MTPDtextItalic()); break;
+		case mtpc_textUnderline: setData(new MTPDtextUnderline()); break;
+		case mtpc_textStrike: setData(new MTPDtextStrike()); break;
+		case mtpc_textFixed: setData(new MTPDtextFixed()); break;
+		case mtpc_textUrl: setData(new MTPDtextUrl()); break;
+		case mtpc_textEmail: setData(new MTPDtextEmail()); break;
+		case mtpc_textConcat: setData(new MTPDtextConcat()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPrichText");
+	}
+}
+inline MTPrichText::MTPrichText(MTPDtextPlain *_data) : mtpDataOwner(_data), _type(mtpc_textPlain) {
+}
+inline MTPrichText::MTPrichText(MTPDtextBold *_data) : mtpDataOwner(_data), _type(mtpc_textBold) {
+}
+inline MTPrichText::MTPrichText(MTPDtextItalic *_data) : mtpDataOwner(_data), _type(mtpc_textItalic) {
+}
+inline MTPrichText::MTPrichText(MTPDtextUnderline *_data) : mtpDataOwner(_data), _type(mtpc_textUnderline) {
+}
+inline MTPrichText::MTPrichText(MTPDtextStrike *_data) : mtpDataOwner(_data), _type(mtpc_textStrike) {
+}
+inline MTPrichText::MTPrichText(MTPDtextFixed *_data) : mtpDataOwner(_data), _type(mtpc_textFixed) {
+}
+inline MTPrichText::MTPrichText(MTPDtextUrl *_data) : mtpDataOwner(_data), _type(mtpc_textUrl) {
+}
+inline MTPrichText::MTPrichText(MTPDtextEmail *_data) : mtpDataOwner(_data), _type(mtpc_textEmail) {
+}
+inline MTPrichText::MTPrichText(MTPDtextConcat *_data) : mtpDataOwner(_data), _type(mtpc_textConcat) {
+}
+inline MTPrichText MTP_textEmpty() {
+	return MTP::internal::TypeCreator::new_textEmpty();
+}
+inline MTPrichText MTP_textPlain(const MTPstring &_text) {
+	return MTP::internal::TypeCreator::new_textPlain(_text);
+}
+inline MTPrichText MTP_textBold(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_textBold(_text);
+}
+inline MTPrichText MTP_textItalic(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_textItalic(_text);
+}
+inline MTPrichText MTP_textUnderline(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_textUnderline(_text);
+}
+inline MTPrichText MTP_textStrike(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_textStrike(_text);
+}
+inline MTPrichText MTP_textFixed(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_textFixed(_text);
+}
+inline MTPrichText MTP_textUrl(const MTPRichText &_text, const MTPstring &_url, const MTPlong &_webpage_id) {
+	return MTP::internal::TypeCreator::new_textUrl(_text, _url, _webpage_id);
+}
+inline MTPrichText MTP_textEmail(const MTPRichText &_text, const MTPstring &_email) {
+	return MTP::internal::TypeCreator::new_textEmail(_text, _email);
+}
+inline MTPrichText MTP_textConcat(const MTPVector<MTPRichText> &_texts) {
+	return MTP::internal::TypeCreator::new_textConcat(_texts);
+}
+
+inline uint32 MTPpageBlock::innerLength() const {
+	switch (_type) {
+		case mtpc_pageBlockTitle: {
+			const MTPDpageBlockTitle &v(c_pageBlockTitle());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockSubtitle: {
+			const MTPDpageBlockSubtitle &v(c_pageBlockSubtitle());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockAuthorDate: {
+			const MTPDpageBlockAuthorDate &v(c_pageBlockAuthorDate());
+			return v.vauthor.innerLength() + v.vpublished_date.innerLength();
+		}
+		case mtpc_pageBlockHeader: {
+			const MTPDpageBlockHeader &v(c_pageBlockHeader());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockSubheader: {
+			const MTPDpageBlockSubheader &v(c_pageBlockSubheader());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockParagraph: {
+			const MTPDpageBlockParagraph &v(c_pageBlockParagraph());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockPreformatted: {
+			const MTPDpageBlockPreformatted &v(c_pageBlockPreformatted());
+			return v.vtext.innerLength() + v.vlanguage.innerLength();
+		}
+		case mtpc_pageBlockFooter: {
+			const MTPDpageBlockFooter &v(c_pageBlockFooter());
+			return v.vtext.innerLength();
+		}
+		case mtpc_pageBlockList: {
+			const MTPDpageBlockList &v(c_pageBlockList());
+			return v.vordered.innerLength() + v.vitems.innerLength();
+		}
+		case mtpc_pageBlockBlockquote: {
+			const MTPDpageBlockBlockquote &v(c_pageBlockBlockquote());
+			return v.vtext.innerLength() + v.vcaption.innerLength();
+		}
+		case mtpc_pageBlockPullquote: {
+			const MTPDpageBlockPullquote &v(c_pageBlockPullquote());
+			return v.vtext.innerLength() + v.vcaption.innerLength();
+		}
+		case mtpc_pageBlockPhoto: {
+			const MTPDpageBlockPhoto &v(c_pageBlockPhoto());
+			return v.vphoto_id.innerLength() + v.vcaption.innerLength();
+		}
+		case mtpc_pageBlockVideo: {
+			const MTPDpageBlockVideo &v(c_pageBlockVideo());
+			return v.vflags.innerLength() + v.vvideo_id.innerLength() + v.vcaption.innerLength();
+		}
+		case mtpc_pageBlockCover: {
+			const MTPDpageBlockCover &v(c_pageBlockCover());
+			return v.vcover.innerLength();
+		}
+		case mtpc_pageBlockEmbed: {
+			const MTPDpageBlockEmbed &v(c_pageBlockEmbed());
+			return v.vurl.innerLength() + v.vw.innerLength() + v.vh.innerLength() + v.vcaption.innerLength();
+		}
+		case mtpc_pageBlockEmbedPost: {
+			const MTPDpageBlockEmbedPost &v(c_pageBlockEmbedPost());
+			return v.vflags.innerLength() + v.vauthor.innerLength() + v.vdate.innerLength() + v.vcaption.innerLength() + v.vurl.innerLength() + v.vwebpage_id.innerLength() + (v.has_text() ? v.vtext.innerLength() : 0) + (v.has_medias() ? v.vmedias.innerLength() : 0) + (v.has_author_photo_id() ? v.vauthor_photo_id.innerLength() : 0);
+		}
+		case mtpc_pageBlockSlideshow: {
+			const MTPDpageBlockSlideshow &v(c_pageBlockSlideshow());
+			return v.vitems.innerLength() + v.vcaption.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPpageBlock::type() const {
+	t_assert(_type != 0);
+	return _type;
+}
+inline void MTPpageBlock::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_pageBlockTitle: _type = cons; {
+			if (!data) setData(new MTPDpageBlockTitle());
+			MTPDpageBlockTitle &v(_pageBlockTitle());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockSubtitle: _type = cons; {
+			if (!data) setData(new MTPDpageBlockSubtitle());
+			MTPDpageBlockSubtitle &v(_pageBlockSubtitle());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockAuthorDate: _type = cons; {
+			if (!data) setData(new MTPDpageBlockAuthorDate());
+			MTPDpageBlockAuthorDate &v(_pageBlockAuthorDate());
+			v.vauthor.read(from, end);
+			v.vpublished_date.read(from, end);
+		} break;
+		case mtpc_pageBlockHeader: _type = cons; {
+			if (!data) setData(new MTPDpageBlockHeader());
+			MTPDpageBlockHeader &v(_pageBlockHeader());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockSubheader: _type = cons; {
+			if (!data) setData(new MTPDpageBlockSubheader());
+			MTPDpageBlockSubheader &v(_pageBlockSubheader());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockParagraph: _type = cons; {
+			if (!data) setData(new MTPDpageBlockParagraph());
+			MTPDpageBlockParagraph &v(_pageBlockParagraph());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockPreformatted: _type = cons; {
+			if (!data) setData(new MTPDpageBlockPreformatted());
+			MTPDpageBlockPreformatted &v(_pageBlockPreformatted());
+			v.vtext.read(from, end);
+			v.vlanguage.read(from, end);
+		} break;
+		case mtpc_pageBlockFooter: _type = cons; {
+			if (!data) setData(new MTPDpageBlockFooter());
+			MTPDpageBlockFooter &v(_pageBlockFooter());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_pageBlockDivider: _type = cons; break;
+		case mtpc_pageBlockList: _type = cons; {
+			if (!data) setData(new MTPDpageBlockList());
+			MTPDpageBlockList &v(_pageBlockList());
+			v.vordered.read(from, end);
+			v.vitems.read(from, end);
+		} break;
+		case mtpc_pageBlockBlockquote: _type = cons; {
+			if (!data) setData(new MTPDpageBlockBlockquote());
+			MTPDpageBlockBlockquote &v(_pageBlockBlockquote());
+			v.vtext.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		case mtpc_pageBlockPullquote: _type = cons; {
+			if (!data) setData(new MTPDpageBlockPullquote());
+			MTPDpageBlockPullquote &v(_pageBlockPullquote());
+			v.vtext.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		case mtpc_pageBlockPhoto: _type = cons; {
+			if (!data) setData(new MTPDpageBlockPhoto());
+			MTPDpageBlockPhoto &v(_pageBlockPhoto());
+			v.vphoto_id.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		case mtpc_pageBlockVideo: _type = cons; {
+			if (!data) setData(new MTPDpageBlockVideo());
+			MTPDpageBlockVideo &v(_pageBlockVideo());
+			v.vflags.read(from, end);
+			v.vvideo_id.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		case mtpc_pageBlockCover: _type = cons; {
+			if (!data) setData(new MTPDpageBlockCover());
+			MTPDpageBlockCover &v(_pageBlockCover());
+			v.vcover.read(from, end);
+		} break;
+		case mtpc_pageBlockEmbed: _type = cons; {
+			if (!data) setData(new MTPDpageBlockEmbed());
+			MTPDpageBlockEmbed &v(_pageBlockEmbed());
+			v.vurl.read(from, end);
+			v.vw.read(from, end);
+			v.vh.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		case mtpc_pageBlockEmbedPost: _type = cons; {
+			if (!data) setData(new MTPDpageBlockEmbedPost());
+			MTPDpageBlockEmbedPost &v(_pageBlockEmbedPost());
+			v.vflags.read(from, end);
+			v.vauthor.read(from, end);
+			v.vdate.read(from, end);
+			v.vcaption.read(from, end);
+			v.vurl.read(from, end);
+			v.vwebpage_id.read(from, end);
+			if (v.has_text()) { v.vtext.read(from, end); } else { v.vtext = MTPRichText(); }
+			if (v.has_medias()) { v.vmedias.read(from, end); } else { v.vmedias = MTPVector<MTPEmbedPostMedia>(); }
+			if (v.has_author_photo_id()) { v.vauthor_photo_id.read(from, end); } else { v.vauthor_photo_id = MTPlong(); }
+		} break;
+		case mtpc_pageBlockSlideshow: _type = cons; {
+			if (!data) setData(new MTPDpageBlockSlideshow());
+			MTPDpageBlockSlideshow &v(_pageBlockSlideshow());
+			v.vitems.read(from, end);
+			v.vcaption.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPpageBlock");
+	}
+}
+inline void MTPpageBlock::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_pageBlockTitle: {
+			const MTPDpageBlockTitle &v(c_pageBlockTitle());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockSubtitle: {
+			const MTPDpageBlockSubtitle &v(c_pageBlockSubtitle());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockAuthorDate: {
+			const MTPDpageBlockAuthorDate &v(c_pageBlockAuthorDate());
+			v.vauthor.write(to);
+			v.vpublished_date.write(to);
+		} break;
+		case mtpc_pageBlockHeader: {
+			const MTPDpageBlockHeader &v(c_pageBlockHeader());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockSubheader: {
+			const MTPDpageBlockSubheader &v(c_pageBlockSubheader());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockParagraph: {
+			const MTPDpageBlockParagraph &v(c_pageBlockParagraph());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockPreformatted: {
+			const MTPDpageBlockPreformatted &v(c_pageBlockPreformatted());
+			v.vtext.write(to);
+			v.vlanguage.write(to);
+		} break;
+		case mtpc_pageBlockFooter: {
+			const MTPDpageBlockFooter &v(c_pageBlockFooter());
+			v.vtext.write(to);
+		} break;
+		case mtpc_pageBlockList: {
+			const MTPDpageBlockList &v(c_pageBlockList());
+			v.vordered.write(to);
+			v.vitems.write(to);
+		} break;
+		case mtpc_pageBlockBlockquote: {
+			const MTPDpageBlockBlockquote &v(c_pageBlockBlockquote());
+			v.vtext.write(to);
+			v.vcaption.write(to);
+		} break;
+		case mtpc_pageBlockPullquote: {
+			const MTPDpageBlockPullquote &v(c_pageBlockPullquote());
+			v.vtext.write(to);
+			v.vcaption.write(to);
+		} break;
+		case mtpc_pageBlockPhoto: {
+			const MTPDpageBlockPhoto &v(c_pageBlockPhoto());
+			v.vphoto_id.write(to);
+			v.vcaption.write(to);
+		} break;
+		case mtpc_pageBlockVideo: {
+			const MTPDpageBlockVideo &v(c_pageBlockVideo());
+			v.vflags.write(to);
+			v.vvideo_id.write(to);
+			v.vcaption.write(to);
+		} break;
+		case mtpc_pageBlockCover: {
+			const MTPDpageBlockCover &v(c_pageBlockCover());
+			v.vcover.write(to);
+		} break;
+		case mtpc_pageBlockEmbed: {
+			const MTPDpageBlockEmbed &v(c_pageBlockEmbed());
+			v.vurl.write(to);
+			v.vw.write(to);
+			v.vh.write(to);
+			v.vcaption.write(to);
+		} break;
+		case mtpc_pageBlockEmbedPost: {
+			const MTPDpageBlockEmbedPost &v(c_pageBlockEmbedPost());
+			v.vflags.write(to);
+			v.vauthor.write(to);
+			v.vdate.write(to);
+			v.vcaption.write(to);
+			v.vurl.write(to);
+			v.vwebpage_id.write(to);
+			if (v.has_text()) v.vtext.write(to);
+			if (v.has_medias()) v.vmedias.write(to);
+			if (v.has_author_photo_id()) v.vauthor_photo_id.write(to);
+		} break;
+		case mtpc_pageBlockSlideshow: {
+			const MTPDpageBlockSlideshow &v(c_pageBlockSlideshow());
+			v.vitems.write(to);
+			v.vcaption.write(to);
+		} break;
+	}
+}
+inline MTPpageBlock::MTPpageBlock(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_pageBlockTitle: setData(new MTPDpageBlockTitle()); break;
+		case mtpc_pageBlockSubtitle: setData(new MTPDpageBlockSubtitle()); break;
+		case mtpc_pageBlockAuthorDate: setData(new MTPDpageBlockAuthorDate()); break;
+		case mtpc_pageBlockHeader: setData(new MTPDpageBlockHeader()); break;
+		case mtpc_pageBlockSubheader: setData(new MTPDpageBlockSubheader()); break;
+		case mtpc_pageBlockParagraph: setData(new MTPDpageBlockParagraph()); break;
+		case mtpc_pageBlockPreformatted: setData(new MTPDpageBlockPreformatted()); break;
+		case mtpc_pageBlockFooter: setData(new MTPDpageBlockFooter()); break;
+		case mtpc_pageBlockDivider: break;
+		case mtpc_pageBlockList: setData(new MTPDpageBlockList()); break;
+		case mtpc_pageBlockBlockquote: setData(new MTPDpageBlockBlockquote()); break;
+		case mtpc_pageBlockPullquote: setData(new MTPDpageBlockPullquote()); break;
+		case mtpc_pageBlockPhoto: setData(new MTPDpageBlockPhoto()); break;
+		case mtpc_pageBlockVideo: setData(new MTPDpageBlockVideo()); break;
+		case mtpc_pageBlockCover: setData(new MTPDpageBlockCover()); break;
+		case mtpc_pageBlockEmbed: setData(new MTPDpageBlockEmbed()); break;
+		case mtpc_pageBlockEmbedPost: setData(new MTPDpageBlockEmbedPost()); break;
+		case mtpc_pageBlockSlideshow: setData(new MTPDpageBlockSlideshow()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPpageBlock");
+	}
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockTitle *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockTitle) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockSubtitle *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockSubtitle) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockAuthorDate *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockAuthorDate) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockHeader *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockHeader) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockSubheader *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockSubheader) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockParagraph *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockParagraph) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockPreformatted *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockPreformatted) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockFooter *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockFooter) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockList *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockList) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockBlockquote *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockBlockquote) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockPullquote *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockPullquote) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockPhoto *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockPhoto) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockVideo *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockVideo) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockCover *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockCover) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockEmbed *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockEmbed) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockEmbedPost *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockEmbedPost) {
+}
+inline MTPpageBlock::MTPpageBlock(MTPDpageBlockSlideshow *_data) : mtpDataOwner(_data), _type(mtpc_pageBlockSlideshow) {
+}
+inline MTPpageBlock MTP_pageBlockTitle(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockTitle(_text);
+}
+inline MTPpageBlock MTP_pageBlockSubtitle(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockSubtitle(_text);
+}
+inline MTPpageBlock MTP_pageBlockAuthorDate(const MTPstring &_author, MTPint _published_date) {
+	return MTP::internal::TypeCreator::new_pageBlockAuthorDate(_author, _published_date);
+}
+inline MTPpageBlock MTP_pageBlockHeader(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockHeader(_text);
+}
+inline MTPpageBlock MTP_pageBlockSubheader(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockSubheader(_text);
+}
+inline MTPpageBlock MTP_pageBlockParagraph(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockParagraph(_text);
+}
+inline MTPpageBlock MTP_pageBlockPreformatted(const MTPRichText &_text, const MTPstring &_language) {
+	return MTP::internal::TypeCreator::new_pageBlockPreformatted(_text, _language);
+}
+inline MTPpageBlock MTP_pageBlockFooter(const MTPRichText &_text) {
+	return MTP::internal::TypeCreator::new_pageBlockFooter(_text);
+}
+inline MTPpageBlock MTP_pageBlockDivider() {
+	return MTP::internal::TypeCreator::new_pageBlockDivider();
+}
+inline MTPpageBlock MTP_pageBlockList(MTPBool _ordered, const MTPVector<MTPRichText> &_items) {
+	return MTP::internal::TypeCreator::new_pageBlockList(_ordered, _items);
+}
+inline MTPpageBlock MTP_pageBlockBlockquote(const MTPRichText &_text, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockBlockquote(_text, _caption);
+}
+inline MTPpageBlock MTP_pageBlockPullquote(const MTPRichText &_text, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockPullquote(_text, _caption);
+}
+inline MTPpageBlock MTP_pageBlockPhoto(const MTPlong &_photo_id, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockPhoto(_photo_id, _caption);
+}
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDpageBlockVideo::Flags)
+inline MTPpageBlock MTP_pageBlockVideo(const MTPflags<MTPDpageBlockVideo::Flags> &_flags, const MTPlong &_video_id, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockVideo(_flags, _video_id, _caption);
+}
+inline MTPpageBlock MTP_pageBlockCover(const MTPPageBlock &_cover) {
+	return MTP::internal::TypeCreator::new_pageBlockCover(_cover);
+}
+inline MTPpageBlock MTP_pageBlockEmbed(const MTPstring &_url, MTPint _w, MTPint _h, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockEmbed(_url, _w, _h, _caption);
+}
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDpageBlockEmbedPost::Flags)
+inline MTPpageBlock MTP_pageBlockEmbedPost(const MTPflags<MTPDpageBlockEmbedPost::Flags> &_flags, const MTPstring &_author, MTPint _date, const MTPRichText &_caption, const MTPstring &_url, const MTPlong &_webpage_id, const MTPRichText &_text, const MTPVector<MTPEmbedPostMedia> &_medias, const MTPlong &_author_photo_id) {
+	return MTP::internal::TypeCreator::new_pageBlockEmbedPost(_flags, _author, _date, _caption, _url, _webpage_id, _text, _medias, _author_photo_id);
+}
+inline MTPpageBlock MTP_pageBlockSlideshow(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) {
+	return MTP::internal::TypeCreator::new_pageBlockSlideshow(_items, _caption);
+}
+
+inline uint32 MTPembedPostMedia::innerLength() const {
+	switch (_type) {
+		case mtpc_embedPostPhoto: {
+			const MTPDembedPostPhoto &v(c_embedPostPhoto());
+			return v.vphoto_id.innerLength();
+		}
+		case mtpc_embedPostVideo: {
+			const MTPDembedPostVideo &v(c_embedPostVideo());
+			return v.vvideo_id.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPembedPostMedia::type() const {
+	t_assert(_type != 0);
+	return _type;
+}
+inline void MTPembedPostMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_embedPostPhoto: _type = cons; {
+			if (!data) setData(new MTPDembedPostPhoto());
+			MTPDembedPostPhoto &v(_embedPostPhoto());
+			v.vphoto_id.read(from, end);
+		} break;
+		case mtpc_embedPostVideo: _type = cons; {
+			if (!data) setData(new MTPDembedPostVideo());
+			MTPDembedPostVideo &v(_embedPostVideo());
+			v.vvideo_id.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPembedPostMedia");
+	}
+}
+inline void MTPembedPostMedia::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_embedPostPhoto: {
+			const MTPDembedPostPhoto &v(c_embedPostPhoto());
+			v.vphoto_id.write(to);
+		} break;
+		case mtpc_embedPostVideo: {
+			const MTPDembedPostVideo &v(c_embedPostVideo());
+			v.vvideo_id.write(to);
+		} break;
+	}
+}
+inline MTPembedPostMedia::MTPembedPostMedia(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_embedPostPhoto: setData(new MTPDembedPostPhoto()); break;
+		case mtpc_embedPostVideo: setData(new MTPDembedPostVideo()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPembedPostMedia");
+	}
+}
+inline MTPembedPostMedia::MTPembedPostMedia(MTPDembedPostPhoto *_data) : mtpDataOwner(_data), _type(mtpc_embedPostPhoto) {
+}
+inline MTPembedPostMedia::MTPembedPostMedia(MTPDembedPostVideo *_data) : mtpDataOwner(_data), _type(mtpc_embedPostVideo) {
+}
+inline MTPembedPostMedia MTP_embedPostPhoto(const MTPlong &_photo_id) {
+	return MTP::internal::TypeCreator::new_embedPostPhoto(_photo_id);
+}
+inline MTPembedPostMedia MTP_embedPostVideo(const MTPlong &_video_id) {
+	return MTP::internal::TypeCreator::new_embedPostVideo(_video_id);
+}
+
+inline uint32 MTPpage::innerLength() const {
+	switch (_type) {
+		case mtpc_pagePart: {
+			const MTPDpagePart &v(c_pagePart());
+			return v.vblocks.innerLength() + v.vphotos.innerLength() + v.vvideos.innerLength();
+		}
+		case mtpc_pageFull: {
+			const MTPDpageFull &v(c_pageFull());
+			return v.vblocks.innerLength() + v.vphotos.innerLength() + v.vvideos.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPpage::type() const {
+	t_assert(_type != 0);
+	return _type;
+}
+inline void MTPpage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_pagePart: _type = cons; {
+			if (!data) setData(new MTPDpagePart());
+			MTPDpagePart &v(_pagePart());
+			v.vblocks.read(from, end);
+			v.vphotos.read(from, end);
+			v.vvideos.read(from, end);
+		} break;
+		case mtpc_pageFull: _type = cons; {
+			if (!data) setData(new MTPDpageFull());
+			MTPDpageFull &v(_pageFull());
+			v.vblocks.read(from, end);
+			v.vphotos.read(from, end);
+			v.vvideos.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPpage");
+	}
+}
+inline void MTPpage::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_pagePart: {
+			const MTPDpagePart &v(c_pagePart());
+			v.vblocks.write(to);
+			v.vphotos.write(to);
+			v.vvideos.write(to);
+		} break;
+		case mtpc_pageFull: {
+			const MTPDpageFull &v(c_pageFull());
+			v.vblocks.write(to);
+			v.vphotos.write(to);
+			v.vvideos.write(to);
+		} break;
+	}
+}
+inline MTPpage::MTPpage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_pagePart: setData(new MTPDpagePart()); break;
+		case mtpc_pageFull: setData(new MTPDpageFull()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPpage");
+	}
+}
+inline MTPpage::MTPpage(MTPDpagePart *_data) : mtpDataOwner(_data), _type(mtpc_pagePart) {
+}
+inline MTPpage::MTPpage(MTPDpageFull *_data) : mtpDataOwner(_data), _type(mtpc_pageFull) {
+}
+inline MTPpage MTP_pagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
+	return MTP::internal::TypeCreator::new_pagePart(_blocks, _photos, _videos);
+}
+inline MTPpage MTP_pageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
+	return MTP::internal::TypeCreator::new_pageFull(_blocks, _photos, _videos);
 }
 inline MTPDmessage::Flags mtpCastFlags(MTPDmessageService::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
 inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDmessageService::Flags> flags) { return mtpCastFlags(flags.v); }

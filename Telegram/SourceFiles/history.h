@@ -83,10 +83,10 @@ public:
 	}
 
 	struct SendActionAnimationUpdate {
-		History *history = nullptr;
-		int width = 0;
-		int height = 0;
-		bool textUpdated = 0;
+		History *history;
+		int width;
+		int height;
+		bool textUpdated;
 	};
 	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
 		return _sendActionAnimationUpdated;

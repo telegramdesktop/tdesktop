@@ -22,6 +22,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/single_timer.h"
 
+namespace Api {
+
+inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
+	switch (chats.type()) {
+	case mtpc_messages_chats: return &chats.c_messages_chats().vchats;
+	case mtpc_messages_chatsSlice: return &chats.c_messages_chatsSlice().vchats;
+	}
+	return nullptr;
+}
+
+} // namespace Api
+
 class ApiWrap : public QObject, public RPCSender {
 	Q_OBJECT
 

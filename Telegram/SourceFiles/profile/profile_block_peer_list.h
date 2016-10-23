@@ -1,0 +1,139 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+#pragma once
+
+#include "profile/profile_block_widget.h"
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
+namespace Profile {
+
+class PeerListWidget : public BlockWidget {
+public:
+	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const QString &removeText = QString());
+
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+
+	struct Item {
+		explicit Item(PeerData *peer) : peer(peer) {
+		}
+		PeerData * const peer;
+		Text name;
+		QString statusText;
+		bool statusHasOnlineColor = false;
+		bool hasAdminStar = false;
+		bool hasRemoveLink = false;
+	};
+	virtual int getListTop() const {
+		return contentTop();
+	}
+
+	int getListLeft() const;
+
+	const QList<Item*> &items() const {
+		return _items;
+	}
+	int itemsCount() const {
+		return _items.size();
+	}
+
+	// Does not take ownership of item.
+	void addItem(Item *item) {
+		if (!item) return;
+		_items.push_back(item);
+	}
+	void clearItems() {
+		_items.clear();
+	}
+	void reserveItemsForSize(int size) {
+		_items.reserve(size);
+	}
+	template <typename Predicate>
+	void sortItems(Predicate predicate) {
+		qSort(_items.begin(), _items.end(), std_::move(predicate));
+	}
+
+	void setPreloadMoreCallback(base::lambda<void()> &&callback) {
+		_preloadMoreCallback = std_::move(callback);
+	}
+	void setSelectedCallback(base::lambda<void(PeerData*)> &&callback) {
+		_selectedCallback = std_::move(callback);
+	}
+	void setRemovedCallback(base::lambda<void(PeerData*)> &&callback) {
+		_removedCallback = std_::move(callback);
+	}
+	void setUpdateItemCallback(base::lambda<void(Item*)> &&callback) {
+		_updateItemCallback = std_::move(callback);
+	}
+
+protected:
+	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
+	void refreshVisibility();
+
+	// Resizes content and counts natural widget height for the desired width.
+	int resizeGetHeight(int newWidth) override;
+
+	void paintContents(Painter &p) override;
+
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override {
+		enterEvent(e);
+	}
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override {
+		leaveEvent(e);
+	}
+
+private:
+	void updateSelection();
+	void setSelected(int selected, bool selectedRemove);
+	void repaintSelectedRow();
+	void preloadPhotos();
+
+	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove);
+
+	base::lambda<void()> _preloadMoreCallback;
+	base::lambda<void(PeerData*)> _selectedCallback;
+	base::lambda<void(PeerData*)> _removedCallback;
+	base::lambda<void(Item*)> _updateItemCallback;
+
+	QList<Item*> _items;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+
+	int _selected = -1;
+	int _pressed = -1;
+	bool _selectedRemove = false;
+	bool _pressedRemove = false;
+	QPoint _mousePosition;
+
+	QString _removeText;
+	int _removeWidth = 0;
+
+};
+
+} // namespace Profile

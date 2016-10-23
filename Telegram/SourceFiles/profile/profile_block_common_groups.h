@@ -20,11 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "profile/profile_block_widget.h"
-
-namespace Ui {
-class FlatLabel;
-} // namespace Ui
+#include "profile/profile_block_peer_list.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -32,39 +28,47 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class InfoWidget : public BlockWidget {
+struct CommonGroupsEvent {
+	QList<PeerData*> groups;
+
+	// If initialHeight >= 0 the common groups widget will
+	// slide down starting from height() == initialHeight.
+	// Otherwise it will just show instantly.
+	int initialHeight = -1;
+};
+
+class CommonGroupsWidget : public PeerListWidget {
 public:
-	InfoWidget(QWidget *parent, PeerData *peer);
+	CommonGroupsWidget(QWidget *parent, PeerData *peer);
+
+	void setShowCommonGroupsObservable(base::Observable<CommonGroupsEvent> *observable) {
+		subscribe(observable, [this](const CommonGroupsEvent &event) { onShowCommonGroups(event); });
+	}
+
+	void saveState(SectionMemento *memento) const override;
+	void restoreState(const SectionMemento *memento) override;
+
+	~CommonGroupsWidget();
 
 protected:
-	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
-
-	void leaveEvent(QEvent *e) override;
+	void paintContents(Painter &p) override;
 
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	void refreshLabels();
-	void refreshAbout();
-	void refreshMobileNumber();
-	void refreshUsername();
-	void refreshChannelLink();
-	void refreshVisibility();
+	void updateStatusText(Item *item);
+	void onShowCommonGroups(const CommonGroupsEvent &event);
+	void preloadMore();
 
-	// labelWidget may be nullptr.
-	void setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
-		ChildWidget<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
+	Item *computeItem(PeerData *group);
+	QMap<PeerData*, Item*> _dataMap;
 
-	ChildWidget<Ui::FlatLabel> _about = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLinkLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLink = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLinkShort = { nullptr };
-	ChildWidget<Ui::FlatLabel> _mobileNumberLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _mobileNumber = { nullptr };
-	ChildWidget<Ui::FlatLabel> _usernameLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _username = { nullptr };
+	IntAnimation _height;
+
+	int32 _preloadGroupId = 0;
+	mtpRequestId _preloadRequestId = 0;
 
 };
 

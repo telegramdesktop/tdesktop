@@ -1255,9 +1255,8 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 }
 
 void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
-	if (result.type() == mtpc_messages_chats) {
-		auto &chats = result.c_messages_chats().vchats;
-		for_const (auto &chat, chats.c_vector().v) {
+	if (auto chats = Api::getChatsFromMessagesChats(result)) {
+		for_const (auto &chat, chats->c_vector().v) {
 			if (auto peer = App::feedChat(chat)) {
 				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
 

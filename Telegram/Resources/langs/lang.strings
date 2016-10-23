@@ -434,6 +434,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_manage_admins" = "Manage administrators";
+"lng_profile_common_groups" = "{count:_not_used_|# group|# groups} in common";
+"lng_profile_common_groups_section" = "Groups in common";
 "lng_profile_participants_section" = "Members";
 "lng_profile_info_section" = "Info";
 "lng_profile_mobile_number" = "Mobile:";

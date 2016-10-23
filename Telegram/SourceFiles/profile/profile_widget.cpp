@@ -74,26 +74,36 @@ void Widget::setInnerFocus() {
 
 bool Widget::showInternal(const Window::SectionMemento *memento) {
 	if (auto profileMemento = dynamic_cast<const SectionMemento*>(memento)) {
-		if (profileMemento->_peer == peer()) {
-			// Perhaps no need to do that?..
-			_scroll->scrollToY(profileMemento->_scrollTop);
-
+		if (profileMemento->getPeer() == peer()) {
+			restoreState(profileMemento);
 			return true;
 		}
 	}
 	return false;
 }
 
-void Widget::setInternalState(const SectionMemento *memento) {
+void Widget::setInternalState(const QRect &geometry, const SectionMemento *memento) {
+	setGeometry(geometry);
 	myEnsureResized(this);
-	_scroll->scrollToY(memento->_scrollTop);
-	_fixedBarShadow->setMode(memento->_scrollTop > 0 ? Ui::ToggleableShadow::Mode::ShownFast : Ui::ToggleableShadow::Mode::HiddenFast);
+	restoreState(memento);
 }
 
 std_::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
 	auto result = std_::make_unique<SectionMemento>(peer());
-	result->_scrollTop = _scroll->scrollTop();
+	saveState(result.get());
 	return std_::move(result);
+}
+
+void Widget::saveState(SectionMemento *memento) const {
+	memento->setScrollTop(_scroll->scrollTop());
+	_inner->saveState(memento);
+}
+
+void Widget::restoreState(const SectionMemento *memento) {
+	_inner->restoreState(memento);
+	auto scrollTop = memento->getScrollTop();
+	_scroll->scrollToY(scrollTop);
+	_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::ShownFast : Ui::ToggleableShadow::Mode::HiddenFast);
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {

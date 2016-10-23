@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "profile/profile_block_widget.h"
+#include "profile/profile_block_peer_list.h"
 
 namespace Ui {
 class FlatLabel;
@@ -33,7 +33,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class MembersWidget : public BlockWidget {
+class GroupMembersWidget : public PeerListWidget {
 	Q_OBJECT
 
 public:
@@ -41,32 +41,19 @@ public:
 		Visible,
 		Hidden,
 	};
-	MembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible);
+	GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible);
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	int onlineCount() const {
 		return _onlineCount;
 	}
 
-	~MembersWidget();
+	~GroupMembersWidget();
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
 
 	void paintContents(Painter &p) override;
-
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override {
-		enterEvent(e);
-	}
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override {
-		leaveEvent(e);
-	}
 
 signals:
 	void onlineCountUpdated(int onlineCount);
@@ -78,8 +65,6 @@ private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	void preloadUserPhotos();
-
 	void refreshMembers();
 	void fillChatMembers(ChatData *chat);
 	void fillMegagroupMembers(ChannelData *megagroup);
@@ -89,90 +74,45 @@ private:
 	void checkSelfAdmin(ChannelData *megagroup);
 	void refreshLimitReached();
 
+	void preloadMore();
+
 	bool limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
 
-	void refreshVisibility();
-	void updateSelection();
-	void setSelected(int selected, bool selectedKick);
-	void repaintSelectedRow();
 	void refreshUserOnline(UserData *user);
 
-	int getListLeft() const;
-	int getListTop() const;
+	int getListTop() const override;
 
-	struct Member {
-		Member(UserData *user) : user(user) {
+	struct Member : public Item {
+		explicit Member(UserData *user) : Item(user) {
 		}
-		UserData *user;
-		Text name;
-		QString onlineText;
+		UserData *user() const {
+			return static_cast<UserData*>(peer);
+		}
 		TimeId onlineTextTill = 0;
 		TimeId onlineTill = 0;
 		TimeId onlineForSort = 0;
-		bool online = false;
-		bool isAdmin = false;
-		bool canBeKicked = false;
 	};
-	Member *getMember(UserData *user);
-	void paintMember(Painter &p, int x, int y, Member *member, bool selected, bool selectedKick);
-	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
-	void setMemberFlags(Member *member, ChatData *chat);
+	Member *getMember(Item *item) {
+		return static_cast<Member*>(item);
+	}
+
+	void updateItemStatusText(Item *item);
+	Member *computeMember(UserData *user);
 	Member *addUser(ChatData *chat, UserData *user);
-	void setMemberFlags(Member *member, ChannelData *megagroup);
 	Member *addUser(ChannelData *megagroup, UserData *user);
+	void setItemFlags(Item *item, ChatData *chat);
+	void setItemFlags(Item *item, ChannelData *megagroup);
 	bool addUsersToEnd(ChannelData *megagroup);
 
 	ChildWidget<Ui::FlatLabel> _limitReachedInfo = { nullptr };
 
-	QList<Member*> _list;
 	QMap<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;
 	TimeId _now = 0;
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-
-	int _selected = -1;
-	int _pressed = -1;
-	bool _selectedKick = false;
-	bool _pressedKick = false;
-	QPoint _mousePosition;
-
 	int _onlineCount = 0;
 	TimeId _updateOnlineAt = 0;
 	QTimer _updateOnlineTimer;
-
-	int _removeWidth = 0;
-
-};
-
-class ChannelMembersWidget : public BlockWidget {
-	Q_OBJECT
-
-public:
-	ChannelMembersWidget(QWidget *parent, PeerData *peer);
-
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
-
-private slots:
-	void onAdmins();
-	void onMembers();
-
-private:
-	// Observed notifications.
-	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-
-	void refreshButtons();
-	void refreshAdmins();
-	void refreshMembers();
-	void refreshVisibility();
-
-	void addButton(const QString &text, ChildWidget<Ui::LeftOutlineButton> *button, const char *slot);
-
-	ChildWidget<Ui::LeftOutlineButton> _admins = { nullptr };
-	ChildWidget<Ui::LeftOutlineButton> _members = { nullptr };
 
 };
 

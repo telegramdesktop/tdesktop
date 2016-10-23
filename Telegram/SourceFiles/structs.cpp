@@ -282,6 +282,13 @@ bool UserData::setAbout(const QString &newAbout) {
 	return true;
 }
 
+void UserData::setCommonChatsCount(int count) {
+	if (_commonChatsCount != count) {
+		_commonChatsCount = count;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::UserCommonChatsChanged);
+	}
+}
+
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 

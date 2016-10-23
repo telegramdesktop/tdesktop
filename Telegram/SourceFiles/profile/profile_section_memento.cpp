@@ -27,8 +27,7 @@ namespace Profile {
 
 Window::SectionWidget *SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
 	auto result = new Widget(parent, _peer);
-	result->setGeometry(geometry);
-	result->setInternalState(this);
+	result->setInternalState(geometry, this);
 	return result;
 }
 

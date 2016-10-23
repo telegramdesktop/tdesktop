@@ -54,7 +54,7 @@ public:
 	bool showInternal(const Window::SectionMemento *memento) override;
 	std_::unique_ptr<Window::SectionMemento> createMemento() const override;
 
-	void setInternalState(const SectionMemento *memento);
+	void setInternalState(const QRect &geometry, const SectionMemento *memento);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -67,8 +67,8 @@ private slots:
 
 private:
 	void updateAdaptiveLayout();
-
-	friend class SectionMemento;
+	void saveState(SectionMemento *memento) const;
+	void restoreState(const SectionMemento *memento);
 
 	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;

@@ -325,7 +325,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
-	const auto &d(result.c_userFull());
+	auto user = peer->asUser();
+	t_assert(user != nullptr);
+
+	auto &d = result.c_userFull();
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
@@ -336,12 +339,13 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 
 	if (d.has_bot_info()) {
-		peer->asUser()->setBotInfo(d.vbot_info);
+		user->setBotInfo(d.vbot_info);
 	} else {
-		peer->asUser()->setBotInfoVersion(-1);
+		user->setBotInfoVersion(-1);
 	}
-	peer->asUser()->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
-	peer->asUser()->setAbout(d.has_about() ? qs(d.vabout) : QString());
+	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
+	user->setCommonChatsCount(d.vcommon_chats_count.v);
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
@@ -422,15 +426,15 @@ void ApiWrap::requestBots(ChannelData *peer) {
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 
-	if (result.type() == mtpc_messages_chats) {
-		const auto &v(result.c_messages_chats().vchats.c_vector().v);
+	if (auto chats = Api::getChatsFromMessagesChats(result)) {
+		auto &v = chats->c_vector().v;
 		bool badVersion = false;
 		if (peer->isChat()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
 		} else if (peer->isChannel()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_channel && v.at(0).c_chat().vversion.v < peer->asChannel()->version);
 		}
-		PeerData *chat = App::feedChats(result.c_messages_chats().vchats);
+		auto chat = App::feedChats(*chats);
 		if (chat == peer) {
 			if (badVersion) {
 				if (peer->isChat()) {
@@ -453,9 +457,8 @@ void ApiWrap::gotUser(PeerData *peer, const MTPVector<MTPUser> &result) {
 }
 
 void ApiWrap::gotChats(const MTPmessages_Chats &result) {
-	if (result.type() == mtpc_messages_chats) {
-		auto &d = result.c_messages_chats();
-		App::feedChats(d.vchats);
+	if (auto chats = Api::getChatsFromMessagesChats(result)) {
+		App::feedChats(*chats);
 	}
 }
 

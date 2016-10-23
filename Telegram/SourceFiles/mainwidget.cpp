@@ -3291,12 +3291,12 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	updateOnline();
 }
 
-void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
+void MainWidget::gotDifference(const MTPupdates_Difference &difference) {
 	_failDifferenceTimeout = 1;
 
-	switch (diff.type()) {
+	switch (difference.type()) {
 	case mtpc_updates_differenceEmpty: {
-		const auto &d(diff.c_updates_differenceEmpty());
+		auto &d = difference.c_updates_differenceEmpty();
 		updSetState(_ptsWaiter.current(), d.vdate.v, updQts, d.vseq.v);
 
 		_lastUpdateTime = getms(true);
@@ -3305,10 +3305,10 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		_ptsWaiter.setRequesting(false);
 	} break;
 	case mtpc_updates_differenceSlice: {
-		const auto &d(diff.c_updates_differenceSlice());
+		auto &d = difference.c_updates_differenceSlice();
 		feedDifference(d.vusers, d.vchats, d.vnew_messages, d.vother_updates);
 
-		const auto &s(d.vintermediate_state.c_updates_state());
+		auto &s = d.vintermediate_state.c_updates_state();
 		updSetState(s.vpts.v, s.vdate.v, s.vqts.v, s.vseq.v);
 
 		_ptsWaiter.setRequesting(false);
@@ -3317,10 +3317,14 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		getDifference();
 	} break;
 	case mtpc_updates_difference: {
-		const auto &d(diff.c_updates_difference());
+		auto &d = difference.c_updates_difference();
 		feedDifference(d.vusers, d.vchats, d.vnew_messages, d.vother_updates);
 
 		gotState(d.vstate);
+	} break;
+	case mtpc_updates_differenceTooLong: {
+		auto &d = difference.c_updates_differenceTooLong();
+		LOG(("API Error: updates.differenceTooLong is not supported by Telegram Desktop!"));
 	} break;
 	};
 }
@@ -3444,7 +3448,7 @@ void MainWidget::onGetDifferenceTimeByPts() {
 			wait = wait ? qMin(wait, i.value() - now) : (i.value() - now);
 			++i;
 		} else {
-			getChannelDifference(i.key(), GetChannelDifferenceFromPtsGap);
+			getChannelDifference(i.key(), ChannelDifferenceRequest::PtsGapOrShortPoll);
 			i = _channelGetDifferenceTimeByPts.erase(i);
 		}
 	}
@@ -3473,7 +3477,7 @@ void MainWidget::onGetDifferenceTimeAfterFail() {
 			wait = wait ? qMin(wait, i.value() - now) : (i.value() - now);
 			++i;
 		} else {
-			getChannelDifference(i.key(), GetChannelDifferenceFromFail);
+			getChannelDifference(i.key(), ChannelDifferenceRequest::AfterFail);
 			i = _channelGetDifferenceTimeAfterFail.erase(i);
 		}
 	}
@@ -3498,26 +3502,34 @@ void MainWidget::getDifference() {
 	_getDifferenceTimeAfterFail = 0;
 
 	_ptsWaiter.setRequesting(true);
-	MTP::send(MTPupdates_GetDifference(MTP_int(_ptsWaiter.current()), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
+
+	MTPupdates_GetDifference::Flags flags = 0;
+	MTP::send(MTPupdates_GetDifference(MTP_flags(flags), MTP_int(_ptsWaiter.current()), MTPint(), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
 }
 
-void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifferenceFrom from) {
+void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from) {
 	if (this != App::main() || !channel) return;
 
-	if (from != GetChannelDifferenceFromPtsGap) {
+	if (from != ChannelDifferenceRequest::PtsGapOrShortPoll) {
 		_channelGetDifferenceTimeByPts.remove(channel);
 	}
 
 	if (!channel->ptsInited() || channel->ptsRequesting()) return;
 
-	if (from != GetChannelDifferenceFromFail) {
+	if (from != ChannelDifferenceRequest::AfterFail) {
 		_channelGetDifferenceTimeAfterFail.remove(channel);
 	}
 
 	channel->ptsSetRequesting(true);
 
 	auto filter = MTP_channelMessagesFilterEmpty();
-	MTP::send(MTPupdates_GetChannelDifference(channel->inputChannel, filter, MTP_int(channel->pts()), MTP_int(MTPChannelGetDifferenceLimit)), rpcDone(&MainWidget::gotChannelDifference, channel), rpcFail(&MainWidget::failChannelDifference, channel));
+	MTPupdates_GetChannelDifference::Flags flags = MTPupdates_GetChannelDifference::Flag::f_force;
+	if (from != ChannelDifferenceRequest::PtsGapOrShortPoll) {
+		if (!channel->ptsWaitingForSkipped()) {
+			flags = 0; // No force flag when requesting for short poll.
+		}
+	}
+	MTP::send(MTPupdates_GetChannelDifference(MTP_flags(flags), channel->inputChannel, filter, MTP_int(channel->pts()), MTP_int(MTPChannelGetDifferenceLimit)), rpcDone(&MainWidget::gotChannelDifference, channel), rpcFail(&MainWidget::failChannelDifference, channel));
 }
 
 void MainWidget::mtpPing() {
@@ -4894,6 +4906,29 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::feedOutboxRead(peerId, d.vmax_id.v, when);
 		if (_history->peer() && _history->peer()->id == peerId) {
 			_history->update();
+		}
+	} break;
+
+	case mtpc_updateChannelWebPage: {
+		auto &d = update.c_updateChannelWebPage();
+		auto channel = App::channelLoaded(d.vchannel_id.v);
+
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else if (!channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+				return;
+			}
+		}
+
+
+		// update before applying skipped
+		App::feedWebPage(d.vwebpage);
+		_history->updatePreview();
+		webPagesOrGamesUpdate();
+
+		if (channel && !_handlingChannelDifference) {
+			channel->ptsApplySkippedUpdates();
 		}
 	} break;
 

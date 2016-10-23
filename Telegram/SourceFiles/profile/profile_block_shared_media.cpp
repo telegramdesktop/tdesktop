@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "profile/profile_shared_media_widget.h"
+#include "profile/profile_block_shared_media.h"
 
 #include "styles/style_profile.h"
 #include "observer_peer.h"

@@ -468,11 +468,17 @@ public:
 		_restrictionReason = reason;
 	}
 
+	int commonChatsCount() const {
+		return _commonChatsCount;
+	}
+	void setCommonChatsCount(int count);
+
 private:
 	QString _restrictionReason;
 	QString _about;
 	QString _phone;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
+	int _commonChatsCount = 0;
 
 };
 
@@ -615,14 +621,6 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo()
-		: botStatus(0)
-		, pinnedMsgId(0)
-		, joinedMessageFound(false)
-		, lastParticipantsStatus(LastParticipantsUpToDate)
-		, lastParticipantsCount(0)
-		, migrateFromPtr(0) {
-	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
 	typedef OrderedSet<UserData*> LastAdmins;
@@ -631,20 +629,20 @@ struct MegagroupInfo {
 	MarkupSenders markupSenders;
 	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
-	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
-	MsgId pinnedMsgId;
-	bool joinedMessageFound;
+	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	MsgId pinnedMsgId = 0;
+	bool joinedMessageFound = false;
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
 		LastParticipantsAdminsOutdated = 0x01,
 		LastParticipantsCountOutdated  = 0x02,
 	};
-	mutable int32 lastParticipantsStatus;
-	int32 lastParticipantsCount;
+	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
+	int lastParticipantsCount = 0;
 
-	ChatData *migrateFromPtr;
+	ChatData *migrateFromPtr = nullptr;
 };
 
 class ChannelData : public PeerData {
@@ -657,6 +655,9 @@ public:
 
 	void updateFull(bool force = false);
 	void fullUpdated();
+	bool wasFullUpdated() const {
+		return (_lastFullUpdate != 0);
+	}
 
 	uint64 access = 0;
 
@@ -797,6 +798,12 @@ public:
 	}
 	void ptsWaitingForShortPoll(int32 ms) { // < 0 - not waiting
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
+	}
+	bool ptsWaitingForSkipped() const {
+		return _ptsWaiter.waitingForSkipped();
+	}
+	bool ptsWaitingForShortPoll() const {
+		return _ptsWaiter.waitingForShortPoll();
 	}
 
 	QString restrictionReason() const override {

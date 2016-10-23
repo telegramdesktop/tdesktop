@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "profile/profile_invite_link_widget.h"
+#include "profile/profile_block_invite_link.h"
 
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"

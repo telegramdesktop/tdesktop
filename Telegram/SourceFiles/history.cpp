@@ -190,12 +190,6 @@ bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessag
 	if (action.type() == mtpc_sendMessageCancelAction) {
 		unregSendAction(user);
 		return false;
-	} else if (action.type() == mtpc_sendMessageGameStopAction) {
-		auto it = _sendActions.find(user);
-		if (it != _sendActions.end() && it->type == Type::PlayGame) {
-			unregSendAction(user);
-		}
-		return false;
 	}
 
 	auto ms = getms();
@@ -251,12 +245,6 @@ bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int 
 		availableWidth -= animationWidth;
 		p.setPen(color);
 		_sendActionText.drawElided(p, x, y, availableWidth);
-//		App::histories().sendActionAnimationUpdated().notify({
-//			this,
-//			animationWidth,
-//			st::normalFont->height,
-//			false
-//		});
 		return true;
 	}
 	return false;
@@ -393,8 +381,11 @@ void ChannelHistory::getRangeDifference() {
 void ChannelHistory::getRangeDifferenceNext(int32 pts) {
 	if (!App::main() || _rangeDifferenceToId < _rangeDifferenceFromId) return;
 
-	int32 limit = _rangeDifferenceToId + 1 - _rangeDifferenceFromId;
-	_rangeDifferenceRequestId = MTP::send(MTPupdates_GetChannelDifference(peer->asChannel()->inputChannel, MTP_channelMessagesFilter(MTP_flags(MTPDchannelMessagesFilter::Flags(0)), MTP_vector<MTPMessageRange>(1, MTP_messageRange(MTP_int(_rangeDifferenceFromId), MTP_int(_rangeDifferenceToId)))), MTP_int(pts), MTP_int(limit)), App::main()->rpcDone(&MainWidget::gotRangeDifference, peer->asChannel()));
+	int limit = _rangeDifferenceToId + 1 - _rangeDifferenceFromId;
+
+	auto filter = MTP_channelMessagesFilter(MTP_flags(MTPDchannelMessagesFilter::Flags(0)), MTP_vector<MTPMessageRange>(1, MTP_messageRange(MTP_int(_rangeDifferenceFromId), MTP_int(_rangeDifferenceToId))));
+	MTPupdates_GetChannelDifference::Flags flags = MTPupdates_GetChannelDifference::Flag::f_force;
+	_rangeDifferenceRequestId = MTP::send(MTPupdates_GetChannelDifference(MTP_flags(flags), peer->asChannel()->inputChannel, filter, MTP_int(pts), MTP_int(limit)), App::main()->rpcDone(&MainWidget::gotRangeDifference, peer->asChannel()));
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
@@ -788,6 +779,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_webPage:
 			case mtpc_webPageEmpty:
 			case mtpc_webPagePending: break;
+			case mtpc_webPageNotModified:
 			default: badMedia = 1; break;
 			}
 			break;

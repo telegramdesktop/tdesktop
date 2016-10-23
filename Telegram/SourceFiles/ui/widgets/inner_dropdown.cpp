@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
-#include "profile/profile_members_widget.h"
 #include "ui/effects/panel_animation.h"
 
 namespace {

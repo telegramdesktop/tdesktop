@@ -24,12 +24,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "styles/style_window.h"
 #include "profile/profile_cover.h"
-#include "profile/profile_info_widget.h"
-#include "profile/profile_settings_widget.h"
-#include "profile/profile_invite_link_widget.h"
-#include "profile/profile_shared_media_widget.h"
-#include "profile/profile_actions_widget.h"
-#include "profile/profile_members_widget.h"
+#include "profile/profile_block_common_groups.h"
+#include "profile/profile_block_info.h"
+#include "profile/profile_block_settings.h"
+#include "profile/profile_block_invite_link.h"
+#include "profile/profile_block_shared_media.h"
+#include "profile/profile_block_actions.h"
+#include "profile/profile_block_channel_members.h"
+#include "profile/profile_block_group_members.h"
 #include "apiwrap.h"
 
 namespace Profile {
@@ -48,7 +50,16 @@ void InnerWidget::createBlocks() {
 	auto channel = _peer->asChannel();
 	auto megagroup = _peer->isMegagroup() ? channel : nullptr;
 	if (user || channel || megagroup) {
-		_blocks.push_back({ new InfoWidget(this, _peer), BlockSide::Right });
+		auto widget = new InfoWidget(this, _peer);
+		widget->setShowCommonGroupsObservable(&_showCommonGroupsObservable);
+		_blocks.push_back({ widget, BlockSide::Right });
+	}
+	if (user) {
+		_commonGroupsWidget = new CommonGroupsWidget(this, _peer);
+		_commonGroupsWidget->setShowCommonGroupsObservable(&_showCommonGroupsObservable);
+		_blocks.push_back({ _commonGroupsWidget, BlockSide::Right });
+	} else {
+		_commonGroupsWidget = nullptr;
 	}
 	_blocks.push_back({ new SettingsWidget(this, _peer), BlockSide::Right });
 	if (chat || channel || megagroup) {
@@ -60,7 +71,7 @@ void InnerWidget::createBlocks() {
 	}
 	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
 	if (chat || megagroup) {
-		auto membersWidget = new MembersWidget(this, _peer);
+		auto membersWidget = new GroupMembersWidget(this, _peer);
 		connect(membersWidget, SIGNAL(onlineCountUpdated(int)), _cover, SLOT(onOnlineCountUpdated(int)));
 		_cover->onOnlineCountUpdated(membersWidget->onlineCount());
 		_blocks.push_back({ membersWidget, BlockSide::Left });
@@ -89,8 +100,23 @@ bool InnerWidget::shareContactButtonShown() const {
 	return _cover->shareContactButtonShown();
 }
 
+void InnerWidget::saveState(SectionMemento *memento) const {
+	for_const (auto &blockData, _blocks) {
+		blockData.block->saveState(memento);
+	}
+}
+
+void InnerWidget::restoreState(const SectionMemento *memento) {
+	for_const (auto &blockData, _blocks) {
+		blockData.block->restoreState(memento);
+	}
+}
+
 void InnerWidget::showFinished() {
 	_cover->showFinished();
+	for_const (auto &blockData, _blocks) {
+		blockData.block->showFinished();
+	}
 }
 
 void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
@@ -182,6 +208,8 @@ void InnerWidget::refreshBlocksPositions() {
 				continue;
 			}
 			blockData.block->moveToLeft(left, top);
+			blockData.block->setVisibleTopBottom(_visibleTop - top, _visibleBottom - top);
+
 			top += blockData.block->height();
 		}
 	};

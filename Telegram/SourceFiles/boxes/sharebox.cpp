@@ -999,8 +999,8 @@ void shareGameScoreByHash(const QString &hash) {
 			auto requestChannelIds = MTP_vector<MTPInputChannel>(1, MTP_inputChannel(MTP_int(channelId), MTP_long(channelAccessHash)));
 			auto requestChannel = MTPchannels_GetChannels(requestChannelIds);
 			MTP::send(requestChannel, rpcDone([channelId, resolveMessageAndShareScore](const MTPmessages_Chats &result) {
-				if (result.type() == mtpc_messages_chats) {
-					App::feedChats(result.c_messages_chats().vchats);
+				if (auto chats = Api::getChatsFromMessagesChats(result)) {
+					App::feedChats(*chats);
 				}
 				if (auto channel = App::channelLoaded(channelId)) {
 					resolveMessageAndShareScore(channel);

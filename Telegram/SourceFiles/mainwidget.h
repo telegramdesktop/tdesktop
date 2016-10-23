@@ -535,12 +535,12 @@ private:
 
 	SingleTimer _updateMutedTimer;
 
-	enum GetChannelDifferenceFrom {
-		GetChannelDifferenceFromUnknown,
-		GetChannelDifferenceFromPtsGap,
-		GetChannelDifferenceFromFail,
+	enum class ChannelDifferenceRequest {
+		Unknown,
+		PtsGapOrShortPoll,
+		AfterFail,
 	};
-	void getChannelDifference(ChannelData *channel, GetChannelDifferenceFrom from = GetChannelDifferenceFromUnknown);
+	void getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
 	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);

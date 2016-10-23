@@ -393,18 +393,23 @@ public:
 
 namespace internal {
 
-	template <typename FunctionType>
-	struct lambda_type_helper;
+template <typename FunctionType>
+struct lambda_type_resolver;
 
-	template <typename Lambda, typename R, typename ...Args>
-	struct lambda_type_helper<R(Lambda::*)(Args...) const> {
-		using type = lambda<R(Args...)>;
-	};
+template <typename Lambda, typename R, typename ...Args>
+struct lambda_type_resolver<R(Lambda::*)(Args...) const> {
+	using type = lambda<R(Args...)>;
+};
+
+template <typename FunctionType>
+struct lambda_type_helper {
+	using type = typename lambda_type_resolver<decltype(&FunctionType::operator())>::type;
+};
 
 } // namespace internal
 
 template <typename FunctionType>
-using lambda_type = typename internal::lambda_type_helper<decltype(&FunctionType::operator())>::type;
+using lambda_type = typename internal::lambda_type_helper<FunctionType>::type;
 
 // Guard lambda call by one or many QObject* weak pointers.
 
@@ -488,6 +493,11 @@ struct lambda_guard_type_helper {
 
 template <typename ...PointersAndLambda>
 using lambda_guard_t = typename lambda_guard_type_helper<PointersAndLambda...>::type;
+
+template <int N, typename Lambda>
+struct lambda_type_helper<lambda_guard<N, Lambda>> {
+	using type = typename lambda_type_helper<Lambda>::type;
+};
 
 } // namespace internal
 

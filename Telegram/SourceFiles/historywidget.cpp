@@ -39,7 +39,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_drag_area.h"
-#include "profile/profile_members_widget.h"
+#include "profile/profile_block_group_members.h"
 #include "core/click_handler_types.h"
 #include "stickers/emoji_pan.h"
 #include "lang.h"
@@ -6266,7 +6266,7 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 void HistoryWidget::onMembersDropdownShow() {
 	if (!_membersDropdown) {
 		_membersDropdown.create(this, st::membersInnerDropdown);
-		_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
+		_membersDropdown->setOwnedWidget(new Profile::GroupMembersWidget(_membersDropdown, _peer, Profile::GroupMembersWidget::TitleVisibility::Hidden));
 		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
