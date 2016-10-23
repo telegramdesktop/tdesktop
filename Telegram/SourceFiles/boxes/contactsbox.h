@@ -232,7 +232,7 @@ private:
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
-	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
+	void paintDialog(Painter &p, uint64 ms, PeerData *peer, ContactData *data, bool sel);
 	void paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const;
 
 	void changeCheckState(Dialogs::Row *row);

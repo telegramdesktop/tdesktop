@@ -579,6 +579,10 @@ int MultiSelect::Inner::resizeGetHeight(int newWidth) {
 void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	_height.step(ms);
+	_iconOpacity.step(ms);
+
 	auto paintRect = e->rect();
 	p.fillRect(paintRect, st::windowBg);
 
@@ -586,9 +590,8 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	p.translate(offset);
 	paintRect.translate(-offset);
 
-	auto ms = getms();
 	auto outerWidth = width() - _st.padding.left() - _st.padding.right();
-	auto iconOpacity = _iconOpacity.current(ms, _items.empty() ? 1. : 0.);
+	auto iconOpacity = _iconOpacity.current(_items.empty() ? 1. : 0.);
 	if (iconOpacity > 0.) {
 		p.setOpacity(iconOpacity);
 		_st.fieldIcon.paint(p, 0, 0, outerWidth);

@@ -106,11 +106,11 @@ contactsMultiSelect: MultiSelect {
 		font: normalFont;
 		textBg: contactsBgOver;
 		textFg: windowTextFg;
-		textActiveBg: titleBg;
+		textActiveBg: windowActiveBg;
 		textActiveFg: white;
 		deleteFg: white;
-		deleteLeft: 9px;
-		deleteStroke: 3px;
+		deleteLeft: 10px;
+		deleteStroke: 2px;
 		duration: 150;
 		minScale: 0.3;
 	}

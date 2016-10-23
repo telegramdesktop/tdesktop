@@ -234,21 +234,9 @@ void ShareBox::onFilterUpdate(const QString &query) {
 }
 
 void ShareBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
-	auto getColor = [peer]() -> const style::color & {
-		switch (peer->colorIndex) {
-		case 1: return st::historyPeer2UserpicFg;
-		case 2: return st::historyPeer3UserpicFg;
-		case 3: return st::historyPeer4UserpicFg;
-		case 4: return st::historyPeer5UserpicFg;
-		case 5: return st::historyPeer6UserpicFg;
-		case 6: return st::historyPeer7UserpicFg;
-		case 7: return st::historyPeer8UserpicFg;
-		default: return st::historyPeer1UserpicFg;
-		}
-	};
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->addItem(peer->id, peer->shortName(), getColor(), PaintUserpicCallback(peer), addItemWay);
+	_select->addItem(peer->id, peer->shortName(), st::windowActiveBg, PaintUserpicCallback(peer), addItemWay);
 }
 
 void ShareBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
@@ -511,14 +499,14 @@ void ShareBox::Inner::setActive(int active) {
 	emit mustScrollTo(y, y + _rowHeight);
 }
 
-void ShareBox::Inner::paintChat(Painter &p, Chat *chat, int index) {
+void ShareBox::Inner::paintChat(Painter &p, uint64 ms, Chat *chat, int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 
 	auto outerWidth = width();
 	auto photoLeft = (_rowWidth - (st::sharePhotoCheckbox.imageRadius * 2)) / 2;
 	auto photoTop = st::sharePhotoTop;
-	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
+	chat->checkbox.paint(p, ms, x + photoLeft, y + photoTop, outerWidth);
 
 	if (chat->nameFg.animating()) {
 		p.setPen(chat->nameFg.current());
@@ -541,6 +529,7 @@ ShareBox::Inner::Chat::Chat(PeerData *peer, base::lambda_wrap<void()> updateCall
 void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
 	auto r = e->rect();
 	p.setClipRect(r);
 	p.fillRect(r, st::white);
@@ -556,7 +545,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 				if (indexFrom >= indexTo) {
 					break;
 				}
-				paintChat(p, getChat(*i), indexFrom);
+				paintChat(p, ms, getChat(*i), indexFrom);
 				++indexFrom;
 			}
 		} else {
@@ -577,7 +566,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 					if (indexFrom >= _filtered.size()) {
 						break;
 					}
-					paintChat(p, getChat(_filtered[indexFrom]), indexFrom);
+					paintChat(p, ms, getChat(_filtered[indexFrom]), indexFrom);
 					++indexFrom;
 				}
 				indexFrom -= filteredSize;
@@ -589,7 +578,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 					if (indexFrom >= d_byUsernameFiltered.size()) {
 						break;
 					}
-					paintChat(p, d_byUsernameFiltered[indexFrom], filteredSize + indexFrom);
+					paintChat(p, ms, d_byUsernameFiltered[indexFrom], filteredSize + indexFrom);
 					++indexFrom;
 				}
 			}

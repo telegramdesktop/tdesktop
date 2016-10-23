@@ -1438,6 +1438,14 @@ void InputField::touchEvent(QTouchEvent *e) {
 void InputField::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	if (_a_placeholderShift.animating()) {
+		_a_placeholderShift.step(ms);
+	}
+	if (_a_placeholderFg.animating()) {
+		_a_placeholderFg.step(ms);
+	}
+
 	QRect r(rect().intersected(e->rect()));
 	if (_st.textBg->c.alphaF() > 0.) {
 		p.fillRect(r, _st.textBg);

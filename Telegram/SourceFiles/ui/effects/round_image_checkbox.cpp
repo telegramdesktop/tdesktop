@@ -65,7 +65,14 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, base
 	prepareCheckCaches(&_st, _wideCheckBgCache, _wideCheckFullCache);
 }
 
-void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
+void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth) {
+	_selection.step(ms);
+	for (auto &icon : _icons) {
+		icon.fadeIn.step(ms);
+		icon.fadeOut.step(ms);
+	}
+	removeFadeOutedIcons();
+
 	auto selectionLevel = _selection.current(_checked ? 1. : 0.);
 	if (_selection.animating()) {
 		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
@@ -101,7 +108,6 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	}
 
-	removeFadeOutedIcons();
 	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 	for (auto &icon : _icons) {
 		auto fadeIn = icon.fadeIn.current(1.);
@@ -149,10 +155,7 @@ void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
 			_icons.back().fadeIn.finish();
 		}
 	} else {
-		_icons.back().fadeOut.start([this] {
-			_updateCallback();
-			removeFadeOutedIcons(); // this call can destroy current lambda
-		}, 1, 0, _st.selectDuration);
+		_icons.back().fadeOut.start(_updateCallback, 1, 0, _st.selectDuration);
 		if (speed == SetStyle::Animated) {
 			prepareWideCheckIconCache(&_icons.back());
 		} else {

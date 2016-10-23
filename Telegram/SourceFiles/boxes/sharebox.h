@@ -164,7 +164,7 @@ private:
 		Text name;
 		ColorAnimation nameFg;
 	};
-	void paintChat(Painter &p, Chat *chat, int index);
+	void paintChat(Painter &p, uint64 ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);
 	void updateChatName(Chat *chat, PeerData *peer);
 	void repaintChat(PeerData *peer);

@@ -353,21 +353,9 @@ void ContactsBox::onFilterUpdate(const QString &filter) {
 }
 
 void ContactsBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
-	auto getColor = [peer]() -> const style::color & {
-		switch (peer->colorIndex) {
-		case 1: return st::historyPeer2UserpicFg;
-		case 2: return st::historyPeer3UserpicFg;
-		case 3: return st::historyPeer4UserpicFg;
-		case 4: return st::historyPeer5UserpicFg;
-		case 5: return st::historyPeer6UserpicFg;
-		case 6: return st::historyPeer7UserpicFg;
-		case 7: return st::historyPeer8UserpicFg;
-		default: return st::historyPeer1UserpicFg;
-		}
-	};
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->entity()->addItem(peer->id, peer->shortName(), getColor(), PaintUserpicCallback(peer), addItemWay);
+	_select->entity()->addItem(peer->id, peer->shortName(), st::windowActiveBg, PaintUserpicCallback(peer), addItemWay);
 }
 
 void ContactsBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
@@ -941,7 +929,7 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 	return data;
 }
 
-void ContactsBox::Inner::paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel) {
+void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, ContactData *data, bool sel) {
 	UserData *user = peer->asUser();
 
 	if (_chat && _membersFilter == MembersFilter::Admins) {
@@ -967,7 +955,7 @@ void ContactsBox::Inner::paintDialog(Painter &p, PeerData *peer, ContactData *da
 		paintDisabledCheckUserpic(p, peer, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else if (usingMultiSelect()) {
 		checkedRatio = data->checkbox->checkedAnimationRatio();
-		data->checkbox->paint(p, st::contactsPadding.left(), st::contactsPadding.top(), width());
+		data->checkbox->paint(p, ms, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else {
 		peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	}
@@ -1060,6 +1048,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::white);
 
+	uint64 ms = getms();
 	int32 yFrom = r.y(), yTo = r.y() + r.height();
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
@@ -1089,7 +1078,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 					if ((*i)->pos() * _rowHeight >= yTo) {
 						break;
 					}
-					paintDialog(p, (*i)->history()->peer, contactData(*i), (*i == _sel));
+					paintDialog(p, ms, (*i)->history()->peer, contactData(*i), (*i == _sel));
 					p.translate(0, _rowHeight);
 				}
 				yFrom -= _contacts->size() * _rowHeight;
@@ -1109,7 +1098,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsername.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
+					paintDialog(p, ms, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1156,7 +1145,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _filtered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, _filtered[from]->history()->peer, contactData(_filtered[from]), (_filteredSel == from));
+					paintDialog(p, ms, _filtered[from]->history()->peer, contactData(_filtered[from]), (_filteredSel == from));
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1173,7 +1162,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsernameFiltered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
+					paintDialog(p, ms, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
 					p.translate(0, _rowHeight);
 				}
 			}

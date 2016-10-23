@@ -484,6 +484,15 @@ public:
 	using ValueType = typename AnimType::ValueType;
 	using Callback = base::lambda_unique<void()>;
 
+	void step(uint64 ms) {
+		if (_data) {
+			_data->a_animation.step(ms);
+			if (_data && !_data->a_animation.animating()) {
+				_data.reset();
+			}
+		}
+	}
+
 	bool animating() const {
 		if (_data) {
 			if (_data->a_animation.animating()) {
@@ -494,11 +503,8 @@ public:
 		return false;
 	}
 	bool animating(uint64 ms) {
-		if (animating()) {
-			_data->a_animation.step(ms);
-			return animating();
-		}
-		return false;
+		step(ms);
+		return animating();
 	}
 
 	ValueType current() const {

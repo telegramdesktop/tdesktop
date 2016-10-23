@@ -29,7 +29,7 @@ public:
 	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda_wrap<void()> updateCallback, PaintRoundImage paintRoundImage);
 
-	void paint(Painter &p, int x, int y, int outerWidth);
+	void paint(Painter &p, uint64 ms, int x, int y, int outerWidth);
 	float64 checkedAnimationRatio() const;
 
 	bool checked() const {
