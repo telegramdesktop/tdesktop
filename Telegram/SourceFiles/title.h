@@ -42,6 +42,7 @@ public:
 	void maximizedChanged(bool maximized, bool force = false);
 
 	HitTestType hitTest(const QPoint &p);
+	QRect iconRect() const;
 
 	void setHideLevel(float64 level);
 

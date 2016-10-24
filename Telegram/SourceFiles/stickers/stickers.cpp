@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "stickers.h"
 
-#include "boxes/stickersetbox.h"
+#include "boxes/stickers_box.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "apiwrap.h"

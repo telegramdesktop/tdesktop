@@ -134,7 +134,7 @@ void MonoIcon::ensureLoaded() const {
 		if (size > sizeTag.size() && !memcmp(data, sizeTag.data(), sizeTag.size())) {
 			size -= sizeTag.size();
 			data += sizeTag.size();
-			QByteArray baForStream(reinterpret_cast<const char*>(data), size);
+			auto baForStream = QByteArray::fromRawData(reinterpret_cast<const char*>(data), size);
 			QBuffer buffer(&baForStream);
 			buffer.open(QIODevice::ReadOnly);
 
@@ -207,7 +207,7 @@ int Icon::width() const {
 int Icon::height() const {
 	if (_height < 0) {
 		_height = 0;
-		for_const (const auto &part, _parts) {
+		for_const (auto &part, _parts) {
 			accumulate_max(_height, part.offset().x() + part.height());
 		}
 	}

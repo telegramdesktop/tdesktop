@@ -27,11 +27,41 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/chat_background.h"
 #include "styles/style_overview.h"
 
-BackgroundInner::BackgroundInner() :
-_bgCount(0), _rows(0), _over(-1), _overDown(-1) {
+BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
+, _inner(this) {
+	init(_inner);
+
+	connect(_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
+
+	prepare();
+}
+
+void BackgroundBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	paintTitle(p, lang(lng_backgrounds_header));
+}
+
+void BackgroundBox::onBackgroundChosen(int index) {
+	if (index >= 0 && index < App::cServerBackgrounds().size()) {
+		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
+		if (App::main()) App::main()->setChatBackground(paper);
+
+		using Update = Window::ChatBackgroundUpdate;
+		Window::chatBackground()->notify(Update(Update::Type::Start, !paper.id));
+	}
+	onClose();
+}
+
+BackgroundBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
+, _bgCount(0)
+, _rows(0)
+, _over(-1)
+, _overDown(-1) {
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
-		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&BackgroundInner::gotWallpapers));
+		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&Inner::gotWallpapers));
 	} else {
 		updateWallpapers();
 	}
@@ -40,7 +70,7 @@ _bgCount(0), _rows(0), _over(-1), _overDown(-1) {
 	setMouseTracking(true);
 }
 
-void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
+void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
 	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG0), ImagePtr(st::msgBG0)));
@@ -98,7 +128,7 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	updateWallpapers();
 }
 
-void BackgroundInner::updateWallpapers() {
+void BackgroundBox::Inner::updateWallpapers() {
 	_bgCount = App::cServerBackgrounds().size();
 	_rows = _bgCount / BackgroundsInRow;
 	if (_bgCount % BackgroundsInRow) ++_rows;
@@ -111,7 +141,7 @@ void BackgroundInner::updateWallpapers() {
 	}
 }
 
-void BackgroundInner::paintEvent(QPaintEvent *e) {
+void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
@@ -145,7 +175,7 @@ void BackgroundInner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void BackgroundInner::mouseMoveEvent(QMouseEvent *e) {
+void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	int x = e->pos().x(), y = e->pos().y();
 	int row = int((y - st::backgroundPadding) / (st::backgroundSize.height() + st::backgroundPadding));
 	if (y - row * (st::backgroundSize.height() + st::backgroundPadding) > st::backgroundPadding + st::backgroundSize.height()) row = _rows + 1;
@@ -161,11 +191,11 @@ void BackgroundInner::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void BackgroundInner::mousePressEvent(QMouseEvent *e) {
+void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 	_overDown = _over;
 }
 
-void BackgroundInner::mouseReleaseEvent(QMouseEvent *e) {
+void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_overDown == _over && _over >= 0) {
 		emit backgroundChosen(_over);
 	} else if (_over < 0) {
@@ -173,33 +203,5 @@ void BackgroundInner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void BackgroundInner::resizeEvent(QResizeEvent *e) {
-}
-
-BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
-, _inner() {
-
-	init(&_inner);
-
-	connect(&_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
-
-	prepare();
-}
-
-void BackgroundBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_backgrounds_header));
-}
-
-void BackgroundBox::onBackgroundChosen(int index) {
-	if (index >= 0 && index < App::cServerBackgrounds().size()) {
-		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
-		if (App::main()) App::main()->setChatBackground(paper);
-
-		using Update = Window::ChatBackgroundUpdate;
-		Window::chatBackground()->notify(Update(Update::Type::Start, !paper.id));
-	}
-	onClose();
+void BackgroundBox::Inner::resizeEvent(QResizeEvent *e) {
 }

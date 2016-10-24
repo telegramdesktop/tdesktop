@@ -24,19 +24,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/lambda_wrap.h"
 #include "core/observer.h"
 #include "core/vector_of_moveable.h"
+#include "ui/effects/round_image_checkbox.h"
 
 namespace Dialogs {
 class Row;
 class IndexedList;
 } // namespace Dialogs
 
-namespace internal {
-class ShareInner;
-} // namespace internal
-
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
+
+namespace Ui {
+class MultiSelect;
+} // namespace Ui
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
 void shareGameScoreByHash(const QString &hash);
@@ -51,8 +52,6 @@ public:
 	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
 
 private slots:
-	void onFilterUpdate();
-	void onFilterCancel();
 	void onScroll();
 
 	bool onSearchByUsername(bool searchCache = false);
@@ -60,7 +59,6 @@ private slots:
 
 	void onSubmit();
 	void onCopyLink();
-	void onSelectedChanged();
 
 	void onMustScrollTo(int top, int bottom);
 
@@ -72,8 +70,15 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void onFilterUpdate(const QString &query);
+	void onSelectedChanged();
 	void moveButtons();
 	void updateButtonsVisibility();
+	int getTopScrollSkip() const;
+	void updateScrollSkips();
+
+	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
+	void onPeerSelectedChanged(PeerData *peer, bool checked);
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
@@ -81,9 +86,9 @@ private:
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;
 
-	ChildWidget<internal::ShareInner> _inner;
-	ChildWidget<InputField> _filter;
-	ChildWidget<IconedButton> _filterCancel;
+	class Inner;
+	ChildWidget<Inner> _inner;
+	ChildWidget<Ui::MultiSelect> _select;
 
 	ChildWidget<BoxButton> _copy;
 	ChildWidget<BoxButton> _share;
@@ -107,13 +112,15 @@ private:
 
 };
 
-namespace internal {
-
-class ShareInner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+// This class is hold in header because it requires Qt preprocessing.
+class ShareBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	ShareInner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
+	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
+
+	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void peerUnselected(PeerData *peer);
 
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
@@ -126,16 +133,14 @@ public:
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void updateFilter(QString filter = QString());
 
-	~ShareInner();
+	~Inner();
 
 public slots:
 	void onSelectActive();
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
-	void filterCancel();
 	void searchByUsername();
-	void selectedChanged();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -151,36 +156,29 @@ private:
 
 	int displayedChatsCount() const;
 
-	static constexpr int WideCacheScale = 4;
 	struct Chat {
-		Chat(PeerData *peer);
+		Chat(PeerData *peer, base::lambda_wrap<void()> updateCallback);
+
 		PeerData *peer;
+		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		bool selected = false;
-		QPixmap wideUserpicCache;
 		ColorAnimation nameFg;
-		FloatAnimation selection;
-		struct Icon {
-			FloatAnimation fadeIn;
-			FloatAnimation fadeOut;
-			QPixmap wideCheckCache;
-		};
-		std_::vector_of_moveable<Icon> icons;
 	};
-	void paintChat(Painter &p, Chat *chat, int index);
+	void paintChat(Painter &p, uint64 ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);
 	void updateChatName(Chat *chat, PeerData *peer);
 	void repaintChat(PeerData *peer);
-	void removeFadeOutedIcons(Chat *chat);
-	void prepareWideUserpicCache(Chat *chat);
-	void prepareWideCheckIconCache(Chat::Icon *icon);
-	void prepareWideCheckIcons();
 	int chatIndex(PeerData *peer) const;
 	void repaintChatAtIndex(int index);
 	Chat *getChatAtIndex(int index);
 
 	void loadProfilePhotos(int yFrom);
 	void changeCheckState(Chat *chat);
+	enum class ChangeStateWay {
+		Default,
+		SkipCallback,
+	};
+	void changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback = ChangeStateWay::Default);
 
 	Chat *getChat(Dialogs::Row *row);
 	void setActive(int active);
@@ -204,12 +202,12 @@ private:
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;
 
-	QPixmap _wideCheckCache, _wideCheckIconCache;
-
 	using DataMap = QMap<PeerData*, Chat*>;
 	DataMap _dataMap;
 	using SelectedChats = OrderedSet<PeerData*>;
 	SelectedChats _selected;
+
+	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	ChatData *data(Dialogs::Row *row);
 
@@ -221,5 +219,3 @@ private:
 	ByUsernameDatas d_byUsernameFiltered;
 
 };
-
-} // namespace internal

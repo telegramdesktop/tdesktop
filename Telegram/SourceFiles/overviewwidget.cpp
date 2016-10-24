@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_service_layout.h"
 #include "media/media_audio.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -778,8 +779,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	Overview::Layout::PaintContext context(ms, _selMode);
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
-		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, Window::chatBackground()->dog());
+		HistoryLayout::paintEmpty(p, _width, height());
 		return;
 	} else if (_inSearch && _searchResults.isEmpty() && _searchFull && (!_migrated || _searchFullMigrated) && !_searchTimer.isActive()) {
 		p.setFont(st::noContactsFont->f);

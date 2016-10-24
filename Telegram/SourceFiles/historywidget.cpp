@@ -376,8 +376,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			textstyleRestore();
 		}
 	} else if (noHistoryDisplayed) {
-		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, Window::chatBackground()->dog());
+		HistoryLayout::paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
 		adjustCurrent(r.top());
@@ -8776,8 +8775,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (_scroll.isHidden()) {
 			p.setClipRect(_scroll.geometry());
-			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
-			p.drawPixmap(dogPos, Window::chatBackground()->dog());
+			HistoryLayout::paintEmpty(p, width(), height() - _field.height() - 2 * st::sendPadding);
 		}
 	} else {
 		style::font font(st::msgServiceFont);

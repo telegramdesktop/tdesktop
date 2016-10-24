@@ -109,8 +109,8 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, _boxTitle);
 
 	if (_retry.isHidden()) {
-		p.drawSpriteLeft(st::boxPadding.left(), _first.y() + st::contactIconTop, width(), st::contactUserIcon);
-		p.drawSpriteLeft(st::boxPadding.left(), _phone.y() + st::contactIconTop, width(), st::contactPhoneIcon);
+		st::contactUserIcon.paint(p, st::boxPadding.left(), _first.y() + st::contactIconTop, width());
+		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone.y() + st::contactIconTop, width());
 	} else {
 		p.setPen(st::black->p);
 		p.setFont(st::boxTextFont->f);

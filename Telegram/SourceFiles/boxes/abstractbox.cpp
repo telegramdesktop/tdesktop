@@ -26,16 +26,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "styles/style_boxes.h"
 
 void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(e->rect());
-	p.drawPixmap(QRect(r.left(), 0, r.width(), height()), App::sprite(), st::boxBlueShadow.rect());
+	st::boxBlueTitleShadow.fill(p, QRect(r.left(), 0, r.width(), height()));
 }
 
 BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)
-, a_iconFg(st::boxBlueCloseBg->c)
+, a_iconFg(st::boxBlueCloseFg->c)
 , _a_over(animation(this, &BlueTitleClose::step_over)) {
 	resize(st::boxTitleHeight, st::boxTitleHeight);
 	setCursor(style::cur_pointer);
@@ -44,7 +45,7 @@ BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)
 
 void BlueTitleClose::onStateChange(int oldState, ButtonStateChangeSource source) {
 	if ((oldState & StateOver) != (_state & StateOver)) {
-		a_iconFg.start(((_state & StateOver) ? st::white : st::boxBlueCloseBg)->c);
+		a_iconFg.start(((_state & StateOver) ? st::boxBlueCloseOverFg : st::boxBlueCloseFg)->c);
 		_a_over.start();
 	}
 }
@@ -57,28 +58,23 @@ void BlueTitleClose::step_over(float64 ms, bool timer) {
 	} else {
 		a_iconFg.update(dt, anim::linear);
 	}
-	if (timer) update((st::boxTitleHeight - st::boxBlueCloseIcon.pxWidth()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.pxHeight()) / 2, st::boxBlueCloseIcon.pxWidth(), st::boxBlueCloseIcon.pxHeight());
+	if (timer) update((st::boxTitleHeight - st::boxBlueCloseIcon.width()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.height()) / 2, st::boxBlueCloseIcon.width(), st::boxBlueCloseIcon.height());
 }
 
 void BlueTitleClose::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	QRect r(e->rect()), s((st::boxTitleHeight - st::boxBlueCloseIcon.pxWidth()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.pxHeight()) / 2, st::boxBlueCloseIcon.pxWidth(), st::boxBlueCloseIcon.pxHeight());
+	QRect r(e->rect()), s((st::boxTitleHeight - st::boxBlueCloseIcon.width()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.height()) / 2, st::boxBlueCloseIcon.width(), st::boxBlueCloseIcon.height());
 	if (!s.contains(r)) {
-		p.fillRect(r, st::boxBlueTitleBg->b);
+		p.fillRect(r, st::boxBlueTitleBg);
 	}
 	if (s.intersects(r)) {
 		p.fillRect(s.intersected(r), a_iconFg.current());
-		p.drawSprite(s.topLeft(), st::boxBlueCloseIcon);
+		st::boxBlueCloseIcon.paint(p, s.topLeft(), width());
 	}
 }
 
-AbstractBox::AbstractBox(int32 w) : LayerWidget()
-, _maxHeight(0)
-, _closed(false)
-, _blueTitle(false)
-, _blueClose(0)
-, _blueShadow(0) {
+AbstractBox::AbstractBox(int w) : LayerWidget() {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(w, 0);
 }
@@ -101,7 +97,7 @@ void AbstractBox::resizeEvent(QResizeEvent *e) {
 	}
 	if (_blueShadow) {
 		_blueShadow->moveToLeft(0, st::boxTitleHeight);
-		_blueShadow->resize(width(), st::boxBlueShadow.pxHeight());
+		_blueShadow->resize(width(), st::boxBlueTitleShadow.height());
 	}
 	LayerWidget::resizeEvent(e);
 }
@@ -165,8 +161,8 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 	}
 }
 
-int32 AbstractBox::countHeight() const {
-	return qMin(_maxHeight, App::wnd()->height() - int32(2 * st::boxVerticalMargin));
+int AbstractBox::countHeight() const {
+	return qMin(_maxHeight, App::wnd()->height() - 2 * st::boxVerticalMargin);
 }
 
 void AbstractBox::onClose() {
@@ -201,24 +197,28 @@ ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : Abstrac
 }
 
 void ScrollableBox::resizeEvent(QResizeEvent *e) {
-	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
+	updateScrollGeometry();
 	AbstractBox::resizeEvent(e);
 }
 
-void ScrollableBox::init(QWidget *inner, int bottomSkip, int topSkip) {
-	_bottomSkip = bottomSkip;
-	_topSkip = topSkip;
-	_scroll->setWidget(inner);
-	_scroll->setFocusPolicy(Qt::NoFocus);
-	ScrollableBox::resizeEvent(nullptr);
-}
-
-void ScrollableBox::initOwned(QWidget *inner, int bottomSkip, int topSkip) {
+void ScrollableBox::init(ScrolledWidget *inner, int bottomSkip, int topSkip) {
 	_bottomSkip = bottomSkip;
 	_topSkip = topSkip;
 	_scroll->setOwnedWidget(inner);
 	_scroll->setFocusPolicy(Qt::NoFocus);
-	ScrollableBox::resizeEvent(nullptr);
+	updateScrollGeometry();
+}
+
+void ScrollableBox::setScrollSkips(int bottomSkip, int topSkip) {
+	if (_topSkip != topSkip || _bottomSkip != bottomSkip) {
+		_topSkip = topSkip;
+		_bottomSkip = bottomSkip;
+		updateScrollGeometry();
+	}
+}
+
+void ScrollableBox::updateScrollGeometry() {
+	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
 }
 
 ItemListBox::ItemListBox(const style::flatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {

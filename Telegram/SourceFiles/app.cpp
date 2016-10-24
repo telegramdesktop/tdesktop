@@ -2819,41 +2819,7 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		QImage dog = App::sprite().toImage().copy(st::msgDogImg.rect());
-		QImage::Format f = dog.format();
-		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
-			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-		}
-		uchar *dogBits = dog.bits();
-		if (max != min) {
-			float64 coef = float64(mid - min) / float64(max - min);
-			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-				int dogmaxtomin[3] = { i, i + 1, i + 2 };
-				if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
-					qSwap(dogmaxtomin[0], dogmaxtomin[1]);
-				}
-				if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
-					qSwap(dogmaxtomin[1], dogmaxtomin[2]);
-					if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
-						qSwap(dogmaxtomin[0], dogmaxtomin[1]);
-					}
-				}
-				uchar result[3];
-				result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
-				result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
-				result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
-				dogBits[i] = result[2];
-				dogBits[i + 1] = result[1];
-				dogBits[i + 2] = result[0];
-			}
-		} else {
-			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
-				uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
-				dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
-			}
-		}
-
-		Window::chatBackground()->init(id, pixmapFromImageInPlace(std_::move(img)), pixmapFromImageInPlace(std_::move(dog)));
+		Window::chatBackground()->init(id, pixmapFromImageInPlace(std_::move(img)));
 
 		memcpy(componentsScroll, components, sizeof(components));
 		memcpy(componentsPoint, components, sizeof(components));

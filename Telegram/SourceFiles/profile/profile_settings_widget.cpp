@@ -164,9 +164,9 @@ void SettingsWidget::onNotificationsChange() {
 
 void SettingsWidget::onManageAdmins() {
 	if (auto chat = peer()->asChat()) {
-		Ui::showLayer(new ContactsBox(chat, MembersFilterAdmins));
+		Ui::showLayer(new ContactsBox(chat, MembersFilter::Admins));
 	} else if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilterAdmins));
+		Ui::showLayer(new MembersBox(channel, MembersFilter::Admins));
 	}
 }
 

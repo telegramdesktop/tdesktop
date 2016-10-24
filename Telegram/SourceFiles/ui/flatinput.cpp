@@ -184,8 +184,8 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-	if (_st.imgRect.pxWidth()) {
-		p.drawSprite(_st.imgPos, _st.imgRect);
+	if (!_st.icon.empty()) {
+		_st.icon.paint(p, 0, 0, width());
 	}
 
 	bool phDraw = _phVisible;
@@ -683,10 +683,10 @@ void InputArea::checkContentHeight() {
 	}
 }
 
-InputArea::InputAreaInner::InputAreaInner(InputArea *parent) : QTextEdit(parent) {
+InputArea::Inner::Inner(InputArea *parent) : QTextEdit(parent) {
 }
 
-bool InputArea::InputAreaInner::viewportEvent(QEvent *e) {
+bool InputArea::Inner::viewportEvent(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
@@ -790,7 +790,7 @@ void InputArea::contextMenuEvent(QContextMenuEvent *e) {
 	_inner.contextMenuEvent(e);
 }
 
-void InputArea::InputAreaInner::focusInEvent(QFocusEvent *e) {
+void InputArea::Inner::focusInEvent(QFocusEvent *e) {
 	f()->focusInInner();
 	QTextEdit::focusInEvent(e);
 	emit f()->focused();
@@ -807,7 +807,7 @@ void InputArea::focusInInner() {
 	}
 }
 
-void InputArea::InputAreaInner::focusOutEvent(QFocusEvent *e) {
+void InputArea::Inner::focusOutEvent(QFocusEvent *e) {
 	f()->focusOutInner();
 	QTextEdit::focusOutEvent(e);
 	emit f()->blurred();
@@ -943,7 +943,7 @@ void InputArea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.insertText(objectReplacement, imageFormat);
 }
 
-QVariant InputArea::InputAreaInner::loadResource(int type, const QUrl &name) {
+QVariant InputArea::Inner::loadResource(int type, const QUrl &name) {
 	QString imageName = name.toDisplayString();
 	if (imageName.startsWith(qstr("emoji://e."))) {
 		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
@@ -1193,7 +1193,7 @@ void InputArea::updatePlaceholder() {
 	}
 }
 
-QMimeData *InputArea::InputAreaInner::createMimeDataFromSelection() const {
+QMimeData *InputArea::Inner::createMimeDataFromSelection() const {
 	QMimeData *result = new QMimeData();
 	QTextCursor c(textCursor());
 	int32 start = c.selectionStart(), end = c.selectionEnd();
@@ -1211,7 +1211,7 @@ void InputArea::setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit) {
 	_ctrlEnterSubmit = ctrlEnterSubmit;
 }
 
-void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
+void InputArea::Inner::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
@@ -1276,11 +1276,11 @@ void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void InputArea::InputAreaInner::paintEvent(QPaintEvent *e) {
+void InputArea::Inner::paintEvent(QPaintEvent *e) {
 	return QTextEdit::paintEvent(e);
 }
 
-void InputArea::InputAreaInner::contextMenuEvent(QContextMenuEvent *e) {
+void InputArea::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (QMenu *menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
@@ -1338,7 +1338,9 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 
 	_inner.setWordWrapMode(QTextOption::NoWrap);
 
-	setAttribute(Qt::WA_OpaquePaintEvent);
+	if (_st.textBg->c.alphaF() >= 1.) {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+	}
 
 	_inner.setFont(_st.font->f);
 	_inner.setAlignment(_st.textAlign);
@@ -1380,10 +1382,10 @@ void InputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-InputField::InputFieldInner::InputFieldInner(InputField *parent) : QTextEdit(parent) {
+InputField::Inner::Inner(InputField *parent) : QTextEdit(parent) {
 }
 
-bool InputField::InputFieldInner::viewportEvent(QEvent *e) {
+bool InputField::Inner::viewportEvent(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
@@ -1436,8 +1438,18 @@ void InputField::touchEvent(QTouchEvent *e) {
 void InputField::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	if (_a_placeholderShift.animating()) {
+		_a_placeholderShift.step(ms);
+	}
+	if (_a_placeholderFg.animating()) {
+		_a_placeholderFg.step(ms);
+	}
+
 	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, st::white->b);
+	if (_st.textBg->c.alphaF() > 0.) {
+		p.fillRect(r, _st.textBg);
+	}
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}
@@ -1445,9 +1457,6 @@ void InputField::paintEvent(QPaintEvent *e) {
 		p.setOpacity(a_borderOpacityActive.current());
 		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, a_borderFg.current());
 		p.setOpacity(1);
-	}
-	if (_st.iconSprite.pxWidth()) {
-		p.drawSpriteLeft(_st.iconPosition, width(), _st.iconSprite);
 	}
 
 	bool drawPlaceholder = _placeholderVisible;
@@ -1490,7 +1499,7 @@ void InputField::contextMenuEvent(QContextMenuEvent *e) {
 	_inner.contextMenuEvent(e);
 }
 
-void InputField::InputFieldInner::focusInEvent(QFocusEvent *e) {
+void InputField::Inner::focusInEvent(QFocusEvent *e) {
 	f()->focusInInner();
 	QTextEdit::focusInEvent(e);
 	emit f()->focused();
@@ -1507,7 +1516,7 @@ void InputField::focusInInner() {
 	}
 }
 
-void InputField::InputFieldInner::focusOutEvent(QFocusEvent *e) {
+void InputField::Inner::focusOutEvent(QFocusEvent *e) {
 	f()->focusOutInner();
 	QTextEdit::focusOutEvent(e);
 	emit f()->blurred();
@@ -1643,7 +1652,7 @@ void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.insertText(objectReplacement, imageFormat);
 }
 
-QVariant InputField::InputFieldInner::loadResource(int type, const QUrl &name) {
+QVariant InputField::Inner::loadResource(int type, const QUrl &name) {
 	QString imageName = name.toDisplayString();
 	if (imageName.startsWith(qstr("emoji://e."))) {
 		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
@@ -1889,14 +1898,19 @@ void InputField::step_placeholderFg(float64 ms, bool timer) {
 void InputField::step_placeholderShift(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		_a_placeholderShift.stop();
-		a_placeholderLeft.finish();
-		a_placeholderOpacity.finish();
+		finishPlaceholderAnimation();
 	} else {
 		a_placeholderLeft.update(dt, anim::linear);
 		a_placeholderOpacity.update(dt, anim::linear);
 	}
 	if (timer) update();
+}
+
+void InputField::finishPlaceholderAnimation() {
+	_a_placeholderShift.stop();
+	a_placeholderLeft.finish();
+	a_placeholderOpacity.finish();
+	update();
 }
 
 void InputField::step_border(float64 ms, bool timer) {
@@ -1928,7 +1942,7 @@ void InputField::setPlaceholderHidden(bool forcePlaceholderHidden) {
 	updatePlaceholder();
 }
 
-QMimeData *InputField::InputFieldInner::createMimeDataFromSelection() const {
+QMimeData *InputField::Inner::createMimeDataFromSelection() const {
 	QMimeData *result = new QMimeData();
 	QTextCursor c(textCursor());
 	int32 start = c.selectionStart(), end = c.selectionEnd();
@@ -1942,7 +1956,7 @@ void InputField::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
-void InputField::InputFieldInner::keyPressEvent(QKeyEvent *e) {
+void InputField::Inner::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = true;
@@ -1979,36 +1993,41 @@ void InputField::InputFieldInner::keyPressEvent(QKeyEvent *e) {
 		}
 #endif // Q_OS_MAC
 	} else {
-		QTextCursor tc(textCursor());
+		auto oldCursorPosition = textCursor().position();
 		if (enter && ctrl) {
 			e->setModifiers(e->modifiers() & ~Qt::ControlModifier);
 		}
 		QTextEdit::keyPressEvent(e);
-		if (tc == textCursor()) {
+		auto currentCursor = textCursor();
+		if (textCursor().position() == oldCursorPosition) {
 			bool check = false;
 			if (e->key() == Qt::Key_PageUp || e->key() == Qt::Key_Up) {
-				tc.movePosition(QTextCursor::Start, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+				oldCursorPosition = currentCursor.position();
+				currentCursor.movePosition(QTextCursor::Start, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
 				check = true;
 			} else if (e->key() == Qt::Key_PageDown || e->key() == Qt::Key_Down) {
-				tc.movePosition(QTextCursor::End, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+				oldCursorPosition = currentCursor.position();
+				currentCursor.movePosition(QTextCursor::End, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
 				check = true;
+			} else if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Right || e->key() == Qt::Key_Backspace) {
+				e->ignore();
 			}
 			if (check) {
-				if (tc == textCursor()) {
+				if (oldCursorPosition == currentCursor.position()) {
 					e->ignore();
 				} else {
-					setTextCursor(tc);
+					setTextCursor(currentCursor);
 				}
 			}
 		}
 	}
 }
 
-void InputField::InputFieldInner::paintEvent(QPaintEvent *e) {
+void InputField::Inner::paintEvent(QPaintEvent *e) {
 	return QTextEdit::paintEvent(e);
 }
 
-void InputField::InputFieldInner::contextMenuEvent(QContextMenuEvent *e) {
+void InputField::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (QMenu *menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
@@ -2166,9 +2185,6 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 		p.setOpacity(a_borderOpacityActive.current());
 		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, a_borderFg.current());
 		p.setOpacity(1);
-	}
-	if (_st.iconSprite.pxWidth()) {
-		p.drawSpriteLeft(_st.iconPosition, width(), _st.iconSprite);
 	}
 
 	p.setClipRect(r);

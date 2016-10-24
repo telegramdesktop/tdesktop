@@ -30,6 +30,10 @@ QString findValidCode(QString fullCode);
 
 class CountrySelect;
 
+namespace Ui {
+class MultiSelect;
+} // namespace Ui
+
 class CountryInput : public QWidget {
 	Q_OBJECT
 
@@ -63,11 +67,47 @@ private:
 
 };
 
-class CountrySelectInner : public TWidget {
+namespace internal {
+class CountrySelectInner;
+} // namespace internal
+
+class CountrySelectBox : public ItemListBox {
 	Q_OBJECT
 
 public:
-	CountrySelectInner();
+	CountrySelectBox();
+
+signals:
+	void countryChosen(const QString &iso);
+
+public slots:
+	void onSubmit();
+
+protected:
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void doSetInnerFocus() override;
+	void showAll() override;
+
+private:
+	void onFilterUpdate(const QString &query);
+
+	class Inner;
+	ChildWidget<Inner> _inner;
+	ChildWidget<Ui::MultiSelect> _select;
+
+	ScrollableBoxShadow _topShadow;
+
+};
+
+// This class is hold in header because it requires Qt preprocessing.
+class CountrySelectBox::Inner : public ScrolledWidget {
+	Q_OBJECT
+
+public:
+	Inner(QWidget *parent);
 
 	void updateFilter(QString filter = QString());
 
@@ -102,36 +142,5 @@ private:
 	bool _mouseSel;
 
 	QPoint _lastMousePos;
-
-};
-
-class CountrySelectBox : public ItemListBox {
-	Q_OBJECT
-
-public:
-	CountrySelectBox();
-
-signals:
-	void countryChosen(const QString &iso);
-
-public slots:
-	void onFilterUpdate();
-	void onFilterCancel();
-	void onSubmit();
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
-	void showAll() override;
-
-private:
-	CountrySelectInner _inner;
-	InputField _filter;
-	IconedButton _filterCancel;
-
-	ScrollableBoxShadow _topShadow;
 
 };

@@ -48,6 +48,8 @@ private:
 
 };
 
+void paintEmpty(Painter &p, int width, int height);
+
 void serviceColorsUpdated();
 
 } // namespace HistoryLayout

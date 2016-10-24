@@ -60,7 +60,7 @@ struct lambda_wrap_helper_base {
 
 protected:
 	static void bad_construct_copy(void *lambda, const void *source) {
-		throw std::exception();
+		t_assert(!"base::lambda bad_construct_copy() called!");
 	}
 
 };
@@ -72,7 +72,8 @@ struct lambda_wrap_empty : public lambda_wrap_helper_base<Return, Args...> {
 	static void construct_move_other_method(void *lambda, void *source) {
 	}
 	static Return call_method(const void *lambda, Args... args) {
-		throw std::exception();
+		t_assert(!"base::lambda empty call_method() called!");
+		return Return();
 	}
 	static void destruct_method(const void *lambda) {
 	}
@@ -357,6 +358,10 @@ public:
 			other = std_::move(*this);
 			*this = std_::move(other);
 		}
+	}
+
+	lambda_wrap clone() const {
+		return *this;
 	}
 
 	template <typename Lambda, typename = IsOther<Lambda>>

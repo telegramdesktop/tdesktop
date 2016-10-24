@@ -130,8 +130,7 @@ flatInput {
 	font: font;
 	cursor: cursor;
 
-	imgRect: sprite;
-	imgPos: point;
+	icon: icon;
 
 	borderWidth: pixels;
 	borderColor: color;
@@ -394,6 +393,7 @@ InputArea {
 }
 
 InputField {
+	textBg: color;
 	textFg: color;
 	textMargins: margins;
 	textAlign: align;
@@ -418,9 +418,6 @@ InputField {
 
 	width: pixels;
 	height: pixels;
-
-	iconSprite: sprite;
-	iconPosition: point;
 }
 
 PeerAvatarButton {

@@ -103,7 +103,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 		}
 	});
 
-	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush.rect()));
+	generateTransparentBrush();
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
 	moveToScreen();
@@ -2626,6 +2626,19 @@ void MediaView::loadBack() {
 		int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 		_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_long(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
 	}
+}
+
+void MediaView::generateTransparentBrush() {
+	auto size = st::mediaviewTransparentSize * cIntRetinaFactor();
+	auto transparent = QImage(2 * size, 2 * size, QImage::Format_ARGB32_Premultiplied);
+	transparent.fill(st::mediaviewTransparentBg->c);
+	{
+		Painter p(&transparent);
+		p.fillRect(rtlrect(0, size, size, size, 2 * size), st::mediaviewTransparentFg);
+		p.fillRect(rtlrect(size, 0, size, size, 2 * size), st::mediaviewTransparentFg);
+	}
+	transparent.setDevicePixelRatio(cRetinaFactor());
+	_transparentBrush = QBrush(transparent);
 }
 
 MediaView::LastChatPhoto MediaView::computeLastOverviewChatPhoto() {

@@ -243,7 +243,7 @@ structure::Variable ParsedFile::readVariable(const QString &name) {
 	structure::Variable result = { composeFullName(name) };
 	if (auto value = readValue()) {
 		result.value = value;
-		if (value.type().tag != structure::TypeTag::Struct) {
+		if (value.type().tag != structure::TypeTag::Struct || !value.copyOf().empty()) {
 			assertNextToken(BasicType::Semicolon);
 		}
 	}

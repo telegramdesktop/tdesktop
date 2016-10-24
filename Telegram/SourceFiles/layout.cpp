@@ -230,11 +230,6 @@ style::color documentSelectedColor(int32 colorIndex) {
 	return colors[colorIndex & 3];
 }
 
-style::sprite documentCorner(int32 colorIndex) {
-	static style::sprite corners[] = { st::msgFileBlue, st::msgFileGreen, st::msgFileRed, st::msgFileYellow };
-	return corners[colorIndex & 3];
-}
-
 RoundCorners documentCorners(int32 colorIndex) {
 	return RoundCorners(DocBlueCorners + (colorIndex & 3));
 }

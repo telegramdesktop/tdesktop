@@ -262,10 +262,9 @@ private:
 	bool heightAutoupdated();
 	void checkContentHeight();
 
-	friend class InputAreaInner;
-	class InputAreaInner : public QTextEdit {
+	class Inner : public QTextEdit {
 	public:
-		InputAreaInner(InputArea *parent);
+		Inner(InputArea *parent);
 
 		QVariant loadResource(int type, const QUrl &name) override;
 
@@ -286,6 +285,7 @@ private:
 		friend class InputArea;
 
 	};
+	friend class Inner;
 
 	void focusInInner();
 	void focusOutInner();
@@ -294,7 +294,7 @@ private:
 
 	void startBorderAnimation();
 
-	InputAreaInner _inner;
+	Inner _inner;
 
 	QString _oldtext;
 
@@ -343,6 +343,7 @@ public:
 	}
 	void updatePlaceholder();
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
+	void finishPlaceholderAnimation();
 
 	void step_placeholderFg(float64 ms, bool timer);
 	void step_placeholderShift(float64 ms, bool timer);
@@ -431,10 +432,9 @@ private:
 	int32 _maxLength;
 	bool _forcePlaceholderHidden = false;
 
-	friend class InputFieldInner;
-	class InputFieldInner : public QTextEdit {
+	class Inner : public QTextEdit {
 	public:
-		InputFieldInner(InputField *parent);
+		Inner(InputField *parent);
 
 		QVariant loadResource(int type, const QUrl &name) override;
 
@@ -455,6 +455,7 @@ private:
 		friend class InputField;
 
 	};
+	friend class Inner;
 
 	void focusInInner();
 	void focusOutInner();
@@ -463,7 +464,7 @@ private:
 
 	void startBorderAnimation();
 
-	InputFieldInner _inner;
+	Inner _inner;
 
 	QString _oldtext;
 

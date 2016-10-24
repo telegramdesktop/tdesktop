@@ -102,6 +102,22 @@ namespace anim {
     float64 easeInQuint(const float64 &delta, const float64 &dt);
     float64 easeOutQuint(const float64 &delta, const float64 &dt);
 
+	template <int BumpRatioNumerator, int BumpRatioDenominator>
+	float64 bumpy(const float64 &delta, const float64 &dt) {
+		struct Bumpy {
+			Bumpy()
+				: bump(BumpRatioNumerator / float64(BumpRatioDenominator))
+				, dt0(bump - sqrt(bump * (bump - 1.)))
+				, k(1 / (2 * dt0 - 1)) {
+			}
+			float64 bump;
+			float64 dt0;
+			float64 k;
+		};
+		static Bumpy data;
+		return delta * (data.bump - data.k * (dt - data.dt0) * (dt - data.dt0));
+	}
+
 	class fvalue { // float animated value
 	public:
 		using ValueType = float64;
@@ -468,6 +484,15 @@ public:
 	using ValueType = typename AnimType::ValueType;
 	using Callback = base::lambda_unique<void()>;
 
+	void step(uint64 ms) {
+		if (_data) {
+			_data->a_animation.step(ms);
+			if (_data && !_data->a_animation.animating()) {
+				_data.reset();
+			}
+		}
+	}
+
 	bool animating() const {
 		if (_data) {
 			if (_data->a_animation.animating()) {
@@ -478,11 +503,8 @@ public:
 		return false;
 	}
 	bool animating(uint64 ms) {
-		if (animating()) {
-			_data->a_animation.step(ms);
-			return animating();
-		}
-		return false;
+		step(ms);
+		return animating();
 	}
 
 	ValueType current() const {
@@ -499,7 +521,7 @@ public:
 	template <typename Lambda>
 	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, anim::transition transition = anim::linear) {
 		if (!_data) {
-			_data = std_::make_unique<Data>(from, std_::move(updateCallback));
+			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
 		}
 		_data->value.start(to);
 		_data->duration = duration;
@@ -517,10 +539,16 @@ public:
 
 private:
 	struct Data {
-		Data(const ValueType &from, Callback &&updateCallback)
+		template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
+		Data(const ValueType &from, Lambda &&updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(std_::move(updateCallback)) {
+		}
+		Data(const ValueType &from, const base::lambda_wrap<void()> &updateCallback)
+			: value(from, from)
+			, a_animation(animation(this, &Data::step))
+			, updateCallback(base::lambda_wrap<void()>(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
 			auto dt = (ms >= duration) ? 1. : (ms / duration);

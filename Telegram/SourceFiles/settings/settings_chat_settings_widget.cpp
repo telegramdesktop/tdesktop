@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "boxes/emojibox.h"
-#include "boxes/stickersetbox.h"
+#include "boxes/stickers_box.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/connectionbox.h"
 #include "boxes/confirmbox.h"
