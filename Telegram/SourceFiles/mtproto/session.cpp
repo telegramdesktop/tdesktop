@@ -213,7 +213,7 @@ void Session::needToResumeAndSend() {
 			return;
 		}
 		createDcData();
-		start();
+		_connection->start();
 	}
 	if (_ping) {
 		_ping = false;

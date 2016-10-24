@@ -92,7 +92,7 @@ echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
 echo Dumping debug symbols..
-xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe"
+xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
 call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
 del "%ReleasePath%\%BinaryName%.exe.exe"
 echo Done!
