@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Neues Audio-Player Design\n\nWindows and Linux:\n— Schnellantwortfunktion direkt aus Benachrichtigungen\n— \"Alle Benachrichtigungen verstecken\"-Knopf hinzugefügt\n— Position und Anzahl der Benachrichtigungen einstellbar\n\nWindows 10:\n— Ruhezeiten der Benachrichtigungen werden beachtet\n\nLinux:\n— Native Linux-Benachrichtigungen in den Telegram Einstellungen aktivierbar";
+"lng_new_version_text" = "— \"Mitglieder deinen Gruppen hinzufügen\"-Menü in neuer Optik\n— Fehlerbehebungen und Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

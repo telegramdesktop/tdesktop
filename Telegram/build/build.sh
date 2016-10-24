@@ -278,12 +278,18 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     if [ "$BetaVersion" == "0" ]; then
       cd "$ReleasePath"
-      cp -f tsetup_blank.dmg tsetup.dmg
-      temppath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
-      cp -R "./$BinaryName.app" "$temppath/"
-      bless --folder "$temppath/" --openfolder "$temppath/"
-      hdiutil detach "$temppath"
+      cp -f tsetup_blank.dmg tsetup.temp.dmg
+      TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
+      cp -R "./$BinaryName.app" "$TempDiskPath/"
+      bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
+      hdiutil create tsetup.dmg -srcfolder "$TempDiskPath/" -volname "Telegram Desktop" -format UDRW -ov
+      FinalDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
+      cp -R "$TempDiskPath/.DS_Store" "$FinalDiskPath/.DS_Store"
+      hdiutil detach "$TempDiskPath"
+      hdiutil detach "$FinalDiskPath"
       hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
+      rm tsetup.temp.dmg
+      rm tsetup.dmg
     fi
     cd "$ReleasePath"
     "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam

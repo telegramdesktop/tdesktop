@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 새로운 오디오 플레이어 디자인\n\n윈도우 및 리눅스:\n— 알림에서 빠른 답장 기능\n— 모두 숨기기 버튼 추가\n— 알림 위치 및 최대 개수 설정\n\n윈도우 10:\n— 알림 음소거 시간 설정\n\n리눅스:\n— 설정에서 기본 설정 활성화 가능";
+"lng_new_version_text" = "— 그룹대화방에 회원추가 디자인 수정\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

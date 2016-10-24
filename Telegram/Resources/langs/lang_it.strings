@@ -190,7 +190,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_account" = "Ripristina il tuo account";
 "lng_signin_sure_reset" = "Attenzione!\n\nPerderai tutte le chat e i messaggi, insieme a tutti i media e i file condivisi!\n\nVuoi ripristinare il tuo account?";
 "lng_signin_reset" = "Ripristina";
-"lng_signin_reset_wait" = "Dato che l'account {phone_number} è attivo e protetto da una password, lo elimineremo tra 1 settimana per motivi di sicurezza. Puoi annullare questo processo in qualsiasi momento.\n\nSarai in grado di ripristinare il tuo account tra:\n{when}";
+"lng_signin_reset_wait" = "Dato che l'account {phone_number} è attivo e protetto da una password, lo elimineremo tra 1 settimana per motivi di sicurezza. Puoi annullare questo processo in qualsiasi momento.\n\nPotrai ripristinare il tuo account tra:\n{when}";
 "lng_signin_reset_in_days" = "{count_days:0 giorni|# giorno|# giorni} {count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
 "lng_signin_reset_in_hours" = "{count_hours:0 ore|# ora|# ore} {count_minutes:0 minuti|# minuto|# minuti}";
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minuti|# minuto|# minuti}";
@@ -424,7 +424,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_actions_section" = "Azioni";
 "lng_profile_bot_settings" = "Impostazioni";
 "lng_profile_bot_help" = "Aiuto";
-"lng_profile_invite_link_section" = "Link di invito";
+"lng_profile_invite_link_section" = "Link d'invito";
 "lng_profile_create_public_link" = "Crea link pubblico";
 "lng_profile_edit_public_link" = "Modifica link pubblico";
 "lng_profile_manage_admins" = "Gestisci amministratori";
@@ -510,7 +510,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_participant_filter" = "Cerca";
 "lng_participant_invite" = "Invita";
-"lng_participant_invite_sorry" = "Spiacenti, puoi aggiungere solo {count:_not_used|il primo membro|i primi # membri} a un canale.\n\nDa adesso, le persone potranno unirsi tramite il tuo link di invito.";
+"lng_participant_invite_sorry" = "Spiacenti, puoi aggiungere solo {count:_not_used|il primo membro|i primi # membri} a un canale.\n\nDa adesso, le persone potranno unirsi tramite il tuo link d'invito.";
 "lng_create_group_back" = "Indietro";
 "lng_create_group_next" = "Avanti";
 "lng_create_group_create" = "Crea";
@@ -521,11 +521,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_channel_title" = "Canale pubblico";
 "lng_create_public_channel_about" = "Chiunque può cercare il canale nella ricerca e unirsi";
 "lng_create_private_channel_title" = "Canale privato";
-"lng_create_private_channel_about" = "Solo le persone con uno speciale link di invito potranno unirsi";
+"lng_create_private_channel_about" = "Solo le persone con uno speciale link d'invito potranno unirsi";
 "lng_create_public_group_title" = "Gruppo pubblico";
 "lng_create_public_group_about" = "Chiunque può trovare il gruppo nella ricerca e unirsi, la cronologia è disponibile per tutti";
 "lng_create_private_group_title" = "Gruppo privato";
-"lng_create_private_group_about" = "Le persone si possono unire solo se invitate o con un link di invito";
+"lng_create_private_group_about" = "Le persone si possono unire solo se invitate o con un link d'invito";
 "lng_create_group_skip" = "Salta";
 
 "lng_create_channel_link_invalid" = "Questo link non è valido";
@@ -539,8 +539,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Seleziona un riquadro per la foto del canale";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
-"lng_failed_add_not_mutual" = "Spiacenti, se una persona lascia un gruppo, solo un contatto reciproco può reinvitarla (chi ti invita deve avere il tuo numero, e viceversa).";
-"lng_failed_add_not_mutual_channel" = "Spiacenti, se una persona lascia un canale, solo un contatto reciproco può reinvitarla (chi ti invita deve avere il tuo numero, e viceversa).";
+"lng_failed_add_not_mutual" = "Spiacenti, se una persona lascia un gruppo, solo un contatto reciproco può aggiungerla (chi ti invita deve avere il tuo numero, e viceversa).";
+"lng_failed_add_not_mutual_channel" = "Spiacenti, se una persona lascia un canale, solo un contatto reciproco può aggiungerla (chi ti invita deve avere il tuo numero, e viceversa).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
@@ -565,7 +565,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} ha rimosso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
-"lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link di invito";
+"lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link d'invito";
 "lng_action_user_registered" = "{from} si è unito a Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_removed_photo_channel" = "Foto del canale rimossa";
@@ -613,7 +613,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_feature4" = "— Il creatore può creare un link pubblico per il gruppo";
 "lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Questa azione non può essere annullata";
 "lng_profile_convert_confirm" = "Converti";
-"lng_profile_add_more_after_upgrade" = "Sarai in grado di aggiungere fino a {count:_not_used_|# membro|# membri} dopo aver aggiornato a supergruppo.";
+"lng_profile_add_more_after_upgrade" = "Potrai aggiungere fino a {count:_not_used_|# membro|# membri} dopo aver aggiornato a supergruppo.";
 
 "lng_channel_not_accessible" = "Spiacenti, questo canale non è accessibile.";
 "lng_group_not_accessible" = "Spiacenti, questo gruppo non è accessibile.";
@@ -623,19 +623,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channels_too_much_public_revoke_confirm_channel" = "Sei sicuro di voler revocare il link {link}?\n\nIl canale «{group}» diventerà privato.";
 "lng_channels_too_much_public_revoke" = "Revoca";
 
-"lng_group_invite_bad_link" = "Questo link di invito non funziona o è scaduto.";
+"lng_group_invite_bad_link" = "Questo link d'invito non funziona o è scaduto.";
 "lng_group_invite_want_join" = "Vuoi unirti al gruppo «{title}»?";
 "lng_group_invite_want_join_channel" = "Vuoi unirti al canale «{title}»?";
 "lng_group_invite_join" = "Unisciti";
 
 "lng_group_invite_members" = "{count:_not_used_|# membro|# membri}, tra cui:";
 
-"lng_group_invite_link" = "Link di invito:";
-"lng_group_invite_create" = "Crea un link di invito";
+"lng_group_invite_link" = "Link d'invito:";
+"lng_group_invite_create" = "Crea un link d'invito";
 "lng_group_invite_about" = "Gli utenti di Telegram potranno \nunirsi al tuo gruppo aprendo il link.";
 "lng_group_invite_create_new" = "Revoca link";
-"lng_group_invite_about_new" = "Il tuo link precedente sarà disattivato e verrà generato un nuovo link di invito per te.";
-"lng_group_invite_copied" = "Link di invito copiato negli appunti.";
+"lng_group_invite_about_new" = "Il tuo link precedente sarà disattivato e verrà generato un nuovo link d'invito per te.";
+"lng_group_invite_copied" = "Link d'invito copiato negli appunti.";
 "lng_group_invite_no_room" = "Impossibile unirsi a questo gruppo perché ci sono già troppi membri.";
 
 "lng_channel_public_link_copied" = "Link copiato negli appunti.";
@@ -744,9 +744,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_report_spam_sure_group" = "Sicuro di voler segnalare dello spam in questo gruppo?";
 "lng_report_spam_sure_channel" = "Sicuro di voler segnalare dello spam in questo canale?";
 "lng_report_spam_ok" = "Segnala";
-"lng_cant_send_to_not_contact" = "Spiacenti, ma al momento puoi scrivere\nsolo ai contatti reciproci.\n{more_info}";
-"lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo contatti reciproci.\n{more_info}";
-"lng_cant_invite_not_contact_channel" = "Spiacenti, ma al momento puoi aggiungere\nai canali solo contatti reciproci.\n{more_info}";
+"lng_cant_send_to_not_contact" = "Spiacenti, al momento puoi scrivere\nsolo ai contatti reciproci.\n{more_info}";
+"lng_cant_invite_not_contact" = "Spiacenti, al momento puoi aggiungere\nai gruppi solo i contatti reciproci.\n{more_info}";
+"lng_cant_invite_not_contact_channel" = "Spiacenti, al momento puoi aggiungere\nai canali solo i contatti reciproci.\n{more_info}";
 "lng_cant_more_info" = "Maggiori info »";
 "lng_cant_invite_banned" = "Spiacenti, solo l'amministratore può aggiungere questo utente.";
 "lng_cant_invite_privacy" = "Spiacenti, non puoi aggiungere questo utente ai gruppi a causa delle sue impostazioni di privacy.";
@@ -919,7 +919,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_contact_not_joined" = "Sfortunatamente {name} non si è ancora unito a Telegram, ma puoi invitarlo.\n\nTi notificheremo per ogni tuo contatto che si unisce a Telegram.";
 "lng_try_other_contact" = "Prova un altro";
 "lng_create_group_link" = "Link";
-"lng_create_group_invite_link" = "Link di invito";
+"lng_create_group_invite_link" = "Link d'invito";
 "lng_create_group_photo" = "Imposta foto";
 "lng_create_group_description" = "Descrizione (opzionale)";
 
@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Nuovo design del player audio\n\nWindows e Linux:\n— Risposta veloce dalle notifiche\n— Aggiunto pulsante per nascondere tutte le notifiche\n— Cambia la posizione e il conteggio massimo delle notifiche\n\nWindows 10:\n— Rispetta la modalità non disturbare per le notifiche\n\nLinux:\n— Puoi attivare le notifiche native nelle Impostazioni";
+"lng_new_version_text" = "— Nuovo design per quando aggiungi i membri ai tuoi gruppi\n— Risoluzione di problemi e altri miglioramenti minori";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

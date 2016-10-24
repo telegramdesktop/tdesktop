@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nuevo diseño del reproductor de audio\n\nWindows y Linux:\n— Respuesta rápida desde las notificaciones\n— Botón añadido para ocultar todas las notificaciones\n— Opción para cambiar la ubicación y conteo de las notificaciones\n\nWindows 10:\n— Cumplimiento de los períodos sin notificaciones\n\nLinux:\n— Puedes habilitar las notificaciones nativas en Ajustes";
+"lng_new_version_text" = "— Nuevo y lindo diseño para añadir miembros a tus grupos\n— Corrección de errores y otras mejoras menores";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

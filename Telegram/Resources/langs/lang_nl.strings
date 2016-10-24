@@ -976,7 +976,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Nieuw ontwerp voor de muziekspeler\n\nWindows en Linux:\n— Snel antwoorden op meldingen.\n— Alle meldingen middels een knop\n— Meldingsplaats en teller zijn aanpasbaar.\n\nWindows 10:\n— Stiltetijd voor meldingen werkt nu.\n\nLinux:\n— Je kunt Linux-berichtgeving inschakelen via de instellingen.";
+"lng_new_version_text" = "— Nieuw ontwerp voor groepstoevoegingen\n— Probleemoplossing en andere kleine verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
