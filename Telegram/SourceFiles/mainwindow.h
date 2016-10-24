@@ -228,6 +228,8 @@ private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 
+	void updateControlsGeometry();
+
 	QPixmap grabInner();
 
 	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);

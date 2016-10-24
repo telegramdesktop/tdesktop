@@ -345,6 +345,10 @@ _creationRequestId(0), _createdChannel(0) {
 	connect(&_next, SIGNAL(clicked()), this, SLOT(onNext()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
+
 	prepare();
 }
 
@@ -545,24 +549,23 @@ void GroupInfoBox::updateMaxHeight() {
 }
 
 void GroupInfoBox::onPhoto() {
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
+	auto imgExtensions = cImgExtensions();
+	auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+}
 
-	QImage img;
-	QString file;
-	QByteArray remoteContent;
-	if (filedialogGetOpenFile(file, remoteContent, lang(lng_choose_images), filter)) {
-		if (!remoteContent.isEmpty()) {
-			img = App::readImage(remoteContent);
-		} else {
-			if (!file.isEmpty()) {
-				img = App::readImage(file);
-			}
-		}
-	} else {
+void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
+	if (_setPhotoFileQueryId != update.queryId) {
 		return;
 	}
+	_setPhotoFileQueryId = 0;
 
+	QImage img;
+	if (!update.remoteContent.isEmpty()) {
+		img = App::readImage(update.remoteContent);
+	} else {
+		img = App::readImage(update.filePaths.front());
+	}
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		return;
 	}

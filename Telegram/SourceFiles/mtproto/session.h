@@ -281,6 +281,8 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
+	void createDcData();
+
 	Connection *_connection;
 
 	bool _killed;

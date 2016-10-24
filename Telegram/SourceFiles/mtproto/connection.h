@@ -53,7 +53,10 @@ public:
 	};
 
 	Connection();
-	int32 start(SessionData *data, int32 dc = 0); // return dc
+
+	int32 prepare(SessionData *data, int32 dc = 0); // return dc
+	void start();
+
 	void kill();
 	void waitTillFinish();
 	~Connection();

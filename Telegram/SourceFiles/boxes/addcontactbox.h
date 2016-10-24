@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 #include "core/lambda_wrap.h"
+#include "ui/filedialog.h"
 
 class FlatLabel;
 class ConfirmBox;
@@ -117,6 +118,8 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+
 	void step_photoOver(float64 ms, bool timer);
 
 	QRect photoRect() const;
@@ -139,6 +142,8 @@ private:
 	// channel creation
 	int32 _creationRequestId;
 	ChannelData *_createdChannel;
+
+	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);

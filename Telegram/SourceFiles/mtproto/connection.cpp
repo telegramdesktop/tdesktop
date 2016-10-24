@@ -304,7 +304,7 @@ Thread::~Thread() {
 Connection::Connection() : thread(nullptr), data(nullptr) {
 }
 
-int32 Connection::start(SessionData *sessionData, int32 dc) {
+int32 Connection::prepare(SessionData *sessionData, int32 dc) {
 	t_assert(thread == nullptr && data == nullptr);
 
 	thread = new Thread();
@@ -318,9 +318,11 @@ int32 Connection::start(SessionData *sessionData, int32 dc) {
 		thread = nullptr;
 		return 0;
 	}
-
-	thread->start();
 	return dc;
+}
+
+void Connection::start() {
+	thread->start();
 }
 
 void Connection::kill() {

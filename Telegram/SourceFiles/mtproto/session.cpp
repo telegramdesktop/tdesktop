@@ -70,7 +70,7 @@ void SessionData::clear() {
 }
 
 
-Session::Session(int32 dcenter) : QObject()
+Session::Session(int32 requestedDcId) : QObject()
 , _connection(0)
 , _killed(false)
 , _needToReceive(false)
@@ -96,35 +96,40 @@ Session::Session(int32 dcenter) : QObject()
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 
-	DcenterMap &dcs(DCMap());
-
 	_connection = new Connection();
-	dcWithShift = _connection->start(&data, dcenter);
+	dcWithShift = _connection->prepare(&data, requestedDcId);
 	if (!dcWithShift) {
 		delete _connection;
 		_connection = 0;
-		DEBUG_LOG(("Session Info: could not start connection to dc %1").arg(dcenter));
+		DEBUG_LOG(("Session Info: could not start connection to dc %1").arg(requestedDcId));
 		return;
 	}
-	if (!dc) {
-		dcenter = dcWithShift;
-		int32 dcId = bareDcId(dcWithShift);
-		auto dcIndex = dcs.constFind(dcId);
-		if (dcIndex == dcs.cend()) {
-			dc = DcenterPtr(new Dcenter(dcId, AuthKeyPtr()));
-			dcs.insert(dcId, dc);
-		} else {
-			dc = dcIndex.value();
-		}
+	createDcData();
+	_connection->start();
+}
 
-		ReadLockerAttempt lock(keyMutex());
-		data.setKey(lock ? dc->getKey() : AuthKeyPtr());
-		if (lock && dc->connectionInited()) {
-			data.setLayerWasInited(true);
-		}
-		connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-		connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
+void Session::createDcData() {
+	if (dc) {
+		return;
 	}
+	int32 dcId = bareDcId(dcWithShift);
+
+	auto &dcs = DCMap();
+	auto dcIndex = dcs.constFind(dcId);
+	if (dcIndex == dcs.cend()) {
+		dc = DcenterPtr(new Dcenter(dcId, AuthKeyPtr()));
+		dcs.insert(dcId, dc);
+	} else {
+		dc = dcIndex.value();
+	}
+
+	ReadLockerAttempt lock(keyMutex());
+	data.setKey(lock ? dc->getKey() : AuthKeyPtr());
+	if (lock && dc->connectionInited()) {
+		data.setLayerWasInited(true);
+	}
+	connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
+	connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
 }
 
 void Session::restart() {
@@ -200,13 +205,15 @@ void Session::needToResumeAndSend() {
 		DcenterMap &dcs(DCMap());
 
 		_connection = new Connection();
-		if (!_connection->start(&data, dcWithShift)) {
+		if (!_connection->prepare(&data, dcWithShift)) {
 			delete _connection;
 			_connection = 0;
 			DEBUG_LOG(("Session Info: could not start connection to dcWithShift %1").arg(dcWithShift));
 			dcWithShift = 0;
 			return;
 		}
+		createDcData();
+		start();
 	}
 	if (_ping) {
 		_ping = false;

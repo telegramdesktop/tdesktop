@@ -543,7 +543,7 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
 		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
-		resizeEvent(nullptr);
+		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
@@ -555,7 +555,7 @@ void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
 		_mediaPreview = std_::make_unique<MediaPreviewWidget>(this);
-		resizeEvent(nullptr);
+		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
@@ -583,7 +583,7 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	} else {
 		_connecting.create(this, text, reconnect);
 		_connecting->show();
-		resizeEvent(0);
+		updateControlsGeometry();
 		fixOrder();
 	}
 }
@@ -1036,11 +1036,15 @@ void MainWindow::resizeEvent(QResizeEvent *e) {
 		Global::SetAdaptiveLayout(layout);
 		Adaptive::Changed().notify(true);
 	}
+	updateControlsGeometry();
+	emit resized(QSize(width(), height() - st::titleHeight));
+}
+
+void MainWindow::updateControlsGeometry() {
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
 	if (_mediaPreview) _mediaPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
-	emit resized(QSize(width(), height() - st::titleHeight));
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {
