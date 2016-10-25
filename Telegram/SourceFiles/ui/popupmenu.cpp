@@ -35,7 +35,7 @@ PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(nullptr)
 	init();
 }
 
-PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
+PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
 , _menu(menu)
 , _itemHeight(_st.itemPadding.top() + _st.itemFont->height + _st.itemPadding.bottom())
@@ -43,6 +43,9 @@ PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
 , _shadow(_st.shadow)
 , a_opacity(1)
 , _a_hide(animation(this, &PopupMenu::step_hide)) {
+	_menu->setParent(this);
+	_menu->hide();
+
 	init();
 	for (auto action : menu->actions()) {
 		addAction(action);
@@ -72,11 +75,11 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 QAction *PopupMenu::addAction(QAction *a) {
 	connect(a, SIGNAL(changed()), this, SLOT(actionChanged()));
 	_actions.push_back(a);
-	if (a->menu()) {
-		_menus.push_back(new PopupMenu(a->menu()));
+	if (auto submenu = a->menu()) {
+		_menus.push_back(new PopupMenu(submenu));
 		_menus.back()->deleteOnHide(false);
 	} else {
-		_menus.push_back(0);
+		_menus.push_back(nullptr);
 	}
 	_texts.push_back(QString());
 	_shortcutTexts.push_back(QString());
@@ -503,7 +506,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, PressSource source)
 
 PopupMenu::~PopupMenu() {
 	clearActions(true);
-	delete _menu;
+
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (auto w = App::wnd()) {
 		w->onReActivate();

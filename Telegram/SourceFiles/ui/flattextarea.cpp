@@ -1420,7 +1420,7 @@ void FlatTextarea::dropEvent(QDropEvent *e) {
 }
 
 void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
-	if (QMenu *menu = createStandardContextMenu()) {
+	if (auto menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }

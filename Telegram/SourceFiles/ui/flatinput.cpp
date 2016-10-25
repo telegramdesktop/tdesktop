@@ -243,7 +243,7 @@ void FlatInput::updatePlaceholderText() {
 }
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
-	if (QMenu *menu = createStandardContextMenu()) {
+	if (auto menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }
@@ -1281,7 +1281,7 @@ void InputArea::Inner::paintEvent(QPaintEvent *e) {
 }
 
 void InputArea::Inner::contextMenuEvent(QContextMenuEvent *e) {
-	if (QMenu *menu = createStandardContextMenu()) {
+	if (auto menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }
@@ -2028,7 +2028,7 @@ void InputField::Inner::paintEvent(QPaintEvent *e) {
 }
 
 void InputField::Inner::contextMenuEvent(QContextMenuEvent *e) {
-	if (QMenu *menu = createStandardContextMenu()) {
+	if (auto menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }
@@ -2236,7 +2236,7 @@ void MaskedInputField::updatePlaceholderText() {
 }
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
-	if (QMenu *menu = createStandardContextMenu()) {
+	if (auto menu = createStandardContextMenu()) {
 		(new PopupMenu(menu))->popup(e->globalPos());
 	}
 }
