@@ -3317,7 +3317,6 @@ void HistoryLocation::initDimensions() {
 			_minh += qMin(_title.countHeight(_maxw - st::msgPadding.left() - st::msgPadding.right()), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			_maxw = qMax(_maxw, int32(st::msgPadding.left() + _description.maxWidth() + st::msgPadding.right()));
 			_minh += qMin(_description.countHeight(_maxw - st::msgPadding.left() - st::msgPadding.right()), 3 * st::webPageDescriptionFont->height);
 		}
 		_minh += st::mediaPadding.top() + st::mediaPadding.bottom();
