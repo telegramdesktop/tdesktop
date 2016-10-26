@@ -23,78 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/twidget.h"
 #include "ui/effects/rect_shadow.h"
 
-class Dropdown : public TWidget {
-	Q_OBJECT
-
-public:
-	Dropdown(QWidget *parent, const style::dropdown &st = st::dropdownDef);
-
-	IconedButton *addButton(IconedButton *button);
-	void resetButtons();
-	void updateButtons();
-
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void otherEnter();
-	void otherLeave();
-
-	void fastHide();
-	void ignoreShow(bool ignore = true);
-
-	void step_appearance(float64 ms, bool timer);
-
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || _a_appearance.animating()) return false;
-
-		return QRect(_st.padding.left(),
-					 _st.padding.top(),
-					 _width - _st.padding.left() - _st.padding.right(),
-					 _height - _st.padding.top() - _st.padding.bottom()
-					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
-	}
-
-signals:
-	void hiding();
-
-public slots:
-	void hideStart();
-	void hideFinish();
-
-	void showStart();
-	void onWndActiveChanged();
-
-	void buttonStateChanged(int oldState, ButtonStateChangeSource source);
-
-private:
-	void adjustButtons();
-
-	bool _ignore = false;
-
-	typedef QVector<IconedButton*> Buttons;
-	Buttons _buttons;
-
-	int32 _selected = -1;
-
-	const style::dropdown &_st;
-
-	int32 _width, _height;
-	bool _hiding = false;
-
-	anim::fvalue a_opacity;
-	Animation _a_appearance;
-
-	QTimer _hideTimer;
-
-	Ui::RectShadow _shadow;
-
-};
-
 class DragArea : public TWidget {
 	Q_OBJECT
 
@@ -105,8 +33,6 @@ public:
 
 	void otherEnter();
 	void otherLeave();
-
-	void fastHide();
 
 	void step_appearance(float64 ms, bool timer);
 
@@ -119,6 +45,8 @@ public:
 					 height() - st::dragPadding.top() - st::dragPadding.bottom()
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
+
+	void hideFast();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

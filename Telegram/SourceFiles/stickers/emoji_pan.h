@@ -67,21 +67,20 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 	void step_selected(uint64 ms, bool timer);
-	void showStart();
 
 	void clearSelection(bool fast = false);
 
-public slots:
+	void hideFast();
 
-	void hideStart(bool fast = false);
+public slots:
+	void showAnimated();
+	void hideAnimated();
 
 signals:
-
 	void emojiSelected(EmojiPtr emoji);
 	void hidden();
 
 private:
-
 	void drawVariant(Painter &p, int variant);
 
 	void updateSelected();
@@ -113,7 +112,7 @@ private:
 };
 
 class EmojiPanel;
-class EmojiPanInner : public ScrolledWidget {
+class EmojiPanInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -207,7 +206,7 @@ struct StickerIcon {
 	int pixh = 0;
 };
 
-class StickerPanInner : public ScrolledWidget, private base::Subscriber {
+class StickerPanInner : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -499,7 +498,7 @@ public:
 
 	bool event(QEvent *e);
 
-	void fastHide();
+	void hideFast();
 	bool hiding() const {
 		return _hiding || _hideTimer.isActive();
 	}
@@ -517,10 +516,10 @@ public:
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
 
-		return QRect(st::dropdownDef.padding.left(),
-					 st::dropdownDef.padding.top(),
-					 _width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right(),
-					 _height - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom()
+		return QRect(st::defaultDropdownPadding.left(),
+					 st::defaultDropdownPadding.top(),
+					 _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(),
+					 _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom()
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
@@ -534,7 +533,9 @@ public:
 	}
 
 public slots:
-	void hideStart();
+	void showAnimated();
+	void hideAnimated();
+
 	void refreshStickers();
 
 private slots:
@@ -542,7 +543,6 @@ private slots:
 
 	void hideFinish();
 
-	void showStart();
 	void onWndActiveChanged();
 
 	void onTabChange();
@@ -590,7 +590,7 @@ private:
 	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child);
-	void hideAnimated();
+	void startHideAnimated();
 	void prepareShowHideCache();
 
 	void updateSelected();

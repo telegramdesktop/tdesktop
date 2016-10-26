@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/effects/rect_shadow.h"
+#include "styles/style_widgets.h"
 
 class ScrollArea;
 
@@ -30,9 +31,9 @@ class InnerDropdown : public TWidget {
 	Q_OBJECT
 
 public:
-	InnerDropdown(QWidget *parent, const style::InnerDropdown &st = st::defaultInnerDropdown, const style::flatScroll &scrollSt = st::scrollDef);
+	InnerDropdown(QWidget *parent, const style::InnerDropdown &st = st::defaultInnerDropdown);
 
-	void setOwnedWidget(ScrolledWidget *widget);
+	void setOwnedWidget(TWidget *widget);
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || _a_appearance.animating()) return false;
@@ -41,32 +42,52 @@ public:
 	}
 
 	void setMaxHeight(int newMaxHeight);
+	void resizeToContent();
 
 	void otherEnter();
 	void otherLeave();
+	void showFast();
+	void hideFast();
+
+	bool isHiding() const {
+		return _hiding && _a_appearance.animating();
+	}
+
+	void showAnimated();
+	enum class HideOption {
+		Default,
+		IgnoreShow,
+	};
+	void hideAnimated(HideOption option = HideOption::Default);
+
+signals:
+	void beforeHidden();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
-
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-signals:
-	void hidden();
+	int resizeGetHeight(int newWidth) override;
 
 private slots:
-	void onHideStart();
+	void onHideAnimated() {
+		hideAnimated();
+	}
 	void onWindowActiveChanged();
 	void onScroll();
-	void onWidgetHeightUpdated();
+	void onWidgetHeightUpdated() {
+		resizeToContent();
+	}
 
 private:
+	class Container;
 	void repaintCallback();
 
-	void hidingFinished();
-	void showingStarted();
+	void hideFinished();
+	void showStarted();
 
 	void startAnimation();
 
@@ -80,6 +101,7 @@ private:
 	FloatAnimation _a_appearance;
 
 	QTimer _hideTimer;
+	bool _ignoreShowEvents = false;
 
 	RectShadow _shadow;
 	ChildWidget<ScrollArea> _scroll;
@@ -88,17 +110,12 @@ private:
 
 };
 
-namespace internal {
-
-class Container : public ScrolledWidget {
-	Q_OBJECT
-
+class InnerDropdown::Container : public TWidget {
 public:
-	Container(QWidget *parent, ScrolledWidget *child, const style::InnerDropdown &st);
+	Container(QWidget *parent, TWidget *child, const style::InnerDropdown &st);
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
-private slots:
-	void onHeightUpdate();
+	void resizeToContent();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -108,5 +125,4 @@ private:
 
 };
 
-} // namespace internal
 } // namespace Ui

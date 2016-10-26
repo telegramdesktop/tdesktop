@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : ScrolledWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : TWidget(parent)
 , _self(self)
 , _title(title) {
 }

@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "ui/filedialog.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
@@ -926,7 +926,7 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
 	}
 	if (state != Qt::ApplicationActive) {
-		PopupTooltip::Hide();
+		Ui::Tooltip::Hide();
 	}
 }
 

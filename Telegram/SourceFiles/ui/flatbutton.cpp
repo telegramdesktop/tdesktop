@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/flatbutton.h"
 
+#include "styles/style_history.h"
+
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent)
 , _text(text)
 , _st(st)
@@ -261,83 +263,6 @@ void IconedButton::paintEvent(QPaintEvent *e) {
 			t.setY((height() - i.pxHeight()) / 2);
 		}
 		p.drawSprite(t, i);
-	}
-}
-
-MaskedButton::MaskedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : IconedButton(parent, st, text) {
-}
-
-void MaskedButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	p.setOpacity(_opacity);
-
-	p.setOpacity(a_opacity.current() * _opacity);
-
-	if (!_text.isEmpty()) {
-		p.setFont(_st.font->f);
-		p.setRenderHint(QPainter::TextAntialiasing);
-		p.setPen(a_bg.current());
-		const QPoint &t((_state & StateDown) ? _st.downTextPos : _st.textPos);
-		p.drawText(t.x(), t.y() + _st.font->ascent, _text);
-	}
-
-	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
-	if (i.pxWidth()) {
-		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
-		p.fillRect(QRect(t, QSize(i.pxWidth(), i.pxHeight())), a_bg.current());
-		p.drawSprite(t, i);
-	}
-}
-
-EmojiButton::EmojiButton(QWidget *parent, const style::iconedButton &st) : IconedButton(parent, st)
-, _loading(false)
-, _a_loading(animation(this, &EmojiButton::step_loading)) {
-}
-
-void EmojiButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	uint64 ms = getms();
-	float64 loading = a_loading.current(ms, _loading ? 1 : 0);
-	p.setOpacity(_opacity * (1 - loading));
-
-	p.fillRect(e->rect(), a_bg.current());
-
-	p.setOpacity(a_opacity.current() * _opacity * (1 - loading));
-
-	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
-	if (!i.isEmpty()) {
-		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
-		p.drawSprite(t, i);
-	}
-
-	p.setOpacity(a_opacity.current() * _opacity);
-	p.setPen(QPen(st::emojiCircleFg, st::emojiCircleLine));
-	p.setBrush(Qt::NoBrush);
-
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	QRect inner(QPoint((width() - st::emojiCircle.width()) / 2, st::emojiCircleTop), st::emojiCircle);
-	if (loading > 0) {
-		int32 full = 5760;
-		int32 start = qRound(full * float64(ms % uint64(st::emojiCirclePeriod)) / st::emojiCirclePeriod), part = qRound(loading * full / st::emojiCirclePart);
-		p.drawArc(inner, start, full - part);
-	} else {
-		p.drawEllipse(inner);
-	}
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-}
-
-void EmojiButton::setLoading(bool loading) {
-	if (_loading != loading) {
-		_loading = loading;
-		auto from = loading ? 0. : 1., to = loading ? 1. : 0.;
-		a_loading.start([this] { update(); }, from, to, st::emojiCircleDuration);
-		if (loading) {
-			_a_loading.start();
-		} else {
-			_a_loading.stop();
-		}
 	}
 }
 

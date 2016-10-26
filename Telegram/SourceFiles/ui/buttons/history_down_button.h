@@ -61,4 +61,31 @@ private:
 
 };
 
+class EmojiButton : public Button {
+public:
+	EmojiButton(QWidget *parent, const style::IconButton &st);
+
+	void setLoading(bool loading);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+
+private:
+	const style::IconButton &_st;
+
+	FloatAnimation _a_over;
+
+	bool _loading = false;
+	FloatAnimation a_loading;
+	Animation _a_loading;
+
+	void step_loading(uint64 ms, bool timer) {
+		if (timer) {
+			update();
+		}
+	}
+
+};
+
 } // namespace Ui

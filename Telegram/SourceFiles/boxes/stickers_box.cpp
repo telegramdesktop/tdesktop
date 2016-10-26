@@ -498,7 +498,7 @@ void StickersBox::showAll() {
 	ItemListBox::showAll();
 }
 
-StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : ScrolledWidget(parent)
+StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidget(parent)
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _a_shifting(animation(this, &Inner::step_shifting))
@@ -511,7 +511,7 @@ StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : Scrol
 	setup();
 }
 
-StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) : ScrolledWidget(parent)
+StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) : TWidget(parent)
 , _section(StickersBox::Section::ArchivedPart)
 , _archivedIds(archivedIds)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())

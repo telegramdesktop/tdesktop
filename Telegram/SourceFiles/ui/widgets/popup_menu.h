@@ -1,0 +1,112 @@
+/*
+ This file is part of Telegram Desktop,
+ the official desktop version of Telegram messaging app, see https://telegram.org
+
+ Telegram Desktop is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ It is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+ */
+#pragma once
+
+#include "styles/style_widgets.h"
+#include "ui/effects/rect_shadow.h"
+#include "ui/widgets/menu.h"
+
+namespace Ui {
+
+class PopupMenu : public TWidget {
+public:
+	PopupMenu(const style::PopupMenu &st = st::defaultPopupMenu);
+	PopupMenu(QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
+
+	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr);
+	QAction *addSeparator();
+	void clearActions();
+
+	using Actions = Ui::Menu::Actions;
+	Actions &actions();
+
+	void deleteOnHide(bool del);
+	void popup(const QPoint &p);
+	void hideMenu(bool fast = false);
+
+	~PopupMenu();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void hideEvent(QHideEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override {
+		forwardKeyPress(e->key());
+	}
+	void mouseMoveEvent(QMouseEvent *e) override {
+		forwardMouseMove(e->globalPos());
+	}
+	void mousePressEvent(QMouseEvent *e) override {
+		forwardMousePress(e->globalPos());
+	}
+
+private:
+	void childHiding(PopupMenu *child);
+
+	void step_hide(float64 ms, bool timer);
+
+	void init();
+	void hideFinish();
+
+	using TriggeredSource = Ui::Menu::TriggeredSource;
+	void handleMenuResize();
+	void handleActivated(QAction *action, int actionTop, TriggeredSource source);
+	void handleTriggered(QAction *action, int actionTop, TriggeredSource source);
+	void forwardKeyPress(int key);
+	bool handleKeyPress(int key);
+	void forwardMouseMove(QPoint globalPosition) {
+		_menu->handleMouseMove(globalPosition);
+	}
+	void handleMouseMove(QPoint globalPosition);
+	void forwardMousePress(QPoint globalPosition) {
+		_menu->handleMousePress(globalPosition);
+	}
+	void handleMousePress(QPoint globalPosition);
+
+	using SubmenuPointer = QPointer<PopupMenu>;
+	bool popupSubmenuFromAction(QAction *action, int actionTop, TriggeredSource source);
+	void popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSource source);
+	void showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source);
+
+	const style::PopupMenu &_st;
+
+	ChildWidget<Ui::Menu> _menu;
+
+	using Submenus = QMap<QAction*, SubmenuPointer>;
+	Submenus _submenus;
+
+	PopupMenu *_parent = nullptr;
+
+	QRect _inner;
+	style::margins _padding;
+
+	Ui::RectShadow _shadow;
+	SubmenuPointer _activeSubmenu;
+
+	QPixmap _cache;
+	anim::fvalue a_opacity;
+	Animation _a_hide;
+
+	bool _deleteOnHide = true;
+	bool _triggering = false;
+	bool _deleteLater = false;
+
+};
+
+} // namespace Ui

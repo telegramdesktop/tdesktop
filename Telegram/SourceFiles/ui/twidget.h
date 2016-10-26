@@ -228,6 +228,14 @@ public:
 		}
 	}
 
+	// Updates the area that is visible inside the scroll container.
+	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	}
+
+signals:
+	// Child widget is responsible for emitting this signal.
+	void heightUpdated();
+
 protected:
 	void enterEventHook(QEvent *e) {
 		return QWidget::enterEvent(e);

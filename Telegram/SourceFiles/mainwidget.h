@@ -39,6 +39,7 @@ class Panel;
 namespace Ui {
 class PeerAvatarButton;
 class PlainShadow;
+class DropdownMenu;
 } // namespace Ui
 
 namespace Window {
@@ -56,7 +57,6 @@ class DialogsWidget;
 class HistoryWidget;
 class OverviewWidget;
 class HistoryHider;
-class Dropdown;
 
 enum StackItemType {
 	HistoryStackItem,
@@ -609,7 +609,7 @@ private:
 	int _playerHeight = 0;
 	int _contentScrollAddToY = 0;
 
-	ChildWidget<Dropdown> _mediaType;
+	ChildWidget<Ui::DropdownMenu> _mediaType;
 	int32 _mediaTypeMask = 0;
 
 	int32 updDate = 0;

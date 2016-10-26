@@ -227,59 +227,6 @@ switcher {
 	duration: int;
 }
 
-dropdown {
-	border: pixels;
-	borderColor: color;
-
-	padding: margins;
-	shadow: icon;
-	shadowShift: pixels;
-
-	duration: int;
-	width: pixels;
-}
-
-InnerDropdown {
-	padding: margins;
-	shadow: icon;
-	shadowShift: pixels;
-
-	duration: int;
-	width: pixels;
-
-	scrollMargin: margins;
-	scrollPadding: margins;
-}
-
-PopupMenu {
-	skip: pixels;
-
-	shadow: icon;
-	shadowShift: pixels;
-
-	itemBg: color;
-	itemBgOver: color;
-	itemFg: color;
-	itemFgOver: color;
-	itemFgDisabled: color;
-	itemFgShortcut: color;
-	itemFgShortcutOver: color;
-	itemFgShortcutDisabled: color;
-	itemPadding: margins;
-	itemFont: font;
-
-	separatorPadding: margins;
-	separatorWidth: pixels;
-	separatorFg: color;
-
-	arrow: icon;
-
-	duration: int;
-
-	widthMin: pixels;
-	widthMax: pixels;
-}
-
 Tooltip {
 	textBg: color;
 	textFg: color;

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "ui/buttons/round_button.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
 #include "lang.h"
 #include "application.h"
@@ -639,7 +639,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	if (!history) return;
 	_menuPeer = history->peer;
 
-	_menu = new PopupMenu();
+	_menu = new Ui::PopupMenu();
 	_menu->addAction(lang((_menuPeer->isChat() || _menuPeer->isMegagroup()) ? lng_context_view_group : (_menuPeer->isUser() ? lng_context_view_profile : lng_context_view_channel)), this, SLOT(onContextProfile()))->setEnabled(true);
 	_menu->addAction(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray), this, SLOT(onContextToggleNotifications()))->setEnabled(true);
 	_menu->addAction(lang(lng_profile_search_messages), this, SLOT(onContextSearch()))->setEnabled(true);

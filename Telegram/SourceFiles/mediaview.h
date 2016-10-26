@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "dropdown.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
 
 namespace Media {
@@ -29,7 +29,9 @@ class Controller;
 } // namespace Clip
 } // namespace Media
 
+namespace Ui {
 class PopupMenu;
+} // namespace Ui
 
 struct AudioPlaybackState;
 
@@ -60,9 +62,6 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void updateDocSize();
-	void updateControls();
-	void updateDropdown();
 
 	void showSaveMsgFile();
 	void close();
@@ -81,9 +80,9 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-public slots:
+private slots:
 	void onHideControls(bool force = false);
-	void onDropdownHiding();
+	void onDropdownHidden();
 
 	void onScreenResized(int screen);
 
@@ -130,6 +129,10 @@ private slots:
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
+	void updateDocSize();
+	void updateControls();
+	void updateActions();
+
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void displayFinished();
@@ -304,10 +307,14 @@ private:
 	anim::fvalue a_cOpacity;
 	bool _mousePressed = false;
 
-	PopupMenu *_menu = nullptr;
-	Dropdown _dropdown;
-	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
-	QList<IconedButton*> _btns;
+	Ui::PopupMenu *_menu = nullptr;
+	ChildWidget<Ui::DropdownMenu> _dropdown;
+
+	struct ActionData {
+		QString text;
+		const char *member;
+	};
+	QList<ActionData> _actions;
 
 	bool _receiveMouse = true;
 

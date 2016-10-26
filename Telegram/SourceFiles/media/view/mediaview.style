@@ -110,3 +110,50 @@ mediaviewFileBlue: icon {
 mediaviewTransparentBg: #ffffff;
 mediaviewTransparentFg: #cccccc;
 mediaviewTransparentSize: 4px;
+
+mediaviewMenu: Menu(defaultMenu) {
+	itemBg: #383838;
+	itemBgOver: #505050;
+	itemFg: white;
+	itemFgOver: white;
+	itemFgDisabled: #999;
+	itemFgShortcut: #eee;
+	itemFgShortcutOver: #fff;
+	itemFgShortcutDisabled: #999;
+
+	separatorFg: #484848;
+}
+mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
+	shadow: icon {};
+	menu: mediaviewMenu;
+}
+mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
+	menu: mediaviewMenu;
+}
+/*
+mvDropdown: dropdown(dropdownDef) {
+	shadow: icon {};
+	padding: margins(11px, 12px, 11px, 12px);
+
+	border: 0px;
+	width: 182px;
+}
+mvButton: iconedButton(btnDefIconed) {
+	bgColor: #383838;
+	overBgColor: #505050;
+	font: font(fsize);
+
+	opacity: 1.;
+	overOpacity: 1.;
+
+	width: -32px;
+	height: 36px;
+
+	color: white;
+
+	textPos: point(16px, 9px);
+	downTextPos: point(16px, 10px);
+
+	duration: 0;
+}
+*/

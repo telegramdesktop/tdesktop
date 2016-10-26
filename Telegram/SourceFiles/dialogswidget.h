@@ -30,10 +30,10 @@ class IndexedList;
 
 namespace Ui {
 class RoundButton;
+class PopupMenu;
 } // namespace Ui
 
 class MainWidget;
-class PopupMenu;
 
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
@@ -230,7 +230,7 @@ private:
 	PeerData *_menuPeer = nullptr;
 	PeerData *_menuActionPeer = nullptr;
 
-	PopupMenu *_menu = nullptr;
+	Ui::PopupMenu *_menu = nullptr;
 
 };
 

@@ -72,7 +72,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class SessionsBox::Inner : public ScrolledWidget, public RPCSender {
+class SessionsBox::Inner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:

@@ -105,7 +105,7 @@ public:
 	ScrollableBox(const style::flatScroll &scroll, int w = st::boxWideWidth);
 
 protected:
-	void init(ScrolledWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
+	void init(TWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
 	void setScrollSkips(int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
 
 	void resizeEvent(QResizeEvent *e) override;

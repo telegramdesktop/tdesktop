@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/flatinput.h"
 
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "countryinput.h"
 #include "lang.h"
@@ -244,7 +244,12 @@ void FlatInput::updatePlaceholderText() {
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new PopupMenu(menu))->popup(e->globalPos());
+		menu->addSeparator();
+		auto action = menu->addAction(QString("test"));
+		action->setMenu(new QMenu(this));
+		action->menu()->addAction(QString("test123"));
+		action->menu()->addAction(QString("test456"));
+		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }
 
@@ -1282,7 +1287,7 @@ void InputArea::Inner::paintEvent(QPaintEvent *e) {
 
 void InputArea::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }
 
@@ -2029,7 +2034,7 @@ void InputField::Inner::paintEvent(QPaintEvent *e) {
 
 void InputField::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }
 
@@ -2237,7 +2242,7 @@ void MaskedInputField::updatePlaceholderText() {
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }
 

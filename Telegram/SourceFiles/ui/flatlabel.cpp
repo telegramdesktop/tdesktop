@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/flatlabel.h"
 
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "lang.h"
 
@@ -414,7 +414,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		uponSelection = hasSelection;
 	}
 
-	_contextMenu = new PopupMenu();
+	_contextMenu = new Ui::PopupMenu();
 
 	_contextMenuClickHandler = ClickHandler::getActive();
 

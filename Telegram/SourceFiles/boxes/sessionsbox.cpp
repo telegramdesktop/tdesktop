@@ -242,7 +242,7 @@ void SessionsBox::onTerminateAll() {
 	}
 }
 
-SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : ScrolledWidget(parent)
+SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : TWidget(parent)
 , _list(list)
 , _current(current)
 , _terminating(0)

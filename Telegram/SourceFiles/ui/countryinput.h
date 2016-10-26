@@ -103,7 +103,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class CountrySelectBox::Inner : public ScrolledWidget {
+class CountrySelectBox::Inner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -135,11 +135,11 @@ protected:
 private:
 	void updateSelectedRow();
 
-	int32 _rowHeight;
+	int _rowHeight;
 
-	int32 _sel;
+	int _sel = 0;
 	QString _filter;
-	bool _mouseSel;
+	bool _mouseSel = false;
 
 	QPoint _lastMousePos;
 

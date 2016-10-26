@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/inner_dropdown.h"
+#include "ui/widgets/inner_dropdown.h"
 
 #include "mainwindow.h"
 #include "ui/scrollarea.h"
@@ -27,12 +27,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st, const style::flatScroll &scrollSt) : TWidget(parent)
+InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : TWidget(parent)
 , _st(st)
 , _shadow(_st.shadow)
-, _scroll(this, scrollSt) {
+, _scroll(this, _st.scroll) {
 	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideAnimated()));
 
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
@@ -43,9 +43,9 @@ InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st, co
 	hide();
 }
 
-void InnerDropdown::setOwnedWidget(ScrolledWidget *widget) {
-	auto container = new internal::Container(_scroll, widget, _st);
-	connect(container, SIGNAL(heightUpdated()), this, SLOT(onWidgetHeightUpdated()));
+void InnerDropdown::setOwnedWidget(TWidget *widget) {
+	auto container = new Container(_scroll, widget, _st);
+	connect(widget, SIGNAL(heightUpdated()), this, SLOT(onWidgetHeightUpdated()));
 	_scroll->setOwnedWidget(container);
 	container->resizeToWidth(_scroll->width());
 	container->moveToLeft(0, 0);
@@ -55,23 +55,22 @@ void InnerDropdown::setOwnedWidget(ScrolledWidget *widget) {
 
 void InnerDropdown::setMaxHeight(int newMaxHeight) {
 	_maxHeight = newMaxHeight;
-	updateHeight();
+	resizeToContent();
 }
 
-void InnerDropdown::onWidgetHeightUpdated() {
-	updateHeight();
-}
-
-void InnerDropdown::updateHeight() {
-	int newHeight = _st.padding.top() + _st.scrollMargin.top() + _st.scrollMargin.bottom() + _st.padding.bottom();
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+void InnerDropdown::resizeToContent() {
+	auto newWidth = _st.padding.left() + _st.scrollMargin.left() + _st.scrollMargin.right() + _st.padding.right();
+	auto newHeight = _st.padding.top() + _st.scrollMargin.top() + _st.scrollMargin.bottom() + _st.padding.bottom();
+	if (auto widget = static_cast<Container*>(_scroll->widget())) {
+		widget->resizeToContent();
+		newWidth += widget->width();
 		newHeight += widget->height();
 	}
 	if (_maxHeight > 0) {
 		accumulate_min(newHeight, _maxHeight);
 	}
-	if (newHeight != height()) {
-		resize(width(), newHeight);
+	if (newWidth != width() || newHeight != height()) {
+		resize(newWidth, newHeight);
 	}
 }
 
@@ -83,14 +82,14 @@ void InnerDropdown::onWindowActiveChanged() {
 
 void InnerDropdown::resizeEvent(QResizeEvent *e) {
 	_scroll->setGeometry(rect().marginsRemoved(_st.padding).marginsRemoved(_st.scrollMargin));
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(_scroll->width());
 		onScroll();
 	}
 }
 
 void InnerDropdown::onScroll() {
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		int visibleTop = _scroll->scrollTop();
 		int visibleBottom = visibleTop + _scroll->height();
 		widget->setVisibleTopBottom(visibleTop, visibleBottom);
@@ -103,9 +102,9 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 	if (!_cache.isNull()) {
 		bool animating = _a_appearance.animating(getms());
 		if (animating) {
-			p.setOpacity(_a_appearance.current(_hiding));
-		} else if (_hiding) {
-			hidingFinished();
+			p.setOpacity(_a_appearance.current(_hiding ? 0. : 1.));
+		} else if (_hiding || isHidden()) {
+			hideFinished();
 			return;
 		}
 		p.drawPixmap(0, 0, _cache);
@@ -117,20 +116,19 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 	}
 
 	// draw shadow
-	QRect shadowedRect = rect().marginsRemoved(_st.padding);
+	auto shadowedRect = rect().marginsRemoved(_st.padding);
 	_shadow.paint(p, shadowedRect, _st.shadowShift);
 	p.fillRect(shadowedRect, st::windowBg);
 }
 
 void InnerDropdown::enterEvent(QEvent *e) {
-	_hideTimer.stop();
-	if (_hiding) showingStarted();
+	showAnimated();
 	return TWidget::enterEvent(e);
 }
 
 void InnerDropdown::leaveEvent(QEvent *e) {
 	if (_a_appearance.animating(getms())) {
-		onHideStart();
+		hideAnimated();
 	} else {
 		_hideTimer.start(300);
 	}
@@ -138,23 +136,41 @@ void InnerDropdown::leaveEvent(QEvent *e) {
 }
 
 void InnerDropdown::otherEnter() {
-	_hideTimer.stop();
-	showingStarted();
+	showAnimated();
 }
 
 void InnerDropdown::otherLeave() {
 	if (_a_appearance.animating(getms())) {
-		onHideStart();
+		hideAnimated();
 	} else {
 		_hideTimer.start(0);
 	}
 }
 
-void InnerDropdown::onHideStart() {
+void InnerDropdown::showAnimated() {
+	_hideTimer.stop();
+	showStarted();
+}
+
+void InnerDropdown::hideAnimated(HideOption option) {
+	if (isHidden()) return;
+	if (option == HideOption::IgnoreShow) {
+		_ignoreShowEvents = true;
+	}
 	if (_hiding) return;
 
+	_hideTimer.stop();
 	_hiding = true;
 	startAnimation();
+}
+
+void InnerDropdown::hideFast() {
+	if (isHidden()) return;
+
+	_hideTimer.stop();
+	_hiding = false;
+	_a_appearance.finish();
+	hideFinished();
 }
 
 void InnerDropdown::startAnimation() {
@@ -168,13 +184,17 @@ void InnerDropdown::startAnimation() {
 	_a_appearance.start([this] { repaintCallback(); }, from, to, _st.duration);
 }
 
-void InnerDropdown::hidingFinished() {
-	hide();
-//	showChildren();
-	emit hidden();
+void InnerDropdown::hideFinished() {
+	_cache = QPixmap();
+	_ignoreShowEvents = false;
+	if (!isHidden()) {
+		emit beforeHidden();
+		hide();
+	}
 }
 
-void InnerDropdown::showingStarted() {
+void InnerDropdown::showStarted() {
+	if (_ignoreShowEvents) return;
 	if (isHidden()) {
 		show();
 	} else if (!_hiding) {
@@ -188,7 +208,7 @@ void InnerDropdown::repaintCallback() {
 	update();
 	if (!_a_appearance.animating() && _hiding) {
 		_hiding = false;
-		hidingFinished();
+		hideFinished();
 	}
 }
 
@@ -207,35 +227,45 @@ bool InnerDropdown::eventFilter(QObject *obj, QEvent *e) {
 	return false;
 }
 
-namespace internal {
-
-Container::Container(QWidget *parent, ScrolledWidget *child, const style::InnerDropdown &st) : ScrolledWidget(parent), _st(st) {
-	child->setParent(this);
-	child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
-	connect(child, SIGNAL(heightUpdated()), this, SLOT(onHeightUpdate()));
+int InnerDropdown::resizeGetHeight(int newWidth) {
+	auto newHeight = _st.padding.top() + _st.scrollMargin.top() + _st.scrollMargin.bottom() + _st.padding.bottom();
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
+		widget->resizeToWidth(newWidth - _st.padding.left() - _st.padding.right() - _st.scrollMargin.left() - _st.scrollMargin.right());
+		newHeight += widget->height();
+	}
+	if (_maxHeight > 0) {
+		accumulate_min(newHeight, _maxHeight);
+	}
+	return newHeight;
 }
 
-void Container::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	if (auto child = static_cast<ScrolledWidget*>(children().front())) {
+InnerDropdown::Container::Container(QWidget *parent, TWidget *child, const style::InnerDropdown &st) : TWidget(parent), _st(st) {
+	child->setParent(this);
+	child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
+}
+
+void InnerDropdown::Container::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	if (auto child = static_cast<TWidget*>(children().front())) {
 		child->setVisibleTopBottom(visibleTop - _st.scrollPadding.top(), visibleBottom - _st.scrollPadding.top());
 	}
 }
 
-void Container::onHeightUpdate() {
-	int newHeight = _st.scrollPadding.top() + _st.scrollPadding.bottom();
-	if (auto child = static_cast<ScrolledWidget*>(children().front())) {
+void InnerDropdown::Container::resizeToContent() {
+	auto newWidth = _st.scrollPadding.top() + _st.scrollPadding.bottom();
+	auto newHeight = _st.scrollPadding.top() + _st.scrollPadding.bottom();
+	if (auto child = static_cast<TWidget*>(children().front())) {
+		newWidth += child->width();
 		newHeight += child->height();
 	}
-	if (newHeight != height()) {
-		resize(width(), newHeight);
-		emit heightUpdated();
+	if (newWidth != width() || newHeight != height()) {
+		resize(newWidth, newHeight);
 	}
 }
 
-int Container::resizeGetHeight(int newWidth) {
+int InnerDropdown::Container::resizeGetHeight(int newWidth) {
 	int innerWidth = newWidth - _st.scrollPadding.left() - _st.scrollPadding.right();
 	int result = _st.scrollPadding.top() + _st.scrollPadding.bottom();
-	if (auto child = static_cast<ScrolledWidget*>(children().front())) {
+	if (auto child = static_cast<TWidget*>(children().front())) {
 		child->resizeToWidth(innerWidth);
 		child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
 		result += child->height();
@@ -243,5 +273,4 @@ int Container::resizeGetHeight(int newWidth) {
 	return result;
 }
 
-} // namespace internal
 } // namespace Ui

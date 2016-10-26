@@ -28,7 +28,6 @@ class FlatButton : public Button {
 	Q_OBJECT
 
 public:
-
 	FlatButton(QWidget *parent, const QString &text, const style::flatButton &st);
 
 	void step_appearance(float64 ms, bool timer);
@@ -45,11 +44,9 @@ public:
 	}
 
 public slots:
-
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 private:
-
 	QString _text, _textForAutoSize;
 	int32 _textWidth;
 
@@ -91,7 +88,6 @@ class IconedButton : public Button {
 	Q_OBJECT
 
 public:
-
 	IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text = QString());
 
 	void step_appearance(float64 ms, bool timer);
@@ -103,11 +99,9 @@ public:
 	QString getText() const;
 
 public slots:
-
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 protected:
-
 	QString _text;
 
 	style::iconedButton _st;
@@ -118,39 +112,6 @@ protected:
 	Animation _a_appearance;
 
 	float64 _opacity;
-};
-
-class MaskedButton : public IconedButton {
-	Q_OBJECT
-
-public:
-
-	MaskedButton(QWidget *parent, const style::iconedButton &st, const QString &text = QString());
-
-	void paintEvent(QPaintEvent *e);
-
-};
-
-class EmojiButton : public IconedButton {
-	Q_OBJECT
-
-public:
-	EmojiButton(QWidget *parent, const style::iconedButton &st);
-
-	void paintEvent(QPaintEvent *e);
-	void setLoading(bool loading);
-
-private:
-	bool _loading;
-	FloatAnimation a_loading;
-	Animation _a_loading;
-
-	void step_loading(uint64 ms, bool timer) {
-		if (timer) {
-			update();
-		}
-	}
-
 };
 
 class BoxButton : public Button {

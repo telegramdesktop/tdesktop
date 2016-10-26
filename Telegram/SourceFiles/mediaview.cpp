@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/filedialog.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
@@ -88,7 +88,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 , _radial(animation(this, &MediaView::step_radial))
 , _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
-, _dropdown(this, st::mvDropdown) {
+, _dropdown(this, st::mediaviewDropdownMenu) {
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
@@ -126,32 +126,14 @@ MediaView::MediaView() : TWidget(App::wnd())
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
-	_btns.push_back(_btnSaveCancel = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_cancel))));
-	connect(_btnSaveCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
-	_btns.push_back(_btnToMessage = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_context_to_msg))));
-	connect(_btnToMessage, SIGNAL(clicked()), this, SLOT(onToMessage()));
-	_btns.push_back(_btnShowInFolder = _dropdown.addButton(new IconedButton(this, st::mvButton, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder))));
-	connect(_btnShowInFolder, SIGNAL(clicked()), this, SLOT(onShowInFolder()));
-	_btns.push_back(_btnCopy = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_copy))));
-	connect(_btnCopy, SIGNAL(clicked()), this, SLOT(onCopy()));
-	_btns.push_back(_btnForward = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_forward))));
-	connect(_btnForward, SIGNAL(clicked()), this, SLOT(onForward()));
-	_btns.push_back(_btnDelete = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_delete))));
-	connect(_btnDelete, SIGNAL(clicked()), this, SLOT(onDelete()));
-	_btns.push_back(_btnSaveAs = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_save_as))));
-	connect(_btnSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
-	_btns.push_back(_btnViewAll = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_photos_all))));
-	connect(_btnViewAll, SIGNAL(clicked()), this, SLOT(onOverview()));
-
-	_dropdown.hide();
-	connect(&_dropdown, SIGNAL(hiding()), this, SLOT(onDropdownHiding()));
-
 	_controlsHideTimer.setSingleShot(true);
 	connect(&_controlsHideTimer, SIGNAL(timeout()), this, SLOT(onHideControls()));
 
 	connect(&_docDownload, SIGNAL(clicked()), this, SLOT(onDownload()));
 	connect(&_docSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
 	connect(&_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
+
+	connect(_dropdown, SIGNAL(beforeHidden()), this, SLOT(onDropdownHidden()));
 }
 
 void MediaView::moveToScreen() {
@@ -400,18 +382,31 @@ void MediaView::updateControls() {
 	update();
 }
 
-void MediaView::updateDropdown() {
-	_btnSaveCancel->setVisible(_doc && _doc->loading());
-	_btnToMessage->setVisible(_msgid > 0);
-	_btnShowInFolder->setVisible(_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty());
-	_btnSaveAs->setVisible(true);
-	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->loaded()));
-	_btnForward->setVisible(_canForward);
-	_btnDelete->setVisible(_canDelete || (_photo && App::self() && _user == App::self()) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
-	_btnViewAll->setVisible(_history && typeHasMediaOverview(_overview));
-	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
-	_dropdown.updateButtons();
-	_dropdown.moveToRight(0, height() - _dropdown.height());
+void MediaView::updateActions() {
+	_actions.clear();
+
+	if (_doc && _doc->loading()) {
+		_actions.push_back({ lang(lng_cancel), SLOT(onSaveCancel()) });
+	}
+	if (_msgid > 0) {
+		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
+	}
+	if (_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+		_actions.push_back({ lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), SLOT(onShowInFolder()) });
+	}
+	if ((_doc && fileShown()) || (_photo && _photo->loaded())) {
+		_actions.push_back({ lang(lng_mediaview_copy), SLOT(onCopy()) });
+	}
+	if (_canForward) {
+		_actions.push_back({ lang(lng_mediaview_forward), SLOT(onForward()) });
+	}
+	if (_canDelete || (_photo && App::self() && _user == App::self()) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator())))) {
+		_actions.push_back({ lang(lng_mediaview_delete), SLOT(onDelete()) });
+	}
+	_actions.push_back({ lang(lng_mediaview_save_as), SLOT(onSaveAs()) });
+	if (_history && typeHasMediaOverview(_overview)) {
+		_actions.push_back({ lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all), SLOT(onOverview()) });
+	}
 }
 
 void MediaView::step_state(uint64 ms, bool timer) {
@@ -662,7 +657,7 @@ void MediaView::activateControls() {
 
 void MediaView::onHideControls(bool force) {
 	if (!force) {
-		if (!_dropdown.isHidden()
+		if (!_dropdown->isHidden()
 			|| _menu
 			|| _mousePressed
 			|| (_fullScreenVideo && _clipController && _clipController->geometry().contains(_lastMouseMovePos))) {
@@ -682,7 +677,7 @@ void MediaView::onHideControls(bool force) {
 	if (!_a_state.animating()) _a_state.start();
 }
 
-void MediaView::onDropdownHiding() {
+void MediaView::onDropdownHidden() {
 	setFocus();
 	_ignoringDropdown = true;
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
@@ -961,10 +956,7 @@ void MediaView::onOverview() {
 }
 
 void MediaView::onCopy() {
-	if (!_dropdown.isHidden()) {
-		_dropdown.ignoreShow();
-		_dropdown.hideStart();
-	}
+	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
 		if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
@@ -2395,10 +2387,10 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->deleteLater();
 			_menu = 0;
 		}
-		_menu = new PopupMenu(st::mvPopupMenu);
-		updateDropdown();
-		for (int32 i = 0, l = _btns.size(); i < l; ++i) {
-			if (!_btns.at(i)->isHidden()) _menu->addAction(_btns.at(i)->getText(), _btns.at(i), SIGNAL(clicked()))->setEnabled(true);
+		_menu = new Ui::PopupMenu(st::mediaviewPopupMenu);
+		updateActions();
+		for_const (auto &action, _actions) {
+			_menu->addAction(action.text, this, action.member)->setEnabled(true);
 		}
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
@@ -2541,10 +2533,14 @@ void MediaView::receiveMouse() {
 }
 
 void MediaView::onDropdown() {
-	updateDropdown();
-	_dropdown.ignoreShow(false);
-	_dropdown.showStart();
-	_dropdown.setFocus();
+	updateActions();
+	_dropdown->clearActions();
+	for_const (auto &action, _actions) {
+		_dropdown->addAction(action.text, this, action.member);
+	}
+	_dropdown->moveToRight(0, height() - _dropdown->height());
+	_dropdown->showAnimated();
+	_dropdown->setFocus();
 }
 
 void MediaView::onCheckActive() {

@@ -54,7 +54,7 @@ void BackgroundBox::onBackgroundChosen(int index) {
 	onClose();
 }
 
-BackgroundBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
+BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 , _bgCount(0)
 , _rows(0)
 , _over(-1)

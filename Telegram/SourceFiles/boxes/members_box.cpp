@@ -97,7 +97,7 @@ void MembersBox::onAdminAdded() {
 	_loadTimer.start(ReloadChannelMembersTimeout);
 }
 
-MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : ScrolledWidget(parent)
+MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _newItemHeight((channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) ? st::contactsNewItemHeight : 0)
 , _newItemSel(false)

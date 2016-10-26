@@ -42,7 +42,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class BackgroundBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

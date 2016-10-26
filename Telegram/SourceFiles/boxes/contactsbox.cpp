@@ -555,7 +555,7 @@ ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda_wrap<v
 : checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer))) {
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _newItemHeight(creating == CreatingGroupNone ? st::contactsNewItemHeight : 0)
 , _creating(creating)
@@ -565,7 +565,7 @@ ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : Scrolle
 	init();
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _channel(channel)
 , _membersFilter(membersFilter)
@@ -583,7 +583,7 @@ namespace {
 	}
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _chat(chat)
 , _membersFilter(membersFilter)
@@ -615,7 +615,7 @@ void ContactsBox::Inner::addDialogsToList(FilterCallback callback) {
 	}
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)

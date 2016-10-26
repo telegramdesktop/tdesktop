@@ -1,0 +1,185 @@
+/*
+ This file is part of Telegram Desktop,
+ the official desktop version of Telegram messaging app, see https://telegram.org
+
+ Telegram Desktop is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ It is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+ */
+#include "stdafx.h"
+#include "ui/widgets/tooltip.h"
+
+#include "application.h"
+
+namespace Ui {
+
+Tooltip *TooltipInstance = nullptr;
+
+AbstractTooltipShower::~AbstractTooltipShower() {
+	if (TooltipInstance && TooltipInstance->_shower == this) {
+		TooltipInstance->_shower = 0;
+	}
+}
+
+Tooltip::Tooltip() : TWidget(nullptr) {
+	TooltipInstance = this;
+
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::ToolTip | Qt::NoDropShadowWindowHint);
+	setAttribute(Qt::WA_NoSystemBackground, true);
+
+	_showTimer.setSingleShot(true);
+	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
+
+	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+}
+
+void Tooltip::onShow() {
+	if (_shower) {
+		QString text = (App::wnd() && App::wnd()->isActive(false)) ? _shower->tooltipText() : QString();
+		if (text.isEmpty()) {
+			Hide();
+		} else {
+			TooltipInstance->popup(_shower->tooltipPos(), text, _shower->tooltipSt());
+		}
+	}
+}
+
+void Tooltip::onWndActiveChanged() {
+	if (!App::wnd() || !App::wnd()->windowHandle() || !App::wnd()->windowHandle()->isActive()) {
+		Tooltip::Hide();
+	}
+}
+
+bool Tooltip::eventFilter(QObject *o, QEvent *e) {
+	if (e->type() == QEvent::Leave) {
+		_hideByLeaveTimer.start(10);
+	} else if (e->type() == QEvent::Enter) {
+		_hideByLeaveTimer.stop();
+	} else if (e->type() == QEvent::MouseMove) {
+		if ((QCursor::pos() - _point).manhattanLength() > QApplication::startDragDistance()) {
+			Hide();
+		}
+	}
+	return TWidget::eventFilter(o, e);
+}
+
+void Tooltip::onHideByLeave() {
+	Hide();
+}
+
+Tooltip::~Tooltip() {
+	if (TooltipInstance == this) {
+		TooltipInstance = 0;
+	}
+}
+
+void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *st) {
+	if (!_hideByLeaveTimer.isSingleShot()) {
+		_hideByLeaveTimer.setSingleShot(true);
+		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
+
+		Sandbox::installEventFilter(this);
+	}
+
+	_point = m;
+	_st = st;
+	_text = Text(_st->textFont, text, _textPlainOptions, _st->widthMax, true);
+
+	int32 addw = 2 * st::lineWidth + _st->textPadding.left() + _st->textPadding.right();
+	int32 addh = 2 * st::lineWidth + _st->textPadding.top() + _st->textPadding.bottom();
+
+	// count tooltip size
+	QSize s(addw + _text.maxWidth(), addh + _text.minHeight());
+	if (s.width() > _st->widthMax) {
+		s.setWidth(addw + _text.countWidth(_st->widthMax - addw));
+		s.setHeight(addh + _text.countHeight(s.width() - addw));
+	}
+	int32 maxh = addh + (_st->linesMax * _st->textFont->height);
+	if (s.height() > maxh) {
+		s.setHeight(maxh);
+	}
+
+	// count tooltip position
+	QPoint p(m + _st->shift);
+	if (rtl()) {
+		p.setX(m.x() - s.width() - _st->shift.x());
+	}
+	if (s.width() < 2 * _st->shift.x()) {
+		p.setX(m.x() - (s.width() / 2));
+	}
+
+	// adjust tooltip position
+	QRect r(QApplication::desktop()->screenGeometry(m));
+	if (r.x() + r.width() - _st->skip < p.x() + s.width() && p.x() + s.width() > m.x()) {
+		p.setX(qMax(r.x() + r.width() - int32(_st->skip) - s.width(), m.x() - s.width()));
+	}
+	if (r.x() + _st->skip > p.x() && p.x() < m.x()) {
+		p.setX(qMin(m.x(), r.x() + int32(_st->skip)));
+	}
+	if (r.y() + r.height() - _st->skip < p.y() + s.height()) {
+		p.setY(m.y() - s.height() - _st->skip);
+	}
+	if (r.y() > p.x()) {
+		p.setY(qMin(m.y() + _st->shift.y(), r.y() + r.height() - s.height()));
+	}
+
+	setGeometry(QRect(p, s));
+
+	_hideByLeaveTimer.stop();
+	show();
+}
+
+void Tooltip::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(rect(), _st->textBg);
+
+	p.fillRect(QRect(0, 0, width(), st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(0, height() - st::lineWidth, width(), st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(0, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(width() - st::lineWidth, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+
+	int32 lines = qFloor((height() - 2 * st::lineWidth - _st->textPadding.top() - _st->textPadding.bottom()) / _st->textFont->height);
+
+	p.setPen(_st->textFg);
+	_text.drawElided(p, st::lineWidth + _st->textPadding.left(), st::lineWidth + _st->textPadding.top(), width() - 2 * st::lineWidth - _st->textPadding.left() - _st->textPadding.right(), lines);
+}
+
+void Tooltip::hideEvent(QHideEvent *e) {
+	if (TooltipInstance == this) {
+		Hide();
+	}
+}
+
+void Tooltip::Show(int32 delay, const AbstractTooltipShower *shower) {
+	if (!TooltipInstance) {
+		new Tooltip();
+	}
+	TooltipInstance->_shower = shower;
+	if (delay >= 0) {
+		TooltipInstance->_showTimer.start(delay);
+	} else {
+		TooltipInstance->onShow();
+	}
+}
+
+void Tooltip::Hide() {
+	if (auto instance = TooltipInstance) {
+		TooltipInstance = nullptr;
+		instance->_showTimer.stop();
+		instance->_hideByLeaveTimer.stop();
+		instance->hide();
+		instance->deleteLater();
+	}
+}
+
+} // namespace Ui

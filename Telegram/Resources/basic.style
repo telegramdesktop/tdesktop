@@ -272,36 +272,10 @@ solidScroll: flatScroll {
 	duration: 150;
 	hiding: 0;
 }
+defaultDropdownDuration: 150;
+defaultDropdownPadding: margins(10px, 10px, 10px, 10px);
 defaultDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
-defaultPopupMenu: PopupMenu {
-	skip: 5px;
-
-	shadow: defaultDropdownShadow;
-	shadowShift: 1px;
-
-	itemBg: white;
-	itemBgOver: overBg;
-	itemFg: black;
-	itemFgOver: black;
-	itemFgDisabled: #ccc;
-	itemFgShortcut: #999;
-	itemFgShortcutOver: #7c99b2;
-	itemFgShortcutDisabled: #ccc;
-
-	itemPadding: margins(17px, 8px, 17px, 7px);
-	itemFont: normalFont;
-
-	separatorPadding: margins(0px, 5px, 0px, 5px);
-	separatorWidth: 1px;
-	separatorFg: #f1f1f1;
-
-	arrow: icon {{ "dropdown_submenu_arrow", #373737 }};
-
-	duration: 120;
-
-	widthMin: 180px;
-	widthMax: 300px;
-}
+defaultDropdownShadowShift: 1px;
 
 defaultTooltip: Tooltip {
 	textBg: #eef2f5;
@@ -1088,54 +1062,6 @@ btnUnblock: flatButton(btnSend) {
 	downColor: #db6352;
 }
 
-btnAttachDocument: iconedButton(btnDefIconed) {
-	icon: sprite(218px, 68px, 24px, 24px);
-	iconPos: point(11px, 11px);
-	downIcon: sprite(218px, 68px, 24px, 24px);
-	downIconPos: point(11px, 12px);
-
-	overBgColor: btnWhiteHover;
-	width: 46px;
-	height: 46px;
-}
-btnAttachPhoto: iconedButton(btnAttachDocument) {
-	icon: sprite(118px, 0px, 24px, 24px);
-	downIcon: sprite(118px, 0px, 24px, 24px);
-}
-btnAttachEmoji: iconedButton(btnAttachDocument) {
-	overBgColor: white;
-	icon: sprite(374px, 344px, 21px, 22px);
-	iconPos: point(6px, 12px);
-	downIcon: sprite(374px, 344px, 21px, 22px);
-	downIconPos: point(6px, 12px);
-
-	width: 33px;
-}
-emojiCircle: size(19px, 19px);
-emojiCirclePeriod: 1500;
-emojiCircleDuration: 500;
-emojiCircleTop: 13px;
-emojiCircleLine: 2px;
-emojiCircleFg: #b9b9b9;
-emojiCirclePart: 3.5;
-btnBotKbShow: iconedButton(btnAttachEmoji) {
-	icon: sprite(375px, 74px, 21px, 21px);
-	iconPos: point(6px, 12px);
-	downIcon: sprite(375px, 74px, 21px, 21px);
-	downIconPos: point(6px, 12px);
-}
-btnBotCmdStart: iconedButton(btnAttachEmoji) {
-	icon: sprite(354px, 74px, 21px, 21px);
-	iconPos: point(6px, 12px);
-	downIcon: sprite(354px, 74px, 21px, 21px);
-	downIconPos: point(6px, 12px);
-}
-btnBotKbHide: iconedButton(btnAttachEmoji) {
-	icon: sprite(373px, 95px, 23px, 14px);
-	iconPos: point(5px, 17px);
-	downIcon: sprite(373px, 95px, 23px, 14px);
-	downIconPos: point(5px, 17px);
-}
 silentToggle: flatCheckbox {
 	textColor: black;
 	bgColor: white;
@@ -1158,15 +1084,6 @@ silentToggle: flatCheckbox {
 
 	imagePos: point(6px, 12px);
 }
-btnRecordAudio: sprite(379px, 390px, 16px, 24px);
-btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
-recordSignalColor: #f17077;
-recordSignalMin: 5px;
-recordSignalMax: 12px;
-recordCancel: #aaa;
-recordCancelActive: #ec6466;
-recordFont: font(13px);
-recordTextTop: 14px;
 
 replySkip: 51px;
 replyColor: #377aae;
@@ -1418,68 +1335,6 @@ connectingBG: #fffe;
 connectingColor: #777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
-dropdownDef: dropdown {
-	border: 1px;
-	borderColor: #ebebeb;
-
-	padding: margins(10px, 10px, 10px, 10px);
-	shadow: defaultDropdownShadow;
-	shadowShift: 1px;
-
-	duration: 150;
-	width: 0px;
-}
-defaultInnerDropdown: InnerDropdown {
-	padding: margins(10px, 10px, 10px, 10px);
-	shadow: defaultDropdownShadow;
-	shadowShift: 1px;
-
-	duration: 150;
-}
-
-dropdownAttachDocument: iconedButton(btnAttachDocument) {
-	iconPos: point(14px, 13px);
-	downIconPos: point(14px, 14px);
-
-	width: 172px;
-	height: 49px;
-
-	color: black;
-
-	font: font(16px);
-
-	textPos: point(50px, 13px);
-	downTextPos: point(50px, 14px);
-}
-dropdownAttachPhoto: iconedButton(dropdownAttachDocument) {
-	icon: sprite(118px, 0px, 24px, 24px);
-	downIcon: sprite(118px, 0px, 24px, 24px);
-}
-dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
-	width: 200px;
-}
-dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
-	icon: sprite(92px, 348px, 24px, 24px);
-	downIcon: sprite(92px, 348px, 24px, 24px);
-}
-dropdownMediaSongs: iconedButton(dropdownMediaPhotos) {
-	icon: sprite(60px, 374px, 24px, 26px);
-	downIcon: sprite(60px, 374px, 24px, 26px);
-	iconPos: point(12px, 12px);
-	downIconPos: point(12px, 13px);
-}
-dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
-	width: 200px;
-}
-dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
-	icon: sprite(62px, 348px, 24px, 24px);
-	downIcon: sprite(62px, 348px, 24px, 24px);
-}
-dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
-	icon: sprite(372px, 414px, 24px, 24px);
-	downIcon: sprite(372px, 414px, 24px, 24px);
-}
-
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
 dragColor: #777;
@@ -1720,49 +1575,6 @@ mvControlMargin: 0px;
 mvControlSize: 90px;
 mvIconSize: size(60px, 56px);
 
-mvDropdown: dropdown(dropdownDef) {
-	shadow: icon {};
-	padding: margins(11px, 12px, 11px, 12px);
-
-	border: 0px;
-	width: 182px;
-}
-mvButton: iconedButton(btnDefIconed) {
-	bgColor: #383838;
-	overBgColor: #505050;
-	font: font(fsize);
-
-	opacity: 1.;
-	overOpacity: 1.;
-
-	width: -32px;
-	height: 36px;
-
-	color: white;
-
-	textPos: point(16px, 9px);
-	downTextPos: point(16px, 10px);
-
-	duration: 0;
-}
-mvPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: icon {};
-
-	itemBg: #383838;
-	itemBgOver: #505050;
-	itemFg: white;
-	itemFgOver: white;
-	itemFgDisabled: #999;
-	itemFgShortcut: #eee;
-	itemFgShortcutOver: #fff;
-	itemFgShortcutDisabled: #999;
-
-	separatorFg: #484848;
-}
-mvContextButton: iconedButton(mvButton) {
-	bgColor: #383838E6;
-	overBgColor: #505050E7;
-}
 mvWaitHide: 2000;
 mvHideDuration: 1000;
 mvShowDuration: 200;
@@ -1817,23 +1629,6 @@ macSelectorTop: 6;
 macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
 macCautionIconSize: 16;
-
-btnContext: iconedButton(btnDefIconed) {
-	bgColor: white;
-	overBgColor: btnWhiteHover;
-	font: font(14px);
-
-	opacity: 1.;
-	overOpacity: 1.;
-
-	width: -32px;
-	height: 36px;
-
-	color: black;
-
-	textPos: point(16px, 7px);
-	downTextPos: point(16px, 8px);
-}
 
 radialSize: size(50px, 50px);
 radialLine: 3px;

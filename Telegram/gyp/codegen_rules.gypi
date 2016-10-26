@@ -33,6 +33,7 @@
     'action': [
       '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I<(res_loc)', '-I<(src_loc)',
+      '-w<(PRODUCT_DIR)/../..',
       '--skip-styles', '<(res_loc)/basic.style',
     ],
     'message': 'Updating sprites..',

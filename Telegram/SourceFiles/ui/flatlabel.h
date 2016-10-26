@@ -20,7 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
 class PopupMenu;
+} // namespace Ui
 
 class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
@@ -137,7 +139,7 @@ private:
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
-	PopupMenu *_contextMenu = nullptr;
+	Ui::PopupMenu *_contextMenu = nullptr;
 	ClickHandlerPtr _contextMenuClickHandler;
 	QString _contextCopyText;
 	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;

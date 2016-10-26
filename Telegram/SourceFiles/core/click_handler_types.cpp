@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "localstorage.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -64,7 +64,7 @@ QString tryConvertUrlToLocal(QString url) {
 } // namespace
 
 void UrlClickHandler::doOpen(QString url) {
-	PopupTooltip::Hide();
+	Ui::Tooltip::Hide();
 
 	if (isEmail(url)) {
 		QUrl u(qstr("mailto:") + url);

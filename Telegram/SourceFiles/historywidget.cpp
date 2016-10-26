@@ -29,17 +29,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
-#include "ui/inner_dropdown.h"
+#include "ui/buttons/icon_button.h"
+#include "ui/widgets/inner_dropdown.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_drag_area.h"
 #include "profile/profile_members_widget.h"
 #include "core/click_handler_types.h"
 #include "stickers/emoji_pan.h"
 #include "lang.h"
 #include "application.h"
-#include "dropdown.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "passcodewidget.h"
@@ -52,6 +54,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/chat_background.h"
 #include "observer_peer.h"
 #include "core/qthelp_regex.h"
+#include "ui/widgets/popup_menu.h"
 
 namespace {
 
@@ -1154,7 +1157,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = new PopupMenu();
+	_menu = new Ui::PopupMenu();
 
 	_contextMenuLnk = ClickHandler::getActive();
 	HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
@@ -1698,7 +1701,7 @@ void HistoryInner::toggleScrollDateShown() {
 	_scrollDateShown = !_scrollDateShown;
 	auto from = _scrollDateShown ? 0. : 1.;
 	auto to = _scrollDateShown ? 1. : 0.;
-	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::btnAttachEmoji.duration);
+	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::historyAttachPhoto.duration);
 }
 
 void HistoryInner::repaintScrollDateCallback() {
@@ -1749,7 +1752,7 @@ void HistoryInner::leaveEvent(QEvent *e) {
 		App::hoveredItem(nullptr);
 	}
 	ClickHandler::clearActive();
-	PopupTooltip::Hide();
+	Ui::Tooltip::Hide();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
@@ -1970,7 +1973,7 @@ void HistoryInner::onUpdateSelected() {
 		dragState = item->getState(m.x(), m.y(), request);
 		lnkhost = item;
 		if (!dragState.link && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
-			if (HistoryMessage *msg = item->toHistoryMessage()) {
+			if (auto msg = item->toHistoryMessage()) {
 				if (msg->hasFromPhoto()) {
 					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
 						// stop enumeration if the userpic is above our point
@@ -1992,10 +1995,10 @@ void HistoryInner::onUpdateSelected() {
 	}
 	bool lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
 	if (lnkChanged || dragState.cursor != _dragCursorState) {
-		PopupTooltip::Hide();
+		Ui::Tooltip::Hide();
 	}
 	if (dragState.link || dragState.cursor == HistoryInDateCursorState || dragState.cursor == HistoryInForwardedCursorState) {
-		PopupTooltip::Show(1000, this);
+		Ui::Tooltip::Show(1000, this);
 	}
 
 	Qt::CursorShape cur = style::cur_default;
@@ -2611,7 +2614,7 @@ void BotKeyboard::updateStyle(int newWidth) {
 void BotKeyboard::clearSelection() {
 	if (_impl) {
 		if (ClickHandler::setActive(ClickHandlerPtr(), this)) {
-			PopupTooltip::Hide();
+			Ui::Tooltip::Hide();
 			setCursor(style::cur_default);
 		}
 	}
@@ -2629,7 +2632,7 @@ QString BotKeyboard::tooltipText() const {
 }
 
 void BotKeyboard::updateSelected() {
-	PopupTooltip::Show(1000, this);
+	Ui::Tooltip::Show(1000, this);
 
 	if (!_impl) return;
 
@@ -2638,7 +2641,7 @@ void BotKeyboard::updateSelected() {
 
 	auto link = _impl->getState(p.x() - x, p.y() - _st->margin);
 	if (ClickHandler::setActive(link, this)) {
-		PopupTooltip::Hide();
+		Ui::Tooltip::Hide();
 		setCursor(link ? style::cur_pointer : style::cur_default);
 	}
 }
@@ -2917,19 +2920,19 @@ SilentToggle::SilentToggle(QWidget *parent) : FlatCheckbox(parent, QString(), fa
 void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
 	FlatCheckbox::mouseMoveEvent(e);
 	if (rect().contains(e->pos())) {
-		PopupTooltip::Show(1000, this);
+		Ui::Tooltip::Show(1000, this);
 	} else {
-		PopupTooltip::Hide();
+		Ui::Tooltip::Hide();
 	}
 }
 
 void SilentToggle::leaveEvent(QEvent *e) {
-	PopupTooltip::Hide();
+	Ui::Tooltip::Hide();
 }
 
 void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	FlatCheckbox::mouseReleaseEvent(e);
-	PopupTooltip::Show(0, this);
+	Ui::Tooltip::Show(0, this);
 	PeerData *p = App::main() ? App::main()->peer() : nullptr;
 	if (p && p->isChannel() && p->notify != UnknownNotifySettings) {
 		App::main()->updateNotifySetting(p, NotifySettingDontChange, checked() ? SilentNotifiesSetSilent : SilentNotifiesSetNotify);
@@ -2991,20 +2994,20 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _botStart(this, lang(lng_bot_start), st::btnSend)
 , _joinChannel(this, lang(lng_channel_join), st::btnSend)
 , _muteUnmute(this, lang(lng_channel_mute), st::btnSend)
-, _attachDocument(this, st::btnAttachDocument)
-, _attachPhoto(this, st::btnAttachPhoto)
-, _attachEmoji(this, st::btnAttachEmoji)
-, _kbShow(this, st::btnBotKbShow)
-, _kbHide(this, st::btnBotKbHide)
-, _cmdStart(this, st::btnBotCmdStart)
+, _attachDocument(this, st::historyAttachDocument)
+, _attachPhoto(this, st::historyAttachPhoto)
+, _attachEmoji(this, st::historyAttachEmoji)
+, _botKeyboardShow(this, st::historyBotKeyboardShow)
+, _botKeyboardHide(this, st::historyBotKeyboardHide)
+, _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _a_record(animation(this, &HistoryWidget::step_record))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
-, a_recordCancel(st::recordCancel->c, st::recordCancel->c)
-, _recordCancelWidth(st::recordFont->width(lang(lng_record_cancel)))
+, a_recordCancel(st::historyRecordCancel->c, st::historyRecordCancel->c)
+, _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _kbScroll(this, st::botKbScroll)
-, _attachType(this)
+, _attachType(this, st::historyAttachDropdownMenu)
 , _emojiPan(this)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
@@ -3028,8 +3031,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(&_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
 	connect(&_silent, SIGNAL(clicked()), this, SLOT(onBroadcastSilentChange()));
-	connect(&_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
-	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
+	connect(_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
+	connect(_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
@@ -3107,24 +3110,24 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_reportSpamPanel.move(0, 0);
 	_reportSpamPanel.hide();
 
-	_attachDocument.hide();
-	_attachPhoto.hide();
-	_attachEmoji.hide();
-	_kbShow.hide();
-	_kbHide.hide();
+	_attachDocument->hide();
+	_attachPhoto->hide();
+	_attachEmoji->hide();
+	_botKeyboardShow->hide();
+	_botKeyboardHide->hide();
 	_silent.hide();
-	_cmdStart.hide();
+	_botCommandStart->hide();
 
-	_attachDocument.installEventFilter(_attachType);
-	_attachPhoto.installEventFilter(_attachType);
-	_attachEmoji.installEventFilter(_emojiPan);
+	_attachDocument->installEventFilter(_attachType);
+	_attachPhoto->installEventFilter(_attachType);
+	_attachEmoji->installEventFilter(_emojiPan);
 
-	connect(&_kbShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
-	connect(&_kbHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
-	connect(&_cmdStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
+	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
+	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
+	connect(_botCommandStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
 
-	connect(_attachType->addButton(new IconedButton(this, st::dropdownAttachDocument, lang(lng_attach_file))), SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
-	connect(_attachType->addButton(new IconedButton(this, st::dropdownAttachPhoto, lang(lng_attach_photo))), SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
+	_attachType->addAction(lang(lng_attach_file), this, SLOT(onDocumentSelect()), &st::historyMediaTypeFile);
+	_attachType->addAction(lang(lng_attach_photo), this, SLOT(onPhotoSelect()), &st::historyMediaTypePhoto);
 	_attachType->hide();
 	_emojiPan->hide();
 	_attachDragDocument->hide();
@@ -3221,7 +3224,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			_emojiPan->queryInlineBot(_inlineBot, _peer, query);
 		}
 		if (!_fieldAutocomplete->isHidden()) {
-			_fieldAutocomplete->hideStart();
+			_fieldAutocomplete->hideAnimated();
 		}
 	} else {
 		clearInlineBot();
@@ -3267,7 +3270,7 @@ void HistoryWidget::onTextChange() {
 			_a_record.stop();
 			_inRecord = _inField = false;
 			a_recordOver = a_recordDown = anim::fvalue(0, 0);
-			a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
+			a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
 		}
 	}
 	if (updateCmdStartShown()) {
@@ -3541,7 +3544,7 @@ void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 }
 
 void HistoryWidget::notify_inlineBotRequesting(bool requesting) {
-	_attachEmoji.setLoading(requesting);
+	_attachEmoji->setLoading(requesting);
 }
 
 void HistoryWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
@@ -4497,14 +4500,14 @@ void HistoryWidget::updateControlsVisibility() {
 		_fieldAutocomplete->hide();
 		_field.hide();
 		_fieldBarCancel.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
-		_attachEmoji.hide();
+		_attachDocument->hide();
+		_attachPhoto->hide();
+		_attachEmoji->hide();
 		_silent.hide();
 		_historyToEnd->hide();
-		_kbShow.hide();
-		_kbHide.hide();
-		_cmdStart.hide();
+		_botKeyboardShow->hide();
+		_botKeyboardHide->hide();
+		_botCommandStart->hide();
 		_attachType->hide();
 		_emojiPan->hide();
 		if (_pinnedBar) {
@@ -4556,17 +4559,17 @@ void HistoryWidget::updateControlsVisibility() {
 		_send.hide();
 		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_botStart.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
+		_attachDocument->hide();
+		_attachPhoto->hide();
 		_silent.hide();
 		_kbScroll.hide();
 		_fieldBarCancel.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
-		_attachEmoji.hide();
-		_kbShow.hide();
-		_kbHide.hide();
-		_cmdStart.hide();
+		_attachDocument->hide();
+		_attachPhoto->hide();
+		_attachEmoji->hide();
+		_botKeyboardShow->hide();
+		_botKeyboardHide->hide();
+		_botCommandStart->hide();
 		_attachType->hide();
 		_emojiPan->hide();
 		if (!_field.isHidden()) {
@@ -4588,12 +4591,12 @@ void HistoryWidget::updateControlsVisibility() {
 			_send.hide();
 			if (_inlineBotCancel) _inlineBotCancel->hide();
 			_field.hide();
-			_attachEmoji.hide();
-			_kbShow.hide();
-			_kbHide.hide();
-			_cmdStart.hide();
-			_attachDocument.hide();
-			_attachPhoto.hide();
+			_attachEmoji->hide();
+			_botKeyboardShow->hide();
+			_botKeyboardHide->hide();
+			_botCommandStart->hide();
+			_attachDocument->hide();
+			_attachPhoto->hide();
 			_silent.hide();
 			_kbScroll.hide();
 			_fieldBarCancel.hide();
@@ -4618,12 +4621,12 @@ void HistoryWidget::updateControlsVisibility() {
 			}
 			if (_recording) {
 				_field.hide();
-				_attachEmoji.hide();
-				_kbShow.hide();
-				_kbHide.hide();
-				_cmdStart.hide();
-				_attachDocument.hide();
-				_attachPhoto.hide();
+				_attachEmoji->hide();
+				_botKeyboardShow->hide();
+				_botKeyboardHide->hide();
+				_botCommandStart->hide();
+				_attachDocument->hide();
+				_attachPhoto->hide();
 				_silent.hide();
 				if (_kbShown) {
 					_kbScroll.show();
@@ -4634,38 +4637,38 @@ void HistoryWidget::updateControlsVisibility() {
 				_field.show();
 				if (_kbShown) {
 					_kbScroll.show();
-					_attachEmoji.hide();
-					_kbHide.show();
-					_kbShow.hide();
-					_cmdStart.hide();
+					_attachEmoji->hide();
+					_botKeyboardHide->show();
+					_botKeyboardShow->hide();
+					_botCommandStart->hide();
 				} else if (_kbReplyTo) {
 					_kbScroll.hide();
-					_attachEmoji.show();
-					_kbHide.hide();
-					_kbShow.hide();
-					_cmdStart.hide();
+					_attachEmoji->show();
+					_botKeyboardHide->hide();
+					_botKeyboardShow->hide();
+					_botCommandStart->hide();
 				} else {
 					_kbScroll.hide();
-					_attachEmoji.show();
-					_kbHide.hide();
+					_attachEmoji->show();
+					_botKeyboardHide->hide();
 					if (_keyboard.hasMarkup()) {
-						_kbShow.show();
-						_cmdStart.hide();
+						_botKeyboardShow->show();
+						_botCommandStart->hide();
 					} else {
-						_kbShow.hide();
+						_botKeyboardShow->hide();
 						if (_cmdStartShown) {
-							_cmdStart.show();
+							_botCommandStart->show();
 						} else {
-							_cmdStart.hide();
+							_botCommandStart->hide();
 						}
 					}
 				}
 				if (cDefaultAttach() == dbidaPhoto) {
-					_attachDocument.hide();
-					_attachPhoto.show();
+					_attachDocument->hide();
+					_attachPhoto->show();
 				} else {
-					_attachDocument.show();
-					_attachPhoto.hide();
+					_attachDocument->show();
+					_attachPhoto->hide();
 				}
 				if (hasSilentToggle()) {
 					_silent.show();
@@ -4692,17 +4695,17 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart.hide();
 		_joinChannel.hide();
 		_muteUnmute.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
+		_attachDocument->hide();
+		_attachPhoto->hide();
 		_silent.hide();
 		_kbScroll.hide();
 		_fieldBarCancel.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
-		_attachEmoji.hide();
-		_kbShow.hide();
-		_kbHide.hide();
-		_cmdStart.hide();
+		_attachDocument->hide();
+		_attachPhoto->hide();
+		_attachEmoji->hide();
+		_botKeyboardShow->hide();
+		_botKeyboardHide->hide();
+		_botCommandStart->hide();
 		_attachType->hide();
 		_emojiPan->hide();
 		_kbScroll.hide();
@@ -5219,6 +5222,12 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 	return true;
 }
 
+void HistoryWidget::hideSelectorControlsAnimated() {
+	_fieldAutocomplete->hideAnimated();
+	_attachType->hideAnimated();
+	_emojiPan->hideAnimated();
+}
+
 void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	if (!_history) return;
 
@@ -5244,9 +5253,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
-	if (!_attachType->isHidden()) _attachType->hideStart();
-	if (!_emojiPan->isHidden()) _emojiPan->hideStart();
+	hideSelectorControlsAnimated();
 
 	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
@@ -5448,14 +5455,14 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_kbScroll.hide();
 	_reportSpamPanel.hide();
 	_historyToEnd->hide();
-	_attachDocument.hide();
-	_attachPhoto.hide();
-	_attachEmoji.hide();
+	_attachDocument->hide();
+	_attachPhoto->hide();
+	_attachEmoji->hide();
 	_fieldAutocomplete->hide();
 	_silent.hide();
-	_kbShow.hide();
-	_kbHide.hide();
-	_cmdStart.hide();
+	_botKeyboardShow->hide();
+	_botKeyboardHide->hide();
+	_botCommandStart->hide();
 	_field.hide();
 	_fieldBarCancel.hide();
 	_send.hide();
@@ -5565,16 +5572,16 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 	} else {
 		a_recordingLevel.update(dt, anim::linear);
 	}
-	if (timer) update(_attachDocument.geometry());
+	if (timer) update(_attachDocument->geometry());
 }
 
 void HistoryWidget::onPhotoSelect() {
 	if (!_history) return;
 
-	_attachDocument.clearState();
-	_attachDocument.hide();
-	_attachPhoto.show();
-	_attachType->fastHide();
+	_attachDocument->clearState();
+	_attachDocument->hide();
+	_attachPhoto->show();
+	_attachType->hideFast();
 
 	if (cDefaultAttach() != dbidaPhoto) {
 		cSetDefaultAttach(dbidaPhoto);
@@ -5599,10 +5606,10 @@ void HistoryWidget::onPhotoSelect() {
 void HistoryWidget::onDocumentSelect() {
 	if (!_history) return;
 
-	_attachPhoto.clearState();
-	_attachPhoto.hide();
-	_attachDocument.show();
-	_attachType->fastHide();
+	_attachPhoto->clearState();
+	_attachPhoto->hide();
+	_attachDocument->show();
+	_attachType->hideFast();
 
 	if (cDefaultAttach() != dbidaDocument) {
 		cSetDefaultAttach(dbidaDocument);
@@ -5671,7 +5678,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 		_inField = inField;
 		a_recordOver.restart();
 		a_recordDown.start(_inField ? 1 : 0);
-		a_recordCancel.start(_inField ? st::recordCancel->c : st::recordCancelActive->c);
+		a_recordCancel.start(_inField ? st::historyRecordCancel->c : st::historyRecordCancelActive->c);
 		startAnim = true;
 	}
 	if (inReplyEdit != _inReplyEdit) {
@@ -5722,7 +5729,7 @@ void HistoryWidget::stopRecording(bool send) {
 
 	a_recordDown.start(0);
 	a_recordOver.restart();
-	a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
+	a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
 	_a_record.start();
 }
 
@@ -5960,7 +5967,7 @@ void HistoryWidget::updateDragAreas() {
 	case DragStateFiles:
 		_attachDragDocument->otherEnter();
 		_attachDragDocument->setText(lang(lng_drag_files_here), lang(lng_drag_to_send_files));
-		_attachDragPhoto->fastHide();
+		_attachDragPhoto->hideFast();
 	break;
 	case DragStatePhotoFiles:
 		_attachDragDocument->otherEnter();
@@ -5969,7 +5976,7 @@ void HistoryWidget::updateDragAreas() {
 		_attachDragPhoto->setText(lang(lng_drag_photos_here), lang(lng_drag_to_send_quick));
 	break;
 	case DragStateImage:
-		_attachDragDocument->fastHide();
+		_attachDragDocument->hideFast();
 		_attachDragPhoto->otherEnter();
 		_attachDragPhoto->setText(lang(lng_drag_images_here), lang(lng_drag_to_send_quick));
 	break;
@@ -6127,10 +6134,10 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 void HistoryWidget::onKbToggle(bool manual) {
 	auto fieldEnabled = canWriteMessage();
 	if (_kbShown || _kbReplyTo) {
-		_kbHide.hide();
+		_botKeyboardHide->hide();
 		if (_kbShown) {
 			if (fieldEnabled) {
-				_kbShow.show();
+				_botKeyboardShow->show();
 			}
 			if (manual && _history) {
 				_history->lastKeyboardHiddenId = _keyboard.forMsgId().msg;
@@ -6154,10 +6161,10 @@ void HistoryWidget::onKbToggle(bool manual) {
 			}
 		}
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
-		_kbHide.hide();
-		_kbShow.hide();
+		_botKeyboardHide->hide();
+		_botKeyboardShow->hide();
 		if (fieldEnabled) {
-			_cmdStart.show();
+			_botCommandStart->show();
 		}
 		_kbScroll.hide();
 		_kbShown = false;
@@ -6175,8 +6182,8 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_history->lastKeyboardHiddenId = 0;
 		}
 	} else if (fieldEnabled) {
-		_kbHide.show();
-		_kbShow.hide();
+		_botKeyboardHide->show();
+		_botKeyboardShow->hide();
 		_kbScroll.show();
 		_kbShown = true;
 
@@ -6195,10 +6202,10 @@ void HistoryWidget::onKbToggle(bool manual) {
 		}
 	}
 	resizeEvent(0);
-	if (_kbHide.isHidden() && canWriteMessage()) {
-		_attachEmoji.show();
+	if (_botKeyboardHide->isHidden() && canWriteMessage()) {
+		_attachEmoji->show();
 	} else {
-		_attachEmoji.hide();
+		_attachEmoji->hide();
 	}
 	updateField();
 }
@@ -6310,13 +6317,13 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 
 void HistoryWidget::onMembersDropdownShow() {
 	if (!_membersDropdown) {
-		_membersDropdown.create(this, st::membersInnerDropdown, st::membersInnerScroll);
+		_membersDropdown.create(this, st::membersInnerDropdown);
 		_membersDropdown->setOwnedWidget(new Profile::MembersWidget(_membersDropdown, _peer, Profile::MembersWidget::TitleVisibility::Hidden));
-		_membersDropdown->resize(st::membersInnerWidth, _membersDropdown->height());
+		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 		_membersDropdown->moveToLeft(0, 0);
-		connect(_membersDropdown, SIGNAL(hidden()), this, SLOT(onMembersDropdownHidden()));
+		connect(_membersDropdown, SIGNAL(beforeHidden()), this, SLOT(onMembersDropdownHidden()));
 	}
 	_membersDropdown->otherEnter();
 }
@@ -6436,24 +6443,24 @@ void HistoryWidget::moveFieldControls() {
 // (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
-	int buttonsBottom = bottom - _attachDocument.height();
-	_attachDocument.move(0, buttonsBottom);
-	_attachPhoto.move(0, buttonsBottom);
-	_field.move(_attachDocument.width(), bottom - _field.height() - st::sendPadding);
+	int buttonsBottom = bottom - _attachDocument->height();
+	_attachDocument->move(0, buttonsBottom);
+	_attachPhoto->move(0, buttonsBottom);
+	_field.move(_attachDocument->width(), bottom - _field.height() - st::sendPadding);
 	_send.move(right - _send.width(), buttonsBottom);
 	if (_inlineBotCancel) _inlineBotCancel->move(_send.pos());
 	right -= _send.width();
-	_attachEmoji.move(right - _attachEmoji.width(), buttonsBottom);
-	_kbHide.move(right - _kbHide.width(), buttonsBottom);
-	right -= _attachEmoji.width();
-	_kbShow.move(right - _kbShow.width(), buttonsBottom);
-	_cmdStart.move(right - _cmdStart.width(), buttonsBottom);
+	_attachEmoji->move(right - _attachEmoji->width(), buttonsBottom);
+	_botKeyboardHide->move(right - _botKeyboardHide->width(), buttonsBottom);
+	right -= _attachEmoji->width();
+	_botKeyboardShow->move(right - _botKeyboardShow->width(), buttonsBottom);
+	_botCommandStart->move(right - _botCommandStart->width(), buttonsBottom);
 	_silent.move(right - _silent.width(), buttonsBottom);
 
 	right = w;
 	_fieldBarCancel.move(right - _fieldBarCancel.width(), _field.y() - st::sendPadding - _fieldBarCancel.height());
-	_attachType->move(0, _attachDocument.y() - _attachType->height());
-	_emojiPan->moveBottom(_attachEmoji.y());
+	_attachType->move(0, _attachDocument->y() - _attachType->height());
+	_emojiPan->moveBottom(_attachEmoji->y());
 
 	_botStart.setGeometry(0, bottom - _botStart.height(), w, _botStart.height());
 	_unblock.setGeometry(0, bottom - _unblock.height(), w, _unblock.height());
@@ -6463,11 +6470,11 @@ void HistoryWidget::moveFieldControls() {
 
 void HistoryWidget::updateFieldSize() {
 	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
-	int fieldWidth = width() - _attachDocument.width();
+	int fieldWidth = width() - _attachDocument->width();
 	fieldWidth -= _send.width();
-	fieldWidth -= _attachEmoji.width();
-	if (kbShowShown) fieldWidth -= _kbShow.width();
-	if (_cmdStartShown) fieldWidth -= _cmdStart.width();
+	fieldWidth -= _attachEmoji->width();
+	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
+	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
 	if (hasSilentToggle()) fieldWidth -= _silent.width();
 
 	if (_field.width() != fieldWidth) {
@@ -6493,7 +6500,7 @@ void HistoryWidget::inlineBotChanged() {
 		_inlineBotCancel = std_::make_unique<IconedButton>(this, st::inlineBotCancel);
 		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send.geometry());
-		_attachEmoji.raise();
+		_attachEmoji->raise();
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	} else if (!isInlineBot && _inlineBotCancel) {
@@ -7029,7 +7036,7 @@ void HistoryWidget::updateControlsGeometry() {
 
 	_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll.y() + _scroll.height() - _historyToEnd->height() - st::historyToDownPosition.y());
 
-	_emojiPan->setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
+	_emojiPan->setMaxHeight(height() - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom() - _attachEmoji->height());
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 	}
@@ -7315,15 +7322,15 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll.show();
-					_attachEmoji.hide();
-					_kbHide.show();
+					_attachEmoji->hide();
+					_botKeyboardHide->show();
 				} else {
 					_kbScroll.hide();
-					_attachEmoji.show();
-					_kbHide.hide();
+					_attachEmoji->show();
+					_botKeyboardHide->hide();
 				}
-				_kbShow.hide();
-				_cmdStart.hide();
+				_botKeyboardShow->hide();
+				_botCommandStart->hide();
 			}
 			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
 			_field.setMaxHeight(st::maxFieldHeight - maxh);
@@ -7338,10 +7345,10 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		} else {
 			if (!_a_show.animating()) {
 				_kbScroll.hide();
-				_attachEmoji.show();
-				_kbHide.hide();
-				_kbShow.show();
-				_cmdStart.hide();
+				_attachEmoji->show();
+				_botKeyboardHide->hide();
+				_botKeyboardShow->show();
+				_botCommandStart->hide();
 			}
 			_field.setMaxHeight(st::maxFieldHeight);
 			_kbShown = false;
@@ -7354,10 +7361,10 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	} else {
 		if (!_scroll.isHidden()) {
 			_kbScroll.hide();
-			_attachEmoji.show();
-			_kbHide.hide();
-			_kbShow.hide();
-			_cmdStart.show();
+			_attachEmoji->show();
+			_botKeyboardHide->hide();
+			_botKeyboardShow->hide();
+			_botCommandStart->show();
 		}
 		_field.setMaxHeight(st::maxFieldHeight);
 		_kbShown = false;
@@ -7543,9 +7550,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		Local::writeRecentHashtagsAndBots();
 	}
 
-	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
-	if (!_attachType->isHidden()) _attachType->hideStart();
-	if (!_emojiPan->isHidden()) _emojiPan->hideStart();
+	hideSelectorControlsAnimated();
 
 	_field.setFocus();
 }
@@ -7711,9 +7716,7 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 		onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
 	}
 
-	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
-	if (!_attachType->isHidden()) _attachType->hideStart();
-	if (!_emojiPan->isHidden()) _emojiPan->hideStart();
+	hideSelectorControlsAnimated();
 
 	_field.setFocus();
 	return true;
@@ -7758,9 +7761,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 
 	App::historyRegRandom(randomId, newId);
 
-	if (!_fieldAutocomplete->isHidden()) _fieldAutocomplete->hideStart();
-	if (!_attachType->isHidden()) _attachType->hideStart();
-	if (!_emojiPan->isHidden()) _emojiPan->hideStart();
+	hideSelectorControlsAnimated();
 
 	_field.setFocus();
 }
@@ -8001,7 +8002,7 @@ void HistoryWidget::cancelReplyAfterMediaSend(bool lastKeyboardUsed) {
 
 int HistoryWidget::countMembersDropdownHeightMax() const {
 	int result = height() - st::membersInnerDropdown.padding.top() - st::membersInnerDropdown.padding.bottom();
-	result -= _attachEmoji.height();
+	result -= _attachEmoji->height();
 	accumulate_min(result, st::membersInnerHeightMax);
 	return result;
 }
@@ -8221,7 +8222,7 @@ void HistoryWidget::onCancel() {
 			onFieldBarCancel();
 		}
 	} else if (!_fieldAutocomplete->isHidden()) {
-		_fieldAutocomplete->hideStart();
+		_fieldAutocomplete->hideAnimated();
 	} else  {
 		App::main()->showBackFromStack();
 		emit cancelled();
@@ -8637,36 +8638,36 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 
 void HistoryWidget::drawRecordButton(Painter &p) {
 	if (a_recordDown.current() < 1) {
-		p.setOpacity(st::btnAttachEmoji.opacity * (1 - a_recordOver.current()) + st::btnAttachEmoji.overOpacity * a_recordOver.current());
-		p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudio.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudio.pxHeight()) / 2, st::btnRecordAudio);
+		p.setOpacity(st::historyAttachEmoji.opacity * (1 - a_recordOver.current()) + st::historyAttachEmoji.overOpacity * a_recordOver.current());
+		st::historyRecordVoice.paint(p, _send.x() + (_send.width() - st::historyRecordVoice.width()) / 2, _send.y() + (_send.height() - st::historyRecordVoice.height()) / 2, width());
 	}
 	if (a_recordDown.current() > 0) {
 		p.setOpacity(a_recordDown.current());
-		p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudioActive.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudioActive.pxHeight()) / 2, st::btnRecordAudioActive);
+		st::historyRecordVoiceActive.paint(p, _send.x() + (_send.width() - st::historyRecordVoiceActive.width()) / 2, _send.y() + (_send.height() - st::historyRecordVoiceActive.height()) / 2, width());
 	}
 	p.setOpacity(1);
 }
 
 void HistoryWidget::drawRecording(Painter &p) {
 	p.setPen(Qt::NoPen);
-	p.setBrush(st::recordSignalColor->b);
+	p.setBrush(st::historyRecordSignalColor);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	float64 delta = qMin(float64(a_recordingLevel.current()) / 0x4000, 1.);
-	int32 d = 2 * qRound(st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
-	p.drawEllipse(_attachPhoto.x() + (_attachEmoji.width() - d) / 2, _attachPhoto.y() + (_attachPhoto.height() - d) / 2, d, d);
+	int32 d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
+	p.drawEllipse(_attachPhoto->x() + (_attachEmoji->width() - d) / 2, _attachPhoto->y() + (_attachPhoto->height() - d) / 2, d, d);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
-	p.setFont(st::recordFont->f);
+	p.setFont(st::historyRecordFont);
 
-	p.setPen(st::black->p);
-	p.drawText(_attachPhoto.x() + _attachEmoji.width(), _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, duration);
+	p.setPen(st::black);
+	p.drawText(_attachPhoto->x() + _attachEmoji->width(), _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
 
-	int32 left = _attachPhoto.x() + _attachEmoji.width() + st::recordFont->width(duration) + ((_send.width() - st::btnRecordAudio.pxWidth()) / 2);
+	int32 left = _attachPhoto->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send.width() - st::historyRecordVoice.width()) / 2);
 	int32 right = width() - _send.width();
 
 	p.setPen(a_recordCancel.current());
-	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, lang(lng_record_cancel));
+	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
 }
 
 void HistoryWidget::drawPinnedBar(Painter &p) {
