@@ -1982,10 +1982,10 @@ void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) 
 		return;
 	}
 	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-	p.drawSprite(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), st::topBarBackImg);
-	p.setFont(st::topBarBackFont->f);
-	p.setPen(st::topBarBackColor->p);
-	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
+	st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
+	p.setFont(st::topBarBackFont);
+	p.setPen(st::topBarBackColor);
+	p.drawText(st::topBarArrowPadding.left(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
 }
 
 void OverviewWidget::topBarClick() {

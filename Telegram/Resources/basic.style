@@ -346,7 +346,7 @@ versionColor: #777;
 shadowColor: rgba(0, 0, 0, 24);
 shadowToggleDuration: 200;
 
-slideDuration: 2400;
+slideDuration: 240;
 slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: icon {{ "slide_shadow", #000000 }};
@@ -704,7 +704,7 @@ introBackButton: IconButton {
 
 	icon: icon {
 		{ size(40px, 40px), #eeeeee },
-		{ "intro_back_button", #969696, point(12px, 12px) },
+		{ "title_previous", #969696, point(12px, 12px) },
 	};
 	iconPosition: point(0px, 0px);
 	downIconPosition: point(0px, 0px);
@@ -727,12 +727,13 @@ noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;
 
+fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
 dlgFilter: flatInput(inpDefGray) {
 	font: font(fsize);
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	icon: icon {{ "box_search_icon", #aaaaaa, point(10px, 9px) }};
+	icon: fieldSearchIcon;
 
 	width: 240px;
 	height: 34px;
@@ -742,29 +743,26 @@ dlgFilter: flatInput(inpDefGray) {
 topBarHeight: 54px;
 topBarBG: white;
 topBarDuration: 200;
-topBarForwardPadding: margins(17px, 8px, 39px, 8px);
+topBarForward: icon {{ "title_next", #a3a3a3 }};
+topBarBackward: icon {{ "title_previous", #a3a3a3 }};
 topBarForwardAlpha: 0.6;
-topBarForwardImg: sprite(31px, 104px, 9px, 16px);
-topBarBackwardImg: sprite(22px, 104px, 9px, 16px);
-topBarBackPadding: margins(15px, 7px, 9px, 7px);
+topBarBack: icon {{ "title_previous", #259fd8 }};
 topBarBackAlpha: 0.8;
-topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
-topBarSearch: iconedButton(btnDefIconed) {
-	bgColor: transparent;
-	overBgColor: transparent;
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarSearch: IconButton {
+	width: 44px;
+	height: topBarHeight;
 
-	icon: sprite(84px, 374px, 18px, 18px);
-	iconPos: point(13px, 18px);
-	downIcon: sprite(84px, 374px, 18px, 18px);
-	downIconPos: point(13px, 18px);
+	icon: icon {{ "title_search", #000000 }};
+	iconPosition: point(13px, 18px);
+	downIconPosition: point(13px, 18px);
 
 	opacity: 0.22;
 	overOpacity: 0.36;
 
-	width: 44px;
-	height: topBarHeight;
+	duration: 150;
 }
 topBarMinPadding: 5px;
 topBarButton: RoundButton {
@@ -864,10 +862,8 @@ msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
 msgBotKbOverOpacity: 0.1;
 msgBotKbIconPadding: 2px;
-msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
-//msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
-//msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
-msgBotKbSwitchPmIcon: sprite(188px, 348px, 10px, 10px);
+msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
+msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
 msgBotKbButton: botKeyboardButton {
 	margin: 5px;
 	padding: 10px;
@@ -1980,3 +1976,7 @@ infoButton: PeerAvatarButton {
 	size: topBarHeight;
 	photoSize: 42px;
 }
+
+// forward declaration for single "title_previous" usage.
+profileTopBarBackIconFg: #0290d7;
+profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};

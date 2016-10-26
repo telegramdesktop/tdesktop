@@ -133,7 +133,7 @@ contactsMultiSelect: MultiSelect {
 		font: normalFont;
 	}
 	fieldMinWidth: 42px;
-	fieldIcon: icon {{ "box_search_icon", #aaaaaa, point(11px, 9px) }};
+	fieldIcon: fieldSearchIcon;
 	fieldIconSkip: 36px;
 
 	fieldCancel: IconButton {

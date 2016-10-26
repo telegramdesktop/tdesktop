@@ -24,9 +24,7 @@ using "basic_types.style";
 profileBg: windowBg;
 
 profileTopBarHeight: topBarHeight;
-profileTopBarBackIconFg: #0290d7;
-profileTopBarBackIcon: icon {{ "topbar_back_arrow", profileTopBarBackIconFg }};
-profileTopBarBackIconPosition: point(15px, 20px);
+profileTopBarBackIconPosition: point(12px, 20px);
 profileTopBarBackFont: font(14px);
 profileTopBarBackFg: #1485c2;
 profileTopBarBackPosition: point(32px, 17px);

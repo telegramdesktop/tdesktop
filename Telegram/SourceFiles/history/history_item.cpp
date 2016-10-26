@@ -220,7 +220,7 @@ int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
 
-void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
+void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip) const {
 	t_assert(_st != nullptr);
 	t_assert(_width > 0);
 
@@ -234,7 +234,7 @@ void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, button);
+			_st->paintButton(p, outerWidth, button);
 		}
 	}
 }
@@ -317,12 +317,12 @@ void ReplyKeyboard::clearSelection() {
 	_a_selected.stop();
 }
 
-void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &button) const {
+void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const {
 	const QRect &rect = button.rect;
 	bool pressed = ClickHandler::showAsPressed(button.link);
 
 	paintButtonBg(p, rect, pressed, button.howMuchOver);
-	paintButtonIcon(p, rect, button.type);
+	paintButtonIcon(p, rect, outerWidth, button.type);
 	if (button.type == HistoryMessageReplyMarkup::Button::Type::Callback
 		|| button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
 		if (auto data = button.link->getButton()) {

@@ -2430,7 +2430,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, clip.translated(-x, -st::botKbScroll.deltat));
+		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat));
 	}
 }
 
@@ -2460,7 +2460,7 @@ void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, bool down,
 	}
 }
 
-void BotKeyboard::Style::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
+void BotKeyboard::Style::paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const {
 	// Buttons with icons should not appear here.
 }
 
@@ -6259,16 +6259,16 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 
 	if (!_history) return;
 
-	int32 increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
+	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
 	decreaseWidth += increaseLeft;
-	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
+	QRect rectForName(st::topBarArrowPadding.right() + increaseLeft, st::topBarArrowPadding.top(), width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dialogsTextFont);
 	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
 		p.setPen(_titlePeerTextOnline ? st::titleStatusActiveFg : st::titleStatusFg);
-		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
+		p.drawText(rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	} else {
 		p.setPen(st::titleTypingFg);
-		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
+		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
 	}
 
 	p.setPen(st::dialogsNameFg);
@@ -6276,17 +6276,17 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawSprite(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), st::topBarBackwardImg);
+		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());
 	} else {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawSprite(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), st::topBarForwardImg);
+		st::topBarForward.paint(p, width() - (st::topBarArrowPadding.left() + st::topBarForward.width()) / 2, (st::topBarHeight - st::topBarForward.height()) / 2, width());
 	}
 }
 
 QRect HistoryWidget::getMembersShowAreaGeometry() const {
-	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
-	int membersTextLeft = st::topBarForwardPadding.left() + increaseLeft;
-	int membersTextTop = st::topBarHeight - st::topBarForwardPadding.bottom() - st::dialogsTextFont->height;
+	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
+	int membersTextLeft = st::topBarArrowPadding.right() + increaseLeft;
+	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
 	int membersTextHeight = st::topBarHeight - membersTextTop;
 
