@@ -32,22 +32,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
+#include "ui/buttons/icon_button.h"
+#include "ui/effects/widget_fade_wrap.h"
 
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))
 , _a_show(animation(this, &IntroWidget::step_show))
-, _back(this, st::setClose) {
+, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda_unique<void()>(), st::introSlideDuration) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
-	connect(&_back, SIGNAL(clicked()), this, SLOT(onBack()));
-	_back.hide();
+	_back->entity()->setClickedCallback([this] { onBack(); });
+	_back->hideFast();
 
 	_countryForReg = psCurrentCountry();
 
 	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&IntroWidget::gotNearestDC));
 
 	_stepHistory.push_back(new IntroStart(this));
-	_back.raise();
+	_back->raise();
 
 	connect(parent, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
@@ -56,7 +58,7 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 
 	cSetPasswordRecovered(false);
 
-	_back.move(st::setClosePos.x(), st::setClosePos.y());
+	_back->moveToLeft(st::introBackPosition.x(), st::introBackPosition.y());
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
@@ -132,17 +134,17 @@ void IntroWidget::historyMove(MoveType type) {
 	_a_stage.start();
 
 	_a_stage.step();
-	if (_backFrom > 0 || _backTo > 0) {
-		_back.show();
+	if (_backTo) {
+		_back->fadeIn();
 	} else {
-		_back.hide();
+		_back->fadeOut();
 	}
 	step()->hide();
 }
 
 void IntroWidget::pushStep(IntroStep *step, MoveType type) {
 	_stepHistory.push_back(step);
-	_back.raise();
+	_back->raise();
 	_stepHistory.back()->hide();
 
 	historyMove(type);
@@ -170,15 +172,14 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	_a_show.stop();
 	step()->show();
 	if (step()->hasBack()) {
-		_back.setOpacity(1);
-		_back.show();
+		_back->showFast();
 	} else {
-		_back.hide();
+		_back->hideFast();
 	}
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 
 	step()->hide();
-	_back.hide();
+	_back->hideFast();
 
 	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
@@ -202,8 +203,7 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 		setFocus();
 		step()->activate();
 		if (step()->hasBack()) {
-			_back.setOpacity(1);
-			_back.show();
+			_back->showFast();
 		}
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
@@ -231,20 +231,12 @@ void IntroWidget::step_stage(float64 ms, bool timer) {
 
 		setFocus();
 		step()->activate();
-		if (!step()->hasBack()) {
-			_back.hide();
-		}
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_coordShow.update(dt2, st::introShowFunc);
 		a_opacityShow.update(dt2, st::introAlphaShowFunc);
 		a_coordHide.update(dt1, st::introHideFunc);
 		a_opacityHide.update(dt1, st::introAlphaHideFunc);
-		if (_backFrom != _backTo) {
-			_back.setOpacity((_backFrom > _backTo) ? a_opacityHide.current() : a_opacityShow.current());
-		} else {
-			_back.setOpacity(1);
-		}
 	}
 	if (timer) update();
 }
@@ -267,7 +259,7 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 	} else if (_a_stage.animating()) {
 		p.setOpacity(a_opacityHide.current());
 		p.drawPixmap(step()->x() + st::introSlideShift + a_coordHide.current(), step()->y(), _cacheHide);

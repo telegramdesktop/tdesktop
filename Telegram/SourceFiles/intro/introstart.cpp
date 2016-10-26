@@ -72,7 +72,7 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 	p.setPen(st::introColor->p);
 	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
 
-	p.drawSprite(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), st::aboutIcon);
+	st::aboutIcon.paint(p, QPoint((width() - st::aboutIcon.width()) / 2, hy - st::introIconSkip - st::aboutIcon.height()), width());
 }
 
 void IntroStart::resizeEvent(QResizeEvent *e) {

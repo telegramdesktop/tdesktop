@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/effects/fade_animation.h"
+#include "ui/effects/widget_fade_wrap.h"
 
 namespace Ui {
 
@@ -111,6 +111,37 @@ void FadeAnimation::updateCallback() {
 	} else {
 		stopAnimation();
 	}
+}
+
+WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
+, TWidget *entity
+, base::lambda_unique<void()> updateCallback
+, int duration) : TWidget(parent)
+, _entity(entity)
+, _duration(duration)
+, _updateCallback(std_::move(updateCallback))
+, _animation(this) {
+	_animation.show();
+	if (_updateCallback) {
+		_animation.setFinishedCallback([this] { _updateCallback(); });
+		_animation.setUpdatedCallback([this](float64 opacity) { _updateCallback(); });
+	}
+	_entity->setParent(this);
+	_entity->moveToLeft(0, 0);
+	_entity->installEventFilter(this);
+	resize(_entity->size());
+}
+
+bool WidgetFadeWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {
+	if (object == _entity && event->type() == QEvent::Resize) {
+		resize(_entity->rect().size());
+	}
+	return TWidget::eventFilter(object, event);
+}
+
+void WidgetFadeWrap<TWidget>::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	_animation.paint(p);
 }
 
 } // namespace Ui

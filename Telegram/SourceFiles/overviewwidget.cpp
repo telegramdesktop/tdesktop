@@ -1944,7 +1944,7 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
 		p.setOpacity(a_progress.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow.rect());
+		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 		return;
 	}
 
@@ -1978,7 +1978,7 @@ void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) 
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
 		p.setOpacity(a_progress.current());
-		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow.rect());
+		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
 		return;
 	}
 	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);

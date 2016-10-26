@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/widgets/widget_slide_wrap.h"
+#include "ui/effects/widget_slide_wrap.h"
 #include "media/player/media_player_widget.h"
 
 namespace Ui {
@@ -13,8 +13,7 @@ class PlayerWrapWidget : public Ui::WidgetSlideWrap<Media::Player::Widget> {
 	using Parent = Ui::WidgetSlideWrap<Media::Player::Widget>;
 
 public:
-	using UpdateCallback = Parent::UpdateCallback;
-	PlayerWrapWidget(QWidget *parent, UpdateCallback &&updateCallback);
+	PlayerWrapWidget(QWidget *parent, base::lambda_unique<void()> updateCallback);
 
 	void updateAdaptiveLayout() {
 		updateShadowGeometry();

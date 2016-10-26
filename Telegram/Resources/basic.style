@@ -346,10 +346,10 @@ versionColor: #777;
 shadowColor: rgba(0, 0, 0, 24);
 shadowToggleDuration: 200;
 
-slideDuration: 240;
+slideDuration: 2400;
 slideShift: 100px;
 slideFadeOut: 0.3;
-slideShadow: sprite(348px, 71px, 48px, 1px);
+slideShadow: icon {{ "slide_shadow", #000000 }};
 slideFunction: transition(easeOutCirc);
 
 btnDefIconed: iconedButton {
@@ -695,24 +695,29 @@ introErrLabel: flatLabel(labelDefFlat) {
 	font: introErrFont;
 	align: align(center);
 }
+introBackButton: IconButton {
+	width: 40px;
+	height: 40px;
+
+	opacity: 0.71;
+	overOpacity: 1.;
+
+	icon: icon {
+		{ size(40px, 40px), #eeeeee },
+		{ "intro_back_button", #969696, point(12px, 12px) },
+	};
+	iconPosition: point(0px, 0px);
+	downIconPosition: point(0px, 0px);
+
+	duration: 150;
+}
+introBackPosition: point(32px, 32px);
 
 setLittleSkip: 9px;
 setScroll: flatScroll(scrollDef) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
-setClose: iconedButton(btnDefIconed) {
-	icon: sprite(245px, 221px, 40px, 40px);
-	iconPos: point(0px, 0px);
-	downIcon: sprite(245px, 221px, 40px, 40px);
-	downIconPos: point(0px, 0px);
-
-	opacity: 0.71;
-
-	width: 43px;
-	height: 43px;
-}
-setClosePos: point(32px, 32px);
 setPhotoDuration: 150;
 
 setErrColor: #d84d4d;
@@ -1042,11 +1047,6 @@ msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
 msgFileOutBgOver: #6bc272;
 msgFileOutBgSelected: #5fb389;
-
-msgFileRed: sprite(0px, 425px, 20px, 20px);
-msgFileYellow: sprite(20px, 425px, 20px, 20px);
-msgFileGreen: sprite(40px, 425px, 20px, 20px);
-msgFileBlue: sprite(60px, 425px, 20px, 20px);
 
 msgFileOverDuration: 200;
 msgFileRadialLine: 3px;
@@ -1393,7 +1393,7 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-aboutIcon: sprite(0px, 0px, 104px, 104px);
+aboutIcon: icon {{ "intro_logo", #008ed5 }};
 aboutWidth: 390px;
 aboutVersionTop: -3px;
 aboutVersionLink: linkButton(btnDefLink) {
