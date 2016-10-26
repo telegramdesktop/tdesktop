@@ -62,20 +62,7 @@ private:
 };
 
 template <typename Widget>
-class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
-public:
-	WidgetFadeWrap(QWidget *parent, Widget *entity
-		, base::lambda_unique<void()> updateCallback
-		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
-	}
-	Widget *entity() {
-		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());
-	}
-	const Widget *entity() const {
-		return static_cast<const Widget*>(WidgetFadeWrap<TWidget>::entity());
-	}
-
-};
+class WidgetFadeWrap;
 
 template <>
 class WidgetFadeWrap<TWidget> : public TWidget {
@@ -121,6 +108,22 @@ private:
 	base::lambda_unique<void()> _updateCallback;
 
 	FadeAnimation _animation;
+
+};
+
+template <typename Widget>
+class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
+public:
+	WidgetFadeWrap(QWidget *parent, Widget *entity
+		, base::lambda_unique<void()> updateCallback
+		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
+	}
+	Widget *entity() {
+		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());
+	}
+	const Widget *entity() const {
+		return static_cast<const Widget*>(WidgetFadeWrap<TWidget>::entity());
+	}
 
 };
 

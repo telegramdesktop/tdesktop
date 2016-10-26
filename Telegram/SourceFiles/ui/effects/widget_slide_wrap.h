@@ -25,21 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 template <typename Widget>
-class WidgetSlideWrap : public WidgetSlideWrap<TWidget> {
-public:
-	WidgetSlideWrap(QWidget *parent, Widget *entity
-		, style::margins entityPadding
-		, base::lambda_unique<void()> updateCallback
-		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent, entity, entityPadding, std_::move(updateCallback), duration) {
-	}
-	Widget *entity() {
-		return static_cast<Widget*>(WidgetSlideWrap<TWidget>::entity());
-	}
-	const Widget *entity() const {
-		return static_cast<const Widget*>(WidgetSlideWrap<TWidget>::entity());
-	}
-
-};
+class WidgetSlideWrap;
 
 template <>
 class WidgetSlideWrap<TWidget> : public TWidget {
@@ -82,6 +68,23 @@ private:
 	anim::ivalue a_height;
 	Animation _a_height;
 	bool _hiding = false;
+
+};
+
+template <typename Widget>
+class WidgetSlideWrap : public WidgetSlideWrap<TWidget> {
+public:
+	WidgetSlideWrap(QWidget *parent, Widget *entity
+		, style::margins entityPadding
+		, base::lambda_unique<void()> updateCallback
+		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent, entity, entityPadding, std_::move(updateCallback), duration) {
+	}
+	Widget *entity() {
+		return static_cast<Widget*>(WidgetSlideWrap<TWidget>::entity());
+	}
+	const Widget *entity() const {
+		return static_cast<const Widget*>(WidgetSlideWrap<TWidget>::entity());
+	}
 
 };
 
