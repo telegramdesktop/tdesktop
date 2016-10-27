@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "styles/style_history.h"
+#include "styles/style_widgets.h"
+#include "styles/style_stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)

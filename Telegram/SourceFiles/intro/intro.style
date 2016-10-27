@@ -18,31 +18,27 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+using "basic.style";
+using "ui/widgets/widgets.style";
 
-#include "ui/button.h"
-#include "styles/style_widgets.h"
+introErrLabel: flatLabel(labelDefFlat) {
+	font: introErrFont;
+	align: align(center);
+}
+introBackButton: IconButton {
+	width: 40px;
+	height: 40px;
 
-namespace Ui {
+	opacity: 0.71;
+	overOpacity: 1.;
 
-class IconButton : public Button {
-public:
-	IconButton(QWidget *parent, const style::IconButton &st);
+	icon: icon {
+		{ size(40px, 40px), #eeeeee },
+		{ "title_previous", #969696, point(12px, 12px) },
+	};
+	iconPosition: point(0px, 0px);
+	downIconPosition: point(0px, 0px);
 
-	// Pass nullptr to restore the default icon.
-	void setIcon(const style::icon *icon);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
-
-private:
-	const style::IconButton &_st;
-	const style::icon *_iconOverride = nullptr;
-
-	FloatAnimation _a_over;
-
-};
-
-} // namespace Ui
+	duration: 150;
+}
+introBackPosition: point(32px, 32px);

@@ -30,6 +30,10 @@ class ItemBase;
 class Result;
 } // namespace InlineBots
 
+namespace Ui {
+class IconButton;
+} // namesapce Ui
+
 namespace internal {
 
 constexpr int InlineItemsMaxPerRow = 5;
@@ -545,7 +549,6 @@ private slots:
 
 	void onWndActiveChanged();
 
-	void onTabChange();
 	void onScrollEmoji();
 	void onScrollStickers();
 	void onSwitch();
@@ -577,6 +580,8 @@ private:
 	bool preventAutoHide() const;
 	void installSetDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installSetFail(uint64 setId, const RPCError &error);
+	void setActiveTab(DBIEmojiTab tab);
+	void setCurrentTabIcon(DBIEmojiTab tab);
 
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
@@ -596,16 +601,14 @@ private:
 	void updateSelected();
 	void updateIcons();
 
-	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
-	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int32 st);
+	void prepareTab(int &left, int top, int _width, Ui::IconButton *tab, DBIEmojiTab value);
+	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int st);
 
 	void showAll();
 	void hideAll();
 
 	int32 _maxHeight, _contentMaxHeight, _contentHeight, _contentHeightEmoji, _contentHeightStickers;
 	bool _horizontal = false;
-
-	bool _noTabUpdate = false;
 
 	int32 _width, _height, _bottom;
 	bool _hiding = false;
@@ -618,7 +621,15 @@ private:
 
 	Ui::RectShadow _shadow;
 
-	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
+	ChildWidget<Ui::IconButton> _recent;
+	ChildWidget<Ui::IconButton> _people;
+	ChildWidget<Ui::IconButton> _nature;
+	ChildWidget<Ui::IconButton> _food;
+	ChildWidget<Ui::IconButton> _activity;
+	ChildWidget<Ui::IconButton> _travel;
+	ChildWidget<Ui::IconButton> _objects;
+	ChildWidget<Ui::IconButton> _symbols;
+
 	QList<internal::StickerIcon> _icons;
 	QVector<float64> _iconHovers;
 	int _iconOver = -1;

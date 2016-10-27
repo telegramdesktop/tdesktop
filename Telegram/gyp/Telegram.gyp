@@ -39,6 +39,7 @@
         '<(src_loc)/boxes/boxes.style',
         '<(src_loc)/dialogs/dialogs.style',
         '<(src_loc)/history/history.style',
+        '<(src_loc)/intro/intro.style',
         '<(src_loc)/media/view/mediaview.style',
         '<(src_loc)/media/player/media_player.style',
         '<(src_loc)/overview/overview.style',

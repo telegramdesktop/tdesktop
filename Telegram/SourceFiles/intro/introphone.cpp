@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "intro/introcode.h"
+#include "styles/style_intro.h"
 
 namespace {
 	class SignUpClickHandler : public LeftButtonClickHandler {

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "basic_types.style";
 using "dialogs/dialogs.style";
+using "ui/widgets/widgets.style";
 
 settingsMaxWidth: 520px;
 settingsMaxPadding: 48px;

@@ -27,10 +27,18 @@ LabelSimple {
 	textFg: color;
 }
 
-defaultLabelSimple: LabelSimple {
-	font: normalFont;
-	maxWidth: 0px;
-	textFg: windowTextFg;
+IconButton {
+	width: pixels;
+	height: pixels;
+
+	opacity: double;
+	overOpacity: double;
+
+	icon: icon;
+	iconPosition: point;
+	downIconPosition: point;
+
+	duration: int;
 }
 
 MediaSlider {
@@ -151,6 +159,12 @@ InnerDropdown {
 DropdownMenu {
 	wrap: InnerDropdown;
 	menu: Menu;
+}
+
+defaultLabelSimple: LabelSimple {
+	font: normalFont;
+	maxWidth: 0px;
+	textFg: windowTextFg;
 }
 
 widgetSlideDuration: 200;

@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/text/text.h"
 #include "ui/buttons/icon_button.h"
 #include "ui/effects/widget_fade_wrap.h"
+#include "styles/style_intro.h"
 
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))

@@ -210,3 +210,17 @@ historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 		itemPadding: margins(48px, 11px, 48px, 11px);
 	}
 }
+
+topBarSearch: IconButton {
+	width: 44px;
+	height: topBarHeight;
+
+	icon: icon {{ "title_search", #000000 }};
+	iconPosition: point(13px, 18px);
+	downIconPosition: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+
+	duration: 150;
+}

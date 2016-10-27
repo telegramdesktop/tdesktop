@@ -203,3 +203,6 @@ notificationSampleUserpicFg: #40ace3;
 notificationSampleCloseFg: #d7d7d7;
 notificationSampleTextFg: #d7d7d7;
 notificationSampleNameFg: #939393;
+
+membersAboutPadding: margins(0px, 12px, 0px, 12px);
+membersAboutFg: #777;
