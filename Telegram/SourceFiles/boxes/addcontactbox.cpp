@@ -388,7 +388,7 @@ void GroupInfoBox::paintEvent(QPaintEvent *e) {
 			} else {
 				p.fillRect(phRect, st::newGroupPhotoBg->b);
 			}
-			p.drawSprite(phRect.topLeft() + st::newGroupPhotoIconPosition, st::newGroupPhotoIcon);
+			st::newGroupPhotoIcon.paint(p, phRect.topLeft() + st::newGroupPhotoIconPosition, width());
 		} else {
 			p.drawPixmap(phRect.topLeft(), _photoSmall);
 		}

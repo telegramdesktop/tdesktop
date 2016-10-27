@@ -37,7 +37,13 @@ notifyPhotoSize: 62px;
 notifyMacPhotoSize: 64px;
 notifyPhotoPos: point(9px, 9px);
 notifyClosePos: point(1px, 2px);
-notifyClose: iconedButton(simpleClose) {
+notifyClose: IconButton(defaultIconButton) {
+	width: 30px;
+	height: 30px;
+
+	icon: simpleCloseIcon;
+	iconPosition: point(10px, 10px);
+	downIconPosition: point(10px, 11px);
 }
 notifyItemTop: 12px;
 notifyTextLeft: 12px;
@@ -64,16 +70,11 @@ notifyReplyArea: InputArea(defaultInputArea) {
 	borderActive: 0px;
 	borderError: 0px;
 }
-notifySendReply: IconButton {
+notifySendReply: IconButton(defaultIconButton) {
 	width: 36px;
 	height: 36px;
-
-	opacity: 0.78;
-	overOpacity: 1.;
 
 	icon: icon {{ "notification_send", windowActiveBg, point(3px, 9px) }};
 	iconPosition: point(0px, 0px);
 	downIconPosition: point(0px, 1px);
-
-	duration: notifyFastAnim;
 }

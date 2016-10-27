@@ -24,7 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
-#include "ui/buttons/round_button.h"
+#include "styles/style_stickers.h"
+#include "ui/buttons/icon_button.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
 #include "lang.h"
@@ -43,7 +44,7 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 , contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _addContactLnk(this, lang(lng_add_contact_button))
-, _cancelSearchInPeer(this, st::btnCancelSearch) {
+, _cancelSearchInPeer(this, st::dialogsCancelSearch) {
 	if (Global::DialogsModeEnabled()) {
 		importantDialogs = std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 	}
@@ -51,8 +52,8 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*,Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*,Dialogs::Row*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
-	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
-	_cancelSearchInPeer.hide();
+	connect(_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
+	_cancelSearchInPeer->hide();
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
@@ -126,8 +127,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					p.fillRect(0, 0, w, st::mentionHeight, (selected ? st::mentionBgOver : st::white)->b);
 					if (!paintingOther) {
 						if (selected) {
-							int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
-							p.drawSprite(QPoint(w - st::simpleClose.icon.pxWidth() - skip, skip), st::simpleClose.icon);
+							int skip = (st::mentionHeight - st::simpleCloseIcon.height()) / 2;
+							st::simpleCloseIcon.paint(p, QPoint(w - st::simpleCloseIcon.width() - skip, skip), width());
 						}
 						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + _hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + _hashtagResults.at(from)) : _hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
 						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
@@ -299,7 +300,7 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 	_searchInPeer->paintUserpicLeft(p, st::dialogsPhotoSize, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth());
 
 	int32 nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
-	int32 namewidth = w - nameleft - st::dialogsPadding.x() * 2 - st::btnCancelSearch.width;
+	int32 namewidth = w - nameleft - st::dialogsPadding.x() * 2 - st::dialogsCancelSearch.width;
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_searchInPeer, false)) {
@@ -408,7 +409,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_cancelSearchInPeer.move(width() - st::dialogsPadding.x() - st::btnCancelSearch.width, (st::dialogsRowHeight - st::btnCancelSearch.height) / 2);
+	_cancelSearchInPeer->move(width() - st::dialogsPadding.x() - st::dialogsCancelSearch.width, (st::dialogsRowHeight - st::dialogsCancelSearch.height) / 2);
 }
 
 void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
@@ -1260,9 +1261,9 @@ void DialogsInner::searchInPeer(PeerData *peer) {
 	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
 	if (_searchInPeer) {
 		onHashtagFilterUpdate(QStringRef());
-		_cancelSearchInPeer.show();
+		_cancelSearchInPeer->show();
 	} else {
-		_cancelSearchInPeer.hide();
+		_cancelSearchInPeer->hide();
 	}
 }
 
@@ -1780,9 +1781,9 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dialogsRequest(0)
 , _contactsRequest(0)
 , _filter(this, st::dlgFilter, lang(lng_dlg_filter))
-, _newGroup(this, QString(), st::dialogsNewChatButton)
-, _addContact(this, st::btnAddContact)
-, _cancelSearch(this, st::btnCancelSearch)
+, _newGroup(this, st::dialogsNewChatButton)
+, _addContact(this, st::dialogsAddContact)
+, _cancelSearch(this, st::dialogsCancelSearch)
 , _scroll(this, st::dialogsScroll)
 , _inner(&_scroll, parent)
 , _a_show(animation(this, &DialogsWidget::step_show))
@@ -1807,9 +1808,9 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 	connect(parent, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
-	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
+	connect(_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
-	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+	connect(_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -1824,12 +1825,12 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	_filter.move(st::dialogsPadding.x(), st::dialogsFilterPadding);
 	_filter.setFocusPolicy(Qt::StrongFocus);
 	_filter.customUpDown(true);
-	_addContact.hide();
+	_addContact->hide();
 	_newGroup->show();
-	_cancelSearch.hide();
+	_cancelSearch->hide();
 	_newGroup->move(width() - _newGroup->width() - st::dialogsPadding.x(), 0);
-	_addContact.move(width() - _addContact.width() - st::dialogsPadding.x(), 0);
-	_cancelSearch.move(width() - _cancelSearch.width() - st::dialogsPadding.x(), 0);
+	_addContact->move(width() - _addContact->width() - st::dialogsPadding.x(), 0);
+	_cancelSearch->move(width() - _cancelSearch->width() - st::dialogsPadding.x(), 0);
 }
 
 void DialogsWidget::activate() {
@@ -1874,7 +1875,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 
 	_scroll.hide();
 	_filter.hide();
-	_cancelSearch.hide();
+	_cancelSearch->hide();
 	_newGroup->hide();
 
 	int delta = st::slideShift;
@@ -2377,10 +2378,10 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_searchCache.clear();
 		_searchQueries.clear();
 		_searchQuery = QString();
-		_cancelSearch.hide();
+		_cancelSearch->hide();
 		_newGroup->show();
-	} else if (_cancelSearch.isHidden()) {
-		_cancelSearch.show();
+	} else if (_cancelSearch->isHidden()) {
+		_cancelSearch->show();
 		_newGroup->hide();
 	}
 	if (filterText.size() < MinUsernameLength) {
@@ -2445,8 +2446,8 @@ void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	int32 w = width();
 	_filter.setGeometry(st::dialogsPadding.x(), st::dialogsFilterPadding, w - 2 * st::dialogsPadding.x(), _filter.height());
 	_newGroup->move(w - _newGroup->width() - st::dialogsPadding.x(), _filter.y());
-	_addContact.move(w - _addContact.width() - st::dialogsPadding.x(), _filter.y());
-	_cancelSearch.move(w - _cancelSearch.width() - st::dialogsPadding.x(), _filter.y());
+	_addContact->move(w - _addContact->width() - st::dialogsPadding.x(), _filter.y());
+	_cancelSearch->move(w - _cancelSearch->width() - st::dialogsPadding.x(), _filter.y());
 	_scroll.move(0, _filter.height() + 2 * st::dialogsFilterPadding);
 
 	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;

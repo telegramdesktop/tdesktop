@@ -147,18 +147,13 @@ historyMediaTypeSong: icon {{ "media_type_song", #bebebe, point(0px, 0px) }};
 historyMediaTypeVoice: icon {{ "media_type_voice", #bebebe, point(2px, 2px) }};
 historyMediaTypeLink: icon {{ "media_type_link", #bebebe, point(2px, 2px) }};
 
-historyAttachDocument: IconButton {
+historyAttachDocument: IconButton(defaultIconButton) {
 	width: 46px;
 	height: 46px;
-
-	opacity: 0.78;
-	overOpacity: 1.;
 
 	icon: historyMediaTypeFile;
 	iconPosition: point(9px, 9px);
 	downIconPosition: point(9px, 10px);
-
-	duration: 150;
 }
 historyAttachPhoto: IconButton(historyAttachDocument) {
 	icon: historyMediaTypePhoto;
@@ -211,7 +206,35 @@ historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	}
 }
 
-topBarSearch: IconButton {
+historySilentToggle: IconButton(historyBotKeyboardShow) {
+	icon: icon {{ "send_control_silent_off", #b3b3b3 }};
+}
+historySilentToggleOn: icon {{ "send_control_silent_on", #b3b3b3 }};
+
+historyReplySkip: 51px;
+historyReplyColor: #377aae;
+historyReplyHeight: 49px;
+historyReplyTop: 8px;
+historyReplyBottom: 6px;
+historyReplyIconPosition: point(13px, 13px);
+historyReplyIcon: icon {{ "history_action_reply", #6fa1d2 }};
+historyForwardIcon: icon {{ "history_action_forward", #6fa1d2 }};
+historyEditIcon: icon {{ "history_action_edit", #6fa1d2 }};
+historyReplyCancel: IconButton(defaultIconButton) {
+	width: 49px;
+	height: 49px;
+
+	icon: historyReplyCancelIcon;
+	iconPosition: point(17px, 17px);
+	downIconPosition: point(17px, 18px);
+}
+historyInlineBotCancel: IconButton(historyReplyCancel) {
+	height: 46px;
+	iconPosition: point(-1px, 16px); // < 0 means draw in the center of the button
+	downIconPosition: point(-1px, 17px);
+}
+
+topBarSearch: IconButton(defaultIconButton) {
 	width: 44px;
 	height: topBarHeight;
 
@@ -221,6 +244,4 @@ topBarSearch: IconButton {
 
 	opacity: 0.22;
 	overOpacity: 0.36;
-
-	duration: 150;
 }

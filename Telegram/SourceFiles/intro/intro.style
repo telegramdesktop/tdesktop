@@ -25,12 +25,9 @@ introErrLabel: flatLabel(labelDefFlat) {
 	font: introErrFont;
 	align: align(center);
 }
-introBackButton: IconButton {
+introBackButton: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
-
-	opacity: 0.71;
-	overOpacity: 1.;
 
 	icon: icon {
 		{ size(40px, 40px), #eeeeee },
@@ -38,7 +35,5 @@ introBackButton: IconButton {
 	};
 	iconPosition: point(0px, 0px);
 	downIconPosition: point(0px, 0px);
-
-	duration: 150;
 }
 introBackPosition: point(32px, 32px);

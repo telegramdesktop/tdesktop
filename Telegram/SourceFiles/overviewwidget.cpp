@@ -21,12 +21,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "styles/style_overview.h"
+#include "styles/style_dialogs.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/buttons/icon_button.h"
 #include "window/top_bar_widget.h"
 #include "window/chat_background.h"
 #include "lang.h"
@@ -52,7 +54,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _channel(peerToChannel(_peer->id))
 , _rowWidth(st::msgMinWidth)
 , _search(this, st::dlgFilter, lang(lng_dlg_filter))
-, _cancelSearch(this, st::btnCancelSearch)
+, _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::wndMinWidth) {
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
@@ -73,14 +75,14 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 	mediaOverviewUpdated();
 	setMouseTracking(true);
 
-	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+	connect(_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
 	connect(&_search, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_search, SIGNAL(changed()), this, SLOT(onSearchUpdate()));
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	_cancelSearch.hide();
+	_cancelSearch->hide();
 	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search.show();
 	} else {
@@ -1280,7 +1282,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	_rowsLeft = (_width - _rowWidth) / 2;
 
 	_search.setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search.height());
-	_cancelSearch.moveToLeft(_rowsLeft + _rowWidth - _cancelSearch.width(), _search.y());
+	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search.y());
 
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
@@ -1341,7 +1343,7 @@ void OverviewInner::switchType(MediaOverviewType type) {
 			_search.updatePlaceholder();
 			onSearchUpdate();
 		}
-		_cancelSearch.hide();
+		_cancelSearch->hide();
 
 		resizeToWidth(_width, 0, _minHeight, true);
 	}
@@ -1470,9 +1472,9 @@ void OverviewInner::onSearchUpdate() {
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_searchResults.clear();
-		_cancelSearch.hide();
-	} else if (_cancelSearch.isHidden()) {
-		_cancelSearch.show();
+		_cancelSearch->hide();
+	} else if (_cancelSearch->isHidden()) {
+		_cancelSearch->show();
 	}
 
 	if (changed) {
@@ -1494,7 +1496,7 @@ void OverviewInner::onCancel() {
 bool OverviewInner::onCancelSearch() {
 	if (_search.isHidden()) return false;
 	bool clearing = !_search.text().isEmpty();
-	_cancelSearch.hide();
+	_cancelSearch->hide();
 	_search.clear();
 	_search.updatePlaceholder();
 	onSearchUpdate();

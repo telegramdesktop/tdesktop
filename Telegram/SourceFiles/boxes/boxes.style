@@ -136,18 +136,16 @@ contactsMultiSelect: MultiSelect {
 	fieldIcon: fieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: IconButton {
+	fieldCancel: IconButton(defaultIconButton) {
 		width: 41px;
 		height: 48px;
 
 		opacity: 0.3;
 		overOpacity: 0.4;
 
-		icon: icon {{ "box_search_cancel", #000000 }};
+		icon: boxCancelIcon;
 		iconPosition: point(8px, 18px);
 		downIconPosition: point(8px, 19px);
-
-		duration: 150;
 	}
 	fieldCancelSkip: 34px;
 }
@@ -206,3 +204,29 @@ notificationSampleNameFg: #939393;
 
 membersAboutPadding: margins(0px, 12px, 0px, 12px);
 membersAboutFg: #777;
+
+sessionsScroll: flatScroll(boxScroll) {
+	round: 2px;
+	deltax: 5px;
+	width: 14px;
+}
+sessionsHeight: 440px;
+sessionHeight: 70px;
+sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
+sessionCurrentHeight: 118px;
+sessionPadding: margins(21px, 10px, 21px, 0px);
+sessionNameFont: msgNameFont;
+sessionActiveFont: msgDateFont;
+sessionActiveColor: #aaa;
+sessionInfoFont: msgFont;
+sessionInfoColor: #888888;
+sessionTerminateTop: 30px;
+sessionTerminateSkip: 18px;
+sessionTerminate: IconButton(defaultIconButton) {
+	width: 16px;
+	height: 16px;
+
+	icon: simpleCloseIcon;
+	iconPosition: point(3px, 3px);
+	downIconPosition: point(3px, 4px);
+}

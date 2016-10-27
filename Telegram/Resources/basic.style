@@ -1027,54 +1027,6 @@ btnUnblock: flatButton(btnSend) {
 	downColor: #db6352;
 }
 
-silentToggle: flatCheckbox {
-	textColor: black;
-	bgColor: white;
-	disColor: black;
-
-	width: 33px;
-	height: 46px;
-	duration: 200;
-	bgFunc: transition(easeOutCirc);
-	cursor: cursor(pointer);
-
-	font: normalFont;
-
-	imageRect: sprite(354px, 242px, 21px, 21px);
-	chkImageRect: sprite(354px, 221px, 21px, 21px);
-	overImageRect: sprite(375px, 242px, 21px, 21px);
-	chkOverImageRect: sprite(375px, 221px, 21px, 21px);
-	disImageRect: sprite(354px, 242px, 21px, 21px);
-	chkDisImageRect: sprite(354px, 221px, 21px, 21px);
-
-	imagePos: point(6px, 12px);
-}
-
-replySkip: 51px;
-replyColor: #377aae;
-replyHeight: 49px;
-replyTop: 8px;
-replyBottom: 6px;
-replyIconPos: point(13px, 13px);
-replyIcon: sprite(343px, 197px, 24px, 24px);
-editIcon: sprite(371px, 286px, 24px, 24px);
-replyCancel: iconedButton(btnDefIconed) {
-	icon: sprite(165px, 24px, 14px, 14px);
-	iconPos: point(17px, 17px);
-	downIcon: sprite(165px, 24px, 14px, 14px);
-	downIconPos: point(17px, 18px);
-	bgColor: white;
-	overBgColor: white;
-	width: 49px;
-	height: 49px;
-}
-inlineBotCancel: iconedButton(replyCancel) {
-	height: 46px;
-	iconPos: point(-1px, 16px); // < 0 means draw in the center of the button
-	downIconPos: point(-1px, 17px);
-}
-forwardIcon: sprite(368px, 197px, 24px, 24px);
-
 historyScroll: flatScroll(scrollDef) {
 	barColor: #89a0b47a;
 	bgColor: #89a0b44c;
@@ -1179,31 +1131,7 @@ contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
 
-btnAddContact: iconedButton(btnDefIconed) {
-	icon: sprite(188px, 93px, 18px, 18px);
-	iconPos: point(8px, 8px);
-	downIcon: sprite(188px, 93px, 18px, 18px);
-	downIconPos: point(8px, 9px);
-
-	bgColor: transparent;
-	overBgColor: transparent;
-	width: 36px;
-	height: 36px;
-}
-btnCancelSearch: iconedButton(btnAddContact) {
-	icon: sprite(188px, 43px, 18px, 18px);
-	downIcon: sprite(188px, 43px, 18px, 18px);
-}
-
-simpleClose: iconedButton(btnDefIconed) {
-	icon: sprite(167px, 130px, 10px, 10px);
-	iconPos: point(10px, 10px);
-	downIcon: sprite(167px, 130px, 10px, 10px);
-	downIconPos: point(10px, 11px);
-
-	width: 30px;
-	height: 30px;
-}
+simpleCloseIcon: icon {{ "simple_close", #000000 }};
 
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
@@ -1243,7 +1171,7 @@ newGroupLinkFont: font(16px);
 newGroupPhotoSize: 76px;
 newGroupPhotoBg: #4eb5f0;
 newGroupPhotoBgOver: #3fa9e7;
-newGroupPhotoIcon: sprite(74px, 104px, 30px, 27px);
+newGroupPhotoIcon: icon {{ "new_chat_photo", #ffffff }};
 newGroupPhotoIconPosition: point(23px, 25px);
 
 newGroupNamePosition: point(27px, 20px);
@@ -1449,8 +1377,14 @@ usernameTextStyle: textStyle(defaultTextStyle) {
 }
 usernameDefaultFg: #777;
 
-youtubeIcon: sprite(116px, 338px, 72px, 50px);
-videoIcon: sprite(0px, 340px, 60px, 60px);
+youtubeIcon: icon {
+	{ "media_youtube_play_bg", #e83131c8 },
+	{ "media_youtube_play", #ffffff, point(24px, 12px) },
+};
+videoIcon: icon {
+	{ "media_video_play_bg", #0000007f },
+	{ "media_video_play", #ffffff, point(12px, 12px) },
+};
 locationSize: size(320px, 240px);
 
 boxOptionListPadding: margins(2px, 20px, 2px, 2px);
@@ -1500,30 +1434,6 @@ mentionFg: #777;
 mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
-
-sessionsScroll: flatScroll(boxScroll) {
-	round: 2px;
-	deltax: 5px;
-	width: 14px;
-}
-sessionsHeight: 440px;
-sessionHeight: 70px;
-sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
-sessionCurrentHeight: 118px;
-sessionPadding: margins(21px, 10px, 21px, 0px);
-sessionNameFont: msgNameFont;
-sessionActiveFont: msgDateFont;
-sessionActiveColor: #aaa;
-sessionInfoFont: msgFont;
-sessionInfoColor: #888888;
-sessionTerminateTop: 30px;
-sessionTerminateSkip: 18px;
-sessionTerminate: iconedButton(simpleClose) {
-	iconPos: point(3px, 3px);
-	downIconPos: point(3px, 4px);
-	width: 16px;
-	height: 16px;
-}
 
 webPageLeft: 10px;
 webPageBar: 2px;
@@ -1575,3 +1485,6 @@ infoButton: PeerAvatarButton {
 // forward declaration for single "title_previous" usage.
 profileTopBarBackIconFg: #0290d7;
 profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};
+
+boxCancelIcon: icon {{ "box_cancel", #000000 }};
+historyReplyCancelIcon: icon {{ "box_cancel", #adadad }};

@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "basic_types.style";
 
+using "ui/widgets/widgets.style";
+
 dialogsUnreadFg: #ffffff;
 dialogsUnreadFgActive: #5b94bf;
 dialogsUnreadBg: windowActiveBg;
@@ -81,21 +83,21 @@ dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
 	linkFgDown: #c6e1f7;
 }
 
-dialogsNewChatIcon: icon {{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }};
-dialogsNewChatButton: RoundButton {
+dialogsNewChatButton: IconButton(defaultIconButton) {
 	width: 36px;
 	height: 36px;
-	icon: dialogsNewChatIcon;
 
-	textTop: 5px;
-	downTextTop: 6px;
-
-	textFg: transparent;
-	textFgOver: transparent;
-	secondaryTextFg: transparent;
-	secondaryTextFgOver: transparent;
-	textBg: transparent;
-	textBgOver: transparent;
+	icon: icon {{ "dialogs_new_chat", #b7b7b7 }};
+	iconPosition: point(9px, 10px);
+	downIconPosition: point(9px, 11px);
+}
+dialogsAddContact: IconButton(dialogsNewChatButton) {
+	icon: icon {{ "dialogs_add_contact", #a6a6a6 }};
+	iconPosition: point(8px, 8px);
+	downIconPosition: point(8px, 9px);
+}
+dialogsCancelSearch: IconButton(dialogsAddContact) {
+	icon: icon {{ "dialogs_cancel_search", #a6a6a6 }};
 }
 
 dialogsChatTypeSkip: 22px;

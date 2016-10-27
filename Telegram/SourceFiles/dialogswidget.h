@@ -29,7 +29,7 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
-class RoundButton;
+class IconButton;
 class PopupMenu;
 } // namespace Ui
 
@@ -221,7 +221,7 @@ private:
 	void paintDialog(QPainter &p, Dialogs::Row *dialog);
 
 	LinkButton _addContactLnk;
-	IconedButton _cancelSearchInPeer;
+	ChildWidget<Ui::IconButton> _cancelSearchInPeer;
 
 	bool _overDelete = false;
 
@@ -336,8 +336,9 @@ private:
 	mtpRequestId _dialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
-	ChildWidget<Ui::RoundButton> _newGroup;
-	IconedButton _addContact, _cancelSearch;
+	ChildWidget<Ui::IconButton> _newGroup;
+	ChildWidget<Ui::IconButton> _addContact;
+	ChildWidget<Ui::IconButton> _cancelSearch;
 	ScrollArea _scroll;
 	DialogsInner _inner;
 

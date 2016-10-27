@@ -167,6 +167,12 @@ defaultLabelSimple: LabelSimple {
 	textFg: windowTextFg;
 }
 
+defaultIconButton: IconButton {
+	opacity: 0.78;
+	overOpacity: 1.;
+	duration: 150;
+}
+
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 

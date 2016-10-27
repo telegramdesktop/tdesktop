@@ -162,3 +162,12 @@ stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
+
+hashtagClose: IconButton(defaultIconButton) {
+	width: 30px;
+	height: 30px;
+
+	icon: simpleCloseIcon;
+	iconPosition: point(10px, 10px);
+	downIconPosition: point(10px, 11px);
+}

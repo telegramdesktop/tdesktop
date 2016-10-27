@@ -459,7 +459,7 @@ private:
 	QString _text, _fullText;
 	uint64 _setId;
 	bool _special, _deleteVisible;
-	IconedButton *_delete;
+	Ui::IconButton *_delete;
 
 };
 

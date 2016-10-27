@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "dialogs/dialogs_layout.h"
+#include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
 
 namespace {
