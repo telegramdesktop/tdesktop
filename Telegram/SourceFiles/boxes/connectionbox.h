@@ -22,6 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class Checkbox;
+class Radiobutton;
+} // namespace Ui
+
 class ConnectionBox : public AbstractBox {
 	Q_OBJECT
 
@@ -41,14 +46,17 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
-	InputField _hostInput;
-	PortInput _portInput;
-	InputField _userInput;
-	PasswordField _passwordInput;
-	Radiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
-	Checkbox _tryIPv6;
+	ChildWidget<InputField> _hostInput;
+	ChildWidget<PortInput> _portInput;
+	ChildWidget<InputField> _userInput;
+	ChildWidget<PasswordField> _passwordInput;
+	ChildWidget<Ui::Radiobutton> _autoRadio;
+	ChildWidget<Ui::Radiobutton> _httpProxyRadio;
+	ChildWidget<Ui::Radiobutton> _tcpProxyRadio;
+	ChildWidget<Ui::Checkbox> _tryIPv6;
 
-	BoxButton _save, _cancel;
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
 
 };
 
@@ -68,12 +76,17 @@ protected:
 	void showAll() override;
 
 private:
-	Checkbox _photoPrivate, _photoGroups;
-	Checkbox _audioPrivate, _audioGroups;
-	Checkbox _gifPrivate, _gifGroups, _gifPlay;
+	ChildWidget<Ui::Checkbox> _photoPrivate;
+	ChildWidget<Ui::Checkbox> _photoGroups;
+	ChildWidget<Ui::Checkbox> _audioPrivate;
+	ChildWidget<Ui::Checkbox> _audioGroups;
+	ChildWidget<Ui::Checkbox> _gifPrivate;
+	ChildWidget<Ui::Checkbox> _gifGroups;
+	ChildWidget<Ui::Checkbox> _gifPlay;
 
-	int32 _sectionHeight;
+	int _sectionHeight;
 
-	BoxButton _save, _cancel;
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
 
 };

@@ -30,7 +30,7 @@ stickersTrendingHeaderFont: semiboldFont;
 stickersTrendingHeaderFg: windowTextFg;
 stickersTrendingHeaderTop: 0px;
 stickersTrendingSubheaderFont: normalFont;
-stickersTrendingSubheaderFg: #777;
+stickersTrendingSubheaderFg: #777777;
 stickersTrendingSubheaderTop: 20px;
 
 stickersTrendingAddTop: 3px;
@@ -68,7 +68,7 @@ stickersScroll: flatScroll(boxScroll) {
 	deltab: 9px;
 }
 stickersReorderPadding: margins(0px, 12px, 0px, 12px);
-stickersReorderFg: #777;
+stickersReorderFg: #777777;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
@@ -131,7 +131,7 @@ emojiPanHover: #f0f4f7;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;
-emojiPanHeaderColor: #999;
+emojiPanHeaderColor: #999999;
 emojiPanHeaderLeft: 22px;
 emojiPanHeaderTop: 12px;
 emojiPanHeaderBg: #fffffff2;

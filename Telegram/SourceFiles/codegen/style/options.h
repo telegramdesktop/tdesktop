@@ -31,8 +31,6 @@ struct Options {
 	QString outputPath = ".";
 	QString inputPath;
 	bool rebuildDependencies = false;
-	bool skipStyles = false;
-	bool skipSprites = false;
 };
 
 // Parsing failed if inputPath is empty in the result.

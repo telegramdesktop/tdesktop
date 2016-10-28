@@ -19,126 +19,21 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/flatcheckbox.h"
+#include "ui/buttons/checkbox.h"
 
 #include "lang.h"
 
-FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st) : Button(parent)
-, _st(st)
-, a_over(0, 0)
-, _a_appearance(animation(this, &FlatCheckbox::step_appearance))
-, _text(text)
-, _opacity(1)
-, _checked(checked) {
-	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-	setCursor(_st.cursor);
-	int32 w = _st.width, h = _st.height;
-    if (w <= 0) w = _st.textLeft + _st.font->width(_text) + 2;
-	if (h <= 0) h = qMax(_st.font->height, _st.imageRect.pxHeight());
-	resize(QSize(w, h));
-}
+namespace Ui {
+namespace {
 
-bool FlatCheckbox::checked() const {
-	return _checked;
-}
-
-void FlatCheckbox::setChecked(bool checked) {
-	if (_checked != checked) {
-		_checked = checked;
-		emit changed();
-		update();
-	}
-}
-
-void FlatCheckbox::setOpacity(float64 o) {
-	_opacity = o;
-	update();
-}
-
-void FlatCheckbox::onClicked() {
-	if (_state & StateDisabled) return;
-	setChecked(!checked());
-}
-
-void FlatCheckbox::onStateChange(int oldState, ButtonStateChangeSource source) {
-	if ((_state & StateOver) && !(oldState & StateOver)) {
-		a_over.start(1);
-		_a_appearance.start();
-	} else if (!(_state & StateOver) && (oldState & StateOver)) {
-		a_over.start(0);
-		_a_appearance.start();
-	}
-	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
-		setCursor(_st.disabledCursor);
-		_a_appearance.start();
-	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
-		setCursor(_st.cursor);
-		_a_appearance.start();
-	}
-}
-
-void FlatCheckbox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	p.setOpacity(_opacity);
-	if (_st.bgColor != st::transparent) {
-		p.fillRect(rect(), _st.bgColor->b);
-	}
-
-	if (!_text.isEmpty()) {
-		p.setFont(_st.font->f);
-		p.setRenderHint(QPainter::TextAntialiasing);
-		p.setPen((_state & StateDisabled ? _st.disColor : _st.textColor)->p);
-
-		QRect tRect(rect());
-		tRect.setTop(_st.textTop);
-		tRect.setLeft(_st.textLeft);
-//		p.drawText(_st.textLeft, _st.textTop + _st.font->ascent, _text);
-		p.drawText(tRect, _text, QTextOption(style::al_topleft));
-	}
-
-	if (_state & StateDisabled) {
-		const style::sprite &sRect(_checked ? _st.chkDisImageRect : _st.disImageRect);
-		p.drawSprite(_st.imagePos, sRect);
-	} else if ((_checked && _st.chkImageRect == _st.chkOverImageRect) || (!_checked && _st.imageRect == _st.overImageRect)) {
-		p.setOpacity(_opacity);
-		const style::sprite &sRect(_checked ? _st.chkImageRect : _st.imageRect);
-		p.drawSprite(_st.imagePos, sRect);
-	} else {
-		if (a_over.current() < 1) {
-			const style::sprite &sRect(_checked ? _st.chkImageRect : _st.imageRect);
-			p.drawSprite(_st.imagePos, sRect);
-		}
-		if (a_over.current() > 0) {
-			p.setOpacity(_opacity * a_over.current());
-			const style::sprite &sRect(_checked ? _st.chkOverImageRect : _st.overImageRect);
-			p.drawSprite(_st.imagePos, sRect);
-		}
-	}
-}
-
-void FlatCheckbox::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_over.finish();
-	} else {
-		a_over.update(dt, _st.bgFunc);
-	}
-	if (timer) update();
-}
-
-template <typename Type>
-class TemplateRadiobuttonsGroup : public QMap<Type*, bool> {
-	typedef QMap<Type*, bool> Parent;
+class RadiobuttonGroup : public QMap<Radiobutton*, bool> {
+	using Parent = QMap<Radiobutton*, bool>;
 
 public:
-	TemplateRadiobuttonsGroup(const QString &name) : _name(name), _val(0) {
+	RadiobuttonGroup(const QString &name) : _name(name) {
 	}
 
-	void remove(Type * const &radio) {
-	}
+	void remove(Radiobutton * const &radio);
 	int32 val() const {
 		return _val;
 	}
@@ -148,23 +43,18 @@ public:
 
 private:
 	QString _name;
-	int32 _val;
+	int _val = 0;
 
 };
 
-typedef TemplateRadiobuttonsGroup<FlatRadiobutton> FlatRadiobuttonGroup;
-typedef TemplateRadiobuttonsGroup<Radiobutton> RadiobuttonGroup;
-
-template <typename Type>
-class Radiobuttons : public QMap<QString, TemplateRadiobuttonsGroup<Type> *> {
-	typedef QMap<QString, TemplateRadiobuttonsGroup<Type> *> Parent;
+class Radiobuttons : public QMap<QString, RadiobuttonGroup*> {
+	using Parent = QMap<QString, RadiobuttonGroup*>;
 
 public:
-
-	TemplateRadiobuttonsGroup<Type> *reg(const QString &group) {
+	RadiobuttonGroup *reg(const QString &group) {
 		typename Parent::const_iterator i = Parent::constFind(group);
 		if (i == Parent::cend()) {
-			i = Parent::insert(group, new TemplateRadiobuttonsGroup<Type>(group));
+			i = Parent::insert(group, new RadiobuttonGroup(group));
 		}
 		return i.value();
 	}
@@ -186,53 +76,15 @@ public:
 	}
 };
 
-namespace {
-	Radiobuttons<FlatRadiobutton> flatRadiobuttons;
-	Radiobuttons<Radiobutton> radiobuttons;
-}
+Radiobuttons radiobuttons;
 
-template <>
-void TemplateRadiobuttonsGroup<FlatRadiobutton>::remove(FlatRadiobutton * const &radio) {
-	Parent::remove(radio);
-	if (isEmpty()) {
-		flatRadiobuttons.remove(_name);
-	}
-}
+} // namespace
 
-template <>
-void TemplateRadiobuttonsGroup<Radiobutton>::remove(Radiobutton * const &radio) {
+void RadiobuttonGroup::remove(Radiobutton * const &radio) {
 	Parent::remove(radio);
 	if (isEmpty()) {
 		radiobuttons.remove(_name);
 	}
-}
-
-FlatRadiobutton::FlatRadiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::flatCheckbox &st) :
-	FlatCheckbox(parent, text, checked, st), _group(flatRadiobuttons.reg(group)), _value(value) {
-	reinterpret_cast<FlatRadiobuttonGroup*>(_group)->insert(this, true);
-	connect(this, SIGNAL(changed()), this, SLOT(onChanged()));
-	if (this->checked()) onChanged();
-}
-
-void FlatRadiobutton::onChanged() {
-	FlatRadiobuttonGroup *group = reinterpret_cast<FlatRadiobuttonGroup*>(_group);
-	if (checked()) {
-		int32 uncheck = group->val();
-		if (uncheck != _value) {
-			group->setVal(_value);
-			for (FlatRadiobuttonGroup::const_iterator i = group->cbegin(), e = group->cend(); i != e; ++i) {
-				if (i.key()->val() == uncheck) {
-					i.key()->setChecked(false);
-				}
-			}
-		}
-	} else if (group->val() == _value) {
-		setChecked(true);
-	}
-}
-
-FlatRadiobutton::~FlatRadiobutton() {
-	reinterpret_cast<FlatRadiobuttonGroup*>(_group)->remove(this);
 }
 
 Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : Button(parent)
@@ -564,3 +416,5 @@ void Radiobutton::onChanged() {
 Radiobutton::~Radiobutton() {
 	reinterpret_cast<RadiobuttonGroup*>(_group)->remove(this);
 }
+
+} // namespace Ui

@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "application.h"
+#include "ui/buttons/checkbox.h"
 #include "core/click_handler_types.h"
 #include "styles/style_boxes.h"
 #include "localstorage.h"
@@ -56,10 +57,10 @@ ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style
 void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 
-	connect(&_confirm, SIGNAL(clicked()), this, SLOT(onConfirmPressed()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(_confirm, SIGNAL(clicked()), this, SLOT(onConfirmPressed()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
 	if (_informative) {
-		_cancel.hide();
+		_cancel->hide();
 		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
 	}
 	onTextUpdated();
@@ -78,7 +79,7 @@ void ConfirmBox::onTextUpdated() {
 	textstyleSet(&st::boxTextStyle);
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm->height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
 	setMouseTracking(_text.hasLinks());
@@ -144,10 +145,10 @@ void ConfirmBox::closePressed() {
 
 void ConfirmBox::showAll() {
 	if (_informative) {
-		_confirm.show();
+		_confirm->show();
 	} else {
-		_confirm.show();
-		_cancel.show();
+		_confirm->show();
+		_cancel->show();
 	}
 }
 
@@ -171,8 +172,8 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 }
 
 void ConfirmBox::resizeEvent(QResizeEvent *e) {
-	_confirm.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _confirm.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y());
+	_confirm->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _confirm->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _confirm->width() + st::boxButtonPadding.left(), _confirm->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -219,9 +220,9 @@ MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
 }
@@ -267,7 +268,7 @@ void MaxInviteBox::step_good(float64 ms, bool timer) {
 }
 
 void MaxInviteBox::showAll() {
-	_close.show();
+	_close->show();
 }
 
 void MaxInviteBox::paintEvent(QPaintEvent *e) {
@@ -287,13 +288,13 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 		p.setOpacity(a_goodOpacity.current());
 		p.setPen(st::setGoodColor);
 		p.setFont(st::boxTextFont);
-		p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close.height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
+		p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close->height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 		p.setOpacity(1);
 	}
 }
 
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
-	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
+	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
 	AbstractBox::resizeEvent(e);
 }
@@ -315,11 +316,11 @@ ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st:
 	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
-	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert->height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
-	connect(&_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
 }
@@ -360,8 +361,8 @@ bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
 }
 
 void ConvertToSupergroupBox::showAll() {
-	_convert.show();
-	_cancel.show();
+	_convert->show();
+	_cancel->show();
 }
 
 void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
@@ -387,8 +388,8 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 }
 
 void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
-	_convert.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _convert.width() + st::boxButtonPadding.left(), _convert.y());
+	_convert->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _convert->width() + st::boxButtonPadding.left(), _convert->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -399,18 +400,18 @@ PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st
 , _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox)
 , _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text.height() + st::boxMediumSkip + _notify.height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin.height() + st::boxButtonPadding.bottom());
+	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin->height() + st::boxButtonPadding.bottom());
 
-	connect(&_pin, SIGNAL(clicked()), this, SLOT(onPin()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_pin, SIGNAL(clicked()), this, SLOT(onPin()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 }
 
 void PinMessageBox::resizeEvent(QResizeEvent *e) {
-	_text.moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_notify.moveToLeft(st::boxPadding.left(), _text.y() + _text.height() + st::boxMediumSkip);
-	_pin.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _pin.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _pin.width() + st::boxButtonPadding.left(), _pin.y());
+	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+	_pin->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _pin->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _pin->width() + st::boxButtonPadding.left(), _pin->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -418,17 +419,17 @@ void PinMessageBox::onPin() {
 	if (_requestId) return;
 
 	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
-	if (!_notify.checked()) {
+	if (!_notify->checked()) {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
 }
 
 void PinMessageBox::showAll() {
-	_text.show();
-	_notify.show();
-	_pin.show();
-	_cancel.show();
+	_text->show();
+	_notify->show();
+	_pin->show();
+	_cancel->show();
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
@@ -456,31 +457,31 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	t_assert(_channel != nullptr);
 
-	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text.height() + st::boxMediumSkip + _banUser.height() + st::boxLittleSkip + _reportSpam.height() + st::boxLittleSkip + _deleteAll.height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete.height() + st::boxButtonPadding.bottom());
+	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->height() + st::boxLittleSkip + _reportSpam->height() + st::boxLittleSkip + _deleteAll->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete->height() + st::boxButtonPadding.bottom());
 
-	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 }
 
 void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
-	_text.moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_banUser.moveToLeft(st::boxPadding.left(), _text.y() + _text.height() + st::boxMediumSkip);
-	_reportSpam.moveToLeft(st::boxPadding.left(), _banUser.y() + _banUser.height() + st::boxLittleSkip);
-	_deleteAll.moveToLeft(st::boxPadding.left(), _reportSpam.y() + _reportSpam.height() + st::boxLittleSkip);
-	_delete.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _delete.width() + st::boxButtonPadding.left(), _delete.y());
+	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	_banUser->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+	_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->y() + _banUser->height() + st::boxLittleSkip);
+	_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->y() + _reportSpam->height() + st::boxLittleSkip);
+	_delete->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _delete->width() + st::boxButtonPadding.left(), _delete->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void RichDeleteMessageBox::onDelete() {
-	if (_banUser.checked()) {
+	if (_banUser->checked()) {
 		MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _from->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
-	if (_reportSpam.checked()) {
+	if (_reportSpam->checked()) {
 		MTP::send(MTPchannels_ReportSpam(_channel->inputChannel, _from->inputUser, MTP_vector<MTPint>(1, MTP_int(_msgId))));
 	}
-	if (_deleteAll.checked()) {
+	if (_deleteAll->checked()) {
 		App::main()->deleteAllFromUser(_channel, _from);
 	}
 	if (HistoryItem *item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
@@ -497,12 +498,12 @@ void RichDeleteMessageBox::onDelete() {
 }
 
 void RichDeleteMessageBox::showAll() {
-	_text.show();
-	_banUser.show();
-	_reportSpam.show();
-	_deleteAll.show();
-	_delete.show();
-	_cancel.show();
+	_text->show();
+	_banUser->show();
+	_reportSpam->show();
+	_deleteAll->show();
+	_delete->show();
+	_cancel->show();
 }
 
 KickMemberBox::KickMemberBox(PeerData *chat, UserData *member)

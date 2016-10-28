@@ -116,10 +116,10 @@ mediaviewMenu: Menu(defaultMenu) {
 	itemBgOver: #505050;
 	itemFg: white;
 	itemFgOver: white;
-	itemFgDisabled: #999;
-	itemFgShortcut: #eee;
-	itemFgShortcutOver: #fff;
-	itemFgShortcutDisabled: #999;
+	itemFgDisabled: #999999;
+	itemFgShortcut: #eeeeee;
+	itemFgShortcutOver: #ffffff;
+	itemFgShortcutDisabled: #999999;
 
 	separatorFg: #484848;
 }

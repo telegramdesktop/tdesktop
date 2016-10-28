@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "photosendbox.h"
 #include "history/history_media_types.h"
+#include "ui/buttons/checkbox.h"
 #include "styles/style_history.h"
 
 PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)
@@ -44,8 +45,8 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 , _isImage(false)
 , _replyTo(_file->to.replyTo)
 , _confirmed(false) {
-	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_send, SIGNAL(clicked()), this, SLOT(onSend()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	_animated = false;
 	QSize dimensions;
@@ -134,16 +135,16 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		_isImage = fileIsImage(_file->filename, _file->filemime);
 	}
 	if (_file->type != PreparePhoto) {
-		_compressed.hide();
+		_compressed->hide();
 	}
 
 	updateBoxSize();
-	_caption.setMaxLength(MaxPhotoCaption);
-	_caption.setCtrlEnterSubmit(CtrlEnterSubmitBoth);
-	connect(&_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
-	connect(&_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
-	connect(&_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
-	connect(&_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
+	_caption->setMaxLength(MaxPhotoCaption);
+	_caption->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+	connect(_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
+	connect(_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
+	connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
+	connect(_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
 
 	prepare();
 }
@@ -164,10 +165,10 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 , _lname(lname)
 , _replyTo(replyTo)
 , _confirmed(false) {
-	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_send, SIGNAL(clicked()), this, SLOT(onSend()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_compressed.hide();
+	_compressed->hide();
 
 	_name.setText(st::semiboldFont, lng_full_name(lt_first_name, _fname, lt_last_name, _lname), _textNameOptions);
 	_status = _phone;
@@ -179,10 +180,10 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 
 void PhotoSendBox::onCompressedChange() {
 	showAll();
-	if (_caption.isHidden()) {
+	if (_caption->isHidden()) {
 		setFocus();
 	} else {
-		_caption.setFocus();
+		_caption->setFocus();
 	}
 	updateBoxSize();
 	resizeEvent(0);
@@ -197,11 +198,11 @@ void PhotoSendBox::onCaptionResized() {
 
 void PhotoSendBox::updateBoxSize() {
 	if (_file && (_file->type == PreparePhoto || _animated)) {
-		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + (_animated ? 0 : (st::boxPhotoCompressedPadding.top() + _compressed.height())) + st::boxPhotoCompressedPadding.bottom() + _caption.height() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + (_animated ? 0 : (st::boxPhotoCompressedPadding.top() + _compressed->height())) + st::boxPhotoCompressedPadding.bottom() + _caption->height() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
 	} else if (_thumbw) {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption->height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption->height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
 	}
 }
 
@@ -291,11 +292,11 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 }
 
 void PhotoSendBox::resizeEvent(QResizeEvent *e) {
-	_send.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _send.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
-	_caption.resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _caption.height());
-	_caption.moveToLeft(st::boxPhotoPadding.left(), _send.y() - st::boxButtonPadding.top() - _caption.height());
-	_compressed.moveToLeft(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top());
+	_send->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _send->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _send->width() + st::boxButtonPadding.left(), _send->y());
+	_caption->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _caption->height());
+	_caption->moveToLeft(st::boxPhotoPadding.left(), _send->y() - st::boxButtonPadding.top() - _caption->height());
+	_compressed->moveToLeft(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -310,47 +311,47 @@ void PhotoSendBox::closePressed() {
 }
 
 void PhotoSendBox::showAll() {
-	_send.show();
-	_cancel.show();
+	_send->show();
+	_cancel->show();
 	if (_file) {
 		if (_file->type == PreparePhoto) {
-			_compressed.show();
+			_compressed->show();
 		}
-		_caption.show();
+		_caption->show();
 	} else {
-		_caption.hide();
-		_compressed.hide();
+		_caption->hide();
+		_compressed->hide();
 	}
 }
 
 void PhotoSendBox::doSetInnerFocus() {
-	if (_caption.isHidden()) {
+	if (_caption->isHidden()) {
 		setFocus();
 	} else {
-		_caption.setFocus();
+		_caption->setFocus();
 	}
 }
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 	if (App::main()) {
 		if (_file) {
-			if (_compressed.isHidden()) {
+			if (_compressed->isHidden()) {
 				if (_file->type == PrepareAuto) {
 					_file->type = PrepareDocument;
 				}
 			} else {
-				if (_compressedFromSettings && _compressed.checked() != cCompressPastedImage()) {
-					cSetCompressPastedImage(_compressed.checked());
+				if (_compressedFromSettings && _compressed->checked() != cCompressPastedImage()) {
+					cSetCompressPastedImage(_compressed->checked());
 					Local::writeUserSettings();
 				}
-				if (_compressed.checked()) {
+				if (_compressed->checked()) {
 					_file->type = PreparePhoto;
 				} else {
 					_file->type = PrepareDocument;
 				}
 			}
-			if (!_caption.isHidden()) {
-				_file->caption = prepareText(_caption.getLastText(), true);
+			if (!_caption->isHidden()) {
+				_file->caption = prepareText(_caption->getLastText(), true);
 			}
 			App::main()->onSendFileConfirm(_file, ctrlShiftEnter);
 		} else {
@@ -366,7 +367,6 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 , _animated(false)
 , _photo(false)
 , _doc(false)
-, _field(0)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _thumbx(0)
@@ -377,8 +377,8 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 , _isImage(false)
 , _previewCancelled(false)
 , _saveRequestId(0) {
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	QSize dimensions;
 	ImagePtr image;
@@ -490,13 +490,13 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	}
 
 	if (_animated || _photo || _doc) {
-		_field = new InputArea(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
+		_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
 		_field->setMaxLength(MaxPhotoCaption);
 		_field->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
 	} else {
 		auto original = msg->originalText();
 		QString text = textApplyEntities(original.text, original.entities);
-		_field = new InputArea(this, st::editTextArea, lang(lng_photo_caption), text);
+		_field.create(this, st::editTextArea, lang(lng_photo_caption), text);
 //		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
 		_field->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);
 	}
@@ -523,7 +523,7 @@ void EditCaptionBox::onCaptionResized() {
 }
 
 void EditCaptionBox::updateBoxSize() {
-	int32 bottomh = st::boxPhotoCompressedPadding.bottom() + _field->height() + st::normalFont->height + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
+	int32 bottomh = st::boxPhotoCompressedPadding.bottom() + _field->height() + st::normalFont->height + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_photo || _animated) {
 		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + bottomh);
 	} else if (_thumbw) {
@@ -620,16 +620,16 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 }
 
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 	_field->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _field->height());
-	_field->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
+	_field->moveToLeft(st::boxPhotoPadding.left(), _save->y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
 	AbstractBox::resizeEvent(e);
 }
 
 void EditCaptionBox::showAll() {
-	_save.show();
-	_cancel.show();
+	_save->show();
+	_cancel->show();
 	_field->show();
 }
 

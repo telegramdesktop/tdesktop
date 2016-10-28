@@ -2370,10 +2370,6 @@ namespace {
 		return ::monofont;
 	}
 
-	const QPixmap &sprite() {
-		return style::spritePixmap();
-	}
-
 	const QPixmap &emoji() {
 		return *::emoji;
 	}

@@ -31,15 +31,15 @@ emojiSize: 18px;
 emojiPadding: 0px;
 
 counterBG: #f23c34;
-counterMuteBG: #888;
-counterColor: #fff;
+counterMuteBG: #888888;
+counterColor: #ffffff;
 counterMacInvColor: #ffffff01;
 
 lineWidth: 1px;
 
-transparent: #fff0;
-white: #fff;
-black: #000;
+transparent: #ffffff00;
+white: #ffffff;
+black: #000000;
 
 wndMinWidth: 380px;
 
@@ -163,8 +163,8 @@ defaultInputArea: InputArea {
 	textFg: black;
 	textMargins: margins(5px, 6px, 5px, 4px);
 
-	placeholderFg: #999;
-	placeholderFgActive: #aaa;
+	placeholderFg: #999999;
+	placeholderFgActive: #aaaaaa;
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderAlign: align(topleft);
 	placeholderShift: 50px;
@@ -189,8 +189,8 @@ defaultInputField: InputField {
 	textMargins: margins(0px, 6px, 0px, 4px);
 	textAlign: align(topleft);
 
-	placeholderFg: #999;
-	placeholderFgActive: #aaa;
+	placeholderFg: #999999;
+	placeholderFgActive: #aaaaaa;
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderAlign: align(topleft);
 	placeholderShift: 50px;
@@ -267,7 +267,7 @@ solidScroll: flatScroll {
 
 	topsh: 0px;
 	bottomsh: 0px;
-	shColor: rgba(0, 0, 0, 18);
+	shColor: #00000012;
 
 	duration: 150;
 	hiding: 0;
@@ -307,17 +307,17 @@ titlePos: point(44px, 29px);
 titleMenuOffset: 36px;
 
 titleRed: #ee4928;
-titleGray: #777;
+titleGray: #777777;
 titleGreen: #41a903;
 
-titleStatusFg: #999;
+titleStatusFg: #999999;
 titleStatusActiveFg: #0080c0;
 titleTypingFg: #0080c0;
 
 statusFont: font(fsize);
-versionColor: #777;
+versionColor: #777777;
 
-shadowColor: rgba(0, 0, 0, 24);
+shadowColor: #00000018;
 shadowToggleDuration: 200;
 
 slideDuration: 240;
@@ -325,22 +325,6 @@ slideShift: 100px;
 slideFadeOut: 0.3;
 slideShadow: icon {{ "slide_shadow", #000000 }};
 slideFunction: transition(easeOutCirc);
-
-btnDefIconed: iconedButton {
-	color: white;
-	bgColor: white;
-	overBgColor: white;
-	font: font(fsize);
-
-	opacity: 0.78;
-	overOpacity: 1.;
-
-	textPos: point(0px, 0px);
-	downTextPos: point(0px, 0px);
-
-	duration: 150;
-	cursor: cursor(pointer);
-}
 
 titleButtonFg: #c4d8e9;
 titleButtonActiveFg: #ffffff;
@@ -378,12 +362,12 @@ btnBoxWhiteHover: #fafafa;
 btnYesColor: #0080c0;
 btnYesHover: #0073ad;
 btnNoColor: #8b8b8b;
-btnNoHover: #777;
+btnNoHover: #777777;
 
 titleTextButton: flatButton {
 	color: #d4e3ef;
-	overColor: #fff;
-	downColor: #fff;
+	overColor: #ffffff;
+	downColor: #ffffff;
 	bgColor: transparent;
 	overBgColor: transparent;
 	downBgColor: transparent;
@@ -445,9 +429,9 @@ btnDefLink: linkButton {
 
 inpDefFont: font(17px);
 inpDefFlat: flatInput {
-	textColor: #000;
-	bgColor: #FFF;
-	bgActive: #FFF;
+	textColor: #000000;
+	bgColor: #ffffff;
+	bgActive: #ffffff;
 	width: 210px;
 	height: 40px;
 	align: align(left);
@@ -461,7 +445,7 @@ inpDefFlat: flatInput {
 	borderError: black;
 
 	phColor: #949494;
-	phFocusColor: #AAA;
+	phFocusColor: #aaaaaa;
 	phAlign: align(left);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -481,15 +465,15 @@ inpDefGray: flatInput(inpDefFlat) {
 }
 
 taDefFlat: flatTextarea {
-	textColor: #000;
-	bgColor: #FFF;
+	textColor: #000000;
+	bgColor: #ffffff;
 	align: align(left);
 	textMrg: margins(5px, 5px, 5px, 5px);
 	font: inpDefFont;
 	cursor: cursor(text);
 
-	phColor: #999;
-	phFocusColor: #AAA;
+	phColor: #999999;
+	phFocusColor: #aaaaaa;
 	phAlign: align(topleft);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -500,10 +484,10 @@ taDefFlat: flatTextarea {
 }
 
 scrollDef: flatScroll {
-	barColor: rgba(0, 0, 0, 83);
-	bgColor: rgba(0, 0, 0, 26);
-	barOverColor: rgba(0, 0, 0, 122);
-	bgOverColor: rgba(0, 0, 0, 44);
+	barColor: #00000053;
+	bgColor: #0000001a;
+	barOverColor: #0000007a;
+	bgOverColor: #0000002c;
 
 	round: 2px;
 
@@ -515,7 +499,7 @@ scrollDef: flatScroll {
 
 	topsh: 2px;
 	bottomsh: 2px;
-	shColor: rgba(0, 0, 0, 18);
+	shColor: #00000012;
 
 	duration: 150;
 	hiding: 1000;
@@ -557,7 +541,7 @@ introPointHoverHeight: 10px;
 introPointLeft: 3px;
 introPointTop: 3px;
 introPointDelta: 10px;
-introPointColor: rgb(0, 0, 0);
+introPointColor: #000000;
 introPointAlpha: 0.5;
 introPointHoverColor: #86b4e3;
 introPointStepT: transition(sineInOut);
@@ -677,7 +661,7 @@ setGoodColor: #4ab44a;
 
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
-noContactsColor: #777;
+noContactsColor: #777777;
 
 fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
 dlgFilter: flatInput(inpDefGray) {
@@ -770,7 +754,7 @@ msgMargin: margins(13px, 10px, 53px, 2px);
 msgMarginTopAttached: 3px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
-msgInBg: #fff;
+msgInBg: #ffffff;
 msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
 msgOutBg: #effdde;
 msgOutBgSelected: #b7dbdb;
@@ -813,12 +797,12 @@ msgBotKbButton: botKeyboardButton {
 
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
-msgServiceColor: #FFF;
+msgServiceColor: #ffffff;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
-msgColor: #000;
-msgDateColor: #000;
+msgColor: #000000;
+msgDateColor: #000000;
 msgLinkColor: #2a6dc2;
 msgPressedLinkColor: #004bad;
 msgSkip: 40px;
@@ -830,7 +814,7 @@ msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
 
 msgDateImgDelta: 4px;
-msgDateImgColor: #fff;
+msgDateImgColor: #ffffff;
 msgDateImgBg: #00000054;
 msgDateImgBgOver: #00000074;
 msgDateImgBgSelected: #1c4a7187;
@@ -860,7 +844,7 @@ defaultTextStyle: textStyle {
 	linkFlagsOver: font(fsize underline);
 	linkFg: btnYesColor;
 	linkFgDown: btnYesHover;
-	monoFg: #777;
+	monoFg: #777777;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
@@ -927,7 +911,7 @@ mediaInFg: msgInDateFg;
 mediaInFgSelected: msgInDateFgSelected;
 mediaOutFg: msgOutDateFg;
 mediaOutFgSelected: msgOutDateFgSelected;
-mediaInUnreadFg: #999;
+mediaInUnreadFg: #999999;
 mediaInUnreadFgSelected: #7b95aa;
 mediaOutUnreadFg: #6aad60;
 mediaOutUnreadFgSelected: #5aa382;
@@ -1077,7 +1061,7 @@ reportSpamButton: flatButton(reportSpamHide) {
 	width: -50px;
 	height: 30px;
 
-	bgColor: #888;
+	bgColor: #888888;
 	overBgColor: #7b7b7b;
 	downBgColor: #7b7b7b;
 }
@@ -1157,7 +1141,7 @@ membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px);
-forwardBg: rgba(0, 0, 0, 76);
+forwardBg: #0000004c;
 
 newGroupAboutFg: #808080;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
@@ -1203,9 +1187,9 @@ aboutIcon: icon {{ "intro_logo", #008ed5 }};
 aboutWidth: 390px;
 aboutVersionTop: -3px;
 aboutVersionLink: linkButton(btnDefLink) {
-	color: #999;
-	overColor: #999;
-	downColor: #999;
+	color: #999999;
+	overColor: #999999;
+	downColor: #999999;
 }
 aboutTextTop: 34px;
 aboutSkip: 14px;
@@ -1224,13 +1208,13 @@ emojiReplaceHeight: 56px;
 emojiReplaceInnerHeight: 42px;
 emojiReplacePadding: 14px;
 
-connectingBG: #fffe;
-connectingColor: #777;
+connectingBG: #ffffffee;
+connectingColor: #777777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
-dragColor: #777;
+dragColor: #777777;
 dragDropColor: btnYesColor;
 
 dragMargin: margins(0px, 10px, 0px, 10px);
@@ -1239,7 +1223,7 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 dragHeight: 72px;
 
 dpiActive: black;
-dpiInactive: #999;
+dpiInactive: #999999;
 dpiFont1: linkFont;
 dpiFont2: linkFont;
 dpiFont3: linkFont;
@@ -1282,7 +1266,7 @@ maxStickerSize: 256px;
 maxGifSize: 320px;
 maxSignatureSize: 144px;
 
-mvBgColor: #222;
+mvBgColor: #222222;
 mvBgOpacity: 0.92;
 mvThickFont: semiboldFont;
 mvFont: font(fsize);
@@ -1371,7 +1355,7 @@ usernameSkip: 49px;
 usernameTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
-usernameDefaultFg: #777;
+usernameDefaultFg: #777777;
 
 youtubeIcon: icon {
 	{ "media_youtube_play_bg", #e83131c8 },
@@ -1426,7 +1410,7 @@ mentionTop: 11px;
 mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
 mentionBgOver: #f5f5f5;
-mentionFg: #777;
+mentionFg: #777777;
 mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
@@ -1468,7 +1452,7 @@ toastFont: normalFont;
 toastMaxWidth: 480px;
 toastMinMargin: 13px;
 toastBg: medviewSaveMsg;
-toastFg: #FFF;
+toastFg: #ffffff;
 toastPadding: margins(19px, 13px, 19px, 12px);
 toastFadeInDuration: 200;
 toastFadeOutDuration: 1000;

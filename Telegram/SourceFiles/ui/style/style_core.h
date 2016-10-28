@@ -77,7 +77,3 @@ inline QImage createInvertedCircleMask(int size) {
 }
 
 } // namespace style
-
-inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {
-	return centerrect(inRect, QRect(QPoint(0, 0), sprite.pxSize()));
-}

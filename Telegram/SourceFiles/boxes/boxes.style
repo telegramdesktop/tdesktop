@@ -120,8 +120,8 @@ contactsMultiSelect: MultiSelect {
 		textBg: transparent;
 		textMargins: margins(2px, 7px, 2px, 0px);
 
-		placeholderFg: #999;
-		placeholderFgActive: #aaa;
+		placeholderFg: #999999;
+		placeholderFgActive: #aaaaaa;
 		placeholderMargins: margins(2px, 0px, 2px, 0px);
 
 		border: 0px;
@@ -203,7 +203,7 @@ notificationSampleTextFg: #d7d7d7;
 notificationSampleNameFg: #939393;
 
 membersAboutPadding: margins(0px, 12px, 0px, 12px);
-membersAboutFg: #777;
+membersAboutFg: #777777;
 
 sessionsScroll: flatScroll(boxScroll) {
 	round: 2px;
@@ -217,7 +217,7 @@ sessionCurrentHeight: 118px;
 sessionPadding: margins(21px, 10px, 21px, 0px);
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
-sessionActiveColor: #aaa;
+sessionActiveColor: #aaaaaa;
 sessionInfoFont: msgFont;
 sessionInfoColor: #888888;
 sessionTerminateTop: 30px;

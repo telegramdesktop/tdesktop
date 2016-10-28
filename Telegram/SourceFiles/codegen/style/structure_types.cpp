@@ -69,17 +69,6 @@ struct Value::DataTypes {
 
 	};
 
-	class TSprite : public DataBase {
-	public:
-		TSprite(data::sprite value) : value_(value) {
-		}
-		data::sprite Sprite() const override { return value_; }
-
-	private:
-		data::sprite value_;
-
-	};
-
 	class TSize : public DataBase {
 	public:
 		TSize(data::size value) : value_(value) {
@@ -154,9 +143,6 @@ Value::Value() : Value(TypeTag::Invalid, std::make_shared<DataBase>()) {
 Value::Value(data::point value) : Value(TypeTag::Point, std::make_shared<DataTypes::TPoint>(value)) {
 }
 
-Value::Value(data::sprite value) : Value(TypeTag::Sprite, std::make_shared<DataTypes::TSprite>(value)) {
-}
-
 Value::Value(data::size value) : Value(TypeTag::Size, std::make_shared<DataTypes::TSize>(value)) {
 }
 
@@ -210,7 +196,6 @@ Value::Value(Type type, Qt::Initialization) : type_(type) {
 	case TypeTag::String: data_ = std::make_shared<DataTypes::TString>(""); break;
 	case TypeTag::Color: data_ = std::make_shared<DataTypes::TColor>(data::color { 0, 0, 0, 255 }); break;
 	case TypeTag::Point: data_ = std::make_shared<DataTypes::TPoint>(data::point { 0, 0 }); break;
-	case TypeTag::Sprite: data_ = std::make_shared<DataTypes::TSprite>(data::sprite { 0, 0, 0, 0 }); break;
 	case TypeTag::Size: data_ = std::make_shared<DataTypes::TSize>(data::size { 0, 0 }); break;
 	case TypeTag::Transition: data_ = std::make_shared<DataTypes::TString>("linear"); break;
 	case TypeTag::Cursor: data_ = std::make_shared<DataTypes::TString>("default"); break;

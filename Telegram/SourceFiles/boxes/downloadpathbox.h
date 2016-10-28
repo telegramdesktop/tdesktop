@@ -23,6 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "core/observer.h"
 
+namespace Ui {
+class Radiobutton;
+} // namespace Ui
+
 class DownloadPathBox : public AbstractBox {
 	Q_OBJECT
 
@@ -46,8 +50,12 @@ private:
 	QString _path;
 	QByteArray _pathBookmark;
 
-	Radiobutton _default, _temp, _dir;
-	LinkButton _pathLink;
-	BoxButton _save, _cancel;
+	ChildWidget<Ui::Radiobutton> _default;
+	ChildWidget<Ui::Radiobutton> _temp;
+	ChildWidget<Ui::Radiobutton> _dir;
+	ChildWidget<LinkButton> _pathLink;
+
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
 
 };

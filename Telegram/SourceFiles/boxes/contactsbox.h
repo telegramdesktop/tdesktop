@@ -31,6 +31,7 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
+class Checkbox;
 class MultiSelect;
 template <typename Widget>
 class WidgetSlideWrap;
@@ -91,11 +92,12 @@ private:
 	ChildWidget<Inner> _inner;
 	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
 
-	BoxButton _next, _cancel;
+	ChildWidget<BoxButton> _next;
+	ChildWidget<BoxButton> _cancel;
 	MembersFilter _membersFilter;
 
-	ScrollableBoxShadow _topShadow;
-	ScrollableBoxShadow *_bottomShadow = nullptr;
+	ChildWidget<ScrollableBoxShadow> _topShadow;
+	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
@@ -152,9 +154,7 @@ public:
 
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
-	bool allAdmins() const {
-		return _allAdmins.checked();
-	}
+	bool allAdmins() const;
 	void setAllAdminsChangedCallback(base::lambda_unique<void()> allAdminsChangedCallback) {
 		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
 	}
@@ -263,7 +263,7 @@ private:
 	CreatingGroupType _creating = CreatingGroupNone;
 	MembersAlreadyIn _already;
 
-	Checkbox _allAdmins;
+	ChildWidget<Ui::Checkbox> _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
 	base::lambda_unique<void()> _allAdminsChangedCallback;
@@ -301,7 +301,7 @@ private:
 	int _byUsernameSel = -1;
 
 	QPoint _lastMousePos;
-	LinkButton _addContactLnk;
+	ChildWidget<LinkButton> _addContactLnk;
 
 	bool _saving = false;
 	bool _allAdminsChecked = false;

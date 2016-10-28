@@ -22,9 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
-class Checkbox;
-
 namespace Ui {
+class Checkbox;
 class LeftOutlineButton;
 } // namespace Ui
 
@@ -59,7 +58,7 @@ private:
 	void refreshManageAdminsButton();
 	void refreshInviteLinkButton();
 
-	ChildWidget<Checkbox> _enableNotifications;
+	ChildWidget<Ui::Checkbox> _enableNotifications;
 
 	// In groups: creator of non-deactivated groups can see this link.
 	// In channels: creator of supergroup can see this link.

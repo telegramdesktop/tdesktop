@@ -19,15 +19,14 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/languagebox.h"
+
 #include "lang.h"
-
+#include "ui/buttons/checkbox.h"
 #include "localstorage.h"
-
-#include "languagebox.h"
-#include "confirmbox.h"
+#include "boxes/confirmbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
 #include "langloaderplain.h"
 
 LanguageBox::LanguageBox() :
@@ -38,7 +37,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	int32 y = st::boxTitleHeight + st::boxOptionListPadding.top();
 	_langs.reserve(languageCount + (haveTestLang ? 1 : 0));
 	if (haveTestLang) {
-		_langs.push_back(new Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
+		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _langs.back()->height() + st::boxOptionListPadding.top();
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
@@ -51,7 +50,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 		} else {
 			result.insert(lng_language_name, langOriginal(lng_language_name));
 		}
-		_langs.push_back(new Radiobutton(this, qsl("lang"), i, result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")), (cLang() == i), st::langsButton));
+		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), i, result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")), (cLang() == i), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _langs.back()->height() + st::boxOptionListPadding.top();
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));

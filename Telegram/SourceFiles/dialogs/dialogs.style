@@ -44,7 +44,7 @@ dialogsDateFont: font(13px);
 dialogsDateFgActive: #ffffff;
 dialogsDateFg: #a8a8a8;
 dialogsDateSkip: 5px;
-dialogsNameFg: #000;
+dialogsNameFg: #000000;
 dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;

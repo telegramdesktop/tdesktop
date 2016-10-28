@@ -2784,14 +2784,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 							p.drawPixmapLeft(x + (st::emojiCategory.width - s.pixw) / 2, _iconsTop + (st::emojiCategory.height - s.pixh) / 2, width(), pix);
 							x += st::emojiCategory.width;
 						} else {
-							if (true || selxrel != x) {
-								getSpecialSetIcon(s.setId, false)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
-							}
-							//if (selxrel < x + st::emojiCategory.width && selxrel > x - st::emojiCategory.width) {
-							//	p.setOpacity(1 - (qAbs(selxrel - x) / float64(st::emojiCategory.width)));
-							//	p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), getSpecialSetIcon(s.setId, true));
-							//	p.setOpacity(1);
-							//}
+							getSpecialSetIcon(s.setId, false)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
 							if (s.setId == Stickers::FeaturedSetId) {
 								paintFeaturedStickerSetsBadge(p, x);
 							}

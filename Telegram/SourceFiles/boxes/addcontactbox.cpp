@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "confirmbox.h"
 #include "photocropbox.h"
 #include "ui/filedialog.h"
+#include "ui/buttons/checkbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -43,7 +44,7 @@ AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : Abst
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
-		_phone.setDisabled(true);
+		_phone->setDisabled(true);
 	}
 
 	initBox();
@@ -58,47 +59,47 @@ AddContactBox::AddContactBox(UserData *user) : AbstractBox(st::boxWidth)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
 , _invertOrder(langFirstNameGoesSecond()) {
-	_phone.setDisabled(true);
+	_phone->setDisabled(true);
 	initBox();
 }
 
 void AddContactBox::initBox() {
 	if (_invertOrder) {
-		setTabOrder(&_last, &_first);
+		setTabOrder(_last, _first);
 	}
 	if (_user) {
 		_boxTitle = lang(lng_edit_contact_title);
 	} else {
-		bool readyToAdd = !_phone.getLastText().isEmpty() && (!_first.getLastText().isEmpty() || !_last.getLastText().isEmpty());
+		bool readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
 		_boxTitle = lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data);
 	}
-	setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + _first.height() + st::contactSkip + _last.height() + st::contactPhoneSkip + _phone.height() + st::contactPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
-	_retry.hide();
+	setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+	_retry->hide();
 
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(&_retry, SIGNAL(clicked()), this, SLOT(onRetry()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_retry, SIGNAL(clicked()), this, SLOT(onRetry()));
 
-	connect(&_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(&_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(&_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	prepare();
 }
 
 void AddContactBox::showAll() {
-	_first.show();
-	_last.show();
-	_phone.show();
-	_save.show();
-	_cancel.show();
+	_first->show();
+	_last->show();
+	_phone->show();
+	_save->show();
+	_cancel->show();
 }
 
 void AddContactBox::doSetInnerFocus() {
-	if ((_first.getLastText().isEmpty() && _last.getLastText().isEmpty()) || !_phone.isEnabled()) {
-		(_invertOrder ? _last : _first).setFocus();
+	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
+		(_invertOrder ? _last : _first)->setFocus();
 	} else {
-		_phone.setFocus();
+		_phone->setFocus();
 	}
 }
 
@@ -108,47 +109,47 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 
 	paintTitle(p, _boxTitle);
 
-	if (_retry.isHidden()) {
-		st::contactUserIcon.paint(p, st::boxPadding.left(), _first.y() + st::contactIconTop, width());
-		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone.y() + st::contactIconTop, width());
+	if (_retry->isHidden()) {
+		st::contactUserIcon.paint(p, st::boxPadding.left(), _first->y() + st::contactIconTop, width());
+		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone->y() + st::contactIconTop, width());
 	} else {
 		p.setPen(st::black->p);
 		p.setFont(st::boxTextFont->f);
-		int32 h = height() - st::boxTitleHeight - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry.height() - st::boxButtonPadding.bottom();
+		int32 h = height() - st::boxTitleHeight - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry->height() - st::boxButtonPadding.bottom();
 		p.drawText(QRect(st::boxPadding.left(), st::boxTitleHeight + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	}
 }
 
 void AddContactBox::resizeEvent(QResizeEvent *e) {
-	_first.resize(width() - st::boxPadding.left() - st::contactPadding.left() - st::boxPadding.right(), _first.height());
-	_last.resize(_first.width(), _last.height());
-	_phone.resize(_first.width(), _last.height());
+	_first->resize(width() - st::boxPadding.left() - st::contactPadding.left() - st::boxPadding.right(), _first->height());
+	_last->resize(_first->width(), _last->height());
+	_phone->resize(_first->width(), _last->height());
 	if (_invertOrder) {
-		_last.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_first.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last.y() + _last.height() + st::contactSkip);
-		_phone.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first.y() + _first.height() + st::contactPhoneSkip);
+		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactSkip);
+		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactPhoneSkip);
 	} else {
-		_first.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_last.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first.y() + _first.height() + st::contactSkip);
-		_phone.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last.y() + _last.height() + st::contactPhoneSkip);
+		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactSkip);
+		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactPhoneSkip);
 	}
 
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_retry.moveToRight(st::boxButtonPadding.right(), _save.y());
-	_cancel.moveToRight(st::boxButtonPadding.right() + (_retry.isHidden() ? _save.width() : _retry.width()) + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_retry->moveToRight(st::boxButtonPadding.right(), _save->y());
+	_cancel->moveToRight(st::boxButtonPadding.right() + (_retry->isHidden() ? _save->width() : _retry->width()) + st::boxButtonPadding.left(), _save->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void AddContactBox::onSubmit() {
-	if (_first.hasFocus()) {
-		_last.setFocus();
-	} else if (_last.hasFocus()) {
-		if (_phone.isEnabled()) {
-			_phone.setFocus();
+	if (_first->hasFocus()) {
+		_last->setFocus();
+	} else if (_last->hasFocus()) {
+		if (_phone->isEnabled()) {
+			_phone->setFocus();
 		} else {
 			onSave();
 		}
-	} else if (_phone.hasFocus()) {
+	} else if (_phone->hasFocus()) {
 		onSave();
 	}
 }
@@ -156,21 +157,21 @@ void AddContactBox::onSubmit() {
 void AddContactBox::onSave() {
 	if (_addRequest) return;
 
-	QString firstName = prepareText(_first.getLastText());
-	QString lastName = prepareText(_last.getLastText());
-	QString phone = _phone.getLastText().trimmed();
+	QString firstName = prepareText(_first->getLastText());
+	QString lastName = prepareText(_last->getLastText());
+	QString phone = _phone->getLastText().trimmed();
 	if (firstName.isEmpty() && lastName.isEmpty()) {
 		if (_invertOrder) {
-			_last.setFocus();
-			_last.showError();
+			_last->setFocus();
+			_last->showError();
 		} else {
-			_first.setFocus();
-			_first.showError();
+			_first->setFocus();
+			_first->showError();
 		}
 		return;
 	} else if (!_user && !App::isValidPhone(phone)) {
-		_phone.setFocus();
-		_phone.showError();
+		_phone->setFocus();
+		_phone->showError();
 		return;
 	}
 	if (firstName.isEmpty()) {
@@ -194,17 +195,17 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 
 	_addRequest = 0;
 	QString err(error.type());
-	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed();
+	QString firstName = _first->getLastText().trimmed(), lastName = _last->getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
 		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
 		onClose();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
-		_first.setFocus();
-		_first.showError();
+		_first->setFocus();
+		_first->showError();
 		return true;
 	}
-	_first.setFocus();
+	_first->setFocus();
 	return true;
 }
 
@@ -226,11 +227,11 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		Notify::userIsContactChanged(user, true);
 		Ui::hideLayer();
 	} else {
-		_save.hide();
-		_first.hide();
-		_last.hide();
-		_phone.hide();
-		_retry.show();
+		_save->hide();
+		_first->hide();
+		_last->hide();
+		_phone->hide();
+		_retry->show();
 		resizeEvent(0);
 		update();
 	}
@@ -245,17 +246,17 @@ void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 void AddContactBox::onRetry() {
 	_addRequest = 0;
 	_contactId = 0;
-	_save.show();
-	_retry.hide();
+	_save->show();
+	_retry->hide();
 	resizeEvent(0);
 	showAll();
-	_first.setText(QString());
-	_first.updatePlaceholder();
-	_last.setText(QString());
-	_last.updatePlaceholder();
-	_phone.clearText();
-	_phone.setDisabled(false);
-	_first.setFocus();
+	_first->setText(QString());
+	_first->updatePlaceholder();
+	_last->setText(QString());
+	_last->updatePlaceholder();
+	_phone->clearText();
+	_phone->setDisabled(false);
+	_first->setFocus();
 	update();
 }
 
@@ -268,19 +269,19 @@ _aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _
 _next(this, lang(lng_create_group_next), st::defaultBoxButton),
 _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	_aboutGroupHeight = _aboutGroup.countHeight(_aboutGroupWidth);
-	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _group.height() + _aboutGroupHeight + st::newGroupSkip + _channel.height() + _aboutChannel.countHeight(_aboutGroupWidth) + st::newGroupPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _group->height() + _aboutGroupHeight + st::newGroupSkip + _channel->height() + _aboutChannel.countHeight(_aboutGroupWidth) + st::newGroupPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _next->height() + st::boxButtonPadding.bottom());
 
-	connect(&_next, SIGNAL(clicked()), this, SLOT(onNext()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
 }
 
 void NewGroupBox::showAll() {
-	_group.show();
-	_channel.show();
-	_cancel.show();
-	_next.show();
+	_group->show();
+	_channel->show();
+	_cancel->show();
+	_next->show();
 }
 
 void NewGroupBox::keyPressEvent(QKeyEvent *e) {
@@ -297,24 +298,24 @@ void NewGroupBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg->p);
 
-	QRect aboutGroup(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group.y() + _group.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
+	QRect aboutGroup(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group->y() + _group->height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
 	_aboutGroup.drawLeft(p, aboutGroup.x(), aboutGroup.y(), aboutGroup.width(), width());
 
-	QRect aboutChannel(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel.y() + _channel.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
+	QRect aboutChannel(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel->y() + _channel->height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
 	_aboutChannel.drawLeft(p, aboutChannel.x(), aboutChannel.y(), aboutChannel.width(), width());
 }
 
 void NewGroupBox::resizeEvent(QResizeEvent *e) {
-	_group.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
-	_channel.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _group.y() + _group.height() + _aboutGroupHeight + st::newGroupSkip);
+	_group->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
+	_channel->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _group->y() + _group->height() + _aboutGroupHeight + st::newGroupSkip);
 
-	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
+	_next->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _next->width() + st::boxButtonPadding.left(), _next->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void NewGroupBox::onNext() {
-	Ui::showLayer(new GroupInfoBox(_group.checked() ? CreatingGroupGroup : CreatingGroupChannel, true), KeepOtherLayers);
+	Ui::showLayer(new GroupInfoBox(_group->checked() ? CreatingGroupGroup : CreatingGroupChannel, true), KeepOtherLayers);
 }
 
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
@@ -330,20 +331,20 @@ _creationRequestId(0), _createdChannel(0) {
 
 	setMouseTracking(true);
 
-	_title.setMaxLength(MaxGroupChannelTitle);
+	_title->setMaxLength(MaxGroupChannelTitle);
 
-	_description.setMaxLength(MaxChannelDescription);
-	_description.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description.height());
+	_description->setMaxLength(MaxChannelDescription);
+	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
 
 	updateMaxHeight();
-	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
-	connect(&_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
+	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
+	connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
 
-	connect(&_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
+	connect(_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
 
-	connect(&_next, SIGNAL(clicked()), this, SLOT(onNext()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
@@ -353,18 +354,18 @@ _creationRequestId(0), _createdChannel(0) {
 }
 
 void GroupInfoBox::showAll() {
-	_title.show();
+	_title->show();
 	if (_creating == CreatingGroupChannel) {
-		_description.show();
+		_description->show();
 	} else {
-		_description.hide();
+		_description->hide();
 	}
-	_cancel.show();
-	_next.show();
+	_cancel->show();
+	_next->show();
 }
 
 void GroupInfoBox::doSetInnerFocus() {
-	_title.setFocus();
+	_title->setFocus();
 }
 
 void GroupInfoBox::paintEvent(QPaintEvent *e) {
@@ -400,13 +401,13 @@ void GroupInfoBox::paintEvent(QPaintEvent *e) {
 
 void GroupInfoBox::resizeEvent(QResizeEvent *e) {
 	int32 nameLeft = st::newGroupPhotoSize + st::newGroupNamePosition.x();
-	_title.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right() - nameLeft, _title.height());
-	_title.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft, st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
+	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right() - nameLeft, _title->height());
+	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft, st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
 
-	_description.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
+	_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
 
-	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
+	_next->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _next->width() + st::boxButtonPadding.left(), _next->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -452,23 +453,23 @@ void GroupInfoBox::step_photoOver(float64 ms, bool timer) {
 }
 
 void GroupInfoBox::onNameSubmit() {
-	if (_title.getLastText().trimmed().isEmpty()) {
-		_title.setFocus();
-		_title.showError();
-	} else if (_description.isHidden()) {
+	if (_title->getLastText().trimmed().isEmpty()) {
+		_title->setFocus();
+		_title->showError();
+	} else if (_description->isHidden()) {
 		onNext();
 	} else {
-		_description.setFocus();
+		_description->setFocus();
 	}
 }
 
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	QString title = prepareText(_title.getLastText()), description = prepareText(_description.getLastText(), true);
+	QString title = prepareText(_title->getLastText()), description = prepareText(_description->getLastText(), true);
 	if (title.isEmpty()) {
-		_title.setFocus();
-		_title.showError();
+		_title->setFocus();
+		_title->showError();
 		return;
 	}
 	if (_creating == CreatingGroupGroup) {
@@ -513,8 +514,8 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 
 	_creationRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
-		_title.setFocus();
-		_title.showError();
+		_title->setFocus();
+		_title->showError();
 		return true;
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
 		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
@@ -541,9 +542,9 @@ QRect GroupInfoBox::photoRect() const {
 }
 
 void GroupInfoBox::updateMaxHeight() {
-	int32 h = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom();
+	int32 h = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _next->height() + st::boxButtonPadding.bottom();
 	if (_creating == CreatingGroupChannel) {
-		h += st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
+		h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	}
 	setMaxHeight(h);
 }
@@ -601,54 +602,54 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
 	updateMaxHeight();
 
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_skip, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	connect(&_link, SIGNAL(changed()), this, SLOT(onChange()));
+	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
 
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
-	connect(&_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
-	connect(&_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
+	connect(_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
+	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
 
 	prepare();
 }
 
 void SetupChannelBox::showAll() {
-	_public.show();
-	_private.show();
-	if (_public.checked()) {
-		_link.show();
+	_public->show();
+	_private->show();
+	if (_public->checked()) {
+		_link->show();
 	} else {
-		_link.hide();
+		_link->hide();
 	}
-	_save.show();
-	_skip.show();
+	_save->show();
+	_skip->show();
 }
 
 void SetupChannelBox::doSetInnerFocus() {
-	if (_link.isHidden()) {
+	if (_link->isHidden()) {
 		setFocus();
 	} else {
-		_link.setFocus();
+		_link->setFocus();
 	}
 }
 
 void SetupChannelBox::updateMaxHeight() {
-	if (!_channel->isMegagroup() || _public.checked()) {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	if (!_channel->isMegagroup() || _public->checked()) {
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->height() + _aboutPublicHeight + st::newGroupSkip + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->height() + _aboutPublicHeight + st::newGroupSkip + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 	}
 }
 
 void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (_link.hasFocus()) {
-			if (_link.text().trimmed().isEmpty()) {
-				_link.setFocus();
-				_link.showError();
+		if (_link->hasFocus()) {
+			if (_link->text().trimmed().isEmpty()) {
+				_link->setFocus();
+				_link->showError();
 			} else {
 				onSave();
 			}
@@ -664,19 +665,19 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg);
 
-	QRect aboutPublic(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public.y() + _public.height(), _aboutPublicWidth, _aboutPublicHeight);
+	QRect aboutPublic(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public->y() + _public->height(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPublic.drawLeft(p, aboutPublic.x(), aboutPublic.y(), aboutPublic.width(), width());
 
-	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), _aboutPublicWidth, _aboutPublicHeight);
+	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private->y() + _private->height(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
 
-	if (!_channel->isMegagroup() || !_link.isHidden()) {
+	if (!_channel->isMegagroup() || !_link->isHidden()) {
 		p.setPen(st::black);
 		p.setFont(st::newGroupLinkFont);
-		p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+		p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link->isHidden() ? lng_create_group_invite_link : lng_create_group_link));
 	}
 
-	if (_link.isHidden()) {
+	if (_link->isHidden()) {
 		if (!_channel->isMegagroup()) {
 			QTextOption option(style::al_left);
 			option.setWrapMode(QTextOption::WrapAnywhere);
@@ -687,7 +688,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 				p.setOpacity(a_goodOpacity.current());
 				p.setPen(st::setGoodColor);
 				p.setFont(st::boxTextFont);
-				p.drawTextRight(st::boxPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
+				p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 				p.setOpacity(1);
 			}
 		}
@@ -695,25 +696,25 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 		if (!_errorText.isEmpty()) {
 			p.setPen(st::setErrColor);
 			p.setFont(st::boxTextFont);
-			p.drawTextRight(st::boxPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _errorText);
+			p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _errorText);
 		} else if (!_goodText.isEmpty()) {
 			p.setPen(st::setGoodColor);
 			p.setFont(st::boxTextFont);
-			p.drawTextRight(st::boxPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodText);
+			p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodText);
 		}
 	}
 }
 
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
-	_public.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
-	_private.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip);
+	_public->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
+	_private->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public->y() + _public->height() + _aboutPublicHeight + st::newGroupSkip);
 
-	_link.resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link.height());
-	_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
-	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::boxTextFont->height, _link.width(), 2 * st::boxTextFont->height);
+	_link->resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link->height());
+	_link->moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private->y() + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
+	_invitationLink = QRect(_link->x(), _link->y() + (_link->height() / 2) - st::boxTextFont->height, _link->width(), 2 * st::boxTextFont->height);
 
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_skip.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_skip->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -763,7 +764,7 @@ void SetupChannelBox::closePressed() {
 }
 
 void SetupChannelBox::onSave() {
-	if (!_public.checked()) {
+	if (!_public->checked()) {
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
@@ -774,10 +775,10 @@ void SetupChannelBox::onSave() {
 
 	if (_saveRequestId) return;
 
-	QString link = _link.text().trimmed();
+	QString link = _link->text().trimmed();
 	if (link.isEmpty()) {
-		_link.setFocus();
-		_link.showError();
+		_link->setFocus();
+		_link->showError();
 		return;
 	}
 
@@ -786,7 +787,7 @@ void SetupChannelBox::onSave() {
 }
 
 void SetupChannelBox::onChange() {
-	QString name = _link.text().trimmed();
+	QString name = _link->text().trimmed();
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 			_errorText = _goodText = QString();
@@ -826,7 +827,7 @@ void SetupChannelBox::onCheck() {
 	if (_checkRequestId) {
 		MTP::cancel(_checkRequestId);
 	}
-	QString link = _link.text().trimmed();
+	QString link = _link->text().trimmed();
 	if (link.size() >= MinUsernameLength) {
 		_checkUsername = link;
 		_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string(link)), rpcDone(&SetupChannelBox::onCheckDone), rpcFail(&SetupChannelBox::onCheckFail));
@@ -834,21 +835,21 @@ void SetupChannelBox::onCheck() {
 }
 
 void SetupChannelBox::onPrivacyChange() {
-	if (_public.checked()) {
+	if (_public->checked()) {
 		if (_tooMuchUsernames) {
-			_private.setChecked(true);
+			_private->setChecked(true);
 			Ui::showLayer(new RevokePublicLinkBox([this, weak_this = weakThis()]() {
 				if (!weak_this) return;
 				_tooMuchUsernames = false;
-				_public.setChecked(true);
+				_public->setChecked(true);
 				onCheck();
 			}), KeepOtherLayers);
 			return;
 		}
-		_link.show();
-		_link.setFocus();
+		_link->show();
+		_link->setFocus();
 	} else {
-		_link.hide();
+		_link->hide();
 		setFocus();
 	}
 	if (_channel->isMegagroup()) {
@@ -872,19 +873,19 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 		onClose();
 		return true;
 	} else if (err == "USERNAME_INVALID") {
-		_link.setFocus();
-		_link.showError();
+		_link->setFocus();
+		_link->showError();
 		_errorText = lang(lng_create_channel_link_invalid);
 		update();
 		return true;
 	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
-		_link.setFocus();
-		_link.showError();
+		_link->setFocus();
+		_link->showError();
 		_errorText = lang(lng_create_channel_link_occupied);
 		update();
 		return true;
 	}
-	_link.setFocus();
+	_link->setFocus();
 	return true;
 }
 
@@ -912,7 +913,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private.setChecked(true);
+			_private->setChecked(true);
 			onPrivacyChange();
 		}
 		return true;
@@ -926,7 +927,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 		return true;
 	}
 	_goodText = QString();
-	_link.setFocus();
+	_link->setFocus();
 	return true;
 }
 
@@ -950,13 +951,13 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private.setChecked(true);
+			_private->setChecked(true);
 			onPrivacyChange();
 		}
 		return true;
 	}
 	_goodText = QString();
-	_link.setFocus();
+	_link->setFocus();
 	return true;
 }
 
@@ -969,64 +970,64 @@ _last(this, st::defaultInputField, lang(lng_signup_lastname), peer->isUser() ? p
 _invertOrder(!peer->isChat() && langFirstNameGoesSecond()),
 _requestId(0) {
 	if (_invertOrder) {
-		setTabOrder(&_last, &_first);
+		setTabOrder(_last, _first);
 	}
-	_first.setMaxLength(MaxGroupChannelTitle);
-	_last.setMaxLength(MaxGroupChannelTitle);
+	_first->setMaxLength(MaxGroupChannelTitle);
+	_last->setMaxLength(MaxGroupChannelTitle);
 
-	int32 h = st::boxTitleHeight + st::contactPadding.top() + _first.height();
+	int32 h = st::boxTitleHeight + st::contactPadding.top() + _first->height();
 	if (_peer->isUser()) {
 		_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
-		h += st::contactSkip + _last.height();
+		h += st::contactSkip + _last->height();
 	} else if (_peer->isChat()) {
 		_boxTitle = lang(lng_edit_group_title);
 	}
-	h += st::boxPadding.bottom() + st::contactPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
+	h += st::boxPadding.bottom() + st::contactPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	setMaxHeight(h);
 
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	connect(&_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(&_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	prepare();
 }
 
 void EditNameTitleBox::showAll() {
-	_first.show();
+	_first->show();
 	if (_peer->isChat()) {
-		_last.hide();
+		_last->hide();
 	} else {
-		_last.show();
+		_last->show();
 	}
-	_save.show();
-	_cancel.show();
+	_save->show();
+	_cancel->show();
 }
 
 void EditNameTitleBox::doSetInnerFocus() {
-	(_invertOrder ? _last : _first).setFocus();
+	(_invertOrder ? _last : _first)->setFocus();
 }
 
 void EditNameTitleBox::onSubmit() {
-	if (_first.hasFocus()) {
+	if (_first->hasFocus()) {
 		if (_peer->isChat()) {
-			if (_first.getLastText().trimmed().isEmpty()) {
-				_first.setFocus();
-				_first.showError();
+			if (_first->getLastText().trimmed().isEmpty()) {
+				_first->setFocus();
+				_first->showError();
 			} else {
 				onSave();
 			}
 		} else {
-			_last.setFocus();
+			_last->setFocus();
 		}
-	} else if (_last.hasFocus()) {
-		if (_first.getLastText().trimmed().isEmpty()) {
-			_first.setFocus();
-			_first.showError();
-		} else if (_last.getLastText().trimmed().isEmpty()) {
-			_last.setFocus();
-			_last.showError();
+	} else if (_last->hasFocus()) {
+		if (_first->getLastText().trimmed().isEmpty()) {
+			_first->setFocus();
+			_first->showError();
+		} else if (_last->getLastText().trimmed().isEmpty()) {
+			_last->setFocus();
+			_last->showError();
 		} else {
 			onSave();
 		}
@@ -1041,32 +1042,32 @@ void EditNameTitleBox::paintEvent(QPaintEvent *e) {
 }
 
 void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
-	_first.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _first.height());
-	_last.resize(_first.size());
+	_first->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _first->height());
+	_last->resize(_first->size());
 	if (_invertOrder) {
-		_last.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_first.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _last.y() + _last.height() + st::contactSkip);
+		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _last->y() + _last->height() + st::contactSkip);
 	} else {
-		_first.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_last.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _first.y() + _first.height() + st::contactSkip);
+		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _first->y() + _first->height() + st::contactSkip);
 	}
 
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void EditNameTitleBox::onSave() {
 	if (_requestId) return;
 
-	QString first = prepareText(_first.getLastText()), last = prepareText(_last.getLastText());
+	QString first = prepareText(_first->getLastText()), last = prepareText(_last->getLastText());
 	if (first.isEmpty() && last.isEmpty()) {
 		if (_invertOrder) {
-			_last.setFocus();
-			_last.showError();
+			_last->setFocus();
+			_last->showError();
 		} else {
-			_first.setFocus();
-			_first.showError();
+			_first->setFocus();
+			_first->showError();
 		}
 		return;
 	}
@@ -1092,21 +1093,21 @@ bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString err(error.type());
-	QString first = textOneLine(_first.getLastText().trimmed()), last = textOneLine(_last.getLastText().trimmed());
+	QString first = textOneLine(_first->getLastText().trimmed()), last = textOneLine(_last->getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
 		App::self()->setName(first, last, QString(), textOneLine(App::self()->username));
 		onClose();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
-		_first.setFocus();
-		_first.showError();
+		_first->setFocus();
+		_first->showError();
 		return true;
 	} else if (err == "LASTNAME_INVALID") {
-		_last.setFocus();
-		_last.showError();
+		_last->setFocus();
+		_last->showError();
 		return true;
 	}
-	_first.setFocus();
+	_first->setFocus();
 	return true;
 }
 
@@ -1122,11 +1123,11 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 		onClose();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {
-		_first.setFocus();
-		_first.showError();
+		_first->setFocus();
+		_first->showError();
 		return true;
 	}
-	_first.setFocus();
+	_first->setFocus();
 	return true;
 }
 
@@ -1150,48 +1151,48 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 
 	setMouseTracking(true);
 
-	_title.setMaxLength(MaxGroupChannelTitle);
-	_description.setMaxLength(MaxChannelDescription);
-	_description.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description.height());
-	myEnsureResized(&_description);
+	_title->setMaxLength(MaxGroupChannelTitle);
+	_description->setMaxLength(MaxChannelDescription);
+	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
+	myEnsureResized(_description);
 
 	updateMaxHeight();
-	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));
-	connect(&_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
+	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));
+	connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
 
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	connect(&_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
+	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
 
 	prepare();
 }
 
 void EditChannelBox::showAll() {
-	_title.show();
-	_description.show();
-	_save.show();
-	_cancel.show();
+	_title->show();
+	_description->show();
+	_save->show();
+	_cancel->show();
 	if (_channel->canEditUsername()) {
-		_publicLink.show();
+		_publicLink->show();
 	} else {
-		_publicLink.hide();
+		_publicLink->hide();
 	}
 	if (_channel->isMegagroup()) {
-		_sign.hide();
+		_sign->hide();
 	} else {
-		_sign.show();
+		_sign->show();
 	}
 }
 
 void EditChannelBox::doSetInnerFocus() {
-	_title.setFocus();
+	_title->setFocus();
 }
 
 void EditChannelBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (_title.hasFocus()) {
+		if (_title->hasFocus()) {
 			onSave();
 		}
 	} else {
@@ -1208,8 +1209,8 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 
 void EditChannelBox::peerUpdated(PeerData *peer) {
 	if (peer == _channel) {
-		_publicLink.setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
-		_sign.setChecked(_channel->addsSignature());
+		_publicLink->setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
+		_sign->setChecked(_channel->addsSignature());
 	}
 }
 
@@ -1219,44 +1220,44 @@ void EditChannelBox::onDescriptionResized() {
 }
 
 void EditChannelBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + st::newGroupInfoPadding.top() + _title.height();
-	h += st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
+	int32 h = st::boxTitleHeight + st::newGroupInfoPadding.top() + _title->height();
+	h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	if (!_channel->isMegagroup()) {
-		h += st::newGroupPublicLinkPadding.top() + _sign.height() + st::newGroupPublicLinkPadding.bottom();
+		h += st::newGroupPublicLinkPadding.top() + _sign->height() + st::newGroupPublicLinkPadding.bottom();
 	}
 	if (_channel->canEditUsername()) {
-		h += st::newGroupPublicLinkPadding.top() + _publicLink.height() + st::newGroupPublicLinkPadding.bottom();
+		h += st::newGroupPublicLinkPadding.top() + _publicLink->height() + st::newGroupPublicLinkPadding.bottom();
 	}
-	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
+	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	setMaxHeight(h);
 }
 
 void EditChannelBox::resizeEvent(QResizeEvent *e) {
-	_title.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _title.height());
-	_title.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
+	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _title->height());
+	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
 
-	_description.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _title.y() + _title.height() + st::newGroupDescriptionPadding.top());
+	_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _title->y() + _title->height() + st::newGroupDescriptionPadding.top());
 
-	_sign.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	_sign->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 
 	if (_channel->isMegagroup()) {
-		_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	} else {
-		_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign.y() + _sign.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->y() + _sign->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	}
 
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void EditChannelBox::onSave() {
 	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId) return;
 
-	QString title = prepareText(_title.getLastText()), description = prepareText(_description.getLastText(), true);
+	QString title = prepareText(_title->getLastText()), description = prepareText(_description->getLastText(), true);
 	if (title.isEmpty()) {
-		_title.setFocus();
-		_title.showError();
+		_title->setFocus();
+		_title->showError();
 		return;
 	}
 	_sentTitle = title;
@@ -1281,10 +1282,10 @@ void EditChannelBox::saveDescription() {
 }
 
 void EditChannelBox::saveSign() {
-	if (_channel->isMegagroup() || _channel->addsSignature() == _sign.checked()) {
+	if (_channel->isMegagroup() || _channel->addsSignature() == _sign->checked()) {
 		onClose();
 	} else {
-		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign.checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
+		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign->checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
 	}
 }
 
@@ -1299,11 +1300,11 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 			saveDescription();
 			return true;
 		} else if (err == qstr("NO_CHAT_TITLE")) {
-			_title.setFocus();
-			_title.showError();
+			_title->setFocus();
+			_title->showError();
 			return true;
 		} else {
-			_title.setFocus();
+			_title->setFocus();
 		}
 	} else if (req == _saveDescriptionRequestId) {
 		_saveDescriptionRequestId = 0;
@@ -1316,7 +1317,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 			saveSign();
 			return true;
 		} else {
-			_description.setFocus();
+			_description->setFocus();
 		}
 	} else if (req == _saveSignRequestId) {
 		_saveSignRequestId = 0;

@@ -25,8 +25,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 
 class LinkButton;
-class Checkbox;
+
 namespace Ui {
+class Checkbox;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui;
@@ -84,8 +85,8 @@ private:
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	ChildWidget<BackgroundRow> _background = { nullptr };
-	ChildWidget<Checkbox> _tile = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _adaptive = { nullptr };
+	ChildWidget<Ui::Checkbox> _tile = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
 
 	FileDialog::QueryId _chooseFromFileQueryId = 0;
 

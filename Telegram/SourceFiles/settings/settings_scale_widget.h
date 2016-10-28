@@ -22,9 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
-class Checkbox;
-
 namespace Ui {
+class Checkbox;
 class DiscreteSlider;
 } // namespace Ui
 
@@ -45,7 +44,7 @@ private:
 	void createControls();
 	void setScale(DBIScale newScale);
 
-	ChildWidget<Checkbox> _auto = { nullptr };
+	ChildWidget<Ui::Checkbox> _auto = { nullptr };
 	ChildWidget<Ui::DiscreteSlider> _scale = { nullptr };
 
 };

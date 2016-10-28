@@ -88,7 +88,6 @@ private:
 	structure::Value readStringValue();
 	structure::Value readColorValue();
 	structure::Value readPointValue();
-	structure::Value readSpriteValue();
 	structure::Value readSizeValue();
 	structure::Value readTransitionValue();
 	structure::Value readCursorValue();
@@ -127,7 +126,6 @@ private:
 		{ "string"    , { structure::TypeTag::String } },
 		{ "color"     , { structure::TypeTag::Color } },
 		{ "point"     , { structure::TypeTag::Point } },
-		{ "sprite"    , { structure::TypeTag::Sprite } },
 		{ "size"      , { structure::TypeTag::Size } },
 		{ "transition", { structure::TypeTag::Transition } },
 		{ "cursor"    , { structure::TypeTag::Cursor } },

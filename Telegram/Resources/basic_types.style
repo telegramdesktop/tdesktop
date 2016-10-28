@@ -70,55 +70,6 @@ flatButton {
 	radius: pixels;
 }
 
-iconedButton {
-	icon: sprite;
-	iconPos: point;
-	downIcon: sprite;
-	downIconPos: point;
-
-	color: color;
-	bgColor: color;
-	overBgColor: color;
-	width: pixels;
-	height: pixels;
-	font: font;
-
-	opacity: double;
-	overOpacity: double;
-
-	textPos: point;
-	downTextPos: point;
-
-	duration: int;
-	cursor: cursor;
-}
-
-flatCheckbox {
-	textColor: color;
-	bgColor: color;
-	disColor: color;
-
-	width: pixels;
-	height: pixels;
-	textTop: pixels;
-	textLeft: pixels;
-	font: font;
-	duration: int;
-	bgFunc: transition;
-	cursor: cursor;
-
-	disabledCursor: cursor;
-
-	imageRect: sprite;
-	chkImageRect: sprite;
-	overImageRect: sprite;
-	chkOverImageRect: sprite;
-	disImageRect: sprite;
-	chkDisImageRect: sprite;
-
-	imagePos: point;
-}
-
 flatInput {
 	textColor: color;
 	bgColor: color;

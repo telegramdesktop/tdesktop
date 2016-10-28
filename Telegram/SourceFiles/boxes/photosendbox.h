@@ -23,6 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "localimageloader.h"
 
+namespace Ui {
+class Checkbox;
+} // namespace Ui
+
 class PhotoSendBox : public AbstractBox {
 	Q_OBJECT
 
@@ -52,10 +56,12 @@ private:
 
 	QPixmap _thumb;
 
-	InputArea _caption;
+	ChildWidget<InputArea> _caption;
 	bool _compressedFromSettings;
-	Checkbox _compressed;
-	BoxButton _send, _cancel;
+	ChildWidget<Ui::Checkbox> _compressed;
+
+	ChildWidget<BoxButton> _send;
+	ChildWidget<BoxButton> _cancel;
 
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	Text _name;
@@ -101,8 +107,9 @@ private:
 
 	QPixmap _thumb;
 
-	InputArea *_field;
-	BoxButton _save, _cancel;
+	ChildWidget<InputArea> _field = { nullptr };
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
 
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	Text _name;

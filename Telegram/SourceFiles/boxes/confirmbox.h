@@ -24,6 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatlabel.h"
 #include "core/lambda_wrap.h"
 
+namespace Ui {
+class Checkbox;
+} // namespace Ui
+
 class InformBox;
 class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 	Q_OBJECT
@@ -81,7 +85,8 @@ private:
 
 	QPoint _lastMousePos;
 
-	BoxButton _confirm, _cancel;
+	ChildWidget<BoxButton> _confirm;
+	ChildWidget<BoxButton> _cancel;
 
 	base::lambda_unique<void()> _confirmedCallback;
 
@@ -159,7 +164,8 @@ private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void step_good(float64 ms, bool timer);
 
-	BoxButton _close;
+	ChildWidget<BoxButton> _close;
+
 	Text _text;
 	int32 _textWidth, _textHeight;
 
@@ -199,7 +205,8 @@ private:
 	Text _text, _note;
 	int32 _textWidth, _textHeight;
 
-	BoxButton _convert, _cancel;
+	ChildWidget<BoxButton> _convert;
+	ChildWidget<BoxButton> _cancel;
 
 };
 
@@ -224,10 +231,11 @@ private:
 	ChannelData *_channel;
 	MsgId _msgId;
 
-	FlatLabel _text;
-	Checkbox _notify;
+	ChildWidget<FlatLabel> _text;
+	ChildWidget<Ui::Checkbox> _notify;
 
-	BoxButton _pin, _cancel;
+	ChildWidget<BoxButton> _pin;
+	ChildWidget<BoxButton> _cancel;
 
 	mtpRequestId _requestId = 0;
 
@@ -252,10 +260,13 @@ private:
 	UserData *_from;
 	MsgId _msgId;
 
-	FlatLabel _text;
-	Checkbox _banUser, _reportSpam, _deleteAll;
+	ChildWidget<FlatLabel> _text;
+	ChildWidget<Ui::Checkbox> _banUser;
+	ChildWidget<Ui::Checkbox> _reportSpam;
+	ChildWidget<Ui::Checkbox> _deleteAll;
 
-	BoxButton _delete, _cancel;
+	ChildWidget<BoxButton> _delete;
+	ChildWidget<BoxButton> _cancel;
 
 };
 

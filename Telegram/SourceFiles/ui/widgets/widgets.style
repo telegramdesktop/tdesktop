@@ -195,10 +195,10 @@ defaultMenu: Menu {
 	itemBgOver: overBg;
 	itemFg: black;
 	itemFgOver: black;
-	itemFgDisabled: #ccc;
-	itemFgShortcut: #999;
+	itemFgDisabled: #cccccc;
+	itemFgShortcut: #999999;
 	itemFgShortcutOver: #7c99b2;
-	itemFgShortcutDisabled: #ccc;
+	itemFgShortcutDisabled: #cccccc;
 	itemIconPosition: point(0px, 0px);
 	itemIconOpacity: 1.;
 	itemIconOverOpacity: 1.;

@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "ui/buttons/left_outline_button.h"
-#include "ui/flatcheckbox.h"
+#include "ui/buttons/checkbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "observer_peer.h"
@@ -114,7 +114,7 @@ void SettingsWidget::refreshEnableNotifications() {
 	} else {
 		auto &notifySettings = peer()->notify;
 		bool enabled = (notifySettings == EmptyNotifySettings || notifySettings->mute < unixtime());
-		_enableNotifications->setChecked(enabled, Checkbox::NotifyAboutChange::DontNotify);
+		_enableNotifications->setChecked(enabled, Ui::Checkbox::NotifyAboutChange::DontNotify);
 	}
 }
 

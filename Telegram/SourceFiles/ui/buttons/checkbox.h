@@ -22,62 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/button.h"
 
-class FlatCheckbox : public Button {
-	Q_OBJECT
-
-public:
-	FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st);
-
-	bool checked() const;
-	void setChecked(bool checked);
-
-	void step_appearance(float64 ms, bool timer);
-	void paintEvent(QPaintEvent *e);
-
-	void setOpacity(float64 o);
-
-public slots:
-	void onClicked();
-	void onStateChange(int oldState, ButtonStateChangeSource source);
-
-signals:
-	void changed();
-
-private:
-	style::flatCheckbox _st;
-	anim::fvalue a_over;
-	Animation _a_appearance;
-
-	QString _text;
-	style::font _font;
-
-	float64 _opacity;
-
-	bool _checked;
-
-};
-
-class FlatRadiobutton : public FlatCheckbox {
-	Q_OBJECT
-
-public:
-
-	FlatRadiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::flatCheckbox &st);
-	int32 val() const {
-		return _value;
-	}
-	~FlatRadiobutton();
-
-public slots:
-
-	void onChanged();
-
-private:
-
-	void *_group;
-	int32 _value;
-
-};
+namespace Ui {
 
 class Checkbox : public Button {
 	Q_OBJECT
@@ -99,7 +44,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-public slots:
+	public slots:
 	void onClicked();
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
@@ -142,7 +87,7 @@ public:
 
 	~Radiobutton();
 
-public slots:
+	public slots:
 	void onClicked();
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
@@ -166,3 +111,5 @@ private:
 	int32 _value;
 
 };
+
+} // namespace Ui

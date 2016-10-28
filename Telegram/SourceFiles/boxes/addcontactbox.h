@@ -27,6 +27,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 class FlatLabel;
 class ConfirmBox;
 
+namespace Ui {
+class Checkbox;
+class Radiobutton;
+} // namespace Ui
+
 class AddContactBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -57,9 +62,13 @@ private:
 	UserData *_user = nullptr;
 	QString _boxTitle;
 
-	BoxButton _save, _cancel, _retry;
-	InputField _first, _last;
-	PhoneInput _phone;
+	ChildWidget<InputField> _first;
+	ChildWidget<InputField> _last;
+	ChildWidget<PhoneInput> _phone;
+
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
+	ChildWidget<BoxButton> _retry;
 
 	bool _invertOrder;
 
@@ -86,10 +95,14 @@ protected:
 	void showAll() override;
 
 private:
-	Radiobutton _group, _channel;
+	ChildWidget<Ui::Radiobutton> _group;
+	ChildWidget<Ui::Radiobutton> _channel;
+
 	int32 _aboutGroupWidth, _aboutGroupHeight;
 	Text _aboutGroup, _aboutChannel;
-	BoxButton _next, _cancel;
+
+	ChildWidget<BoxButton> _next;
+	ChildWidget<BoxButton> _cancel;
 
 };
 
@@ -132,12 +145,14 @@ private:
 	Animation _a_photoOver;
 	bool _photoOver;
 
-	InputField _title;
-	InputArea _description;
+	ChildWidget<InputField> _title;
+	ChildWidget<InputArea> _description;
 
 	QImage _photoBig;
 	QPixmap _photoSmall;
-	BoxButton _next, _cancel;
+
+	ChildWidget<BoxButton> _next;
+	ChildWidget<BoxButton> _cancel;
 
 	// channel creation
 	int32 _creationRequestId;
@@ -194,13 +209,17 @@ private:
 	ChannelData *_channel;
 	bool _existing;
 
-	Radiobutton _public, _private;
+	ChildWidget<Ui::Radiobutton> _public, _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
-	UsernameInput _link;
+
+	ChildWidget<UsernameInput> _link;
+
 	QRect _invitationLink;
 	bool _linkOver;
-	BoxButton _save, _skip;
+
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _skip;
 
 	bool _tooMuchUsernames = false;
 
@@ -243,8 +262,11 @@ private:
 	PeerData *_peer;
 	QString _boxTitle;
 
-	BoxButton _save, _cancel;
-	InputField _first, _last;
+	ChildWidget<InputField> _first;
+	ChildWidget<InputField> _last;
+
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
 
 	bool _invertOrder;
 
@@ -287,14 +309,19 @@ private:
 
 	ChannelData *_channel;
 
-	BoxButton _save, _cancel;
-	InputField _title;
-	InputArea _description;
-	Checkbox _sign;
+	ChildWidget<InputField> _title;
+	ChildWidget<InputArea> _description;
+	ChildWidget<Ui::Checkbox> _sign;
 
-	LinkButton _publicLink;
+	ChildWidget<LinkButton> _publicLink;
 
-	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId, _saveSignRequestId;
+	ChildWidget<BoxButton> _save;
+	ChildWidget<BoxButton> _cancel;
+
+	mtpRequestId _saveTitleRequestId;
+	mtpRequestId _saveDescriptionRequestId;
+	mtpRequestId _saveSignRequestId;
+
 	QString _sentTitle, _sentDescription;
 
 };
