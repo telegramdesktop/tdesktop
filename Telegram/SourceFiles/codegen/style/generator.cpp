@@ -41,6 +41,54 @@ namespace {
 constexpr int kErrorBadIconSize   = 861;
 constexpr int kErrorBadIconFormat = 862;
 
+// crc32 hash, taken somewhere from the internet
+
+class Crc32Table {
+public:
+	Crc32Table() {
+		quint32 poly = 0x04c11db7;
+		for (auto i = 0; i != 256; ++i) {
+			_data[i] = reflect(i, 8) << 24;
+			for (auto j = 0; j != 8; ++j) {
+				_data[i] = (_data[i] << 1) ^ (_data[i] & (1 << 31) ? poly : 0);
+			}
+			_data[i] = reflect(_data[i], 32);
+		}
+	}
+
+	inline quint32 operator[](int index) const {
+		return _data[index];
+	}
+
+private:
+	quint32 reflect(quint32 val, char ch) {
+		quint32 result = 0;
+		for (int i = 1; i < (ch + 1); ++i) {
+			if (val & 1) {
+				result |= 1 << (ch - i);
+			}
+			val >>= 1;
+		}
+		return result;
+	}
+
+	quint32 _data[256];
+
+};
+
+qint32 hashCrc32(const void *data, int len) {
+	static Crc32Table table;
+
+	const uchar *buffer = static_cast<const uchar *>(data);
+
+	quint32 crc = 0xffffffff;
+	for (int i = 0; i != len; ++i) {
+		crc = (crc >> 8) ^ table[(crc & 0xFF) ^ buffer[i]];
+	}
+
+	return static_cast<qint32>(crc ^ 0xffffffff);
+}
+
 char hexChar(uchar ch) {
 	if (ch < 10) {
 		return '0' + ch;
@@ -118,13 +166,38 @@ QString pxValueName(int value) {
 	return result + QString::number(value);
 }
 
+QString moduleBaseName(const structure::Module &module) {
+	auto moduleInfo = QFileInfo(module.filepath());
+	auto moduleIsPalette = (moduleInfo.suffix() == "palette");
+	return moduleIsPalette ? "palette" : "style_" + moduleInfo.baseName();
+}
+
+QChar paletteColorPart(uchar part) {
+	part = (part & 0x0F);
+	if (part >= 10) {
+		return 'a' + (part - 10);
+	}
+	return '0' + part;
+}
+
+QString paletteColorComponent(uchar value) {
+	return QString() + paletteColorPart(value >> 4) + paletteColorPart(value);
+}
+
+QString paletteColorValue(const structure::data::color &value) {
+	auto result = paletteColorComponent(value.red) + paletteColorComponent(value.green) + paletteColorComponent(value.blue);
+	if (value.alpha != 255) result += paletteColorComponent(value.alpha);
+	return result;
+}
+
 } // namespace
 
-Generator::Generator(const structure::Module &module, const QString &destBasePath, const common::ProjectInfo &project)
+Generator::Generator(const structure::Module &module, const QString &destBasePath, const common::ProjectInfo &project, bool isPalette)
 : module_(module)
 , basePath_(destBasePath)
 , baseName_(QFileInfo(basePath_).baseName())
-, project_(project) {
+, project_(project)
+, isPalette_(isPalette) {
 }
 
 bool Generator::writeHeader() {
@@ -164,8 +237,13 @@ public:\n\
 	}\n\
 };\n\
 Module_" << baseName_ << " registrator;\n";
-		if (!writeVariableDefinitions()) {
-			return false;
+		if (isPalette_) {
+			source_->newline();
+			source_->stream() << "style::palette _palette;\n";
+		} else {
+			if (!writeVariableDefinitions()) {
+				return false;
+			}
 		}
 		source_->newline().popNamespace();
 
@@ -174,8 +252,11 @@ Module_" << baseName_ << " registrator;\n";
 			return false;
 		}
 
-		source_->popNamespace().newline();
-		source_->newline().pushNamespace("style").pushNamespace("internal").newline();
+		source_->popNamespace().newline().pushNamespace("style");
+		if (isPalette_) {
+			writeSetPaletteColor();
+		}
+		source_->pushNamespace("internal").newline();
 		if (!writeVariableInit()) {
 			return false;
 		}
@@ -329,9 +410,81 @@ bool Generator::writeHeaderStyleNamespace() {
 		if (!writeStructsDefinitions()) {
 			return false;
 		}
+	} else if (isPalette_) {
+		if (!wroteForwardDeclarations) {
+			header_->newline();
+		}
+		if (!writePaletteDefinition()) {
+			return false;
+		}
 	}
 
 	header_->popNamespace().newline();
+	return true;
+}
+
+bool Generator::writePaletteDefinition() {
+	header_->stream() << "\
+class palette {\n\
+public:\n\
+	QByteArray save() const;\n\
+	bool load(const QByteArray &cache);\n\
+	bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+	bool setColor(QLatin1String name, QLatin1String from);\n\
+\n\
+	// Created not inited, should be finalized before usage.\n\
+	void finalize();\n\
+\n";
+
+	QByteArray checksumString;
+	int indexInPalette = 0;
+	if (!module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &value) -> bool {
+		auto name = value.name.back();
+		if (value.value.type().tag != structure::TypeTag::Color) {
+			return false;
+		}
+
+		auto type = typeToString(value.value.type());
+		auto index = (indexInPalette++);
+		header_->stream() << "\tinline const " << type << " &" << name << "() const { return _colors[" << index << "]; };\n";
+		checksumString.append(':' + name);
+		return true;
+	})) return false;
+
+	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
+	auto count = indexInPalette;
+	auto type = typeToString({ structure::TypeTag::Color });
+	header_->stream() << "\
+\n\
+	static constexpr int32 kChecksum = " << checksum << ";\n\
+\n\
+private:\n\
+	struct TempColorData { uchar r, g, b, a; };\n\
+	void compute(int index, int fallbackIndex, TempColorData data);\n\
+\n\
+	enum class Status {\n\
+		Initial,\n\
+		Loaded,\n\
+		Fallback,\n\
+	};\n\
+\n\
+	" << type << " _colors[" << count << "] = { Qt::Uninitialized };\n\
+	Status _status[" << count << "] = { Status::Initial };\n\
+\n\
+};\n\
+\n\
+namespace main_palette {\n\
+\n\
+QByteArray save();\n\
+bool load(const QByteArray &cache);\n\
+bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+bool setColor(QLatin1String name, QLatin1String from);\n\
+\n\
+} // namespace main_palette\n\
+\n";
+
+	header_->newline();
+
 	return true;
 }
 
@@ -411,7 +564,7 @@ bool Generator::writeIncludesInSource() {
 	}
 
 	bool result = module_.enumIncludes([this](const Module &module) -> bool {
-		source_->include("style_" + QFileInfo(module.filepath()).baseName() + ".h");
+		source_->include(moduleBaseName(module) + ".h");
 		return true;
 	});
 	source_->newline();
@@ -441,16 +594,186 @@ bool Generator::writeRefsDefinition() {
 		return true;
 	}
 
-	source_->newline();
 	bool result = module_.enumVariables([this](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto type = typeToString(variable.value.type());
 		if (type.isEmpty()) {
 			return false;
 		}
-		source_->stream() << "const " << type << " &" << name << "(_" << name << ");\n";
+		source_->stream() << "const " << type << " &" << name << "(";
+		if (isPalette_) {
+			source_->stream() << "_palette." << name << "()";
+		} else {
+			source_->stream() << "_" << name;
+		}
+		source_->stream() << ");\n";
 		return true;
 	});
+	return result;
+}
+
+bool Generator::writeSetPaletteColor() {
+	source_->newline();
+	source_->stream() << "void palette::finalize() {\n";
+
+	int indexInPalette = 0;
+	bool result = module_.enumVariables([this, &indexInPalette](const Variable &variable) -> bool {
+		auto name = variable.name.back();
+		auto index = indexInPalette++;
+		paletteIndices_[name] = index;
+		if (variable.value.type().tag != structure::TypeTag::Color) {
+			return false;
+		}
+		auto color = variable.value.Color();
+		auto fallbackIndex = paletteIndices_.value(variable.value.Color().fallback, -1);
+		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", {" << color.red << ", " << color.green << ", " << color.blue << ", " << color.alpha << "});\n";
+		return true;
+	});
+	auto count = indexInPalette;
+
+	source_->stream() << "\
+}\n\
+\n\
+void palette::compute(int index, int fallbackIndex, TempColorData data) {\n\
+	if (_status[index] == Status::Initial) {\n\
+		if (fallbackIndex >= 0 && _status[fallbackIndex] != Status::Initial) {\n\
+			_status[index] = Status::Fallback;\n\
+			_colors[index] = _colors[fallbackIndex];\n\
+		} else {\n\
+			_colors[index] = { data.r, data.g, data.b, data.a };\n\
+		}\n\
+	}\n\
+}\n";
+
+	source_->newline().pushNamespace().newline();
+	source_->stream() << "\
+int getPaletteIndex(QLatin1String name) {\n\
+	auto size = name.size();\n\
+	auto data = name.data();\n";
+
+	int already = 0;
+	QString prefix;
+	QString tabs;
+	for (auto i = paletteIndices_.end(), b = paletteIndices_.begin(); i != b;) {
+		--i;
+		auto name = i.key();
+		auto index = i.value();
+		auto prev = i;
+		auto next = (i == b) ? QString() : (--prev).key();
+		while ((prefix.size() > name.size()) || (!prefix.isEmpty() && prefix.mid(0, already - 1) != name.mid(0, already - 1))) {
+			source_->stream() << "\n" << tabs << "};";
+			prefix.chop(1);
+			tabs.chop(1);
+			--already;
+		}
+		if (!prefix.isEmpty() && prefix[already - 1] != name[already - 1]) {
+			source_->stream() << "\n" << tabs << "case '" << name[already - 1] << "':";
+			prefix[already - 1] = name[already - 1];
+		}
+		while (name.size() > already) {
+			if (name.mid(0, already) != next.mid(0, already)) {
+				break;
+			} else if (next.size() <= already) {
+				source_->stream() << "\n" << tabs << "\tif (size == " << name.size() << ")";
+				break;
+			}
+			source_->stream() << "\n" << tabs << "\tif (size > " << already << ") switch (data[" << already << "]) {\n";
+			prefix.append(name[already]);
+			tabs.append('\t');
+			++already;
+			source_->stream() << tabs << "case '" << name[already - 1] << "':";
+		}
+		if (name.size() == already || name.mid(0, already) != next.mid(0, already)) {
+			source_->stream() << " return (size == " << name.size();
+			if (name.size() != already) {
+				source_->stream() << " && ";
+			}
+		} else {
+			source_->stream() << " return (";
+		}
+		if (already != name.size()) {
+			source_->stream() << "!memcmp(data + " << already << ", \"" << name.mid(already) << "\", " << (name.size() - already) << ")";
+		}
+		source_->stream() << ") ? " << index << " : -1;";
+	}
+	while (!prefix.isEmpty()) {
+		source_->stream() << "\n" << tabs << "};";
+		prefix.chop(1);
+		tabs.chop(1);
+		--already;
+	}
+
+	source_->stream() << "\
+\n\
+	return -1;\n\
+}\n";
+
+	source_->newline().popNamespace().newline();
+	source_->stream() << "\
+QByteArray palette::save() const {\n\
+	auto result = QByteArray(" << (count * 4) << ", Qt::Uninitialized);\n\
+	for (auto i = 0, index = 0; i != " << count << "; ++i) {\n\
+		result[index++] = static_cast<uchar>(_colors[i]->c.red());\n\
+		result[index++] = static_cast<uchar>(_colors[i]->c.green());\n\
+		result[index++] = static_cast<uchar>(_colors[i]->c.blue());\n\
+		result[index++] = static_cast<uchar>(_colors[i]->c.alpha());\n\
+	}\n\
+	return result;\n\
+}\n\
+\n\
+bool palette::load(const QByteArray &cache) {\n\
+	if (cache.size() != " << (count * 4) << ") return false;\n\
+\n\
+	auto p = reinterpret_cast<const uchar*>(cache.constData());\n\
+	for (auto i = 0; i != " << count << "; ++i) {\n\
+		_colors[i] = { p[i * 4 + 0], p[i * 4 + 1], p[i * 4 + 2], p[i * 4 + 3] };\n\
+		_status[i] = Status::Loaded;\n\
+	}\n\
+	return true;\n\
+}\n\
+\n\
+bool palette::setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+	auto index = getPaletteIndex(name);\n\
+	if (index >= 0) {\n\
+		_colors[index] = { r, g, b, a };\n\
+		_status[index] = Status::Loaded;\n\
+		return true;\n\
+	}\n\
+	return false;\n\
+}\n\
+\n\
+bool palette::setColor(QLatin1String name, QLatin1String from) {\n\
+	auto nameIndex = getPaletteIndex(name);\n\
+	auto fromIndex = getPaletteIndex(from);\n\
+	if (nameIndex >= 0 && fromIndex >= 0 && _status[fromIndex] == Status::Loaded) {\n\
+		_colors[nameIndex] = _colors[fromIndex];\n\
+		_status[nameIndex] = Status::Loaded;\n\
+		return true;\n\
+	}\n\
+	return false;\n\
+}\n\
+\n\
+namespace main_palette {\n\
+\n\
+QByteArray save() {\n\
+	return _palette.save();\n\
+}\n\
+\n\
+bool load(const QByteArray &cache) {\n\
+	return _palette.load(cache);\n\
+}\n\
+\n\
+bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+	return _palette.setColor(name, r, g, b, a);\n\
+}\n\
+\n\
+bool setColor(QLatin1String name, QLatin1String from) {\n\
+	return _palette.setColor(name, from);\n\
+}\n\
+\n\
+} // namespace main_palette\n\
+\n";
+
 	return result;
 }
 
@@ -486,7 +809,7 @@ void init_" << baseName_ << "() {\n\
 		bool writtenAtLeastOne = false;
 		bool result = module_.enumIncludes([this,&writtenAtLeastOne](const Module &module) -> bool {
 			if (module.hasVariables()) {
-				source_->stream() << "\tinit_style_" + QFileInfo(module.filepath()).baseName() + "();\n";
+				source_->stream() << "\tinit_" + moduleBaseName(module) + "();\n";
 				writtenAtLeastOne = true;
 			}
 			return true;
@@ -509,7 +832,9 @@ void init_" << baseName_ << "() {\n\
 		source_->newline();
 	}
 
-	bool result = module_.enumVariables([this](const Variable &variable) -> bool {
+	if (isPalette_) {
+		source_->stream() << "\t_palette.finalize();\n";
+	} else if (!module_.enumVariables([this](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto value = valueAssignmentCode(variable.value);
 		if (value.isEmpty()) {
@@ -517,11 +842,12 @@ void init_" << baseName_ << "() {\n\
 		}
 		source_->stream() << "\t_" << name << " = " << value << ";\n";
 		return true;
-	});
-
+	})) {
+		return false;
+	}
 	source_->stream() << "\
 }\n\n";
-	return result;
+	return true;
 }
 
 bool Generator::writePxValuesInit() {
@@ -629,7 +955,6 @@ QByteArray iconMaskValuePng(const QString &filepath) {
 	{
 		QBuffer buffer(&result);
 		composed.save(&buffer, "PNG");
-//		composed.save(filePath + "@final.png", "PNG");
 	}
 	return result;
 }
@@ -733,6 +1058,88 @@ bool Generator::collectUniqueValues() {
 		return true;
 	};
 	return module_.enumVariables(collector);
+}
+
+bool Generator::writeSampleTheme(const QString &filepath) {
+	QByteArray content;
+	QTextStream stream(&content);
+
+	stream << "\
+//\n\
+// This is a sample Telegram Desktop theme file.\n\
+// It was generated from the 'colors.palette' style file.\n\
+//\n\
+// To create a theme with a background image included you should\n\
+// put two files in a .zip archive:\n\
+//\n\
+// First one is the color scheme like the one you're viewing\n\
+// right now, this file should be named 'colors.tdesktop-theme'.\n\
+//\n\
+// Second one should be the background image and it can be named\n\
+// 'background.jpg', 'background.png', 'tiled.jpg' or 'tiled.png'.\n\
+// You should name it 'background' (if you'd like it not to be tiled),\n\
+// or it can be named 'tiled' (if you'd like it to be tiled).\n\
+//\n\
+// After that you need to change the extension of your .zip archive\n\
+// to 'tdesktop-theme', so you'll have:\n\
+//\n\
+// mytheme.tdesktop-theme\n\
+// |-colors.tdesktop-theme\n\
+// |-background.jpg (or tiled.jpg, background.png, tiled.png)\n\
+//\n\n";
+
+	QList<structure::FullName> names;
+	module_.enumVariables([this, &names](const Variable &variable) -> bool {
+		names.push_back(variable.name);
+		return true;
+	});
+	bool result = module_.enumVariables([this, &names, &stream](const Variable &variable) -> bool {
+		auto name = variable.name.back();
+		if (variable.value.type().tag != structure::TypeTag::Color) {
+			return false;
+		}
+		auto color = variable.value.Color();
+		auto colorString = paletteColorValue(color);
+		auto fallbackIndex = paletteIndices_.value(variable.value.Color().fallback, -1);
+		if (fallbackIndex >= 0) {
+			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex], module_);
+			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {
+				return false;
+			}
+			auto fallbackName = fallbackVariable->name.back();
+			auto fallbackColor = fallbackVariable->value.Color();
+			if (colorString == paletteColorValue(fallbackColor)) {
+				stream << name << ": " << fallbackName << ";\n";
+			} else {
+				stream << name << ": #" << colorString << "; // " << fallbackName << ";\n";
+			}
+		} else {
+			stream << name << ": #" << colorString << ";\n";
+		}
+		return true;
+	});
+	if (!result) {
+		return result;
+	}
+
+	stream.flush();
+
+	QFile file(filepath);
+	if (file.open(QIODevice::ReadOnly)) {
+		if (file.readAll() == content) {
+			file.close();
+			return true;
+		}
+		file.close();
+	}
+
+	if (!file.open(QIODevice::WriteOnly)) {
+		return false;
+	}
+	if (file.write(content) != content.size()) {
+		return false;
+	}
+	return true;
 }
 
 } // namespace style

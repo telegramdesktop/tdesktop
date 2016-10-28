@@ -356,7 +356,7 @@ void ContactsBox::onFilterUpdate(const QString &filter) {
 void ContactsBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->entity()->addItem(peer->id, peer->shortName(), st::windowActiveBg, PaintUserpicCallback(peer), addItemWay);
+	_select->entity()->addItem(peer->id, peer->shortName(), st::windowActiveFill, PaintUserpicCallback(peer), addItemWay);
 }
 
 void ContactsBox::onPeerSelectedChanged(PeerData *peer, bool checked) {

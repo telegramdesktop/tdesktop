@@ -30,7 +30,7 @@ struct Options {
 	QStringList includePaths = { "." };
 	QString outputPath = ".";
 	QString inputPath;
-	bool rebuildDependencies = false;
+	bool isPalette = false;
 };
 
 // Parsing failed if inputPath is empty in the result.

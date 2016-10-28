@@ -51,7 +51,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "observer_peer.h"
 #include "core/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
@@ -8746,8 +8746,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	int fromy = App::main()->backgroundFromY(), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
-		auto &pix = Window::chatBackground()->image();
-		if (Window::chatBackground()->tile()) {
+		auto &pix = Window::Theme::Background()->image();
+		if (Window::Theme::Background()->tile()) {
 			int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
 			float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
 			int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);

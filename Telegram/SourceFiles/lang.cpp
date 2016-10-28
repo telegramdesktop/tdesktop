@@ -68,7 +68,7 @@ QString langNewVersionText() {
 QString langNewVersionTextForLang(int langId) {
 	LangLoaderResult result;
 	if (langId) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name, NEW_VER_KEY));
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), langLoaderRequest(lng_language_name, NEW_VER_KEY));
 		result = loader.found();
 	} else {
 		result.insert(lng_language_name, langOriginal(lng_language_name));

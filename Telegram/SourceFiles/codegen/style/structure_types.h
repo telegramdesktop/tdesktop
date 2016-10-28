@@ -91,6 +91,7 @@ struct size {
 
 struct color {
 	uchar red, green, blue, alpha;
+	QString fallback;
 };
 
 struct margins {

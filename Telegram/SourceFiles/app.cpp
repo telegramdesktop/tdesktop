@@ -42,7 +42,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
 
@@ -134,7 +134,6 @@ namespace {
 	style::color _historyScrollBgColor;
 	style::color _historyScrollBarOverColor;
 	style::color _historyScrollBgOverColor;
-	style::color _introPointHoverColor;
 }
 
 namespace App {
@@ -211,6 +210,7 @@ namespace {
 		}
 		MTP::setAuthedId(0);
 		Local::reset();
+		Window::Theme::Background()->reset();
 
 		cSetOtherOnline(0);
 		histories().clear();
@@ -2456,6 +2456,21 @@ namespace {
 		_launchState = state;
 	}
 
+	void restart() {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+		bool updateReady = false;
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
+		if (updateReady) {
+			cSetRestartingUpdate(true);
+		} else {
+			cSetRestarting(true);
+			cSetRestartingToSettings(true);
+		}
+		App::quit();
+	}
+
 	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
         QByteArray tmpFormat;
 		QImage result;
@@ -2761,22 +2776,19 @@ namespace {
 	void initBackground(int32 id, const QImage &p, bool nowrite) {
 		if (Local::readBackground()) return;
 
-		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
-		int size = 0;
-
 		QImage img(p);
-		bool remove = false;
+		bool remove = (id == Window::Theme::kThemeBackground);
 		if (p.isNull()) {
-			if (id == DefaultChatBackground) {
-				img.load(st::msgBG);
+			if (id == Window::Theme::kDefaultBackground) {
+				img.load(qsl(":/gui/art/bg.jpg"));
 			} else {
-				img.load(st::msgBG0);
+				img.load(qsl(":/gui/art/bg_old.png"));
 				if (cRetina()) {
 					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
 				} else if (cScale() != dbisOne) {
 					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
 				}
-				id = 0;
+				id = Window::Theme::kOldBackground;
 			}
 			remove = true;
 		}
@@ -2789,11 +2801,16 @@ namespace {
 			Local::writeBackground(id, remove ? QImage() : img);
 		}
 
-		int w = img.width(), h = img.height();
-		size = w * h;
-		const uchar *pix = img.constBits();
-		if (pix) {
-			for (int32 i = 0, l = size * 4; i < l; i += 4) {
+		initColorsFromBackground(img);
+	}
+
+	void initColorsFromBackground(const QImage &img) {
+		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 };
+		auto w = img.width();
+		auto h = img.height();
+		auto size = w * h;
+		if (auto pix = img.constBits()) {
+			for (int i = 0, l = size * 4; i != l; i += 4) {
 				components[2] += pix[i + 0];
 				components[1] += pix[i + 1];
 				components[0] += pix[i + 2];
@@ -2801,7 +2818,9 @@ namespace {
 		}
 
 		if (size) {
-			for (int32 i = 0; i < 3; ++i) components[i] /= size;
+			for (int i = 0; i != 3; ++i) {
+				components[i] /= size;
+			}
 		}
 		int maxtomin[3] = { 0, 1, 2 };
 		if (components[maxtomin[0]] < components[maxtomin[1]]) {
@@ -2816,10 +2835,7 @@ namespace {
 
 		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
 
-		Window::chatBackground()->init(id, pixmapFromImageInPlace(std_::move(img)));
-
 		memcpy(componentsScroll, components, sizeof(components));
-		memcpy(componentsPoint, components, sizeof(components));
 
 		if (max != min) {
 			if (min > uint64(qRound(0.77 * max))) {
@@ -2832,15 +2848,6 @@ namespace {
 			uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
 			componentsScroll[maxtomin[1]] = newmid;
 			componentsScroll[maxtomin[2]] = newmin;
-
-			uint64 pmax = 227; // 89% brightness
-			uint64 pmin = qRound(0.75 * pmax); // 41% saturation
-			uint64 pmid = pmax - ((max - mid) * (pmax - pmin)) / (max - min);
-			componentsPoint[maxtomin[0]] = pmax;
-			componentsPoint[maxtomin[1]] = pmid;
-			componentsPoint[maxtomin[2]] = pmin;
-		} else {
-			componentsPoint[0] = componentsPoint[1] = componentsPoint[2] = 227; // 89% brightness
 		}
 
 		float64 luminance = 0.299 * componentsScroll[0] + 0.587 * componentsScroll[1] + 0.114 * componentsScroll[2];
@@ -2886,9 +2893,6 @@ namespace {
 		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barOverColor->c.alphaF() * 0xFF));
 		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgOverColor->c.alphaF() * 0xFF));
 
-		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
-		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
-
 		if (App::main()) {
 			App::main()->updateScrollColors();
 		}
@@ -2917,10 +2921,6 @@ namespace {
 
 	const style::color &historyScrollBgOverColor() {
 		return _historyScrollBgOverColor;
-	}
-
-	const style::color &introPointHoverColor() {
-		return _introPointHoverColor;
 	}
 
 	WallPapers gServerBackgrounds;

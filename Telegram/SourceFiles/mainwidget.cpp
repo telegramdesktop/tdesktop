@@ -57,7 +57,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "window/player_wrap_widget.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
@@ -115,8 +115,8 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	_webPageOrGameUpdater.setSingleShot(true);
 	connect(&_webPageOrGameUpdater, SIGNAL(timeout()), this, SLOT(webPagesOrGamesUpdate()));
 
-	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
-		using Update = Window::ChatBackgroundUpdate;
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
 			clearCachedBackground();
 		}
@@ -1068,8 +1068,8 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 }
 
 void MainWidget::onCacheBackground() {
-	auto &bg = Window::chatBackground()->image();
-	if (Window::chatBackground()->tile()) {
+	auto &bg = Window::Theme::Background()->image();
+	if (Window::Theme::Background()->tile()) {
 		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
         result.setDevicePixelRatio(cRetinaFactor());
 		{
@@ -1879,7 +1879,7 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 }
 
 void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
-	auto bg = Window::chatBackground()->image().size();
+	auto bg = Window::Theme::Background()->image().size();
 	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
 		float64 pxsize = forRect.height() / float64(bg.height());
 		int takewidth = qCeil(forRect.width() / pxsize);
@@ -1929,11 +1929,11 @@ void MainWidget::checkChatBackground() {
 	if (_background) {
 		if (_background->full->loaded()) {
 			if (_background->full->isNull()) {
-				App::initBackground();
-			} else if (_background->id == 0 || _background->id == DefaultChatBackground) {
-				App::initBackground(_background->id);
+				Window::Theme::Background()->setImage(Window::Theme::kDefaultBackground);
+			} else if (_background->id == Window::Theme::kOldBackground || _background->id == Window::Theme::kDefaultBackground) {
+				Window::Theme::Background()->setImage(_background->id);
 			} else {
-				App::initBackground(_background->id, _background->full->pix().toImage());
+				Window::Theme::Background()->setImage(_background->id, _background->full->pix().toImage());
 			}
 			_background = nullptr;
 			QTimer::singleShot(0, this, SLOT(update()));

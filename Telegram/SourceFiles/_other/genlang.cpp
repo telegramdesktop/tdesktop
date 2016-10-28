@@ -542,7 +542,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\t\tfor (const char *v = key.constData() + from, *e = v + len; v != e; ++v, ++value) {\n";
 			tcpp << "\t\t\tif (*v != *value) return false;\n";
 			tcpp << "\t\t}\n";
-			tcpp << "\t\treturn true; \n";
+			tcpp << "\t\treturn true;\n";
 			tcpp << "\t}\n";
 
 			tcpp << "}\n\n";

@@ -65,14 +65,14 @@ profileSecondaryButton: RoundButton(profilePrimaryButton) {
 	textBg: #ffffff;
 	textBgOver: #f2f7fa;
 }
-profileAddMemberIcon: icon {{ "profile_add_member", windowActiveBg, point(20px, 10px) }};
+profileAddMemberIcon: icon {{ "profile_add_member", windowActiveFill, point(20px, 10px) }};
 profileAddMemberButton: RoundButton(profileSecondaryButton) {
 	width: 62px;
 	icon: profileAddMemberIcon;
 }
 
 profileDropAreaBg: profileBg;
-profileDropAreaFg: windowActiveBg;
+profileDropAreaFg: windowActiveFill;
 profileDropAreaPadding: margins(25px, 3px, 25px, 20px);
 profileDropAreaTitleFont: font(24px);
 profileDropAreaTitleTop: 30px;

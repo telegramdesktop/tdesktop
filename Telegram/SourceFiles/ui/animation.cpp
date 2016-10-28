@@ -97,7 +97,6 @@ void startManager() {
 	stopManager();
 
 	_manager = new AnimationManager();
-
 }
 
 void stopManager() {

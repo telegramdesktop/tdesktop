@@ -55,6 +55,9 @@ public:
 void registerModule(ModuleBase *module);
 void unregisterModule(ModuleBase *module);
 
+// This method is implemented in palette.cpp (codegen).
+bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
+
 } // namespace internal
 
 void startManager();

@@ -18,6 +18,8 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+using "colors.palette";
+
 using "basic_types.style";
 
 semibold: "Open Sans Semibold";
@@ -30,10 +32,10 @@ emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
 
-counterBG: #f23c34;
-counterMuteBG: #888888;
-counterColor: #ffffff;
-counterMacInvColor: #ffffff01;
+counterBg: #f23c34;
+counterMuteBg: #888888;
+counterFg: #ffffff;
+counterMacInvFg: #ffffff01;
 
 lineWidth: 1px;
 
@@ -46,14 +48,6 @@ wndMinWidth: 380px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
-windowBg: #ffffff; // fallback for background: white
-windowActiveBg: #40ace3; // fallback for blue filled active areas
-windowTextFg: #000000; // fallback for text color: black
-windowSubTextFg: #8a8a8a; // fallback for subtext color: gray
-windowSubTextFgOver: #7c99b2; // fallback for subtext over color: gray over blue bg
-windowActiveTextFg: #1485c2; // fallback for active color: blue online
-windowShadowFg: #000000; // fallback for shadow color
-
 semiboldButtonBlueText: #2b99d5;
 
 wndMinHeight: 480px;
@@ -65,8 +59,6 @@ wndShadowShift: 1px;
 layerAlpha: 0.5;
 layerBg: black;
 
-overBg: #edf2f5;
-
 labelDefFlat: flatLabel {
 	font: font(fsize);
 	width: 0px;
@@ -75,7 +67,6 @@ labelDefFlat: flatLabel {
 	textFg: windowTextFg;
 }
 
-boxBg: white;
 boxVerticalMargin: 10px;
 boxWidth: 320px;
 boxWideWidth: 364px;
@@ -86,7 +77,6 @@ boxTextFont: font(boxFontSize);
 boxLittleSkip: 10px;
 boxMediumSkip: 20px;
 
-boxTitleFg: #444444;
 boxTitleFont: font(boxFontSize bold);
 boxTitlePosition: point(26px, 28px);
 boxTitleHeight: 54px;
@@ -97,7 +87,7 @@ defaultBoxButton: RoundButton {
 	textFgOver: #2f9fea;
 	secondaryTextFg: #2f9fea;
 	secondaryTextFgOver: #2f9fea;
-	textBg: white;
+	textBg: boxBg;
 	textBgOver: #edf7ff;
 
 	width: -24px;
@@ -139,7 +129,7 @@ boxLabel: flatLabel(labelDefFlat) {
 defaultLeftOutlineButton: OutlineButton {
 	outlineWidth: 3px;
 	outlineFg: windowBg;
-	outlineFgOver: windowActiveBg;
+	outlineFgOver: windowActiveFill;
 
 	textBg: windowBg;
 	textBgOver: #f2f7fa;
@@ -533,24 +523,6 @@ introLabel: flatLabel(labelDefFlat) {
 	align: align(center);
 }
 
-introPointsTop: -30px; // intro steps bottom points
-introPointWidth: 4px;
-introPointHeight: 4px;
-introPointHoverWidth: 10px;
-introPointHoverHeight: 10px;
-introPointLeft: 3px;
-introPointTop: 3px;
-introPointDelta: 10px;
-introPointColor: #000000;
-introPointAlpha: 0.5;
-introPointHoverColor: #86b4e3;
-introPointStepT: transition(sineInOut);
-introPointAlphaT: transition(linear);
-introPointShowStepT: transition(easeOutCirc);
-introPointHideStepT: transition(easeInCirc);
-introPointShowAlphaT: transition(easeInCirc);
-introPointHideAlphaT: transition(easeOutCirc);
-
 introStepSize: size(400px, 200px);
 introSize: size(400px, 400px);
 introSlideShift: 500px; // intro hiding animation
@@ -580,17 +552,6 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 
 boxShadow: icon {{ "box_shadow", windowShadowFg }};
 boxShadowShift: 2px;
-
-introCountry: countryInput {
-	width: 300px;
-	height: 41px;
-	top: 33px;
-	bgColor: #f2f2f2;
-	ptrSize: size(15px, 8px);
-	textMrg: margins(16px, 5px, 16px, 15px);
-	font: inpDefFont;
-	align: align(left);
-}
 
 introPhoneTop: 8px;
 inpIntroCountryCode: flatInput(inpDefGray) {
@@ -632,7 +593,7 @@ countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
 countryRowPadding: margins(22px, 9px, 8px, 0px);
 countryRowCodeFont: font(fsize);
-countryRowBgOver: overBg;
+countryRowBgOver: windowOverBg;
 countryRowCodeFg: #808080;
 countryRowCodeFgOver: #7c99b2;
 countriesSkip: 12px;
@@ -711,7 +672,7 @@ defaultActiveButton: RoundButton {
 	textFgOver: #ffffff;
 	secondaryTextFg: #cceeff;
 	secondaryTextFgOver: #cceeff;
-	textBg: windowActiveBg;
+	textBg: windowActiveFill;
 	textBgOver: #46b4eb;
 
 	secondarySkip: 7px;
@@ -807,8 +768,6 @@ msgLinkColor: #2a6dc2;
 msgPressedLinkColor: #004bad;
 msgSkip: 40px;
 msgPtr: 8px;
-msgBG: ":/gui/art/bg.jpg";
-msgBG0: ":/gui/art/bg0.png";
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
@@ -960,7 +919,7 @@ msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: windowActiveBg;
+msgFileInBg: windowActiveFill;
 msgFileInBgOver: #4eade3;
 msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
@@ -976,7 +935,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: windowActiveBg;
+msgWaveformInActive: windowActiveFill;
 msgWaveformInActiveSelected: #51a3d3;
 msgWaveformInInactive: #d4dee6;
 msgWaveformInInactiveSelected: #9cc1e1;
@@ -1100,7 +1059,7 @@ contactsStatusFont: font(fsize);
 contactsStatusFg: #999999;
 contactsStatusFgOver: #7c99b2;
 contactsStatusFgOnline: #3b8dcc;
-contactsBgOver: overBg;
+contactsBgOver: windowOverBg;
 contactsCheckPosition: point(8px, 16px);
 contactsAboutBg: #f7f7f7;
 contactsAboutShadow: #0000001F;

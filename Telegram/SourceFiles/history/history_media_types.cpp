@@ -1172,7 +1172,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			style::color bg(outbg ? (selected ? st::msgOutBgSelected : st::msgOutBg) : (selected ? st::msgInBgSelected : st::msgInBg));
+			auto &bg = outbg ? (selected ? st::msgOutBgSelected : st::msgOutBg) : (selected ? st::msgInBgSelected : st::msgInBg);
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 

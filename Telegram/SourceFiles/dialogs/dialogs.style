@@ -25,7 +25,7 @@ using "ui/widgets/widgets.style";
 
 dialogsUnreadFg: #ffffff;
 dialogsUnreadFgActive: #5b94bf;
-dialogsUnreadBg: windowActiveBg;
+dialogsUnreadBg: windowActiveFill;
 dialogsUnreadBgMuted: #bbbbbb;
 dialogsUnreadBgActive: #ffffff;
 dialogsUnreadBgMutedActive: #d3e2ee;

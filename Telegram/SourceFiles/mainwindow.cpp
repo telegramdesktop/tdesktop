@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "ui/widgets/popup_menu.h"
-#include "zip.h"
+#include "core/zlib_help.h"
 #include "lang.h"
 #include "shortcuts.h"
 #include "application.h"
@@ -1396,7 +1396,7 @@ QImage MainWindow::iconLarge() const {
 	return iconbig256;
 }
 
-void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
+void MainWindow::placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) {
 	QPainter p(&img);
 
 	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
@@ -1434,7 +1434,7 @@ void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::colo
 
 }
 
-QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool smallIcon) {
+QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) {
 	bool layer = false;
 	if (size < 0) {
 		size = -size;
@@ -1449,7 +1449,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 		result.fill(st::transparent->c);
 		{
 			QPainter p(&result);
-			p.setBrush(bg->b);
+			p.setBrush(bg);
 			p.setPen(Qt::NoPen);
 			p.setRenderHint(QPainter::Antialiasing);
 			int32 fontSize;
@@ -1478,9 +1478,9 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 				r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 8);
 			}
 			p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
-			p.setFont(f->f);
+			p.setFont(f);
 
-			p.setPen(st::counterColor->p);
+			p.setPen(st::counterFg);
 
 			p.drawText(size - w - d, size - f->height + f->ascent, cnt);
 		}
@@ -1493,7 +1493,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, bool sm
 	if (!count) return img;
 
 	if (smallIcon) {
-		placeSmallCounter(img, size, count, bg, QPoint(), st::counterColor);
+		placeSmallCounter(img, size, count, bg, QPoint(), st::counterFg);
 	} else {
 		QPainter p(&img);
 		p.drawPixmap(size / 2, size / 2, App::pixmapFromImageInPlace(iconWithCounter(-size / 2, count, bg, false)));
@@ -1997,91 +1997,6 @@ void LastCrashedWindow::onSendReport() {
 	updateControls();
 }
 
-namespace {
-	struct zByteArray {
-		zByteArray() : pos(0), err(0) {
-		}
-		uLong pos;
-		int err;
-		QByteArray data;
-	};
-
-	voidpf zByteArrayOpenFile(voidpf opaque, const char* filename, int mode) {
-		zByteArray *ba = (zByteArray*)opaque;
-		if (mode & ZLIB_FILEFUNC_MODE_WRITE) {
-			if (mode & ZLIB_FILEFUNC_MODE_CREATE) {
-				ba->data.clear();
-			}
-			ba->pos = ba->data.size();
-			ba->data.reserve(2 * 1024 * 1024);
-		} else if (mode & ZLIB_FILEFUNC_MODE_READ) {
-			ba->pos = 0;
-		}
-		ba->err = 0;
-		return opaque;
-	}
-
-	uLong zByteArrayReadFile(voidpf opaque, voidpf stream, void* buf, uLong size) {
-		zByteArray *ba = (zByteArray*)opaque;
-		uLong toRead = 0;
-		if (!ba->err) {
-			if (ba->data.size() > int(ba->pos)) {
-				toRead = qMin(size, uLong(ba->data.size() - ba->pos));
-				memcpy(buf, ba->data.constData() + ba->pos, toRead);
-				ba->pos += toRead;
-			}
-			if (toRead < size) {
-				ba->err = -1;
-			}
-		}
-		return toRead;
-	}
-
-	uLong zByteArrayWriteFile(voidpf opaque, voidpf stream, const void* buf, uLong size) {
-		zByteArray *ba = (zByteArray*)opaque;
-		if (ba->data.size() < int(ba->pos + size)) {
-			ba->data.resize(ba->pos + size);
-		}
-		memcpy(ba->data.data() + ba->pos, buf, size);
-		ba->pos += size;
-		return size;
-	}
-
-	int zByteArrayCloseFile(voidpf opaque, voidpf stream) {
-		zByteArray *ba = (zByteArray*)opaque;
-		int result = ba->err;
-		ba->pos = 0;
-		ba->err = 0;
-		return result;
-	}
-
-	int zByteArrayErrorFile(voidpf opaque, voidpf stream) {
-		zByteArray *ba = (zByteArray*)opaque;
-		return ba->err;
-	}
-
-	long zByteArrayTellFile(voidpf opaque, voidpf stream) {
-		zByteArray *ba = (zByteArray*)opaque;
-		return ba->pos;
-	}
-
-	long zByteArraySeekFile(voidpf opaque, voidpf stream, uLong offset, int origin) {
-		zByteArray *ba = (zByteArray*)opaque;
-		if (!ba->err) {
-			switch (origin) {
-			case ZLIB_FILEFUNC_SEEK_SET: ba->pos = offset; break;
-			case ZLIB_FILEFUNC_SEEK_CUR: ba->pos += offset; break;
-			case ZLIB_FILEFUNC_SEEK_END: ba->pos = ba->data.size() + offset; break;
-			}
-			if (int(ba->pos) > ba->data.size()) {
-				ba->err = -1;
-			}
-		}
-		return ba->err;
-	}
-
-}
-
 QString LastCrashedWindow::minidumpFileName() {
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
@@ -2138,45 +2053,24 @@ void LastCrashedWindow::onCheckingFinished() {
 			file.close();
 
 			QString zipName = QString(dmpName).replace(qstr(".dmp"), qstr(".zip"));
-			zByteArray minidumpZip;
 
-			bool failed = false;
-			zlib_filefunc_def zfuncs;
-			zfuncs.opaque = &minidumpZip;
-			zfuncs.zopen_file = zByteArrayOpenFile;
-			zfuncs.zerror_file = zByteArrayErrorFile;
-			zfuncs.zread_file = zByteArrayReadFile;
-			zfuncs.zwrite_file = zByteArrayWriteFile;
-			zfuncs.zclose_file = zByteArrayCloseFile;
-			zfuncs.zseek_file = zByteArraySeekFile;
-			zfuncs.ztell_file = zByteArrayTellFile;
+			zlib::FileToWrite minidumpZip;
 
-			if (zipFile zf = zipOpen2(0, APPEND_STATUS_CREATE, 0, &zfuncs)) {
-				zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
-				QByteArray dmpNameUtf = dmpName.toUtf8();
-				if (zipOpenNewFileInZip(zf, dmpNameUtf.constData(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
-					failed = true;
-				} else if (zipWriteInFileInZip(zf, minidump.constData(), minidump.size()) != 0) {
-					failed = true;
-				} else if (zipCloseFileInZip(zf) != 0) {
-					failed = true;
-				}
-				if (zipClose(zf, NULL) != 0) {
-					failed = true;
-				}
-				if (failed) {
-					minidumpZip.err = -1;
-				}
-			}
+			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
+			QByteArray dmpNameUtf = dmpName.toUtf8();
+			minidumpZip.openNewFile(dmpNameUtf.constData(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
+			minidumpZip.writeInFile(minidump.constData(), minidump.size());
+			minidumpZip.closeFile();
+			minidumpZip.close();
 
-			if (!minidumpZip.err) {
+			if (minidumpZip.error() == ZIP_OK) {
 				QHttpPart dumpPart;
 				dumpPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
 				dumpPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"dump\"; filename=\"%1\"").arg(zipName)));
-				dumpPart.setBody(minidumpZip.data);
+				dumpPart.setBody(minidumpZip.result());
 				multipart->append(dumpPart);
 
-				_minidump.setText(qsl("+ %1 (%2 KB)").arg(zipName).arg(minidumpZip.data.size() / 1024));
+				_minidump.setText(qsl("+ %1 (%2 KB)").arg(zipName).arg(minidumpZip.result().size() / 1024));
 			}
 		}
 	}

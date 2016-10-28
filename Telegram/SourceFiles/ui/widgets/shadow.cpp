@@ -25,7 +25,7 @@ namespace Ui {
 
 void ToggleableShadow::setMode(Mode mode) {
 	if (mode == Mode::ShownFast || mode == Mode::HiddenFast) {
-		if (!_a_opacity.animating()) {
+		if (_a_opacity.animating()) {
 			_a_opacity.finish();
 			update();
 		}

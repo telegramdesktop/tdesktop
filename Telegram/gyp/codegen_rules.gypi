@@ -51,6 +51,33 @@
     ],
     'message': 'Updating dependent qrc files..',
   }, {
+    'action_name': 'codegen_palette',
+    'inputs': [
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
+      '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',
+      '<(res_loc)/colors.palette',
+    ],
+    'outputs': [
+      '<(SHARED_INTERMEDIATE_DIR)/styles/palette.h',
+      '<(SHARED_INTERMEDIATE_DIR)/styles/palette.cpp',
+    ],
+    'action': [
+      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
+      '-I<(res_loc)', '-I<(src_loc)',
+      '-o<(SHARED_INTERMEDIATE_DIR)/styles',
+      '-w<(PRODUCT_DIR)/../..',
+
+      # GYP/Ninja bug workaround: if we specify just <(RULE_INPUT_PATH)
+      # the <(RULE_INPUT_ROOT) variables won't be available in Ninja,
+      # and the 'message' will be just 'codegen_style-ing .style..'
+      # Looks like the using the <(RULE_INPUT_ROOT) here "exports" it
+      # for using in the 'message' field.
+
+      '<(res_loc)/colors.palette',
+    ],
+    'message': 'codegen_palette-ing colors..',
+    'process_outputs_as_sources': 1,
+  }, {
     'action_name': 'codegen_lang',
     'inputs': [
       '<(PRODUCT_DIR)/MetaLang<(exe_ext)',

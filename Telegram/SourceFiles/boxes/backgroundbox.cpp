@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "backgroundbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "styles/style_overview.h"
 
 BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
@@ -48,8 +48,8 @@ void BackgroundBox::onBackgroundChosen(int index) {
 		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
 		if (App::main()) App::main()->setChatBackground(paper);
 
-		using Update = Window::ChatBackgroundUpdate;
-		Window::chatBackground()->notify(Update(Update::Type::Start, !paper.id));
+		using Update = Window::Theme::BackgroundUpdate;
+		Window::Theme::Background()->notify(Update(Update::Type::Start, !paper.id));
 	}
 	onClose();
 }
@@ -73,7 +73,8 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG0), ImagePtr(st::msgBG0)));
+	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_old.png"));
+	wallpapers.push_back(App::WallPaper(Window::Theme::kOldBackground, oldBackground, oldBackground));
 	const auto &v(result.c_vector().v);
 	for (int i = 0, l = v.size(); i < l; ++i) {
 		const auto &w(v.at(i));
@@ -161,7 +162,7 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				const QPixmap &pix(paper.thumb->pix(st::backgroundSize.width(), st::backgroundSize.height()));
 				p.drawPixmap(x, y, pix);
 
-				if (paper.id == Window::chatBackground()->id()) {
+				if (paper.id == Window::Theme::Background()->id()) {
 					int checkPosX = x + st::backgroundSize.width() - st::overviewPhotoChecked.width();
 					int checkPosY = y + st::backgroundSize.height() - st::overviewPhotoChecked.height();
 					st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width());

@@ -325,7 +325,7 @@ void TitleWidget::updateCounter() {
 	int32 counter = App::histories().unreadBadge();
 	bool muted = App::histories().unreadOnlyMuted();
 
-	style::color bg = muted ? st::counterMuteBG : st::counterBG;
+	auto &bg = (muted ? st::counterMuteBg : st::counterBg);
 
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "styles/style_intro.h"
 
 CodeInput::CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
 }

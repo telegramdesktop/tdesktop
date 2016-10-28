@@ -30,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/tooltip.h"
 #include "ui/buttons/icon_button.h"
 #include "window/top_bar_widget.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"

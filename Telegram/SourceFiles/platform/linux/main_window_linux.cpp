@@ -103,7 +103,7 @@ QImage _trayIconImageGen() {
 			} else if (_trayIconSize >= 32) {
 				layerSize = -20;
 			}
-			QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBG : st::counterBG), false);
+			QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBg : st::counterBg), false);
 			p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
 		}
 	}
@@ -355,7 +355,7 @@ void MainWindow::psUpdateCounter() {
 			int32 counter = App::histories().unreadBadge();
 			bool muted = App::histories().unreadOnlyMuted();
 
-			style::color bg = muted ? st::counterMuteBG : st::counterBG;
+			auto &bg = (muted ? st::counterMuteBg : st::counterBg);
 			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
 			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
 		}

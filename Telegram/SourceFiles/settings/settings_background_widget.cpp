@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/checkbox.h"
 #include "localstorage.h"
 #include "mainwindow.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 
 namespace Settings {
 
@@ -37,8 +37,6 @@ BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
 , _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::defaultBoxLinkButton)
 , _chooseFromFile(this, lang(lng_settings_bg_from_file), st::defaultBoxLinkButton)
 , _radial(animation(this, &BackgroundRow::step_radial)) {
-	Window::chatBackground()->initIfEmpty();
-
 	updateImage();
 
 	connect(_chooseFromGallery, SIGNAL(clicked()), this, SIGNAL(chooseFromGallery()));
@@ -145,7 +143,7 @@ void BackgroundRow::updateImage() {
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
 		QPainter p(&back);
-		auto &pix = Window::chatBackground()->image();
+		auto &pix = Window::Theme::Background()->image();
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
@@ -169,8 +167,8 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
-	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
-		using Update = Window::ChatBackgroundUpdate;
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New) {
 			_background->updateImage();
 		} else if (update.type == Update::Type::Start) {
@@ -194,7 +192,7 @@ void BackgroundWidget::createControls() {
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
 
-	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::chatBackground()->tile());
+	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
 	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
 	if (Global::AdaptiveLayout() != Adaptive::WideLayout) {
 		_adaptive->hideFast();
@@ -211,10 +209,12 @@ void BackgroundWidget::needBackgroundUpdate(bool tile) {
 }
 
 void BackgroundWidget::onChooseFromFile() {
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
+	auto imgExtensions = cImgExtensions();
+	auto filters = QStringList(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(")"));
+	filters.push_back(qsl("Theme files (*.tdesktop-theme)"));
+	filters.push_back(filedialogAllFilesFilter());
 
-	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filters.join(qsl(";;")));
 }
 
 void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
@@ -227,11 +227,28 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		return;
 	}
 
+	auto filePath = update.filePaths.front();
+	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
+		QByteArray themeContent;
+		Window::Theme::Instance theme;
+		if (Window::Theme::LoadFromFile(filePath, &theme, &themeContent)) {
+			Local::writeTheme(QDir().relativeFilePath(filePath), QFileInfo(filePath).absoluteFilePath(), themeContent, theme.cached);
+			if (Window::Theme::Background()->tile() != theme.cached.tiled) {
+				Window::Theme::Background()->setTile(theme.cached.tiled);
+			}
+			if (!theme.cached.background.isEmpty()) {
+				Local::writeBackground(Window::Theme::kThemeBackground, QImage());
+			}
+			App::restart();
+		}
+		return;
+	}
+
 	QImage img;
 	if (!update.remoteContent.isEmpty()) {
 		img = App::readImage(update.remoteContent);
 	} else {
-		img = App::readImage(update.filePaths.front());
+		img = App::readImage(filePath);
 	}
 
 	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
@@ -242,13 +259,13 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
 	}
 
-	App::initBackground(-1, img);
+	Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std_::move(img));
 	_tile->setChecked(false);
 	_background->updateImage();
 }
 
 void BackgroundWidget::onTile() {
-	Window::chatBackground()->setTile(_tile->checked());
+	Window::Theme::Background()->setTile(_tile->checked());
 }
 
 void BackgroundWidget::onAdaptive() {

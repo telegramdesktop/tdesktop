@@ -34,12 +34,13 @@ class Module;
 
 class Generator {
 public:
-	Generator(const structure::Module &module, const QString &destBasePath, const common::ProjectInfo &project);
+	Generator(const structure::Module &module, const QString &destBasePath, const common::ProjectInfo &project, bool isPalette);
 	Generator(const Generator &other) = delete;
 	Generator &operator=(const Generator &other) = delete;
 
 	bool writeHeader();
 	bool writeSource();
+	bool writeSampleTheme(const QString &filepath);
 
 private:
 	QString typeToString(structure::Type type) const;
@@ -49,11 +50,13 @@ private:
 	bool writeHeaderStyleNamespace();
 	bool writeStructsForwardDeclarations();
 	bool writeStructsDefinitions();
+	bool writePaletteDefinition();
 	bool writeRefsDeclarations();
 
 	bool writeIncludesInSource();
 	bool writeVariableDefinitions();
 	bool writeRefsDefinition();
+	bool writeSetPaletteColor();
 	bool writeVariableInit();
 	bool writePxValuesInit();
 	bool writeFontFamiliesInit();
@@ -66,10 +69,12 @@ private:
 	QString basePath_, baseName_;
 	const common::ProjectInfo &project_;
 	std::unique_ptr<common::CppFile> source_, header_;
+	bool isPalette_ = false;
 
 	QMap<int, bool> pxValues_;
 	QMap<std::string, int> fontFamilies_;
 	QMap<QString, int> iconMasks_; // icon file -> index
+	QMap<QString, int> paletteIndices_;
 
 	std::vector<int> scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
 	std::vector<const char *>scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };

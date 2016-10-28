@@ -200,9 +200,7 @@ void ConnectionBox::onSave() {
 		Local::writeSettings();
 		Global::RefConnectionTypeChanged().notify();
 
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-		App::quit();
+		App::restart();
 	} else {
 		Global::SetTryIPv6(_tryIPv6->checked());
 		Local::writeSettings();

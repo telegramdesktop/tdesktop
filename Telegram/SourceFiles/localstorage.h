@@ -22,6 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 
+namespace Window {
+namespace Theme {
+struct Cached;
+} // namespace Theme
+} // namespace Window
+
 namespace Local {
 
 void start();
@@ -144,6 +150,8 @@ int32 countSavedGifsHash();
 
 void writeBackground(int32 id, const QImage &img);
 bool readBackground();
+
+void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache);
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();

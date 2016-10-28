@@ -18,44 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-using "basic.style";
-using "ui/widgets/widgets.style";
 
-countryInput {
-	width: pixels;
-	height: pixels;
-	top: pixels;
-	bgColor: color;
-	ptrSize: size;
-	textMrg: margins;
-	font: font;
-	align: align;
-}
+windowBg: #ffffff; // white: fallback for background
+windowTextFg: #000000; // black: fallback for text color
+windowSubTextFg: #8a8a8a; // gray: fallback for subtext color
+windowActiveFill: #40ace3; // bright blue: fallback for blue filled active areas
+windowOverBg: #edf2f5; // light blue: fallback for over background
+windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over color
+windowActiveTextFg: #1485c2; // online blue: fallback for active color
+windowShadowFg: #000000; // black: fallback for shadow color
 
-introCountry: countryInput {
-	width: 300px;
-	height: 41px;
-	top: 33px;
-	bgColor: #f2f2f2;
-	ptrSize: size(15px, 8px);
-	textMrg: margins(16px, 5px, 16px, 15px);
-	font: inpDefFont;
-	align: align(left);
-}
-
-introErrLabel: flatLabel(labelDefFlat) {
-	font: introErrFont;
-	align: align(center);
-}
-introBackButton: IconButton(defaultIconButton) {
-	width: 40px;
-	height: 40px;
-
-	icon: icon {
-		{ size(40px, 40px), #eeeeee },
-		{ "title_previous", #969696, point(12px, 12px) },
-	};
-	iconPosition: point(0px, 0px);
-	downIconPosition: point(0px, 0px);
-}
-introBackPosition: point(32px, 32px);
+boxBg: windowBg;
+boxTitleFg: #444444 | windowTextFg;

@@ -72,7 +72,7 @@ notifySendReply: IconButton(defaultIconButton) {
 	width: 36px;
 	height: 36px;
 
-	icon: icon {{ "notification_send", windowActiveBg, point(3px, 9px) }};
+	icon: icon {{ "notification_send", windowActiveFill, point(3px, 9px) }};
 	iconPosition: point(0px, 0px);
 	downIconPosition: point(0px, 1px);
 }

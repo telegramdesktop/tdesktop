@@ -236,6 +236,7 @@ namespace App {
 	void allDraftsSaved();
 	LaunchState launchState();
 	void setLaunchState(LaunchState state);
+	void restart();
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
@@ -292,7 +293,8 @@ namespace App {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius);
 	}
 
-	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
+	void initColorsFromBackground(const QImage &image);
+	void initBackground(int32 id, const QImage &p = QImage(), bool nowrite = false);
 
 	const style::color &msgServiceBg();
 	const style::color &msgServiceSelectBg();
@@ -300,7 +302,6 @@ namespace App {
 	const style::color &historyScrollBgColor();
 	const style::color &historyScrollBarOverColor();
 	const style::color &historyScrollBgOverColor();
-	const style::color &introPointHoverColor();
 
 	struct WallPaper {
 		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {

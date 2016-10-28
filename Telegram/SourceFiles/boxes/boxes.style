@@ -106,7 +106,7 @@ contactsMultiSelect: MultiSelect {
 		font: normalFont;
 		textBg: contactsBgOver;
 		textFg: windowTextFg;
-		textActiveBg: windowActiveBg;
+		textActiveBg: windowActiveFill;
 		textActiveFg: white;
 		deleteFg: white;
 		deleteLeft: 10px;
@@ -153,10 +153,10 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;
 	selectWidth: 2px;
-	selectFg: windowActiveBg;
+	selectFg: windowActiveFill;
 	selectDuration: 150;
 	checkBorder: windowBg;
-	checkBg: windowActiveBg;
+	checkBg: windowActiveFill;
 	checkRadius: 10px;
 	checkSmallRadius: 3px;
 	checkIcon: icon {{ "default_checkbox_check", windowBg, point(3px, 6px) }};

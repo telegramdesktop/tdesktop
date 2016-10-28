@@ -25,10 +25,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatbutton.h"
 #include "ui/effects/rect_shadow.h"
 #include "boxes/abstractbox.h"
+#include "styles/style_intro.h"
 
 QString findValidCode(QString fullCode);
-
-class CountrySelect;
 
 namespace Ui {
 class MultiSelect;
@@ -62,8 +61,6 @@ private:
 	style::countryInput _st;
 	bool _active;
 	QString _text;
-
-	CountrySelect *_select;
 
 };
 

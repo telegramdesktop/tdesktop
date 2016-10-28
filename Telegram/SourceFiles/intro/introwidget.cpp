@@ -73,9 +73,7 @@ void IntroWidget::langChangeTo(int32 langId) {
 void IntroWidget::onChangeLang() {
 	cSetLang(_langChangeTo);
 	Local::writeSettings();
-	cSetRestarting(true);
-	cSetRestartingToSettings(false);
-	App::quit();
+	App::restart();
 }
 
 void IntroWidget::onParentResize(const QSize &newSize) {

@@ -192,7 +192,7 @@ defaultMenu: Menu {
 	skip: 5px;
 
 	itemBg: white;
-	itemBgOver: overBg;
+	itemBgOver: windowOverBg;
 	itemFg: black;
 	itemFgOver: black;
 	itemFgDisabled: #cccccc;

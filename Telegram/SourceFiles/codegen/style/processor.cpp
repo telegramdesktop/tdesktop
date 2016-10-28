@@ -49,14 +49,7 @@ int Processor::launch() {
 	}
 
 	auto module = parser_->getResult();
-	if (options_.rebuildDependencies) {
-		bool result = module->enumIncludes([this](const structure::Module &included) -> bool {
-			return write(included);
-		});
-		if (!result) {
-			return -1;
-		}
-	} else if (!write(*module)) {
+	if (!write(*module)) {
 		return -1;
 	}
 
@@ -72,7 +65,7 @@ bool Processor::write(const structure::Module &module) const {
 	}
 
 	QFileInfo srcFile(module.filepath());
-	QString dstFilePath = dir.absolutePath() + '/' + destFileBaseName(module);
+	QString dstFilePath = dir.absolutePath() + '/' + (options_.isPalette ? "palette" : destFileBaseName(module));
 
 	common::ProjectInfo project = {
 		"codegen_style",
@@ -81,11 +74,15 @@ bool Processor::write(const structure::Module &module) const {
 		forceReGenerate
 	};
 
-	Generator generator(module, dstFilePath, project);
+	Generator generator(module, dstFilePath, project, options_.isPalette);
 	if (!generator.writeHeader()) {
 		return false;
 	}
 	if (!generator.writeSource()) {
+		return false;
+	}
+	auto themePath = srcFile.absoluteDir().absolutePath() + "/sample.tdesktop-theme";
+	if (options_.isPalette && !generator.writeSampleTheme(themePath)) {
 		return false;
 	}
 	return true;

@@ -60,7 +60,7 @@ public:
 
 	bool psHasNativeNotifications();
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) = 0;
 
 	static void LibsLoaded();
 

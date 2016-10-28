@@ -82,8 +82,8 @@ void FlatButton::step_appearance(float64 ms, bool timer) {
 }
 
 void FlatButton::onStateChange(int oldState, ButtonStateChangeSource source) {
-	style::color bgColorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
-	style::color colorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
+	auto &bgColorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
+	auto &colorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
 
 	a_bg.start(bgColorTo->c);
 	a_text.start(colorTo->c);

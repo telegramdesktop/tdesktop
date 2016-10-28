@@ -34,7 +34,7 @@ IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 	if (cLang() == languageDefault) {
 		int32 l = Sandbox::LangSystem();
 		if (l != languageDefault) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l].c_str() + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l].c_str() + qsl(".strings"), langLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
 				_changeLang.setText(text);

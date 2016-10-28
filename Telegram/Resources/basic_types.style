@@ -141,17 +141,6 @@ flatScroll {
 	hiding: int;
 }
 
-countryInput {
-	width: pixels;
-	height: pixels;
-	top: pixels;
-	bgColor: color;
-	ptrSize: size;
-	textMrg: margins;
-	font: font;
-	align: align;
-}
-
 flatLabel {
 	font: font;
 	margin: margins;
@@ -159,23 +148,6 @@ flatLabel {
 	align: align;
 	textFg: color;
 	maxHeight: pixels;
-}
-
-switcher {
-	border: pixels;
-	borderColor: color;
-
-	bgColor: color;
-	bgHovered: color;
-	bgActive: color;
-
-	height: pixels;
-
-	font: font;
-	textColor: color;
-	activeColor: color;
-
-	duration: int;
 }
 
 Tooltip {

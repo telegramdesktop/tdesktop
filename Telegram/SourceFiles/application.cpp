@@ -34,7 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "core/observer.h"
 #include "observer_peer.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
@@ -676,11 +676,7 @@ namespace Sandbox {
 
 }
 
-AppClass::AppClass() : QObject()
-, _lastActionTime(0)
-, _window(0)
-, _uploader(0)
-, _translator(0) {
+AppClass::AppClass() : QObject() {
 	AppObject = this;
 
 	Fonts::start();
@@ -702,33 +698,7 @@ AppClass::AppClass() : QObject()
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
 	}
-
-	if (cLang() < languageTest) {
-		cSetLang(Sandbox::LangSystem());
-	}
-	if (cLang() == languageTest) {
-		if (QFileInfo(cLangFile()).exists()) {
-			LangLoaderPlain loader(cLangFile());
-			cSetLangErrors(loader.errors());
-			if (!cLangErrors().isEmpty()) {
-				LOG(("Lang load errors: %1").arg(cLangErrors()));
-			} else if (!loader.warnings().isEmpty()) {
-				LOG(("Lang load warnings: %1").arg(loader.warnings()));
-			}
-		} else {
-			cSetLang(languageDefault);
-		}
-	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
-		if (!loader.errors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(loader.errors()));
-		} else if (!loader.warnings().isEmpty()) {
-			LOG(("Lang load warnings: %1").arg(loader.warnings()));
-		}
-	}
-
-	application()->installTranslator(_translator = new Translator());
-
+	loadLanguage();
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -810,6 +780,33 @@ AppClass::AppClass() : QObject()
 			LOG(("Shortcuts Error: %1").arg(*i));
 		}
 	}
+}
+
+void AppClass::loadLanguage() {
+	if (cLang() < languageTest) {
+		cSetLang(Sandbox::LangSystem());
+	}
+	if (cLang() == languageTest) {
+		if (QFileInfo(cLangFile()).exists()) {
+			LangLoaderPlain loader(cLangFile());
+			cSetLangErrors(loader.errors());
+			if (!cLangErrors().isEmpty()) {
+				LOG(("Lang load errors: %1").arg(cLangErrors()));
+			} else if (!loader.warnings().isEmpty()) {
+				LOG(("Lang load warnings: %1").arg(loader.warnings()));
+			}
+		} else {
+			cSetLang(languageDefault);
+		}
+	} else if (cLang() > languageDefault && cLang() < languageCount) {
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
+		if (!loader.errors().isEmpty()) {
+			LOG(("Lang load errors: %1").arg(loader.errors()));
+		} else if (!loader.warnings().isEmpty()) {
+			LOG(("Lang load warnings: %1").arg(loader.warnings()));
+		}
+	}
+	application()->installTranslator(_translator = new Translator());
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -998,9 +995,7 @@ void AppClass::onSwitchDebugMode() {
 	if (cDebug()) {
 		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
 		cSetDebug(false);
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-		App::quit();
+		App::restart();
 	} else {
 		cSetDebug(true);
 		DEBUG_LOG(("Debug logs started."));
@@ -1017,9 +1012,7 @@ void AppClass::onSwitchWorkMode() {
 	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
 	Global::SetDialogsMode(Dialogs::Mode::All);
 	Local::writeUserSettings();
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-	App::quit();
+	App::restart();
 }
 
 void AppClass::onSwitchTestMode() {
@@ -1034,9 +1027,7 @@ void AppClass::onSwitchTestMode() {
 		}
 		cSetTestMode(true);
 	}
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-	App::quit();
+	App::restart();
 }
 
 FileUploader *AppClass::uploader() {
@@ -1120,7 +1111,7 @@ AppClass::~AppClass() {
 	delete base::take(_uploader);
 	delete base::take(_translator);
 
-	Window::chatBackground()->reset();
+	Window::Theme::Unload();
 
 	Media::Player::finish();
 	style::stopManager();

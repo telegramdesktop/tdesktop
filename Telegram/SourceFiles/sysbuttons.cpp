@@ -135,15 +135,8 @@ UpdateBtn::UpdateBtn(QWidget *parent) : SysBtn(parent, st::sysUpd, lang(lng_menu
 	setClickedCallback([]() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		checkReadyUpdate();
-		if (Sandbox::updatingState() == Application::UpdatingReady) {
-			cSetRestartingUpdate(true);
-		} else
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-		{
-			cSetRestarting(true);
-			cSetRestartingToSettings(false);
-		}
-		App::quit();
+		App::restart();
 	});
 }
 

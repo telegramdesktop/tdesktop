@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "intro/introsignup.h"
 
+#include "styles/style_intro.h"
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
 #include "lang.h"

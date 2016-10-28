@@ -204,17 +204,18 @@ public slots:
 	void call_handleObservables();
 
 private:
+	void loadLanguage();
 
 	QMap<FullMsgId, PeerId> photoUpdates;
 
 	QMap<int32, uint64> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
 
-	uint64 _lastActionTime;
+	uint64 _lastActionTime = 0;
 
-	MainWindow *_window;
-	FileUploader *_uploader;
-	Translator *_translator;
+	MainWindow *_window = nullptr;
+	FileUploader *_uploader = nullptr;
+	Translator *_translator = nullptr;
 
 	SingleTimer _mtpUnpauseTimer;
 

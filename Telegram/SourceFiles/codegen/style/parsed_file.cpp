@@ -77,6 +77,10 @@ bool isValidColor(const QString &str) {
 	return true;
 }
 
+uchar toGray(uchar r, uchar g, uchar b) {
+	return qMax(qMin(int(0.21 * r + 0.72 * g + 0.07 * b), 255), 0);
+}
+
 uchar readHexUchar(QChar ch) {
 	auto code = ch.unicode();
 	return (code >= '0' && code <= '9') ? ((code - '0') & 0xFF) : ((code + 10 - 'a') & 0xFF);
@@ -86,7 +90,7 @@ uchar readHexUchar(QChar char1, QChar char2) {
 	return ((readHexUchar(char1) & 0x0F) << 4) | (readHexUchar(char2) & 0x0F);
 }
 
-structure::data::color convertWebColor(const QString &str) {
+structure::data::color convertWebColor(const QString &str, const QString &fallback = QString()) {
 	uchar r = 0, g = 0, b = 0, a = 255;
 	if (isValidColor(str)) {
 		r = readHexUchar(str.at(0), str.at(1));
@@ -96,7 +100,7 @@ structure::data::color convertWebColor(const QString &str) {
 			a = readHexUchar(str.at(6), str.at(7));
 		}
 	}
-	return { r, g, b, a };
+	return { r, g, b, a, fallback };
 }
 
 structure::data::color convertIntColor(int r, int g, int b, int a) {
@@ -216,6 +220,11 @@ ParsedFile::ModulePtr ParsedFile::readIncluded() {
 }
 
 structure::Struct ParsedFile::readStruct(const QString &name) {
+	if (options_.isPalette) {
+		logErrorUnexpectedToken() << "unique color variable for the palette";
+		return {};
+	}
+
 	structure::Struct result = { composeFullName(name) };
 	do {
 		if (auto fieldName = file_.getToken(BasicType::Name)) {
@@ -236,6 +245,10 @@ structure::Variable ParsedFile::readVariable(const QString &name) {
 	structure::Variable result = { composeFullName(name) };
 	if (auto value = readValue()) {
 		result.value = value;
+		if (options_.isPalette && value.type().tag != structure::TypeTag::Color) {
+			logErrorUnexpectedToken() << "unique color variable for the palette";
+			return {};
+		}
 		if (value.type().tag != structure::TypeTag::Struct || !value.copyOf().empty()) {
 			assertNextToken(BasicType::Semicolon);
 		}
@@ -491,14 +504,35 @@ structure::Value ParsedFile::readStringValue() {
 
 structure::Value ParsedFile::readColorValue() {
 	if (auto numberSign = file_.getToken(BasicType::Number)) {
-		auto color = file_.getAnyToken();
-		if (color.type == BasicType::Int || color.type == BasicType::Name) {
-			auto chars = tokenValue(color).toLower();
-			if (isValidColor(chars)) {
-				return { convertWebColor(chars) };
+		if (options_.isPalette || true) { // enable for now
+			auto color = file_.getAnyToken();
+			if (color.type == BasicType::Int || color.type == BasicType::Name) {
+				auto chars = tokenValue(color).toLower();
+				if (isValidColor(chars)) {
+					if (auto fallbackSeparator = file_.getToken(BasicType::Or)) {
+						if (options_.isPalette) {
+							if (auto fallbackName = file_.getToken(BasicType::Name)) {
+								structure::FullName name = { tokenValue(fallbackName) };
+								if (auto variable = module_->findVariableInModule(name, *module_)) {
+									return { convertWebColor(chars, tokenValue(fallbackName)) };
+								} else {
+									logError(kErrorIdentifierNotFound) << "fallback color name";
+								}
+							} else {
+								logErrorUnexpectedToken() << "fallback color name";
+							}
+						} else {
+							logErrorUnexpectedToken() << "';', color fallbacks are only allowed in palette module";
+						}
+					} else {
+						return { convertWebColor(chars) };
+					}
+				}
+			} else {
+				logErrorUnexpectedToken() << "color value in #ccc, #ccca, #cccccc or #ccccccaa format";
 			}
 		} else {
-			logErrorUnexpectedToken() << "color value in #ccc, #ccca, #cccccc or #ccccccaa format";
+			logErrorUnexpectedToken() << "color value alias, unique color values are only allowed in palette module";
 		}
 	}
 	return {};
@@ -815,6 +849,7 @@ Options ParsedFile::includedOptions(const QString &filepath) {
 	auto result = options_;
 	result.inputPath = filepath;
 	result.includePaths[0] = QFileInfo(filePath_).dir().absolutePath();
+	result.isPalette = (QFileInfo(filepath).suffix() == "palette");
 	return result;
 }
 

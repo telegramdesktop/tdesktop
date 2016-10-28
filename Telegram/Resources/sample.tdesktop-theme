@@ -1,0 +1,33 @@
+//
+// This is a sample Telegram Desktop theme file.
+// It was generated from the 'colors.palette' style file.
+//
+// To create a theme with a background image included you should
+// put two files in a .zip archive:
+//
+// First one is the color scheme like the one you're viewing
+// right now, this file should be named 'colors.tdesktop-theme'.
+//
+// Second one should be the background image and it can be named
+// 'background.jpg', 'background.png', 'tiled.jpg' or 'tiled.png'.
+// You should name it 'background' (if you'd like it not to be tiled),
+// or it can be named 'tiled' (if you'd like it to be tiled).
+//
+// After that you need to change the extension of your .zip archive
+// to 'tdesktop-theme', so you'll have:
+//
+// mytheme.tdesktop-theme
+// |-colors.tdesktop-theme
+// |-background.jpg (or tiled.jpg, background.png, tiled.png)
+//
+
+windowBg: #ffffff;
+windowTextFg: #000000;
+windowSubTextFg: #8a8a8a;
+windowActiveFill: #40ace3;
+windowOverBg: #edf2f5;
+windowSubTextFgOver: #7c99b2;
+windowActiveTextFg: #1485c2;
+windowShadowFg: #000000;
+boxBg: #ffffff;
+boxTitleFg: #444444; // windowTextFg;

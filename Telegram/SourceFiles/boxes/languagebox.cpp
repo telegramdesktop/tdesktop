@@ -45,7 +45,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	for (int32 i = 0; i < languageCount; ++i) {
 		LangLoaderResult result;
 		if (i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lng_language_name));
 			result = loader.found();
 		} else {
 			result.insert(lng_language_name, langOriginal(lng_language_name));
@@ -74,7 +74,7 @@ void LanguageBox::showAll() {
 void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
 		for (int32 i = 1; i < languageCount; ++i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lngkeys_cnt));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lngkeys_cnt));
 			if (!loader.errors().isEmpty()) {
 				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" error :(\n\nError: ") + loader.errors()));
 				return;
@@ -104,10 +104,10 @@ void LanguageBox::onChange() {
 		if (_langs[i]->checked() && langId != cLang()) {
 			LangLoaderResult result;
 			if (langId > 0) {
-				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			} else if (langId == languageTest) {
-				LangLoaderPlain loader(cLangFile(), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+				LangLoaderPlain loader(cLangFile(), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			}
 			QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
@@ -134,9 +134,7 @@ void LanguageBox::onSave() {
 		if (_langs[i]->checked()) {
 			cSetLang(_langs[i]->val());
 			Local::writeSettings();
-			cSetRestarting(true);
-			cSetRestartingToSettings(true);
-			App::quit();
+			App::restart();
 		}
 	}
 }

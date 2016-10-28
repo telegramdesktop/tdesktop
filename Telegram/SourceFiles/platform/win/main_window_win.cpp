@@ -718,7 +718,7 @@ void MainWindow::psUpdateCounter() {
 	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
 
-	style::color bg = muted ? st::counterMuteBG : st::counterBG;
+	auto bg = (muted ? st::counterMuteBg : st::counterBg);
 	auto iconSmallPixmap16 = App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true));
 	auto iconSmallPixmap32 = App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true));
 	QIcon iconSmall, iconBig;

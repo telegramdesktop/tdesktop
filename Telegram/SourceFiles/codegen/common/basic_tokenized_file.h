@@ -62,6 +62,8 @@ public:
 			Plus,
 			Minus,
 			Equals,
+			And,
+			Or,
 			Name, // [0-9a-zA-Z_]+ with at least one letter.
 		};
 		Type type;
@@ -144,6 +146,8 @@ private:
 		{ '+', Type::Plus },
 		{ '-', Type::Minus },
 		{ '=', Type::Equals },
+		{ '&', Type::And },
+		{ '|', Type::Or },
 	};
 
 };

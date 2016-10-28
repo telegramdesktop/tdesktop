@@ -30,10 +30,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
+#include "window/window_theme.h"
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 , _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
-	App::initBackground();
+	if (!Local::readBackground()) {
+		Window::Theme::Background()->start();
+	}
 
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 	connect(&_draftsSaveTimer, SIGNAL(timeout()), this, SLOT(saveDraftsToCloud()));

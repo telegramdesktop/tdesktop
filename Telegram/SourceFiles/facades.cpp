@@ -667,6 +667,8 @@ struct Data {
 
 	base::Observable<HistoryItem*> ItemRemoved;
 
+	bool ApplyingTheme = false;
+
 };
 
 } // namespace internal
@@ -781,5 +783,7 @@ DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
+
+DefineVar(Global, bool, ApplyingTheme);
 
 } // namespace Global

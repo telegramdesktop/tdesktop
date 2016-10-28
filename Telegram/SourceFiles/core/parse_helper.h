@@ -20,40 +20,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Window {
+namespace base {
+namespace parse {
 
-struct ChatBackgroundUpdate {
-	enum class Type {
-		New,
-		Changed,
-		Start,
-	};
+// Strip all C-style comments.
+QByteArray stripComments(const QByteArray &content);
 
-	ChatBackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
+inline bool skipWhitespaces(const char *&from, const char *end) {
+	t_assert(from <= end);
+	while (from != end && (
+		(*from == ' ') ||
+		(*from == '\n') ||
+		(*from == '\t') ||
+		(*from == '\r'))) {
+		++from;
 	}
-	Type type;
-	bool tiled;
-};
+	return (from != end);
+}
 
-class ChatBackground : public base::Observable<ChatBackgroundUpdate> {
-public:
-	bool empty() const;
-	void initIfEmpty();
-	void init(int32 id, QPixmap &&image);
-	void reset();
+inline QByteArray readName(const char *&from, const char *end) {
+	t_assert(from <= end);
+	auto start = from;
+	while (from != end && (
+		(*from >= 'a' && *from <= 'z') ||
+		(*from >= 'A' && *from <= 'Z') ||
+		(*from >= '0' && *from <= '9') ||
+		(*from == '_'))) {
+		++from;
+	}
+	return QByteArray::fromRawData(start, from - start);
+}
 
-	int32 id() const;
-	const QPixmap &image() const;
-	bool tile() const;
-	void setTile(bool tile);
-
-private:
-	int32 _id = 0;
-	QPixmap _image;
-	bool _tile = false;
-
-};
-
-ChatBackground *chatBackground();
-
-} // namespace Window
+} // namespace parse
+} // namespace base

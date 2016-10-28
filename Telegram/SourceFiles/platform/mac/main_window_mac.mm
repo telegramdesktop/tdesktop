@@ -128,7 +128,7 @@ void MainWindow::psUpdateWorkmode() {
 	setWindowIcon(wndIcon);
 }
 
-void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
+void _placeCounter(QImage &img, int size, int count, const style::color &bg, const style::color &color) {
 	if (!count) return;
 
 	QPainter p(&img);
@@ -176,13 +176,13 @@ void MainWindow::psUpdateCounter() {
 		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
 
-		style::color bg = muted ? st::counterMuteBG : st::counterBG;
+		auto &bg = (muted ? st::counterMuteBg : st::counterBg);
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
 		img.detach();
 		imgsel.detach();
 		int32 size = cRetina() ? 44 : 22;
-		_placeCounter(img, size, counter, bg, (dm && muted) ? st::counterMacInvColor : st::counterColor);
+		_placeCounter(img, size, counter, bg, (dm && muted) ? st::counterMacInvFg : st::counterFg);
 		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);

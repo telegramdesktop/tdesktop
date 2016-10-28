@@ -231,7 +231,7 @@ void GeneralWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update
 	}
 
 	_testLanguage = QFileInfo(update.filePaths.front()).absoluteFilePath();
-	LangLoaderPlain loader(_testLanguage, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+	LangLoaderPlain loader(_testLanguage, langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 	if (loader.errors().isEmpty()) {
 		LangLoaderResult result = loader.found();
 		QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
@@ -263,17 +263,8 @@ void GeneralWidget::onSaveTestLanguage() {
 void GeneralWidget::onRestart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	if (_updateRow->entity()->isUpdateReady()) {
-		cSetRestartingUpdate(true);
-	} else {
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-	}
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-	App::quit();
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	App::restart();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

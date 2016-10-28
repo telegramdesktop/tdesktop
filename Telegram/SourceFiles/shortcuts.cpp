@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "media/player/media_player_instance.h"
 #include "pspecific.h"
+#include "core/parse_helper.h"
 
 namespace ShortcutCommands {
 
@@ -155,76 +156,6 @@ inline bool qMapLessThanKey(const ShortcutCommands::Handler &a, const ShortcutCo
 }
 
 namespace Shortcuts {
-
-// inspired by https://github.com/sindresorhus/strip-json-comments
-QByteArray _stripJsonComments(const QByteArray &json) {
-	enum InsideComment {
-		InsideCommentNone,
-		InsideCommentSingleLine,
-		InsideCommentMultiLine,
-	};
-	InsideComment insideComment = InsideCommentNone;
-	bool insideString = false;
-
-	QByteArray result;
-
-	const char *b = json.cbegin(), *e = json.cend(), *offset = b;
-	for (const char *ch = offset; ch != e; ++ch) {
-		char currentChar = *ch;
-		char nextChar = (ch + 1 == e) ? 0 : *(ch + 1);
-
-		if (insideComment == InsideCommentNone && currentChar == '"') {
-			bool escaped = ((ch > b) && *(ch - 1) == '\\') && ((ch - 1 < b) || *(ch - 2) != '\\');
-			if (!escaped) {
-				insideString = !insideString;
-			}
-		}
-
-		if (insideString) {
-			continue;
-		}
-
-		if (insideComment == InsideCommentNone && currentChar == '/' && nextChar == '/') {
-			if (ch > offset) {
-				if (result.isEmpty()) result.reserve(json.size() - 2);
-				result.append(offset, ch - offset);
-				offset = ch;
-			}
-			insideComment = InsideCommentSingleLine;
-			++ch;
-		} else if (insideComment == InsideCommentSingleLine && currentChar == '\r' && nextChar == '\n') {
-			if (ch > offset) {
-				offset = ch;
-			}
-			++ch;
-			insideComment = InsideCommentNone;
-		} else if (insideComment == InsideCommentSingleLine && currentChar == '\n') {
-			if (ch > offset) {
-				offset = ch;
-			}
-			insideComment = InsideCommentNone;
-		} else if (insideComment == InsideCommentNone && currentChar == '/' && nextChar == '*') {
-			if (ch > offset) {
-				if (result.isEmpty()) result.reserve(json.size() - 2);
-				result.append(offset, ch - offset);
-				offset = ch;
-			}
-			insideComment = InsideCommentMultiLine;
-			++ch;
-		} else if (insideComment == InsideCommentMultiLine && currentChar == '*' && nextChar == '/') {
-			if (ch > offset) {
-				offset = ch;
-			}
-			++ch;
-			insideComment = InsideCommentNone;
-		}
-	}
-
-	if (insideComment == InsideCommentNone && e > offset && !result.isEmpty()) {
-		result.append(offset, e - offset);
-	}
-	return result.isEmpty() ? json : result;
-}
 
 struct DataStruct;
 DataStruct *DataPtr = nullptr;
@@ -406,7 +337,7 @@ void start() {
 	QFile defaultFile(cWorkingDir() + qsl("tdata/shortcuts-default.json"));
 	if (defaultFile.open(QIODevice::ReadOnly)) {
 		QJsonParseError error = { 0, QJsonParseError::NoError };
-		QJsonDocument doc = QJsonDocument::fromJson(_stripJsonComments(defaultFile.readAll()), &error);
+		QJsonDocument doc = QJsonDocument::fromJson(base::parse::stripComments(defaultFile.readAll()), &error);
 		defaultFile.close();
 
 		if (error.error == QJsonParseError::NoError && doc.isArray()) {
@@ -457,7 +388,7 @@ void start() {
 	if (customFile.exists()) {
 		if (customFile.open(QIODevice::ReadOnly)) {
 			QJsonParseError error = { 0, QJsonParseError::NoError };
-			QJsonDocument doc = QJsonDocument::fromJson(_stripJsonComments(customFile.readAll()), &error);
+			QJsonDocument doc = QJsonDocument::fromJson(base::parse::stripComments(customFile.readAll()), &error);
 			customFile.close();
 
 			if (error.error != QJsonParseError::NoError) {
