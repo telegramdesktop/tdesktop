@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
-
 #include "mediaview.h"
+
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
+#include "styles/style_history.h"
 #include "media/media_audio.h"
 #include "history/history_media_types.h"
 
@@ -501,8 +502,9 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 		_radial.stop();
 		return;
 	}
+	auto wasAnimating = _radial.animating();
 	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
-	if (timer && _radial.animating()) {
+	if (timer && (wasAnimating || _radial.animating())) {
 		update(radialRect());
 	}
 	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
@@ -1649,7 +1651,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		if (_docRect.intersects(r)) {
-			p.fillRect(_docRect, st::mvDocBg->b);
+			p.fillRect(_docRect, st::mvDocBg);
 			if (_docIconRect.intersects(r)) {
 				bool radial = false;
 				float64 radialOpacity = 0;
@@ -1815,30 +1817,40 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
 	float64 o = overLevel(OverIcon);
-	if (radial) {
-		if (!_doc->loaded() && radialOpacity < 1) {
-			p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity) * (1 - radialOpacity));
-			p.drawSpriteCenter(_docIconRect, st::radialDownload);
-		}
-
+	if (radial || (_doc && !_doc->loaded())) {
 		QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
+
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::black);
-		p.setOpacity(radialOpacity * st::radialBgOpacity);
+		if (o == 0.) {
+			p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
+			p.setBrush(st::msgDateImgBg);
+		} else if (o == 1.) {
+			p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
+			p.setBrush(st::msgDateImgBgOver);
+		} else {
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - o)) + (st::msgDateImgBgOver->c.alphaF() * o));
+			p.setBrush(st::black);
+		}
 
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 		p.drawEllipse(inner);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-		p.setOpacity((o * 1. + (1 - o) * st::radialCancelOpacity) * radialOpacity);
-		p.drawSpriteCenter(_docIconRect, st::radialCancel);
-		p.setOpacity(1);
-
-		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-		_radial.draw(p, arc, st::radialLine, st::white);
-	} else if (_doc && !_doc->loaded()) {
-		p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity));
-		p.drawSpriteCenter(_docIconRect, st::radialDownload);
+		p.setOpacity(1.);
+		auto icon = ([radial, this]() -> const style::icon* {
+			if (radial || _doc->loading()) {
+				return &st::historyFileInCancel;
+			}
+			return &st::historyFileInDownload;
+		})();
+		if (icon) {
+			icon->paintInCenter(p, inner);
+		}
+		if (radial) {
+			p.setOpacity(1);
+			QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+			_radial.draw(p, arc, st::radialLine, st::white);
+		}
 	}
 }
 

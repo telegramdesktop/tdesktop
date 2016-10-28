@@ -1137,9 +1137,9 @@ void StickerPanInner::paintSticker(Painter &p, Set &set, int y, int index) {
 	if (hover > 0 && set.id == Stickers::RecentSetId && _custom.at(index)) {
 		float64 xHover = set.hovers[set.pack.size() + index];
 
-		QPoint xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.pxWidth(), 0);
+		QPoint xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.width(), 0);
 		p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
-		p.drawSpriteLeft(xPos, width(), st::stickerPanDelete);
+		st::stickerPanDelete.paint(p, xPos, width());
 		p.setOpacity(1);
 	}
 }
@@ -2197,7 +2197,7 @@ void StickerPanInner::updateSelected() {
 					} else {
 						if (set.id == Stickers::RecentSetId && _custom[selIndex]) {
 							int inx = sx - (selIndex % StickerPanPerRow) * st::stickerPanSize.width(), iny = p.y() - y - ((selIndex / StickerPanPerRow) * st::stickerPanSize.height());
-							if (inx >= st::stickerPanSize.width() - st::stickerPanDelete.pxWidth() && iny < st::stickerPanDelete.pxHeight()) {
+							if (inx >= st::stickerPanSize.width() - st::stickerPanDelete.width() && iny < st::stickerPanDelete.height()) {
 								selIndex += set.pack.size();
 							}
 						}
@@ -2531,14 +2531,14 @@ void EmojiSwitchButton::updateText(const QString &inlineBotUsername) {
 void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.setFont(st::emojiPanHeaderFont->f);
-	p.setPen(st::emojiSwitchColor->p);
+	p.setFont(st::emojiPanHeaderFont);
+	p.setPen(st::emojiSwitchColor);
 	if (_toStickers) {
 		p.drawTextRight(st::emojiSwitchSkip, st::emojiPanHeaderTop, width(), _text, _textWidth);
-		p.drawSpriteRight(QPoint(st::emojiSwitchImgSkip - st::emojiSwitchStickers.pxWidth(), (st::emojiPanHeader - st::emojiSwitchStickers.pxHeight()) / 2), width(), st::emojiSwitchStickers);
+		st::emojiSwitchStickers.paint(p, width() - st::emojiSwitchImgSkip, (st::emojiPanHeader - st::emojiSwitchStickers.height()) / 2, width());
 	} else {
-		p.drawTextRight(st::emojiSwitchImgSkip - st::emojiSwitchEmoji.pxWidth(), st::emojiPanHeaderTop, width(), lang(lng_switch_emoji), _textWidth);
-		p.drawSpriteRight(QPoint(st::emojiSwitchSkip + _textWidth - st::emojiSwitchEmoji.pxWidth(), (st::emojiPanHeader - st::emojiSwitchEmoji.pxHeight()) / 2), width(), st::emojiSwitchEmoji);
+		p.drawTextRight(st::emojiSwitchImgSkip - st::emojiSwitchEmoji.width(), st::emojiPanHeaderTop, width(), lang(lng_switch_emoji), _textWidth);
+		st::emojiSwitchEmoji.paint(p, width() - st::emojiSwitchSkip - _textWidth, (st::emojiPanHeader - st::emojiSwitchEmoji.height()) / 2, width());
 	}
 }
 
@@ -2803,15 +2803,15 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					p.setOpacity(1.);
 					p.fillRect(selx, _iconsTop + st::emojiCategory.height - st::stickerIconPadding, st::emojiCategory.width, st::stickerIconSel, st::stickerIconSelColor);
 
-					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.pxWidth(), 0., 1.);
+					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.width(), 0., 1.);
 					if (o_left > 0) {
 						p.setOpacity(o_left);
-						p.drawSpriteLeft(QRect(_iconsLeft, _iconsTop, st::stickerIconLeft.pxWidth(), st::emojiCategory.height), width(), st::stickerIconLeft);
+						st::stickerIconLeft.fill(p, rtlrect(_iconsLeft, _iconsTop, st::stickerIconLeft.width(), st::emojiCategory.height, width()));
 					}
-					float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.pxWidth(), 0., 1.);
+					float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
 					if (o_right > 0) {
 						p.setOpacity(o_right);
-						p.drawSpriteRight(QRect(width() - _iconsLeft - 7 * st::emojiCategory.width, _iconsTop, st::stickerIconRight.pxWidth(), st::emojiCategory.height), width(), st::stickerIconRight);
+						st::stickerIconRight.fill(p, rtlrect(width() - _iconsLeft - 7 * st::emojiCategory.width, _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
 					}
 				}
 			} else if (_stickersShown) {

@@ -101,8 +101,6 @@ emojiSymbolsActive: icon {{ "emoji_symbols", #58b2ed }};
 emojiSavedGifs: icon {{ "emoji_gif", #b3b3b3 }};
 emojiSavedGifsActive: icon {{ "emoji_gif", #58b2ed }};
 
-emojiPanCategories: #f7f7f7;
-
 emojiCategory: IconButton {
 	width: 42px;
 	height: 46px;
@@ -144,20 +142,21 @@ emojiColorsSepColor: #d5d5d5;
 
 emojiSwitchSkip: 27px;
 emojiSwitchImgSkip: 21px;
-emojiSwitchStickers: sprite(318px, 328px, 8px, 12px);
-emojiSwitchEmoji: sprite(310px, 328px, 8px, 12px);
 emojiSwitchColor: #42a8db;
+emojiSwitchStickers: icon {{ "emoji_switch_right", emojiSwitchColor }};
+emojiSwitchEmoji: icon {{ "emoji_switch_left", emojiSwitchColor }};
 
 stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;
-stickerPanDelete: sprite(128px, 132px, 12px, 12px);
+stickerPanDelete: icon {
+	{ "emoji_delete_bg", #000000cc },
+	{ "emoji_delete", #ffffff },
+};
 stickerPanDeleteOpacity: 0.5;
 stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
 stickerIconSelColor: #58b2ed;
-stickerIconLeft: sprite(342px, 72px, 40px, 1px);
-stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;

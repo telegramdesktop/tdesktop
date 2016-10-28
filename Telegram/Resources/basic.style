@@ -1363,10 +1363,6 @@ radialLine: 3px;
 radialDuration: 350;
 radialPeriod: 3000;
 radialBgOpacity: 0.4;
-radialDownload: sprite(346px, 0px, 50px, 50px);
-radialDownloadOpacity: 0.8;
-radialCancel: sprite(378px, 50px, 18px, 18px);
-radialCancelOpacity: 1.0;
 
 downloadPathSkip: 10px;
 
@@ -1488,3 +1484,10 @@ profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};
 
 boxCancelIcon: icon {{ "box_cancel", #000000 }};
 historyReplyCancelIcon: icon {{ "box_cancel", #adadad }};
+
+notifyBg: white;
+notifyFadeRight: icon {{ "fade_horizontal_right", notifyBg }};
+
+emojiPanCategories: #f7f7f7;
+stickerIconLeft: icon {{ "fade_horizontal_left", emojiPanCategories }};
+stickerIconRight: icon {{ "fade_horizontal_right", emojiPanCategories }};
