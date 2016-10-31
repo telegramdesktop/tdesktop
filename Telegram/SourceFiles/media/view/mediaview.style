@@ -85,43 +85,55 @@ mediaviewClose: icon {{ "mediaview_close", #ffffff }};
 mediaviewSave: icon {{ "mediaview_download", #ffffff }};
 mediaviewMore: icon {{ "mediaview_more", #ffffff }};
 
-mediaviewFileRedCornerFg: #d55959;
-mediaviewFileYellowCornerFg: #e8a659;
-mediaviewFileGreenCornerFg: #49a957;
-mediaviewFileBlueCornerFg: #599dcf;
-
 mediaviewFileRed: icon {
-	{ size(25px, 25px), #ffffff },
+	{ size(25px, 25px), mediaviewFileBg },
 	{ "mediaview_file_corner", mediaviewFileRedCornerFg },
 };
 mediaviewFileYellow: icon {
-	{ size(25px, 25px), #ffffff },
+	{ size(25px, 25px), mediaviewFileBg },
 	{ "mediaview_file_corner", mediaviewFileYellowCornerFg },
 };
 mediaviewFileGreen: icon {
-	{ size(25px, 25px), #ffffff },
+	{ size(25px, 25px), mediaviewFileBg },
 	{ "mediaview_file_corner", mediaviewFileGreenCornerFg },
 };
 mediaviewFileBlue: icon {
-	{ size(25px, 25px), #ffffff },
+	{ size(25px, 25px), mediaviewFileBg },
 	{ "mediaview_file_corner", mediaviewFileBlueCornerFg },
 };
+
+mediaviewFilePadding: 18px;
+mediaviewFileSize: size(340px, 116px);
+mediaviewFileNameTop: 4px;
+mediaviewFileNameFont: font(semibold 14px);
+mediaviewFileSizeTop: 29px;
+mediaviewFileExtTop: 35px;
+mediaviewFileExtFont: font(semibold 18px);
+mediaviewFileExtPadding: 10px;
+mediaviewFileLinksTop: 57px;
+mediaviewFileIconSize: 80px;
+
+mediaviewFileLink: linkButton(btnDefLink) {
+	color: #4595d3;
+	overColor: #4595d3;
+	downColor: #4595d3;
+}
 
 mediaviewTransparentBg: #ffffff;
 mediaviewTransparentFg: #cccccc;
 mediaviewTransparentSize: 4px;
 
 mediaviewMenu: Menu(defaultMenu) {
-	itemBg: #383838;
-	itemBgOver: #505050;
-	itemFg: white;
-	itemFgOver: white;
-	itemFgDisabled: #999999;
-	itemFgShortcut: #eeeeee;
-	itemFgShortcutOver: #ffffff;
-	itemFgShortcutDisabled: #999999;
+	itemBg: mediaviewMenuBg;
+	itemBgOver: mediaviewMenuBgOver;
+	itemFg: mediaviewMenuFg;
+	itemFgOver: mediaviewMenuFg;
+	itemFgDisabled: mediaviewMenuFg;
+	itemFgShortcut: mediaviewMenuFg;
+	itemFgShortcutOver: mediaviewMenuFg;
+	itemFgShortcutDisabled: mediaviewMenuFg;
 
-	separatorFg: #484848;
+	separatorFg: mediaviewMenuFg;
 }
 mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
 	shadow: icon {};
@@ -130,30 +142,3 @@ mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
 }
-/*
-mvDropdown: dropdown(dropdownDef) {
-	shadow: icon {};
-	padding: margins(11px, 12px, 11px, 12px);
-
-	border: 0px;
-	width: 182px;
-}
-mvButton: iconedButton(btnDefIconed) {
-	bgColor: #383838;
-	overBgColor: #505050;
-	font: font(fsize);
-
-	opacity: 1.;
-	overOpacity: 1.;
-
-	width: -32px;
-	height: 36px;
-
-	color: white;
-
-	textPos: point(16px, 9px);
-	downTextPos: point(16px, 10px);
-
-	duration: 0;
-}
-*/

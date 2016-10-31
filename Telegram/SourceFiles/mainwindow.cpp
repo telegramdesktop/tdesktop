@@ -1434,7 +1434,7 @@ void MainWindow::placeSmallCounter(QImage &img, int size, int count, const style
 
 }
 
-QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) {
+QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) {
 	bool layer = false;
 	if (size < 0) {
 		size = -size;
@@ -1446,7 +1446,7 @@ QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, 
 		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
 		QImage result(size, size, QImage::Format_ARGB32);
 		int32 cntSize = cnt.size();
-		result.fill(st::transparent->c);
+		result.fill(Qt::transparent);
 		{
 			QPainter p(&result);
 			p.setBrush(bg);
@@ -1480,7 +1480,7 @@ QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, 
 			p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
 			p.setFont(f);
 
-			p.setPen(st::counterFg);
+			p.setPen(fg);
 
 			p.drawText(size - w - d, size - f->height + f->ascent, cnt);
 		}
@@ -1493,10 +1493,10 @@ QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, 
 	if (!count) return img;
 
 	if (smallIcon) {
-		placeSmallCounter(img, size, count, bg, QPoint(), st::counterFg);
+		placeSmallCounter(img, size, count, bg, QPoint(), fg);
 	} else {
 		QPainter p(&img);
-		p.drawPixmap(size / 2, size / 2, App::pixmapFromImageInPlace(iconWithCounter(-size / 2, count, bg, false)));
+		p.drawPixmap(size / 2, size / 2, App::pixmapFromImageInPlace(iconWithCounter(-size / 2, count, bg, fg, false)));
 	}
 	return img;
 }

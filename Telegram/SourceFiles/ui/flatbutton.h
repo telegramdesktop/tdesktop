@@ -105,8 +105,4 @@ private:
 
 	const style::RoundButton &_st;
 
-	anim::fvalue a_textBgOverOpacity;
-	anim::cvalue a_textFg;
-	Animation _a_over;
-
 };

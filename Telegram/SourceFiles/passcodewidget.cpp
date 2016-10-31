@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
+#include "styles/style_boxes.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))
@@ -180,8 +181,8 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 	if (_a_show.animating()) {
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(a_shadow.current());
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
@@ -190,12 +191,13 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 	} else {
 		p.fillRect(rect(), st::windowBg);
 
-		p.setFont(st::passcodeHeaderFont->f);
+		p.setFont(st::passcodeHeaderFont);
+		p.setPen(st::windowTextFg);
 		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
 
 		if (!_error.isEmpty()) {
-			p.setFont(st::boxTextFont->f);
-			p.setPen(st::setErrColor->p);
+			p.setFont(st::boxTextFont);
+			p.setPen(st::boxTextFgError);
 			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
 		}
 	}

@@ -27,11 +27,7 @@ RoundButton::RoundButton(QWidget *parent, const QString &text, const style::Roun
 , _text(text)
 , _fullText(text)
 , _textWidth(st.font->width(_text))
-, _st(st)
-, a_textBgOverOpacity(0)
-, a_textFg(st.textFg->c)
-, a_secondaryTextFg(st.secondaryTextFg->c)
-, _a_over(animation(this, &RoundButton::step_over)) {
+, _st(st) {
 	resizeToText();
 
 	setCursor(style::cur_pointer);
@@ -104,11 +100,9 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	}
 	App::roundRect(p, rounded, _st.textBg, ImageRoundRadius::Small);
 
-	auto o = a_textBgOverOpacity.current();
-	if (o > 0) {
-		p.setOpacity(o);
+	auto over = (_state & StateOver);
+	if (over) {
 		App::roundRect(p, rounded, _st.textBgOver, ImageRoundRadius::Small);
-		p.setOpacity(1);
 	}
 
 	p.setFont(_st.font);
@@ -119,57 +113,19 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	int textTopDelta = (_state & StateDown) ? (_st.downTextTop - _st.textTop) : 0;
 	int textTop = _st.padding.top() + _st.textTop + textTopDelta;
 	if (!_text.isEmpty()) {
-		if (o > 0) {
-			p.setPen(a_textFg.current());
-		} else {
-			p.setPen(_st.textFg);
-		}
+		p.setPen(over ? _st.textFgOver : _st.textFg);
 		p.drawTextLeft(textLeft, textTop, width(), _text);
 	}
 	if (!_secondaryText.isEmpty()) {
 		textLeft += _textWidth + (_textWidth ? _st.secondarySkip : 0);
-		if (o > 0) {
-			p.setPen(a_secondaryTextFg.current());
-		} else {
-			p.setPen(_st.secondaryTextFg);
-		}
+		p.setPen(over ? _st.secondaryTextFgOver : _st.secondaryTextFg);
 		p.drawTextLeft(textLeft, textTop, width(), _secondaryText);
 	}
 	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right() + textTopDelta), width());
 }
 
-void RoundButton::step_over(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_over.stop();
-		a_textFg.finish();
-		a_secondaryTextFg.finish();
-		a_textBgOverOpacity.finish();
-	} else {
-		a_textFg.update(dt, anim::linear);
-		a_secondaryTextFg.update(dt, anim::linear);
-		a_textBgOverOpacity.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void RoundButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
-	auto textBgOverOpacity = (_state & StateOver) ? 1. : 0.;
-	auto textFg = (_state & StateOver) ? (_st.textFgOver) : _st.textFg;
-	auto secondaryTextFg = (_state & StateOver) ? (_st.secondaryTextFgOver) : _st.secondaryTextFg;
-
-	a_textBgOverOpacity.start(textBgOverOpacity);
-	a_textFg.start(textFg->c);
-	a_secondaryTextFg.start(secondaryTextFg->c);
-	if (source == ButtonByUser || source == ButtonByPress || true) {
-		_a_over.stop();
-		a_textFg.finish();
-		a_secondaryTextFg.finish();
-		a_textBgOverOpacity.finish();
-		update();
-	} else {
-		_a_over.start();
-	}
+	update();
 }
 
 } // namespace Ui

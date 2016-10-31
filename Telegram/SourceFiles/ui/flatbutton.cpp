@@ -167,10 +167,7 @@ BoxButton::BoxButton(QWidget *parent, const QString &text, const style::RoundBut
 , _text(text.toUpper())
 , _fullText(text.toUpper())
 , _textWidth(st.font->width(_text))
-, _st(st)
-, a_textBgOverOpacity(0)
-, a_textFg(st.textFg->c)
-, _a_over(animation(this, &BoxButton::step_over)) {
+, _st(st) {
 	resizeToText();
 
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
@@ -203,48 +200,19 @@ void BoxButton::resizeToText() {
 void BoxButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(rect(), _st.textBg->b);
+	auto over = (_state & StateOver);
+	p.fillRect(rect(), _st.textBg);
 
-	float64 o = a_textBgOverOpacity.current();
-	if (o > 0) {
-		p.setOpacity(o);
+	if (over) {
 		App::roundRect(p, rect(), _st.textBgOver, ImageRoundRadius::Small);
-		p.setOpacity(1);
-		p.setPen(a_textFg.current());
-	} else {
-		p.setPen(_st.textFg);
 	}
+	p.setPen(over ? _st.textFgOver : _st.textFg);
 	p.setFont(_st.font);
 
 	auto textTop = (_state & StateDown) ? _st.downTextTop : _st.textTop;
 	p.drawText((width() - _textWidth) / 2, textTop + _st.font->ascent, _text);
 }
 
-void BoxButton::step_over(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_over.stop();
-		a_textFg.finish();
-		a_textBgOverOpacity.finish();
-	} else {
-		a_textFg.update(dt, anim::linear);
-		a_textBgOverOpacity.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void BoxButton::onStateChange(int oldState, ButtonStateChangeSource source) {
-	float64 textBgOverOpacity = (_state & StateOver) ? 1 : 0;
-	style::color textFg = (_state & StateOver) ? (_st.textFgOver) : _st.textFg;
-
-	a_textBgOverOpacity.start(textBgOverOpacity);
-	a_textFg.start(textFg->c);
-	if (source == ButtonByUser || source == ButtonByPress || true) {
-		_a_over.stop();
-		a_textBgOverOpacity.finish();
-		a_textFg.finish();
-		update();
-	} else {
-		_a_over.start();
-	}
+	update();
 }

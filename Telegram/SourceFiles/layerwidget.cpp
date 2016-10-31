@@ -61,7 +61,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override {
 		Painter p(this);
 
-		p.setOpacity(st::layerAlpha * _opacity);
+		p.setOpacity(_opacity);
 		if (_box.isNull()) {
 			p.fillRect(rect(), st::layerBg);
 		} else {
@@ -70,7 +70,6 @@ protected:
 				p.fillRect(r, st::layerBg);
 			}
 			p.setClipRegion(clip);
-			p.setOpacity(_opacity);
 			_shadow.paint(p, _box, st::boxShadowShift);
 			if (!_hiddenSpecialBox.isNull()) {
 				p.setClipRegion(QRegion(rect()) - _hiddenSpecialBox);

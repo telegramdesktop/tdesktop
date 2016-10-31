@@ -69,13 +69,15 @@ private:
 
 class ColorData {
 public:
-
 	QColor c;
 	QPen p;
 	QBrush b;
 
-private:
+	QColor transparent() const {
+		return QColor(c.red(), c.green(), c.blue(), 0);
+	}
 
+private:
 	ColorData(uchar r, uchar g, uchar b, uchar a);
 	void set(const QColor &c);
 

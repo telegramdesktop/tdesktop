@@ -774,6 +774,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_dialogs_text_from_wrapped" = "{from}:";
 "lng_dialogs_text_media" = "{media_part} {caption}";
 "lng_dialogs_text_media_wrapped" = "{media},";
+"lng_dialogs_show_all_chats" = "Show all chats";
+"lng_dialogs_hide_muted_chats" = "Hide muted chats";
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";

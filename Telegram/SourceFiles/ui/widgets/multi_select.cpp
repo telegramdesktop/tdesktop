@@ -584,7 +584,7 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	_iconOpacity.step(ms);
 
 	auto paintRect = e->rect();
-	p.fillRect(paintRect, st::windowBg);
+	p.fillRect(paintRect, _st.bg);
 
 	auto offset = QPoint(rtl() ? _st.padding.right() : _st.padding.left(), _st.padding.top());
 	p.translate(offset);

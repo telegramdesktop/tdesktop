@@ -176,14 +176,14 @@ void MainWindow::psUpdateCounter() {
 		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
 
-		auto &bg = (muted ? st::counterMuteBg : st::counterBg);
+		auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
 		img.detach();
 		imgsel.detach();
 		int32 size = cRetina() ? 44 : 22;
-		_placeCounter(img, size, counter, bg, (dm && muted) ? st::counterMacInvFg : st::counterFg);
-		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
+		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
+		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
 		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);

@@ -23,29 +23,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 #include "ui/widgets/shadow.h"
 
+namespace Ui {
+class MaskButton;
+} // namespace Ui
+
 class BlueTitleShadow : public TWidget {
 public:
 	BlueTitleShadow(QWidget *parent) : TWidget(parent) {
 	}
 	void paintEvent(QPaintEvent *e);
-};
-
-class BlueTitleClose : public Button {
-	Q_OBJECT
-
-public:
-	BlueTitleClose(QWidget *parent);
-	void paintEvent(QPaintEvent *e);
-
-public slots:
-
-	void onStateChange(int oldState, ButtonStateChangeSource source);
-
-private:
-	void step_over(float64 ms, bool timer);
-	anim::cvalue a_iconFg;
-	Animation _a_over;
-
 };
 
 class AbstractBox : public LayerWidget, protected base::Subscriber {
@@ -78,8 +64,6 @@ protected:
 	virtual void closePressed() {
 	}
 	virtual void showAll() {
-		if (_blueClose) _blueClose->show();
-		if (_blueShadow) _blueShadow->show();
 	}
 
 private:
@@ -89,8 +73,8 @@ private:
 	bool _closed = false;
 
 	bool _blueTitle = false;
-	BlueTitleClose *_blueClose = nullptr;
-	BlueTitleShadow *_blueShadow = nullptr;
+	ChildWidget<Ui::MaskButton> _blueClose = { nullptr };
+	ChildWidget<BlueTitleShadow> _blueShadow = { nullptr };
 
 };
 

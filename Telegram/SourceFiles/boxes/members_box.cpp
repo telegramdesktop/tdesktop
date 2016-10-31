@@ -139,17 +139,17 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	_time = unixtime();
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::contactsBg);
 
 	int32 yFrom = r.y() - st::membersPadding.top(), yTo = r.y() + r.height() - st::membersPadding.top();
 	p.translate(0, st::membersPadding.top());
 	if (_rows.isEmpty()) {
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	} else {
 		if (_newItemHeight) {
-			p.fillRect(0, 0, width(), _newItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
+			p.fillRect(0, 0, width(), _newItemHeight, _newItemSel ? st::contactsBgOver : st::contactsBg);
 			st::contactsNewItemIcon.paint(p, 0, 0, width());
 			p.setFont(st::contactsNameFont);
 			p.setPen(st::contactsNewItemFg);
@@ -170,8 +170,8 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 			p.translate(0, _rowHeight);
 		}
 		if (to == _rows.size() && _filter == MembersFilter::Recent && (_rows.size() < _channel->membersCount() || _rows.size() >= Global::ChatSizeMax())) {
-			p.setPen(st::membersAboutFg);
-			_about.draw(p, st::contactsPadding.left(), st::membersAboutPadding.top(), _aboutWidth, style::al_center);
+			p.setPen(st::membersAboutLimitFg);
+			_about.draw(p, st::contactsPadding.left(), st::membersAboutLimitPadding.top(), _aboutWidth, style::al_center);
 		}
 	}
 }
@@ -237,10 +237,10 @@ void MembersBox::Inner::onKickConfirm() {
 void MembersBox::Inner::paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown) {
 	UserData *user = peer->asUser();
 
-	p.fillRect(0, 0, width(), _rowHeight, (sel ? st::contactsBgOver : st::white)->b);
+	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::contactsBg);
 	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
-	p.setPen(st::black);
+	p.setPen(st::contactsNameFg);
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (data->canKick ? (_kickWidth + st::contactsCheckPosition.x() * 2) : 0);
@@ -348,7 +348,7 @@ void MembersBox::Inner::refresh() {
 		_aboutHeight = 0;
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
-		_aboutHeight = st::membersAboutPadding.top() + _about.countHeight(_aboutWidth) + st::membersAboutPadding.bottom();
+		_aboutHeight = st::membersAboutLimitPadding.top() + _about.countHeight(_aboutWidth) + st::membersAboutLimitPadding.bottom();
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}

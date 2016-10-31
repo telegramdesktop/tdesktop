@@ -103,10 +103,10 @@ CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWi
 		QPainter p(&trImage);
 		p.setRenderHint(QPainter::Antialiasing);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, trImage.width(), trImage.height(), st::transparent->b);
+		p.fillRect(0, 0, trImage.width(), trImage.height(), Qt::transparent);
 
 		p.setPen(Qt::NoPen);
-		p.setBrush(_st.bgColor->b);
+		p.setBrush(_st.bgColor);
 		p.drawPolygon(trPoints, 3);
 	}
 	_arrow = App::pixmapFromImageInPlace(std_::move(trImage));
@@ -314,7 +314,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	int l = countriesNow->size();
 	if (l) {
 		if (r.intersects(QRect(0, 0, width(), st::countriesSkip))) {
-			p.fillRect(r.intersected(QRect(0, 0, width(), st::countriesSkip)), st::white->b);
+			p.fillRect(r.intersected(QRect(0, 0, width(), st::countriesSkip)), st::countryRowBg);
 		}
 		int32 from = floorclamp(r.y() - st::countriesSkip, _rowHeight, 0, l);
 		int32 to = ceilclamp(r.y() + r.height() - st::countriesSkip, _rowHeight, 0, l);
@@ -322,7 +322,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			bool sel = (i == _sel);
 			int32 y = st::countriesSkip + i * _rowHeight;
 
-			p.fillRect(0, y, width(), _rowHeight, (sel ? st::countryRowBgOver : st::white)->b);
+			p.fillRect(0, y, width(), _rowHeight, sel ? st::countryRowBgOver : st::countryRowBg);
 
 			QString code = QString("+") + (*countriesNow)[i]->code;
 			int32 codeWidth = st::countryRowCodeFont->width(code);
@@ -336,16 +336,17 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			}
 
 			p.setFont(st::countryRowNameFont);
-			p.setPen(st::black);
+			p.setPen(st::countryRowNameFg);
 			p.drawTextLeft(st::countryRowPadding.left(), y + st::countryRowPadding.top(), width(), name);
+
 			p.setFont(st::countryRowCodeFont);
 			p.setPen(sel ? st::countryRowCodeFgOver : st::countryRowCodeFg);
 			p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
 		}
 	} else {
-		p.fillRect(r, st::white->b);
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.fillRect(r, st::boxBg);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_country_none), style::al_center);
 	}
 }

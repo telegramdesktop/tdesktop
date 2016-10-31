@@ -235,25 +235,25 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
-	p.setOpacity(0.5);
 	if (_cropy > 0) {
-		p.fillRect(QRect(0, 0, _cropx + _cropw, _cropy), st::black->b);
+		p.fillRect(QRect(0, 0, _cropx + _cropw, _cropy), st::photoCropFadeBg);
 	}
 	if (_cropx + _cropw < _thumbw) {
-		p.fillRect(QRect(_cropx + _cropw, 0, _thumbw - _cropx - _cropw, _cropy + _cropw), st::black->b);
+		p.fillRect(QRect(_cropx + _cropw, 0, _thumbw - _cropx - _cropw, _cropy + _cropw), st::photoCropFadeBg);
 	}
 	if (_cropy + _cropw < _thumbh) {
-		p.fillRect(QRect(_cropx, _cropy + _cropw, _thumbw - _cropx, _thumbh - _cropy - _cropw), st::black->b);
+		p.fillRect(QRect(_cropx, _cropy + _cropw, _thumbw - _cropx, _thumbh - _cropy - _cropw), st::photoCropFadeBg);
 	}
 	if (_cropx > 0) {
-		p.fillRect(QRect(0, _cropy, _cropx, _thumbh - _cropy), st::black->b);
+		p.fillRect(QRect(0, _cropy, _cropx, _thumbh - _cropy), st::photoCropFadeBg);
 	}
 
-	int32 delta = st::cropPointSize, mdelta(-delta / 2);
-	p.fillRect(QRect(_cropx + mdelta, _cropy + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::white->b);
+	int delta = st::cropPointSize;
+	int mdelta = -delta / 2;
+	p.fillRect(QRect(_cropx + mdelta, _cropy + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::photoCropPointFg);
 }
 
 void PhotoCropBox::resizeEvent(QResizeEvent *e) {

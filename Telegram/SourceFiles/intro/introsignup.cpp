@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introsignup.h"
 
 #include "styles/style_intro.h"
+#include "styles/style_boxes.h"
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
 #include "lang.h"
@@ -32,7 +33,7 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_photoOver(0)
 , _a_error(animation(this, &IntroSignup::step_error))
 , _a_photo(animation(this, &IntroSignup::step_photo))
-, next(this, lang(lng_intro_finish), st::btnIntroNext)
+, next(this, lang(lng_intro_finish), st::introNextButton)
 , first(this, st::inpIntroName, lang(lng_signup_firstname))
 , last(this, st::inpIntroName, lang(lng_signup_lastname))
 , sentRequest(0)
@@ -112,12 +113,12 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 
 		QRect errRect;
 		if (_invertOrder) {
-			errRect = QRect((width() - st::introErrWidth) / 2, (first.y() + first.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
+			errRect = QRect((width() - st::introErrorWidth) / 2, (first.y() + first.height() + next.y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
 		} else {
-			errRect = QRect((width() - st::introErrWidth) / 2, (last.y() + last.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
+			errRect = QRect((width() - st::introErrorWidth) / 2, (last.y() + last.height() + next.y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
 		}
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
+		p.setFont(st::introErrorFont);
+		p.setPen(st::introErrorFg);
 		p.drawText(errRect, error, QTextOption(style::al_center));
 
 		p.setOpacity(1);
@@ -174,7 +175,7 @@ void IntroSignup::showError(const QString &err) {
 }
 
 void IntroSignup::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
+	float64 dt = ms / st::introErrorDuration;
 
 	if (dt >= 1) {
 		_a_error.stop();
@@ -183,13 +184,13 @@ void IntroSignup::step_error(float64 ms, bool timer) {
 			error.clear();
 		}
 	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
 
 void IntroSignup::step_photo(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
+	float64 dt = ms / st::introErrorDuration;
 
 	if (dt >= 1) {
 		_a_photo.stop();

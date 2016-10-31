@@ -67,7 +67,7 @@ public:
 
 	bool psHasNativeNotifications();
 
-	virtual QImage iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) = 0;
 
 	static UINT TaskbarCreatedMsgId() {
 		return _taskbarCreatedMsgId;

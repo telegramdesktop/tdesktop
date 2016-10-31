@@ -310,7 +310,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			statusX = _width - statusW + statusX;
 			p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 			p.setFont(st::normalFont);
-			p.setPen(st::white);
+			p.setPen(st::msgDateImgColor);
 			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
@@ -320,7 +320,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 		p.setFont(st::normalFont);
-		p.setPen(st::white);
+		p.setPen(st::msgDateImgColor);
 		p.drawTextLeft(statusX, statusY, _width, _duration, statusW - 2 * st::msgDateImgPadding.x());
 	}
 
@@ -331,11 +331,10 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(st::msgDateImgBgSelected);
 		} else if (_a_iconOver.animating()) {
 			_a_iconOver.step(context->ms);
-			float64 over = a_iconOver.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.setBrush(st::black);
+			auto over = a_iconOver.current();
+			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
+			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
@@ -488,7 +487,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	int32 namewidth = _width - nameleft - nameright;
 
 	if (clip.intersects(rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
-		p.setPen(st::black);
+		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, nameleft, nametop, namewidth, _width);
 	}
 
@@ -718,13 +717,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
-					p.fillRect(rthumb, st::black);
+					p.fillRect(rthumb, st::overviewFileThumbBg);
 				}
 			} else {
 				p.fillRect(rthumb, documentColor(_colorIndex));
 				if (!radial && loaded && !_ext.isEmpty()) {
 					p.setFont(st::overviewFileExtFont);
-					p.setPen(st::white);
+					p.setPen(st::overviewFileExtFg);
 					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::overviewFileExtTop + st::overviewFileExtFont->ascent, _ext);
 				}
 			}
@@ -735,21 +734,16 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (radial || (!loaded && !_data->loading())) {
 				QRect inner(rthumb.x() + (rthumb.width() - _st.songThumbSize) / 2, rthumb.y() + (rthumb.height() - _st.songThumbSize) / 2, _st.songThumbSize, _st.songThumbSize);
 				if (clip.intersects(inner)) {
-					float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
+					auto radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
 						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
 					} else if (_a_iconOver.animating()) {
 						_a_iconOver.step(context->ms);
-						float64 over = a_iconOver.current();
-						if (wthumb) {
-							p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-							p.setBrush(st::black);
-						} else {
-							p.setBrush(style::interpolate(documentDarkColor(_colorIndex), documentOverColor(_colorIndex), over));
-						}
+						auto over = a_iconOver.current();
+						p.setBrush(style::interpolate(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), over));
 					} else {
-						bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
@@ -785,7 +779,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int availwidth = _width - nameleft - nameright;
 	int namewidth = qMin(availwidth, _name.maxWidth());
 	if (clip.intersects(rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
-		p.setPen(st::black);
+		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, nameleft, nametop, namewidth, _width);
 	}
 
@@ -1072,8 +1066,8 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 			}
 
 			if (!_letter.isEmpty()) {
-				p.setFont(st::linksLetterFont->f);
-				p.setPen(st::white->p);
+				p.setFont(st::linksLetterFont);
+				p.setPen(st::linksLetterFg);
 				p.drawText(rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), _letter, style::al_center);
 			}
 		}
@@ -1092,7 +1086,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		top = st::linksTextTop;
 	}
 
-	p.setPen(st::black);
+	p.setPen(st::linksTextFg);
 	p.setFont(st::semiboldFont);
 	if (!_title.isEmpty()) {
 		if (clip.intersects(rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width))) {
@@ -1100,7 +1094,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		}
 		top += st::semiboldFont->height;
 	}
-	p.setFont(st::msgFont->f);
+	p.setFont(st::msgFont);
 	if (!_text.isEmpty()) {
 		int32 h = qMin(st::normalFont->height * 3, _text.countHeight(w));
 		if (clip.intersects(rtlrect(left, top, w, h, _width))) {

@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
+// basic
 windowBg: #ffffff; // white: fallback for background
 windowTextFg: #000000; // black: fallback for text color
 windowSubTextFg: #8a8a8a; // gray: fallback for subtext color
@@ -28,5 +29,111 @@ windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over
 windowActiveTextFg: #1485c2; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
 
+imageBg: #000000;
+imageBgTransparent: #ffffff;
+
+// tray icon
+trayCounterBg: #f23c34;
+trayCounterBgMute: #888888;
+trayCounterFg: #ffffff;
+trayCounterBgMacInvert: #ffffff;
+trayCounterFgMacInvert: #ffffff01;
+
+cancelIconFg: #a2a2a2;
+cancelIconFgOver: #808080;
+
+activeButtonBg: windowActiveFill;
+activeButtonBgOver: #46b4eb | activeButtonBg;
+activeButtonFg: #ffffff;
+activeButtonFgOver: activeButtonFg;
+activeButtonSecondaryFg: #cceeff;
+activeButtonSecondaryFgOver: activeButtonSecondaryFg;
+
+lightButtonBg: windowBg;
+lightButtonBgOver: #f2f7fa | lightButtonBg;
+lightButtonFg: #2b99d5;
+lightButtonFgOver: lightButtonFg;
+
+// window title
+titleCounterBg: trayCounterBg;
+titleCounterBgMute: trayCounterBgMute;
+titleCounterFg: trayCounterFg;
+
+// layers
+layerBg: #0000007f;
+
+// boxes
 boxBg: windowBg;
-boxTitleFg: #444444 | windowTextFg;
+boxTextFg: windowTextFg;
+boxTextFgGood: #4ab44a;
+boxTextFgError: #d84d4d;
+boxTitleFg: #404040 | windowTextFg;
+boxSearchBg: boxBg;
+boxSearchCancelIconFg: cancelIconFg;
+boxSearchCancelIconFgOver: cancelIconFgOver;
+
+membersAboutLimitFg: windowSubTextFg;
+
+contactsBg: windowBg;
+contactsBgOver: windowOverBg;
+contactsNameFg: boxTextFg;
+
+photoCropFadeBg: #0000007f;
+photoCropPointFg: #ffffff7f;
+
+// settings
+settingsBg: windowBg;
+settingsFixedBarBg: settingsBg;
+settingsCloseFg: cancelIconFg;
+settingsCloseFgOver: cancelIconFgOver;
+
+notificationsBoxMonitorFg: windowTextFg;
+
+notificationSampleUserpicFg: windowActiveFill;
+notificationSampleCloseFg: #d7d7d7 | windowSubTextFg;
+notificationSampleTextFg: #d7d7d7 | windowSubTextFg;
+notificationSampleNameFg: #939393 | windowSubTextFg;
+
+// intro
+introHeaderFg: windowTextFg;
+introErrorFg: windowTextFg;
+
+// history
+topBarBg: windowBg;
+
+historyComposeAreaBg: windowBg;
+historyPinnedBg: historyComposeAreaBg;
+historyReplyBg: historyComposeAreaBg;
+historyReplyCancelIconFg: cancelIconFg;
+historyReplyCancelIconFgOver: cancelIconFgOver;
+
+historySendBg: historyComposeAreaBg;
+historySendBgOver: #f5f5f5 | historySendBg;
+
+historyTextInFg: windowTextFg;
+historyTextOutFg: windowTextFg;
+historyCaptionInFg: historyTextInFg;
+historyCaptionOutFg: historyTextOutFg;
+historyFileNameInFg: historyTextInFg;
+historyFileNameOutFg: historyTextOutFg;
+
+// mediaview
+mediaviewFileBg: windowBg;
+mediaviewFileNameFg: windowTextFg;
+mediaviewFileSizeFg: windowSubTextFg;
+mediaviewFileRedCornerFg: #d55959;
+mediaviewFileYellowCornerFg: #e8a659;
+mediaviewFileGreenCornerFg: #49a957;
+mediaviewFileBlueCornerFg: #599dcf;
+mediaviewFileExtFg: activeButtonFg;
+
+mediaviewMenuBg: #383838;
+mediaviewMenuBgOver: #505050;
+mediaviewMenuFg: #ffffff;
+
+mediaviewBg: #222222eb;
+mediaviewVideoBg: #000000;
+mediaviewControlBg: #0000003c;
+
+// notification
+notificationBg: windowBg;

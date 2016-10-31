@@ -41,6 +41,22 @@ IconButton {
 	duration: int;
 }
 
+MaskButton {
+	width: pixels;
+	height: pixels;
+
+	bg: color;
+	icon: icon;
+
+	iconBg: color;
+	iconBgOver: color;
+
+	iconPosition: point;
+	downIconPosition: point;
+
+	duration: int;
+}
+
 MediaSlider {
 	width: pixels;
 	activeFg: color;
@@ -92,6 +108,7 @@ MultiSelectItem {
 }
 
 MultiSelect {
+	bg: color;
 	padding: margins;
 	maxHeight: pixels;
 	scroll: flatScroll;
@@ -103,7 +120,7 @@ MultiSelect {
 	fieldMinWidth: pixels;
 	fieldIcon: icon;
 	fieldIconSkip: pixels;
-	fieldCancel: IconButton;
+	fieldCancel: MaskButton;
 	fieldCancelSkip: pixels;
 }
 
@@ -173,6 +190,12 @@ defaultIconButton: IconButton {
 	duration: 150;
 }
 
+defaultMaskButton: MaskButton {
+	iconPosition: point(-1px, -1px);
+	downIconPosition: point(-1px, -1px);
+	duration: 150;
+}
+
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 
@@ -191,10 +214,10 @@ defaultMenuArrow: icon {{ "dropdown_submenu_arrow", #373737 }};
 defaultMenu: Menu {
 	skip: 5px;
 
-	itemBg: white;
+	itemBg: windowBg;
 	itemBgOver: windowOverBg;
-	itemFg: black;
-	itemFgOver: black;
+	itemFg: windowTextFg;
+	itemFgOver: windowTextFg;
 	itemFgDisabled: #cccccc;
 	itemFgShortcut: #999999;
 	itemFgShortcutOver: #7c99b2;

@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stickers/emoji_pan.h"
 
 #include "styles/style_stickers.h"
+#include "styles/style_intro.h"
 #include "ui/buttons/icon_button.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
@@ -91,7 +92,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	_shadow.paint(p, r, st::defaultDropdownShadowShift);
 
 	if (_cache.isNull()) {
-		p.fillRect(e->rect().intersected(r), st::white);
+		p.fillRect(e->rect().intersected(r), st::emojiPanBg);
 
 		int32 x = w + 2 * st::emojiColorsPadding + st::emojiPanSize.width();
 		if (rtl()) x = width() - x - st::emojiColorsSep;
@@ -342,7 +343,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::emojiPanBg);
 
 	int32 fromcol = floorclamp(r.x() - st::emojiPanPadding, st::emojiPanSize.width(), 0, EmojiPanPerRow);
 	int32 tocol = ceilclamp(r.x() + r.width() - st::emojiPanPadding, st::emojiPanSize.width(), 0, EmojiPanPerRow);
@@ -942,7 +943,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	p.fillRect(r, st::white);
+	p.fillRect(r, st::emojiPanBg);
 
 	if (showingInlineItems()) {
 		paintInlineItems(p, r);
@@ -2750,7 +2751,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 
 	if (_toCache.isNull()) {
 		if (_cache.isNull()) {
-			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::white->b);
+			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::emojiPanBg);
 			if (_stickersShown && s_inner.showSectionIcons()) {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height, st::emojiPanCategories);
 				paintStickerSettingsIcon(p);
@@ -2804,22 +2805,22 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
 					if (o_right > 0) {
 						p.setOpacity(o_right);
-						st::stickerIconRight.fill(p, rtlrect(width() - _iconsLeft - 7 * st::emojiCategory.width, _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
+						st::stickerIconRight.fill(p, rtlrect(_iconsLeft + 7 * st::emojiCategory.width - st::stickerIconRight.width(), _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
 					}
 				}
 			} else if (_stickersShown) {
 				int32 x = rtl() ? (_recent->x() + _recent->width()) : (_objects->x() + _objects->width());
-				p.fillRect(x, _recent->y(), r.left() + r.width() - x, st::emojiCategory.height, st::white);
+				p.fillRect(x, _recent->y(), r.left() + r.width() - x, st::emojiCategory.height, st::emojiPanBg);
 			} else {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height, st::emojiPanCategories);
 			}
 		} else {
-			p.fillRect(r, st::white);
+			p.fillRect(r, st::emojiPanBg);
 			p.drawPixmap(r.left(), r.top(), _cache);
 		}
 	} else {
-		p.fillRect(QRect(r.left(), r.top(), r.width(), r.height() - st::emojiCategory.height), st::white->b);
-		p.fillRect(QRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height), st::emojiPanCategories->b);
+		p.fillRect(QRect(r.left(), r.top(), r.width(), r.height() - st::emojiCategory.height), st::emojiPanBg);
+		p.fillRect(QRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height), st::emojiPanCategories);
 		p.setOpacity(o * a_fromAlpha.current());
 		QRect fromDst = QRect(r.left() + a_fromCoord.current(), r.top(), _fromCache.width() / cIntRetinaFactor(), _fromCache.height() / cIntRetinaFactor());
 		QRect fromSrc = QRect(0, 0, _fromCache.width(), _fromCache.height());

@@ -58,8 +58,8 @@ TitleWidget::Hider::Hider(QWidget *parent) : TWidget(parent) {
 
 void TitleWidget::Hider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	p.setOpacity(_level * st::layerAlpha);
-	p.fillRect(App::main()->dlgsWidth(), 0, width() - App::main()->dlgsWidth(), height(), st::layerBg->b);
+	p.setOpacity(_level);
+	p.fillRect(App::main()->dlgsWidth(), 0, width() - App::main()->dlgsWidth(), height(), st::layerBg);
 }
 
 void TitleWidget::Hider::mousePressEvent(QMouseEvent *e) {
@@ -325,8 +325,6 @@ void TitleWidget::updateCounter() {
 	int32 counter = App::histories().unreadBadge();
 	bool muted = App::histories().unreadOnlyMuted();
 
-	auto &bg = (muted ? st::counterMuteBg : st::counterBg);
-
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;
 		switch (cScale()) {
@@ -334,7 +332,9 @@ void TitleWidget::updateCounter() {
 		case dbisOneAndHalf: size = -24; break;
 		case dbisTwo: size = -32; break;
 		}
-		_counter = App::pixmapFromImageInPlace(App::wnd()->iconWithCounter(size, counter, bg, false));
+		auto &bg = (muted ? st::titleCounterBgMute : st::titleCounterBg);
+		auto &fg = st::titleCounterFg;
+		_counter = App::pixmapFromImageInPlace(App::wnd()->iconWithCounter(size, counter, bg, fg, false));
 		_counter.setDevicePixelRatio(cRetinaFactor());
 		update(QRect(st::titleCounterPosition, _counter.size() / cIntRetinaFactor()));
 	} else {

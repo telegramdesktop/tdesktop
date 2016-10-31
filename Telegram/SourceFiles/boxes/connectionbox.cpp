@@ -250,7 +250,7 @@ void AutoDownloadBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	p.setPen(st::black);
+	p.setPen(st::boxTextFg);
 	p.setFont(st::semiboldFont);
 	p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), lang(lng_media_auto_photo));
 	p.drawTextLeft(st::boxTitlePosition.x(), _sectionHeight + st::boxTitlePosition.y(), width(), lang(lng_media_auto_audio));

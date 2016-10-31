@@ -192,13 +192,13 @@ RoundButton {
 	icon: icon;
 
 	font: font;
-	duration: int;
 }
 
 Checkbox {
 	textFg: color;
 	textBg: color;
 
+	checkBg: color;
 	checkFg: color;
 	checkFgOver: color;
 	checkFgActive: color;
@@ -219,6 +219,7 @@ Radiobutton {
 	textFg: color;
 	textBg: color;
 
+	checkBg: color;
 	checkFg: color;
 	checkFgOver: color;
 	checkFgActive: color;
@@ -236,6 +237,7 @@ Radiobutton {
 }
 
 InputArea {
+	textBg: color;
 	textFg: color;
 	textMargins: margins;
 

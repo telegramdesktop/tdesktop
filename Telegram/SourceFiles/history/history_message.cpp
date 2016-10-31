@@ -247,7 +247,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 	if (flags & PaintInBubble) {
 		bar = ((flags & PaintSelected) ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
 	} else {
-		bar = st::white;
+		bar = st::msgImgReplyBarColor;
 	}
 	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
 	p.fillRect(rbar, bar);
@@ -271,7 +271,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				if (flags & PaintInBubble) {
 					p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 				} else {
-					p.setPen(st::white);
+					p.setPen(st::msgImgReplyBarColor);
 				}
 				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				if (_replyToVia && w > st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew) {
@@ -292,7 +292,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 		} else {
 			p.setFont(st::msgDateFont);
 			style::color date(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-			p.setPen((flags & PaintInBubble) ? date : st::white);
+			p.setPen((flags & PaintInBubble) ? date : st::msgDateImgColor);
 			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
 		}
 	}
@@ -316,9 +316,9 @@ void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect,
 		howMuchOver = 1.;
 	}
 	if (howMuchOver > 0) {
-		float64 o = p.opacity();
-		p.setOpacity(o * (howMuchOver * st::msgBotKbOverOpacity));
-		App::roundRect(p, rect, st::white, WhiteCorners);
+		auto o = p.opacity();
+		p.setOpacity(o * howMuchOver);
+		App::roundRect(p, rect, st::msgBotKbOverBg, BotKbOverCorners);
 		p.setOpacity(o);
 	}
 }
@@ -1412,7 +1412,8 @@ void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) 
 }
 
 void HistoryMessage::paintText(Painter &p, QRect &trect, TextSelection selection) const {
-	p.setPen(st::msgColor);
+	bool outbg = out() && !isPost();
+	p.setPen(outbg ? st::historyTextOutFg : st::historyTextInFg);
 	p.setFont(st::msgFont);
 	_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selection);
 }

@@ -927,7 +927,7 @@ void prepareFormattingOptimization(QTextDocument *document) {
 	}
 }
 
-void removeTags(QTextDocument *document, int from, int end) {
+void removeTags(const style::color &textFg, QTextDocument *document, int from, int end) {
 	QTextCursor c(document->docHandle(), 0);
 	c.setPosition(from);
 	c.setPosition(end, QTextCursor::KeepAnchor);
@@ -935,12 +935,12 @@ void removeTags(QTextDocument *document, int from, int end) {
 	QTextCharFormat format;
 	format.setAnchor(false);
 	format.setAnchorName(QString());
-	format.setForeground(st::black);
+	format.setForeground(textFg);
 	c.mergeCharFormat(format);
 }
 
 // Returns the position of the first inserted tag or "changedEnd" value if none found.
-int processInsertedTags(QTextDocument *document, int changedPosition, int changedEnd, const FlatTextarea::TagList &tags, FlatTextarea::TagMimeProcessor *processor) {
+int processInsertedTags(const style::color &textFg, QTextDocument *document, int changedPosition, int changedEnd, const FlatTextarea::TagList &tags, FlatTextarea::TagMimeProcessor *processor) {
 	int firstTagStart = changedEnd;
 	int applyNoTagFrom = changedEnd;
 	for_const (auto &tag, tags) {
@@ -955,7 +955,7 @@ int processInsertedTags(QTextDocument *document, int changedPosition, int change
 			prepareFormattingOptimization(document);
 
 			if (applyNoTagFrom < tagFrom) {
-				removeTags(document, applyNoTagFrom, tagFrom);
+				removeTags(textFg, document, applyNoTagFrom, tagFrom);
 			}
 			QTextCursor c(document->docHandle(), 0);
 			c.setPosition(tagFrom);
@@ -971,7 +971,7 @@ int processInsertedTags(QTextDocument *document, int changedPosition, int change
 		}
 	}
 	if (applyNoTagFrom < changedEnd) {
-		removeTags(document, applyNoTagFrom, changedEnd);
+		removeTags(textFg, document, applyNoTagFrom, changedEnd);
 	}
 
 	return firstTagStart;
@@ -1036,7 +1036,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 
 	// Apply inserted tags.
 	auto insertedTagsProcessor = _insertedTagsAreFromMime ? _tagMimeProcessor.get() : nullptr;
-	int breakTagOnNotLetterTill = processInsertedTags(doc, insertPosition, insertEnd,
+	int breakTagOnNotLetterTill = processInsertedTags(_st.textColor, doc, insertPosition, insertEnd,
 		_insertedTags, insertedTagsProcessor);
 	using ActionType = FormattingAction::Type;
 	while (true) {
@@ -1143,7 +1143,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 				QTextCharFormat format;
 				format.setAnchor(false);
 				format.setAnchorName(QString());
-				format.setForeground(st::black);
+				format.setForeground(_st.textColor);
 				c.mergeCharFormat(format);
 			} else if (action.type == ActionType::TildeFont) {
 				QTextCharFormat format;

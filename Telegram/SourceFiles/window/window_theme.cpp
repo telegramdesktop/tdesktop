@@ -174,7 +174,7 @@ void applyBackground(QImage &&background, bool tiled, Instance *out) {
 }
 
 bool loadThemeFromCache(const QByteArray &content, Cached &cache) {
-	if (cache.paletteChecksum != style::palette::kChecksum) {
+	if (cache.paletteChecksum != style::palette::Checksum()) {
 		return false;
 	}
 	if (cache.contentChecksum != hashCrc32(content.constData(), content.size())) {
@@ -285,7 +285,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 	} else {
 		cache.colors = style::main_palette::save();
 	}
-	cache.paletteChecksum = style::palette::kChecksum;
+	cache.paletteChecksum = style::palette::Checksum();
 	cache.contentChecksum = hashCrc32(content.constData(), content.size());
 
 	return true;

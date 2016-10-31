@@ -1942,8 +1942,8 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		int inCacheTop = st::topBarHeight;
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
-			p.setOpacity(a_progress.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black);
+			p.setOpacity(a_progress.current());
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
@@ -1952,7 +1952,7 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	p.fillRect(e->rect(), st::white);
+	p.fillRect(e->rect(), st::windowBg);
 }
 
 void OverviewWidget::contextMenuEvent(QContextMenuEvent *e) {
@@ -1976,8 +1976,8 @@ void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) 
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
-			p.setOpacity(a_progress.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::black);
+			p.setOpacity(a_progress.current());
+			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));

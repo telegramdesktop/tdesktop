@@ -281,7 +281,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
 		}
 		p.setFont(st::semiboldFont);
-		p.setPen(st::black);
+		p.setPen(st::historyFileNameOutFg);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
 		style::color status(st::mediaOutFg);
@@ -599,7 +599,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			icon->paintInCenter(p, inner);
 		}
 		p.setFont(st::semiboldFont);
-		p.setPen(st::black);
+		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
 		style::color status(st::mediaInFg);
@@ -608,13 +608,13 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
 	} else {
 		p.setFont(st::boxTitleFont);
-		p.setPen(st::black);
+		p.setPen(st::boxTextFg);
 		p.drawTextLeft(_field->x(), st::boxPhotoPadding.top(), width(), lang(lng_edit_message));
 	}
 
 	if (!_error.isEmpty()) {
 		p.setFont(st::normalFont);
-		p.setPen(st::setErrColor);
+		p.setPen(st::boxTextFgError);
 		p.drawTextLeft(_field->x(), _field->y() + _field->height() + (st::boxButtonPadding.top() / 2), width(), _error);
 	}
 }

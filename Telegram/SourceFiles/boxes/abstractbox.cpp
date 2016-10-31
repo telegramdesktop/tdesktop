@@ -19,11 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/abstractbox.h"
 
 #include "localstorage.h"
-
-#include "abstractbox.h"
+#include "lang.h"
+#include "ui/buttons/icon_button.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "styles/style_boxes.h"
@@ -33,45 +33,6 @@ void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 
 	QRect r(e->rect());
 	st::boxBlueTitleShadow.fill(p, QRect(r.left(), 0, r.width(), height()));
-}
-
-BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)
-, a_iconFg(st::boxBlueCloseFg->c)
-, _a_over(animation(this, &BlueTitleClose::step_over)) {
-	resize(st::boxTitleHeight, st::boxTitleHeight);
-	setCursor(style::cur_pointer);
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-}
-
-void BlueTitleClose::onStateChange(int oldState, ButtonStateChangeSource source) {
-	if ((oldState & StateOver) != (_state & StateOver)) {
-		a_iconFg.start(((_state & StateOver) ? st::boxBlueCloseOverFg : st::boxBlueCloseFg)->c);
-		_a_over.start();
-	}
-}
-
-void BlueTitleClose::step_over(float64 ms, bool timer) {
-	float64 dt = ms / st::boxBlueCloseDuration;
-	if (dt >= 1) {
-		_a_over.stop();
-		a_iconFg.finish();
-	} else {
-		a_iconFg.update(dt, anim::linear);
-	}
-	if (timer) update((st::boxTitleHeight - st::boxBlueCloseIcon.width()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.height()) / 2, st::boxBlueCloseIcon.width(), st::boxBlueCloseIcon.height());
-}
-
-void BlueTitleClose::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	QRect r(e->rect()), s((st::boxTitleHeight - st::boxBlueCloseIcon.width()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.height()) / 2, st::boxBlueCloseIcon.width(), st::boxBlueCloseIcon.height());
-	if (!s.contains(r)) {
-		p.fillRect(r, st::boxBlueTitleBg);
-	}
-	if (s.intersects(r)) {
-		p.fillRect(s.intersected(r), a_iconFg.current());
-		st::boxBlueCloseIcon.paint(p, s.topLeft(), width());
-	}
 }
 
 AbstractBox::AbstractBox(int w) : LayerWidget() {
@@ -116,8 +77,8 @@ bool AbstractBox::paint(QPainter &p) {
 void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
 	p.setFont(st::boxTitleFont);
 	if (_blueTitle) {
-		p.fillRect(0, 0, width(), st::boxTitleHeight, st::boxBlueTitleBg->b);
-		p.setPen(st::white);
+		p.fillRect(0, 0, width(), st::boxTitleHeight, st::boxBlueTitleBg);
+		p.setPen(st::boxBlueTitleFg);
 
 		int32 titleWidth = st::boxTitleFont->width(title);
 		p.drawTextLeft(st::boxBlueTitlePosition.x(), st::boxBlueTitlePosition.y(), width(), title, titleWidth);
@@ -175,12 +136,9 @@ void AbstractBox::onClose() {
 
 void AbstractBox::setBlueTitle(bool blue) {
 	_blueTitle = blue;
-	delete _blueShadow;
-	_blueShadow = new BlueTitleShadow(this);
-	delete _blueClose;
-	_blueClose = new BlueTitleClose(this);
-	_blueClose->setAttribute(Qt::WA_OpaquePaintEvent);
-	connect(_blueClose, SIGNAL(clicked()), this, SLOT(onClose()));
+	_blueShadow.create(this);
+	_blueClose.create(this, st::boxBlueClose);
+	_blueClose->setClickedCallback([this] { onClose(); });
 }
 
 void AbstractBox::raiseShadow() {

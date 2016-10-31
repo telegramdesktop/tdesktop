@@ -165,7 +165,7 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	// draw box title / text
-	p.setPen(st::black->p);
+	p.setPen(st::boxTextFg);
 	textstyleSet(&st::boxTextStyle);
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 	textstyleRestore();
@@ -276,7 +276,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	// draw box title / text
-	p.setPen(st::black->p);
+	p.setPen(st::boxTextFg);
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 
 	QTextOption option(style::al_left);
@@ -286,7 +286,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	p.drawText(_invitationLink, _link, option);
 	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 		p.setOpacity(a_goodOpacity.current());
-		p.setPen(st::setGoodColor);
+		p.setPen(st::boxTextFgGood);
 		p.setFont(st::boxTextFont);
 		p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close->height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 		p.setOpacity(1);
@@ -380,7 +380,7 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, lang(lng_profile_convert_title));
 
 	// draw box title / text
-	p.setPen(st::black);
+	p.setPen(st::boxTextFg);
 	textstyleSet(&st::boxTextStyle);
 	_text.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight, _textWidth, width());
 	_note.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight + _textHeight + st::boxPadding.bottom(), _textWidth, width());

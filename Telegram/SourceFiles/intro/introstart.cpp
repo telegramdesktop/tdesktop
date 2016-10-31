@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 , _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
 , _changeLang(this, QString())
-, _next(this, lang(lng_start_msgs), st::btnIntroNext) {
+, _next(this, lang(lng_start_msgs), st::introNextButton) {
 	_changeLang.hide();
 	if (cLang() == languageDefault) {
 		int32 l = Sandbox::LangSystem();
@@ -68,8 +68,8 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 	}
 	int32 hy = _intro.y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
 
-	p.setFont(st::introHeaderFont->f);
-	p.setPen(st::introColor->p);
+	p.setFont(st::introHeaderFont);
+	p.setPen(st::introHeaderFg);
 	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
 
 	st::aboutIcon.paint(p, QPoint((width() - st::aboutIcon.width()) / 2, hy - st::introIconSkip - st::aboutIcon.height()), width());

@@ -73,7 +73,7 @@ public:
 		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	}
 
-	virtual QImage iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) = 0;
 
 	void closeWithoutDestroy() override;
 

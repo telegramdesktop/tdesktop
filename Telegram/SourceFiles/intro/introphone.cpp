@@ -47,11 +47,11 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroPhone::step_error))
 , changed(false)
-, next(this, lang(lng_intro_next), st::btnIntroNext)
+, next(this, lang(lng_intro_next), st::introNextButton)
 , country(this, st::introCountry)
 , phone(this, st::inpIntroPhone)
 , code(this, st::inpIntroCountryCode)
-, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), FlatLabel::InitType::Rich, st::introErrLabel, st::introErrLabelTextStyle)
+, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), FlatLabel::InitType::Rich, st::introErrorLabel, st::introErrorLabelTextStyle)
 , _showSignup(false)
 , sentRequest(0) {
 	setVisible(false);
@@ -94,11 +94,11 @@ void IntroPhone::paintEvent(QPaintEvent *e) {
 		p.drawText(textRect, lang(lng_phone_desc), style::al_bottom);
 	}
 	if (_a_error.animating() || error.length()) {
-		int32 errorY = _showSignup ? ((phone.y() + phone.height() + next.y() - st::introErrFont->height) / 2) : (next.y() + next.height() + st::introErrTop);
+		int32 errorY = _showSignup ? ((phone.y() + phone.height() + next.y() - st::introErrorFont->height) / 2) : (next.y() + next.height() + st::introErrorTop);
 		p.setOpacity(a_errorAlpha.current());
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
-		p.drawText(QRect(textRect.x(), errorY, textRect.width(), st::introErrFont->height), error, style::al_top);
+		p.setFont(st::introErrorFont);
+		p.setPen(st::introErrorFg);
+		p.drawText(QRect(textRect.x(), errorY, textRect.width(), st::introErrorFont->height), error, style::al_top);
 
 		if (_signup.isHidden() && _showSignup) {
 			p.drawPixmap(_signup.x(), _signup.y(), _signupCache);
@@ -114,7 +114,7 @@ void IntroPhone::resizeEvent(QResizeEvent *e) {
 		phone.move((width() - country.width()) / 2 + country.width() - st::inpIntroPhone.width, phoneTop);
 		code.move((width() - country.width()) / 2, phoneTop);
 	}
-	_signup.move((width() - _signup.width()) / 2, next.y() + next.height() + st::introErrTop - ((st::introErrLabelTextStyle.lineHeight - st::introErrFont->height) / 2));
+	_signup.move((width() - _signup.width()) / 2, next.y() + next.height() + st::introErrorTop - ((st::introErrorLabelTextStyle.lineHeight - st::introErrorFont->height) / 2));
 	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
 
@@ -137,7 +137,7 @@ void IntroPhone::showError(const QString &err, bool signUp) {
 }
 
 void IntroPhone::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
+	float64 dt = ms / st::introErrorDuration;
 
 	if (dt >= 1) {
 		_a_error.stop();
@@ -149,7 +149,7 @@ void IntroPhone::step_error(float64 ms, bool timer) {
 			_signup.show();
 		}
 	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, anim::linear);
 	}
 	if (timer) update();
 }

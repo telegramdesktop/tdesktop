@@ -36,7 +36,7 @@ WebImages webImages;
 
 Image *generateBlankImage() {
 	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	data.fill(QColor(255, 255, 255, 0));
+	data.fill(Qt::transparent);
 	data.setDevicePixelRatio(cRetinaFactor());
 	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
 }
@@ -317,7 +317,7 @@ QImage imageBlur(QImage img) {
 					QPainter p(&imgsmall);
 					p.setCompositionMode(QPainter::CompositionMode_Source);
 					p.setRenderHint(QPainter::SmoothPixmapTransform);
-					p.fillRect(0, 0, w, h, st::transparent->b);
+					p.fillRect(0, 0, w, h, Qt::transparent);
 					p.drawImage(QRect(radius, radius, w - 2 * radius, h - 2 * radius), img, QRect(0, 0, w, h));
 				}
 				QImage was = img;
@@ -423,8 +423,8 @@ const QPixmap &circleMask(int width, int height) {
 			Painter p(&mask);
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(0, 0, width, height, st::transparent);
-			p.setBrush(st::white);
+			p.fillRect(0, 0, width, height, Qt::transparent);
+			p.setBrush(Qt::white);
 			p.setPen(Qt::NoPen);
 			p.drawEllipse(0, 0, width, height);
 		}
@@ -534,7 +534,7 @@ QPixmap imagePix(QImage img, int32 w, int32 h, ImagePixOptions options, int32 ou
 			{
 				QPainter p(&result);
 				if (w < outerw || h < outerh) {
-					p.fillRect(0, 0, result.width(), result.height(), st::black);
+					p.fillRect(0, 0, result.width(), result.height(), st::imageBg);
 				}
 				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}
@@ -576,14 +576,14 @@ QPixmap Image::pixNoCache(int w, int h, ImagePixOptions options, int outerw, int
 		{
 			QPainter p(&result);
 			if (w < outerw) {
-				p.fillRect(0, 0, (outerw - w) / 2, result.height(), st::black);
-				p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), st::black);
+				p.fillRect(0, 0, (outerw - w) / 2, result.height(), st::imageBg);
+				p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), st::imageBg);
 			}
 			if (h < outerh) {
-				p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, st::black);
-				p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), st::black);
+				p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, st::imageBg);
+				p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), st::imageBg);
 			}
-			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::white);
+			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::imageBgTransparent);
 		}
 
 		if (options.testFlag(ImagePixCircled)) {

@@ -477,7 +477,7 @@ Background::Background(QWidget *parent) : TWidget(parent) {
 void Background::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(rect(), st::notifyBg);
+	p.fillRect(rect(), st::notificationBg);
 	p.fillRect(0, 0, st::notifyBorderWidth, height(), st::notifyBorder);
 	p.fillRect(width() - st::notifyBorderWidth, 0, st::notifyBorderWidth, height(), st::notifyBorder);
 	p.fillRect(st::notifyBorderWidth, height() - st::notifyBorderWidth, width() - 2 * st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
@@ -530,11 +530,11 @@ void Notification::prepareActionsCache() {
 	auto actionsCacheHeight = height() - actionsTop;
 	auto actionsCacheImg = QImage(actionsCacheWidth * cIntRetinaFactor(), actionsCacheHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	actionsCacheImg.setDevicePixelRatio(cRetinaFactor());
-	actionsCacheImg.fill(st::transparent->c);
+	actionsCacheImg.fill(Qt::transparent);
 	{
 		Painter p(&actionsCacheImg);
 		st::notifyFadeRight.fill(p, rtlrect(0, 0, fadeWidth, actionsCacheHeight, actionsCacheWidth));
-		p.fillRect(rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notifyBg);
+		p.fillRect(rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
 		p.drawPixmapRight(_replyPadding, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
 	}
 	_buttonsCache = App::pixmapFromImageInPlace(std_::move(actionsCacheImg));
@@ -615,7 +615,7 @@ void Notification::updateNotifyDisplay() {
 	int32 w = width(), h = height();
 	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
-	img.fill(st::notifyBg->c);
+	img.fill(st::notificationBg->c);
 
 	{
 		Painter p(&img);

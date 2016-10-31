@@ -113,8 +113,8 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 		st::contactUserIcon.paint(p, st::boxPadding.left(), _first->y() + st::contactIconTop, width());
 		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone->y() + st::contactIconTop, width());
 	} else {
-		p.setPen(st::black->p);
-		p.setFont(st::boxTextFont->f);
+		p.setPen(st::boxTextFg);
+		p.setFont(st::boxTextFont);
 		int32 h = height() - st::boxTitleHeight - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry->height() - st::boxButtonPadding.bottom();
 		p.drawText(QRect(st::boxPadding.left(), st::boxTitleHeight + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	}
@@ -442,7 +442,7 @@ void GroupInfoBox::leaveEvent(QEvent *e) {
 }
 
 void GroupInfoBox::step_photoOver(float64 ms, bool timer) {
-	float64 dt = ms / st::setPhotoDuration;
+	float64 dt = ms / st::newGroupPhotoDuration;
 	if (dt >= 1) {
 		_a_photoOver.stop();
 		a_photoOver.finish();
@@ -675,7 +675,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
 
 	if (!_channel->isMegagroup() || !_link->isHidden()) {
-		p.setPen(st::black);
+		p.setPen(st::boxTextFg);
 		p.setFont(st::newGroupLinkFont);
 		p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link->isHidden() ? lng_create_group_invite_link : lng_create_group_link));
 	}
@@ -689,7 +689,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			p.drawText(_invitationLink, _channel->inviteLink(), option);
 			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 				p.setOpacity(a_goodOpacity.current());
-				p.setPen(st::setGoodColor);
+				p.setPen(st::boxTextFgGood);
 				p.setFont(st::boxTextFont);
 				p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 				p.setOpacity(1);
@@ -697,11 +697,11 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		if (!_errorText.isEmpty()) {
-			p.setPen(st::setErrColor);
+			p.setPen(st::boxTextFgError);
 			p.setFont(st::boxTextFont);
 			p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _errorText);
 		} else if (!_goodText.isEmpty()) {
-			p.setPen(st::setGoodColor);
+			p.setPen(st::boxTextFgGood);
 			p.setFont(st::boxTextFont);
 			p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodText);
 		}
@@ -1454,7 +1454,7 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	auto peer = row.peer;
 	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
-	p.setPen(st::black);
+	p.setPen(st::contactsNameFg);
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (_revokeWidth + st::contactsCheckPosition.x() * 2);

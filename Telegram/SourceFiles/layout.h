@@ -36,7 +36,7 @@ enum RoundCorners {
 	SmallMaskCorners = 0x00, // for images
 	LargeMaskCorners,
 
-	WhiteCorners,
+	BotKbOverCorners,
 	StickerCorners,
 	StickerSelectedCorners,
 	SelectedOverlaySmallCorners,

@@ -951,7 +951,7 @@ void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, Cont
 	}
 
 	auto checkedRatio = 0.;
-	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::white);
+	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::contactsBg);
 	if (paintDisabledCheck) {
 		paintDisabledCheckUserpic(p, peer, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else if (usingMultiSelect()) {
@@ -970,12 +970,12 @@ void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, Cont
 	}
 	if (checkedRatio > 0) {
 		if (checkedRatio < 1) {
-			p.setPen(style::interpolate(st::black, st::contactsNameCheckedFg, checkedRatio));
+			p.setPen(style::interpolate(st::contactsNameFg, st::contactsNameCheckedFg, checkedRatio));
 		} else {
 			p.setPen(st::contactsNameCheckedFg);
 		}
 	} else {
-		p.setPen(st::black);
+		p.setPen(st::contactsNameFg);
 	}
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
@@ -1047,7 +1047,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 
 	p.setClipRect(r);
 	_time = unixtime();
-	p.fillRect(r, st::white);
+	p.fillRect(r, st::contactsBg);
 
 	uint64 ms = getms();
 	int32 yFrom = r.y(), yTo = r.y() + r.height();
@@ -1057,12 +1057,12 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				if (_chat) {
 					p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
 					p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-					p.setPen(st::black);
+					p.setPen(st::boxTextFg);
 					p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
 					int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 					(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
 				} else {
-					p.fillRect(0, 0, width(), st::contactsNewItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
+					p.fillRect(0, 0, width(), st::contactsNewItemHeight, _newItemSel ? st::contactsBgOver : st::contactsBg);
 					p.setFont(st::contactsNameFont);
 					st::contactsNewItemIcon.paint(p, 0, 0, width());
 					p.setPen(st::contactsNewItemFg);
@@ -1112,7 +1112,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
 				p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-				p.setPen(st::black);
+				p.setPen(st::boxTextFg);
 				p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);

@@ -75,7 +75,7 @@ void CodeInput::correctValue(const QString &was, QString &now) {
 IntroCode::IntroCode(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroCode::step_error))
-, next(this, lang(lng_intro_next), st::btnIntroNext)
+, next(this, lang(lng_intro_next), st::introNextButton)
 , _desc(st::introTextSize.width())
 , _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
 , _noTelegramCodeRequestId(0)
@@ -149,14 +149,14 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 		} break;
 		}
 		if (!callText.isEmpty()) {
-			p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
+			p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrorHeight), callText, style::al_center);
 		}
 	}
 	if (_a_error.animating() || error.length()) {
 		p.setOpacity(a_errorAlpha.current());
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
-		p.drawText(QRect(textRect.left(), next.y() + next.height() + st::introErrTop, st::introTextSize.width(), st::introErrHeight), error, style::al_center);
+		p.setFont(st::introErrorFont);
+		p.setPen(st::introErrorFg);
+		p.drawText(QRect(textRect.left(), next.y() + next.height() + st::introErrorTop, st::introTextSize.width(), st::introErrorHeight), error, style::al_center);
 	}
 }
 
@@ -166,7 +166,7 @@ void IntroCode::resizeEvent(QResizeEvent *e) {
 		code.move((width() - code.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
 	}
 	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
-	_noTelegramCode.move(textRect.left() + (st::introTextSize.width() - _noTelegramCode.width()) / 2, code.y() + code.height() + st::introCallSkip + (st::introErrHeight - _noTelegramCode.height()) / 2);
+	_noTelegramCode.move(textRect.left() + (st::introTextSize.width() - _noTelegramCode.width()) / 2, code.y() + code.height() + st::introCallSkip + (st::introErrorHeight - _noTelegramCode.height()) / 2);
 }
 
 void IntroCode::showError(const QString &err) {
@@ -183,7 +183,7 @@ void IntroCode::showError(const QString &err) {
 }
 
 void IntroCode::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
+	float64 dt = ms / st::introErrorDuration;
 
 	if (dt >= 1) {
 		_a_error.stop();
@@ -192,7 +192,7 @@ void IntroCode::step_error(float64 ms, bool timer) {
 			error.clear();
 		}
 	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, anim::linear);
 	}
 	if (timer) update();
 }

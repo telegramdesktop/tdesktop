@@ -19,9 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "report_box.h"
+#include "boxes/report_box.h"
 
 #include "lang.h"
+#include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "boxes/confirmbox.h"
 #include "ui/buttons/checkbox.h"

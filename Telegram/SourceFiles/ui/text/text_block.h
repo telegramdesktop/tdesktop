@@ -112,7 +112,6 @@ protected:
 
 class NewlineBlock : public ITextBlock {
 public:
-
 	Qt::LayoutDirection nextDirection() const {
 		return _nextDir;
 	}
@@ -122,8 +121,7 @@ public:
 	}
 
 private:
-
-	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, st::transparent, 0), _nextDir(Qt::LayoutDirectionAuto) {
+	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, st::windowTextFg, 0), _nextDir(Qt::LayoutDirectionAuto) {
 		_flags |= ((TextBlockTNewline & 0x0F) << 8);
 	}
 
@@ -133,6 +131,7 @@ private:
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };
 
 class TextWord {

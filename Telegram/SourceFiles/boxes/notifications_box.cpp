@@ -220,7 +220,7 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 	auto height = st::notificationSampleSize.height();
 	auto sampleImage = QImage(width * cIntRetinaFactor(), height * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	sampleImage.setDevicePixelRatio(cRetinaFactor());
-	sampleImage.fill(st::notifyBg->c);
+	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
 		p.setPen(Qt::NoPen);
@@ -263,7 +263,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 	int w = st::notifyWidth, h = st::notifyMinHeight;
 	auto sampleImage = QImage(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	sampleImage.setDevicePixelRatio(cRetinaFactor());
-	sampleImage.fill(st::notifyBg->c);
+	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
 		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);

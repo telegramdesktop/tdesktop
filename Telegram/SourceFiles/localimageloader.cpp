@@ -266,7 +266,7 @@ void FileLoadTask::process() {
 
 		if (fullimage.hasAlphaChannel()) {
 			QImage solid(fullimage.width(), fullimage.height(), QImage::Format_ARGB32_Premultiplied);
-			solid.fill(st::white->c);
+			solid.fill(st::imageBgTransparent->c);
 			{
 				QPainter(&solid).drawImage(0, 0, fullimage);
 			}

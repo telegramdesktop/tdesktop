@@ -47,8 +47,6 @@ protected:
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 
 private:
-	void step_over(float64 ms, bool timer);
-
 	void updateText();
 	void resizeToText();
 
@@ -61,10 +59,6 @@ private:
 	int _fullWidthOverride = 0;
 
 	const style::RoundButton &_st;
-
-	anim::fvalue a_textBgOverOpacity;
-	anim::cvalue a_textFg, a_secondaryTextFg;
-	Animation _a_over;
 
 	TextTransform _transform = TextTransform::NoTransform;
 

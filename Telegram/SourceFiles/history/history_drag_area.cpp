@@ -88,14 +88,14 @@ void DragArea::paintEvent(QPaintEvent *e) {
 	// draw shadow
 	_shadow.paint(p, r, st::boxShadowShift);
 
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::dragBg);
 
 	p.setPen(a_color.current());
 
-	p.setFont(st::dragFont->f);
+	p.setFont(st::dragFont);
 	p.drawText(QRect(0, (height() - st::dragHeight) / 2, width(), st::dragFont->height), _text, QTextOption(style::al_top));
 
-	p.setFont(st::dragSubfont->f);
+	p.setFont(st::dragSubfont);
 	p.drawText(QRect(0, (height() + st::dragHeight) / 2 - st::dragSubfont->height, width(), st::dragSubfont->height * 2), _subtext, QTextOption(style::al_top));
 }
 

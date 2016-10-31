@@ -65,8 +65,8 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 		auto outer = radialRect();
 		QRect inner(QPoint(outer.x() + (outer.width() - st::radialSize.width()) / 2, outer.y() + (outer.height() - st::radialSize.height()) / 2), st::radialSize);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::black);
-		p.setOpacity(radialOpacity * st::radialBgOpacity);
+		p.setOpacity(radialOpacity);
+		p.setBrush(st::radialBg);
 
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 		p.drawEllipse(inner);
@@ -74,7 +74,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 
 		p.setOpacity(1);
 		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-		_radial.draw(p, arc, st::radialLine, st::white);
+		_radial.draw(p, arc, st::radialLine, st::radialFg);
 	} else {
 		p.drawPixmap(0, 0, _background);
 	}

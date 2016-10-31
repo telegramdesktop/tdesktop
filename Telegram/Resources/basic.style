@@ -32,32 +32,18 @@ emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
 
-counterBg: #f23c34;
-counterMuteBg: #888888;
-counterFg: #ffffff;
-counterMacInvFg: #ffffff01;
-
 lineWidth: 1px;
-
-transparent: #ffffff00;
-white: #ffffff;
-black: #000000;
 
 wndMinWidth: 380px;
 
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
-semiboldButtonBlueText: #2b99d5;
-
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
 wndShadow: icon {{ "window_shadow", windowShadowFg }};
 wndShadowShift: 1px;
-
-layerAlpha: 0.5;
-layerBg: black;
 
 labelDefFlat: flatLabel {
 	font: font(fsize);
@@ -98,7 +84,6 @@ defaultBoxButton: RoundButton {
 	downTextTop: 9px;
 
 	font: boxButtonFont;
-	duration: 200;
 }
 cancelBoxButton: RoundButton(defaultBoxButton) {
 	textFg: #aeaeae;
@@ -150,7 +135,8 @@ attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 }
 
 defaultInputArea: InputArea {
-	textFg: black;
+	textBg: windowBg;
+	textFg: windowTextFg;
 	textMargins: margins(5px, 6px, 5px, 4px);
 
 	placeholderFg: #999999;
@@ -174,8 +160,8 @@ defaultInputArea: InputArea {
 	heightMax: 128px;
 }
 defaultInputField: InputField {
-	textBg: white;
-	textFg: black;
+	textBg: windowBg;
+	textFg: windowTextFg;
 	textMargins: margins(0px, 6px, 0px, 4px);
 	textAlign: align(topleft);
 
@@ -199,12 +185,13 @@ defaultInputField: InputField {
 	height: 32px;
 }
 defaultCheckbox: Checkbox {
-	textFg: black;
-	textBg: white;
+	textFg: windowTextFg;
+	textBg: windowBg;
 
+	checkBg: #ffffff;
 	checkFg: #b3b3b3;
 	checkFgOver: #b3b3b3;
-	checkFgActive: #40ace3;
+	checkFgActive: windowActiveFill;
 
 	width: -44px;
 	height: 22px;
@@ -223,9 +210,10 @@ defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	font: boxTextFont;
 }
 defaultRadiobutton: Radiobutton {
-	textFg: black;
-	textBg: white;
+	textFg: windowTextFg;
+	textBg: windowBg;
 
+	checkBg: #ffffff;
 	checkFg: #b3b3b3;
 	checkFgOver: #bfbfbf;
 	checkFgActive: #4eb3ee;
@@ -281,7 +269,6 @@ defaultTooltip: Tooltip {
 	linesMax: 12;
 }
 
-almostTransparent: #ffffff0d;
 boxScroll: flatScroll(solidScroll) {
 	round: 3px;
 	width: 18px;
@@ -312,7 +299,7 @@ shadowToggleDuration: 200;
 
 slideDuration: 240;
 slideShift: 100px;
-slideFadeOut: 0.3;
+slideFadeOutBg: #0000003c;
 slideShadow: icon {{ "slide_shadow", #000000 }};
 slideFunction: transition(easeOutCirc);
 
@@ -347,8 +334,6 @@ sysUnlock: sysButton(sysUpd) {
 	icon: icon {{ "title_button_unlock", titleBg }};
 }
 
-btnWhiteHover: #f5f5f5;
-btnBoxWhiteHover: #fafafa;
 btnYesColor: #0080c0;
 btnYesHover: #0073ad;
 btnNoColor: #8b8b8b;
@@ -375,37 +360,6 @@ titleTextButton: flatButton {
 	cursor: cursor(default);
 }
 
-btnDefFlat: flatButton {
-	duration: 200;
-	cursor: cursor(pointer);
-}
-btnDefBig: flatButton(btnDefFlat) {
-	textTop: 11px;
-	overTextTop: 11px;
-	downTextTop: 12px;
-
-	font: font(23px);
-	overFont: font(23px);
-	height: 56px;
-}
-btnNextBG: #2fa9e2;
-btnDefNext: flatButton(btnDefFlat) {
-	color: white;
-	overColor: white;
-	downColor: white;
-	bgColor: btnNextBG;
-	overBgColor: #279ad0;
-	downBgColor: #279ad0;
-}
-btnDefBack: flatButton(btnDefFlat) {
-	color: white;
-	overColor: white;
-	downColor: white;
-	bgColor: #c7c7c7;
-	overBgColor: #b9b9b9;
-	downBgColor: #b9b9b9;
-}
-
 linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
@@ -430,9 +384,9 @@ inpDefFlat: flatInput {
 	cursor: cursor(text);
 
 	borderWidth: 0px;
-	borderColor: black;
-	borderActive: black;
-	borderError: black;
+	borderColor: transparent;
+	borderActive: transparent;
+	borderError: transparent;
 
 	phColor: #949494;
 	phFocusColor: #aaaaaa;
@@ -452,25 +406,6 @@ inpDefGray: flatInput(inpDefFlat) {
 	borderActive: #54c3f3;
 	borderError: #ed8080;
 	phColor: #808080;
-}
-
-taDefFlat: flatTextarea {
-	textColor: #000000;
-	bgColor: #ffffff;
-	align: align(left);
-	textMrg: margins(5px, 5px, 5px, 5px);
-	font: inpDefFont;
-	cursor: cursor(text);
-
-	phColor: #999999;
-	phFocusColor: #aaaaaa;
-	phAlign: align(topleft);
-	phPos: point(2px, 0px);
-	phShift: 50px;
-	phDuration: 100;
-	phLeftFunc: transition(linear);
-	phAlphaFunc: transition(linear);
-	phColorFunc: transition(linear);
 }
 
 scrollDef: flatScroll {
@@ -505,83 +440,9 @@ scrollCountries: flatScroll(scrollDef) {
 
 lnkText: #0f7dc7;
 
-introBtnTop: 288px;
-introSkip: 45px;
-introFinishSkip: 15px;
-introPhotoSize: 98px;
-introHeaderFont: font(24px);
-introHeaderSkip: 14px;
-introIconSkip: 54px;
-introFont: font(16px);
-introLink: linkButton(btnDefLink) {
-	font: introFont;
-	overFont: font(16px underline);
-}
-introColor: black;
-introLabel: flatLabel(labelDefFlat) {
-	font: introFont;
-	align: align(center);
-}
-
-introStepSize: size(400px, 200px);
-introSize: size(400px, 400px);
-introSlideShift: 500px; // intro hiding animation
-introSlideDuration: 200;
-introSlideDelta: 0; // between hide start and show start
-introHideFunc: transition(easeInCirc);
-introShowFunc: transition(easeOutCirc);
-introAlphaHideFunc: transition(easeOutCirc);
-introAlphaShowFunc: transition(easeInCirc);
-introTextTop: 22px;
-introTextSize: size(400px, 93px);
-introCallSkip: 15px;
-introPwdTextSize: size(400px, 73px);
-
-btnIntroSep: 12px;
-btnIntroNext: flatButton(btnDefNext, btnDefBig) {
-	textTop: 16px;
-	overTextTop: 16px;
-	downTextTop: 17px;
-
-	font: font(17px);
-	overFont: font(17px);
-
-	width: 300px;
-	radius: buttonRadius;
-}
-
 boxShadow: icon {{ "box_shadow", windowShadowFg }};
 boxShadowShift: 2px;
 
-introPhoneTop: 8px;
-inpIntroCountryCode: flatInput(inpDefGray) {
-	width: 70px;
-	height: 41px;
-	align: align(center);
-}
-inpIntroPhone: flatInput(inpDefGray) {
-	textMrg: margins(12px, 5px, 12px, 6px);
-	width: 225px;
-	height: 41px;
-}
-inpIntroCode: flatInput(inpDefGray) {
-	textMrg: margins(12px, 5px, 12px, 6px);
-	width: 106px;
-	height: 41px;
-	align: align(center);
-
-	phPos: point(0px, 0px);
-	phAlign: align(center);
-	phShift: 0px;
-}
-inpIntroName: flatInput(inpIntroPhone) {
-	width: 192px;
-}
-inpIntroPassword: flatInput(inpIntroPhone) {
-	width: 300px;
-}
-
-introSelectDelta: 30px;
 btnSelectSep: #e0e0e0;
 btnRedLink: linkButton(btnDefLink) {
 	color: #d15948;
@@ -591,34 +452,24 @@ btnRedLink: linkButton(btnDefLink) {
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
+countryRowNameFg: boxTextFg;
 countryRowPadding: margins(22px, 9px, 8px, 0px);
 countryRowCodeFont: font(fsize);
+countryRowBg: windowBg;
 countryRowBgOver: windowOverBg;
-countryRowCodeFg: #808080;
-countryRowCodeFgOver: #7c99b2;
+countryRowCodeFg: windowSubTextFg;
+countryRowCodeFgOver: windowSubTextFgOver;
 countriesSkip: 12px;
 countriesScroll: flatScroll(boxScroll) {
 	deltat: 9px;
 	deltab: 3px;
 }
 
-introErrWidth: 450px;
-introErrDuration: 200;
-introErrFunc: transition(linear);
-introErrColor: black;
-introErrTop: 15px;
-introErrHeight: 40px;
-introErrFont: font(16px);
-
 setLittleSkip: 9px;
 setScroll: flatScroll(scrollDef) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
-setPhotoDuration: 150;
-
-setErrColor: #d84d4d;
-setGoodColor: #4ab44a;
 
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
@@ -638,7 +489,6 @@ dlgFilter: flatInput(inpDefGray) {
 }
 
 topBarHeight: 54px;
-topBarBG: white;
 topBarDuration: 200;
 topBarForward: icon {{ "title_next", #a3a3a3 }};
 topBarBackward: icon {{ "title_previous", #a3a3a3 }};
@@ -650,10 +500,10 @@ topBarBackFont: font(16px);
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
 topBarMinPadding: 5px;
 topBarButton: RoundButton {
-	textFg: #0084c4;
-	textFgOver: #0084c4;
-	secondaryTextFg: #0084c4;
-	secondaryTextFgOver: #0084c4;
+	textFg: btnYesColor;
+	textFgOver: btnYesColor;
+	secondaryTextFg: btnYesColor;
+	secondaryTextFgOver: btnYesColor;
 	textBg: windowBg;
 	textBgOver: #edf4f7;
 
@@ -665,15 +515,14 @@ topBarButton: RoundButton {
 	downTextTop: 7px;
 
 	font: font(fsize);
-	duration: 200;
 }
 defaultActiveButton: RoundButton {
-	textFg: #ffffff;
-	textFgOver: #ffffff;
-	secondaryTextFg: #cceeff;
-	secondaryTextFgOver: #cceeff;
-	textBg: windowActiveFill;
-	textBgOver: #46b4eb;
+	textFg: activeButtonFg;
+	textFgOver: activeButtonFgOver;
+	secondaryTextFg: activeButtonSecondaryFg;
+	secondaryTextFgOver: activeButtonSecondaryFgOver;
+	textBg: activeButtonBg;
+	textBgOver: activeButtonBgOver;
 
 	secondarySkip: 7px;
 
@@ -685,14 +534,14 @@ defaultActiveButton: RoundButton {
 	downTextTop: 9px;
 
 	font: semiboldFont;
-	duration: 200;
 }
-topBarClearButton: RoundButton(defaultActiveButton) {
-	textFg: semiboldButtonBlueText;
-	textFgOver: semiboldButtonBlueText;
-	textBg: #ffffff;
-	textBgOver: #f2f7fa;
-
+defaultLightButton: RoundButton(defaultActiveButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: lightButtonBg;
+	textBgOver: lightButtonBgOver;
+}
+topBarClearButton: RoundButton(defaultLightButton) {
 	width: -18px;
 }
 topBarActionSkip: 10px;
@@ -741,10 +590,11 @@ msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
 msgInReplyBarColor: #2fa9e2;
 msgInReplyBarSelColor: #2fa9e2;
+msgImgReplyBarColor: #ffffff;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbOverOpacity: 0.1;
+msgBotKbOverBg: #fffffffc;
 msgBotKbIconPadding: 2px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
@@ -779,24 +629,6 @@ msgDateImgBgOver: #00000074;
 msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
-
-collapseButton: flatButton(btnDefFlat) {
-	font: msgServiceFont;
-	overFont: msgServiceFont;
-	width: -24px;
-	bgColor: transparent;
-	downBgColor: transparent;
-	overBgColor: transparent;
-	color: white;
-	overColor: white;
-	downColor: white;
-	textTop: 3px;
-	overTextTop: 3px;
-	downTextTop: 3px;
-	height: 25px;
-}
-collapseHideDuration: 200;
-collapseShowDuration: 200;
 
 defaultTextStyle: textStyle {
 	linkFlags: font(fsize);
@@ -853,13 +685,6 @@ medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	linkFgDown: #91d9ff;
 }
 
-introLabelTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 30px;
-}
-introErrLabelTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 27px;
-}
-
 mediaPadding: margins(0px, 0px, 0px, 0px);//1px, 1px, 1px, 1px);//2px, 2px, 2px, 2px);
 mediaCaptionSkip: 5px;
 mediaInBubbleSkip: 5px;
@@ -912,8 +737,8 @@ msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
 msgFileThumbNameTop: 12px;
 msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
-msgFileThumbLinkInFg: semiboldButtonBlueText;
-msgFileThumbLinkInFgSelected: semiboldButtonBlueText;
+msgFileThumbLinkInFg: lightButtonFg;
+msgFileThumbLinkInFgSelected: lightButtonFgOver;
 msgFileThumbLinkOutFg: #5eba5b;
 msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
@@ -945,14 +770,17 @@ msgWaveformOutInactive: #b3e2b4;
 msgWaveformOutInactiveSelected: #91c3c3;
 
 sendPadding: 9px;
-btnSend: flatButton(btnDefFlat) {
+btnSend: flatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+
 	color: btnYesColor;
 	overColor: btnYesHover;
 	downColor: btnYesHover;
 
-	bgColor: white;
-	overBgColor: btnWhiteHover;
-	downBgColor: btnWhiteHover;
+	bgColor: historySendBg;
+	overBgColor: historySendBgOver;
+	downBgColor: historySendBgOver;
 
 	width: -32px;
 	height: 46px;
@@ -987,13 +815,11 @@ historyScroll: flatScroll(scrollDef) {
 	bottomsh: -1px;
 }
 textRectMargins: margins(-2px, -1px, -2px, -1px);
-taMsgField: flatTextarea(taDefFlat) {
-	font: msgFont;
-}
-maxFieldHeight: 224px;
-// historyMinHeight: 56px;
 
-reportSpamHide: flatButton(btnDefFlat) {
+reportSpamHide: flatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+
 	color: btnYesColor;
 	overColor: btnYesHover;
 	downColor: btnYesHover;
@@ -1026,6 +852,7 @@ reportSpamButton: flatButton(reportSpamHide) {
 }
 reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;
+reportSpamFg: #000000;
 
 newMsgSound: ":/gui/art/newmsg.wav";
 
@@ -1059,7 +886,6 @@ contactsStatusFont: font(fsize);
 contactsStatusFg: #999999;
 contactsStatusFgOver: #7c99b2;
 contactsStatusFgOnline: #3b8dcc;
-contactsBgOver: windowOverBg;
 contactsCheckPosition: point(8px, 16px);
 contactsAboutBg: #f7f7f7;
 contactsAboutShadow: #0000001F;
@@ -1101,32 +927,7 @@ membersPadding: margins(0px, 10px, 0px, 10px);
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px);
 forwardBg: #0000004c;
-
-newGroupAboutFg: #808080;
-newGroupPadding: margins(4px, 6px, 4px, 3px);
-newGroupSkip: 17px;
-newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
-
-newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
-newGroupLinkTop: 3px;
-newGroupLinkFont: font(16px);
-
-newGroupPhotoSize: 76px;
-newGroupPhotoBg: #4eb5f0;
-newGroupPhotoBgOver: #3fa9e7;
-newGroupPhotoIcon: icon {{ "new_chat_photo", #ffffff }};
-newGroupPhotoIconPosition: point(23px, 25px);
-
-newGroupNamePosition: point(27px, 20px);
-
-newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
-newGroupDescription: InputArea(defaultInputArea) {
-	textMargins: margins(1px, 6px, 1px, 4px);
-	heightMax: 115px;
-}
-
-newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
-newGroupLinkFadeDuration: 5000;
+forwardFg: #ffffff;
 
 connectionHostInputField: InputField(defaultInputField) {
 	width: 160px;
@@ -1171,6 +972,7 @@ connectingBG: #ffffffee;
 connectingColor: #777777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
+dragBg: #ffffff;
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
 dragColor: #777777;
@@ -1180,13 +982,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-dpiActive: black;
-dpiInactive: #999999;
-dpiFont1: linkFont;
-dpiFont2: linkFont;
-dpiFont3: linkFont;
-dpiFont4: linkFont;
 
 botKbDuration: 200;
 botKbBg: #edf1f5;
@@ -1225,8 +1020,6 @@ maxStickerSize: 256px;
 maxGifSize: 320px;
 maxSignatureSize: 144px;
 
-mvBgColor: #222222;
-mvBgOpacity: 0.92;
 mvThickFont: semiboldFont;
 mvFont: font(fsize);
 
@@ -1234,13 +1027,13 @@ mvTextLeft: 16px;
 mvTextSkip: 10px;
 mvHeaderTop: 48px;
 mvTextTop: 24px;
-mvTextColor: white;
+mvTextColor: #ffffff;
 mvTextOpacity: 0.5;
 mvTextOverOpacity: 1;
 
 mvIconOpacity: 0.45;
 mvIconOverOpacity: 1;
-mvControlBgColor: black;
+mvControlFg: #ffffff;
 mvControlBgOpacity: 0.3;
 mvControlMargin: 0px;
 mvControlSize: 90px;
@@ -1251,33 +1044,13 @@ mvHideDuration: 1000;
 mvShowDuration: 200;
 mvFadeDuration: 150;
 
-mvDocPadding: 18px;
-mvDocSize: size(340px, 116px);
-mvDocBg: white;
-mvDocNameTop: 4px;
-mvDocNameFont: font(semibold 14px);
-mvDocNameColor: black;
-mvDocSizeTop: 29px;
-mvDocSizeColor: #808080;
-mvDocExtTop: 35px;
-mvDocExtFont: font(semibold 18px);
-mvDocExtColor: white;
-mvDocExtPadding: 10px;
-mvDocLinksTop: 57px;
-mvDocIconSize: 80px;
-
-mvDocLink: linkButton(btnDefLink) {
-	color: #4595d3;
-	overColor: #4595d3;
-	downColor: #4595d3;
-}
-
 mvDeltaFromLastAction: 5px;
 mvSwipeDistance: 80px;
 
 mvCaptionPadding: margins(18px, 10px, 18px, 10px);
 mvCaptionMargin: size(11px, 11px);
 mvCaptionRadius: 2px;
+mvCaptionFg: #ffffff;
 mvCaptionBg: #11111180;
 mvCaptionFont: font(fsize);
 
@@ -1288,6 +1061,7 @@ medviewSaveMsgCheckPos: point(23px, 21px);
 medviewSaveMsgShowing: 200;
 medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;
+medviewSaveMsgFg: #ffffff;
 medviewSaveMsg: #000000b2;
 
 // Mac specific
@@ -1305,7 +1079,8 @@ radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;
 radialPeriod: 3000;
-radialBgOpacity: 0.4;
+radialFg: #ffffff;
+radialBg: #00000056;
 
 downloadPathSkip: 10px;
 
@@ -1343,22 +1118,6 @@ backgroundScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
 
-passcodeHeaderFont: font(19px);
-passcodeHeaderHeight: 80px;
-passcodeInput: flatInput(inpIntroPhone) {
-}
-passcodeSubmit: flatButton(btnIntroNext) {
-	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
-	width: 225px;
-	font: font(19px);
-	overFont: font(19px);
-}
-passcodeSubmitSkip: 40px;
-passcodePadding: margins(0px, 22px, 0px, 3px);
-passcodeSkip: 31px;
-
 mentionHeight: 40px;
 mentionScroll: flatScroll(scrollDef) {
 	topsh: 0px;
@@ -1367,7 +1126,9 @@ mentionScroll: flatScroll(scrollDef) {
 mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;
+mentionNameFg: windowTextFg;
 mentionPhotoSize: msgPhotoSize;
+mentionBg: #ffffff;
 mentionBgOver: #f5f5f5;
 mentionFg: #777777;
 mentionFgOver: #707070;
@@ -1377,6 +1138,10 @@ mentionFgOverActive: #0077b3;
 webPageLeft: 10px;
 webPageBar: 2px;
 webPageTitleFont: semiboldFont;
+webPageTitleOutFg: historyTextOutFg;
+webPageTitleInFg: historyTextInFg;
+webPageDescriptionOutFg: historyTextOutFg;
+webPageDescriptionInFg: historyTextInFg;
 webPageDescriptionFont: normalFont;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
@@ -1393,6 +1158,7 @@ inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
+inlineTitleFg: windowTextFg;
 inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;
@@ -1425,12 +1191,13 @@ infoButton: PeerAvatarButton {
 profileTopBarBackIconFg: #0290d7;
 profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};
 
-boxCancelIcon: icon {{ "box_cancel", #000000 }};
-historyReplyCancelIcon: icon {{ "box_cancel", #adadad }};
+historyReplyCancelIcon: icon {{ "box_button_close", historyReplyBg }};
+boxSearchCancelIcon: icon {{ "box_button_close", boxSearchBg }};
+settingsFixedBarCloseIcon: icon {{ "box_button_close", settingsFixedBarBg }};
 
-notifyBg: white;
-notifyFadeRight: icon {{ "fade_horizontal_right", notifyBg }};
+notifyFadeRight: icon {{ "fade_horizontal_right", notificationBg }};
 
+emojiPanBg: #ffffff;
 emojiPanCategories: #f7f7f7;
 stickerIconLeft: icon {{ "fade_horizontal_left", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal_right", emojiPanCategories }};

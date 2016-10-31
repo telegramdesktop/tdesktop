@@ -19,13 +19,13 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/passcodebox.h"
 
-#include "passcodebox.h"
+#include "lang.h"
 #include "confirmbox.h"
 #include "mainwindow.h"
-
 #include "localstorage.h"
+#include "styles/style_boxes.h"
 
 PasscodeBox::PasscodeBox(bool turningOff) : AbstractBox(st::boxWidth)
 , _replacedBy(0)
@@ -204,26 +204,25 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
 	int32 abouty = (_passwordHint.isHidden() ? (_reenterPasscode.isHidden() ? (_oldPasscode.y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeSkip : 0)) : _reenterPasscode.y()) + st::passcodeSkip : _passwordHint.y() + st::contactSkip) + _oldPasscode.height();
-	p.setPen(st::black);
+	p.setPen(st::boxTextFg);
 	_about.drawLeft(p, st::boxPadding.left(), abouty, w, width());
 
 	if (!_hintText.isEmpty() && _oldError.isEmpty()) {
-		p.setPen(st::black->p);
 		_hintText.drawLeftElided(p, st::boxPadding.left(), _oldPasscode.y() + _oldPasscode.height() + ((st::passcodeSkip - st::normalFont->height) / 2), w, width(), 1, style::al_topleft);
 	}
 
 	if (!_oldError.isEmpty()) {
-		p.setPen(st::setErrColor->p);
+		p.setPen(st::boxTextFgError);
 		p.drawText(QRect(st::boxPadding.left(), _oldPasscode.y() + _oldPasscode.height(), w, st::passcodeSkip), _oldError, style::al_left);
 	}
 
 	if (!_newError.isEmpty()) {
-		p.setPen(st::setErrColor->p);
+		p.setPen(st::boxTextFgError);
 		p.drawText(QRect(st::boxPadding.left(), _reenterPasscode.y() + _reenterPasscode.height(), w, st::passcodeSkip), _newError, style::al_left);
 	}
 
 	if (!_emailError.isEmpty()) {
-		p.setPen(st::setErrColor->p);
+		p.setPen(st::boxTextFgError);
 		p.drawText(QRect(st::boxPadding.left(), _recoverEmail.y() + _recoverEmail.height(), w, st::passcodeSkip), _emailError, style::al_left);
 	}
 
@@ -525,12 +524,12 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, lang(lng_signin_recover_title));
 
 	p.setFont(st::normalFont);
-	p.setPen(st::black);
+	p.setPen(st::boxTextFg);
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
 	p.drawText(QRect(st::boxPadding.left(), _recoverCode.y() - st::passcodeSkip - st::passcodePadding.top(), w, st::passcodePadding.top() + st::passcodeSkip), _pattern, style::al_left);
 
 	if (!_error.isEmpty()) {
-		p.setPen(st::setErrColor->p);
+		p.setPen(st::boxTextFgError);
 		p.drawText(QRect(st::boxPadding.left(), _recoverCode.y() + _recoverCode.height(), w, st::passcodeSkip), _error, style::al_left);
 	}
 }

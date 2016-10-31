@@ -140,6 +140,27 @@ historyPeer8UserpicBg: #f7b37c;
 historyPeer8UserpicFg: #de8d62;
 historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
 
+historyComposeField: flatTextarea {
+	textColor: #000000;
+	bgColor: historyComposeAreaBg;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: msgFont;
+	cursor: cursor(text);
+
+	phColor: #999999;
+	phFocusColor: #aaaaaa;
+	phAlign: align(topleft);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+	phLeftFunc: transition(linear);
+	phAlphaFunc: transition(linear);
+	phColorFunc: transition(linear);
+}
+historyComposeFieldMaxHeight: 224px;
+// historyMinHeight: 56px;
+
 historyMediaTypeFile: icon {{ "media_type_file", #b3b3b3, point(2px, 2px) }};
 historyMediaTypePhoto: icon {{ "media_type_photo", #bebebe, point(2px, 2px) }};
 historyMediaTypeVideo: icon {{ "media_type_video", #bebebe, point(2px, 2px) }};
@@ -192,13 +213,14 @@ historyRecordSignalMax: 12px;
 historyRecordCancel: #aaaaaa;
 historyRecordCancelActive: #ec6466;
 historyRecordFont: font(13px);
+historyRecordDurationFg: #000000;
 historyRecordTextTop: 14px;
 
 historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: Menu(defaultMenu) {
 		skip: 5px;
 
-		itemBgOver: btnWhiteHover;
+		itemBgOver: historySendBgOver;
 		itemIconPosition: point(12px, 6px);
 		itemIconOpacity: 0.78;
 		itemIconOverOpacity: 1.;
@@ -220,18 +242,18 @@ historyReplyIconPosition: point(13px, 13px);
 historyReplyIcon: icon {{ "history_action_reply", #6fa1d2 }};
 historyForwardIcon: icon {{ "history_action_forward", #6fa1d2 }};
 historyEditIcon: icon {{ "history_action_edit", #6fa1d2 }};
-historyReplyCancel: IconButton(defaultIconButton) {
+historyReplyCancel: MaskButton(defaultMaskButton) {
 	width: 49px;
 	height: 49px;
 
+	bg: historyReplyBg;
 	icon: historyReplyCancelIcon;
-	iconPosition: point(17px, 17px);
-	downIconPosition: point(17px, 18px);
+
+	iconBg: historyReplyCancelIconFg;
+	iconBgOver: historyReplyCancelIconFgOver;
 }
-historyInlineBotCancel: IconButton(historyReplyCancel) {
+historyInlineBotCancel: MaskButton(historyReplyCancel) {
 	height: 46px;
-	iconPosition: point(-1px, 16px); // < 0 means draw in the center of the button
-	downIconPosition: point(-1px, 17px);
 }
 
 topBarSearch: IconButton(defaultIconButton) {

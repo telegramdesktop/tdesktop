@@ -112,7 +112,8 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	p.fillRect(clip, st::almostTransparent);
+	// This is the minimal alpha value that allowed mouse tracking in OS X.
+	p.fillRect(clip, QColor(255, 255, 255, 13));
 	p.setCompositionMode(compositionMode);
 
 	_shadow.paint(p, _inner, _st.shadowShift);

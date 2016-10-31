@@ -182,7 +182,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 
 	QRect r(e->rect());
 	p.setClipRect(r);
-	p.fillRect(r, _st.textBg->b);
+	p.fillRect(r, _st.textBg);
 	if (_checkRect.intersects(r)) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 
@@ -196,12 +196,12 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
 		if (checked > 0) {
-			color.setRedF(color.redF() * checked + st::white->c.redF() * (1. - checked));
-			color.setGreenF(color.greenF() * checked + st::white->c.greenF() * (1. - checked));
-			color.setBlueF(color.blueF() * checked + st::white->c.blueF() * (1. - checked));
+			color.setRedF(color.redF() * checked + _st.checkBg->c.redF() * (1. - checked));
+			color.setGreenF(color.greenF() * checked + _st.checkBg->c.greenF() * (1. - checked));
+			color.setBlueF(color.blueF() * checked + _st.checkBg->c.blueF() * (1. - checked));
 			p.setBrush(color);
 		} else {
-			p.setBrush(st::white);
+			p.setBrush(_st.checkBg);
 		}
 		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::buttonRadius - (_st.thickness / 2.), st::buttonRadius - (_st.thickness / 2.));
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
@@ -340,7 +340,7 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 		}
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
-		p.setBrush(Qt::NoBrush);
+		p.setBrush(_st.checkBg);
 		//int32 skip = qCeil(_st.thickness / 2.);
 		//p.drawEllipse(_checkRect.marginsRemoved(QMargins(skip, skip, skip, skip)));
 		p.drawEllipse(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)));

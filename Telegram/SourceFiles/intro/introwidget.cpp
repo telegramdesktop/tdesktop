@@ -248,12 +248,12 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
-	p.fillRect(e->rect(), st::white->b);
+	p.fillRect(e->rect(), st::windowBg);
 	if (_a_show.animating()) {
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(a_shadow.current());
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);

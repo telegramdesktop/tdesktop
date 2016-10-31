@@ -41,7 +41,7 @@ HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
 	{
 		Painter p(&cache);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, iconWidth, iconHeight, st::transparent);
+		p.fillRect(0, 0, iconWidth, iconHeight, Qt::transparent);
 		st::historyToDown.paint(p, QPoint(0, 0), st::historyToDown.width());
 	}
 	_cache = App::pixmapFromImageInPlace(std_::move(cache));
@@ -149,7 +149,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	uint64 ms = getms();
 
-	p.fillRect(e->rect(), st::white);
+	p.fillRect(e->rect(), st::historyComposeAreaBg);
 
 	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
 	auto opacity = over * _st.overOpacity + (1. - over) * _st.opacity;

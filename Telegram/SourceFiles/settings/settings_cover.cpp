@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/flatlabel.h"
 #include "ui/buttons/round_button.h"
+#include "ui/buttons/icon_button.h"
 #include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
@@ -32,7 +33,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "boxes/addcontactbox.h"
-
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
 
@@ -42,7 +42,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 , _self(App::self())
 , _userpicButton(this, _self)
 , _name(this, st::settingsNameLabel)
-, _editNameInline(this, QString(), st::settingsEditButton)
+, _editNameInline(this, st::settingsEditButton)
 , _setPhoto(this, lang(lng_settings_upload), st::settingsPrimaryButton)
 , _editName(this, lang(lng_settings_edit), st::settingsSecondaryButton) {
 	setAcceptDrops(true);

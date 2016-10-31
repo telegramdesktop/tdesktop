@@ -264,7 +264,7 @@ void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::usernameDefaultFg);
 		errorText = lang(lng_confirm_phone_enter_code);
 	} else {
-		p.setPen(st::setErrColor);
+		p.setPen(st::boxTextFgError);
 	}
 	auto errorTextRectLeft = st::usernamePadding.left();
 	auto errorTextRectTop = _code->y() + _code->height();

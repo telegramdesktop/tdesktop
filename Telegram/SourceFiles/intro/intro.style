@@ -43,8 +43,106 @@ introCountry: countryInput {
 	align: align(left);
 }
 
-introErrLabel: flatLabel(labelDefFlat) {
-	font: introErrFont;
+introBtnTop: 288px;
+introSkip: 45px;
+introFinishSkip: 15px;
+introPhotoSize: 98px;
+introHeaderFont: font(24px);
+introHeaderSkip: 14px;
+introIconSkip: 54px;
+introFont: font(16px);
+introLink: linkButton(btnDefLink) {
+	font: introFont;
+	overFont: font(16px underline);
+}
+introLabel: flatLabel(labelDefFlat) {
+	font: introFont;
+	align: align(center);
+}
+
+introStepSize: size(400px, 200px);
+introSize: size(400px, 400px);
+introSlideShift: 500px; // intro hiding animation
+introSlideDuration: 200;
+introSlideDelta: 0; // between hide start and show start
+introHideFunc: transition(easeInCirc);
+introShowFunc: transition(easeOutCirc);
+introAlphaHideFunc: transition(easeOutCirc);
+introAlphaShowFunc: transition(easeInCirc);
+introTextTop: 22px;
+introTextSize: size(400px, 93px);
+introCallSkip: 15px;
+introPwdTextSize: size(400px, 73px);
+
+introNextButton: flatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+
+	color: #ffffff;
+	overColor: #ffffff;
+	downColor: #ffffff;
+	bgColor: #2fa9e2;
+	overBgColor: #279ad0;
+	downBgColor: #279ad0;
+
+	textTop: 16px;
+	overTextTop: 16px;
+	downTextTop: 17px;
+
+	font: font(17px);
+	overFont: font(17px);
+
+	width: 300px;
+	height: 56px;
+
+	radius: buttonRadius;
+}
+
+introPhoneTop: 8px;
+inpIntroCountryCode: flatInput(inpDefGray) {
+	width: 70px;
+	height: 41px;
+	align: align(center);
+}
+inpIntroPhone: flatInput(inpDefGray) {
+	textMrg: margins(12px, 5px, 12px, 6px);
+	width: 225px;
+	height: 41px;
+}
+inpIntroCode: flatInput(inpDefGray) {
+	textMrg: margins(12px, 5px, 12px, 6px);
+	width: 106px;
+	height: 41px;
+	align: align(center);
+
+	phPos: point(0px, 0px);
+	phAlign: align(center);
+	phShift: 0px;
+}
+inpIntroName: flatInput(inpIntroPhone) {
+	width: 192px;
+}
+inpIntroPassword: flatInput(inpIntroPhone) {
+	width: 300px;
+}
+
+introSelectDelta: 30px;
+
+introErrorWidth: 450px;
+introErrorDuration: 200;
+introErrorTop: 15px;
+introErrorHeight: 40px;
+introErrorFont: font(16px);
+
+introLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 30px;
+}
+introErrorLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 27px;
+}
+
+introErrorLabel: flatLabel(labelDefFlat) {
+	font: introErrorFont;
 	align: align(center);
 }
 introBackButton: IconButton(defaultIconButton) {

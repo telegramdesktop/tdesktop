@@ -30,6 +30,7 @@ class LinkButton;
 
 namespace Ui {
 class RoundButton;
+class IconButton;
 } // namespace Ui
 
 namespace Notify {
@@ -93,7 +94,7 @@ private:
 	ChildWidget<Profile::CoverDropArea> _dropArea = { nullptr };
 
 	ChildWidget<FlatLabel> _name;
-	ChildWidget<Ui::RoundButton> _editNameInline;
+	ChildWidget<Ui::IconButton> _editNameInline;
 	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;

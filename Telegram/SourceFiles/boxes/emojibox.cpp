@@ -77,7 +77,7 @@ EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
-	
+
 	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::boxTitleHeight + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 
 	prepare();
@@ -127,8 +127,8 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 
 	paintTitle(p, lang(lng_settings_emoji_list));
 
-	p.setFont(st::emojiTextFont->f);
-	p.setPen(st::black->p);
+	p.setFont(st::emojiTextFont);
+	p.setPen(st::boxTextFg);
 	int32 top = st::boxTitleHeight + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
 	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;

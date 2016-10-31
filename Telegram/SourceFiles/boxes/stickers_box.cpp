@@ -561,7 +561,7 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 
 	_a_shifting.step();
 
-	p.fillRect(r, st::white);
+	p.fillRect(r, st::boxBg);
 	p.setClipRect(r);
 
 	int y = st::membersPadding.top();
@@ -632,7 +632,7 @@ void StickersBox::Inner::paintRow(Painter &p, int32 index) {
 			p.setOpacity(current);
 			QRect row(myrtlrect(_aboveShadow.getDimensions(st::boxShadowShift).left(), st::contactsPadding.top() / 2, width() - (st::contactsPadding.left() / 2) - _scrollbar - _aboveShadow.getDimensions(st::boxShadowShift).right(), _rowHeight - ((st::contactsPadding.top() + st::contactsPadding.bottom()) / 2)));
 			_aboveShadow.paint(p, row, st::boxShadowShift);
-			p.fillRect(row, st::white);
+			p.fillRect(row, st::boxBg);
 			p.setOpacity(1);
 		}
 	} else if (s->installed && !s->disabled) {
@@ -669,7 +669,7 @@ void StickersBox::Inner::paintRow(Painter &p, int32 index) {
 	int statusy = st::contactsPadding.top() + st::contactsStatusTop;
 
 	p.setFont(st::contactsNameFont);
-	p.setPen(st::black);
+	p.setPen(st::contactsNameFg);
 	p.drawTextLeft(namex, namey, width(), s->title, s->titleWidth);
 
 	if (s->unread) {

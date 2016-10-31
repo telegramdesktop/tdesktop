@@ -33,8 +33,8 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 	_animation.step(getms());
 	if (a_coordOver.current() > 0) {
 		p.drawPixmap(QRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, _cacheUnder.height()));
-		p.setOpacity(a_progress.current() * st::slideFadeOut);
-		p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::black);
+		p.setOpacity(a_progress.current());
+		p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::slideFadeOutBg);
 		p.setOpacity(1);
 	}
 	p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));

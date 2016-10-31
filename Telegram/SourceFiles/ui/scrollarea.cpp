@@ -47,8 +47,8 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 , _connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar())
 , _scrollMax(_connected->maximum())
 , _hideIn(-1)
-, a_bg((_st->hiding ? st::transparent : _st->bgColor)->c)
-, a_bar((_st->hiding ? st::transparent : _st->barColor)->c)
+, a_bg(_st->hiding ? _st->bgColor->transparent() : _st->bgColor->c)
+, a_bar(_st->hiding ? _st->barColor->transparent() : _st->barColor->c)
 , _a_appearance(animation(this, &ScrollBar::step_appearance)) {
 	recountSize();
 

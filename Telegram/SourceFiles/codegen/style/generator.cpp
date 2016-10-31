@@ -172,6 +172,14 @@ QString moduleBaseName(const structure::Module &module) {
 	return moduleIsPalette ? "palette" : "style_" + moduleInfo.baseName();
 }
 
+QString colorFallbackName(structure::Value value) {
+	auto copy = value.copyOf();
+	if (!copy.isEmpty()) {
+		return copy.back();
+	}
+	return value.Color().fallback;
+}
+
 QChar paletteColorPart(uchar part) {
 	part = (part & 0x0F);
 	if (part >= 10) {
@@ -436,27 +444,24 @@ public:\n\
 	void finalize();\n\
 \n";
 
-	QByteArray checksumString;
 	int indexInPalette = 0;
-	if (!module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &value) -> bool {
-		auto name = value.name.back();
-		if (value.value.type().tag != structure::TypeTag::Color) {
+	if (!module_.enumVariables([this, &indexInPalette](const Variable &variable) -> bool {
+		auto name = variable.name.back();
+		if (variable.value.type().tag != structure::TypeTag::Color) {
 			return false;
 		}
 
-		auto type = typeToString(value.value.type());
+		auto type = typeToString(variable.value.type());
 		auto index = (indexInPalette++);
 		header_->stream() << "\tinline const " << type << " &" << name << "() const { return _colors[" << index << "]; };\n";
-		checksumString.append(':' + name);
 		return true;
 	})) return false;
 
-	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
 	auto count = indexInPalette;
 	auto type = typeToString({ structure::TypeTag::Color });
 	header_->stream() << "\
 \n\
-	static constexpr int32 kChecksum = " << checksum << ";\n\
+	static int32 Checksum();\n\
 \n\
 private:\n\
 	struct TempColorData { uchar r, g, b, a; };\n\
@@ -470,6 +475,7 @@ private:\n\
 \n\
 	" << type << " _colors[" << count << "] = { Qt::Uninitialized };\n\
 	Status _status[" << count << "] = { Status::Initial };\n\
+	bool _ready = false;\n\
 \n\
 };\n\
 \n\
@@ -614,10 +620,14 @@ bool Generator::writeRefsDefinition() {
 
 bool Generator::writeSetPaletteColor() {
 	source_->newline();
-	source_->stream() << "void palette::finalize() {\n";
+	source_->stream() << "\
+void palette::finalize() {\n\
+	if (_ready) return;\n\
+	_ready = true;\n\n";
 
 	int indexInPalette = 0;
-	bool result = module_.enumVariables([this, &indexInPalette](const Variable &variable) -> bool {
+	QByteArray checksumString;
+	bool result = module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
 		paletteIndices_[name] = index;
@@ -625,13 +635,19 @@ bool Generator::writeSetPaletteColor() {
 			return false;
 		}
 		auto color = variable.value.Color();
-		auto fallbackIndex = paletteIndices_.value(variable.value.Color().fallback, -1);
+		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
 		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", {" << color.red << ", " << color.green << ", " << color.blue << ", " << color.alpha << "});\n";
+		checksumString.append('&' + name + ':' + valueAssignmentCode(variable.value));
 		return true;
 	});
 	auto count = indexInPalette;
+	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
 
 	source_->stream() << "\
+}\n\
+\n\
+int32 palette::Checksum() {\n\
+	return " << checksum << ";\n\
 }\n\
 \n\
 void palette::compute(int index, int fallbackIndex, TempColorData data) {\n\
@@ -711,6 +727,8 @@ int getPaletteIndex(QLatin1String name) {\n\
 	source_->newline().popNamespace().newline();
 	source_->stream() << "\
 QByteArray palette::save() const {\n\
+	if (!_ready) const_cast<palette*>(this)->finalize();\n\
+\n\
 	auto result = QByteArray(" << (count * 4) << ", Qt::Uninitialized);\n\
 	for (auto i = 0, index = 0; i != " << count << "; ++i) {\n\
 		result[index++] = static_cast<uchar>(_colors[i]->c.red());\n\
@@ -1100,7 +1118,7 @@ bool Generator::writeSampleTheme(const QString &filepath) {
 		}
 		auto color = variable.value.Color();
 		auto colorString = paletteColorValue(color);
-		auto fallbackIndex = paletteIndices_.value(variable.value.Color().fallback, -1);
+		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
 		if (fallbackIndex >= 0) {
 			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex], module_);
 			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {

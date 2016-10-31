@@ -139,7 +139,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		data.ip = qs(d.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = lang(lng_sessions_header);
-			data.activeWidth = st::sessionActiveFont->width(lang(lng_sessions_header));
+			data.activeWidth = st::sessionWhenFont->width(lang(lng_sessions_header));
 			int32 availForName = availCurrent - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
 				data.name = st::sessionNameFont->elided(data.name, availForName);
@@ -167,7 +167,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			} else {
 				data.active = lastDate.toString(qsl("d.MM.yy"));
 			}
-			data.activeWidth = st::sessionActiveFont->width(data.active);
+			data.activeWidth = st::sessionWhenFont->width(data.active);
 			int32 availForName = availOther - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
 				data.name = st::sessionNameFont->elided(data.name, availForName);
@@ -257,7 +257,7 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, st::boxBg);
 	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPosition.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
 	int32 w = width();
 
@@ -270,24 +270,24 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 
 	if (r.y() <= st::sessionCurrentHeight) {
 		p.translate(0, st::sessionCurrentPadding.top());
-		p.setFont(st::sessionNameFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionNameFont);
+		p.setPen(st::sessionNameFg);
 		p.drawTextLeft(x, st::sessionPadding.top(), w, _current->name, _current->nameWidth);
 
-		p.setFont(st::sessionActiveFont->f);
-		p.setPen(st::sessionActiveColor->p);
+		p.setFont(st::sessionWhenFont);
+		p.setPen(st::sessionWhenFg);
 		p.drawTextRight(x, st::sessionPadding.top(), w, _current->active, _current->activeWidth);
 
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::boxTextFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, _current->info, _current->infoWidth);
-		p.setPen(st::sessionInfoColor->p);
+		p.setPen(st::sessionInfoFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, _current->ip, _current->ipWidth);
 	}
 	p.translate(0, st::sessionCurrentHeight - st::sessionCurrentPadding.top());
 	if (_list->isEmpty()) {
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::sessionInfoColor->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::sessionInfoFg);
 		p.drawText(QRect(st::sessionPadding.left(), 0, width() - st::sessionPadding.left() - st::sessionPadding.right(), st::noContactsHeight), lang(lng_sessions_other_desc), style::al_topleft);
 		return;
 	}
@@ -300,18 +300,18 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 	for (int32 i = from; i < to; ++i) {
 		const SessionsBox::Data &auth(_list->at(i));
 
-		p.setFont(st::sessionNameFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionNameFont);
+		p.setPen(st::sessionNameFg);
 		p.drawTextLeft(x, st::sessionPadding.top(), w, auth.name, auth.nameWidth);
 
-		p.setFont(st::sessionActiveFont->f);
-		p.setPen(st::sessionActiveColor->p);
+		p.setFont(st::sessionWhenFont);
+		p.setPen(st::sessionWhenFg);
 		p.drawTextRight(xact, st::sessionPadding.top(), w, auth.active, auth.activeWidth);
 
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::boxTextFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, auth.info, auth.infoWidth);
-		p.setPen(st::sessionInfoColor->p);
+		p.setPen(st::sessionInfoFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, auth.ip, auth.ipWidth);
 
 		p.translate(0, st::sessionHeight);

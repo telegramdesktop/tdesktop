@@ -534,7 +534,13 @@ structure::Value ParsedFile::readColorValue() {
 		} else {
 			logErrorUnexpectedToken() << "color value alias, unique color values are only allowed in palette module";
 		}
+	} else if (auto transparentName = file_.getToken(BasicType::Name)) {
+		if (tokenValue(transparentName) == "transparent") {
+			return { structure::data::color { 255, 255, 255, 0 } };
+		}
+		file_.putBack();
 	}
+
 	return {};
 }
 

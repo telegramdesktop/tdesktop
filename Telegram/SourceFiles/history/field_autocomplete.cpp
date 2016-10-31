@@ -65,7 +65,7 @@ void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	p.fillRect(rect(), st::white);
+	p.fillRect(rect(), st::mentionBg);
 }
 
 void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInlineBots) {
@@ -549,7 +549,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::historyAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	int32 htagleft = st::historyAttachPhoto.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	if (!_srows->isEmpty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -604,13 +604,12 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 			bool selected = (i == _sel);
 			if (selected) {
-				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
+				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver);
 				int skip = (st::mentionHeight - st::simpleCloseIcon.height()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
 					st::simpleCloseIcon.paint(p, QPoint(width() - st::simpleCloseIcon.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
-			p.setPen(st::black->p);
 			if (!_mrows->isEmpty()) {
 				UserData *user = _mrows->at(i);
 				QString first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
@@ -632,9 +631,11 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 				user->loadUserpic();
 				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
+
+				p.setPen(st::mentionNameFg);
 				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
-				p.setFont(st::mentionFont->f);
+				p.setFont(st::mentionFont);
 				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 				p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 				if (!second.isEmpty()) {
@@ -678,7 +679,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 				auto commandText = '/' + toHighlight;
 
-				p.setPen(st::windowTextFg);
+				p.setPen(st::mentionNameFg);
 				p.setFont(st::semiboldFont);
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop + st::semiboldFont->ascent, commandText);
 

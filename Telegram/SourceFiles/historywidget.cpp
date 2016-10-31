@@ -371,9 +371,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
 			p.setFont(st::msgNameFont);
-			p.setPen(st::black);
+			p.setPen(st::dialogsNameFg);
 			p.drawText(_botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->ascent, lang(lng_bot_description));
 
+			p.setPen(st::historyTextInFg);
 			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip, _botAbout->width);
 
 			textstyleRestore();
@@ -2303,7 +2304,7 @@ void HistoryInner::onParentGeometryChanged() {
 
 MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph, const QString &val) : FlatTextarea(history, st, ph, val), history(history) {
 	setMinHeight(st::btnSend.height - 2 * st::sendPadding);
-	setMaxHeight(st::maxFieldHeight);
+	setMaxHeight(st::historyComposeFieldMaxHeight);
 }
 
 bool MessageField::hasSendText() const {
@@ -2397,11 +2398,11 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg->b);
+	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg);
 	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 	if (!_clear.isHidden()) {
-		p.setPen(st::black->p);
-		p.setFont(st::msgFont->f);
+		p.setPen(st::reportSpamFg);
+		p.setFont(st::msgFont);
 		p.drawText(QRect(_report.x(), (_clear.y() - st::msgFont->height) / 2, _report.width(), st::msgFont->height), lang(lng_report_spam_thanks), style::al_top);
 	}
 }
@@ -2427,8 +2428,8 @@ BotKeyboard::BotKeyboard() {
 void BotKeyboard::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	QRect clip(e->rect());
-	p.fillRect(clip, st::white);
+	auto clip = e->rect();
+	p.fillRect(clip, st::historyComposeAreaBg);
 
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
@@ -2729,10 +2730,9 @@ bool HistoryHider::withConfirm() const {
 
 void HistoryHider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+	p.setOpacity(a_opacity.current());
 	if (!_hiding || !_cacheForAnim.isNull() || !_offered) {
-		p.setOpacity(a_opacity.current() * st::layerAlpha);
-		p.fillRect(rect(), st::layerBg->b);
-		p.setOpacity(a_opacity.current());
+		p.fillRect(rect(), st::layerBg);
 	}
 	if (_cacheForAnim.isNull() || !_offered) {
 		p.setFont(st::forwardFont);
@@ -2742,13 +2742,13 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			// fill bg
 			p.fillRect(_box, st::boxBg);
 
-			p.setPen(st::black);
+			p.setPen(st::boxTextFg);
 			_toText.drawElided(p, _box.left() + st::boxPadding.left(), _box.top() + st::boxPadding.top(), _toTextWidth + 2);
 		} else {
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
 			App::roundRect(p, (width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
-			p.setPen(st::white);
+			p.setPen(st::forwardFg);
 			p.drawText(_box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
 		}
 	} else {
@@ -3009,7 +3009,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
-, _field(this, st::taMsgField, lang(lng_message_ph))
+, _field(this, st::historyComposeField, lang(lng_message_ph))
 , _a_record(animation(this, &HistoryWidget::step_record))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , a_recordCancel(st::historyRecordCancel->c, st::historyRecordCancel->c)
@@ -6154,7 +6154,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_kbScroll.hide();
 			_kbShown = false;
 
-			_field.setMaxHeight(st::maxFieldHeight);
+			_field.setMaxHeight(st::historyComposeFieldMaxHeight);
 
 			_kbReplyTo = 0;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_editMsgId && !_replyToId) {
@@ -6177,7 +6177,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbScroll.hide();
 		_kbShown = false;
 
-		_field.setMaxHeight(st::maxFieldHeight);
+		_field.setMaxHeight(st::historyComposeFieldMaxHeight);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
@@ -6195,8 +6195,8 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbScroll.show();
 		_kbShown = true;
 
-		int32 maxh = qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2));
-		_field.setMaxHeight(st::maxFieldHeight - maxh);
+		int32 maxh = qMin(_keyboard.height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2));
+		_field.setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
@@ -6262,8 +6262,8 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
-			p.setOpacity(a_progress.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::black);
+			p.setOpacity(a_progress.current());
+			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
@@ -6439,7 +6439,7 @@ void HistoryWidget::updateOnlineDisplayTimer() {
 
 void HistoryWidget::moveFieldControls() {
 	int w = width(), h = height(), right = w, bottom = h, keyboardHeight = 0;
-	int maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
+	int maxKeyboardHeight = st::historyComposeFieldMaxHeight - _field.height();
 	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
 	if (_kbShown) {
 		keyboardHeight = qMin(_keyboard.height(), maxKeyboardHeight);
@@ -6505,7 +6505,7 @@ void HistoryWidget::clearInlineBot() {
 void HistoryWidget::inlineBotChanged() {
 	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
 	if (isInlineBot && !_inlineBotCancel) {
-		_inlineBotCancel = std_::make_unique<Ui::IconButton>(this, st::historyInlineBotCancel);
+		_inlineBotCancel = std_::make_unique<Ui::MaskButton>(this, st::historyInlineBotCancel);
 		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send.geometry());
 		_attachEmoji->raise();
@@ -7340,8 +7340,8 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 				_botKeyboardShow->hide();
 				_botCommandStart->hide();
 			}
-			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
-			_field.setMaxHeight(st::maxFieldHeight - maxh);
+			int32 maxh = hasMarkup ? qMin(_keyboard.height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2)) : 0;
+			_field.setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 			_kbShown = hasMarkup;
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
@@ -7358,7 +7358,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 				_botKeyboardShow->show();
 				_botCommandStart->hide();
 			}
-			_field.setMaxHeight(st::maxFieldHeight);
+			_field.setMaxHeight(st::historyComposeFieldMaxHeight);
 			_kbShown = false;
 			_kbReplyTo = 0;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
@@ -7374,7 +7374,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_botKeyboardShow->hide();
 			_botCommandStart->show();
 		}
-		_field.setMaxHeight(st::maxFieldHeight);
+		_field.setMaxHeight(st::historyComposeFieldMaxHeight);
 		_kbShown = false;
 		_kbReplyTo = 0;
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId && !_editMsgId) {
@@ -8524,7 +8524,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backh += st::historyReplyHeight;
 	}
 	bool drawPreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
-	p.fillRect(0, backy, width(), backh, st::taMsgField.bgColor);
+	p.fillRect(0, backy, width(), backh, st::historyReplyBg);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		int32 replyLeft = st::historyReplySkip;
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
@@ -8668,7 +8668,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 	QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
 	p.setFont(st::historyRecordFont);
 
-	p.setPen(st::black);
+	p.setPen(st::historyRecordDurationFg);
 	p.drawText(_attachPhoto->x() + _attachEmoji->width(), _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
 
 	int32 left = _attachPhoto->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send.width() - st::historyRecordVoice.width()) / 2);
@@ -8684,7 +8684,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	Text *from = 0, *text = 0;
 	bool serviceColor = false, hasForward = readyToForward();
 	ImagePtr preview;
-	p.fillRect(0, 0, width(), st::historyReplyHeight, st::taMsgField.bgColor);
+	p.fillRect(0, 0, width(), st::historyReplyHeight, st::historyPinnedBg);
 
 	QRect rbar(rtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), width()));
 	p.fillRect(rbar, st::msgInReplyBarColor);
@@ -8732,8 +8732,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		int inCacheTop = hasTopBar ? st::topBarHeight : 0;
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
-			p.setOpacity(a_progress.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::black);
+			p.setOpacity(a_progress.current());
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));

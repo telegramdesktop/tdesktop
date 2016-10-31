@@ -532,7 +532,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	auto r = e->rect();
 	p.setClipRect(r);
-	p.fillRect(r, st::white);
+	p.fillRect(r, st::boxBg);
 	auto yFrom = r.y(), yTo = r.y() + r.height();
 	auto rowFrom = yFrom / _rowHeight;
 	auto rowTo = (yTo + _rowHeight - 1) / _rowHeight;

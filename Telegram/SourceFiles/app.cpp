@@ -2171,7 +2171,7 @@ namespace {
 		{
 			QPainter p(&rect);
 			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(QRect(0, 0, rect.width(), rect.height()), st::transparent->b);
+			p.fillRect(QRect(0, 0, rect.width(), rect.height()), Qt::transparent);
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setPen(Qt::NoPen);
@@ -2231,18 +2231,19 @@ namespace {
 			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
+		style::color white = { 255, 255, 255, 255 };
 		QImage mask[4];
-		prepareCorners(LargeMaskCorners, msgRadius(), st::white, nullptr, mask);
+		prepareCorners(LargeMaskCorners, msgRadius(), white, nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(SmallMaskCorners, st::buttonRadius, st::white, nullptr, mask);
+		prepareCorners(SmallMaskCorners, st::buttonRadius, white, nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(WhiteCorners, st::dateRadius, st::white);
+		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBg);
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
@@ -2379,7 +2380,7 @@ namespace {
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojiMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
+		EmojiMap *map = &(fontHeight == st::msgFont->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
 		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
 			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
@@ -2519,7 +2520,7 @@ namespace {
 #endif // OS_MAC_OLD
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
-			solid.fill(st::white->c);
+			solid.fill(st::imageBgTransparent->c);
 			{
 				QPainter(&solid).drawImage(0, 0, result);
 			}

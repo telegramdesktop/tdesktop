@@ -172,10 +172,10 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			auto over = _animation->_a_over.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.fillRect(r, st::black);
+			p.fillRect(r, style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			p.fillRect(r, (_state & StateFlag::Over) ? st::msgDateImgBgOver : st::msgDateImgBg);
+			auto over = (_state & StateFlag::Over);
+			p.fillRect(r, over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 		p.setOpacity(radialOpacity * p.opacity());
 
@@ -600,7 +600,7 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
 		}
 	} else {
-		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::black);
+		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewVideoBg);
 	}
 
 	if (!_duration.isEmpty()) {
@@ -608,12 +608,12 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 		int durationW = _durationWidth + 2 * st::msgDateImgPadding.x(), durationH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		int durationX = (st::inlineThumbSize - durationW) / 2, durationY = st::inlineRowMargin + st::inlineThumbSize - durationH;
 		App::roundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, DateCorners);
-		p.setPen(st::white);
+		p.setPen(st::msgDateImgColor);
 		p.setFont(st::normalFont);
 		p.drawText(durationX + st::msgDateImgPadding.x(), durationTop + st::normalFont->ascent, _duration);
 	}
 
-	p.setPen(st::black);
+	p.setPen(st::inlineTitleFg);
 	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
 	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
 
@@ -744,7 +744,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
 	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;
 
-	p.setPen(st::black);
+	p.setPen(st::inlineTitleFg);
 	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
 
 	p.setPen(st::inlineDescriptionFg);
@@ -939,7 +939,7 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
 	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;
 
-	p.setPen(st::black);
+	p.setPen(st::inlineTitleFg);
 	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
 
 	p.setPen(st::inlineDescriptionFg);
@@ -1052,7 +1052,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 				p.fillRect(rthumb, colors[index]);
 				if (!_thumbLetter.isEmpty()) {
 					p.setFont(st::linksLetterFont);
-					p.setPen(st::white);
+					p.setPen(st::linksLetterFg);
 					p.drawText(rthumb, _thumbLetter, style::al_center);
 				}
 			} else {
@@ -1063,7 +1063,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		}
 	}
 
-	p.setPen(st::black);
+	p.setPen(st::inlineTitleFg);
 	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
 	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
 
@@ -1252,7 +1252,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		}
 	}
 
-	p.setPen(st::black);
+	p.setPen(st::inlineTitleFg);
 	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
 	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
 

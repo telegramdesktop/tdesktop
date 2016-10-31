@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_fixed_bar.h"
 
 #include "styles/style_settings.h"
+#include "styles/style_boxes.h"
 #include "ui/buttons/icon_button.h"
 #include "mainwindow.h"
 #include "lang.h"
@@ -30,6 +31,7 @@ namespace Settings {
 
 FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
 , _close(this, st::settingsFixedBarClose) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
 	_close->setClickedCallback([]() {
 		Ui::hideSettingsAndLayer();
 	});
@@ -45,6 +47,8 @@ void FixedBar::resizeEvent(QResizeEvent *e) {
 
 void FixedBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	p.fillRect(e->rect(), st::settingsFixedBarBg);
 
 	p.setFont(st::settingsFixedBarFont);
 	p.setPen(st::windowTextFg);

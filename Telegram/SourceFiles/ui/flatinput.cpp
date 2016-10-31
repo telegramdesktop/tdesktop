@@ -745,9 +745,9 @@ void InputArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, st::white);
+	p.fillRect(r, _st.textBg);
 	if (_st.border) {
-		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
+		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
 	if (_st.borderActive && a_borderOpacityActive.current() > 0) {
 		p.setOpacity(a_borderOpacityActive.current());
@@ -2182,7 +2182,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, st::white->b);
+	p.fillRect(r, _st.textBg);
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}

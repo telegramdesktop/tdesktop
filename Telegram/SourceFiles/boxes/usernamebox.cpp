@@ -79,16 +79,16 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::usernameDefaultFg);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _copiedTextLink);
 	} else if (!_errorText.isEmpty()) {
-		p.setPen(st::setErrColor);
+		p.setPen(st::boxTextFgError);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _errorText);
 	} else if (!_goodText.isEmpty()) {
-		p.setPen(st::setGoodColor);
+		p.setPen(st::boxTextFgGood);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _goodText);
 	} else {
 		p.setPen(st::usernameDefaultFg);
 		p.drawTextLeft(st::usernamePadding.left(), _username.y() + _username.height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), lang(lng_username_choose));
 	}
-	p.setPen(st::black);
+	p.setPen(st::boxTextFg);
 	textstyleSet(&st::usernameTextStyle);
 	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
 	_about.drawLeft(p, st::usernamePadding.left(), _username.y() + _username.height() + st::usernameSkip, availw, width());

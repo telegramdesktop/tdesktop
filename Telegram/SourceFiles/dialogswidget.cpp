@@ -105,7 +105,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			shownDialogs()->all().paint(p, fullWidth(), dialogsClip.top(), dialogsClip.top() + dialogsClip.height(), active, selected, paintingOther);
 		}
 		if (!otherStart) {
-			p.fillRect(dialogsClip, st::white);
+			p.fillRect(dialogsClip, st::dialogsBg);
 			if (!paintingOther) {
 				p.setFont(st::noContactsFont);
 				p.setPen(st::noContactsColor);
@@ -120,11 +120,10 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			if (from < _hashtagResults.size()) {
 				int32 w = fullWidth(), htagwidth = w - st::dialogsPadding.x() * 2;
 
-				p.setFont(st::mentionFont->f);
-				p.setPen(st::black->p);
+				p.setFont(st::mentionFont);
 				for (; from < to; ++from) {
 					bool selected = (from == _hashtagSel);
-					p.fillRect(0, 0, w, st::mentionHeight, (selected ? st::mentionBgOver : st::white)->b);
+					p.fillRect(0, 0, w, st::mentionHeight, selected ? st::mentionBgOver : st::dialogsBg);
 					if (!paintingOther) {
 						if (selected) {
 							int skip = (st::mentionHeight - st::simpleCloseIcon.height()) / 2;
@@ -2501,8 +2500,8 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
 			p.drawPixmap(QRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, _cacheUnder.height()));
-			p.setOpacity(a_progress.current() * st::slideFadeOut);
-			p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::black);
+			p.setOpacity(a_progress.current());
+			p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
@@ -2512,11 +2511,11 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 	}
 	QRect above(0, 0, width(), _scroll.y());
 	if (above.intersects(r)) {
-		p.fillRect(above.intersected(r), st::white->b);
+		p.fillRect(above.intersected(r), st::dialogsBg);
 	}
 	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width(), height());
 	if (below.intersects(r)) {
-		p.fillRect(below.intersected(r), st::white->b);
+		p.fillRect(below.intersected(r), st::dialogsBg);
 	}
 }
 

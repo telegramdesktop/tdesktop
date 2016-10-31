@@ -416,11 +416,10 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
 		} else if (isThumbAnimation(ms)) {
-			float64 over = _animation->a_thumbOver.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.setBrush(st::black);
+			auto over = _animation->a_thumbOver.current();
+			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
@@ -460,7 +459,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
 	} else {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -755,9 +754,8 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 	if (selected) {
 		p.setBrush(st::msgDateImgBgSelected);
 	} else if (isThumbAnimation(ms)) {
-		float64 over = _animation->a_thumbOver.current();
-		p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-		p.setBrush(st::black);
+		auto over = _animation->a_thumbOver.current();
+		p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 	} else {
 		bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -790,7 +788,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 	int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
-	p.setPen(st::white);
+	p.setPen(st::msgDateImgColor);
 	p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 
 	// date
@@ -800,7 +798,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
 	} else {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -1110,11 +1108,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			if (selected) {
 				p.setBrush(st::msgDateImgBgSelected);
 			} else if (isThumbAnimation(ms)) {
-				float64 over = _animation->a_thumbOver.current();
-				p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-				p.setBrush(st::black);
+				auto over = _animation->a_thumbOver.current();
+				p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 			} else {
-				bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+				auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 				p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 			}
 			p.setOpacity(radialOpacity * p.opacity());
@@ -1159,10 +1156,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		if (selected) {
 			p.setBrush(outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected);
 		} else if (isThumbAnimation(ms)) {
-			float64 over = _animation->a_thumbOver.current();
+			auto over = _animation->a_thumbOver.current();
 			p.setBrush(style::interpolate(outbg ? st::msgFileOutBg : st::msgFileInBg, outbg ? st::msgFileOutBgOver : st::msgFileInBgOver, over));
 		} else {
-			bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(outbg ? (over ? st::msgFileOutBgOver : st::msgFileOutBg) : (over ? st::msgFileInBgOver : st::msgFileInBg));
 		}
 
@@ -1256,7 +1253,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
-		p.setPen(st::black);
+		p.setPen(outbg ? st::historyFileNameOutFg : st::historyFileNameInFg);
 		if (namewidth < named->_namew) {
 			p.drawTextLeft(nameleft, nametop, _width, st::semiboldFont->elided(named->_name, namewidth));
 		} else {
@@ -1282,7 +1279,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
 		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -1733,11 +1730,10 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
 		} else if (isThumbAnimation(ms)) {
-			float64 over = _animation->a_thumbOver.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.setBrush(st::black);
+			auto over = _animation->a_thumbOver.current();
+			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 		p.setOpacity(radialOpacity * p.opacity());
@@ -1773,13 +1769,13 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 			int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 			App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 			p.setFont(st::normalFont);
-			p.setPen(st::white);
+			p.setPen(st::msgDateImgColor);
 			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
 
 	if (!_caption.isEmpty()) {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->getMedia() == this && (_data->uploading() || App::hoveredItem() == _parent)) {
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
@@ -2318,7 +2314,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, u
 	int32 namewidth = width - nameleft - nameright;
 
 	p.setFont(st::semiboldFont);
-	p.setPen(st::black);
+	p.setPen(outbg ? st::historyFileNameOutFg : st::historyFileNameInFg);
 	_name.drawLeftElided(p, nameleft, nametop, namewidth, width);
 
 	style::color status(outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg));
@@ -2699,7 +2695,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		tshift += _lineHeight;
 	}
 	if (_titleLines) {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
 		int32 endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -2708,7 +2704,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		tshift += _titleLines * _lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 		int32 endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -3078,7 +3074,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint
 		tshift += _titleLines * _lineHeight;
 	}
 	if (_descriptionLines) {
-		p.setPen(st::black);
+		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 		int32 endskip = 0;
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
@@ -3390,12 +3386,13 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		int32 textw = _width - st::msgPadding.left() - st::msgPadding.right();
 
-		p.setPen(st::black);
 		if (!_title.isEmpty()) {
+			p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
 			_title.drawLeftElided(p, skipx + st::msgPadding.left(), skipy, textw, _width, 2, style::al_left, 0, -1, 0, false, selection);
 			skipy += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
+			p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 			_description.drawLeftElided(p, skipx + st::msgPadding.left(), skipy, textw, _width, 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(selection));
 			skipy += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}
@@ -3423,7 +3420,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 		p.drawPixmap(QPoint(skipx, skipy), pix);
 	} else {
-		App::roundRect(p, skipx, skipy, width, height, st::white, MessageInCorners);
+		App::roundRect(p, skipx, skipy, width, height, st::msgInBg, MessageInCorners);
 	}
 	if (selected) {
 		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);

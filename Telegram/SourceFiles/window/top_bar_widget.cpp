@@ -140,7 +140,7 @@ bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
+	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (_clearSelection->isHidden()) {
 		p.save();
 		int decreaseWidth = 0;

@@ -103,7 +103,9 @@ QImage _trayIconImageGen() {
 			} else if (_trayIconSize >= 32) {
 				layerSize = -20;
 			}
-			QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBg : st::counterBg), false);
+			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
+			auto &fg = st::trayCounterFg;
+			auto layer = App::wnd()->iconWithCounter(layerSize, counter, bg, fg, false);
 			p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
 		}
 	}
@@ -355,9 +357,10 @@ void MainWindow::psUpdateCounter() {
 			int32 counter = App::histories().unreadBadge();
 			bool muted = App::histories().unreadOnlyMuted();
 
-			auto &bg = (muted ? st::counterMuteBg : st::counterBg);
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
+			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
+			auto &fg = st::trayCounterFg;
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, fg, true)));
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, fg, true)));
 		}
 		trayIcon->setIcon(icon);
 	}

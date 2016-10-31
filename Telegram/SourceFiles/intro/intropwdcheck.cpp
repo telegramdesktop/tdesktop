@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroPwdCheck::step_error))
-, _next(this, lang(lng_intro_submit), st::btnIntroNext)
+, _next(this, lang(lng_intro_submit), st::introNextButton)
 , _salt(parent->getPwdSalt())
 , _hasRecovery(parent->getHasRecovery())
 , _hint(parent->getPwdHint())
@@ -88,9 +88,9 @@ void IntroPwdCheck::paintEvent(QPaintEvent *e) {
 	if (_a_error.animating() || error.length()) {
 		p.setOpacity(a_errorAlpha.current());
 
-		QRect errRect((width() - st::introErrWidth) / 2, (_pwdField.y() + _pwdField.height() + st::introFinishSkip + st::introFont->height + _next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
+		QRect errRect((width() - st::introErrorWidth) / 2, (_pwdField.y() + _pwdField.height() + st::introFinishSkip + st::introFont->height + _next.y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
+		p.setFont(st::introErrorFont);
+		p.setPen(st::introErrorFg);
 		p.drawText(errRect, error, QTextOption(style::al_center));
 
 		p.setOpacity(1);
@@ -122,7 +122,7 @@ void IntroPwdCheck::showError(const QString &err) {
 }
 
 void IntroPwdCheck::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
+	float64 dt = ms / st::introErrorDuration;
 
 	if (dt >= 1) {
 		_a_error.stop();
@@ -131,7 +131,7 @@ void IntroPwdCheck::step_error(float64 ms, bool timer) {
 			error.clear();
 		}
 	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, anim::linear);
 	}
 	if (timer) update();
 }

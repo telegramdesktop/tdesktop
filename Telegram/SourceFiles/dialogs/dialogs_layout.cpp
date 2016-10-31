@@ -293,17 +293,17 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool 
 }
 
 void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground) {
-	p.fillRect(0, 0, w, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::white);
+	p.fillRect(0, 0, w, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::dialogsBg);
 	if (onlyBackground) {
 		return;
 	}
 
 	p.setFont(st::semiboldFont);
-	p.setPen(st::black);
+	p.setPen(st::dialogsNameFg);
 
 	int unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
 	bool mutedHidden = (current == Dialogs::Mode::Important);
-	QString text = mutedHidden ? qsl("Show all chats") : qsl("Hide muted chats");
+	QString text = lang(mutedHidden ? lng_dialogs_show_all_chats : lng_dialogs_hide_muted_chats);
 	int textBaseline = unreadTop + (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2 + st::dialogsUnreadFont->ascent;
 	p.drawText(st::dialogsPadding.x(), textBaseline, text);
 

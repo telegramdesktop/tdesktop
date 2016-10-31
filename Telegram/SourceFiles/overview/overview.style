@@ -58,10 +58,14 @@ overviewPhotoChecked: icon {
 };
 overviewPhotoSelectOverlay: #0a7bb03f;
 
+overviewVideoBg: #000000;
+
+overviewFileThumbBg: #000000;
 overviewFileChecked: #2fa9e2;
 overviewFileCheck: #00000066;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
+overviewFileExtFg: #ffffff;
 overviewFileExtFont: font(18px semibold);
 
 overviewFileLayout: OverviewFileLayout {
@@ -93,8 +97,10 @@ playlistPadding: 10px;
 
 linksSearchMargin: margins(20px, 20px, 20px, 0px);
 linksMaxWidth: 520px;
+linksLetterFg: #ffffff;
 linksLetterFont: font(24px);
 linksMargin: margins(0px, 7px, 0px, 5px);
+linksTextFg: #000000;
 linksTextTop: 6px;
 linksBorder: 1px;
 linksBorderFg: #eaeaea;

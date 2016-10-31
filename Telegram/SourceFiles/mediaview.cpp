@@ -83,9 +83,9 @@ bool typeHasMediaOverview(MediaOverviewType type) {
 
 MediaView::MediaView() : TWidget(App::wnd())
 , _animStarted(getms())
-, _docDownload(this, lang(lng_media_download), st::mvDocLink)
-, _docSaveAs(this, lang(lng_mediaview_save_as), st::mvDocLink)
-, _docCancel(this, lang(lng_cancel), st::mvDocLink)
+, _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
+, _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
+, _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
 , _radial(animation(this, &MediaView::step_radial))
 , _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
@@ -279,7 +279,7 @@ void MediaView::updateDocSize() {
 		_docSize = formatSizeText(_doc->size);
 	}
 	_docSizeWidth = st::mvFont->width(_docSize);
-	int32 maxw = st::mvDocSize.width() - st::mvDocIconSize - st::mvDocPadding * 3;
+	int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 	if (_docSizeWidth > maxw) {
 		_docSize = st::mvFont->elided(_docSize, maxw);
 		_docSizeWidth = st::mvFont->width(_docSize);
@@ -291,18 +291,18 @@ void MediaView::updateControls() {
 		if (_doc->loading()) {
 			_docDownload.hide();
 			_docSaveAs.hide();
-			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+			_docCancel.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 			_docCancel.show();
 		} else {
 			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
 				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			} else {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docDownload.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocIconSize + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mediaviewFilePadding + st::mediaviewFileIconSize + _docDownload.width(), _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			}
@@ -1224,7 +1224,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		}
 	}
 
-	_docIconRect = QRect((width() - st::mvDocIconSize) / 2, (height() - st::mvDocIconSize) / 2, st::mvDocIconSize, st::mvDocIconSize);
+	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	if (!fileShown()) {
 		if (!_doc || _doc->thumb->isNull()) {
 			int32 colorIndex = documentColorIndex(_doc, _docExt);
@@ -1232,11 +1232,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
 			_docIcon = thumbs[colorIndex];
 
-			int32 extmaxw = (st::mvDocIconSize - st::mvDocExtPadding * 2);
-			_docExtWidth = st::mvDocExtFont->width(_docExt);
+			int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
+			_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
 			if (_docExtWidth > extmaxw) {
-				_docExt = st::mvDocNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-				_docExtWidth = st::mvDocNameFont->width(_docExt);
+				_docExt = st::mediaviewFileNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+				_docExtWidth = st::mediaviewFileNameFont->width(_docExt);
 			}
 		} else {
 			_doc->thumb->load();
@@ -1244,33 +1244,33 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			if (!tw || !th) {
 				_docThumbx = _docThumby = _docThumbw = 0;
 			} else if (tw > th) {
-				_docThumbw = (tw * st::mvDocIconSize) / th;
-				_docThumbx = (_docThumbw - st::mvDocIconSize) / 2;
+				_docThumbw = (tw * st::mediaviewFileIconSize) / th;
+				_docThumbx = (_docThumbw - st::mediaviewFileIconSize) / 2;
 				_docThumby = 0;
 			} else {
-				_docThumbw = st::mvDocIconSize;
+				_docThumbw = st::mediaviewFileIconSize;
 				_docThumbx = 0;
-				_docThumby = ((th * _docThumbw) / tw - st::mvDocIconSize) / 2;
+				_docThumby = ((th * _docThumbw) / tw - st::mediaviewFileIconSize) / 2;
 			}
 		}
 
-		int32 maxw = st::mvDocSize.width() - st::mvDocIconSize - st::mvDocPadding * 3;
+		int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 
 		if (_doc) {
 			_docName = (_doc->type == StickerDocument) ? lang(lng_in_dlg_sticker) : (_doc->type == AnimatedDocument ? qsl("GIF") : (_doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name));
 		} else {
 			_docName = lang(lng_message_empty);
 		}
-		_docNameWidth = st::mvDocNameFont->width(_docName);
+		_docNameWidth = st::mediaviewFileNameFont->width(_docName);
 		if (_docNameWidth > maxw) {
-			_docName = st::mvDocNameFont->elided(_docName, maxw, Qt::ElideMiddle);
-			_docNameWidth = st::mvDocNameFont->width(_docName);
+			_docName = st::mediaviewFileNameFont->elided(_docName, maxw, Qt::ElideMiddle);
+			_docNameWidth = st::mediaviewFileNameFont->width(_docName);
 		}
 
 		// _docSize is updated in updateControls()
 
-		_docRect = QRect((width() - st::mvDocSize.width()) / 2, (height() - st::mvDocSize.height()) / 2, st::mvDocSize.width(), st::mvDocSize.height());
-		_docIconRect = myrtlrect(_docRect.x() + st::mvDocPadding, _docRect.y() + st::mvDocPadding, st::mvDocIconSize, st::mvDocIconSize);
+		_docRect = QRect((width() - st::mediaviewFileSize.width()) / 2, (height() - st::mediaviewFileSize.height()) / 2, st::mediaviewFileSize.width(), st::mediaviewFileSize.height());
+		_docIconRect = myrtlrect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
 		_w = convertScale(_current.width());
@@ -1348,7 +1348,7 @@ void MediaView::initAnimation() {
 		_current = _doc->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mvDocIconSize, st::mvDocIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1364,7 +1364,7 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mvDocIconSize, st::mvDocIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixSmooth | ImagePixBlurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
 	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
@@ -1545,12 +1545,11 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	if (_fullScreenVideo) {
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
-			p.fillRect(rs.at(i), st::black);
+			p.fillRect(rs.at(i), st::mediaviewVideoBg);
 		}
 	} else {
-		p.setOpacity(st::mvBgOpacity);
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
-			p.fillRect(rs.at(i), st::mvBgColor);
+			p.fillRect(rs.at(i), st::mediaviewBg);
 		}
 		p.setCompositionMode(m);
 	}
@@ -1605,8 +1604,8 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					auto inner = radialRect();
 
 					p.setPen(Qt::NoPen);
-					p.setBrush(st::black);
-					p.setOpacity(radialOpacity * st::radialBgOpacity);
+					p.setOpacity(radialOpacity);
+					p.setBrush(st::radialBg);
 
 					p.setRenderHint(QPainter::HighQualityAntialiasing);
 					p.drawEllipse(inner);
@@ -1614,7 +1613,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 					p.setOpacity(1);
 					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-					_radial.draw(p, arc, st::radialLine, st::white);
+					_radial.draw(p, arc, st::radialLine, st::radialFg);
 				}
 			} else if (_doc) {
 				paintDocRadialLoading(p, radial, radialOpacity);
@@ -1634,7 +1633,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 						App::roundRect(p, _saveMsg, st::medviewSaveMsg, MediaviewSaveCorners);
 						st::medviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::medviewSaveMsgCheckPos, width());
 
-						p.setPen(st::white->p);
+						p.setPen(st::medviewSaveMsgFg);
 						textstyleSet(&st::medviewSaveAsTextStyle);
 						_saveMsgText.draw(p, _saveMsg.x() + st::medviewSaveMsgPadding.left(), _saveMsg.y() + st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
 						textstyleRestore();
@@ -1651,7 +1650,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		if (_docRect.intersects(r)) {
-			p.fillRect(_docRect, st::mvDocBg);
+			p.fillRect(_docRect, st::mediaviewFileBg);
 			if (_docIconRect.intersects(r)) {
 				bool radial = false;
 				float64 radialOpacity = 0;
@@ -1664,15 +1663,15 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.fillRect(_docIconRect, _docIconColor->b);
 					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
 						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
-						p.setPen(st::mvDocExtColor->p);
-						p.setFont(st::mvDocExtFont->f);
+						p.setPen(st::mediaviewFileExtFg);
+						p.setFont(st::mediaviewFileExtFont);
 						if (!_docExt.isEmpty()) {
-							p.drawText(_docIconRect.x() + (_docIconRect.width() - _docExtWidth) / 2, _docIconRect.y() + st::mvDocExtTop + st::mvDocExtFont->ascent, _docExt);
+							p.drawText(_docIconRect.x() + (_docIconRect.width() - _docExtWidth) / 2, _docIconRect.y() + st::mediaviewFileExtTop + st::mediaviewFileExtFont->ascent, _docExt);
 						}
 					}
 				} else {
 					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mvDocIconSize * rf, st::mvDocIconSize * rf));
+					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 				}
 
 				paintDocRadialLoading(p, radial, radialOpacity);
@@ -1680,13 +1679,13 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 			if (!_docIconRect.contains(r)) {
 				name = true;
-				p.setPen(st::mvDocNameColor);
-				p.setFont(st::mvDocNameFont);
-				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocNameTop, width(), _docName, _docNameWidth);
+				p.setPen(st::mediaviewFileNameFg);
+				p.setFont(st::mediaviewFileNameFont);
+				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileNameTop, width(), _docName, _docNameWidth);
 
-				p.setPen(st::mvDocSizeColor);
+				p.setPen(st::mediaviewFileSizeFg);
 				p.setFont(st::mvFont);
-				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocSizeTop, width(), _docSize, _docSizeWidth);
+				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileSizeTop, width(), _docSize, _docSizeWidth);
 			}
 		}
 	}
@@ -1697,10 +1696,10 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_leftNav.intersects(r) && _leftNavVisible) {
 			auto o = overLevel(OverLeftNav);
 			if (o > 0) {
-				p.setOpacity(o * st::mvControlBgOpacity * co);
+				p.setOpacity(o * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
 					auto fill = _leftNav.intersected(rs.at(i));
-					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
 			}
 			if (_leftNavIcon.intersects(r)) {
@@ -1713,10 +1712,10 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_rightNav.intersects(r) && _rightNavVisible) {
 			auto o = overLevel(OverRightNav);
 			if (o > 0) {
-				p.setOpacity(o * st::mvControlBgOpacity * co);
+				p.setOpacity(o * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
 					auto fill = _rightNav.intersected(rs.at(i));
-					if (!fill.isEmpty()) p.fillRect(fill, st::black);
+					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
 			}
 			if (_rightNavIcon.intersects(r)) {
@@ -1729,10 +1728,10 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_closeNav.intersects(r)) {
 			auto o = overLevel(OverClose);
 			if (o > 0) {
-				p.setOpacity(o * st::mvControlBgOpacity * co);
+				p.setOpacity(o * co);
 				for (int i = 0, l = region.rectCount(); i < l; ++i) {
 					auto fill = _closeNav.intersected(rs.at(i));
-					if (!fill.isEmpty()) p.fillRect(fill, st::black);
+					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
 			}
 			if (_closeNavIcon.intersects(r)) {
@@ -1755,12 +1754,12 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
 		}
 
-		p.setPen(st::white);
+		p.setPen(st::mvControlFg);
 		p.setFont(st::mvThickFont);
 
 		// header
 		if (_headerNav.intersects(r)) {
-			float64 o = _headerHasLink ? overLevel(OverHeader) : 0;
+			auto o = _headerHasLink ? overLevel(OverHeader) : 0;
 			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
 			p.drawText(_headerNav.left(), _headerNav.top() + st::mvThickFont->ascent, _headerText);
 
@@ -1770,7 +1769,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			}
 		}
 
-		p.setFont(st::mvFont->f);
+		p.setFont(st::mvFont);
 
 		// name
 		if (_from && _nameNav.intersects(r)) {
@@ -1801,12 +1800,12 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			QRect outer(_captionRect.marginsAdded(st::mvCaptionPadding));
 			if (outer.intersects(r)) {
 				p.setOpacity(co);
-				p.setBrush(st::mvCaptionBg->b);
+				p.setBrush(st::mvCaptionBg);
 				p.setPen(Qt::NoPen);
 				p.drawRoundedRect(outer, st::mvCaptionRadius, st::mvCaptionRadius);
 				if (_captionRect.intersects(r)) {
 					textstyleSet(&st::medviewSaveAsTextStyle);
-					p.setPen(st::white->p);
+					p.setPen(st::mvCaptionFg);
 					_caption.drawElided(p, _captionRect.x(), _captionRect.y(), _captionRect.width(), _captionRect.height() / st::mvCaptionFont->height);
 					textstyleRestore();
 				}
@@ -1829,7 +1828,7 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 			p.setBrush(st::msgDateImgBgOver);
 		} else {
 			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - o)) + (st::msgDateImgBgOver->c.alphaF() * o));
-			p.setBrush(st::black);
+			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, o));
 		}
 
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
@@ -1849,7 +1848,7 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 		if (radial) {
 			p.setOpacity(1);
 			QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-			_radial.draw(p, arc, st::radialLine, st::white);
+			_radial.draw(p, arc, st::radialLine, st::radialFg);
 		}
 	}
 }

@@ -45,4 +45,20 @@ private:
 
 };
 
+class MaskButton : public Button {
+public:
+	MaskButton(QWidget *parent, const style::MaskButton &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+
+private:
+	const style::MaskButton &_st;
+
+	ColorAnimation _a_iconBg;
+
+};
+
 } // namespace Ui
