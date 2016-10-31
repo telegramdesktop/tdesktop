@@ -323,18 +323,18 @@ void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect,
 	}
 }
 
-void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
+void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const {
 	using Button = HistoryMessageReplyMarkup::Button;
-	style::sprite sprite;
-	switch (type) {
-	case Button::Type::Url: sprite = st::msgBotKbUrlIcon; break;
-		//	case Button::Type::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
-		//	case Button::Type::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
-	case Button::Type::SwitchInlineSame:
-	case Button::Type::SwitchInline: sprite = st::msgBotKbSwitchPmIcon; break;
-	}
-	if (!sprite.isEmpty()) {
-		p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, sprite);
+	auto getIcon = [](Button::Type type) -> const style::icon* {
+		switch (type) {
+		case Button::Type::Url: return &st::msgBotKbUrlIcon;
+		case Button::Type::SwitchInlineSame:
+		case Button::Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
+		}
+		return nullptr;
+	};
+	if (auto icon = getIcon(type)) {
+		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
 	}
 }
 
@@ -347,11 +347,9 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	using Button = HistoryMessageReplyMarkup::Button;
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
-	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
-	//case Button::Type::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
-	//case Button::Type::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
 	case Button::Type::SwitchInlineSame:
-	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
+	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
 	case Button::Type::Callback:
 	case Button::Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	}
@@ -1280,7 +1278,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		height -= h;
 		int top = height + st::msgBotKbButton.margin - marginBottom();
 		p.translate(left, top);
-		keyboard->paint(p, r.translated(-left, -top));
+		keyboard->paint(p, width, r.translated(-left, -top));
 		p.translate(-left, -top);
 	}
 

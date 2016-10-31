@@ -349,7 +349,7 @@ shadowToggleDuration: 200;
 slideDuration: 240;
 slideShift: 100px;
 slideFadeOut: 0.3;
-slideShadow: sprite(348px, 71px, 48px, 1px);
+slideShadow: icon {{ "slide_shadow", #000000 }};
 slideFunction: transition(easeOutCirc);
 
 btnDefIconed: iconedButton {
@@ -695,24 +695,29 @@ introErrLabel: flatLabel(labelDefFlat) {
 	font: introErrFont;
 	align: align(center);
 }
+introBackButton: IconButton {
+	width: 40px;
+	height: 40px;
+
+	opacity: 0.71;
+	overOpacity: 1.;
+
+	icon: icon {
+		{ size(40px, 40px), #eeeeee },
+		{ "title_previous", #969696, point(12px, 12px) },
+	};
+	iconPosition: point(0px, 0px);
+	downIconPosition: point(0px, 0px);
+
+	duration: 150;
+}
+introBackPosition: point(32px, 32px);
 
 setLittleSkip: 9px;
 setScroll: flatScroll(scrollDef) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
-setClose: iconedButton(btnDefIconed) {
-	icon: sprite(245px, 221px, 40px, 40px);
-	iconPos: point(0px, 0px);
-	downIcon: sprite(245px, 221px, 40px, 40px);
-	downIconPos: point(0px, 0px);
-
-	opacity: 0.71;
-
-	width: 43px;
-	height: 43px;
-}
-setClosePos: point(32px, 32px);
 setPhotoDuration: 150;
 
 setErrColor: #d84d4d;
@@ -722,12 +727,13 @@ noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777;
 
+fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
 dlgFilter: flatInput(inpDefGray) {
 	font: font(fsize);
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	icon: icon {{ "box_search_icon", #aaaaaa, point(10px, 9px) }};
+	icon: fieldSearchIcon;
 
 	width: 240px;
 	height: 34px;
@@ -737,29 +743,26 @@ dlgFilter: flatInput(inpDefGray) {
 topBarHeight: 54px;
 topBarBG: white;
 topBarDuration: 200;
-topBarForwardPadding: margins(17px, 8px, 39px, 8px);
+topBarForward: icon {{ "title_next", #a3a3a3 }};
+topBarBackward: icon {{ "title_previous", #a3a3a3 }};
 topBarForwardAlpha: 0.6;
-topBarForwardImg: sprite(31px, 104px, 9px, 16px);
-topBarBackwardImg: sprite(22px, 104px, 9px, 16px);
-topBarBackPadding: margins(15px, 7px, 9px, 7px);
+topBarBack: icon {{ "title_previous", #259fd8 }};
 topBarBackAlpha: 0.8;
-topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
-topBarSearch: iconedButton(btnDefIconed) {
-	bgColor: transparent;
-	overBgColor: transparent;
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarSearch: IconButton {
+	width: 44px;
+	height: topBarHeight;
 
-	icon: sprite(84px, 374px, 18px, 18px);
-	iconPos: point(13px, 18px);
-	downIcon: sprite(84px, 374px, 18px, 18px);
-	downIconPos: point(13px, 18px);
+	icon: icon {{ "title_search", #000000 }};
+	iconPosition: point(13px, 18px);
+	downIconPosition: point(13px, 18px);
 
 	opacity: 0.22;
 	overOpacity: 0.36;
 
-	width: 44px;
-	height: topBarHeight;
+	duration: 150;
 }
 topBarMinPadding: 5px;
 topBarButton: RoundButton {
@@ -859,10 +862,8 @@ msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
 msgBotKbOverOpacity: 0.1;
 msgBotKbIconPadding: 2px;
-msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
-//msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
-//msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
-msgBotKbSwitchPmIcon: sprite(188px, 348px, 10px, 10px);
+msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
+msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
 msgBotKbButton: botKeyboardButton {
 	margin: 5px;
 	padding: 10px;
@@ -1042,11 +1043,6 @@ msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
 msgFileOutBgOver: #6bc272;
 msgFileOutBgSelected: #5fb389;
-
-msgFileRed: sprite(0px, 425px, 20px, 20px);
-msgFileYellow: sprite(20px, 425px, 20px, 20px);
-msgFileGreen: sprite(40px, 425px, 20px, 20px);
-msgFileBlue: sprite(60px, 425px, 20px, 20px);
 
 msgFileOverDuration: 200;
 msgFileRadialLine: 3px;
@@ -1393,7 +1389,7 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-aboutIcon: sprite(0px, 0px, 104px, 104px);
+aboutIcon: icon {{ "intro_logo", #008ed5 }};
 aboutWidth: 390px;
 aboutVersionTop: -3px;
 aboutVersionLink: linkButton(btnDefLink) {
@@ -1980,3 +1976,7 @@ infoButton: PeerAvatarButton {
 	size: topBarHeight;
 	photoSize: 42px;
 }
+
+// forward declaration for single "title_previous" usage.
+profileTopBarBackIconFg: #0290d7;
+profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};

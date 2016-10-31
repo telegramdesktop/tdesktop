@@ -201,6 +201,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
+	LayerWidget::resizeEvent(e);
 	if (!width() || !height()) {
 		return;
 	}

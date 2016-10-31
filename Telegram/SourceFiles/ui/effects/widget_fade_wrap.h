@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class TWidget;
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
 
 class FadeAnimation {
@@ -56,6 +58,72 @@ private:
 
 	FinishedCallback _finishedCallback;
 	UpdatedCallback _updatedCallback;
+
+};
+
+template <typename Widget>
+class WidgetFadeWrap;
+
+template <>
+class WidgetFadeWrap<TWidget> : public TWidget {
+public:
+	WidgetFadeWrap(QWidget *parent, TWidget *entity
+		, base::lambda_unique<void()> updateCallback
+		, int duration = st::widgetFadeDuration);
+
+	void fadeOut() {
+		_animation.fadeOut(_duration);
+	}
+	void fadeIn() {
+		_animation.fadeIn(_duration);
+	}
+	void showFast() {
+		_animation.show();
+		if (_updateCallback) {
+			_updateCallback();
+		}
+	}
+	void hideFast() {
+		_animation.hide();
+		if (_updateCallback) {
+			_updateCallback();
+		}
+	}
+
+	TWidget *entity() {
+		return _entity;
+	}
+
+	const TWidget *entity() const {
+		return _entity;
+	}
+
+protected:
+	bool eventFilter(QObject *object, QEvent *event) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	TWidget *_entity;
+	int _duration;
+	base::lambda_unique<void()> _updateCallback;
+
+	FadeAnimation _animation;
+
+};
+
+template <typename Widget>
+class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
+public:
+	WidgetFadeWrap(QWidget *parent, Widget *entity
+		, base::lambda_unique<void()> updateCallback
+		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
+	}
+	Widget *entity() {
+		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());
+	}
+	const Widget *entity() const {
+		return static_cast<const Widget*>(WidgetFadeWrap<TWidget>::entity());
+	}
 
 };
 

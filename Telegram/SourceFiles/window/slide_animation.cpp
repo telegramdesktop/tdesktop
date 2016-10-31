@@ -39,7 +39,7 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 	}
 	p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
 	p.setOpacity(a_progress.current());
-	p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), _cacheOver.height() / retina), App::sprite(), st::slideShadow.rect());
+	st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
 
 	if (_topBarShadowEnabled) {
 		p.setOpacity(1);

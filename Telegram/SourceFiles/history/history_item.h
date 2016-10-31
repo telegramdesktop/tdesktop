@@ -303,14 +303,14 @@ public:
 
 	protected:
 		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
-		virtual void paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const = 0;
+		virtual void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const = 0;
 		virtual void paintButtonLoading(Painter &p, const QRect &rect) const = 0;
 		virtual int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const = 0;
 
 	private:
 		const style::botKeyboardButton *_st;
 
-		void paintButton(Painter &p, const ReplyKeyboard::Button &button) const;
+		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -328,7 +328,7 @@ public:
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, const QRect &clip) const;
+	void paint(Painter &p, int outerWidth, const QRect &clip) const;
 	ClickHandlerPtr getState(int x, int y) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);

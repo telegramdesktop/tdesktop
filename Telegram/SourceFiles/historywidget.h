@@ -423,7 +423,7 @@ private:
 
 	protected:
 		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
-		void paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const override;
+		void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const override;
 		void paintButtonLoading(Painter &p, const QRect &rect) const override;
 		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
 

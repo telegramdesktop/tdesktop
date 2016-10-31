@@ -51,7 +51,7 @@ protected:
 	void focusOutEvent(QFocusEvent *e) override;
 	void hideEvent(QHideEvent *e) override;
 
-public slots:
+private slots:
 	void actionChanged();
 
 private:

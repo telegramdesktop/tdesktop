@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/multi_select.h"
-#include "ui/widgets/widget_slide_wrap.h"
+#include "ui/effects/widget_slide_wrap.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"

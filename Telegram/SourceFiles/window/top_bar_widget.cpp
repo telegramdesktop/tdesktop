@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/buttons/round_button.h"
+#include "ui/buttons/icon_button.h"
 #include "ui/flatbutton.h"
 
 namespace Window {
@@ -144,7 +145,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		int decreaseWidth = 0;
 		if (!_info->isHidden()) {
 			decreaseWidth += _info->width();
-			decreaseWidth -= st::topBarForwardPadding.right();
+			decreaseWidth -= st::topBarArrowPadding.left();
 		}
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
@@ -181,7 +182,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 
 	if (!_info->isHidden()) _info->move(r -= _info->width(), 0);
 	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
-	_search->move(width() - (_info->isHidden() ? st::topBarForwardPadding.right() : _info->width()) - _search->width(), 0);
+	_search->move(width() - (_info->isHidden() ? st::topBarArrowPadding.left() : _info->width()) - _search->width(), 0);
 }
 
 void TopBarWidget::startAnim() {

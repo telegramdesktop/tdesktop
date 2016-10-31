@@ -22,12 +22,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mtproto/rpc_sender.h"
 
+namespace Ui {
+class IconButton;
+template <typename Widget>
+class WidgetFadeWrap;
+} // namespace Ui
+
 class IntroStep;
 class IntroWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	IntroWidget(QWidget *window);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -85,18 +90,15 @@ public:
 	~IntroWidget() override;
 
 public slots:
-
 	void onStepSubmit();
 	void onBack();
 	void onParentResize(const QSize &newSize);
 	void onChangeLang();
 
 signals:
-
 	void countryChanged();
 
 private:
-
 	QPixmap grabStep(int skip = 0);
 
 	int _langChangeTo = 0;
@@ -143,7 +145,8 @@ private:
 
 	QString _firstname, _lastname;
 
-	IconedButton _back;
+	ChildWidget<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
+
 	float64 _backFrom = 0.;
 	float64 _backTo = 0.;
 
@@ -151,7 +154,6 @@ private:
 
 class IntroStep : public TWidget, public RPCSender {
 public:
-
 	IntroStep(IntroWidget *parent) : TWidget(parent) {
 	}
 
@@ -169,7 +171,6 @@ public:
 	virtual void onSubmit() = 0;
 
 protected:
-
 	IntroWidget *intro() {
 		IntroWidget *result = qobject_cast<IntroWidget*>(parentWidget());
 		t_assert(result != nullptr);
