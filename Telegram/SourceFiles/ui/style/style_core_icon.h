@@ -50,6 +50,7 @@ public:
 	MonoIcon() = default;
 	MonoIcon(const IconMask *mask, const Color &color, QPoint offset);
 
+	void reset() const;
 	int width() const;
 	int height() const;
 	QSize size() const;
@@ -66,6 +67,7 @@ public:
 
 private:
 	void ensureLoaded() const;
+	void createCachedPixmap() const;
 
 	const IconMask *_mask = nullptr;
 	Color _color;
@@ -76,17 +78,20 @@ private:
 
 };
 
-class Icon {
+class IconData {
 public:
-	Icon(Qt::Initialization) {
-	}
-
-	template <typename ... MonoIcons>
-	Icon(const MonoIcons&... icons) {
+	template <typename ...MonoIcons>
+	IconData(const MonoIcons &...icons) {
+		created();
 		_parts.reserve(sizeof...(MonoIcons));
 		addIcons(icons...);
 	}
 
+	void reset() {
+		for_const (auto &part, _parts) {
+			part.reset();
+		}
+	}
 	bool empty() const {
 		return _parts.empty();
 	}
@@ -96,12 +101,6 @@ public:
 			part.paint(p, pos, outerw);
 		}
 	}
-	void paint(QPainter &p, int x, int y, int outerw) const {
-		paint(p, QPoint(x, y), outerw);
-	}
-	void paintInCenter(QPainter &p, const QRect &outer) const {
-		paint(p, outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2, outer.x() * 2 + outer.width());
-	}
 	void fill(QPainter &p, const QRect &rect) const;
 
 	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
@@ -109,24 +108,18 @@ public:
 			part.paint(p, pos, outerw, colorOverride);
 		}
 	}
-	void paint(QPainter &p, int x, int y, int outerw, QColor colorOverride) const {
-		paint(p, QPoint(x, y), outerw, colorOverride);
-	}
-	void paintInCenter(QPainter &p, const QRect &outer, QColor colorOverride) const {
-		paint(p, outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2, outer.x() * 2 + outer.width(), colorOverride);
-	}
 	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
 
 	int width() const;
 	int height() const;
-	QSize size() const {
-		return QSize(width(), height());
-	}
 
 private:
+	void created();
+
 	template <typename ... MonoIcons>
 	void addIcons() {
 	}
+
 	template <typename ... MonoIcons>
 	void addIcons(const MonoIcon &icon, const MonoIcons&... icons) {
 		_parts.push_back(icon);
@@ -139,6 +132,86 @@ private:
 
 };
 
+class Icon {
+public:
+	Icon(Qt::Initialization) {
+	}
+
+	template <typename ... MonoIcons>
+	Icon(const MonoIcons&... icons) : _data(new IconData(icons...)), _owner(true) {
+	}
+	Icon(const Icon &other) : _data(other._data) {
+	}
+	Icon(Icon &&other) : _data(base::take(other._data)), _owner(base::take(_owner)) {
+	}
+	Icon &operator=(const Icon &other) {
+		t_assert(!_owner);
+		_data = other._data;
+		_owner = false;
+		return *this;
+	}
+	Icon &operator=(Icon &&other) {
+		t_assert(!_owner);
+		_data = base::take(other._data);
+		_owner = base::take(other._owner);
+		return *this;
+	}
+
+	bool empty() const {
+		return _data->empty();
+	}
+
+	void paint(QPainter &p, const QPoint &pos, int outerw) const {
+		return _data->paint(p, pos, outerw);
+	}
+	void paint(QPainter &p, int x, int y, int outerw) const {
+		return _data->paint(p, QPoint(x, y), outerw);
+	}
+	void paintInCenter(QPainter &p, const QRect &outer) const {
+		return _data->paint(p, QPoint(outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2), outer.x() * 2 + outer.width());
+	}
+	void fill(QPainter &p, const QRect &rect) const {
+		return _data->fill(p, rect);
+	}
+
+	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
+		return _data->paint(p, pos, outerw, colorOverride);
+	}
+	void paint(QPainter &p, int x, int y, int outerw, QColor colorOverride) const {
+		return _data->paint(p, QPoint(x, y), outerw, colorOverride);
+	}
+	void paintInCenter(QPainter &p, const QRect &outer, QColor colorOverride) const {
+		return _data->paint(p, QPoint(outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2), outer.x() * 2 + outer.width(), colorOverride);
+	}
+	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+		return _data->fill(p, rect, colorOverride);
+	}
+
+	int width() const {
+		return _data->width();
+	}
+	int height() const {
+		return _data->height();
+	}
+	QSize size() const {
+		return QSize(width(), height());
+	}
+
+	~Icon() {
+		if (auto data = base::take(_data)) {
+			if (_owner) {
+				delete data;
+			}
+		}
+	}
+
+private:
+	IconData *_data = nullptr;
+	bool _owner = false;
+
+};
+
+void resetIcons();
 void destroyIcons();
 
 } // namespace internal

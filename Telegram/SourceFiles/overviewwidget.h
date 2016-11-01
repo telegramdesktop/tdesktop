@@ -315,8 +315,6 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
-	void updateScrollColors();
-
 	void updateAfterDrag();
 
 	void grabStart() override {

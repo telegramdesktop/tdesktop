@@ -239,7 +239,7 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 			if (!theme.cached.background.isEmpty()) {
 				Local::writeBackground(Window::Theme::kThemeBackground, QImage());
 			}
-			App::restart();
+			style::main_palette::apply(theme.palette);
 		}
 		return;
 	}

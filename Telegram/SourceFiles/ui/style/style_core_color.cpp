@@ -41,30 +41,25 @@ void destroyColors() {
 	colorsMap.clear();
 }
 
-Color::Color(const Color &c) : ptr(c.owner ? new ColorData(*c.ptr) : c.ptr), owner(c.owner) {
+Color::Color(const Color &c) : ptr(c.ptr) {
 }
 
-Color::Color(QColor c) : owner(false) {
-	init(c.red(), c.green(), c.blue(), c.alpha());
+Color::Color(ColorData *data) : ptr(data) {
 }
 
-Color::Color(uchar r, uchar g, uchar b, uchar a) : owner(false) {
+Color::Color(uchar r, uchar g, uchar b, uchar a) {
 	init(r, g, b, a);
 }
 
-Color &Color::operator=(const Color &c) {
-	if (this != &c) {
-		if (owner) {
-			delete ptr;
-		}
-		ptr = c.owner ? new ColorData(*c.ptr) : c.ptr;
-		owner = c.owner;
-	}
-	return *this;
+void Color::set(uchar r, uchar g, uchar b, uchar a) const {
+	ptr->set(r, g, b, a);
 }
 
 void Color::init(uchar r, uchar g, uchar b, uchar a) {
-	uint32 key = colorKey(r, g, b, a);
+	if (ptr) {
+		return set(r, g, b, a);
+	}
+	auto key = colorKey(r, g, b, a);
 	auto i = colorsMap.constFind(key);
 	if (i == colorsMap.cend()) {
 		i = colorsMap.insert(key, new ColorData(r, g, b, a));
@@ -72,19 +67,16 @@ void Color::init(uchar r, uchar g, uchar b, uchar a) {
 	ptr = i.value();
 }
 
-Color::~Color() {
-	if (owner) {
-		delete ptr;
-	}
+ColorData::ColorData() : p(Qt::NoPen), b(Qt::NoBrush) {
 }
 
 ColorData::ColorData(uchar r, uchar g, uchar b, uchar a) : c(int(r), int(g), int(b), int(a)), p(c), b(c) {
 }
 
-void ColorData::set(QColor color) {
-	c = color;
-	p = QPen(color);
-	b = QBrush(color);
+void ColorData::set(uchar r, uchar g, uchar b, uchar a) {
+	this->c = QColor(r, g, b, a);
+	this->p = QPen(c);
+	this->b = QBrush(c);
 }
 
 } // namespace internal

@@ -31,8 +31,10 @@ uint32 colorKey(QColor c) {
 
 using IconMasks = QMap<const IconMask*, QImage>;
 using IconPixmaps = QMap<QPair<const IconMask*, uint32>, QPixmap>;
+using IconDatas = OrderedSet<IconData*>;
 NeverFreedPointer<IconMasks> iconMasks;
 NeverFreedPointer<IconPixmaps> iconPixmaps;
+NeverFreedPointer<IconDatas> iconData;
 
 inline int pxAdjust(int value, int scale) {
 	if (value < 0) {
@@ -80,6 +82,11 @@ MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset)
 : _mask(mask)
 , _color(color)
 , _offset(offset) {
+}
+
+void MonoIcon::reset() const {
+	_pixmap = QPixmap();
+	_size = QSize();
 }
 
 int MonoIcon::width() const {
@@ -151,8 +158,13 @@ void MonoIcon::ensureLoaded() const {
 	if (_size.isValid()) {
 		return;
 	}
-	const uchar *data = _mask->data();
-	int size = _mask->size();
+	if (!_maskImage.isNull()) {
+		createCachedPixmap();
+		return;
+	}
+
+	auto data = _mask->data();
+	auto size = _mask->size();
 
 	auto generateTag = qstr("GENERATE:");
 	if (size > generateTag.size() && !memcmp(data, generateTag.data(), generateTag.size())) {
@@ -190,18 +202,27 @@ void MonoIcon::ensureLoaded() const {
 		}
 		_maskImage = i.value();
 
-		iconPixmaps.createIfNull();
-		auto key = qMakePair(_mask, colorKey(_color->c));
-		auto j = iconPixmaps->constFind(key);
-		if (j == iconPixmaps->cend()) {
-			j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(createIconImage(_maskImage, _color->c)));
-		}
-		_pixmap = j.value();
-		_size = _pixmap.size() / cIntRetinaFactor();
+		createCachedPixmap();
 	}
 }
 
-void Icon::fill(QPainter &p, const QRect &rect) const {
+void MonoIcon::createCachedPixmap() const {
+	iconPixmaps.createIfNull();
+	auto key = qMakePair(_mask, colorKey(_color->c));
+	auto j = iconPixmaps->constFind(key);
+	if (j == iconPixmaps->cend()) {
+		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(createIconImage(_maskImage, _color->c)));
+	}
+	_pixmap = j.value();
+	_size = _pixmap.size() / cIntRetinaFactor();
+}
+
+void IconData::created() {
+	iconData.createIfNull();
+	iconData->insert(this);
+}
+
+void IconData::fill(QPainter &p, const QRect &rect) const {
 	if (_parts.isEmpty()) return;
 
 	auto partSize = _parts.at(0).size();
@@ -212,7 +233,7 @@ void Icon::fill(QPainter &p, const QRect &rect) const {
 	}
 }
 
-void Icon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
 	if (_parts.isEmpty()) return;
 
 	auto partSize = _parts.at(0).size();
@@ -223,7 +244,7 @@ void Icon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
 	}
 }
 
-int Icon::width() const {
+int IconData::width() const {
 	if (_width < 0) {
 		_width = 0;
 		for_const (auto &part, _parts) {
@@ -233,7 +254,7 @@ int Icon::width() const {
 	return _width;
 }
 
-int Icon::height() const {
+int IconData::height() const {
 	if (_height < 0) {
 		_height = 0;
 		for_const (auto &part, _parts) {
@@ -243,7 +264,17 @@ int Icon::height() const {
 	return _height;
 }
 
+void resetIcons() {
+	iconPixmaps.clear();
+	if (iconData) {
+		for (auto data : *iconData) {
+			data->reset();
+		}
+	}
+}
+
 void destroyIcons() {
+	iconData.clear();
 	iconPixmaps.clear();
 	iconMasks.clear();
 }

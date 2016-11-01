@@ -1905,7 +1905,6 @@ void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) 
 
 void MainWidget::updateScrollColors() {
 	_history->updateScrollColors();
-	if (_overview) _overview->updateScrollColors();
 }
 
 void MainWidget::setChatBackground(const App::WallPaper &wp) {

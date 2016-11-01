@@ -21,6 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace style {
+
+class palette;
+
 namespace internal {
 
 void destroyColors();
@@ -31,13 +34,9 @@ public:
 	Color(Qt::Initialization = Qt::Uninitialized) {
 	}
 	Color(const Color &c);
-	explicit Color(QColor c);
-	Color(uchar r, uchar g, uchar b, uchar a = 255);
-	Color &operator=(const Color &c);
-	~Color();
+	Color(uchar r, uchar g, uchar b, uchar a);
 
-	void set(QColor newv);
-	void set(uchar r, uchar g, uchar b, uchar a = 255);
+	void set(uchar r, uchar g, uchar b, uchar a) const;
 
 	operator const QBrush &() const;
 	operator const QPen &() const;
@@ -54,16 +53,12 @@ public:
 	}
 
 private:
-	ColorData *ptr = nullptr;
-	bool owner = false;
-
+	Color(ColorData *data);
 	void init(uchar r, uchar g, uchar b, uchar a);
 
-	friend void startManager();
+	ColorData *ptr = nullptr;
 
-	Color(ColorData *p) : ptr(p) {
-	}
-	friend class ColorData;
+	friend class style::palette;
 
 };
 
@@ -78,10 +73,12 @@ public:
 	}
 
 private:
+	ColorData();
 	ColorData(uchar r, uchar g, uchar b, uchar a);
-	void set(QColor c);
+	void set(uchar r, uchar g, uchar b, uchar a);
 
 	friend class Color;
+	friend class style::palette;
 
 };
 

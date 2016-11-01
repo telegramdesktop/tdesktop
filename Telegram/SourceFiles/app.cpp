@@ -2774,37 +2774,6 @@ namespace {
 		roundRect(p, x, y, w, h, bg, i.value(), 0);
 	}
 
-	void initBackground(int32 id, const QImage &p, bool nowrite) {
-		if (Local::readBackground()) return;
-
-		QImage img(p);
-		bool remove = (id == Window::Theme::kThemeBackground);
-		if (p.isNull()) {
-			if (id == Window::Theme::kDefaultBackground) {
-				img.load(qsl(":/gui/art/bg.jpg"));
-			} else {
-				img.load(qsl(":/gui/art/bg_old.png"));
-				if (cRetina()) {
-					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
-				} else if (cScale() != dbisOne) {
-					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
-				}
-				id = Window::Theme::kOldBackground;
-			}
-			remove = true;
-		}
-		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
-			img = img.convertToFormat(QImage::Format_RGB32);
-		}
-		img.setDevicePixelRatio(cRetinaFactor());
-
-		if (!nowrite) {
-			Local::writeBackground(id, remove ? QImage() : img);
-		}
-
-		initColorsFromBackground(img);
-	}
-
 	void initColorsFromBackground(const QImage &img) {
 		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 };
 		auto w = img.width();
@@ -2889,10 +2858,10 @@ namespace {
 		prepareCorners(StickerSelectedCorners, st::dateRadius, _msgServiceSelectBg);
 
 		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
-		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));
-		_historyScrollBgColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgColor->c.alphaF() * 0xFF));
-		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barOverColor->c.alphaF() * 0xFF));
-		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgOverColor->c.alphaF() * 0xFF));
+		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, st::historyScroll.barColor->c.alpha());
+		_historyScrollBgColor = style::color(rScroll, gScroll, bScroll, st::historyScroll.bgColor->c.alpha());
+		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, st::historyScroll.barOverColor->c.alpha());
+		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, st::historyScroll.bgOverColor->c.alpha());
 
 		if (App::main()) {
 			App::main()->updateScrollColors();

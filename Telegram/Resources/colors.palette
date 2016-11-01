@@ -29,6 +29,8 @@ windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over
 windowActiveTextFg: #1485c2; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
 
+titleBg: #6389a8;
+
 imageBg: #000000;
 imageBgTransparent: #ffffff;
 
@@ -123,6 +125,10 @@ historyCaptionInFg: historyTextInFg;
 historyCaptionOutFg: historyTextOutFg;
 historyFileNameInFg: historyTextInFg;
 historyFileNameOutFg: historyTextOutFg;
+
+historySystemBg: #89a0b47f;
+historySystemBgSelected: #bbc8d4a2;
+historySystemFg: #ffffff;
 
 // mediaview
 mediaviewFileBg: windowBg;

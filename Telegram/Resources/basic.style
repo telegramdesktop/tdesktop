@@ -277,7 +277,6 @@ boxScroll: flatScroll(solidScroll) {
 boxScrollSkip: 6px;
 boxScrollShadowBg: #00000012;
 
-titleBg: #6389a8;
 titleHeight: 39px;
 titleFont: font(17px);
 titlePos: point(44px, 29px);

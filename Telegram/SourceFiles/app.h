@@ -294,7 +294,6 @@ namespace App {
 	}
 
 	void initColorsFromBackground(const QImage &image);
-	void initBackground(int32 id, const QImage &p = QImage(), bool nowrite = false);
 
 	const style::color &msgServiceBg();
 	const style::color &msgServiceSelectBg();

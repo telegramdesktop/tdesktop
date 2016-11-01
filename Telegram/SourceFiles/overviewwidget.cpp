@@ -1874,7 +1874,7 @@ OverviewInner::~OverviewInner() {
 }
 
 OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type) : TWidget(parent)
-, _scroll(this, st::historyScroll, false)
+, _scroll(this, st::setScroll, false)
 , _inner(this, &_scroll, peer, type)
 , _a_show(animation(this, &OverviewWidget::step_show))
 , _topShadow(this, st::shadowColor) {
@@ -1882,8 +1882,6 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
-
-	updateScrollColors();
 
 	_scroll.show();
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -2193,11 +2191,6 @@ void OverviewWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	_inner.fillSelectedItems(sel, forDelete);
-}
-
-void OverviewWidget::updateScrollColors() {
-	if (!App::historyScrollBarColor()) return;
-	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
 }
 
 void OverviewWidget::updateAfterDrag() {

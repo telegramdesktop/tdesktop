@@ -356,8 +356,6 @@ DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 
-DeclareVar(bool, ApplyingTheme);
-
 } // namespace Global
 
 namespace Adaptive {

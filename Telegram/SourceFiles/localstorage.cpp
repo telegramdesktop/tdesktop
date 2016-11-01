@@ -598,7 +598,7 @@ FileKey _backgroundKey = 0;
 bool _backgroundWasRead = false;
 bool _backgroundCanWrite = true;
 
-FileKey _themeKey = 0, _applyingThemeKey = 0;
+FileKey _themeKey = 0;
 
 bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
@@ -1066,12 +1066,11 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 	} break;
 
 	case dbiTheme: {
-		quint64 themeKey = 0, applyingThemeKey = 0;
-		stream >> themeKey >> applyingThemeKey;
+		quint64 themeKey = 0;
+		stream >> themeKey;
 		if (!_checkStreamStatus(stream)) return false;
 
 		_themeKey = themeKey;
-		_applyingThemeKey = applyingThemeKey;
 	} break;
 
 	case dbiTryIPv6: {
@@ -2232,7 +2231,7 @@ void writeSettings() {
 		auto &proxy = Global::ConnectionProxy();
 		size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 	}
-	if (_themeKey || _applyingThemeKey) {
+	if (_themeKey) {
 		size += sizeof(quint32) + 2 * sizeof(quint64);
 	}
 	size += sizeof(quint32) + sizeof(qint32) * 7;
@@ -2264,8 +2263,8 @@ void writeSettings() {
 		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
 	}
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
-	if (_themeKey || _applyingThemeKey) {
-		data.stream << quint32(dbiTheme) << quint64(_themeKey) << quint64(_applyingThemeKey);
+	if (_themeKey) {
+		data.stream << quint32(dbiTheme) << quint64(_themeKey);
 	}
 
 	TWindowPos pos(cWindowPos());
@@ -3639,7 +3638,7 @@ void writeBackground(int32 id, const QImage &img) {
 }
 
 bool readBackground() {
-	if (_backgroundWasRead || Global::ApplyingTheme()) {
+	if (_backgroundWasRead) {
 		return false;
 	}
 	_backgroundWasRead = true;
@@ -3729,9 +3728,8 @@ bool readThemeUsingKey(FileKey key) {
 }
 
 void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
-	auto key = _applyingThemeKey ? _applyingThemeKey : _themeKey;
-	if (!key) {
-		key = _themeKey = genKey();
+	if (!_themeKey) {
+		_themeKey = genKey();
 		writeSettings();
 	}
 
@@ -3744,21 +3742,12 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 	data.stream << pathRelative << pathAbsolute;
 	data.stream << cache.paletteChecksum << cache.contentChecksum << cache.colors << cache.background << backgroundTiled;
 
-	FileWriteDescriptor file(key, FileOption::Safe);
+	FileWriteDescriptor file(_themeKey, FileOption::Safe);
 	file.writeEncrypted(data, _settingsKey);
 }
 
 void readTheme() {
-	if (_applyingThemeKey) {
-		if (readThemeUsingKey(_applyingThemeKey)) {
-			Global::SetApplyingTheme(true);
-		} else {
-			clearKey(_applyingThemeKey);
-			_applyingThemeKey = 0;
-			writeSettings();
-			readTheme();
-		}
-	} else if (_themeKey && !readThemeUsingKey(_themeKey)) {
+	if (_themeKey && !readThemeUsingKey(_themeKey)) {
 		clearKey(_themeKey);
 		_themeKey = 0;
 		writeSettings();
