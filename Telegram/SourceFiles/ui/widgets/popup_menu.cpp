@@ -80,8 +80,8 @@ void PopupMenu::handleMenuResize() {
 	_inner = QRect(_padding.left(), _padding.top(), width() - _padding.left() - _padding.right(), height() - _padding.top() - _padding.bottom());
 }
 
-QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon) {
-	return _menu->addAction(text, receiver, member, icon);
+QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
 QAction *PopupMenu::addSeparator() {

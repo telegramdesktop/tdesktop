@@ -29,8 +29,9 @@ IconButton::IconButton(QWidget *parent, const style::IconButton &st) : Button(pa
 	setCursor(style::cur_pointer);
 }
 
-void IconButton::setIcon(const style::icon *icon) {
+void IconButton::setIcon(const style::icon *icon, const style::icon *iconOver) {
 	_iconOverride = icon;
+	_iconOverrideOver = iconOver;
 	update();
 }
 
@@ -38,22 +39,47 @@ void IconButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
-	p.setOpacity(over * _st.overOpacity + (1. - over) * _st.opacity);
-
-	auto icon = (_iconOverride ? _iconOverride : &_st.icon);
-	auto position = (_state & StateDown) ? _st.downIconPosition : _st.iconPosition;
+	auto overIcon = [this] {
+		if (_iconOverrideOver) {
+			return _iconOverrideOver;
+		} else if (!_st.iconOver.empty()) {
+			return &_st.iconOver;
+		} else if (_iconOverride) {
+			return _iconOverride;
+		}
+		return &_st.icon;
+	};
+	auto justIcon = [this] {
+		if (_iconOverride) {
+			return _iconOverride;
+		}
+		return &_st.icon;
+	};
+	auto icon = (over == 1.) ? overIcon() : justIcon();
+	auto position = (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition;
 	if (position.x() < 0) {
 		position.setX((width() - icon->width()) / 2);
 	}
 	icon->paint(p, position, width());
+	if (over > 0. && over < 1.) {
+		auto iconOver = overIcon();
+		if (iconOver != icon) {
+			p.setOpacity(over);
+			iconOver->paint(p, position, width());
+		}
+	}
 }
 
 void IconButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	auto over = (_state & StateOver);
 	if (over != (oldState & StateOver)) {
-		auto from = over ? 0. : 1.;
-		auto to = over ? 1. : 0.;
-		_a_over.start([this] { update(); }, from, to, _st.duration);
+		if (_st.duration) {
+			auto from = over ? 0. : 1.;
+			auto to = over ? 1. : 0.;
+			_a_over.start([this] { update(); }, from, to, _st.duration);
+		} else {
+			update();
+		}
 	}
 }
 
@@ -77,7 +103,7 @@ void MaskButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	auto position = (_state & StateDown) ? _st.downIconPosition : _st.iconPosition;
+	auto position = (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition;
 	if (position.x() < 0) {
 		position.setX((width() - _st.icon.width()) / 2);
 	}

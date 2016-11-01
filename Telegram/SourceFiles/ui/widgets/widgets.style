@@ -31,12 +31,11 @@ IconButton {
 	width: pixels;
 	height: pixels;
 
-	opacity: double;
-	overOpacity: double;
-
 	icon: icon;
+	iconOver: icon;
+
 	iconPosition: point;
-	downIconPosition: point;
+	iconPositionDown: point;
 
 	duration: int;
 }
@@ -52,7 +51,7 @@ MaskButton {
 	iconBgOver: color;
 
 	iconPosition: point;
-	downIconPosition: point;
+	iconPositionDown: point;
 
 	duration: int;
 }
@@ -61,10 +60,10 @@ MediaSlider {
 	width: pixels;
 	activeFg: color;
 	inactiveFg: color;
-	disabledActiveFg: color;
-	disabledInactiveFg: color;
-	activeOpacity: double;
-	inactiveOpacity: double;
+	activeFgOver: color;
+	inactiveFgOver: color;
+	activeFgDisabled: color;
+	inactiveFgDisabled: color;
 	seekSize: size;
 	duration: int;
 }
@@ -137,8 +136,6 @@ Menu {
 	itemFgShortcutDisabled: color;
 	itemPadding: margins;
 	itemIconPosition: point;
-	itemIconOpacity: double;
-	itemIconOverOpacity: double;
 	itemFont: font;
 
 	separatorPadding: margins;
@@ -184,15 +181,9 @@ defaultLabelSimple: LabelSimple {
 	textFg: windowTextFg;
 }
 
-defaultIconButton: IconButton {
-	opacity: 0.78;
-	overOpacity: 1.;
-	duration: 150;
-}
-
 defaultMaskButton: MaskButton {
 	iconPosition: point(-1px, -1px);
-	downIconPosition: point(-1px, -1px);
+	iconPositionDown: point(-1px, -1px);
 	duration: 150;
 }
 
@@ -223,8 +214,6 @@ defaultMenu: Menu {
 	itemFgShortcutOver: #7c99b2;
 	itemFgShortcutDisabled: #cccccc;
 	itemIconPosition: point(0px, 0px);
-	itemIconOpacity: 1.;
-	itemIconOverOpacity: 1.;
 	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
 

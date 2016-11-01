@@ -30,7 +30,7 @@ public:
 	IconButton(QWidget *parent, const style::IconButton &st);
 
 	// Pass nullptr to restore the default icon.
-	void setIcon(const style::icon *icon);
+	void setIcon(const style::icon *icon, const style::icon *iconOver = nullptr);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -40,6 +40,7 @@ protected:
 private:
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
+	const style::icon *_iconOverrideOver = nullptr;
 
 	FloatAnimation _a_over;
 

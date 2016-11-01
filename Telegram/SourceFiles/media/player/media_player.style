@@ -72,16 +72,11 @@ mediaPlayerRepeatButton: IconButton {
 	width: 31px;
 	height: 30px;
 
-	opacity: 1.;
-	overOpacity: 1.;
-
 	icon: icon {
 		{ "player_repeat", mediaPlayerActiveFg, point(9px, 11px) }
 	};
 	iconPosition: point(0px, 0px);
-	downIconPosition: point(0px, 0px);
-
-	duration: 0;
+	iconPositionDown: point(0px, 0px);
 }
 mediaPlayerRepeatDisabledIcon: icon {
 	{ "player_repeat", #c8c8c8, point(9px, 11px)}
@@ -106,14 +101,9 @@ mediaPlayerVolumeToggle: IconButton {
 	width: 31px;
 	height: 30px;
 
-	opacity: 1.;
-	overOpacity: 1.;
-
 	icon: mediaPlayerVolumeIcon0;
 	iconPosition: point(8px, 11px);
-	downIconPosition: point(8px, 11px);
-
-	duration: 0;
+	iconPositionDown: point(8px, 11px);
 }
 mediaPlayerVolumeMargin: 10px;
 mediaPlayerVolumeSize: size(27px, 100px);
@@ -219,10 +209,10 @@ mediaPlayerPanelPlayback: MediaSlider {
 	width: 3px;
 	activeFg: mediaPlayerActiveFg;
 	inactiveFg: mediaPlayerInactiveFg;
-	disabledActiveFg: mediaPlayerInactiveFg;
-	disabledInactiveFg: windowBg;
-	activeOpacity: 1.;
-	inactiveOpacity: 1.;
+	activeFgOver: mediaPlayerActiveFg;
+	inactiveFgOver: mediaPlayerInactiveFg;
+	activeFgDisabled: mediaPlayerInactiveFg;
+	inactiveFgDisabled: windowBg;
 	seekSize: size(9px, 9px);
 	duration: 150;
 }

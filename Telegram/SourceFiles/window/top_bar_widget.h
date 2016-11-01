@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class PeerAvatarButton;
 class RoundButton;
-class IconButton;
+class MaskButton;
 } // namespace Ui
 
 namespace Window {
@@ -87,7 +87,7 @@ private:
 	ChildWidget<Ui::PeerAvatarButton> _info;
 	ChildWidget<Ui::RoundButton> _mediaType;
 
-	ChildWidget<Ui::IconButton> _search;
+	ChildWidget<Ui::MaskButton> _search;
 	ChildWidget<TWidget> _membersShowArea = { nullptr };
 
 };

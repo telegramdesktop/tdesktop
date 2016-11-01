@@ -44,7 +44,7 @@ void destroyColors() {
 Color::Color(const Color &c) : ptr(c.owner ? new ColorData(*c.ptr) : c.ptr), owner(c.owner) {
 }
 
-Color::Color(const QColor &c) : owner(false) {
+Color::Color(QColor c) : owner(false) {
 	init(c.red(), c.green(), c.blue(), c.alpha());
 }
 
@@ -81,7 +81,7 @@ Color::~Color() {
 ColorData::ColorData(uchar r, uchar g, uchar b, uchar a) : c(int(r), int(g), int(b), int(a)), p(c), b(c) {
 }
 
-void ColorData::set(const QColor &color) {
+void ColorData::set(QColor color) {
 	c = color;
 	p = QPen(color);
 	b = QBrush(color);

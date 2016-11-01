@@ -1118,7 +1118,6 @@ private:
 	bool _inPinnedMsg = false;
 	anim::ivalue a_recordingLevel = { 0, 0 };
 	int32 _recordingSamples = 0;
-	anim::fvalue a_recordOver = { 0, 0 };
 	anim::fvalue a_recordDown = { 0, 0 };
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;

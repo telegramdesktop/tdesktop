@@ -43,10 +43,10 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setPen(Qt::NoPen);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	p.setOpacity(fadeOpacity());
 
 	auto horizontal = isHorizontal();
 	auto ms = getms();
-	auto masterOpacity = fadeOpacity();
 	auto radius = _st.width / 2;
 	auto disabled = isDisabled();
 	auto over = getCurrentOverFactor(ms);
@@ -62,16 +62,21 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	auto length = _alwaysDisplayMarker ? (horizontal ? width() : height()) : markerLength;
 	auto mid = qRound(from + value * length);
 	auto end = from + length;
-	auto &activeFg = disabled ? _st.disabledActiveFg : _st.activeFg;
-	auto &inactiveFg = disabled ? _st.disabledInactiveFg : _st.inactiveFg;
+	auto activeFg = disabled ? &_st.activeFgDisabled : (over == 1. ? &_st.activeFgOver : (over == 0. ? &_st.activeFg : nullptr));
+	auto inactiveFg = disabled ? &_st.inactiveFgDisabled : (over == 1. ? &_st.inactiveFgOver : (over == 0. ? &_st.inactiveFg : nullptr));
+	auto activeFgOver = activeFg ? QColor() : style::interpolate(_st.activeFg, _st.activeFgOver, over);
+	auto inactiveFgOver = inactiveFg ? QColor() : style::interpolate(_st.inactiveFg, _st.inactiveFgOver, over);
 	if (mid > from) {
 		auto fromClipRect = horizontal ? QRect(0, 0, mid, height()) : QRect(0, 0, width(), mid);
 		auto fromRect = horizontal
 			? QRect(from, (height() - _st.width) / 2, mid + radius - from, _st.width)
 			: QRect((width() - _st.width) / 2, from, _st.width, mid + radius - from);
 		p.setClipRect(fromClipRect);
-		p.setOpacity(masterOpacity * (over * _st.activeOpacity + (1. - over) * _st.inactiveOpacity));
-		p.setBrush(horizontal ? activeFg : inactiveFg);
+		if (auto brush = (horizontal ? activeFg : inactiveFg)) {
+			p.setBrush(*brush);
+		} else {
+			p.setBrush(horizontal ? activeFgOver : inactiveFgOver);
+		}
 		p.drawRoundedRect(fromRect, radius, radius);
 	}
 	if (end > mid) {
@@ -80,8 +85,11 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 			? QRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width)
 			: QRect((width() - _st.width) / 2, mid - radius, _st.width, end - (mid - radius));
 		p.setClipRect(endClipRect);
-		p.setOpacity(masterOpacity);
-		p.setBrush(horizontal ? inactiveFg : activeFg);
+		if (auto brush = (horizontal ? inactiveFg : activeFg)) {
+			p.setBrush(*brush);
+		} else {
+			p.setBrush(horizontal ? inactiveFgOver : activeFgOver);
+		}
 		p.drawRoundedRect(endRect, radius, radius);
 	}
 	auto markerSizeRatio = disabled ? 0. : (_alwaysDisplayMarker ? 1. : over);
@@ -94,8 +102,11 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		auto remove = static_cast<int>(((1. - markerSizeRatio) * size) / 2.);
 		if (remove * 2 < size) {
 			p.setClipRect(rect());
-			p.setOpacity(masterOpacity * _st.activeOpacity);
-			p.setBrush(activeFg);
+			if (activeFg) {
+				p.setBrush(*activeFg);
+			} else {
+				p.setBrush(activeFgOver);
+			}
 			p.drawEllipse(seekButton.marginsRemoved(QMargins(remove, remove, remove, remove)));
 		}
 	}

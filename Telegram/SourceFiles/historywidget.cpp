@@ -2929,7 +2929,7 @@ void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
 void SilentToggle::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
-		setIcon(_checked ? &st::historySilentToggleOn : nullptr);
+		setIcon(_checked ? &st::historySilentToggleOn : nullptr, _checked ? &st::historySilentToggleOnOver : nullptr);
 	}
 }
 
@@ -3134,8 +3134,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botCommandStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
 
-	_attachType->addAction(lang(lng_attach_file), this, SLOT(onDocumentSelect()), &st::historyMediaTypeFile);
-	_attachType->addAction(lang(lng_attach_photo), this, SLOT(onPhotoSelect()), &st::historyMediaTypePhoto);
+	_attachType->addAction(lang(lng_attach_file), this, SLOT(onDocumentSelect()), &st::historyMediaTypeFile, &st::historyMediaTypeFileOver);
+	_attachType->addAction(lang(lng_attach_photo), this, SLOT(onPhotoSelect()), &st::historyMediaTypePhoto, &st::historyMediaTypePhotoOver);
 	_attachType->hide();
 	_emojiPan->hide();
 	_attachDragDocument->hide();
@@ -3277,7 +3277,7 @@ void HistoryWidget::onTextChange() {
 			updateMouseTracking();
 			_a_record.stop();
 			_inRecord = _inField = false;
-			a_recordOver = a_recordDown = anim::fvalue(0, 0);
+			a_recordDown = anim::fvalue(0, 0);
 			a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
 		}
 	}
@@ -4625,7 +4625,6 @@ void HistoryWidget::updateControlsVisibility() {
 				}
 				_a_record.stop();
 				_inRecord = _inField = false;
-				a_recordOver = anim::fvalue(0, 0);
 			}
 			if (_recording) {
 				_field.hide();
@@ -5555,11 +5554,9 @@ void HistoryWidget::step_record(float64 ms, bool timer) {
 	float64 dt = ms / st::btnSend.duration;
 	if (dt >= 1 || !_send.isHidden() || isBotStart() || isBlocked()) {
 		_a_record.stop();
-		a_recordOver.finish();
 		a_recordDown.finish();
 		a_recordCancel.finish();
 	} else {
-		a_recordOver.update(dt, anim::linear);
 		a_recordDown.update(dt, anim::linear);
 		a_recordCancel.update(dt, anim::linear);
 	}
@@ -5674,20 +5671,15 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	bool inField = pos.y() >= (_scroll.y() + _scroll.height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
 	bool inReplyEdit = QRect(st::historyReplySkip, _field.y() - st::sendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
 	bool inPinnedMsg = QRect(0, 0, width(), st::historyReplyHeight).contains(pos) && _pinnedBar;
-	bool startAnim = false;
 	if (inRecord != _inRecord) {
 		_inRecord = inRecord;
-		a_recordOver.start(_inRecord ? 1 : 0);
-		a_recordDown.restart();
-		a_recordCancel.restart();
-		startAnim = true;
+		update(_send.geometry());
 	}
 	if (inField != _inField && _recording) {
 		_inField = inField;
-		a_recordOver.restart();
 		a_recordDown.start(_inField ? 1 : 0);
 		a_recordCancel.start(_inField ? st::historyRecordCancel->c : st::historyRecordCancelActive->c);
-		startAnim = true;
+		_a_record.start();
 	}
 	if (inReplyEdit != _inReplyEdit) {
 		_inReplyEdit = inReplyEdit;
@@ -5697,7 +5689,6 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 		_inPinnedMsg = inPinnedMsg;
 		setCursor(inPinnedMsg ? style::cur_pointer : style::cur_default);
 	}
-	if (startAnim) _a_record.start();
 }
 
 void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from enterEvent() of child TWidget
@@ -5736,7 +5727,6 @@ void HistoryWidget::stopRecording(bool send) {
 	updateField();
 
 	a_recordDown.start(0);
-	a_recordOver.restart();
 	a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
 	_a_record.start();
 }
@@ -7435,7 +7425,6 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		updateField();
 
 		a_recordDown.start(1);
-		a_recordOver.restart();
 		_a_record.start();
 	} else if (_inReplyEdit) {
 		Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
@@ -8645,15 +8634,21 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 }
 
 void HistoryWidget::drawRecordButton(Painter &p) {
-	if (a_recordDown.current() < 1) {
-		p.setOpacity(st::historyAttachEmoji.opacity * (1 - a_recordOver.current()) + st::historyAttachEmoji.overOpacity * a_recordOver.current());
-		st::historyRecordVoice.paint(p, _send.x() + (_send.width() - st::historyRecordVoice.width()) / 2, _send.y() + (_send.height() - st::historyRecordVoice.height()) / 2, width());
+	auto down = a_recordDown.current();
+	auto fastIcon = [down, this] {
+		if (down == 1.) {
+			return &st::historyRecordVoiceActive;
+		} else if (_inRecord) {
+			return &st::historyRecordVoiceOver;
+		}
+		return &st::historyRecordVoice;
+	};
+	fastIcon()->paintInCenter(p, _send.geometry());
+	if (down > 0. && down < 1.) {
+		p.setOpacity(down);
+		st::historyRecordVoiceActive.paintInCenter(p, _send.geometry());
+		p.setOpacity(1.);
 	}
-	if (a_recordDown.current() > 0) {
-		p.setOpacity(a_recordDown.current());
-		st::historyRecordVoiceActive.paint(p, _send.x() + (_send.width() - st::historyRecordVoiceActive.width()) / 2, _send.y() + (_send.height() - st::historyRecordVoiceActive.height()) / 2, width());
-	}
-	p.setOpacity(1);
 }
 
 void HistoryWidget::drawRecording(Painter &p) {

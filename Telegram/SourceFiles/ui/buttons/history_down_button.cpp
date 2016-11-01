@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
-, a_arrowOpacity(st::historyAttachEmoji.opacity, st::historyAttachEmoji.opacity)
+//, a_arrowOpacity(st::historyAttachEmoji.opacity, st::historyAttachEmoji.opacity)
 , _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
 	setCursor(style::cur_pointer);
 
@@ -53,10 +53,8 @@ HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	float64 opacity = 1.;
 	if (_a_show.animating(getms())) {
-		opacity = _a_show.current();
-		p.setOpacity(opacity);
+		p.setOpacity(_a_show.current());
 		p.drawPixmap(0, st::historyToDownPaddingTop, _cache);
 	} else if (!_shown) {
 		hide();
@@ -64,10 +62,8 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	} else {
 		st::historyToDown.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
 	}
-	p.setOpacity(opacity * a_arrowOpacity.current());
 	st::historyToDownArrow.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
 	if (_unreadCount > 0) {
-		p.setOpacity(opacity);
 		auto unreadString = QString::number(_unreadCount);
 		if (unreadString.size() > 4) {
 			unreadString = qsl("..") + unreadString.mid(unreadString.size() - 4);
@@ -83,7 +79,7 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 }
 
 void HistoryDownButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
-	a_arrowOpacity.start((_state & (StateOver | StateDown)) ? st::historyAttachEmoji.overOpacity : st::historyAttachEmoji.opacity);
+	//a_arrowOpacity.start((_state & (StateOver | StateDown)) ? st::historyAttachEmoji.overOpacity : st::historyAttachEmoji.opacity);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
 		_a_arrowOver.stop();
@@ -151,16 +147,15 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
 
-	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
-	auto opacity = over * _st.overOpacity + (1. - over) * _st.opacity;
-
 	auto loading = a_loading.current(ms, _loading ? 1 : 0);
-	p.setOpacity(opacity * (1 - loading));
+	p.setOpacity(1 - loading);
 
-	_st.icon.paint(p, (_state & StateDown) ? _st.downIconPosition : _st.iconPosition, width());
+	auto over = (_state & StateOver);
+	auto icon = &(over ? _st.iconOver : _st.icon);
+	icon->paint(p, (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition, width());
 
-	p.setOpacity(opacity);
-	p.setPen(QPen(st::historyEmojiCircleFg, st::historyEmojiCircleLine));
+	p.setOpacity(1.);
+	p.setPen(QPen(over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg, st::historyEmojiCircleLine));
 	p.setBrush(Qt::NoBrush);
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
@@ -191,9 +186,7 @@ void EmojiButton::setLoading(bool loading) {
 void EmojiButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
 	auto over = (_state & StateOver);
 	if (over != (oldState & StateOver)) {
-		auto from = over ? 0. : 1.;
-		auto to = over ? 1. : 0.;
-		_a_over.start([this] { update(); }, from, to, _st.duration);
+		update();
 	}
 }
 

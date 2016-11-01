@@ -1391,12 +1391,12 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 			for (int32 i = 0; i < OverviewCount; ++i) {
 				if (mask & (1 << i)) {
 					switch (i) {
-					case OverviewPhotos: _mediaType->addAction(lang(lng_media_type_photos), this, SLOT(onPhotosSelect()), &st::historyMediaTypePhoto); break;
-					case OverviewVideos: _mediaType->addAction(lang(lng_media_type_videos), this, SLOT(onVideosSelect()), &st::historyMediaTypeVideo); break;
-					case OverviewMusicFiles: _mediaType->addAction(lang(lng_media_type_songs), this, SLOT(onSongsSelect()), &st::historyMediaTypeSong); break;
-					case OverviewFiles: _mediaType->addAction(lang(lng_media_type_files), this, SLOT(onDocumentsSelect()), &st::historyMediaTypeFile); break;
-					case OverviewVoiceFiles: _mediaType->addAction(lang(lng_media_type_audios), this, SLOT(onAudiosSelect()), &st::historyMediaTypeVoice); break;
-					case OverviewLinks: _mediaType->addAction(lang(lng_media_type_links), this, SLOT(onLinksSelect()), &st::historyMediaTypeLink); break;
+					case OverviewPhotos: _mediaType->addAction(lang(lng_media_type_photos), this, SLOT(onPhotosSelect()), &st::historyMediaTypePhoto, &st::historyMediaTypePhotoOver); break;
+					case OverviewVideos: _mediaType->addAction(lang(lng_media_type_videos), this, SLOT(onVideosSelect()), &st::historyMediaTypeVideo, &st::historyMediaTypeVideoOver); break;
+					case OverviewMusicFiles: _mediaType->addAction(lang(lng_media_type_songs), this, SLOT(onSongsSelect()), &st::historyMediaTypeSong, &st::historyMediaTypeSongOver); break;
+					case OverviewFiles: _mediaType->addAction(lang(lng_media_type_files), this, SLOT(onDocumentsSelect()), &st::historyMediaTypeFile, &st::historyMediaTypeFileOver); break;
+					case OverviewVoiceFiles: _mediaType->addAction(lang(lng_media_type_audios), this, SLOT(onAudiosSelect()), &st::historyMediaTypeVoice, &st::historyMediaTypeVoiceOver); break;
+					case OverviewLinks: _mediaType->addAction(lang(lng_media_type_links), this, SLOT(onLinksSelect()), &st::historyMediaTypeLink, &st::historyMediaTypeLinkOver); break;
 					}
 				}
 			}

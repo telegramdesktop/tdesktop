@@ -75,8 +75,6 @@ protected:
 private:
 	const style::IconButton &_st;
 
-	FloatAnimation _a_over;
-
 	bool _loading = false;
 	FloatAnimation a_loading;
 	Animation _a_loading;

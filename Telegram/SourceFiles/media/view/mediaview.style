@@ -22,20 +22,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "ui/widgets/widgets.style";
 
-mediaviewActiveOpacity: 1.;
-mediaviewInactiveOpacity: 0.78;
 mediaviewOverDuration: 150;
-
-mediaviewPlaybackActive: #ffffff;
-mediaviewPlaybackInactive: #474747;
+mediaviewPlaybackActive: #c7c7c7;
+mediaviewPlaybackInactive: #252525;
+mediaviewPlaybackActiveOver: #ffffff;
+mediaviewPlaybackInactiveOver: #474747;
 mediaviewPlayback: MediaSlider {
 	width: 3px;
 	activeFg: mediaviewPlaybackActive;
 	inactiveFg: mediaviewPlaybackInactive;
-	disabledActiveFg: mediaviewPlaybackActive;
-	disabledInactiveFg: mediaviewPlaybackInactive;
-	activeOpacity: mediaviewActiveOpacity;
-	inactiveOpacity: mediaviewInactiveOpacity;
+	activeFgOver: mediaviewPlaybackActiveOver;
+	inactiveFgOver: mediaviewPlaybackInactiveOver;
+	activeFgDisabled: mediaviewPlaybackActive;
+	inactiveFgDisabled: mediaviewPlaybackInactive;
 	seekSize: size(11px, 11px);
 	duration: mediaviewOverDuration;
 }
@@ -50,32 +49,35 @@ mediaviewPlayButton: IconButton {
 	width: 25px;
 	height: 24px;
 
-	opacity: mediaviewInactiveOpacity;
-	overOpacity: mediaviewActiveOpacity;
+	icon: icon {{ "media_play", #c7c7c7, point(3px, 0px) }};
+	iconOver: icon {{ "media_play", #ffffff, point(3px, 0px) }};
 
-	icon: icon {{ "media_play", #ffffff, point(3px, 0px) }};
 	iconPosition: point(3px, 1px);
-	downIconPosition: point(3px, 1px);
+	iconPositionDown: point(3px, 1px);
 
 	duration: mediaviewOverDuration;
 }
-mediaviewPauseIcon: icon {{ "media_pause", #ffffff, point(1px, 1px) }};
+mediaviewPauseIcon: icon {{ "media_pause", #c7c7c7, point(1px, 1px) }};
+mediaviewPauseIconOver: icon {{ "media_pause", #ffffff, point(1px, 1px) }};
 mediaviewPlayPauseLeft: 17px;
 mediaviewFullScreenLeft: 17px;
 mediaviewVolumeLeft: 15px;
 
 mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
-	icon: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
+	icon: icon {{ "media_fullscreen_to", #c7c7c7, point(0px, 0px) }};
+	iconOver: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
 	iconPosition: point(0px, 1px);
-	downIconPosition: point(0px, 1px);
+	iconPositionDown: point(0px, 1px);
 }
-mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
+mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #c7c7c7, point(0px, 0px) }};
+mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
 
 mediaviewPlaybackTop: 28px;
 
 mediaviewVolumeSize: size(44px, 20px);
-mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactive, point(0px, 0px) }};
+mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactiveOver, point(0px, 0px) }};
 mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
+mediaviewVolumeOnIconOver: icon {{ "media_volume", mediaviewPlaybackActiveOver, point(0px, 0px) }};
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;
 

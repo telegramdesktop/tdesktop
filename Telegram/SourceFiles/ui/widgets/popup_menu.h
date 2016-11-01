@@ -28,7 +28,7 @@ public:
 	PopupMenu(const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
-	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr);
+	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 

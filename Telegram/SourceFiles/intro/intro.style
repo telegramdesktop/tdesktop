@@ -145,15 +145,20 @@ introErrorLabel: flatLabel(labelDefFlat) {
 	font: introErrorFont;
 	align: align(center);
 }
-introBackButton: IconButton(defaultIconButton) {
+introBackButton: IconButton {
 	width: 40px;
 	height: 40px;
 
 	icon: icon {
+		{ size(40px, 40px), #f2f2f2 },
+		{ "title_previous", #adadad, point(12px, 12px) },
+	};
+	iconOver: icon {
 		{ size(40px, 40px), #eeeeee },
 		{ "title_previous", #969696, point(12px, 12px) },
 	};
+
 	iconPosition: point(0px, 0px);
-	downIconPosition: point(0px, 0px);
+	iconPositionDown: point(0px, 0px);
 }
 introBackPosition: point(32px, 32px);

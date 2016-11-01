@@ -198,7 +198,7 @@ void Widget::showDone() {
 
 void Widget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), st::settingsBg);
+	p.fillRect(e->rect(), st::boxBg);
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {

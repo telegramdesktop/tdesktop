@@ -25,11 +25,13 @@ namespace style {
 namespace internal {
 namespace {
 
-uint32 colorKey(const QColor &c) {
+uint32 colorKey(QColor c) {
 	return (((((uint32(c.red()) << 8) | uint32(c.green())) << 8) | uint32(c.blue())) << 8) | uint32(c.alpha());
 }
 
+using IconMasks = QMap<const IconMask*, QImage>;
 using IconPixmaps = QMap<QPair<const IconMask*, uint32>, QPixmap>;
+NeverFreedPointer<IconMasks> iconMasks;
 NeverFreedPointer<IconPixmaps> iconPixmaps;
 
 inline int pxAdjust(int value, int scale) {
@@ -39,8 +41,9 @@ inline int pxAdjust(int value, int scale) {
 	return qFloor((value * scale / 4.) + 0.1);
 }
 
-QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
+QImage createIconMask(const IconMask *mask) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
+	maskImage.setDevicePixelRatio(cRetinaFactor());
 	t_assert(!maskImage.isNull());
 
 	// images are layouted like this:
@@ -64,9 +67,11 @@ QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
 			}
 		}
 	}
-	auto finalImage = colorizeImage(maskImage, color, r);
-	finalImage.setDevicePixelRatio(cRetinaFactor());
-	return App::pixmapFromImageInPlace(std_::move(finalImage));
+	return maskImage.copy(r);
+}
+
+QImage createIconImage(const QImage &mask, QColor color) {
+	return colorizeImage(mask, color, QRect(0, 0, mask.width(), mask.height()));
 }
 
 } // namespace
@@ -119,6 +124,29 @@ void MonoIcon::fill(QPainter &p, const QRect &rect) const {
 	}
 }
 
+void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
+	int w = width(), h = height();
+	QPoint fullOffset = pos + offset();
+	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	int partPosY = fullOffset.y();
+
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(partPosX, partPosY, w, h, colorOverride);
+	} else {
+		p.drawImage(partPosX, partPosY, createIconImage(_maskImage, colorOverride));
+	}
+}
+
+void MonoIcon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(rect, colorOverride);
+	} else {
+		p.drawImage(rect, createIconImage(_maskImage, colorOverride), QRect(0, 0, _pixmap.width(), _pixmap.height()));
+	}
+}
+
 void MonoIcon::ensureLoaded() const {
 	if (_size.isValid()) {
 		return;
@@ -155,31 +183,21 @@ void MonoIcon::ensureLoaded() const {
 			t_assert(!"Bad data in generated icon!");
 		}
 	} else {
-		if (_owningPixmap) {
-			_pixmap = createIconPixmap(_mask, _color);
-		} else {
-			iconPixmaps.createIfNull();
-			auto key = qMakePair(_mask, colorKey(_color->c));
-			auto i = iconPixmaps->constFind(key);
-			if (i == iconPixmaps->cend()) {
-				i = iconPixmaps->insert(key, createIconPixmap(_mask, _color));
-			}
-			_pixmap = i.value();
+		iconMasks.createIfNull();
+		auto i = iconMasks->constFind(_mask);
+		if (i == iconMasks->cend()) {
+			i = iconMasks->insert(_mask, createIconMask(_mask));
 		}
+		_maskImage = i.value();
+
+		iconPixmaps.createIfNull();
+		auto key = qMakePair(_mask, colorKey(_color->c));
+		auto j = iconPixmaps->constFind(key);
+		if (j == iconPixmaps->cend()) {
+			j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(createIconImage(_maskImage, _color->c)));
+		}
+		_pixmap = j.value();
 		_size = _pixmap.size() / cIntRetinaFactor();
-	}
-}
-
-MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset, OwningPixmapTag)
-: _mask(mask)
-, _color(color)
-, _offset(offset)
-, _owningPixmap(true) {
-}
-
-void Icon::paint(QPainter &p, const QPoint &pos, int outerw) const {
-	for_const (auto &part, _parts) {
-		part.paint(p, pos, outerw);
 	}
 }
 
@@ -191,6 +209,17 @@ void Icon::fill(QPainter &p, const QRect &rect) const {
 		t_assert(part.offset() == QPoint(0, 0));
 		t_assert(part.size() == partSize);
 		part.fill(p, rect);
+	}
+}
+
+void Icon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+	if (_parts.isEmpty()) return;
+
+	auto partSize = _parts.at(0).size();
+	for_const (auto &part, _parts) {
+		t_assert(part.offset() == QPoint(0, 0));
+		t_assert(part.size() == partSize);
+		part.fill(p, rect, colorOverride);
 	}
 }
 
@@ -216,6 +245,7 @@ int Icon::height() const {
 
 void destroyIcons() {
 	iconPixmaps.clear();
+	iconMasks.clear();
 }
 
 } // namespace internal

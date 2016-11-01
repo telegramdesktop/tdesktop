@@ -49,18 +49,19 @@ void Menu::init() {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-QAction *Menu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon) {
+QAction *Menu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
 	auto action = new QAction(text, this);
 	connect(action, SIGNAL(triggered(bool)), receiver, member, Qt::QueuedConnection);
-	return addAction(action, icon);
+	return addAction(action, icon, iconOver);
 }
 
-QAction *Menu::addAction(QAction *action, const style::icon *icon) {
+QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::icon *iconOver) {
 	connect(action, SIGNAL(changed()), this, SLOT(actionChanged()));
 	_actions.push_back(action);
 
 	ActionData data;
 	data.icon = icon;
+	data.iconOver = iconOver ? iconOver : icon;
 	data.hasSubmenu = (action->menu() != nullptr);
 	_actionsData.push_back(data);
 
@@ -167,10 +168,8 @@ void Menu::paintEvent(QPaintEvent *e) {
 			} else {
 				auto enabled = action->isEnabled(), selected = (i == _selected && enabled);
 				p.fillRect(0, 0, width(), actionHeight, selected ? _st.itemBgOver : _st.itemBg);
-				if (data.icon) {
-					p.setOpacity(selected ? _st.itemIconOverOpacity : _st.itemIconOpacity);
-					data.icon->paint(p, _st.itemIconPosition, width());
-					p.setOpacity(1.);
+				if (auto icon = (selected ? data.iconOver : data.icon)) {
+					icon->paint(p, _st.itemIconPosition, width());
 				}
 				p.setPen(selected ? _st.itemFgOver : (enabled ? _st.itemFg : _st.itemFgDisabled));
 				p.drawTextLeft(_st.itemPadding.left(), _st.itemPadding.top(), width(), data.text);

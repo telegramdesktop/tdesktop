@@ -105,13 +105,8 @@ emojiCategory: IconButton {
 	width: 42px;
 	height: 46px;
 
-	opacity: 1.;
-	overOpacity: 1.;
-
 	iconPosition: point(11px, 12px);
-	downIconPosition: point(11px, 12px);
-
-	duration: 0;
+	iconPositionDown: point(11px, 12px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
@@ -131,10 +126,8 @@ emojiPanHover: #f0f4f7;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;
-emojiPanHeaderColor: #999999;
 emojiPanHeaderLeft: 22px;
 emojiPanHeaderTop: 12px;
-emojiPanHeaderBg: #fffffff2;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
@@ -162,11 +155,13 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
-hashtagClose: IconButton(defaultIconButton) {
+hashtagClose: IconButton {
 	width: 30px;
 	height: 30px;
 
 	icon: simpleCloseIcon;
+	iconOver: simpleCloseIconOver;
+
 	iconPosition: point(10px, 10px);
-	downIconPosition: point(10px, 11px);
+	iconPositionDown: point(10px, 11px);
 }

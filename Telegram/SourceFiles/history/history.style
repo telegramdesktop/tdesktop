@@ -161,52 +161,73 @@ historyComposeField: flatTextarea {
 historyComposeFieldMaxHeight: 224px;
 // historyMinHeight: 56px;
 
-historyMediaTypeFile: icon {{ "media_type_file", #b3b3b3, point(2px, 2px) }};
-historyMediaTypePhoto: icon {{ "media_type_photo", #bebebe, point(2px, 2px) }};
-historyMediaTypeVideo: icon {{ "media_type_video", #bebebe, point(2px, 2px) }};
-historyMediaTypeSong: icon {{ "media_type_song", #bebebe, point(0px, 0px) }};
-historyMediaTypeVoice: icon {{ "media_type_voice", #bebebe, point(2px, 2px) }};
-historyMediaTypeLink: icon {{ "media_type_link", #bebebe, point(2px, 2px) }};
+historyMediaTypeFile: icon {{ "media_type_file", historyComposeIconFg, point(2px, 2px) }};
+historyMediaTypeFileOver: icon {{ "media_type_file", historyComposeIconFgOver, point(2px, 2px) }};
+historyMediaTypePhoto: icon {{ "media_type_photo", historyComposeIconFg, point(2px, 2px) }};
+historyMediaTypePhotoOver: icon {{ "media_type_photo", historyComposeIconFgOver, point(2px, 2px) }};
+historyMediaTypeVideo: icon {{ "media_type_video", historyComposeIconFg, point(2px, 2px) }};
+historyMediaTypeVideoOver: icon {{ "media_type_video", historyComposeIconFgOver, point(2px, 2px) }};
+historyMediaTypeSong: icon {{ "media_type_song", historyComposeIconFg, point(0px, 0px) }};
+historyMediaTypeSongOver: icon {{ "media_type_song", historyComposeIconFgOver, point(0px, 0px) }};
+historyMediaTypeVoice: icon {{ "media_type_voice", historyComposeIconFg, point(2px, 2px) }};
+historyMediaTypeVoiceOver: icon {{ "media_type_voice", historyComposeIconFgOver, point(2px, 2px) }};
+historyMediaTypeLink: icon {{ "media_type_link", historyComposeIconFg, point(2px, 2px) }};
+historyMediaTypeLinkOver: icon {{ "media_type_link", historyComposeIconFgOver, point(2px, 2px) }};
 
-historyAttachDocument: IconButton(defaultIconButton) {
+historyAttachDocument: IconButton {
 	width: 46px;
 	height: 46px;
 
 	icon: historyMediaTypeFile;
+	iconOver: historyMediaTypeFileOver;
+
 	iconPosition: point(9px, 9px);
-	downIconPosition: point(9px, 10px);
+	iconPositionDown: point(9px, 10px);
 }
 historyAttachPhoto: IconButton(historyAttachDocument) {
 	icon: historyMediaTypePhoto;
+	iconOver: historyMediaTypePhotoOver;
 }
 historyAttachEmoji: IconButton(historyAttachDocument) {
 	width: 33px;
-	icon: icon {{ "send_control_emoji", #b9b9b9 }};
+	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
+
 	iconPosition: point(12px, 16px);
-	downIconPosition: point(12px, 16px);
+	iconPositionDown: point(12px, 16px);
 }
 historyEmojiCircle: size(19px, 19px);
 historyEmojiCirclePeriod: 1500;
 historyEmojiCircleDuration: 500;
 historyEmojiCircleTop: 13px;
 historyEmojiCircleLine: 2px;
-historyEmojiCircleFg: #b9b9b9;
+historyEmojiCircleFg: historyComposeIconFg;
+historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
 historyBotKeyboardShow: IconButton(historyAttachEmoji) {
-	icon: icon {{ "send_control_bot_keyboard", #b3b3b3 }};
+	icon: icon {{ "send_control_bot_keyboard", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_keyboard", historyComposeIconFgOver }};
+
 	iconPosition: point(6px, 12px);
-	downIconPosition: point(6px, 12px);
+	iconPositionDown: point(6px, 12px);
 }
 historyBotKeyboardHide: IconButton(historyAttachEmoji) {
-	icon: icon {{ "send_control_bot_keyboard_hide", #b3b3b3 }};
+	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
+
 	iconPosition: point(5px, 17px);
-	downIconPosition: point(5px, 17px);
+	iconPositionDown: point(5px, 17px);
 }
 historyBotCommandStart: IconButton(historyBotKeyboardShow) {
-	icon: icon {{ "send_control_bot_command", #b3b3b3 }};
+	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
 }
-historyRecordVoice: icon {{ "send_control_record", #b9b9b9 }};
-historyRecordVoiceActive: icon {{ "send_control_record", #58b2ed }};
+historyRecordVoiceFg: historyComposeIconFg;
+historyRecordVoiceFgOver: historyComposeIconFgOver;
+historyRecordVoiceFgActive: #58b2ed;
+historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
+historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
+historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
 historyRecordSignalColor: #f17077;
 historyRecordSignalMin: 5px;
 historyRecordSignalMax: 12px;
@@ -220,18 +241,18 @@ historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: Menu(defaultMenu) {
 		skip: 5px;
 
-		itemBgOver: historySendBgOver;
+		itemBgOver: historyMenuItemBgOver;
 		itemIconPosition: point(12px, 6px);
-		itemIconOpacity: 0.78;
-		itemIconOverOpacity: 1.;
 		itemPadding: margins(48px, 11px, 48px, 11px);
 	}
 }
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
-	icon: icon {{ "send_control_silent_off", #b3b3b3 }};
+	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};
 }
-historySilentToggleOn: icon {{ "send_control_silent_on", #b3b3b3 }};
+historySilentToggleOn: icon {{ "send_control_silent_on", historyComposeIconFg }};
+historySilentToggleOnOver: icon {{ "send_control_silent_on", historyComposeIconFgOver }};
 
 historyReplySkip: 51px;
 historyReplyColor: #377aae;
@@ -256,14 +277,16 @@ historyInlineBotCancel: MaskButton(historyReplyCancel) {
 	height: 46px;
 }
 
-topBarSearch: IconButton(defaultIconButton) {
+topBarSearch: MaskButton {
 	width: 44px;
 	height: topBarHeight;
 
-	icon: icon {{ "title_search", #000000 }};
-	iconPosition: point(13px, 18px);
-	downIconPosition: point(13px, 18px);
+	bg: topBarBg;
+	icon: icon {{ "title_search-invert", topBarBg }};
 
-	opacity: 0.22;
-	overOpacity: 0.36;
+	iconBg: #c7c7c7;
+	iconBgOver: #a3a3a3;
+
+	iconPosition: point(13px, 18px);
+	iconPositionDown: point(13px, 18px);
 }

@@ -118,7 +118,7 @@ void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackSt
 		_showPause = showPause;
 		connect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 
-		_playPauseResume->setIcon(_showPause ? &st::mediaviewPauseIcon : nullptr);
+		_playPauseResume->setIcon(_showPause ? &st::mediaviewPauseIcon : nullptr, _showPause ? &st::mediaviewPauseIconOver : nullptr);
 	}
 }
 
@@ -169,7 +169,7 @@ void Controller::refreshTimeTexts() {
 }
 
 void Controller::setInFullScreen(bool inFullScreen) {
-	_fullScreenToggle->setIcon(inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr);
+	_fullScreenToggle->setIcon(inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr, inFullScreen ? &st::mediaviewFullScreenOutIconOver : nullptr);
 	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
 	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(fromFullScreenPressed()));
 

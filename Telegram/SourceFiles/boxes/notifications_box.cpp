@@ -289,7 +289,6 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		auto notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 
-		p.setOpacity(st::notifyClose.opacity);
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 

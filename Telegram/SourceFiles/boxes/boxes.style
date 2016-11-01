@@ -157,7 +157,7 @@ contactsMultiSelect: MultiSelect {
 		iconBgOver: boxSearchCancelIconFgOver;
 
 		iconPosition: point(8px, 18px);
-		downIconPosition: point(8px, 18px);
+		iconPositionDown: point(8px, 18px);
 	}
 	fieldCancelSkip: 34px;
 }
@@ -230,13 +230,15 @@ sessionInfoFont: msgFont;
 sessionInfoFg: #888888;
 sessionTerminateTop: 30px;
 sessionTerminateSkip: 18px;
-sessionTerminate: IconButton(defaultIconButton) {
+sessionTerminate: IconButton {
 	width: 16px;
 	height: 16px;
 
 	icon: simpleCloseIcon;
+	iconOver: simpleCloseIconOver;
+
 	iconPosition: point(3px, 3px);
-	downIconPosition: point(3px, 4px);
+	iconPositionDown: point(3px, 4px);
 }
 
 passcodeHeaderFont: font(19px);

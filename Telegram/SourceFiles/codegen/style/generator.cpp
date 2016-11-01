@@ -934,9 +934,13 @@ QByteArray iconMaskValueSize(int width, int height) {
 	return result;
 }
 
-QByteArray iconMaskValuePng(const QString &filepath) {
+QByteArray iconMaskValuePng(QString filepath) {
 	QByteArray result;
 
+	auto inverted = filepath.endsWith("-invert");
+	if (inverted) {
+		filepath.chop(QLatin1String("-invert").size());
+	}
 	QImage png100x(filepath + ".png");
 	QImage png200x(filepath + "@2x.png");
 	png100x.setDevicePixelRatio(1.);
@@ -956,6 +960,10 @@ QByteArray iconMaskValuePng(const QString &filepath) {
 	if (png100x.width() * 2 != png200x.width() || png100x.height() * 2 != png200x.height()) {
 		common::logError(kErrorBadIconSize, filepath + ".png") << "bad icons size, 1x: " << png100x.width() << "x" << png100x.height() << ", 2x: " << png200x.width() << "x" << png200x.height();
 		return result;
+	}
+	if (inverted) {
+		png100x.invertPixels();
+		png200x.invertPixels();
 	}
 	QImage png125x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 5), structure::data::pxAdjust(png100x.height(), 5), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	QImage png150x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 6), structure::data::pxAdjust(png100x.height(), 6), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);

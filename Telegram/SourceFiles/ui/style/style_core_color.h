@@ -31,12 +31,12 @@ public:
 	Color(Qt::Initialization = Qt::Uninitialized) {
 	}
 	Color(const Color &c);
-	explicit Color(const QColor &c);
+	explicit Color(QColor c);
 	Color(uchar r, uchar g, uchar b, uchar a = 255);
 	Color &operator=(const Color &c);
 	~Color();
 
-	void set(const QColor &newv);
+	void set(QColor newv);
 	void set(uchar r, uchar g, uchar b, uchar a = 255);
 
 	operator const QBrush &() const;
@@ -79,7 +79,7 @@ public:
 
 private:
 	ColorData(uchar r, uchar g, uchar b, uchar a);
-	void set(const QColor &c);
+	void set(QColor c);
 
 	friend class Color;
 
@@ -102,12 +102,26 @@ inline Color::operator const QPen &() const {
 
 } // namespace internal
 
+inline QColor interpolate(QColor a, QColor b, float64 opacity_b) {
+	auto bOpacity = static_cast<int>(opacity_b * 255), aOpacity = (255 - bOpacity);
+	return {
+		(a.red() * aOpacity + b.red() * bOpacity + 1) >> 8,
+		(a.green() * aOpacity + b.green() * bOpacity + 1) >> 8,
+		(a.blue() * aOpacity + b.blue() * bOpacity + 1) >> 8,
+		(a.alpha() * aOpacity + b.alpha() * bOpacity + 1) >> 8
+	};
+}
+
+inline QColor interpolate(const style::internal::Color &a, QColor b, float64 opacity_b) {
+	return interpolate(a->c, b, opacity_b);
+}
+
+inline QColor interpolate(QColor a, const style::internal::Color &b, float64 opacity_b) {
+	return interpolate(a, b->c, opacity_b);
+}
+
 inline QColor interpolate(const style::internal::Color &a, const style::internal::Color &b, float64 opacity_b) {
-	QColor result;
-	result.setRedF((a->c.redF() * (1. - opacity_b)) + (b->c.redF() * opacity_b));
-	result.setGreenF((a->c.greenF() * (1. - opacity_b)) + (b->c.greenF() * opacity_b));
-	result.setBlueF((a->c.blueF() * (1. - opacity_b)) + (b->c.blueF() * opacity_b));
-	return result;
+	return interpolate(a->c, b->c, opacity_b);
 }
 
 } // namespace style

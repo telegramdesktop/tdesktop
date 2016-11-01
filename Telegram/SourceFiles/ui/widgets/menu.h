@@ -31,7 +31,7 @@ public:
 	Menu(QWidget *parent, const style::Menu &st = st::defaultMenu);
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
 
-	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr);
+	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
@@ -92,7 +92,7 @@ private:
 
 	// Returns the new width.
 	int processAction(QAction *action, int index, int width);
-	QAction *addAction(QAction *a, const style::icon *icon = nullptr);
+	QAction *addAction(QAction *a, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 
 	void setSelected(int selected);
 	void clearMouseSelection();
@@ -115,6 +115,7 @@ private:
 		QString text;
 		QString shortcut;
 		const style::icon *icon = nullptr;
+		const style::icon *iconOver = nullptr;
 	};
 	using ActionsData = QList<ActionData>;
 

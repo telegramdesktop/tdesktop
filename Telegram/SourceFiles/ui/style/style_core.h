@@ -63,11 +63,15 @@ bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
 void startManager();
 void stopManager();
 
-QImage colorizeImage(const QImage &src, const color &c, const QRect &r);
+QImage colorizeImage(const QImage &src, QColor c, const QRect &r);
+
+inline QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {
+	return colorizeImage(src, c->c, r);
+}
 
 namespace internal {
 
-QImage createCircleMask(int size, const QColor &bg, const QColor &fg);
+QImage createCircleMask(int size, QColor bg, QColor fg);
 
 } // namespace internal
 

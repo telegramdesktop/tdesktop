@@ -75,34 +75,58 @@ void stopManager() {
 	internal::destroyIcons();
 }
 
-QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {
+QImage colorizeImage(const QImage &src, QColor color, const QRect &r) {
 	t_assert(r.x() >= 0 && src.width() >= r.x() + r.width());
 	t_assert(r.y() >= 0 && src.height() >= r.y() + r.height());
 
-	int a = c->c.alpha() + 1;
-	int fg_r = c->c.red() * a, fg_g = c->c.green() * a, fg_b = c->c.blue() * a, fg_a = 255 * a;
+	auto initialAlpha = color.alpha() + 1;
+	auto red = color.red() * initialAlpha;
+	auto green = color.green() * initialAlpha;
+	auto blue = color.blue() * initialAlpha;
+	auto alpha = 255 * initialAlpha;
+	auto alpha_red = static_cast<uint64>(alpha) | (static_cast<uint64>(red) << 32);
+	auto green_blue = static_cast<uint64>(green) | (static_cast<uint64>(blue) << 32);
 
-	QImage result(r.width(), r.height(), QImage::Format_ARGB32_Premultiplied);
-	auto bits = result.bits();
-	auto maskbits = src.constBits();
-	int bpp = result.depth(), maskbpp = src.depth();
-	int bpl = result.bytesPerLine(), maskbpl = src.bytesPerLine();
-	for (int x = 0, xoffset = r.x(); x < r.width(); ++x) {
-		for (int y = 0, yoffset = r.y(); y < r.height(); ++y) {
-			int s = y * bpl + ((x * bpp) >> 3);
-			int o = maskbits[(y + yoffset) * maskbpl + (((x + xoffset) * maskbpp) >> 3)] + 1;
-			bits[s + 0] = (fg_b * o) >> 16;
-			bits[s + 1] = (fg_g * o) >> 16;
-			bits[s + 2] = (fg_r * o) >> 16;
-			bits[s + 3] = (fg_a * o) >> 16;
+	auto result = QImage(r.width(), r.height(), QImage::Format_ARGB32_Premultiplied);
+	auto resultBytesPerPixel = (src.depth() >> 3);
+	auto resultIntsPerPixel = 1;
+	auto resultIntsPerLine = (result.bytesPerLine() >> 2);
+	auto resultIntsAdded = resultIntsPerLine - r.width() * resultIntsPerPixel;
+	auto resultInts = reinterpret_cast<uint32*>(result.bits());
+	t_assert(resultIntsAdded >= 0);
+	t_assert(result.depth() == ((resultIntsPerPixel * sizeof(uint32)) << 3));
+	t_assert(result.bytesPerLine() == (resultIntsPerLine << 2));
+
+	auto maskBytesPerPixel = (src.depth() >> 3);
+	auto maskBytesPerLine = src.bytesPerLine();
+	auto maskBytesAdded = maskBytesPerLine - r.width() * maskBytesPerPixel;
+	auto maskBytes = src.constBits() + r.y() * maskBytesPerLine + r.x() * maskBytesPerPixel;
+	t_assert(maskBytesAdded >= 0);
+	t_assert(src.depth() == (maskBytesPerPixel << 3));
+	for (int y = 0; y != r.height(); ++y) {
+		for (int x = 0; x != r.width(); ++x) {
+			auto maskOpacity = static_cast<uint64>(*maskBytes) + 1;
+			auto alpha_red_masked = (alpha_red * maskOpacity) >> 16;
+			auto green_blue_masked = (green_blue * maskOpacity) >> 16;
+			auto alpha = static_cast<uint32>(alpha_red_masked & 0xFF);
+			auto red = static_cast<uint32>((alpha_red_masked >> 32) & 0xFF);
+			auto green = static_cast<uint32>(green_blue_masked & 0xFF);
+			auto blue = static_cast<uint32>((green_blue_masked >> 32) & 0xFF);
+			*resultInts = blue | (green << 8) | (red << 16) | (alpha << 24);
+			maskBytes += maskBytesPerPixel;
+			resultInts += resultIntsPerPixel;
 		}
+		maskBytes += maskBytesAdded;
+		resultInts += resultIntsAdded;
 	}
-	return result;
+
+	result.setDevicePixelRatio(src.devicePixelRatio());
+	return std_::move(result);
 }
 
 namespace internal {
 
-QImage createCircleMask(int size, const QColor &bg, const QColor &fg) {
+QImage createCircleMask(int size, QColor bg, QColor fg) {
 	int realSize = size * cIntRetinaFactor();
 #ifndef OS_MAC_OLD
 	auto result = QImage(realSize, realSize, QImage::Format::Format_Grayscale8);

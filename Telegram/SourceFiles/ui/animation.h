@@ -219,14 +219,14 @@ namespace anim {
 		using ValueType = QColor;
 
 		cvalue() = default;
-		cvalue(const QColor &from)
+		explicit cvalue(QColor from)
 			: _cur(from)
 			, _from_r(from.redF())
 			, _from_g(from.greenF())
 			, _from_b(from.blueF())
 			, _from_a(from.alphaF()) {
 		}
-		cvalue(const QColor &from, const QColor &to)
+		cvalue(QColor from, QColor to)
 			: _cur(from)
 			, _from_r(from.redF())
 			, _from_g(from.greenF())
@@ -237,7 +237,7 @@ namespace anim {
 			, _delta_b(to.blueF() - from.blueF())
 			, _delta_a(to.alphaF() - from.alphaF()) {
 		}
-		void start(const QColor &to) {
+		void start(QColor to) {
 			_from_r = _cur.redF();
 			_from_g = _cur.greenF();
 			_from_b = _cur.blueF();
@@ -265,7 +265,7 @@ namespace anim {
 			result.setAlphaF(_from_a);
 			return result;
 		}
-		const QColor &current() const {
+		QColor current() const {
 			return _cur;
 		}
 		QColor to() const {

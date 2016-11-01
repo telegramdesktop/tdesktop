@@ -605,9 +605,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			bool selected = (i == _sel);
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver);
-				int skip = (st::mentionHeight - st::simpleCloseIcon.height()) / 2;
+				int skip = (st::mentionHeight - st::simpleCloseIconOver.height()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					st::simpleCloseIcon.paint(p, QPoint(width() - st::simpleCloseIcon.width() - skip, i * st::mentionHeight + skip), width());
+					st::simpleCloseIconOver.paint(p, QPoint(width() - st::simpleCloseIconOver.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
 			if (!_mrows->isEmpty()) {

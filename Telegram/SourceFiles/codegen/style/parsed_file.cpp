@@ -822,16 +822,20 @@ QString ParsedFile::readMonoIconFilename() {
 	if (auto filename = readValue()) {
 		if (filename.type().tag == structure::TypeTag::String) {
 			auto filepath = QString::fromStdString(filename.String());
+			auto inverted = filepath.endsWith("-invert");
+			if (inverted) {
+				filepath.chop(QLatin1String("-invert").size());
+			}
 			for (const auto &path : options_.includePaths) {
 				QFileInfo fileinfo(path + '/' + filepath + ".png");
 				if (fileinfo.exists()) {
-					return path + '/' + filepath;
+					return path + '/' + filepath + (inverted ? "-invert" : "");
 				}
 			}
 			for (const auto &path : options_.includePaths) {
 				QFileInfo fileinfo(path + "/icons/" + filepath + ".png");
 				if (fileinfo.exists()) {
-					return path + "/icons/" + filepath;
+					return path + "/icons/" + filepath + (inverted ? "-invert" : "");
 				}
 			}
 			logError(common::kErrorFileNotFound) << "could not open icon file '" << filename.String() << "'";

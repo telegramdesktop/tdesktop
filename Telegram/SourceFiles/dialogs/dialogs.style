@@ -84,18 +84,18 @@ dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
 }
 
 dialogsNewChatIcon: icon {{ "dialogs_new_chat", #b7b7b7 }};
-dialogsNewChatButton: IconButton(defaultIconButton) {
+dialogsNewChatButton: IconButton {
 	width: 36px;
 	height: 36px;
 
 	icon: dialogsNewChatIcon;
 	iconPosition: point(9px, 10px);
-	downIconPosition: point(9px, 11px);
+	iconPositionDown: point(9px, 11px);
 }
 dialogsAddContact: IconButton(dialogsNewChatButton) {
 	icon: icon {{ "dialogs_add_contact", #a6a6a6 }};
 	iconPosition: point(8px, 8px);
-	downIconPosition: point(8px, 9px);
+	iconPositionDown: point(8px, 9px);
 }
 dialogsCancelSearch: IconButton(dialogsAddContact) {
 	icon: icon {{ "dialogs_cancel_search", #a6a6a6 }};

@@ -79,7 +79,7 @@ settingsEditButton: IconButton(dialogsNewChatButton) {
 	height: 34px;
 
 	iconPosition: point(3px, 9px);
-	downIconPosition: point(3px, 10px);
+	iconPositionDown: point(3px, 10px);
 }
 
 settingsBlocksTop: 7px;

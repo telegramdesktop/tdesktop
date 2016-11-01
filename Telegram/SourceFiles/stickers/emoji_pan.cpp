@@ -2489,10 +2489,10 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_deleteVisible) {
-		p.fillRect(0, 0, width(), st::emojiPanHeader, st::emojiPanHeaderBg->b);
+		p.fillRect(0, 0, width(), st::emojiPanHeader, st::emojiPanHeaderBg);
 	}
 	p.setFont(st::emojiPanHeaderFont);
-	p.setPen(st::emojiPanHeaderColor);
+	p.setPen(st::emojiPanHeaderFg);
 	p.drawTextLeft(st::emojiPanHeaderLeft, st::emojiPanHeaderTop, width(), _text);
 }
 

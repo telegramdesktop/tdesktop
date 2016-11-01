@@ -594,7 +594,7 @@ msgImgReplyBarColor: #ffffff;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbOverBg: #fffffffc;
+msgBotKbOverBg: #ffffff1a;
 msgBotKbIconPadding: 2px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
@@ -900,7 +900,8 @@ contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
 
-simpleCloseIcon: icon {{ "simple_close", #000000 }};
+simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
+simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
 
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
@@ -1197,7 +1198,5 @@ settingsFixedBarCloseIcon: icon {{ "box_button_close", settingsFixedBarBg }};
 
 notifyFadeRight: icon {{ "fade_horizontal_right", notificationBg }};
 
-emojiPanBg: #ffffff;
-emojiPanCategories: #f7f7f7;
 stickerIconLeft: icon {{ "fade_horizontal_left", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal_right", emojiPanCategories }};

@@ -64,8 +64,8 @@ void DropdownMenu::init() {
 	hide();
 }
 
-QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon) {
-	return _menu->addAction(text, receiver, member, icon);
+QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
 QAction *DropdownMenu::addSeparator() {

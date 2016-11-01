@@ -55,44 +55,30 @@ public:
 	QSize size() const;
 
 	QPoint offset() const;
+
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
 	void fill(QPainter &p, const QRect &rect) const;
-
-	MonoIcon clone(const Color &color) const {
-		return MonoIcon(_mask, color ? color : _color, _offset, OwningPixmapTag());
-	}
+	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const;
+	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
 
 	~MonoIcon() {
 	}
 
 private:
-	struct OwningPixmapTag {
-	};
-	MonoIcon(const IconMask *mask, const Color &color, QPoint offset, OwningPixmapTag);
 	void ensureLoaded() const;
 
 	const IconMask *_mask = nullptr;
 	Color _color;
 	QPoint _offset = { 0, 0 };
+	mutable QImage _maskImage;
 	mutable QPixmap _pixmap; // for pixmaps
 	mutable QSize _size; // for rects
-	bool _owningPixmap = false;
 
 };
 
 class Icon {
-	struct ColoredCopy;
-
 public:
 	Icon(Qt::Initialization) {
-	}
-	Icon(const ColoredCopy &makeCopy) {
-		_parts.reserve(makeCopy.copyFrom._parts.size());
-		auto colorIt = makeCopy.colors.cbegin(), colorsEnd = makeCopy.colors.cend();
-		for_const (auto &part, makeCopy.copyFrom._parts) {
-			auto newPart = part.clone((colorIt == colorsEnd) ? Color(Qt::Uninitialized) : *(colorIt++));
-			_parts.push_back(newPart);
-		}
 	}
 
 	template <typename ... MonoIcons>
@@ -101,14 +87,15 @@ public:
 		addIcons(icons...);
 	}
 
-	std_::unique_ptr<Icon> clone(const QVector<Color> &colors) {
-		return std_::make_unique<Icon>(ColoredCopy { *this, colors });
-	}
-
 	bool empty() const {
 		return _parts.empty();
 	}
-	void paint(QPainter &p, const QPoint &pos, int outerw) const;
+
+	void paint(QPainter &p, const QPoint &pos, int outerw) const {
+		for_const (auto &part, _parts) {
+			part.paint(p, pos, outerw);
+		}
+	}
 	void paint(QPainter &p, int x, int y, int outerw) const {
 		paint(p, QPoint(x, y), outerw);
 	}
@@ -116,6 +103,20 @@ public:
 		paint(p, outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2, outer.x() * 2 + outer.width());
 	}
 	void fill(QPainter &p, const QRect &rect) const;
+
+	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
+		for_const (auto &part, _parts) {
+			part.paint(p, pos, outerw, colorOverride);
+		}
+	}
+	void paint(QPainter &p, int x, int y, int outerw, QColor colorOverride) const {
+		paint(p, QPoint(x, y), outerw, colorOverride);
+	}
+	void paintInCenter(QPainter &p, const QRect &outer, QColor colorOverride) const {
+		paint(p, outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2, outer.x() * 2 + outer.width(), colorOverride);
+	}
+	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
+
 	int width() const;
 	int height() const;
 	QSize size() const {
@@ -123,11 +124,6 @@ public:
 	}
 
 private:
-	struct ColoredCopy {
-		const Icon &copyFrom;
-		const QVector<Color> &colors;
-	};
-
 	template <typename ... MonoIcons>
 	void addIcons() {
 	}
