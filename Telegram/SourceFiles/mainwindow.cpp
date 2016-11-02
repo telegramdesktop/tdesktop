@@ -43,8 +43,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
-#include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
+#include "window/notifications_manager.h"
+#include "window/window_theme.h"
+#include "window/window_theme_warning.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent)
 , _shadow(st::boxShadow)
@@ -125,6 +127,9 @@ MainWindow::MainWindow() {
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
 	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
+		themeUpdated(data);
+	});
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -594,6 +599,20 @@ void MainWindow::hideConnecting() {
 	}
 }
 
+void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
+	using Type = Window::Theme::BackgroundUpdate::Type;
+	if (data.type == Type::TestingTheme) {
+		if (!_testingThemeWarning) {
+			_testingThemeWarning.create(this);
+			_testingThemeWarning->setGeometry(rect());
+			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
+		}
+		_testingThemeWarning->showAnimated();
+	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
+		_testingThemeWarning->hideAnimated();
+	}
+}
+
 bool MainWindow::doWeReadServerHistory() const {
 	return isActive(false) && main && !Ui::isLayerShown() && main->doWeReadServerHistory();
 }
@@ -645,7 +664,9 @@ bool MainWindow::contentOverlapped(const QRect &globalRect) {
 }
 
 void MainWindow::setInnerFocus() {
-	if (layerBg && layerBg->canSetFocus()) {
+	if (_testingThemeWarning) {
+		_testingThemeWarning->setFocus();
+	} else if (layerBg && layerBg->canSetFocus()) {
 		layerBg->setInnerFocus();
 	} else if (_passcode) {
 		_passcode->setInnerFocus();
@@ -951,6 +972,7 @@ void MainWindow::fixOrder() {
 	if (layerBg) layerBg->raise();
 	if (_mediaPreview) _mediaPreview->raise();
 	if (_connecting) _connecting->raise();
+	if (_testingThemeWarning) _testingThemeWarning->raise();
 }
 
 void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
@@ -1045,6 +1067,7 @@ void MainWindow::updateControlsGeometry() {
 	if (layerBg) layerBg->resize(width(), height());
 	if (_mediaPreview) _mediaPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
+	if (_testingThemeWarning) _testingThemeWarning->setGeometry(rect());
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {

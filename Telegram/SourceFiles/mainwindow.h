@@ -42,6 +42,13 @@ namespace Settings {
 class Widget;
 } // namespace Settings
 
+namespace Window {
+namespace Theme {
+struct BackgroundUpdate;
+class WarningWidget;
+} // namespace Theme
+} // namespace Window
+
 class ConnectingWidget : public QWidget {
 	Q_OBJECT
 
@@ -228,6 +235,8 @@ private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 
+	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
+
 	void updateControlsGeometry();
 
 	QPixmap grabInner();
@@ -253,6 +262,7 @@ private:
 	bool _isActive = false;
 
 	ChildWidget<ConnectingWidget> _connecting = { nullptr };
+	ChildWidget<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
 

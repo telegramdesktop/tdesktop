@@ -68,11 +68,12 @@ public:
 private:
 	void ensureLoaded() const;
 	void createCachedPixmap() const;
+	void ensureColorizedImage(QColor color) const;
 
 	const IconMask *_mask = nullptr;
 	Color _color;
 	QPoint _offset = { 0, 0 };
-	mutable QImage _maskImage;
+	mutable QImage _maskImage, _colorizedImage;
 	mutable QPixmap _pixmap; // for pixmaps
 	mutable QSize _size; // for rects
 

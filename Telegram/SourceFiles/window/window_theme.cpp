@@ -35,7 +35,15 @@ constexpr int kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr int kThemeSchemeSizeLimit = 1024 * 1024;
 
 struct Data {
+	struct Applying {
+		QString path;
+		QByteArray content;
+		QByteArray paletteForRevert;
+		Cached cached;
+	};
+
 	ChatBackground background;
+	Applying applying;
 };
 NeverFreedPointer<Data> instance;
 
@@ -137,11 +145,11 @@ bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 
 		auto size = value.size();
 		auto error = false;
-		if (value[0] == '#' && (size == 7 || size == 8)) {
+		if (value[0] == '#' && (size == 7 || size == 9)) {
 			auto r = readHexUchar(value[1], value[2], error);
 			auto g = readHexUchar(value[3], value[4], error);
 			auto b = readHexUchar(value[5], value[6], error);
-			auto a = (size == 8) ? readHexUchar(value[7], value[8], error) : uchar(255);
+			auto a = (size == 9) ? readHexUchar(value[7], value[8], error) : uchar(255);
 			if (!error) {
 				if (out) {
 					error = !out->palette.setColor(QLatin1String(name), r, g, b, a);
@@ -157,7 +165,7 @@ bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 			}
 		}
 		if (error) {
-			LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme."));
+			LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme (while applying '%1: %2')").arg(QLatin1String(name)).arg(QLatin1String(value)));
 			return false;
 		}
 	}
@@ -320,6 +328,12 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	if (_id == kThemeBackground) {
 		_tile = _themeTile;
 		setPreparedImage(QImage(_themeImage));
+	} else if (_id == internal::kTestingThemeBackground || _id == internal::kTestingDefaultBackground) {
+		if (_id == internal::kTestingDefaultBackground || image.isNull()) {
+			image.load(qsl(":/gui/art/bg.jpg"));
+			_id = internal::kTestingDefaultBackground;
+		}
+		setPreparedImage(std_::move(image));
 	} else {
 		if (_id == kDefaultBackground) {
 			image.load(qsl(":/gui/art/bg.jpg"));
@@ -356,18 +370,97 @@ bool ChatBackground::tile() const {
 	return _tile;
 }
 
-void ChatBackground::setTile(bool tile) {
+bool ChatBackground::tileForSave() const {
+	if (_id == internal::kTestingThemeBackground ||
+		_id == internal::kTestingDefaultBackground) {
+		return _tileForRevert;
+	}
+	return tile();
+}
+
+void ChatBackground::ensureStarted() {
 	if (_image.isNull()) {
 		// We should start first, otherwise the default call
 		// to start() will reset this value to _themeTile.
 		start();
 	}
+}
+
+void ChatBackground::setTile(bool tile) {
+	ensureStarted();
 	if (_tile != tile) {
 		_tile = tile;
-		Local::writeUserSettings();
+		if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
+			Local::writeUserSettings();
+		}
 		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, _tile));
 	}
 }
+
+void ChatBackground::reset() {
+	if (_id == internal::kTestingThemeBackground || _id == internal::kTestingDefaultBackground) {
+		if (_themeImage.isNull()) {
+			_idForRevert = kDefaultBackground;
+			_imageForRevert = QImage();
+			_tileForRevert = false;
+		} else {
+			_idForRevert = kThemeBackground;
+			_imageForRevert = _themeImage;
+			_tileForRevert = _themeTile;
+		}
+	} else {
+		setImage(kThemeBackground);
+	}
+}
+
+void ChatBackground::saveForRevert() {
+	ensureStarted();
+	if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
+		_idForRevert = _id;
+		_imageForRevert = std_::move(_image).toImage();
+		_tileForRevert = _tile;
+	}
+}
+
+void ChatBackground::setTestingTheme(Instance &&theme) {
+	style::main_palette::apply(theme.palette);
+	if (!theme.background.isNull() || _id == kThemeBackground) {
+		saveForRevert();
+		setImage(internal::kTestingThemeBackground, std_::move(theme.background));
+		setTile(theme.tiled);
+	}
+	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
+}
+
+void ChatBackground::keepApplied() {
+	if (_id == internal::kTestingThemeBackground) {
+		_id = kThemeBackground;
+		_themeImage = _image.toImage();
+		_themeTile = _tile;
+	} else if (_id == internal::kTestingDefaultBackground) {
+		_id = kDefaultBackground;
+		_themeImage = QImage();
+		_themeTile = false;
+		writeNewBackgroundSettings();
+	}
+	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, _tile), true);
+}
+
+void ChatBackground::writeNewBackgroundSettings() {
+	if (_tile != _tileForRevert) {
+		Local::writeUserSettings();
+	}
+	Local::writeBackground(_id, QImage());
+}
+
+void ChatBackground::revert() {
+	if (_id == internal::kTestingThemeBackground || _id == internal::kTestingDefaultBackground) {
+		setTile(_tileForRevert);
+		setImage(_idForRevert, std_::move(_imageForRevert));
+	}
+	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, _tile), true);
+}
+
 
 ChatBackground *Background() {
 	instance.createIfNull();
@@ -394,6 +487,43 @@ bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteA
 
 void Unload() {
 	instance.clear();
+}
+
+bool Apply(const QString &filepath) {
+	QByteArray content;
+	Instance theme;
+	if (!LoadFromFile(filepath, &theme, &content)) {
+		return false;
+	}
+	instance.createIfNull();
+	instance->applying.path = filepath;
+	instance->applying.content = content;
+	instance->applying.cached = theme.cached;
+	if (instance->applying.paletteForRevert.isEmpty()) {
+		instance->applying.paletteForRevert = style::main_palette::save();
+	}
+	Background()->setTestingTheme(std_::move(theme));
+	return true;
+}
+
+void KeepApplied() {
+	auto filepath = instance ? instance->applying.path : QString();
+	if (filepath.isEmpty()) {
+		return;
+	}
+	auto pathRelative = QDir().relativeFilePath(filepath);
+	auto pathAbsolute = QFileInfo(filepath).absoluteFilePath();
+	Local::writeTheme(pathRelative, pathAbsolute, instance->applying.content, instance->applying.cached);
+	instance->applying = Data::Applying();
+	Background()->keepApplied();
+}
+
+void Revert() {
+	if (!instance->applying.paletteForRevert.isEmpty()) {
+		style::main_palette::load(instance->applying.paletteForRevert);
+	}
+	instance->applying = Data::Applying();
+	Background()->revert();
 }
 
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {

@@ -75,43 +75,49 @@ void stopManager() {
 	internal::destroyIcons();
 }
 
-QImage colorizeImage(const QImage &src, QColor color, const QRect &r) {
-	t_assert(r.x() >= 0 && src.width() >= r.x() + r.width());
-	t_assert(r.y() >= 0 && src.height() >= r.y() + r.height());
+void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect, QPoint dstPoint) {
+	if (srcRect.isNull()) {
+		srcRect = src.rect();
+	} else {
+		t_assert(src.rect().contains(srcRect));
+	}
+	auto width = srcRect.width();
+	auto height = srcRect.height();
+	t_assert(outResult && outResult->rect().contains(QRect(dstPoint, srcRect.size())));
 
-	auto initialAlpha = color.alpha() + 1;
-	auto red = color.red() * initialAlpha;
-	auto green = color.green() * initialAlpha;
-	auto blue = color.blue() * initialAlpha;
-	auto alpha = 255 * initialAlpha;
-	auto alpha_red = static_cast<uint64>(alpha) | (static_cast<uint64>(red) << 32);
-	auto green_blue = static_cast<uint64>(green) | (static_cast<uint64>(blue) << 32);
+	auto initialAlpha = c.alpha() + 1;
+	auto red = (c.red() * initialAlpha) >> 8;
+	auto green = (c.green() * initialAlpha) >> 8;
+	auto blue = (c.blue() * initialAlpha) >> 8;
+	auto alpha = (255 * initialAlpha) >> 8;
+	auto pattern = static_cast<uint64>(alpha)
+		| (static_cast<uint64>(red) << 16)
+		| (static_cast<uint64>(green) << 32)
+		| (static_cast<uint64>(blue) << 48);
 
-	auto result = QImage(r.width(), r.height(), QImage::Format_ARGB32_Premultiplied);
 	auto resultBytesPerPixel = (src.depth() >> 3);
 	auto resultIntsPerPixel = 1;
-	auto resultIntsPerLine = (result.bytesPerLine() >> 2);
-	auto resultIntsAdded = resultIntsPerLine - r.width() * resultIntsPerPixel;
-	auto resultInts = reinterpret_cast<uint32*>(result.bits());
+	auto resultIntsPerLine = (outResult->bytesPerLine() >> 2);
+	auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
+	auto resultInts = reinterpret_cast<uint32*>(outResult->bits()) + dstPoint.y() * resultIntsPerLine + dstPoint.x() * resultIntsPerPixel;
 	t_assert(resultIntsAdded >= 0);
-	t_assert(result.depth() == ((resultIntsPerPixel * sizeof(uint32)) << 3));
-	t_assert(result.bytesPerLine() == (resultIntsPerLine << 2));
+	t_assert(outResult->depth() == ((resultIntsPerPixel * sizeof(uint32)) << 3));
+	t_assert(outResult->bytesPerLine() == (resultIntsPerLine << 2));
 
 	auto maskBytesPerPixel = (src.depth() >> 3);
 	auto maskBytesPerLine = src.bytesPerLine();
-	auto maskBytesAdded = maskBytesPerLine - r.width() * maskBytesPerPixel;
-	auto maskBytes = src.constBits() + r.y() * maskBytesPerLine + r.x() * maskBytesPerPixel;
+	auto maskBytesAdded = maskBytesPerLine - width * maskBytesPerPixel;
+	auto maskBytes = src.constBits() + srcRect.y() * maskBytesPerLine + srcRect.x() * maskBytesPerPixel;
 	t_assert(maskBytesAdded >= 0);
 	t_assert(src.depth() == (maskBytesPerPixel << 3));
-	for (int y = 0; y != r.height(); ++y) {
-		for (int x = 0; x != r.width(); ++x) {
+	for (int y = 0; y != height; ++y) {
+		for (int x = 0; x != width; ++x) {
 			auto maskOpacity = static_cast<uint64>(*maskBytes) + 1;
-			auto alpha_red_masked = (alpha_red * maskOpacity) >> 16;
-			auto green_blue_masked = (green_blue * maskOpacity) >> 16;
-			auto alpha = static_cast<uint32>(alpha_red_masked & 0xFF);
-			auto red = static_cast<uint32>((alpha_red_masked >> 32) & 0xFF);
-			auto green = static_cast<uint32>(green_blue_masked & 0xFF);
-			auto blue = static_cast<uint32>((green_blue_masked >> 32) & 0xFF);
+			auto masked = (pattern * maskOpacity) >> 8;
+			auto alpha = static_cast<uint32>(masked & 0xFF);
+			auto red = static_cast<uint32>((masked >> 16) & 0xFF);
+			auto green = static_cast<uint32>((masked >> 32) & 0xFF);
+			auto blue = static_cast<uint32>((masked >> 48) & 0xFF);
 			*resultInts = blue | (green << 8) | (red << 16) | (alpha << 24);
 			maskBytes += maskBytesPerPixel;
 			resultInts += resultIntsPerPixel;
@@ -120,8 +126,7 @@ QImage colorizeImage(const QImage &src, QColor color, const QRect &r) {
 		resultInts += resultIntsAdded;
 	}
 
-	result.setDevicePixelRatio(src.devicePixelRatio());
-	return std_::move(result);
+	outResult->setDevicePixelRatio(src.devicePixelRatio());
 }
 
 namespace internal {

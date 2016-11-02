@@ -559,6 +559,8 @@
       '<(src_loc)/window/top_bar_widget.h',
       '<(src_loc)/window/window_theme.cpp',
       '<(src_loc)/window/window_theme.h',
+      '<(src_loc)/window/window_theme_warning.cpp',
+      '<(src_loc)/window/window_theme_warning.h',
 
       '<(sp_media_key_tap_loc)/SPMediaKeyTap.m',
       '<(sp_media_key_tap_loc)/SPMediaKeyTap.h',

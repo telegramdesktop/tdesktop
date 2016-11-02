@@ -828,7 +828,11 @@ QByteArray save() {\n\
 }\n\
 \n\
 bool load(const QByteArray &cache) {\n\
-	return _palette.load(cache);\n\
+	if (_palette.load(cache)) {\n\
+		style::internal::resetIcons();\n\
+		return true;\n\
+	}\n\
+	return false;\n\
 }\n\
 \n\
 bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\

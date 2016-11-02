@@ -283,3 +283,9 @@ newGroupDescription: InputArea(defaultInputArea) {
 
 newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
 newGroupLinkFadeDuration: 5000;
+
+themeWarningWidth: boxWideWidth;
+themeWarningHeight: 150px;
+themeWarningShadow: boxShadow;
+themeWarningShadowShift: boxShadowShift;
+themeWarningTextTop: 60px;

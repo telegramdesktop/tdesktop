@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "history/history_media_types.h"
 #include "styles/style_history.h"
+#include "window/window_theme.h"
 
 namespace {
 
@@ -54,7 +55,7 @@ struct ColorReferenceWrap {
 };
 
 ImagePtr generateUserpicImage(const style::icon &icon) {
-	auto data = QImage(icon.width() * cIntRetinaFactor(), icon.height() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto data = QImage(icon.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&data);
@@ -984,6 +985,15 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 	bool playVideo = data->isVideo() && audioPlayer();
 	bool playAnimation = data->isAnimation();
 	auto &location = data->location(true);
+	if (auto applyTheme = data->name.endsWith(qstr(".tdesktop-theme"))) {
+		if (!location.isEmpty() && location.accessEnable()) {
+			if (Window::Theme::Apply(location.name())) {
+				location.accessDisable();
+				return;
+			}
+			location.accessDisable();
+		}
+	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
 		if (playVoice) {
 			AudioMsgId playing;
@@ -1277,13 +1287,22 @@ void DocumentData::automaticLoadSettingsChanged() {
 void DocumentData::performActionOnLoad() {
 	if (_actionOnLoad == ActionOnLoadNone) return;
 
-	const FileLocation &loc(location(true));
-	QString already = loc.name();
-	HistoryItem *item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
+	auto loc = location(true);
+	auto already = loc.name();
+	auto item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
 	bool showImage = !isVideo() && (size < MediaViewImageSizeLimit);
 	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
+	if (auto applyTheme = name.endsWith(qstr(".tdesktop-theme"))) {
+		if (!loc.isEmpty() && loc.accessEnable()) {
+			if (Window::Theme::Apply(loc.name())) {
+				loc.accessDisable();
+				return;
+			}
+			loc.accessDisable();
+		}
+	}
 	if (playVoice) {
 		if (loaded()) {
 			AudioMsgId playing;

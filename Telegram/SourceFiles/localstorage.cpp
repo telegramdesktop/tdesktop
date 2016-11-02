@@ -1626,7 +1626,7 @@ void _writeUserSettings() {
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tile() ? 1 : 0);
+	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tileForSave() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);

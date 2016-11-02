@@ -24,7 +24,9 @@ namespace Window {
 namespace Theme {
 namespace internal {
 
-constexpr int32 kUninitializedBackground = -3;
+constexpr int32 kUninitializedBackground = -999;
+constexpr int32 kTestingThemeBackground = -666;
+constexpr int32 kTestingDefaultBackground = -665;
 
 } // namespace internal
 
@@ -43,6 +45,10 @@ struct Cached {
 bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, Cached &cache);
 void Unload();
 
+bool Apply(const QString &filepath);
+void KeepApplied();
+void Revert();
+
 struct Instance {
 	style::palette palette;
 	QImage background;
@@ -56,6 +62,9 @@ struct BackgroundUpdate {
 		New,
 		Changed,
 		Start,
+		TestingTheme,
+		RevertingTheme,
+		ApplyingTheme,
 	};
 
 	BackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
@@ -73,16 +82,22 @@ public:
 	void start();
 	void setImage(int32 id, QImage &&image = QImage());
 	void setTile(bool tile);
-	void reset() {
-		setImage(kThemeBackground);
-	}
+	void reset();
+
+	void setTestingTheme(Instance &&theme);
+	void keepApplied();
+	void revert();
 
 	int32 id() const;
 	const QPixmap &image() const;
 	bool tile() const;
+	bool tileForSave() const;
 
 private:
+	void ensureStarted();
+	void saveForRevert();
 	void setPreparedImage(QImage &&image);
+	void writeNewBackgroundSettings();
 
 	int32 _id = internal::kUninitializedBackground;
 	QPixmap _image;
@@ -90,6 +105,10 @@ private:
 
 	QImage _themeImage;
 	bool _themeTile = false;
+
+	int32 _idForRevert = internal::kUninitializedBackground;
+	QImage _imageForRevert;
+	bool _tileForRevert = false;
 
 };
 

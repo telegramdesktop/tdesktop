@@ -229,18 +229,7 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 
 	auto filePath = update.filePaths.front();
 	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
-		QByteArray themeContent;
-		Window::Theme::Instance theme;
-		if (Window::Theme::LoadFromFile(filePath, &theme, &themeContent)) {
-			Local::writeTheme(QDir().relativeFilePath(filePath), QFileInfo(filePath).absoluteFilePath(), themeContent, theme.cached);
-			if (Window::Theme::Background()->tile() != theme.cached.tiled) {
-				Window::Theme::Background()->setTile(theme.cached.tiled);
-			}
-			if (!theme.cached.background.isEmpty()) {
-				Local::writeBackground(Window::Theme::kThemeBackground, QImage());
-			}
-			style::main_palette::apply(theme.palette);
-		}
+		Window::Theme::Apply(filePath);
 		return;
 	}
 

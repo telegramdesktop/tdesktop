@@ -72,10 +72,6 @@ QImage createIconMask(const IconMask *mask) {
 	return maskImage.copy(r);
 }
 
-QImage createIconImage(const QImage &mask, QColor color) {
-	return colorizeImage(mask, color, QRect(0, 0, mask.width(), mask.height()));
-}
-
 } // namespace
 
 MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset)
@@ -141,7 +137,8 @@ void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOve
 	if (_pixmap.isNull()) {
 		p.fillRect(partPosX, partPosY, w, h, colorOverride);
 	} else {
-		p.drawImage(partPosX, partPosY, createIconImage(_maskImage, colorOverride));
+		ensureColorizedImage(colorOverride);
+		p.drawImage(partPosX, partPosY, _colorizedImage);
 	}
 }
 
@@ -150,7 +147,8 @@ void MonoIcon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 	if (_pixmap.isNull()) {
 		p.fillRect(rect, colorOverride);
 	} else {
-		p.drawImage(rect, createIconImage(_maskImage, colorOverride), QRect(0, 0, _pixmap.width(), _pixmap.height()));
+		ensureColorizedImage(colorOverride);
+		p.drawImage(rect, _colorizedImage, _colorizedImage.rect());
 	}
 }
 
@@ -206,12 +204,18 @@ void MonoIcon::ensureLoaded() const {
 	}
 }
 
+void MonoIcon::ensureColorizedImage(QColor color) const {
+	if (_colorizedImage.isNull()) _colorizedImage = QImage(_maskImage.size(), QImage::Format_ARGB32_Premultiplied);
+	colorizeImage(_maskImage, color, &_colorizedImage);
+}
+
 void MonoIcon::createCachedPixmap() const {
 	iconPixmaps.createIfNull();
 	auto key = qMakePair(_mask, colorKey(_color->c));
 	auto j = iconPixmaps->constFind(key);
 	if (j == iconPixmaps->cend()) {
-		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(createIconImage(_maskImage, _color->c)));
+		auto image = colorizeImage(_maskImage, _color);
+		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std_::move(image)));
 	}
 	_pixmap = j.value();
 	_size = _pixmap.size() / cIntRetinaFactor();

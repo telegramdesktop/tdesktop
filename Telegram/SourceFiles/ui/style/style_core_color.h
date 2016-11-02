@@ -100,12 +100,12 @@ inline Color::operator const QPen &() const {
 } // namespace internal
 
 inline QColor interpolate(QColor a, QColor b, float64 opacity_b) {
-	auto bOpacity = static_cast<int>(opacity_b * 255), aOpacity = (255 - bOpacity);
+	auto bOpacity = static_cast<int>(opacity_b * 255) + 1, aOpacity = (256 - bOpacity);
 	return {
-		(a.red() * aOpacity + b.red() * bOpacity + 1) >> 8,
-		(a.green() * aOpacity + b.green() * bOpacity + 1) >> 8,
-		(a.blue() * aOpacity + b.blue() * bOpacity + 1) >> 8,
-		(a.alpha() * aOpacity + b.alpha() * bOpacity + 1) >> 8
+		(a.red() * aOpacity + b.red() * bOpacity) >> 8,
+		(a.green() * aOpacity + b.green() * bOpacity) >> 8,
+		(a.blue() * aOpacity + b.blue() * bOpacity) >> 8,
+		(a.alpha() * aOpacity + b.alpha() * bOpacity) >> 8
 	};
 }
 
