@@ -243,7 +243,7 @@ public:
 		}
 
 		auto size = fileInfo.uncompressed_size;
-		if (size > fileSizeLimit) {
+		if (size > static_cast<uint32>(fileSizeLimit)) {
 			if (_error == UNZ_OK) _error = -1;
 			LOG(("Error: current file is too large (should be less than %1, got %2) in a zip file.").arg(fileSizeLimit).arg(size));
 			return QByteArray();
@@ -257,7 +257,7 @@ public:
 		result.resize(size);
 
 		auto couldRead = readCurrentFile(result.data(), size);
-		if (couldRead != size) {
+		if (couldRead != static_cast<int>(size)) {
 			LOG(("Error: could not read current file in a zip file, got %1.").arg(couldRead));
 			return QByteArray();
 		}
@@ -273,7 +273,7 @@ public:
 	QByteArray readFileContent(const char *szFileName, int iCaseSensitivity, int fileSizeLimit) {
 		if (locateFile(szFileName, iCaseSensitivity) != UNZ_OK) {
 			LOG(("Error: could not locate '%1' in a zip file.").arg(szFileName));
-			return false;
+			return QByteArray();
 		}
 		return readCurrentFileContent(fileSizeLimit);
 	}

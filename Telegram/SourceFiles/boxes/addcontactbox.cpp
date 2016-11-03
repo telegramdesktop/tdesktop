@@ -36,12 +36,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
-, _save(this, lang(lng_add_contact), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), lname)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
+, _save(this, lang(lng_add_contact), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
@@ -52,12 +52,12 @@ AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : Abst
 
 AddContactBox::AddContactBox(UserData *user) : AbstractBox(st::boxWidth)
 , _user(user)
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), user->firstName)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
+, _save(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _invertOrder(langFirstNameGoesSecond()) {
 	_phone->setDisabled(true);
 	initBox();
@@ -966,12 +966,11 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 
 EditNameTitleBox::EditNameTitleBox(PeerData *peer) :
 _peer(peer),
-_save(this, lang(lng_settings_save), st::defaultBoxButton),
-_cancel(this, lang(lng_cancel), st::cancelBoxButton),
 _first(this, st::defaultInputField, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name),
 _last(this, st::defaultInputField, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString()),
-_invertOrder(!peer->isChat() && langFirstNameGoesSecond()),
-_requestId(0) {
+_save(this, lang(lng_settings_save), st::defaultBoxButton),
+_cancel(this, lang(lng_cancel), st::cancelBoxButton),
+_invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
@@ -1141,15 +1140,12 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 
 EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 , _channel(channel)
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton)
-, _saveTitleRequestId(0)
-, _saveDescriptionRequestId(0)
-, _saveSignRequestId(0) {
+, _save(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
 	setMouseTracking(true);

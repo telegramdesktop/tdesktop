@@ -619,6 +619,8 @@
           '<(minizip_loc)/ioapi.h',
           '<(minizip_loc)/zip.c',
           '<(minizip_loc)/zip.h',
+          '<(minizip_loc)/unzip.c',
+          '<(minizip_loc)/unzip.h',
         ],
         'sources!': [
           '<(src_loc)/pspecific_win.cpp',

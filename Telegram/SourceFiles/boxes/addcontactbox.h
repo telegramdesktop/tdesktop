@@ -268,9 +268,9 @@ private:
 	ChildWidget<BoxButton> _save;
 	ChildWidget<BoxButton> _cancel;
 
-	bool _invertOrder;
+	bool _invertOrder = false;
 
-	mtpRequestId _requestId;
+	mtpRequestId _requestId = 0;
 	QString _sentName;
 
 };
@@ -318,9 +318,9 @@ private:
 	ChildWidget<BoxButton> _save;
 	ChildWidget<BoxButton> _cancel;
 
-	mtpRequestId _saveTitleRequestId;
-	mtpRequestId _saveDescriptionRequestId;
-	mtpRequestId _saveSignRequestId;
+	mtpRequestId _saveTitleRequestId = 0;
+	mtpRequestId _saveDescriptionRequestId = 0;
+	mtpRequestId _saveSignRequestId = 0;
 
 	QString _sentTitle, _sentDescription;
 

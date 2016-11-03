@@ -41,7 +41,7 @@ public:
 	}
 
 	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	// Profile fixed top bar should use this flag to decide
 	// if it shows "Share contact" button or not.
