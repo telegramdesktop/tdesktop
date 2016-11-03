@@ -109,8 +109,8 @@ private:
 	void showContextMenu(QContextMenuEvent *e, ContextMenuReason reason);
 
 	Text _text;
-	style::flatLabel _st;
-	style::textStyle _tst;
+	const style::flatLabel &_st;
+	const style::textStyle &_tst;
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;

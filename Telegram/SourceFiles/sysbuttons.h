@@ -56,7 +56,7 @@ protected:
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	style::sysButton _st;
+	const style::sysButton *_st;
 	anim::cvalue a_color;
 	Animation _a_color;
 

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/style/style_core_color.h"
+#include "core/vector_of_moveable.h"
 
 namespace style {
 namespace internal {
@@ -48,7 +49,11 @@ private:
 class MonoIcon {
 public:
 	MonoIcon() = default;
-	MonoIcon(const IconMask *mask, const Color &color, QPoint offset);
+	MonoIcon(const MonoIcon &other) = delete;
+	MonoIcon &operator=(const MonoIcon &other) = delete;
+	MonoIcon(MonoIcon &&other) = default;
+	MonoIcon &operator=(MonoIcon &&other) = default;
+	MonoIcon(const IconMask *mask, Color &&color, QPoint offset);
 
 	void reset() const;
 	int width() const;
@@ -82,10 +87,10 @@ private:
 class IconData {
 public:
 	template <typename ...MonoIcons>
-	IconData(const MonoIcons &...icons) {
+	IconData(MonoIcons &&...icons) {
 		created();
 		_parts.reserve(sizeof...(MonoIcons));
-		addIcons(icons...);
+		addIcons(std_::forward<MonoIcons>(icons)...);
 	}
 
 	void reset() {
@@ -122,12 +127,12 @@ private:
 	}
 
 	template <typename ... MonoIcons>
-	void addIcons(const MonoIcon &icon, const MonoIcons&... icons) {
-		_parts.push_back(icon);
-		addIcons(icons...);
+	void addIcons(MonoIcon &&icon, MonoIcons&&... icons) {
+		_parts.push_back(std_::move(icon));
+		addIcons(std_::forward<MonoIcons>(icons)...);
 	}
 
-	QVector<MonoIcon> _parts;
+	std_::vector_of_moveable<MonoIcon> _parts;
 	mutable int _width = -1;
 	mutable int _height = -1;
 
@@ -139,7 +144,7 @@ public:
 	}
 
 	template <typename ... MonoIcons>
-	Icon(const MonoIcons&... icons) : _data(new IconData(icons...)), _owner(true) {
+	Icon(MonoIcons&&... icons) : _data(new IconData(std_::forward<MonoIcons>(icons)...)), _owner(true) {
 	}
 	Icon(const Icon &other) : _data(other._data) {
 	}

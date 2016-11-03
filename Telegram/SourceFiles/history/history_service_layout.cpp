@@ -102,7 +102,7 @@ QPixmap circleCorner(int corner) {
 			yoffset = size;
 		}
 		auto part = QRect(xoffset, yoffset, size, size);
-		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], App::msgServiceBg(), part);
+		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
 		result.setDevicePixelRatio(cRetinaFactor());
 		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std_::move(result));
 	}
@@ -127,7 +127,7 @@ int paintBubbleSide(Painter &p, int x, int y, int width, SideStyle style, Corner
 		p.drawPixmap(x + width - rightWidth, y, right);
 
 		int cornerHeight = left.height() / cIntRetinaFactor();
-		p.fillRect(x + leftWidth, y, width - leftWidth - rightWidth, cornerHeight, App::msgServiceBg());
+		p.fillRect(x + leftWidth, y, width - leftWidth - rightWidth, cornerHeight, st::msgServiceBg);
 		return cornerHeight;
 	} else if (style == SideStyle::Inverted) {
 		// CornerLeft and CornerRight are inverted for SideStyle::Inverted sprites.
@@ -161,7 +161,7 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 		height -= skip;
 	}
 
-	p.fillRect(x, y, width, height, App::msgServiceBg());
+	p.fillRect(x, y, width, height, st::msgServiceBg);
 }
 
 void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
@@ -337,7 +337,7 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Text &text, const QRec
 void paintEmpty(Painter &p, int width, int height) {
 	auto position = QPoint((width - st::historyEmptySize) / 2, ((height - st::historyEmptySize) * 4) / 9);
 	p.setPen(Qt::NoPen);
-	p.setBrush(App::msgServiceBg());
+	p.setBrush(st::msgServiceBg);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	p.drawEllipse(rtlrect(position.x(), position.y(), st::historyEmptySize, st::historyEmptySize, width));
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);

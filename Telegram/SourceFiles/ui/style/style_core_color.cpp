@@ -41,14 +41,19 @@ void destroyColors() {
 	colorsMap.clear();
 }
 
-Color::Color(const Color &c) : ptr(c.ptr) {
-}
-
 Color::Color(ColorData *data) : ptr(data) {
 }
 
 Color::Color(uchar r, uchar g, uchar b, uchar a) {
 	init(r, g, b, a);
+}
+
+Color::Color(Color &&other) : ptr(other.ptr) {
+}
+
+Color &Color::operator=(Color &&other) {
+	ptr = other.ptr;
+	return *this;
 }
 
 void Color::set(uchar r, uchar g, uchar b, uchar a) const {

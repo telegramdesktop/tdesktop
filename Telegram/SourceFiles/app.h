@@ -293,15 +293,6 @@ namespace App {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius);
 	}
 
-	void initColorsFromBackground(const QImage &image);
-
-	const style::color &msgServiceBg();
-	const style::color &msgServiceSelectBg();
-	const style::color &historyScrollBarColor();
-	const style::color &historyScrollBgColor();
-	const style::color &historyScrollBarOverColor();
-	const style::color &historyScrollBgOverColor();
-
 	struct WallPaper {
 		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
 		}

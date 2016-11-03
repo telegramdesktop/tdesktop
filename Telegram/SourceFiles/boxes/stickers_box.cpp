@@ -646,7 +646,7 @@ void StickersBox::Inner::paintRow(Painter &p, int32 index) {
 		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
 		QRect add(myrtlrect(addx, addy, addw, st::stickersAddSize.height()));
 
-		auto textBg = (_actionSel == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
+		auto &textBg = (_actionSel == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
 		App::roundRect(p, add, textBg, ImageRoundRadius::Small);
 		int iconx = addx + (st::stickersAddSize.width() - st::stickersAddIcon.width()) / 2;
 		int icony = addy + (st::stickersAddSize.height() - st::stickersAddIcon.height()) / 2;

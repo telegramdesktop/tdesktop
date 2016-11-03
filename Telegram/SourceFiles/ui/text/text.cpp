@@ -91,18 +91,6 @@ QString textcmdLink(const QString &url, const QString &text) {
 	return result.append(textcmdStartLink(url)).append(text).append(textcmdStopLink());
 }
 
-QString textcmdStartColor(const style::color &color) {
-	QString result;
-	result.reserve(7);
-	return result.append(TextCommand).append(QChar(TextCommandColor)).append(QChar(color->c.red())).append(QChar(color->c.green())).append(QChar(color->c.blue())).append(QChar(color->c.alpha())).append(TextCommand);
-}
-
-QString textcmdStopColor() {
-	QString result;
-	result.reserve(3);
-	return result.append(TextCommand).append(QChar(TextCommandNoColor)).append(TextCommand);
-}
-
 QString textcmdStartSemibold() {
 	QString result;
 	result.reserve(3);
@@ -132,7 +120,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	case TextCommandNoItalic:
 	case TextCommandUnderline:
 	case TextCommandNoUnderline:
-	case TextCommandNoColor:
 		break;
 
 	case TextCommandLinkIndex:
@@ -144,15 +131,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 		ushort len = result->unicode();
 		if (len >= 4096 || !canLink) return from;
 		result += len + 1;
-	} break;
-
-	case TextCommandColor: {
-		const QChar *e = result + 4;
-		if (e >= end) return from;
-
-		for (; result < e; ++result) {
-			if (result->unicode() >= 256) return from;
-		}
 	} break;
 
 	case TextCommandSkipBlock:
@@ -216,13 +194,13 @@ public:
 			}
 			lastSkipped = false;
 			if (emoji) {
-				_t->_blocks.push_back(new EmojiBlock(_t->_font, _t->_text, blockStart, len, flags, color, lnkIndex, emoji));
+				_t->_blocks.push_back(new EmojiBlock(_t->_font, _t->_text, blockStart, len, flags, lnkIndex, emoji));
 				emoji = 0;
 				lastSkipped = true;
 			} else if (newline) {
 				_t->_blocks.push_back(new NewlineBlock(_t->_font, _t->_text, blockStart, len));
 			} else {
-				_t->_blocks.push_back(new TextBlock(_t->_font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, color, lnkIndex));
+				_t->_blocks.push_back(new TextBlock(_t->_font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, lnkIndex));
 			}
 			blockStart += len;
 			blockCreated();
@@ -451,23 +429,8 @@ public:
 			lnkIndex = 0x8000 + links.size();
 		} break;
 
-		case TextCommandColor: {
-			style::color c(ptr->unicode(), (ptr + 1)->unicode(), (ptr + 2)->unicode(), (ptr + 3)->unicode());
-			if (color != c) {
-				createBlock();
-				color = c;
-			}
-		} break;
-
 		case TextCommandSkipBlock:
 			createSkipBlock(ptr->unicode(), (ptr + 1)->unicode());
-		break;
-
-		case TextCommandNoColor:
-			if (color) {
-				createBlock();
-				color = style::color();
-			}
 		break;
 		}
 
@@ -747,7 +710,6 @@ private:
 	int32 diacs; // diac chars skipped without good char
 	QFixed sumWidth, stopAfterWidth; // summary width of all added words
 	bool sumFinished, newlineAwaited;
-	style::color color; // current color, could be invalid
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
@@ -1177,9 +1139,6 @@ public:
 	}
 
 	const QPen &blockPen(ITextBlock *block) {
-		if (block->color()) {
-			return block->color()->p;
-		}
 		if (block->lnkIndex()) {
 			if (ClickHandler::showAsPressed(_t->_links.at(block->lnkIndex() - 1))) {
 				return _textStyle->linkFgDown->p;
@@ -1581,7 +1540,7 @@ public:
 
 		_elideSavedIndex = blockIndex;
 		_elideSavedBlock = _t->_blocks[blockIndex];
-		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->color(), _elideSavedBlock->lnkIndex());
+		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->lnkIndex());
 		_blocksSize = blockIndex + 1;
 		_endBlock = (blockIndex + 1 < _t->_blocks.size() ? _t->_blocks[blockIndex + 1] : 0);
 	}

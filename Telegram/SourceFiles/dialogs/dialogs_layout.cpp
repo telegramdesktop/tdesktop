@@ -144,7 +144,12 @@ struct UnreadBadgeSizeData {
 class UnreadBadgeStyleData : public Data::AbstractStructure {
 public:
 	UnreadBadgeSizeData sizes[UnreadBadgeSizesCount];
-	style::color bg[4] = { st::dialogsUnreadBg, st::dialogsUnreadBgActive, st::dialogsUnreadBgMuted, st::dialogsUnreadBgMutedActive };
+	const style::color *bg[4] = {
+		&st::dialogsUnreadBg,
+		&st::dialogsUnreadBgActive,
+		&st::dialogsUnreadBgMuted,
+		&st::dialogsUnreadBgMutedActive
+	};
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
 
@@ -154,7 +159,7 @@ void createCircleMask(UnreadBadgeSizeData *data, int size) {
 	data->circle = style::createCircleMask(size);
 }
 
-QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, style::color color) {
+QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, const style::color &color) {
 	auto result = style::colorizeImage(data->circle, color, QRect(xoffset, 0, half, size));
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
@@ -183,18 +188,18 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 		t_assert(st.sizeId < UnreadBadgeSizesCount);
 		badgeData = &unreadBadgeStyle->sizes[st.sizeId];
 	}
-	auto &bg = unreadBadgeStyle->bg[index];
+	auto bg = unreadBadgeStyle->bg[index];
 	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
 		createCircleMask(badgeData, size);
-		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
-		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
+		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, *bg));
+		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, *bg));
 	}
 
 	int bar = rect.width() - 2 * sizehalf;
 	p.drawPixmap(rect.x(), rect.y(), badgeData->left[index]);
 	if (bar) {
-		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), bg);
+		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), *bg);
 	}
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
 }

@@ -27,19 +27,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 
 SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text) : Button(parent)
-, _st(st)
-, a_color(_st.color->c)
+, _st(&st)
+, a_color(_st->color->c)
 , _a_color(animation(this, &SysBtn::step_color))
 , _text(text) {
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.icon.width()) / 2 + st::titleTextButton.font->width(_text)));
-	resize(w, _st.size.height());
+	int32 w = _st->size.width() + (_text.isEmpty() ? 0 : ((_st->size.width() - _st->icon.width()) / 2 + st::titleTextButton.font->width(_text)));
+	resize(w, _st->size.height());
 	setCursor(style::cur_default);
 }
 
 void SysBtn::setText(const QString &text) {
 	_text = text;
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.icon.width()) / 2 + st::titleTextButton.font->width(_text)));
-	resize(w, _st.size.height());
+	int32 w = _st->size.width() + (_text.isEmpty() ? 0 : ((_st->size.width() - _st->icon.width()) / 2 + st::titleTextButton.font->width(_text)));
+	resize(w, _st->size.height());
 }
 
 void SysBtn::setOverLevel(float64 level) {
@@ -48,7 +48,7 @@ void SysBtn::setOverLevel(float64 level) {
 }
 
 void SysBtn::onStateChanged(int oldState, ButtonStateChangeSource source) {
-	a_color.start((_state & StateOver ? _st.overColor : _st.color)->c);
+	a_color.start((_state & StateOver ? _st->overColor : _st->color)->c);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
 		_a_color.stop();
@@ -62,29 +62,29 @@ void SysBtn::onStateChanged(int oldState, ButtonStateChangeSource source) {
 void SysBtn::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	int x = width() - ((_st.size.width() + _st.icon.width()) / 2), y = (height() - _st.icon.height()) / 2;
+	int x = width() - ((_st->size.width() + _st->icon.width()) / 2), y = (height() - _st->icon.height()) / 2;
 	QColor c = a_color.current();
 	if (_overLevel > 0) {
 		if (_overLevel >= 1) {
-			c = _st.overColor->c;
+			c = _st->overColor->c;
 		} else {
-			c.setRedF(c.redF() * (1 - _overLevel) + _st.overColor->c.redF() * _overLevel);
-			c.setGreenF(c.greenF() * (1 - _overLevel) + _st.overColor->c.greenF() * _overLevel);
-			c.setBlueF(c.blueF() * (1 - _overLevel) + _st.overColor->c.blueF() * _overLevel);
+			c.setRedF(c.redF() * (1 - _overLevel) + _st->overColor->c.redF() * _overLevel);
+			c.setGreenF(c.greenF() * (1 - _overLevel) + _st->overColor->c.greenF() * _overLevel);
+			c.setBlueF(c.blueF() * (1 - _overLevel) + _st->overColor->c.blueF() * _overLevel);
 		}
 	}
-	p.fillRect(x, y, _st.icon.width(), _st.icon.height(), c);
-	_st.icon.paint(p, x, y, width());
+	p.fillRect(x, y, _st->icon.width(), _st->icon.height(), c);
+	_st->icon.paint(p, x, y, width());
 
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);
-		p.drawText((_st.size.width() - _st.icon.width()) / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, _text);
+		p.drawText((_st->size.width() - _st->icon.width()) / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, _text);
 	}
 }
 
 void SysBtn::setSysBtnStyle(const style::sysButton &st) {
-	_st = st;
+	_st = &st;
 	update();
 }
 
@@ -97,7 +97,7 @@ HitTestType SysBtn::hitTest(const QPoint &p) const {
 }
 
 void SysBtn::step_color(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
+	float64 dt = ms / _st->duration;
 	if (dt >= 1) {
 		_a_color.stop();
 		a_color.finish();

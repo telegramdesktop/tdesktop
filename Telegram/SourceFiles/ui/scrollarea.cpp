@@ -780,11 +780,7 @@ void ScrollArea::onVerticalScroll() {
 void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {
 }
 
-void ScrollArea::updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver) {
-	_st.barColor = bar;
-	_st.bgColor = bg;
-	_st.barOverColor = barOver;
-	_st.bgOverColor = bgOver;
+void ScrollArea::updateBars() {
 	_horizontalBar->update();
 	_verticalBar->update();
 }

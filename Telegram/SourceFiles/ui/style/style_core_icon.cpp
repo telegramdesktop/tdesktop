@@ -74,9 +74,9 @@ QImage createIconMask(const IconMask *mask) {
 
 } // namespace
 
-MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset)
+MonoIcon::MonoIcon(const IconMask *mask, Color &&color, QPoint offset)
 : _mask(mask)
-, _color(color)
+, _color(std_::move(color))
 , _offset(offset) {
 }
 

@@ -28,18 +28,50 @@ namespace internal {
 
 void destroyColors();
 
-class ColorData;
+class Color;
+class ColorData {
+public:
+	QColor c;
+	QPen p;
+	QBrush b;
+
+	QColor transparent() const {
+		return QColor(c.red(), c.green(), c.blue(), 0);
+	}
+
+private:
+	ColorData();
+	ColorData(uchar r, uchar g, uchar b, uchar a);
+	void set(uchar r, uchar g, uchar b, uchar a);
+
+	friend class Color;
+	friend class style::palette;
+
+};
+
 class Color {
 public:
 	Color(Qt::Initialization = Qt::Uninitialized) {
 	}
-	Color(const Color &c);
 	Color(uchar r, uchar g, uchar b, uchar a);
+	Color(const Color &other) = delete;
+	Color &operator=(const Color &other) = delete;
+	Color(Color &&other);
+	Color &operator=(Color &&other);
+
+	Color clone() const {
+		return Color(ptr);
+	}
 
 	void set(uchar r, uchar g, uchar b, uchar a) const;
 
-	operator const QBrush &() const;
-	operator const QPen &() const;
+	operator const QBrush &() const {
+		return ptr->b;
+	}
+
+	operator const QPen &() const {
+		return ptr->p;
+	}
 
 	ColorData *operator->() const {
 		return ptr;
@@ -62,39 +94,12 @@ private:
 
 };
 
-class ColorData {
-public:
-	QColor c;
-	QPen p;
-	QBrush b;
-
-	QColor transparent() const {
-		return QColor(c.red(), c.green(), c.blue(), 0);
-	}
-
-private:
-	ColorData();
-	ColorData(uchar r, uchar g, uchar b, uchar a);
-	void set(uchar r, uchar g, uchar b, uchar a);
-
-	friend class Color;
-	friend class style::palette;
-
-};
-
 inline bool operator==(const Color &a, const Color &b) {
 	return a->c == b->c;
 }
 
 inline bool operator!=(const Color &a, const Color &b) {
 	return a->c != b->c;
-}
-
-inline Color::operator const QBrush &() const {
-	return ptr->b;
-}
-inline Color::operator const QPen &() const {
-	return ptr->p;
 }
 
 } // namespace internal

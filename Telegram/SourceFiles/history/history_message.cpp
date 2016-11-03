@@ -243,14 +243,12 @@ void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *remov
 void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
 	bool selected = (flags & PaintSelected), outbg = holder->hasOutLayout();
 
-	style::color bar;
+	const style::color *bar = &st::msgImgReplyBarColor;
 	if (flags & PaintInBubble) {
-		bar = ((flags & PaintSelected) ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
-	} else {
-		bar = st::msgImgReplyBarColor;
+		bar = &((flags & PaintSelected) ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
 	}
 	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
-	p.fillRect(rbar, bar);
+	p.fillRect(rbar, *bar);
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
@@ -282,7 +280,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				HistoryMessage *replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (!(flags & PaintInBubble)) {
 				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
-					style::color date(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
+					auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
 					p.setPen(date);
 				} else {
 					p.setPen(st::msgColor);
@@ -291,7 +289,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 			}
 		} else {
 			p.setFont(st::msgDateFont);
-			style::color date(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
+			auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
 			p.setPen((flags & PaintInBubble) ? date : st::msgDateImgColor);
 			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
 		}
@@ -311,7 +309,7 @@ void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
 }
 
 void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
-	App::roundRect(p, rect, App::msgServiceBg(), StickerCorners);
+	App::roundRect(p, rect, st::msgServiceBg, StickerCorners);
 	if (down) {
 		howMuchOver = 1.;
 	}
@@ -1153,7 +1151,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	} else if (type == InfoDisplayOverBackground) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? StickerSelectedCorners : StickerCorners);
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceSelectBg : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 

@@ -330,7 +330,13 @@ QString Generator::typeToDefaultValue(structure::Type type) const {
 QString Generator::valueAssignmentCode(structure::Value value) const {
 	auto copy = value.copyOf();
 	if (!copy.isEmpty()) {
-		return "st::" + copy.back();
+		auto result = "st::" + copy.back();
+
+		// Copy is disabled for colors.
+		if (value.type().tag == Tag::Color || value.type().tag == Tag::Struct) {
+			result += ".clone()";
+		}
+		return result;
 	}
 
 	switch (value.type().tag) {
@@ -590,15 +596,30 @@ bool Generator::writeStructsDefinitions() {
 	}
 
 	bool result = module_.enumStructs([this](const Struct &value) -> bool {
-		header_->stream() << "struct " << value.name.back() << " {\n";
-		for (const auto &field : value.fields) {
+		QStringList fields;
+		for (auto field : value.fields) {
+			auto clone = field.name.back();
+			if (field.type.tag == Tag::Color || field.type.tag == Tag::Struct) {
+				clone += ".clone()";
+			}
+			fields.push_back(clone);
+		}
+		header_->stream() << "\
+struct " << value.name.back() << " {\n\
+	" << value.name.back() << " clone() const {\n\
+		return { " << fields.join(", ") << " };\n\
+	}\n";
+		if (!fields.empty()) header_->newline();
+
+		for (auto &field : value.fields) {
 			auto type = typeToString(field.type);
 			if (type.isEmpty()) {
 				return false;
 			}
 			header_->stream() << "\t" << type << " " << field.name.back() << ";\n";
 		}
-		header_->stream() << "};\n\n";
+		header_->stream() << "\
+};\n\n";
 		return true;
 	});
 

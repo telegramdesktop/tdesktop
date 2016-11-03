@@ -1047,9 +1047,14 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 			ImagePtr thumb = getResultThumb();
 			if (thumb->isNull() && !_thumbLetter.isEmpty()) {
 				int32 index = (_thumbLetter.at(0).unicode() % 4);
-				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
+				const style::color *colors[] = {
+					&st::msgFileRedColor,
+					&st::msgFileYellowColor,
+					&st::msgFileGreenColor,
+					&st::msgFileBlueColor
+				};
 
-				p.fillRect(rthumb, colors[index]);
+				p.fillRect(rthumb, *colors[index]);
 				if (!_thumbLetter.isEmpty()) {
 					p.setFont(st::linksLetterFont);
 					p.setPen(st::linksLetterFg);

@@ -179,7 +179,7 @@ public:
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
 
-	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
+	void updateBars();
 
 	bool focusNextPrevChild(bool next) override;
 	void setMovingByScrollBar(bool movingByScrollBar);
@@ -239,7 +239,7 @@ private:
 	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
 	bool _movingByScrollBar = false;
 
-	style::flatScroll _st;
+	const style::flatScroll &_st;
 	ChildWidget<ScrollBar> _horizontalBar, _verticalBar;
 	ChildWidget<ScrollShadow> _topShadow, _bottomShadow;
 	int _horizontalValue, _verticalValue;

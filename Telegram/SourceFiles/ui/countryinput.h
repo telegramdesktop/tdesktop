@@ -58,7 +58,7 @@ private:
 
 	QPixmap _arrow;
 	QRect _inner, _arrowRect;
-	style::countryInput _st;
+	const style::countryInput &_st;
 	bool _active;
 	QString _text;
 

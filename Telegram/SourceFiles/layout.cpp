@@ -210,24 +210,44 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 	return colorIndex;
 }
 
-style::color documentColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueColor, st::msgFileGreenColor, st::msgFileRedColor, st::msgFileYellowColor };
-	return colors[colorIndex & 3];
+const style::color &documentColor(int32 colorIndex) {
+	static const style::color *colors[] = {
+		&st::msgFileBlueColor,
+		&st::msgFileGreenColor,
+		&st::msgFileRedColor,
+		&st::msgFileYellowColor
+	};
+	return *colors[colorIndex & 3];
 }
 
-style::color documentDarkColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueDark, st::msgFileGreenDark, st::msgFileRedDark, st::msgFileYellowDark };
-	return colors[colorIndex & 3];
+const style::color &documentDarkColor(int32 colorIndex) {
+	static const style::color *colors[] = {
+		&st::msgFileBlueDark,
+		&st::msgFileGreenDark,
+		&st::msgFileRedDark,
+		&st::msgFileYellowDark
+	};
+	return *colors[colorIndex & 3];
 }
 
-style::color documentOverColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueOver, st::msgFileGreenOver, st::msgFileRedOver, st::msgFileYellowOver };
-	return colors[colorIndex & 3];
+const style::color &documentOverColor(int32 colorIndex) {
+	static const style::color *colors[] = {
+		&st::msgFileBlueOver,
+		&st::msgFileGreenOver,
+		&st::msgFileRedOver,
+		&st::msgFileYellowOver
+	};
+	return *colors[colorIndex & 3];
 }
 
-style::color documentSelectedColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueSelected, st::msgFileGreenSelected, st::msgFileRedSelected, st::msgFileYellowSelected };
-	return colors[colorIndex & 3];
+const style::color &documentSelectedColor(int32 colorIndex) {
+	static const style::color *colors[] = {
+		&st::msgFileBlueSelected,
+		&st::msgFileGreenSelected,
+		&st::msgFileRedSelected,
+		&st::msgFileYellowSelected
+	};
+	return *colors[colorIndex & 3];
 }
 
 RoundCorners documentCorners(int32 colorIndex) {

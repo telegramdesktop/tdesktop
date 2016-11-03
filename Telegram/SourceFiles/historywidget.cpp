@@ -7090,8 +7090,7 @@ void HistoryWidget::itemEdited(HistoryItem *item) {
 }
 
 void HistoryWidget::updateScrollColors() {
-	if (!App::historyScrollBarColor()) return;
-	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
+	_scroll.updateBars();
 }
 
 MsgId HistoryWidget::replyToId() const {

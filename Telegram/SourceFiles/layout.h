@@ -82,11 +82,11 @@ QString formatPlayedText(qint64 played, qint64 duration);
 QString documentName(DocumentData *document);
 TextWithEntities documentNameWithEntities(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
-style::color documentColor(int32 colorIndex);
-style::color documentDarkColor(int32 colorIndex);
-style::color documentOverColor(int32 colorIndex);
-style::color documentSelectedColor(int32 colorIndex);
-RoundCorners documentCorners(int32 colorIndex);
+const style::color &documentColor(int colorIndex);
+const style::color &documentDarkColor(int colorIndex);
+const style::color &documentOverColor(int colorIndex);
+const style::color &documentSelectedColor(int colorIndex);
+RoundCorners documentCorners(int colorIndex);
 bool documentIsValidMediaFile(const QString &filepath);
 
 class PaintContextBase {

@@ -47,9 +47,9 @@ public slots:
 
 private:
 	QString _text, _textForAutoSize;
-	int32 _textWidth;
+	int _width, _textWidth;
 
-	style::flatButton _st;
+	const style::flatButton &_st;
 
 	anim::cvalue a_bg, a_text;
 	Animation _a_appearance;
@@ -79,7 +79,7 @@ public slots:
 private:
 	QString _text;
 	int _textWidth = 0;
-	style::linkButton _st;
+	const style::linkButton &_st;
 
 };
 

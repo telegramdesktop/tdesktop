@@ -31,12 +31,14 @@ FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatBu
 , _a_appearance(animation(this, &FlatButton::step_appearance))
 , _opacity(1) {
 	if (_st.width < 0) {
-		_st.width = textWidth() - _st.width;
+		_width = textWidth() - _st.width;
 	} else if (!_st.width) {
-		_st.width = textWidth() + _st.height - _st.font->height;
+		_width = textWidth() + _st.height - _st.font->height;
+	} else {
+		_width = _st.width;
 	}
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-	resize(_st.width, _st.height);
+	resize(_width, _st.height);
 	setCursor(_st.cursor);
 }
 
@@ -55,13 +57,13 @@ void FlatButton::setText(const QString &text) {
 }
 
 void FlatButton::setWidth(int32 w) {
-	_st.width = w;
-	if (_st.width < 0) {
-		_st.width = textWidth() - _st.width;
-	} else if (!_st.width) {
-		_st.width = textWidth() + _st.height - _st.font->height;
+	_width = w;
+	if (_width < 0) {
+		_width = textWidth() - _st.width;
+	} else if (!_width) {
+		_width = textWidth() + _st.height - _st.font->height;
 	}
-	resize(_st.width, height());
+	resize(_width, height());
 }
 
 int32 FlatButton::textWidth() const {

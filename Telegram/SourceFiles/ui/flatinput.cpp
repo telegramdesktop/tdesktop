@@ -111,10 +111,6 @@ void FlatInput::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
-void FlatInput::setTextMargins(const QMargins &mrg) {
-	_st.textMrg = mrg;
-}
-
 void FlatInput::onTouchTimer() {
 	_touchRightButton = true;
 }

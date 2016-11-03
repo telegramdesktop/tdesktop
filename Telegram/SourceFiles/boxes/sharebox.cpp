@@ -484,7 +484,7 @@ ShareBox::Inner::Chat *ShareBox::Inner::getChat(Dialogs::Row *row) {
 
 void ShareBox::Inner::setActive(int active) {
 	if (active != _active) {
-		auto changeNameFg = [this](int index, style::color from, style::color to) {
+		auto changeNameFg = [this](int index, const style::color &from, const style::color &to) {
 			if (auto chat = getChatAtIndex(index)) {
 				chat->nameFg.start([this, peer = chat->peer] {
 					repaintChat(peer);

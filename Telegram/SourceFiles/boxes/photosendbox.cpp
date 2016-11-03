@@ -284,7 +284,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::historyFileNameOutFg);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
-		style::color status(st::mediaOutFg);
+		auto &status = st::mediaOutFg;
 		p.setFont(st::normalFont);
 		p.setPen(status);
 		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
@@ -602,7 +602,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
-		style::color status(st::mediaInFg);
+		auto &status = st::mediaInFg;
 		p.setFont(st::normalFont);
 		p.setPen(status);
 		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);

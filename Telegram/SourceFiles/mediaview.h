@@ -238,7 +238,7 @@ private:
 	void stopGif();
 
 	const style::icon *_docIcon = nullptr;
-	style::color _docIconColor;
+	const style::color *_docIconColor = nullptr;
 	QString _docName, _docSize, _docExt;
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;

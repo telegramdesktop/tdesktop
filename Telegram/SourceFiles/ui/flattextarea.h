@@ -212,7 +212,7 @@ private:
 
 	std_::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
 
-	style::flatTextarea _st;
+	const style::flatTextarea &_st;
 
 	bool _undoAvailable = false;
 	bool _redoAvailable = false;

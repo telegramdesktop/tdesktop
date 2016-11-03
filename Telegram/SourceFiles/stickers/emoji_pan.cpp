@@ -1020,7 +1020,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 			if (featuredHasAddButton(c)) {
 				auto add = featuredAddRect(c);
 				auto selected = (_selectedFeaturedSetAdd == c);
-				auto textBg = selected ? st::stickersTrendingAdd.textBgOver : st::stickersTrendingAdd.textBg;
+				auto &textBg = selected ? st::stickersTrendingAdd.textBgOver : st::stickersTrendingAdd.textBg;
 				auto textTop = (selected && _selectedFeaturedSetAdd == _pressedFeaturedSetAdd) ? st::stickersTrendingAdd.downTextTop : st::stickersTrendingAdd.textTop;
 
 				App::roundRect(p, myrtlrect(add), textBg, ImageRoundRadius::Small);

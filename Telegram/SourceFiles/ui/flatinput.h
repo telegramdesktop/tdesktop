@@ -49,8 +49,6 @@ public:
 		return _oldtext;
 	}
 
-	void setTextMargins(const QMargins &mrg);
-
 public slots:
 	void onTextChange(const QString &text);
 	void onTextEdited();
@@ -104,9 +102,7 @@ private:
 	Animation _a_appearance;
 
 	int _notingBene;
-	style::flatInput _st;
-
-	style::font _font;
+	const style::flatInput &_st;
 
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;

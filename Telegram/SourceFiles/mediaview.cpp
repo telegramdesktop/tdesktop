@@ -1228,7 +1228,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	if (!fileShown()) {
 		if (!_doc || _doc->thumb->isNull()) {
 			int32 colorIndex = documentColorIndex(_doc, _docExt);
-			_docIconColor = documentColor(colorIndex);
+			_docIconColor = &documentColor(colorIndex);
 			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
 			_docIcon = thumbs[colorIndex];
 
@@ -1660,7 +1660,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					radialOpacity = _radial.opacity();
 				}
 				if (!_doc || _doc->thumb->isNull()) {
-					p.fillRect(_docIconRect, _docIconColor->b);
+					p.fillRect(_docIconRect, (*_docIconColor)->b);
 					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
 						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
 						p.setPen(st::mediaviewFileExtFg);

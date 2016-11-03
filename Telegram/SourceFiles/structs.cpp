@@ -48,12 +48,6 @@ int peerColorIndex(const PeerId &peer) {
 	return (md5[peerId & 0x0F] & (peerIsUser(peer) ? 0x07 : 0x03));
 }
 
-struct ColorReferenceWrap {
-	ColorReferenceWrap(const style::color &data) : data(data) {
-	}
-	const style::color &data;
-};
-
 ImagePtr generateUserpicImage(const style::icon &icon) {
 	auto data = QImage(icon.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.setDevicePixelRatio(cRetinaFactor());
@@ -67,17 +61,17 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 } // namespace
 
 const style::color &peerColor(int index) {
-	static const ColorReferenceWrap peerColors[kUserColorsCount] = {
-		st::historyPeer1NameFg,
-		st::historyPeer2NameFg,
-		st::historyPeer3NameFg,
-		st::historyPeer4NameFg,
-		st::historyPeer5NameFg,
-		st::historyPeer6NameFg,
-		st::historyPeer7NameFg,
-		st::historyPeer8NameFg,
+	static const style::color *peerColors[kUserColorsCount] = {
+		&st::historyPeer1NameFg,
+		&st::historyPeer2NameFg,
+		&st::historyPeer3NameFg,
+		&st::historyPeer4NameFg,
+		&st::historyPeer5NameFg,
+		&st::historyPeer6NameFg,
+		&st::historyPeer7NameFg,
+		&st::historyPeer8NameFg,
 	};
-	return peerColors[index].data;
+	return *peerColors[index];
 }
 
 ImagePtr userDefPhoto(int index) {

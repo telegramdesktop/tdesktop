@@ -304,7 +304,7 @@ public:
 	MTPinputPeer input;
 
 	int colorIndex;
-	style::color color;
+	const style::color &color;
 
 	void setUserpic(ImagePtr userpic);
 	void paintUserpic(Painter &p, int size, int x, int y) const;
