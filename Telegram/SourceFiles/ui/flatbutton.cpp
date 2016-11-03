@@ -28,8 +28,7 @@ FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatBu
 , _st(st)
 , a_bg(st.bgColor->c)
 , a_text(st.color->c)
-, _a_appearance(animation(this, &FlatButton::step_appearance))
-, _opacity(1) {
+, _a_appearance(animation(this, &FlatButton::step_appearance)) {
 	if (_st.width < 0) {
 		_width = textWidth() - _st.width;
 	} else if (!_st.width) {
@@ -104,20 +103,33 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 
 	QRect r(0, height() - _st.height, width(), _st.height);
 
+	auto animating = _a_appearance.animating();
+	auto &bg = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
+	auto &fg = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
 	p.setOpacity(_opacity);
 	if (_st.radius > 0) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 		p.setPen(Qt::NoPen);
-		p.setBrush(QBrush(a_bg.current()));
+		if (animating) {
+			p.setBrush(a_bg.current());
+		} else {
+			p.setBrush(bg);
+		}
 		p.drawRoundedRect(r, _st.radius, _st.radius);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-	} else {
+	} else if (animating) {
 		p.fillRect(r, a_bg.current());
+	} else {
+		p.fillRect(r, bg);
 	}
 
 	p.setFont((_state & StateOver) ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
-	p.setPen(a_text.current());
+	if (animating) {
+		p.setPen(a_text.current());
+	} else {
+		p.setPen(fg);
+	}
 
 	int32 top = (_state & StateOver) ? ((_state & StateDown) ? _st.downTextTop : _st.overTextTop) : _st.textTop;
 	r.setTop(top);

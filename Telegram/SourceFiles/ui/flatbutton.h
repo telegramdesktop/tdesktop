@@ -54,7 +54,7 @@ private:
 	anim::cvalue a_bg, a_text;
 	Animation _a_appearance;
 
-	float64 _opacity;
+	float64 _opacity = 1.;
 
 };
 
