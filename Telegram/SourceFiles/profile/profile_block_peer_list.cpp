@@ -82,8 +82,8 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	}
 
 	int memberRowWidth = width() - x;
+	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
 	if (selected) {
-		accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
 		paintOutlinedRect(p, x, y, memberRowWidth, st::profileMemberHeight);
 	}
 	int skip = st::profileMemberPhotoPosition.x();
