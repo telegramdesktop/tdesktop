@@ -83,6 +83,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	updateScrollColors();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
+	connect(this, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
@@ -1446,14 +1447,6 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 		_lastUpdateTime = n;
 		MTP::ping();
 	}
-}
-
-void MainWidget::showAddContact() {
-	_dialogs->onAddContact();
-}
-
-void MainWidget::showNewGroup() {
-	_dialogs->onNewGroup();
 }
 
 void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req) {

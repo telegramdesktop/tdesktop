@@ -26,7 +26,6 @@ enum class HitTestResult {
 	None = 0,
 	Client,
 	SysButton,
-	Icon,
 	Caption,
 	Top,
 	TopRight,

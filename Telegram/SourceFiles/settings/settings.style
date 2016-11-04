@@ -74,10 +74,11 @@ settingsButtonTop: 75px;
 settingsButtonSkip: 10px;
 settingsPrimaryButton: defaultActiveButton;
 settingsSecondaryButton: defaultLightButton;
-settingsEditButton: IconButton(dialogsNewChatButton) {
+settingsEditButton: IconButton {
 	width: 24px;
 	height: 34px;
 
+	icon: icon {{ "settings_edit_name", #b7b7b7 }};
 	iconPosition: point(3px, 9px);
 	iconPositionDown: point(3px, 10px);
 }

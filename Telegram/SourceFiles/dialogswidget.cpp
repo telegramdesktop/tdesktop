@@ -36,10 +36,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
+#include "boxes/aboutbox.h"
 #include "localstorage.h"
 #include "apiwrap.h"
+#include "ui/widgets/dropdown_menu.h"
 
-DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(parent)
+DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(parent)
 , dialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
 , contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
@@ -1770,28 +1772,13 @@ MsgId DialogsInner::lastSearchMigratedId() const {
 	return _lastSearchMigratedId;
 }
 
-DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
-, _dragInScroll(false)
-, _dragForward(false)
-, _dialogsFull(false)
-, _dialogsOffsetDate(0)
-, _dialogsOffsetId(0)
-, _dialogsOffsetPeer(0)
-, _dialogsRequest(0)
-, _contactsRequest(0)
-, _filter(this, st::dlgFilter, lang(lng_dlg_filter))
-, _newGroup(this, st::dialogsNewChatButton)
-, _addContact(this, st::dialogsAddContact)
+DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
+, _mainMenuToggle(this, st::dialogsMenuToggle)
+, _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _scroll(this, st::dialogsScroll)
 , _inner(&_scroll, parent)
-, _a_show(animation(this, &DialogsWidget::step_show))
-, _searchInPeer(0)
-, _searchInMigrated(0)
-, _searchFull(false)
-, _searchFullMigrated(false)
-, _peopleFull(false)
-{
+, _a_show(animation(this, &DialogsWidget::step_show)) {
 	_scroll.setWidget(&_inner);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
@@ -1803,13 +1790,12 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	connect(&_inner, SIGNAL(cancelSearchInPeer()), this, SLOT(onCancelSearchInPeer()));
 	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
-	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
-	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
-	connect(parent, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
-	connect(_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
-	connect(_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
+	connect(_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
+	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
+	connect(_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 	connect(_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+
+	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -1819,21 +1805,13 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	_scroll.show();
-	_filter.show();
-	_filter.move(st::dialogsPadding.x(), st::dialogsFilterPadding);
-	_filter.setFocusPolicy(Qt::StrongFocus);
-	_filter.customUpDown(true);
-	_addContact->hide();
-	_newGroup->show();
+	_filter->setFocusPolicy(Qt::StrongFocus);
+	_filter->customUpDown(true);
 	_cancelSearch->hide();
-	_newGroup->move(width() - _newGroup->width() - st::dialogsPadding.x(), 0);
-	_addContact->move(width() - _addContact->width() - st::dialogsPadding.x(), 0);
-	_cancelSearch->move(width() - _cancelSearch->width() - st::dialogsPadding.x(), 0);
 }
 
 void DialogsWidget::activate() {
-	_filter.setFocus();
+	_filter->setFocus();
 	_inner.activate();
 }
 
@@ -1858,7 +1836,7 @@ void DialogsWidget::dlgUpdated(History *row, MsgId msgId) {
 }
 
 void DialogsWidget::dialogsToUp() {
-	if (_filter.getLastText().trimmed().isEmpty()) {
+	if (_filter->getLastText().trimmed().isEmpty()) {
 		_scroll.scrollToY(0);
 	}
 }
@@ -1873,9 +1851,8 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_a_show.stop();
 
 	_scroll.hide();
-	_filter.hide();
+	_filter->hide();
 	_cancelSearch->hide();
-	_newGroup->hide();
 
 	int delta = st::slideShift;
 	if (direction == Window::SlideDirection::FromLeft) {
@@ -1903,7 +1880,7 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 		_cacheUnder = _cacheOver = QPixmap();
 
 		_scroll.show();
-		_filter.show();
+		_filter->show();
 		_a_show.stop();
 
 		onFilterUpdate();
@@ -1930,8 +1907,8 @@ void DialogsWidget::updateNotifySettings(PeerData *peer) {
 
 void DialogsWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
 	if (fromThisApp) {
-		_filter.setText(QString());
-		_filter.updatePlaceholder();
+		_filter->setText(QString());
+		_filter->updatePlaceholder();
 		onFilterUpdate();
 	}
 	_inner.notify_userIsContactChanged(user, fromThisApp);
@@ -2031,7 +2008,7 @@ bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId req) {
 }
 
 bool DialogsWidget::onSearchMessages(bool searchCache) {
-	QString q = _filter.getLastText().trimmed();
+	QString q = _filter->getLastText().trimmed();
 	if (q.isEmpty()) {
 		if (_searchRequest) {
 			MTP::cancel(_searchRequest);
@@ -2098,16 +2075,39 @@ void DialogsWidget::onChooseByDrag() {
 	_inner.choosePeer();
 }
 
+void DialogsWidget::showMainMenu() {
+	if (!_mainMenu) {
+		_mainMenu.create(this, st::dialogsMenu);
+		_mainMenu->addAction(lang(lng_create_group_title), [] {
+			App::wnd()->onShowNewGroup();
+		}, &st::dialogsMenuNewGroup);
+		_mainMenu->addAction(lang(lng_create_channel_title), [] {
+			App::wnd()->onShowNewChannel();
+		}, &st::dialogsMenuNewChannel);
+		_mainMenu->addAction(lang(lng_menu_contacts), [] {
+			Ui::showLayer(new ContactsBox());
+		}, &st::dialogsMenuContacts);
+		_mainMenu->addAction(lang(lng_menu_settings), [] {
+			App::wnd()->showSettings();
+		}, &st::dialogsMenuSettings);
+		_mainMenu->addAction(lang(lng_settings_faq), [] {
+			QDesktopServices::openUrl(telegramFaqLink());
+		}, &st::dialogsMenuHelp);
+	}
+	updateMainMenuGeometry();
+	_mainMenu->showAnimated();
+}
+
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
+	if ((_filter->getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
 		if (inPeer) {
 			onCancelSearch();
 			_searchInPeer = inPeer->migrateTo() ? inPeer->migrateTo() : inPeer;
 			_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
 			_inner.searchInPeer(_searchInPeer);
 		}
-		_filter.setText(query);
-		_filter.updatePlaceholder();
+		_filter->setText(query);
+		_filter->updatePlaceholder();
 		onFilterUpdate(true);
 		_searchTimer.stop();
 		onSearchMessages();
@@ -2371,17 +2371,15 @@ void DialogsWidget::onListScroll() {
 void DialogsWidget::onFilterUpdate(bool force) {
 	if (_a_show.animating() && !force) return;
 
-	QString filterText = _filter.getLastText();
+	QString filterText = _filter->getLastText();
 	_inner.onFilterUpdate(filterText, force);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_cancelSearch->hide();
-		_newGroup->show();
 	} else if (_cancelSearch->isHidden()) {
 		_cancelSearch->show();
-		_newGroup->hide();
 	}
 	if (filterText.size() < MinUsernameLength) {
 		_peopleCache.clear();
@@ -2399,8 +2397,8 @@ void DialogsWidget::searchInPeer(PeerData *peer) {
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
-	if (to < 0) to = _filter.cursorPosition();
-	QString t = _filter.getLastText();
+	if (to < 0) to = _filter->cursorPosition();
+	QString t = _filter->getLastText();
 	QStringRef r;
 	for (int start = to; start > 0;) {
 		--start;
@@ -2415,8 +2413,8 @@ void DialogsWidget::onFilterCursorMoved(int from, int to) {
 }
 
 void DialogsWidget::onCompleteHashtag(QString tag) {
-	QString t = _filter.getLastText(), r;
-	int cur = _filter.cursorPosition();
+	QString t = _filter->getLastText(), r;
+	int cur = _filter->cursorPosition();
 	for (int start = cur; start > 0;) {
 		--start;
 		if (t.size() <= start) break;
@@ -2427,8 +2425,8 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 				}
 				if (cur - start - 1 == tag.size() && cur < t.size() && t.at(cur) == ' ') ++cur;
 				r = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
-				_filter.setText(r);
-				_filter.setCursorPosition(start + 1 + tag.size() + 1);
+				_filter->setText(r);
+				_filter->setCursorPosition(start + 1 + tag.size() + 1);
 				onFilterUpdate(true);
 				return;
 			}
@@ -2436,27 +2434,34 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 		}
 		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
 	}
-	_filter.setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
-	_filter.setCursorPosition(cur + 1 + tag.size() + 1);
+	_filter->setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
+	_filter->setCursorPosition(cur + 1 + tag.size() + 1);
 	onFilterUpdate(true);
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	int32 w = width();
-	_filter.setGeometry(st::dialogsPadding.x(), st::dialogsFilterPadding, w - 2 * st::dialogsPadding.x(), _filter.height());
-	_newGroup->move(w - _newGroup->width() - st::dialogsPadding.x(), _filter.y());
-	_addContact->move(w - _addContact->width() - st::dialogsPadding.x(), _filter.y());
-	_cancelSearch->move(w - _cancelSearch->width() - st::dialogsPadding.x(), _filter.y());
-	_scroll.move(0, _filter.height() + 2 * st::dialogsFilterPadding);
+	_filter->setGeometryToLeft(st::dialogsFilterPadding.x() * 2 + _mainMenuToggle->width(), st::dialogsFilterPadding.y(), w - 3 * st::dialogsFilterPadding.x() - _mainMenuToggle->width(), _filter->height());
+	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), _filter->y());
+	_cancelSearch->moveToRight(st::dialogsFilterPadding.x(), _filter->y());
+	_scroll.move(0, _filter->height() + 2 * st::dialogsFilterPadding.y());
+
+	updateMainMenuGeometry();
 
 	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;
 	int32 newScrollY = _scroll.scrollTop() + addToY;
-	_scroll.resize(w, height() - _filter.y() - _filter.height() - st::dialogsFilterPadding - st::dialogsPadding.y());
+	_scroll.resize(w, height() - _filter->y() - _filter->height() - st::dialogsFilterPadding.y() - st::dialogsPadding.y());
 	if (addToY) {
 		_scroll.scrollToY(newScrollY);
 	} else {
 		onListScroll();
 	}
+}
+
+void DialogsWidget::updateMainMenuGeometry() {
+	if (!_mainMenu) return;
+
+	_mainMenu->moveToLeft(st::dialogsMenuPosition.x(), st::dialogsMenuPosition.y());
 }
 
 void DialogsWidget::keyPressEvent(QKeyEvent *e) {
@@ -2548,16 +2553,8 @@ Dialogs::IndexedList *DialogsWidget::dialogsList() {
 	return _inner.dialogsList();
 }
 
-void DialogsWidget::onAddContact() {
-	Ui::showLayer(new AddContactBox(), KeepOtherLayers);
-}
-
-void DialogsWidget::onNewGroup() {
-	Ui::showLayer(new NewGroupBox());
-}
-
 bool DialogsWidget::onCancelSearch() {
-	bool clearing = !_filter.getLastText().isEmpty();
+	bool clearing = !_filter->getLastText().isEmpty();
 	if (_searchRequest) {
 		MTP::cancel(_searchRequest);
 		_searchRequest = 0;
@@ -2571,8 +2568,8 @@ bool DialogsWidget::onCancelSearch() {
 		clearing = true;
 	}
 	_inner.clearFilter();
-	_filter.clear();
-	_filter.updatePlaceholder();
+	_filter->clear();
+	_filter->updatePlaceholder();
 	onFilterUpdate();
 	return clearing;
 }
@@ -2590,8 +2587,8 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_inner.searchInPeer(0);
 	}
 	_inner.clearFilter();
-	_filter.clear();
-	_filter.updatePlaceholder();
+	_filter->clear();
+	_filter->updatePlaceholder();
 	onFilterUpdate();
 	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 		emit cancelled();

@@ -52,8 +52,7 @@ void MacPrivate::darkModeChanged() {
 }
 
 MainWindow::MainWindow()
-: posInited(false)
-, icon256(qsl(":/gui/art/icon256.png"))
+: icon256(qsl(":/gui/art/icon256.png"))
 , iconbig256(qsl(":/gui/art/iconbig256.png"))
 , wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly)) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
@@ -190,87 +189,9 @@ void MainWindow::psUpdateCounter() {
 	}
 }
 
-void MainWindow::psInitSize() {
-	TWindowPos pos(cWindowPos());
-	QRect avail(QDesktopWidget().availableGeometry());
-	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
-	if (pos.w && pos.h) {
-		QList<QScreen*> screens = Application::screens();
-		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-			QByteArray name = (*i)->name().toUtf8();
-			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
-				QRect screen((*i)->geometry());
-				int32 w = screen.width(), h = screen.height();
-				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-					if (pos.w > w) pos.w = w;
-					if (pos.h > h) pos.h = h;
-					pos.x += screen.x();
-					pos.y += screen.y();
-					if (pos.x < screen.x() + screen.width() - 10 && pos.y < screen.y() + screen.height() - 10) {
-						geom = QRect(pos.x, pos.y, pos.w, pos.h);
-					}
-				}
-				break;
-			}
-		}
-
-		if (pos.y < 0) pos.y = 0;
-		maximized = pos.maximized;
-	}
-	setGeometry(geom);
-}
-
 void MainWindow::psInitFrameless() {
 	psUpdatedPositionTimer.setSingleShot(true);
 	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
-}
-
-void MainWindow::psSavePosition(Qt::WindowState state) {
-	if (state == Qt::WindowActive) state = windowHandle()->windowState();
-	if (state == Qt::WindowMinimized || !posInited) return;
-
-	TWindowPos pos(cWindowPos()), curPos = pos;
-
-	if (state == Qt::WindowMaximized) {
-		curPos.maximized = 1;
-	} else {
-		QRect r(geometry());
-		curPos.x = r.x();
-		curPos.y = r.y();
-		curPos.w = r.width();
-		curPos.h = r.height();
-		curPos.maximized = 0;
-	}
-
-	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
-	QScreen *chosen = 0;
-	QList<QScreen*> screens = Application::screens();
-	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
-		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
-		if (!chosen || dx + dy < d) {
-			d = dx + dy;
-			chosen = *i;
-		}
-	}
-	if (chosen) {
-		curPos.x -= chosen->geometry().x();
-		curPos.y -= chosen->geometry().y();
-		QByteArray name = chosen->name().toUtf8();
-		curPos.moncrc = hashCrc32(name.constData(), name.size());
-	}
-
-	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
-		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
-			cSetWindowPos(curPos);
-			Local::writeSettings();
-		}
-	}
-}
-
-void MainWindow::psUpdatedPosition() {
-	psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
 }
 
 void MainWindow::psFirstShow() {
@@ -296,9 +217,14 @@ void MainWindow::psFirstShow() {
 		show();
 	}
 
-	posInited = true;
+	setPositionInited();
 
-	// init global menu
+	createGlobalMenu();
+
+	psMacUpdateMenu();
+}
+
+void MainWindow::createGlobalMenu() {
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
 	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
 	connect(about, SIGNAL(triggered()), base::lambda_slot(about, [] {
@@ -339,8 +265,6 @@ void MainWindow::psFirstShow() {
 	psNewChannel = window->addAction(lang(lng_mac_menu_new_channel), App::wnd(), SLOT(onShowNewChannel()));
 	window->addSeparator();
 	psShowTelegram = window->addAction(lang(lng_mac_menu_show), App::wnd(), SLOT(showFromTray()));
-
-	psMacUpdateMenu();
 }
 
 namespace {
@@ -398,23 +322,23 @@ void MainWindow::psUpdateMargins() {
 }
 
 void MainWindow::psMacUpdateMenu() {
-	if (!posInited) return;
+	if (!positionInited()) return;
 
 	QWidget *focused = QApplication::focusWidget();
 	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
-	if (QLineEdit *edit = qobject_cast<QLineEdit*>(focused)) {
+	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();
-	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
+	} else if (auto edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();
-	} else if (HistoryInner *list = qobject_cast<HistoryInner*>(focused)) {
+	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}

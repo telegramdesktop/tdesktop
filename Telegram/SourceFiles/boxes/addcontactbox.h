@@ -78,34 +78,6 @@ private:
 	QString _sentName;
 };
 
-class NewGroupBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-	NewGroupBox();
-
-public slots:
-	void onNext();
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
-
-private:
-	ChildWidget<Ui::Radiobutton> _group;
-	ChildWidget<Ui::Radiobutton> _channel;
-
-	int32 _aboutGroupWidth, _aboutGroupHeight;
-	Text _aboutGroup, _aboutChannel;
-
-	ChildWidget<BoxButton> _next;
-	ChildWidget<BoxButton> _cancel;
-
-};
-
 class GroupInfoBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 

@@ -138,9 +138,6 @@ class TWidget : public QWidget {
 public:
 	TWidget(QWidget *parent = nullptr) : QWidget(parent) {
 	}
-	bool event(QEvent *e) override {
-		return QWidget::event(e);
-	}
 	virtual void grabStart() {
 	}
 	virtual void grabFinish() {
@@ -238,39 +235,39 @@ private:
 
 // A simple wrap around T* to explicitly state ownership
 template <typename T>
-class ChildWidget {
+class ChildObject {
 public:
-	ChildWidget(std_::nullptr_t) : _widget(nullptr) {
+	ChildObject(std_::nullptr_t) : _object(nullptr) {
 	}
 
 	// No default constructor, but constructors with at least
 	// one argument are simply make functions.
 	template <typename Parent, typename... Args>
-	ChildWidget(Parent &&parent, Args&&... args) : _widget(new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
+	ChildObject(Parent &&parent, Args&&... args) : _object(new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
 	}
 
-	ChildWidget(const ChildWidget<T> &other) = delete;
-	ChildWidget<T> &operator=(const ChildWidget<T> &other) = delete;
+	ChildObject(const ChildObject<T> &other) = delete;
+	ChildObject<T> &operator=(const ChildObject<T> &other) = delete;
 
-	ChildWidget<T> &operator=(std_::nullptr_t) {
-		_widget = nullptr;
+	ChildObject<T> &operator=(std_::nullptr_t) {
+		_object = nullptr;
 		return *this;
 	}
-	ChildWidget<T> &operator=(T *widget) {
-		_widget = widget;
+	ChildObject<T> &operator=(T *object) {
+		_object = object;
 		return *this;
 	}
 
 	T *operator->() const {
-		return _widget;
+		return _object;
 	}
 	T &operator*() const {
-		return *_widget;
+		return *_object;
 	}
 
 	// So we can pass this pointer to methods like connect().
 	T *ptr() const {
-		return _widget;
+		return _object;
 	}
 	operator T*() const {
 		return ptr();
@@ -279,27 +276,29 @@ public:
 	// Use that instead "= new T(parent, ...)"
 	template <typename Parent, typename... Args>
 	void create(Parent &&parent, Args&&... args) {
-		delete _widget;
-		_widget = new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
+		delete _object;
+		_object = new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
 	}
 	void destroy() {
-		if (_widget) {
-			delete _widget;
-			_widget = nullptr;
-		}
+		delete base::take(_object);
 	}
 	void destroyDelayed() {
-		if (_widget) {
-			_widget->hide();
-			_widget->deleteLater();
-			_widget = nullptr;
+		if (_object) {
+			if (auto widget = base::up_cast<QWidget*>(_object)) {
+				widget->hide();
+			}
+			_object->deleteLater();
+			_object = nullptr;
 		}
 	}
 
 private:
-	T *_widget;
+	T *_object;
 
 };
+
+template <typename T>
+using ChildWidget = ChildObject<T>;
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint);
 

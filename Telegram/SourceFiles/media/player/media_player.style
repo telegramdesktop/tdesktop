@@ -125,11 +125,11 @@ mediaPlayerNextDisabledIcon: icon {
 };
 mediaPlayerPreviousButton: IconButton(mediaPlayerNextButton) {
 	icon: icon {
-		{ "player_previous", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
+		{ "player_next-flip_horizontal", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
 	};
 }
 mediaPlayerPreviousDisabledIcon: icon {
-	{ "player_previous", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
+	{ "player_next-flip_horizontal", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
 };
 mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
@@ -178,10 +178,10 @@ mediaPlayerPanelNextDisabledIcon: icon {
 	{ "player_panel_next", mediaPlayerInactiveFg, point(10px, 10px) },
 };
 mediaPlayerPanelPreviousButton: IconButton(mediaPlayerPanelNextButton) {
-	icon: icon {{ "player_panel_previous", mediaPlayerActiveFg, point(10px, 10px) }};
+	icon: icon {{ "player_panel_next-flip_horizontal", mediaPlayerActiveFg, point(10px, 10px) }};
 }
 mediaPlayerPanelPreviousDisabledIcon: icon {
-	{ "player_panel_previous", mediaPlayerInactiveFg, point(10px, 10px) },
+	{ "player_panel_next-flip_horizontal", mediaPlayerInactiveFg, point(10px, 10px) },
 };
 
 mediaPlayerPanelPadding: 16px;

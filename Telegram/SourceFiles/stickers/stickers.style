@@ -136,8 +136,8 @@ emojiColorsSepColor: #d5d5d5;
 emojiSwitchSkip: 27px;
 emojiSwitchImgSkip: 21px;
 emojiSwitchColor: #42a8db;
-emojiSwitchStickers: icon {{ "emoji_switch_right", emojiSwitchColor }};
-emojiSwitchEmoji: icon {{ "emoji_switch_left", emojiSwitchColor }};
+emojiSwitchStickers: icon {{ "emoji_switch", emojiSwitchColor }};
+emojiSwitchEmoji: icon {{ "emoji_switch-flip_horizontal", emojiSwitchColor }};
 
 stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;

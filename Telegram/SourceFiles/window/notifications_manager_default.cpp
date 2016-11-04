@@ -446,6 +446,7 @@ void Widget::addToHeight(int add) {
 	auto newHeight = height() + add;
 	auto newPosition = computePosition(newHeight);
 	updateGeometry(newPosition.x(), newPosition.y(), width(), newHeight);
+	psUpdateOverlayed(this);
 }
 
 void Widget::updateGeometry(int x, int y, int width, int height) {

@@ -24,7 +24,7 @@ windowBg: #ffffff; // white: fallback for background
 windowTextFg: #000000; // black: fallback for text color
 windowSubTextFg: #8a8a8a; // gray: fallback for subtext color
 windowActiveFill: #40ace3; // bright blue: fallback for blue filled active areas
-windowOverBg: #edf2f5; // light blue: fallback for over background
+windowOverBg: #f3f3f3; // light blue: fallback for over background
 windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over color
 windowActiveTextFg: #1485c2; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
@@ -32,22 +32,7 @@ windowShadowFg: #000000; // black: fallback for shadow color
 imageBg: #000000;
 imageBgTransparent: #ffffff;
 
-// custom title bar for Windows
-titleBg: #f3f3f3;
-titleShadow: #00000003;
-titleButtonFg: #ababab;
-titleButtonBgOver: #e5e5e5;
-titleButtonFgOver: #9a9a9a;
-titleButtonCloseBgOver: #e81123;
-titleButtonCloseFgOver: #ffffff;
-
-// tray icon
-trayCounterBg: #f23c34;
-trayCounterBgMute: #888888;
-trayCounterFg: #ffffff;
-trayCounterBgMacInvert: #ffffff;
-trayCounterFgMacInvert: #ffffff01;
-
+// widgets
 cancelIconFg: #a2a2a2;
 cancelIconFgOver: #808080;
 
@@ -62,6 +47,24 @@ lightButtonBg: windowBg;
 lightButtonBgOver: #f2f7fa | lightButtonBg;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
+
+menuIconFg: #808080 | windowSubTextFg;
+
+// custom title bar for Windows
+titleBg: windowOverBg;
+titleShadow: #00000003;
+titleButtonFg: #ababab;
+titleButtonBgOver: #e5e5e5;
+titleButtonFgOver: #9a9a9a;
+titleButtonCloseBgOver: #e81123;
+titleButtonCloseFgOver: #ffffff;
+
+// tray icon
+trayCounterBg: #f23c34;
+trayCounterBgMute: #888888;
+trayCounterFg: #ffffff;
+trayCounterBgMacInvert: #ffffff;
+trayCounterFgMacInvert: #ffffff01;
 
 // layers
 layerBg: #0000007f;

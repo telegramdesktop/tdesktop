@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/win/window_title_win.h"
 
 #include "ui/buttons/icon_button.h"
+#include "ui/widgets/shadow.h"
 #include "styles/style_window.h"
 
 namespace Platform {
@@ -30,7 +31,8 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 , _minimize(this, st::titleButtonMinimize)
 , _maximizeRestore(this, st::titleButtonMaximize)
 , _close(this, st::titleButtonClose)
-, _maximized(parent->window()->windowState() & Qt::WindowMaximized) {
+, _maximized(parent->window()->windowState() & Qt::WindowMaximized)
+, _shadow(this, st::titleShadow) {
 	_minimize->setClickedCallback([this]() {
 		window()->setWindowState(Qt::WindowMinimized);
 		_minimize->clearState();
@@ -65,6 +67,7 @@ void TitleWidget::updateControlsPosition() {
 
 void TitleWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsPosition();
+	_shadow->setGeometry(0, height() - st::lineWidth, width(), st::lineWidth);
 }
 
 void TitleWidget::updateControlsVisibility() {

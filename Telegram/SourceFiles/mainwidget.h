@@ -312,8 +312,6 @@ public:
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 
 	void checkLastUpdate(bool afterSleep);
-	void showAddContact();
-	void showNewGroup();
 
 	void serviceNotification(const QString &msg, const MTPMessageMedia &media);
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);

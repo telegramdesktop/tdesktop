@@ -44,6 +44,7 @@ constexpr int kErrorIdentifierNotFound = 804;
 constexpr int kErrorAlreadyDefined     = 805;
 constexpr int kErrorBadString          = 806;
 constexpr int kErrorIconDuplicate      = 807;
+constexpr int kErrorBadIconModifier    = 808;
 
 QString findInputFile(const Options &options) {
 	for (const auto &dir : options.includePaths) {
@@ -150,6 +151,25 @@ bool validateAlignString(const QString &value) {
 }
 
 } // namespace
+
+Modifier GetModifier(const QString &name) {
+	static QMap<QString, Modifier> modifiers;
+	if (modifiers.empty()) {
+		modifiers.insert("invert", [](QImage &png100x, QImage &png200x) {
+			png100x.invertPixels();
+			png200x.invertPixels();
+		});
+		modifiers.insert("flip_horizontal", [](QImage &png100x, QImage &png200x) {
+			png100x = png100x.mirrored(true, false);
+			png200x = png200x.mirrored(true, false);
+		});
+		modifiers.insert("flip_vertical", [](QImage &png100x, QImage &png200x) {
+			png100x = png100x.mirrored(false, true);
+			png200x = png200x.mirrored(false, true);
+		});
+	}
+	return modifiers.value(name);
+}
 
 ParsedFile::ParsedFile(const Options &options)
 : filePath_(findInputFile(options))
@@ -821,21 +841,26 @@ structure::data::monoicon ParsedFile::readMonoIconFields() {
 QString ParsedFile::readMonoIconFilename() {
 	if (auto filename = readValue()) {
 		if (filename.type().tag == structure::TypeTag::String) {
-			auto filepath = QString::fromStdString(filename.String());
-			auto inverted = filepath.endsWith("-invert");
-			if (inverted) {
-				filepath.chop(QLatin1String("-invert").size());
-			}
-			for (const auto &path : options_.includePaths) {
-				QFileInfo fileinfo(path + '/' + filepath + ".png");
-				if (fileinfo.exists()) {
-					return path + '/' + filepath + (inverted ? "-invert" : "");
+			auto fullpath = QString::fromStdString(filename.String());
+			auto pathAndModifiers = fullpath.split('-');
+			auto filepath = pathAndModifiers[0];
+			auto modifiers = pathAndModifiers.mid(1);
+			for (auto modifierName : modifiers) {
+				if (!GetModifier(modifierName)) {
+					logError(kErrorBadIconModifier) << "unknown modifier: " << modifierName.toStdString();
+					return QString();
 				}
 			}
-			for (const auto &path : options_.includePaths) {
+			for (auto &path : options_.includePaths) {
+				QFileInfo fileinfo(path + '/' + filepath + ".png");
+				if (fileinfo.exists()) {
+					return path + '/' + fullpath;
+				}
+			}
+			for (auto &path : options_.includePaths) {
 				QFileInfo fileinfo(path + "/icons/" + filepath + ".png");
 				if (fileinfo.exists()) {
-					return path + "/icons/" + filepath + (inverted ? "-invert" : "");
+					return path + "/icons/" + fullpath;
 				}
 			}
 			logError(common::kErrorFileNotFound) << "could not open icon file '" << filename.String() << "'";

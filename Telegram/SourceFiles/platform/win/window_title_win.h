@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class IconButton;
+class PlainShadow;
 } // namespace Ui
 
 namespace Platform {
@@ -51,6 +52,7 @@ private:
 	ChildWidget<Ui::IconButton> _minimize;
 	ChildWidget<Ui::IconButton> _maximizeRestore;
 	ChildWidget<Ui::IconButton> _close;
+	ChildWidget<Ui::PlainShadow> _shadow;
 
 	bool _maximized = false;
 

@@ -31,9 +31,8 @@ class IndexedList;
 namespace Ui {
 class IconButton;
 class PopupMenu;
+class DropdownMenu;
 } // namespace Ui
-
-class MainWidget;
 
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
@@ -48,7 +47,7 @@ class DialogsInner : public SplittedWidget, public RPCSender, private base::Subs
 	Q_OBJECT
 
 public:
-	DialogsInner(QWidget *parent, MainWidget *main);
+	DialogsInner(QWidget *parent, QWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
@@ -238,7 +237,7 @@ class DialogsWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-	DialogsWidget(MainWidget *parent);
+	DialogsWidget(QWidget *parent);
 
 	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
@@ -295,17 +294,13 @@ public:
 	void notify_historyMuteUpdated(History *history);
 
 signals:
-
 	void cancelled();
 
 public slots:
-
 	void onCancel();
 	void onListScroll();
 	void activate();
 	void onFilterUpdate(bool force = false);
-	void onAddContact();
-	void onNewGroup();
 	bool onCancelSearch();
 	void onCancelSearchInPeer();
 
@@ -319,8 +314,11 @@ public slots:
 	void onChooseByDrag();
 
 private:
+	void showMainMenu();
+	void updateMainMenuGeometry();
 
-	bool _dragInScroll, _dragForward;
+	bool _dragInScroll = false;
+	bool _dragForward = false;
 	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
@@ -329,15 +327,16 @@ private:
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	bool _dialogsFull;
-	int32 _dialogsOffsetDate;
-	MsgId _dialogsOffsetId;
-	PeerData *_dialogsOffsetPeer;
-	mtpRequestId _dialogsRequest, _contactsRequest;
+	bool _dialogsFull = false;
+	int32 _dialogsOffsetDate = 0;
+	MsgId _dialogsOffsetId = 0;
+	PeerData *_dialogsOffsetPeer = nullptr;
+	mtpRequestId _dialogsRequest = 0;
+	mtpRequestId _contactsRequest = 0;
 
-	FlatInput _filter;
-	ChildWidget<Ui::IconButton> _newGroup;
-	ChildWidget<Ui::IconButton> _addContact;
+	ChildWidget<Ui::IconButton> _mainMenuToggle;
+	ChildWidget<Ui::DropdownMenu> _mainMenu = { nullptr };
+	ChildWidget<FlatInput> _filter;
 	ChildWidget<Ui::IconButton> _cancelSearch;
 	ScrollArea _scroll;
 	DialogsInner _inner;
@@ -347,11 +346,14 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_progress;
 
-	PeerData *_searchInPeer, *_searchInMigrated;
+	PeerData *_searchInPeer = nullptr;
+	PeerData *_searchInMigrated = nullptr;
 
 	QTimer _searchTimer;
 	QString _searchQuery, _peopleQuery;
-	bool _searchFull, _searchFullMigrated, _peopleFull;
+	bool _searchFull = false;
+	bool _searchFullMigrated = false;
+	bool _peopleFull = false;
 	mtpRequestId _searchRequest, _peopleRequest;
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;

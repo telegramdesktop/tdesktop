@@ -260,64 +260,6 @@ void AddContactBox::onRetry() {
 	update();
 }
 
-NewGroupBox::NewGroupBox() : AbstractBox(),
-_group(this, qsl("group_type"), 0, lang(lng_create_group_title), true),
-_channel(this, qsl("group_type"), 1, lang(lng_create_channel_title)),
-_aboutGroupWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x()),
-_aboutGroup(st::normalFont, lng_create_group_about(lt_count, Global::MegagroupSizeMax()), _defaultOptions, _aboutGroupWidth),
-_aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _aboutGroupWidth),
-_next(this, lang(lng_create_group_next), st::defaultBoxButton),
-_cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	_aboutGroupHeight = _aboutGroup.countHeight(_aboutGroupWidth);
-	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _group->height() + _aboutGroupHeight + st::newGroupSkip + _channel->height() + _aboutChannel.countHeight(_aboutGroupWidth) + st::newGroupPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _next->height() + st::boxButtonPadding.bottom());
-
-	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	prepare();
-}
-
-void NewGroupBox::showAll() {
-	_group->show();
-	_channel->show();
-	_cancel->show();
-	_next->show();
-}
-
-void NewGroupBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onNext();
-	} else {
-		AbstractBox::keyPressEvent(e);
-	}
-}
-
-void NewGroupBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	p.setPen(st::newGroupAboutFg->p);
-
-	QRect aboutGroup(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group->y() + _group->height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
-	_aboutGroup.drawLeft(p, aboutGroup.x(), aboutGroup.y(), aboutGroup.width(), width());
-
-	QRect aboutChannel(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel->y() + _channel->height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
-	_aboutChannel.drawLeft(p, aboutChannel.x(), aboutChannel.y(), aboutChannel.width(), width());
-}
-
-void NewGroupBox::resizeEvent(QResizeEvent *e) {
-	_group->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
-	_channel->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _group->y() + _group->height() + _aboutGroupHeight + st::newGroupSkip);
-
-	_next->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _next->width() + st::boxButtonPadding.left(), _next->y());
-	AbstractBox::resizeEvent(e);
-}
-
-void NewGroupBox::onNext() {
-	Ui::showLayer(new GroupInfoBox(_group->checked() ? CreatingGroupGroup : CreatingGroupChannel, true), KeepOtherLayers);
-}
-
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
 _creating(creating),
 a_photoOver(0, 0),

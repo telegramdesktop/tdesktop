@@ -194,7 +194,7 @@ public:
 		max_w = avail.width();
 		accumulate_max(max_w, st::windowMinWidth);
 		max_h = avail.height();
-		accumulate_max(max_h, st::windowMinHeight);
+		accumulate_max(max_h, st::titleHeight + st::windowMinHeight);
 
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
 		HWND hwnd = App::wnd() ? App::wnd()->psHwnd() : 0;
@@ -350,7 +350,7 @@ public:
 			}
 			return;
 		}
-		if (!App::wnd()->psPosInited()) return;
+		if (!App::wnd()->positionInited()) return;
 
 		int x = _x, y = _y, w = _w, h = _h;
 		if (pos && (!(pos->flags & SWP_NOMOVE) || !(pos->flags & SWP_NOSIZE) || !(pos->flags & SWP_NOREPOSITION))) {
@@ -644,6 +644,17 @@ void MainWindow::psShowTrayMenu() {
 	trayIconMenu->popup(QCursor::pos());
 }
 
+int32 MainWindow::screenNameChecksum(const QString &name) const {
+	constexpr int DeviceNameSize = base::array_size(MONITORINFOEX().szDevice);
+	wchar_t buffer[DeviceNameSize] = { 0 };
+	if (name.size() < DeviceNameSize) {
+		name.toWCharArray(buffer);
+	} else {
+		memcpy(buffer, name.toStdWString().data(), sizeof(buffer));
+	}
+	return hashCrc32(buffer, sizeof(buffer));
+}
+
 void MainWindow::psRefreshTaskbarIcon() {
 	QWidget *w = new QWidget(this);
 	w->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
@@ -754,58 +765,7 @@ void MainWindow::psUpdateCounter() {
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-namespace {
-HMONITOR enumMonitor = 0;
-RECT enumMonitorWork;
-
-BOOL CALLBACK _monitorEnumProc(
-	_In_  HMONITOR hMonitor,
-	_In_  HDC hdcMonitor,
-	_In_  LPRECT lprcMonitor,
-	_In_  LPARAM dwData
-) {
-	MONITORINFOEX info;
-	info.cbSize = sizeof(info);
-	GetMonitorInfo(hMonitor, &info);
-	if (dwData == hashCrc32(info.szDevice, sizeof(info.szDevice))) {
-		enumMonitor = hMonitor;
-		enumMonitorWork = info.rcWork;
-		return FALSE;
-	}
-	return TRUE;
-}
-} // namespace
-
-void MainWindow::psInitSize() {
-	TWindowPos pos(cWindowPos());
-	QRect avail(Sandbox::availableGeometry());
-	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
-	if (pos.w && pos.h) {
-		if (pos.y < 0) pos.y = 0;
-		enumMonitor = 0;
-		EnumDisplayMonitors(0, 0, &_monitorEnumProc, pos.moncrc);
-		if (enumMonitor) {
-			int32 w = enumMonitorWork.right - enumMonitorWork.left, h = enumMonitorWork.bottom - enumMonitorWork.top;
-			if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-				if (pos.w > w) pos.w = w;
-				if (pos.h > h) pos.h = h;
-				pos.x += enumMonitorWork.left;
-				pos.y += enumMonitorWork.top;
-				if (pos.x < enumMonitorWork.right - 10 && pos.y < enumMonitorWork.bottom - 10) {
-					geom = QRect(pos.x, pos.y, pos.w, pos.h);
-				}
-			}
-		}
-		maximized = pos.maximized;
-	}
-	setGeometry(geom);
-}
-
-void MainWindow::psInitFrameless() {
-	psUpdatedPositionTimer.setSingleShot(true);
-	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
-
+void MainWindow::initHook() {
 	auto platformInterface = QGuiApplication::platformNativeInterface();
 	ps_hWnd = static_cast<HWND>(platformInterface->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
 
@@ -816,51 +776,7 @@ void MainWindow::psInitFrameless() {
 		Dlls::WTSRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
 	}
 
-//	RegisterApplicationRestart(NULL, 0);
-
 	psInitSysMenu();
-}
-
-void MainWindow::psSavePosition(Qt::WindowState state) {
-	if (state == Qt::WindowActive) state = windowHandle()->windowState();
-	if (state == Qt::WindowMinimized || !posInited) return;
-
-	TWindowPos pos(cWindowPos()), curPos = pos;
-
-	if (state == Qt::WindowMaximized) {
-		curPos.maximized = 1;
-	} else {
-		RECT w;
-		GetWindowRect(ps_hWnd, &w);
-		curPos.x = w.left;
-		curPos.y = w.top;
-		curPos.w = w.right - w.left;
-		curPos.h = w.bottom - w.top;
-		curPos.maximized = 0;
-	}
-
-	HMONITOR hMonitor = MonitorFromWindow(ps_hWnd, MONITOR_DEFAULTTONEAREST);
-	if (hMonitor) {
-		MONITORINFOEX info;
-		info.cbSize = sizeof(info);
-		GetMonitorInfo(hMonitor, &info);
-		if (!curPos.maximized) {
-			curPos.x -= info.rcWork.left;
-			curPos.y -= info.rcWork.top;
-		}
-		curPos.moncrc = hashCrc32(info.szDevice, sizeof(info.szDevice));
-	}
-
-	if (curPos.w >= st::windowMinWidth && curPos.h >= st::windowMinHeight) {
-		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
-			cSetWindowPos(curPos);
-			Local::writeSettings();
-		}
-	}
-}
-
-void MainWindow::psUpdatedPosition() {
-	psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
 }
 
 bool MainWindow::psHasNativeNotifications() {
@@ -894,7 +810,7 @@ void MainWindow::psFirstShow() {
 		show();
 	}
 
-	posInited = true;
+	setPositionInited();
 	if (showShadows) {
 		shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized | ShadowsChange::Shown);
 	}

@@ -23,7 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
-#include "window/window_title.h"
 #include "core/single_timer.h"
 
 class MediaView;
@@ -71,7 +70,7 @@ private:
 
 class MediaPreviewWidget;
 
-class MainWindow : public Platform::MainWindow, private base::Subscriber {
+class MainWindow : public Platform::MainWindow {
 	Q_OBJECT
 
 public:
@@ -96,9 +95,6 @@ public:
 	void showDelayedServiceMsgs();
 
 	void mtpStateChanged(int32 dc, int32 state);
-
-	Window::HitTestResult hitTest(const QPoint &p) const;
-	QRect iconRect() const;
 
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
@@ -233,14 +229,10 @@ private:
 	void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color);
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
-	QWidget *centralwidget;
-
 	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
 	QVector<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
-	Window::TitleWidget *_title = nullptr;
-	ChildWidget<TWidget> _body;
 	ChildWidget<PasscodeWidget> _passcode = { nullptr };
 	ChildWidget<IntroWidget> _intro = { nullptr };
 	ChildWidget<MainWidget> _main = { nullptr };

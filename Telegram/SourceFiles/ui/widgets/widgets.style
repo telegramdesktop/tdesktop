@@ -190,6 +190,9 @@ defaultMaskButton: MaskButton {
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 
+fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(9px, 8px) }};
+boxFieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
+
 discreteSliderHeight: 39px;
 discreteSliderTop: 5px;
 discreteSliderSkip: 3px;

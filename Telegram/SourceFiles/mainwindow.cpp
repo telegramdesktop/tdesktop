@@ -44,7 +44,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
-#include "platform/platform_window_title.h"
 #include "window/notifications_manager.h"
 #include "window/window_theme.h"
 #include "window/window_theme_warning.h"
@@ -86,7 +85,7 @@ void ConnectingWidget::onReconnect() {
 	MTP::restart();
 }
 
-MainWindow::MainWindow() : Platform::MainWindow(), _body(this) {
+MainWindow::MainWindow() {
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
@@ -105,15 +104,9 @@ MainWindow::MainWindow() : Platform::MainWindow(), _body(this) {
 		}
 	});
 
-	if (objectName().isEmpty()) {
-		setObjectName(qsl("MainWindow"));
-	}
-	resize(st::windowDefWidth, st::windowDefHeight);
+	resize(st::windowDefaultWidth, st::windowDefaultHeight);
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
-	setCentralWidget(_body);
-
-	QMetaObject::connectSlotsByName(this);
 
 	_inactiveTimer.setSingleShot(true);
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
@@ -162,26 +155,17 @@ void MainWindow::onStateChanged(Qt::WindowState state) {
 	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
 		App::wnd()->minimizeToTray();
 	}
-	psSavePosition(state);
+	savePosition(state);
 }
 
 void MainWindow::init() {
-	psInitFrameless();
-	setWindowIcon(wndIcon);
+	Platform::MainWindow::init();
 
-	_title = Platform::CreateTitleWidget(this);
+	setWindowIcon(wndIcon);
 
 	Application::instance()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
-
-	QPalette p(palette());
-	p.setColor(QPalette::Window, st::windowBg->c);
-	setPalette(p);
-
-	setMinimumWidth(st::windowMinWidth);
-	setMinimumHeight(st::windowMinHeight);
-	psInitSize();
 }
 
 void MainWindow::onWindowActiveChanged() {
@@ -241,9 +225,7 @@ void MainWindow::clearWidgets() {
 
 QPixmap MainWindow::grabInner() {
 	QPixmap result;
-	if (_settings) {
-		result = myGrab(_settings);
-	} else if (_intro) {
+	if (_intro) {
 		result = myGrab(_intro);
 	} else if (_main) {
 		result = myGrab(_main);
@@ -274,13 +256,13 @@ void MainWindow::clearPasscode() {
 }
 
 void MainWindow::setupPasscode(bool anim) {
-	QPixmap bg = grabInner();
+	auto bg = grabInner();
 
 	if (_passcode) {
 		_passcode->stop_show();
 		_passcode.destroyDelayed();
 	}
-	_passcode.create(_body);
+	_passcode.create(bodyWidget());
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
@@ -332,7 +314,7 @@ void MainWindow::setupIntro(bool anim) {
 	QPixmap bg = anim ? grabInner() : QPixmap();
 
 	clearWidgets();
-	_intro.create(_body);
+	_intro.create(bodyWidget());
 	updateControlsGeometry();
 
 	if (anim) {
@@ -382,7 +364,7 @@ void MainWindow::sendServiceHistoryRequest() {
 void MainWindow::setupMain(bool anim, const MTPUser *self) {
 	QPixmap bg = anim ? grabInner() : QPixmap();
 	clearWidgets();
-	_main.create(_body);
+	_main.create(bodyWidget());
 	updateControlsGeometry();
 
 	if (anim) {
@@ -418,7 +400,7 @@ void MainWindow::showSettings() {
 	}
 
 	if (!_layerBg) {
-		_layerBg.create(_body);
+		_layerBg.create(bodyWidget());
 	}
 	_settings.create(this);
 	connect(_settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
@@ -492,7 +474,7 @@ void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
 void MainWindow::ui_showLayer(LayerWidget *box, ShowLayerOptions options) {
 	if (box) {
 		if (!_layerBg) {
-			_layerBg.create(_body);
+			_layerBg.create(bodyWidget());
 		}
 		if (options.testFlag(KeepOtherLayers)) {
 			if (options.testFlag(ShowAfterOtherLayers)) {
@@ -532,7 +514,7 @@ bool MainWindow::ui_isMediaViewShown() {
 void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
-		_mediaPreview.create(_body);
+		_mediaPreview.create(bodyWidget());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -544,7 +526,7 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
-		_mediaPreview.create(_body);
+		_mediaPreview.create(bodyWidget());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -571,7 +553,7 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
 	} else {
-		_connecting.create(_body, text, reconnect);
+		_connecting.create(bodyWidget(), text, reconnect);
 		updateControlsGeometry();
 		fixOrder();
 	}
@@ -586,15 +568,13 @@ void MainWindow::hideConnecting() {
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	using Type = Window::Theme::BackgroundUpdate::Type;
 	if (data.type == Type::TestingTheme) {
-		if (_title) _title->update();
 		if (!_testingThemeWarning) {
-			_testingThemeWarning.create(_body);
+			_testingThemeWarning.create(bodyWidget());
 			_testingThemeWarning->setGeometry(rect());
 			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
 		}
 		_testingThemeWarning->showAnimated();
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
-		if (_title) _title->update();
 		_testingThemeWarning->hideAnimated();
 	}
 }
@@ -659,44 +639,6 @@ void MainWindow::setInnerFocus() {
 	}
 }
 
-Window::HitTestResult MainWindow::hitTest(const QPoint &p) const {
-	int x(p.x()), y(p.y()), w(width()), h(height());
-
-	const int32 raw = psResizeRowWidth();
-	if (!windowState().testFlag(Qt::WindowMaximized)) {
-		if (y < raw) {
-			if (x < raw) {
-				return Window::HitTestResult::TopLeft;
-			} else if (x > w - raw - 1) {
-				return Window::HitTestResult::TopRight;
-			}
-			return Window::HitTestResult::Top;
-		} else if (y > h - raw - 1) {
-			if (x < raw) {
-				return Window::HitTestResult::BottomLeft;
-			} else if (x > w - raw - 1) {
-				return Window::HitTestResult::BottomRight;
-			}
-			return Window::HitTestResult::Bottom;
-		} else if (x < raw) {
-			return Window::HitTestResult::Left;
-		} else if (x > w - raw - 1) {
-			return Window::HitTestResult::Right;
-		}
-	}
-	auto titleTest = _title ? _title->hitTest(p - _title->geometry().topLeft()) : Window::HitTestResult::None;
-	if (titleTest != Window::HitTestResult::None) {
-		return titleTest;
-	} else if (x >= 0 && y >= 0 && x < w && y < h) {
-		return Window::HitTestResult::Client;
-	}
-	return Window::HitTestResult::None;
-}
-
-QRect MainWindow::iconRect() const {
-	return _title ? _title->iconRect() : QRect();
-}
-
 bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::MouseButtonPress:
@@ -757,7 +699,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	case QEvent::Move:
 	case QEvent::Resize:
 		if (obj == this) {
-			psUpdatedPosition();
+			positionUpdated();
 		}
 		break;
 	}
@@ -821,13 +763,17 @@ void MainWindow::updateTrayMenu(bool force) {
 void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
-	if (_main) _main->showAddContact();
+	if (App::self()) {
+		Ui::showLayer(new AddContactBox(), KeepOtherLayers);
+	}
 }
 
 void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (_main) Ui::showLayer(new GroupInfoBox(CreatingGroupGroup, false), KeepOtherLayers);
+	if (App::self()) {
+		Ui::showLayer(new GroupInfoBox(CreatingGroupGroup, false), KeepOtherLayers);
+	}
 }
 
 void MainWindow::onShowNewChannel() {
@@ -906,7 +852,6 @@ void MainWindow::layerFinishedHide(LayerStackWidget *was) {
 }
 
 void MainWindow::fixOrder() {
-	if (_title) _title->raise();
 	if (_layerBg) _layerBg->raise();
 	if (_mediaPreview) _mediaPreview->raise();
 	if (_connecting) _connecting->raise();
@@ -980,7 +925,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent *e) {
-	if (!_title) return;
+	Platform::MainWindow::resizeEvent(e);
 
 	Adaptive::Layout layout = Adaptive::OneColumnLayout;
 	if (width() > st::adaptiveWideWidth) {
@@ -993,17 +938,11 @@ void MainWindow::resizeEvent(QResizeEvent *e) {
 		Adaptive::Changed().notify(true);
 	}
 
-	auto bodyTop = 0;
-	if (_title) {
-		_title->setGeometry(0, bodyTop, width(), st::titleHeight);
-		bodyTop += _title->height();
-	}
-	_body->setGeometry(0, bodyTop, width(), height() - bodyTop);
 	updateControlsGeometry();
 }
 
 void MainWindow::updateControlsGeometry() {
-	auto body = _body->rect();
+	auto body = bodyWidget()->rect();
 	if (_passcode) _passcode->setGeometry(body);
 	if (_main) _main->setGeometry(body);
 	if (_intro) _intro->setGeometry(body);

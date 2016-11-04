@@ -38,8 +38,8 @@ namespace codegen {
 namespace style {
 namespace {
 
-constexpr int kErrorBadIconSize   = 861;
-constexpr int kErrorBadIconFormat = 862;
+constexpr int kErrorBadIconSize     = 861;
+constexpr int kErrorBadIconFormat   = 862;
 
 // crc32 hash, taken somewhere from the internet
 
@@ -1017,10 +1017,10 @@ QByteArray iconMaskValueSize(int width, int height) {
 QByteArray iconMaskValuePng(QString filepath) {
 	QByteArray result;
 
-	auto inverted = filepath.endsWith("-invert");
-	if (inverted) {
-		filepath.chop(QLatin1String("-invert").size());
-	}
+	auto pathAndModifiers = filepath.split('-');
+	filepath = pathAndModifiers[0];
+	auto modifiers = pathAndModifiers.mid(1);
+
 	QImage png100x(filepath + ".png");
 	QImage png200x(filepath + "@2x.png");
 	png100x.setDevicePixelRatio(1.);
@@ -1041,9 +1041,13 @@ QByteArray iconMaskValuePng(QString filepath) {
 		common::logError(kErrorBadIconSize, filepath + ".png") << "bad icons size, 1x: " << png100x.width() << "x" << png100x.height() << ", 2x: " << png200x.width() << "x" << png200x.height();
 		return result;
 	}
-	if (inverted) {
-		png100x.invertPixels();
-		png200x.invertPixels();
+	for (auto modifierName : modifiers) {
+		if (auto modifier = GetModifier(modifierName)) {
+			modifier(png100x, png200x);
+		} else {
+			common::logError(common::kErrorInternal, filepath) << "modifier should be valid here, name: " << modifierName.toStdString();
+			return result;
+		}
 	}
 	QImage png125x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 5), structure::data::pxAdjust(png100x.height(), 5), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	QImage png150x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 6), structure::data::pxAdjust(png100x.height(), 6), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);

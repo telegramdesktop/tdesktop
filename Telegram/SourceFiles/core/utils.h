@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace base {
 
 template <typename T, size_t N>
-inline constexpr size_t array_size(T(&)[N]) {
+inline constexpr size_t array_size(const T(&)[N]) {
 	return N;
 }
 
@@ -33,6 +33,27 @@ template <typename T>
 inline T take(T &source, T &&new_value = T()) {
 	std_::swap_moveable(new_value, source);
 	return std_::move(new_value);
+}
+
+namespace internal {
+
+template <typename D, typename T>
+inline constexpr D up_cast_helper(std_::true_type, T object) {
+	return object;
+}
+
+template <typename D, typename T>
+inline constexpr D up_cast_helper(std_::false_type, T object) {
+	return nullptr;
+}
+
+} // namespace internal
+
+template <typename D, typename T>
+inline constexpr D up_cast(T object) {
+	using DV = std_::decay_simple_t<decltype(*D())>;
+	using TV = std_::decay_simple_t<decltype(*T())>;
+	return internal::up_cast_helper<D>(std_::integral_constant<bool, std_::is_base_of<DV, TV>::value || std_::is_same<DV, TV>::value>(), object);
 }
 
 } // namespace base

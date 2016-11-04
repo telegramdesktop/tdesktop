@@ -48,7 +48,7 @@ dialogsNameFg: #000000;
 dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;
-dialogsFilterPadding: 10px;
+dialogsFilterPadding: point(11px, 11px);
 dialogsPhotoSize: 46px;
 dialogsPhotoPadding: 12px;
 dialogsPadding: point(10px, 8px);
@@ -83,23 +83,43 @@ dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
 	linkFgDown: #c6e1f7;
 }
 
-dialogsNewChatIcon: icon {{ "dialogs_new_chat", #b7b7b7 }};
-dialogsNewChatButton: IconButton {
-	width: 36px;
-	height: 36px;
+dialogsMenuToggle: IconButton {
+	width: 32px;
+	height: 32px;
 
-	icon: dialogsNewChatIcon;
-	iconPosition: point(9px, 10px);
-	iconPositionDown: point(9px, 11px);
+	icon: icon {{ "dialogs_menu", #999999 }};
+	iconPosition: point(6px, 6px);
+	iconPositionDown: point(6px, 6px);
 }
-dialogsAddContact: IconButton(dialogsNewChatButton) {
-	icon: icon {{ "dialogs_add_contact", #a6a6a6 }};
-	iconPosition: point(8px, 8px);
-	iconPositionDown: point(8px, 9px);
+dialogsFilter: flatInput(inpDefGray) {
+	font: font(fsize);
+	bgColor: #f2f2f2;
+	phColor: #949494;
+	phFocusColor: #a4a4a4;
+	icon: fieldSearchIcon;
+
+	width: 240px;
+	height: 32px;
+	textMrg: margins(32px, 3px, 32px, 3px);
 }
-dialogsCancelSearch: IconButton(dialogsAddContact) {
-	icon: icon {{ "dialogs_cancel_search", #a6a6a6 }};
+dialogsCancelSearch: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "dialogs_cancel_search", #a6a6a6, point(0px, 1px) }};
 }
+
+dialogsMenu: DropdownMenu(defaultDropdownMenu) {
+	menu: Menu(defaultMenu) {
+		skip: 8px;
+
+		itemIconPosition: point(15px, 8px);
+		itemPadding: margins(56px, 10px, 56px, 12px);
+	}
+}
+dialogsMenuPosition: point(-3px, -2px);
+dialogsMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
+dialogsMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
+dialogsMenuContacts: icon {{ "menu_contacts", menuIconFg }};
+dialogsMenuSettings: icon {{ "menu_settings", menuIconFg }};
+dialogsMenuHelp: icon {{ "menu_help", menuIconFg }};
 
 dialogsChatTypeSkip: 22px;
 dialogsChatIcon: icon {{ "dialogs_chat", #373737, point(1px, 4px) }};

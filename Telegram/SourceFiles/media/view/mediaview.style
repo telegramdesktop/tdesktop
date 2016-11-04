@@ -81,7 +81,7 @@ mediaviewVolumeOnIconOver: icon {{ "media_volume", mediaviewPlaybackActiveOver, 
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;
 
-mediaviewLeft: icon {{ "mediaview_previous", #ffffff }};
+mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", #ffffff }};
 mediaviewRight: icon {{ "mediaview_next", #ffffff }};
 mediaviewClose: icon {{ "mediaview_close", #ffffff }};
 mediaviewSave: icon {{ "mediaview_download", #ffffff }};

@@ -35,12 +35,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	MainWindow();
 
-	int32 psResizeRowWidth() const {
-		return 0;//st::wndResizeAreaWidth;
-	}
-
-	void psInitFrameless();
-	void psInitSize();
 	HWND psHwnd() const;
 	HMENU psMenu() const;
 
@@ -48,7 +42,6 @@ public:
 	void psInitSysMenu();
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
-	void psUpdatedPosition();
 
 	void psFlash();
 	void psNotifySettingGot();
@@ -56,10 +49,6 @@ public:
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
-
-	bool psPosInited() const {
-		return posInited;
-	}
 
 	void psUpdateCounter();
 
@@ -99,15 +88,16 @@ public:
 	~MainWindow();
 
 public slots:
-	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 
 protected:
+	void initHook() override;
+	int32 screenNameChecksum(const QString &name) const override;
+
 	bool psHasTrayIcon() const {
 		return trayIcon;
 	}
 
-	bool posInited = false;
 	QSystemTrayIcon *trayIcon = nullptr;
 	Ui::PopupMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;

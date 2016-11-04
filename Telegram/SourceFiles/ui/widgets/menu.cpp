@@ -50,9 +50,15 @@ void Menu::init() {
 }
 
 QAction *Menu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
-	auto action = new QAction(text, this);
+	auto action = addAction(new QAction(text, this), icon, iconOver);
 	connect(action, SIGNAL(triggered(bool)), receiver, member, Qt::QueuedConnection);
-	return addAction(action, icon, iconOver);
+	return action;
+}
+
+QAction *Menu::addAction(const QString &text, base::lambda_unique<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	auto action = addAction(new QAction(text, this), icon, iconOver);
+	connect(action, SIGNAL(triggered(bool)), base::lambda_slot(action, std_::move(callback)), SLOT(action()), Qt::QueuedConnection);
+	return action;
 }
 
 QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::icon *iconOver) {

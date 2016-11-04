@@ -84,6 +84,10 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
+QAction *PopupMenu::addAction(const QString &text, base::lambda_unique<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+}
+
 QAction *PopupMenu::addSeparator() {
 	return _menu->addSeparator();
 }

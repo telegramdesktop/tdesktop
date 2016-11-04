@@ -24,8 +24,8 @@ using "ui/widgets/widgets.style";
 
 windowMinWidth: 380px;
 windowMinHeight: 480px;
-windowDefWidth: 800px;
-windowDefHeight: 600px;
+windowDefaultWidth: 800px;
+windowDefaultHeight: 600px;
 windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 

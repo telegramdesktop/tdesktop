@@ -924,7 +924,7 @@ void psUpdateOverlayed(TWidget *widget) {
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);
 	widget->update();
 	QEvent e(QEvent::UpdateRequest);
-	widget->event(&e);
+	QGuiApplication::sendEvent(widget, &e);
 	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }

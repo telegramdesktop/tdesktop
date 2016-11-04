@@ -402,25 +402,12 @@ noContactsHeight: 100px;
 noContactsFont: font(fsize);
 noContactsColor: #777777;
 
-fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
-dlgFilter: flatInput(inpDefGray) {
-	font: font(fsize);
-	bgColor: #f2f2f2;
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
-	icon: fieldSearchIcon;
-
-	width: 240px;
-	height: 34px;
-	textMrg: margins(34px, 2px, 34px, 4px);
-}
-
 topBarHeight: 54px;
 topBarDuration: 200;
-topBarForward: icon {{ "title_next", #a3a3a3 }};
-topBarBackward: icon {{ "title_previous", #a3a3a3 }};
+topBarForward: icon {{ "title_back-flip_horizontal", #a3a3a3 }};
+topBarBackward: icon {{ "title_back", #a3a3a3 }};
 topBarForwardAlpha: 0.6;
-topBarBack: icon {{ "title_previous", #259fd8 }};
+topBarBack: icon {{ "title_back", #259fd8 }};
 topBarBackAlpha: 0.8;
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
@@ -1104,15 +1091,15 @@ infoButton: PeerAvatarButton {
 	photoSize: 42px;
 }
 
-// forward declaration for single "title_previous" usage.
+// forward declaration for single "title_back" usage.
 profileTopBarBackIconFg: #0290d7;
-profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};
+profileTopBarBackIcon: icon {{ "title_back", profileTopBarBackIconFg }};
 
 historyReplyCancelIcon: icon {{ "box_button_close-invert", historyReplyBg }};
 boxSearchCancelIcon: icon {{ "box_button_close-invert", boxSearchBg }};
 settingsFixedBarCloseIcon: icon {{ "box_button_close-invert", settingsFixedBarBg }};
 
-notifyFadeRight: icon {{ "fade_horizontal_right", notificationBg }};
+notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
-stickerIconLeft: icon {{ "fade_horizontal_left", emojiPanCategories }};
-stickerIconRight: icon {{ "fade_horizontal_right", emojiPanCategories }};
+stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
+stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};

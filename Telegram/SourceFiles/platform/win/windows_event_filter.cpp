@@ -155,7 +155,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					}
 					emit App::wnd()->windowHandle()->windowStateChanged(state);
 				} else {
-					App::wnd()->psUpdatedPosition();
+					App::wnd()->positionUpdated();
 				}
 				App::wnd()->psUpdateMargins();
 				MainWindow::ShadowsChanges changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? ShadowsChange::Hidden : (ShadowsChange::Resized | ShadowsChange::Shown);
@@ -172,7 +172,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 	case WM_MOVE: {
 		App::wnd()->shadowsUpdate(ShadowsChange::Moved);
-		App::wnd()->psUpdatedPosition();
+		App::wnd()->positionUpdated();
 	} return false;
 
 	case WM_NCHITTEST: {
@@ -185,7 +185,6 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		switch (res) {
 		case Window::HitTestResult::Client:
 		case Window::HitTestResult::SysButton:   *result = HTCLIENT; break;
-		case Window::HitTestResult::Icon:        *result = HTCAPTION; break;
 		case Window::HitTestResult::Caption:     *result = HTCAPTION; break;
 		case Window::HitTestResult::Top:         *result = HTTOP; break;
 		case Window::HitTestResult::TopRight:    *result = HTTOPRIGHT; break;
@@ -203,42 +202,6 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	case WM_NCRBUTTONUP: {
 		SendMessage(hWnd, WM_SYSCOMMAND, SC_MOUSEMENU, lParam);
 	} return true;
-
-	case WM_NCLBUTTONDOWN: {
-		POINTS p = MAKEPOINTS(lParam);
-		RECT r;
-		GetWindowRect(hWnd, &r);
-		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
-		switch (res) {
-		case Window::HitTestResult::Icon:
-			if (menuHidden && getms() < menuHidden + 10) {
-				menuHidden = 0;
-				if (getms() < menuShown + GetDoubleClickTime()) {
-					App::wnd()->close();
-				}
-			} else {
-				QRect icon = App::wnd()->iconRect();
-				p.x = r.left - App::wnd()->deltaLeft() + icon.left();
-				p.y = r.top - App::wnd()->deltaTop() + icon.top() + icon.height();
-				App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
-				menuShown = getms();
-				menuHidden = 0;
-				TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
-				menuHidden = getms();
-			}
-			return true;
-		};
-	} return false;
-
-	case WM_NCLBUTTONDBLCLK: {
-		POINTS p = MAKEPOINTS(lParam);
-		RECT r;
-		GetWindowRect(hWnd, &r);
-		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
-		switch (res) {
-		case Window::HitTestResult::Icon: App::wnd()->close(); return true;
-		};
-	} return false;
 
 	case WM_SYSCOMMAND: {
 		if (wParam == SC_MOUSEMENU) {

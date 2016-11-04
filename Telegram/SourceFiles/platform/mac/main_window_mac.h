@@ -38,28 +38,16 @@ class MainWindow : public Window::MainWindow {
 public:
 	MainWindow();
 
-	int32 psResizeRowWidth() const {
-		return 0;//st::wndResizeAreaWidth;
-	}
-
-	void psInitFrameless();
-	void psInitSize();
-
 	void psFirstShow();
 	void psInitSysMenu();
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
-	void psUpdatedPosition();
 
 	void psFlash();
 
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon() {
-	}
-
-	bool psPosInited() const {
-		return posInited;
 	}
 
 	bool psFilterNativeEvent(void *event);
@@ -79,7 +67,6 @@ public:
 	~MainWindow();
 
 public slots:
-	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 
 	void psMacUndo();
@@ -103,7 +90,6 @@ protected:
 
 	void psMacUpdateMenu();
 
-	bool posInited;
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
@@ -118,6 +104,8 @@ protected:
 	QTimer psUpdatedPositionTimer;
 
 private:
+	void createGlobalMenu();
+
 	MacPrivate _private;
 
 	mutable bool psIdle;

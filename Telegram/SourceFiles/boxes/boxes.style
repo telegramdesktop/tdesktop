@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
+
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
@@ -143,7 +144,7 @@ contactsMultiSelect: MultiSelect {
 		font: normalFont;
 	}
 	fieldMinWidth: 42px;
-	fieldIcon: fieldSearchIcon;
+	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
 	fieldCancel: MaskButton(defaultMaskButton) {

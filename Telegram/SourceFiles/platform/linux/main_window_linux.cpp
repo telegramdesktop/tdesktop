@@ -431,89 +431,6 @@ void MainWindow::LibsLoaded() {
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 }
 
-void MainWindow::psInitSize() {
-	TWindowPos pos(cWindowPos());
-	QRect avail(QDesktopWidget().availableGeometry());
-	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
-	if (pos.w && pos.h) {
-		QList<QScreen*> screens = Application::screens();
-		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-			QByteArray name = (*i)->name().toUtf8();
-			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
-				QRect screen((*i)->geometry());
-				int32 w = screen.width(), h = screen.height();
-				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-					if (pos.w > w) pos.w = w;
-					if (pos.h > h) pos.h = h;
-					pos.x += screen.x();
-					pos.y += screen.y();
-					if (pos.x < screen.x() + screen.width() - 10 && pos.y < screen.y() + screen.height() - 10) {
-						geom = QRect(pos.x, pos.y, pos.w, pos.h);
-					}
-				}
-				break;
-			}
-		}
-
-		if (pos.y < 0) pos.y = 0;
-		maximized = pos.maximized;
-	}
-	setGeometry(geom);
-}
-
-void MainWindow::psInitFrameless() {
-	psUpdatedPositionTimer.setSingleShot(true);
-	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
-}
-
-void MainWindow::psSavePosition(Qt::WindowState state) {
-	if (state == Qt::WindowActive) state = windowHandle()->windowState();
-	if (state == Qt::WindowMinimized || !posInited) return;
-
-	TWindowPos pos(cWindowPos()), curPos = pos;
-
-	if (state == Qt::WindowMaximized) {
-		curPos.maximized = 1;
-	} else {
-		QRect r(geometry());
-		curPos.x = r.x();
-		curPos.y = r.y();
-		curPos.w = r.width();
-		curPos.h = r.height();
-		curPos.maximized = 0;
-	}
-
-	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
-	QScreen *chosen = 0;
-	QList<QScreen*> screens = Application::screens();
-	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
-		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
-		if (!chosen || dx + dy < d) {
-			d = dx + dy;
-			chosen = *i;
-		}
-	}
-	if (chosen) {
-		curPos.x -= chosen->geometry().x();
-		curPos.y -= chosen->geometry().y();
-		QByteArray name = chosen->name().toUtf8();
-		curPos.moncrc = hashCrc32(name.constData(), name.size());
-	}
-
-	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
-		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
-			cSetWindowPos(curPos);
-			Local::writeSettings();
-		}
-	}
-}
-
-void MainWindow::psUpdatedPosition() {
-	psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
-}
-
 void MainWindow::psCreateTrayIcon() {
 	if (!noQtTrayIcon) {
 		cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
@@ -641,7 +558,7 @@ void MainWindow::psFirstShow() {
 		show();
 	}
 
-	posInited = true;
+	setPositionInited();
 }
 
 void MainWindow::psInitSysMenu() {

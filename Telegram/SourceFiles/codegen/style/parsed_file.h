@@ -22,12 +22,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <string>
+#include <functional>
+#include <QImage>
 #include "codegen/common/basic_tokenized_file.h"
 #include "codegen/style/options.h"
 #include "codegen/style/module.h"
 
 namespace codegen {
 namespace style {
+
+using Modifier = std::function<void(QImage &png100x, QImage &png200x)>;
+Modifier GetModifier(const QString &name);
 
 // Parses an input file to the internal struct.
 class ParsedFile {
@@ -44,7 +49,6 @@ public:
 	}
 
 private:
-
 	bool failed() const {
 		return failed_ || file_.failed();
 	}
