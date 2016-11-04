@@ -74,28 +74,14 @@ introTextSize: size(400px, 93px);
 introCallSkip: 15px;
 introPwdTextSize: size(400px, 73px);
 
-introNextButton: flatButton {
-	duration: 200;
-	cursor: cursor(pointer);
-
-	color: #ffffff;
-	overColor: #ffffff;
-	downColor: #ffffff;
-	bgColor: #2fa9e2;
-	overBgColor: #279ad0;
-	downBgColor: #279ad0;
-
-	textTop: 16px;
-	overTextTop: 16px;
-	downTextTop: 17px;
-
-	font: font(17px);
-	overFont: font(17px);
-
+introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;
 	height: 56px;
 
-	radius: buttonRadius;
+	textTop: 16px;
+	downTextTop: 17px;
+
+	font: font(17px);
 }
 
 introPhoneTop: 8px;

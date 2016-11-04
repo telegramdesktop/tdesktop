@@ -27,25 +27,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/photocropbox.h"
 #include "lang.h"
 #include "application.h"
+#include "ui/buttons/round_button.h"
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , a_photoOver(0)
 , _a_error(animation(this, &IntroSignup::step_error))
 , _a_photo(animation(this, &IntroSignup::step_photo))
-, next(this, lang(lng_intro_finish), st::introNextButton)
-, first(this, st::inpIntroName, lang(lng_signup_firstname))
-, last(this, st::inpIntroName, lang(lng_signup_lastname))
-, sentRequest(0)
-, _invertOrder(langFirstNameGoesSecond()) {
+, _next(this, lang(lng_intro_finish), st::introNextButton)
+, _first(this, st::inpIntroName, lang(lng_signup_firstname))
+, _last(this, st::inpIntroName, lang(lng_signup_lastname))
+, _invertOrder(langFirstNameGoesSecond())
+, _checkRequest(this) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
-	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitName()));
-	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitName()));
+	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
 	if (_invertOrder) {
-		setTabOrder(&last, &first);
+		setTabOrder(_last, _first);
 	}
 
 	setMouseTracking(true);
@@ -102,20 +104,20 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
-	if (trivial || e->rect().intersects(textRect)) {
+	if (trivial || e->rect().intersects(_textRect)) {
 		p.setFont(st::introHeaderFont->f);
-		p.drawText(textRect, lang(lng_signup_title), style::al_top);
+		p.drawText(_textRect, lang(lng_signup_title), style::al_top);
 		p.setFont(st::introFont->f);
-		p.drawText(textRect, lang(lng_signup_desc), style::al_bottom);
+		p.drawText(_textRect, lang(lng_signup_desc), style::al_bottom);
 	}
 	if (_a_error.animating() || error.length()) {
 		p.setOpacity(a_errorAlpha.current());
 
 		QRect errRect;
 		if (_invertOrder) {
-			errRect = QRect((width() - st::introErrorWidth) / 2, (first.y() + first.height() + next.y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
+			errRect = QRect((width() - st::introErrorWidth) / 2, (_first->y() + _first->height() + _next->y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
 		} else {
-			errRect = QRect((width() - st::introErrorWidth) / 2, (last.y() + last.height() + next.y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
+			errRect = QRect((width() - st::introErrorWidth) / 2, (_last->y() + _last->height() + _next->y() - st::introErrorHeight) / 2, st::introErrorWidth, st::introErrorHeight);
 		}
 		p.setFont(st::introErrorFont);
 		p.setPen(st::introErrorFg);
@@ -147,19 +149,19 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 }
 
 void IntroSignup::resizeEvent(QResizeEvent *e) {
-	_phLeft = (width() - next.width()) / 2;
+	_phLeft = (width() - _next->width()) / 2;
 	_phTop = st::introTextTop + st::introTextSize.height() + st::introCountry.top;
 	if (e->oldSize().width() != width()) {
-		next.move((width() - next.width()) / 2, st::introBtnTop);
+		_next->move((width() - _next->width()) / 2, st::introBtnTop);
 		if (_invertOrder) {
-			last.move((width() - next.width()) / 2 + next.width() - last.width(), _phTop);
-			first.move((width() - next.width()) / 2 + next.width() - first.width(), last.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
+			_last->move((width() - _next->width()) / 2 + _next->width() - _last->width(), _phTop);
+			_first->move((width() - _next->width()) / 2 + _next->width() - _first->width(), _last->y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
 		} else {
-			first.move((width() - next.width()) / 2 + next.width() - first.width(), _phTop);
-			last.move((width() - next.width()) / 2 + next.width() - last.width(), first.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
+			_first->move((width() - _next->width()) / 2 + _next->width() - _first->width(), _phTop);
+			_last->move((width() - _next->width()) / 2 + _next->width() - _last->width(), _first->y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
 		}
 	}
-	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
+	_textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
 
 void IntroSignup::showError(const QString &err) {
@@ -204,42 +206,40 @@ void IntroSignup::step_photo(float64 ms, bool timer) {
 void IntroSignup::activate() {
 	IntroStep::activate();
 	if (_invertOrder) {
-		last.setFocus();
+		_last->setFocus();
 	} else {
-		first.setFocus();
+		_first->setFocus();
 	}
 }
 
 void IntroSignup::cancelled() {
-	if (sentRequest) {
-		MTP::cancel(sentRequest);
-		sentRequest = 0;
+	if (_sentRequest) {
+		MTP::cancel(base::take(_sentRequest));
 	}
 }
 
 void IntroSignup::stopCheck() {
-	checkRequest.stop();
+	_checkRequest->stop();
 }
 
 void IntroSignup::onCheckRequest() {
-	int32 status = MTP::state(sentRequest);
+	int32 status = MTP::state(_sentRequest);
 	if (status < 0) {
 		int32 leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(sentRequest);
-			sentRequest = 0;
-			if (!first.isEnabled()) {
-				first.setDisabled(false);
-				last.setDisabled(false);
+			MTP::cancel(base::take(_sentRequest));
+			if (!_first->isEnabled()) {
+				_first->setDisabled(false);
+				_last->setDisabled(false);
 				if (_invertOrder) {
-					first.setFocus();
+					_first->setFocus();
 				} else {
-					last.setFocus();
+					_last->setFocus();
 				}
 			}
 		}
 	}
-	if (!sentRequest && status == MTP::RequestSent) {
+	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
 }
@@ -252,8 +252,8 @@ void IntroSignup::onPhotoReady(const QImage &img) {
 
 void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
-	first.setDisabled(false);
-	last.setDisabled(false);
+	_first->setDisabled(false);
+	_last->setDisabled(false);
 	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
@@ -265,21 +265,21 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 bool IntroSignup::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
-		first.setDisabled(false);
-		last.setDisabled(false);
+		_first->setDisabled(false);
+		_last->setDisabled(false);
 		showError(lang(lng_flood_error));
 		if (_invertOrder) {
-			first.setFocus();
+			_first->setFocus();
 		} else {
-			last.setFocus();
+			_last->setFocus();
 		}
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
-	first.setDisabled(false);
-	last.setDisabled(false);
+	_first->setDisabled(false);
+	_last->setDisabled(false);
 	const QString &err = error.type();
 	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
 		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
@@ -288,11 +288,11 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
 		showError(lang(lng_bad_name));
-		first.setFocus();
+		_first->setFocus();
 		return true;
 	} else if (err == "LASTNAME_INVALID") {
 		showError(lang(lng_bad_name));
-		last.setFocus();
+		_last->setFocus();
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -301,9 +301,9 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 		showError(lang(lng_server_error));
 	}
 	if (_invertOrder) {
-		last.setFocus();
+		_last->setFocus();
 	} else {
-		first.setFocus();
+		_first->setFocus();
 	}
 	return false;
 }
@@ -314,33 +314,33 @@ void IntroSignup::onInputChange() {
 
 void IntroSignup::onSubmitName(bool force) {
 	if (_invertOrder) {
-		if ((last.hasFocus() || last.text().trimmed().length()) && !first.text().trimmed().length()) {
-			first.setFocus();
+		if ((_last->hasFocus() || _last->text().trimmed().length()) && !_first->text().trimmed().length()) {
+			_first->setFocus();
 			return;
-		} else if (!last.text().trimmed().length()) {
-			last.setFocus();
+		} else if (!_last->text().trimmed().length()) {
+			_last->setFocus();
 			return;
 		}
 	} else {
-		if ((first.hasFocus() || first.text().trimmed().length()) && !last.text().trimmed().length()) {
-			last.setFocus();
+		if ((_first->hasFocus() || _first->text().trimmed().length()) && !_last->text().trimmed().length()) {
+			_last->setFocus();
 			return;
-		} else if (!first.text().trimmed().length()) {
-			first.setFocus();
+		} else if (!_first->text().trimmed().length()) {
+			_first->setFocus();
 			return;
 		}
 	}
-	if (!force && !first.isEnabled()) return;
+	if (!force && !_first->isEnabled()) return;
 
-	first.setDisabled(true);
-	last.setDisabled(true);
+	_first->setDisabled(true);
+	_last->setDisabled(true);
 	setFocus();
 
 	showError(QString());
 
-	firstName = first.text().trimmed();
-	lastName = last.text().trimmed();
-	sentRequest = MTP::send(MTPauth_SignUp(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(intro()->getCode()), MTP_string(firstName), MTP_string(lastName)), rpcDone(&IntroSignup::nameSubmitDone), rpcFail(&IntroSignup::nameSubmitFail));
+	_firstName = _first->text().trimmed();
+	_lastName = _last->text().trimmed();
+	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(intro()->getCode()), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&IntroSignup::nameSubmitDone), rpcFail(&IntroSignup::nameSubmitFail));
 }
 
 void IntroSignup::onSubmit() {

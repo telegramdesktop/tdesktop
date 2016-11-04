@@ -33,9 +33,6 @@ imageBg: #000000;
 imageBgTransparent: #ffffff;
 
 // widgets
-cancelIconFg: #a2a2a2;
-cancelIconFgOver: #808080;
-
 activeButtonBg: windowActiveFill;
 activeButtonBgOver: #46b4eb | activeButtonBg;
 activeButtonFg: #ffffff;
@@ -48,7 +45,9 @@ lightButtonBgOver: #f2f7fa | lightButtonBg;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
-menuIconFg: #808080 | windowSubTextFg;
+menuIconFg: windowSubTextFg;
+
+dialogsMenuIconFg: menuIconFg;
 
 // custom title bar for Windows
 titleBg: windowOverBg;
@@ -68,6 +67,9 @@ trayCounterFgMacInvert: #ffffff01;
 
 // layers
 layerBg: #0000007f;
+
+cancelIconFg: #a2a2a2;
+cancelIconFgOver: #808080;
 
 // boxes
 boxBg: windowBg;

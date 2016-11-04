@@ -23,9 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introwidget.h"
 #include "ui/flatlabel.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class IntroStart final : public IntroStep {
 public:
-
 	IntroStart(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -34,11 +37,12 @@ public:
 	void onSubmit() override;
 
 private:
+	ChildWidget<FlatLabel> _intro;
 
-	FlatLabel _intro;
+	ChildWidget<LinkButton> _changeLang;
 
-	LinkButton _changeLang;
+	ChildWidget<Ui::RoundButton> _next;
 
-	FlatButton _next;
-	int32 _headerWidth;
+	int32 _headerWidth = 0;
+
 };

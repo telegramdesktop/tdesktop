@@ -25,6 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatinput.h"
 #include "intro/introwidget.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class CodeInput final : public FlatInput {
 	Q_OBJECT
 
@@ -43,7 +47,6 @@ class IntroCode final : public IntroStep {
 	Q_OBJECT
 
 public:
-
 	IntroCode(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -65,7 +68,6 @@ public:
 	void updateDescText();
 
 public slots:
-
 	void onSubmitCode();
 	void onNoTelegramCode();
 	void onInputChange();
@@ -73,32 +75,32 @@ public slots:
 	void onCheckRequest();
 
 private:
-
 	void showError(const QString &err);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 
-	void stopCheck();
-
-	QString error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
-
-	FlatButton next;
-
-	Text _desc;
-	LinkButton _noTelegramCode;
-	mtpRequestId _noTelegramCodeRequestId;
-	QRect textRect;
-
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	bool noTelegramCodeFail(const RPCError &result);
 
-	CodeInput code;
-	QString sentCode;
-	mtpRequestId sentRequest;
-	QTimer callTimer;
-	IntroWidget::CallStatus callStatus;
+	void stopCheck();
 
-	QTimer checkRequest;
+	QString _error;
+	anim::fvalue a_errorAlpha;
+	Animation _a_error;
+
+	ChildWidget<Ui::RoundButton> _next;
+
+	Text _desc;
+	ChildWidget<LinkButton> _noTelegramCode;
+	mtpRequestId _noTelegramCodeRequestId;
+	QRect _textRect;
+
+	ChildWidget<CodeInput> _code;
+	QString _sentCode;
+	mtpRequestId _sentRequest = 0;
+	ChildObject<QTimer> _callTimer;
+	IntroWidget::CallStatus _callStatus;
+
+	ChildObject<QTimer> _checkRequest;
+
 };

@@ -1394,29 +1394,32 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 MsgId clientMsgId();
 
 struct MessageCursor {
-	MessageCursor() : position(0), anchor(0), scroll(QFIXED_MAX) {
-	}
+	MessageCursor() = default;
 	MessageCursor(int position, int anchor, int scroll) : position(position), anchor(anchor), scroll(scroll) {
 	}
-	MessageCursor(const QTextEdit &edit) {
+	MessageCursor(const QTextEdit *edit) {
 		fillFrom(edit);
 	}
-	void fillFrom(const QTextEdit &edit) {
-		QTextCursor c = edit.textCursor();
+	void fillFrom(const QTextEdit *edit) {
+		QTextCursor c = edit->textCursor();
 		position = c.position();
 		anchor = c.anchor();
-		QScrollBar *s = edit.verticalScrollBar();
+		QScrollBar *s = edit->verticalScrollBar();
 		scroll = (s && (s->value() != s->maximum())) ? s->value() : QFIXED_MAX;
 	}
-	void applyTo(QTextEdit &edit) {
-		QTextCursor c = edit.textCursor();
-		c.setPosition(anchor, QTextCursor::MoveAnchor);
-		c.setPosition(position, QTextCursor::KeepAnchor);
-		edit.setTextCursor(c);
-		QScrollBar *s = edit.verticalScrollBar();
-		if (s) s->setValue(scroll);
+	void applyTo(QTextEdit *edit) {
+		auto cursor = edit->textCursor();
+		cursor.setPosition(anchor, QTextCursor::MoveAnchor);
+		cursor.setPosition(position, QTextCursor::KeepAnchor);
+		edit->setTextCursor(cursor);
+		if (auto scrollbar = edit->verticalScrollBar()) {
+			scrollbar->setValue(scroll);
+		}
 	}
-	int position, anchor, scroll;
+	int position = 0;
+	int anchor = 0;
+	int scroll = QFIXED_MAX;
+
 };
 
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {

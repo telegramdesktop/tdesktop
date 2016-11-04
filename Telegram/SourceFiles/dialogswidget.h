@@ -233,7 +233,7 @@ private:
 
 };
 
-class DialogsWidget : public TWidget, public RPCSender {
+class DialogsWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -315,6 +315,8 @@ public slots:
 
 private:
 	void showMainMenu();
+	void updateLockUnlockVisibility();
+	void updateControlsGeometry();
 	void updateMainMenuGeometry();
 
 	bool _dragInScroll = false;
@@ -338,6 +340,7 @@ private:
 	ChildWidget<Ui::DropdownMenu> _mainMenu = { nullptr };
 	ChildWidget<FlatInput> _filter;
 	ChildWidget<Ui::IconButton> _cancelSearch;
+	ChildWidget<Ui::IconButton> _lockUnlock;
 	ScrollArea _scroll;
 	DialogsInner _inner;
 

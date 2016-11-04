@@ -85,11 +85,11 @@ public:
 	void inactivePress(bool inactive);
 	bool inactivePress() const;
 
-	void setupPasscode(bool anim);
+	void setupPasscode();
 	void clearPasscode();
 	void checkAutoLockIn(int msec);
-	void setupIntro(bool anim);
-	void setupMain(bool anim, const MTPUser *user = 0);
+	void setupIntro();
+	void setupMain(const MTPUser *user = 0);
 	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();

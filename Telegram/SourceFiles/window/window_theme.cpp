@@ -419,7 +419,9 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 
 void ChatBackground::start() {
 	if (_id == internal::kUninitializedBackground) {
-		setImage(kThemeBackground);
+		if (!Local::readBackground()) {
+			setImage(kThemeBackground);
+		}
 	}
 }
 

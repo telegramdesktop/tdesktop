@@ -750,12 +750,12 @@ AppClass::AppClass() : QObject() {
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
-		_window->setupPasscode(false);
+		_window->setupPasscode();
 	} else {
 		if (MTP::authedId()) {
-			_window->setupMain(false);
+			_window->setupMain();
 		} else {
-			_window->setupIntro(false);
+			_window->setupIntro();
 		}
 	}
 	_window->firstShow();

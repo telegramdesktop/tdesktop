@@ -25,36 +25,38 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "intro/introphone.h"
 #include "langloaderplain.h"
+#include "ui/buttons/round_button.h"
 
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 , _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
 , _changeLang(this, QString())
 , _next(this, lang(lng_start_msgs), st::introNextButton) {
-	_changeLang.hide();
+	_changeLang->hide();
 	if (cLang() == languageDefault) {
 		int32 l = Sandbox::LangSystem();
 		if (l != languageDefault) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l].c_str() + qsl(".strings"), langLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
-				_changeLang.setText(text);
+				_changeLang->setText(text);
 				parent->langChangeTo(l);
-				_changeLang.show();
+				_changeLang->show();
 			}
 		}
 	} else {
-		_changeLang.setText(langOriginal(lng_switch_to_this));
+		_changeLang->setText(langOriginal(lng_switch_to_this));
 		parent->langChangeTo(languageDefault);
-		_changeLang.show();
+		_changeLang->show();
 	}
 
 	_headerWidth = st::introHeaderFont->width(qsl("Telegram Desktop"));
 
 	setGeometry(parent->innerRect());
 
-	connect(&_next, SIGNAL(clicked()), parent, SLOT(onStepSubmit()));
+	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	connect(_next, SIGNAL(clicked()), parent, SLOT(onStepSubmit()));
 
-	connect(&_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
+	connect(_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
 
 	setMouseTracking(true);
 }
@@ -66,7 +68,7 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
-	int32 hy = _intro.y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
+	int32 hy = _intro->y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
 
 	p.setFont(st::introHeaderFont);
 	p.setPen(st::introHeaderFg);
@@ -77,9 +79,9 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 
 void IntroStart::resizeEvent(QResizeEvent *e) {
 	if (e->oldSize().width() != width()) {
-		_next.move((width() - _next.width()) / 2, st::introBtnTop);
-		_intro.move((width() - _intro.width()) / 2, _next.y() - _intro.height() - st::introSkip);
-		_changeLang.move((width() - _changeLang.width()) / 2, _next.y() + _next.height() + _changeLang.height());
+		_next->move((width() - _next->width()) / 2, st::introBtnTop);
+		_intro->move((width() - _intro->width()) / 2, _next->y() - _intro->height() - st::introSkip);
+		_changeLang->move((width() - _changeLang->width()) / 2, _next->y() + _next->height() + _changeLang->height());
 	}
 }
 

@@ -20,16 +20,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
 #include "ui/flatbutton.h"
 #include "ui/flatinput.h"
 #include "intro/introwidget.h"
+
+namespace Ui {
+class RoundButton;
+} // namespace Ui
 
 class IntroSignup final : public IntroStep {
 	Q_OBJECT
 
 public:
-
 	IntroSignup(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -48,14 +50,12 @@ public:
 	bool nameSubmitFail(const RPCError &error);
 
 public slots:
-
 	void onSubmitName(bool force = false);
 	void onInputChange();
 	void onCheckRequest();
 	void onPhotoReady(const QImage &img);
 
 private:
-
 	void showError(const QString &err);
 	void stopCheck();
 
@@ -64,20 +64,22 @@ private:
 	Animation _a_error;
 	Animation _a_photo;
 
-	FlatButton next;
+	ChildWidget<Ui::RoundButton> _next;
 
-	QRect textRect;
+	QRect _textRect;
 
-	bool _photoOver;
+	bool _photoOver = false;
 	QImage _photoBig;
 	QPixmap _photoSmall;
 	int32 _phLeft, _phTop;
 
-	FlatInput first, last;
-	QString firstName, lastName;
-	mtpRequestId sentRequest;
+	ChildWidget<FlatInput> _first;
+	ChildWidget<FlatInput> _last;
+	QString _firstName, _lastName;
+	mtpRequestId _sentRequest = 0;
 
-	bool _invertOrder;
+	bool _invertOrder = false;
 
-	QTimer checkRequest;
+	ChildObject<QTimer> _checkRequest;
+
 };

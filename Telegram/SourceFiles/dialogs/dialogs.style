@@ -87,10 +87,15 @@ dialogsMenuToggle: IconButton {
 	width: 32px;
 	height: 32px;
 
-	icon: icon {{ "dialogs_menu", #999999 }};
+	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
 	iconPosition: point(6px, 6px);
 	iconPositionDown: point(6px, 6px);
 }
+dialogsLock: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
+}
+dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
+
 dialogsFilter: flatInput(inpDefGray) {
 	font: font(fsize);
 	bgColor: #f2f2f2;

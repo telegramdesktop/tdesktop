@@ -246,13 +246,8 @@ passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
 passcodeInput: flatInput(inpIntroPhone) {
 }
-passcodeSubmit: flatButton(introNextButton) {
-	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
+passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
-	font: font(19px);
-	overFont: font(19px);
 }
 passcodeSubmitSkip: 40px;
 passcodePadding: margins(0px, 22px, 0px, 3px);

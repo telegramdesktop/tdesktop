@@ -20,6 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class PasscodeWidget : public TWidget {
 	Q_OBJECT
 
@@ -32,13 +36,9 @@ public:
 	void step_show(float64 ms, bool timer);
 	void stop_show();
 
-	~PasscodeWidget();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
 
 public slots:
 	void onError();
@@ -54,9 +54,9 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	FlatInput _passcode;
-	FlatButton _submit;
-	LinkButton _logout;
+	ChildWidget<FlatInput> _passcode;
+	ChildWidget<Ui::RoundButton> _submit;
+	ChildWidget<LinkButton> _logout;
 	QString _error;
 
 };

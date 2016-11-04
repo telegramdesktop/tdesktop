@@ -20,16 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "ui/flatbutton.h"
 #include "ui/flatinput.h"
 #include "intro/introwidget.h"
+
+namespace Ui {
+class RoundButton;
+} // namespace Ui
 
 class IntroPwdCheck final : public IntroStep {
 	Q_OBJECT
 
 public:
-
 	IntroPwdCheck(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -49,7 +50,6 @@ public:
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
 public slots:
-
 	void onSubmitPwd(bool force = false);
 	void onToRecover();
 	void onToPassword();
@@ -60,32 +60,35 @@ public slots:
 	void onResetSure();
 
 private:
-
-	void showError(const QString &err);
+	void showError(const QString &error);
 	void stopCheck();
 
 	void deleteDone(const MTPBool &result);
 	bool deleteFail(const RPCError &error);
 
-	QString error;
+	QString _error;
 	anim::fvalue a_errorAlpha;
 	Animation _a_error;
 
-	FlatButton _next;
+	ChildWidget<Ui::RoundButton> _next;
 
-	QRect textRect;
+	QRect _textRect;
 
 	QByteArray _salt;
 	bool _hasRecovery;
 	QString _hint, _emailPattern;
 
-	FlatInput _pwdField, _codeField;
-	LinkButton _toRecover, _toPassword, _reset;
-	mtpRequestId sentRequest;
+	ChildWidget<FlatInput> _pwdField;
+	ChildWidget<FlatInput> _codeField;
+	ChildWidget<LinkButton> _toRecover;
+	ChildWidget<LinkButton> _toPassword;
+	ChildWidget<LinkButton> _reset;
+	mtpRequestId _sentRequest = 0;
 
 	Text _hintText;
 
 	QByteArray _pwdSalt;
 
-	QTimer checkRequest;
+	ChildObject<QTimer> _checkRequest;
+
 };

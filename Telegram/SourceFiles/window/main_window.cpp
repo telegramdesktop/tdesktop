@@ -126,12 +126,12 @@ void MainWindow::savePosition(Qt::WindowState state) {
 	if (state == Qt::WindowActive) state = windowHandle()->windowState();
 	if (state == Qt::WindowMinimized || !positionInited()) return;
 
-	TWindowPos pos(cWindowPos()), curPos = pos;
+	auto pos = cWindowPos(), curPos = pos;
 
 	if (state == Qt::WindowMaximized) {
 		curPos.maximized = 1;
 	} else {
-		QRect r(geometry());
+		auto r = geometry();
 		curPos.x = r.x();
 		curPos.y = r.y();
 		curPos.w = r.width();

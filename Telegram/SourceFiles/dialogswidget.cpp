@@ -1028,10 +1028,6 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		}
 	}
 	Notify::unreadCounterUpdated();
-	if (!_sel && !shownDialogs()->isEmpty()) {
-		_sel = *shownDialogs()->cbegin();
-		_importantSwitchSel = false;
-	}
 	refresh();
 }
 
@@ -1776,6 +1772,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
+, _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll)
 , _inner(&_scroll, parent)
 , _a_show(animation(this, &DialogsWidget::step_show)) {
@@ -1793,8 +1790,15 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	connect(_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
-	connect(_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
 
+	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
+	_lockUnlock->setVisible(Global::LocalPasscode());
+	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
+	_lockUnlock->setClickedCallback([this] {
+		_lockUnlock->setIcon(&st::dialogsUnlockIcon);
+		App::wnd()->setupPasscode();
+		_lockUnlock->setIcon(nullptr);
+	});
 	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });
 
 	_chooseByDragTimer.setSingleShot(true);
@@ -1851,8 +1855,10 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_a_show.stop();
 
 	_scroll.hide();
+	_mainMenuToggle->hide();
 	_filter->hide();
 	_cancelSearch->hide();
+	_lockUnlock->hide();
 
 	int delta = st::slideShift;
 	if (direction == Window::SlideDirection::FromLeft) {
@@ -1880,7 +1886,9 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 		_cacheUnder = _cacheOver = QPixmap();
 
 		_scroll.show();
+		_mainMenuToggle->show();
 		_filter->show();
+		updateLockUnlockVisibility();
 		_a_show.stop();
 
 		onFilterUpdate();
@@ -2440,22 +2448,40 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
-	int32 w = width();
-	_filter->setGeometryToLeft(st::dialogsFilterPadding.x() * 2 + _mainMenuToggle->width(), st::dialogsFilterPadding.y(), w - 3 * st::dialogsFilterPadding.x() - _mainMenuToggle->width(), _filter->height());
-	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), _filter->y());
-	_cancelSearch->moveToRight(st::dialogsFilterPadding.x(), _filter->y());
+	updateControlsGeometry();
+
 	_scroll.move(0, _filter->height() + 2 * st::dialogsFilterPadding.y());
 
 	updateMainMenuGeometry();
 
 	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;
 	int32 newScrollY = _scroll.scrollTop() + addToY;
-	_scroll.resize(w, height() - _filter->y() - _filter->height() - st::dialogsFilterPadding.y() - st::dialogsPadding.y());
+	_scroll.resize(width(), height() - _filter->y() - _filter->height() - st::dialogsFilterPadding.y() - st::dialogsPadding.y());
 	if (addToY) {
 		_scroll.scrollToY(newScrollY);
 	} else {
 		onListScroll();
 	}
+}
+
+void DialogsWidget::updateLockUnlockVisibility() {
+	if (!_a_show.animating()) {
+		_lockUnlock->setVisible(Global::LocalPasscode());
+	}
+	updateControlsGeometry();
+}
+
+void DialogsWidget::updateControlsGeometry() {
+	auto filterLeft = st::dialogsFilterPadding.x() * 2 + _mainMenuToggle->width();
+	auto filterWidth = width() - 2 * st::dialogsFilterPadding.x();
+	filterWidth -= st::dialogsFilterPadding.x() + _mainMenuToggle->width();
+	if (Global::LocalPasscode()) {
+		filterWidth -= st::dialogsFilterPadding.x() + _lockUnlock->width();
+	}
+	_filter->setGeometryToLeft(filterLeft, st::dialogsFilterPadding.y(), filterWidth, _filter->height());
+	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), _filter->y());
+	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), _filter->y());
+	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 }
 
 void DialogsWidget::updateMainMenuGeometry() {

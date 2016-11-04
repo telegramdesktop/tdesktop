@@ -35,8 +35,8 @@ struct Draft {
 		, previewCancelled(previewCancelled)
 		, saveRequestId(saveRequestId) {
 	}
-	Draft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId = 0)
-		: textWithTags(field.getTextWithTags())
+	Draft(const FlatTextarea *field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId = 0)
+		: textWithTags(field->getTextWithTags())
 		, msgId(msgId)
 		, cursor(field)
 		, previewCancelled(previewCancelled) {

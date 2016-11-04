@@ -338,7 +338,7 @@ void IntroWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
-	App::wnd()->setupMain(true, &user);
+	App::wnd()->setupMain(&user);
 	if (!photo.isNull()) {
 		App::app()->uploadProfilePhoto(photo, MTP::authedId());
 	}

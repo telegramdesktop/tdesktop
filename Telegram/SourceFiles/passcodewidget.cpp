@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
+#include "ui/buttons/round_button.h"
 #include "styles/style_boxes.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
@@ -33,32 +34,32 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _passcode(this, st::passcodeInput)
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
-	_passcode.setEchoMode(QLineEdit::Password);
-	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
+	_passcode->setEchoMode(QLineEdit::Password);
+	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
+	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
-	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(&_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-
-	connect(&_logout, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
+	_submit->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_submit->setClickedCallback([this] { onSubmit(); });
+	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
 
 	show();
-	_passcode.setFocus();
+	_passcode->setFocus();
 }
 
 void PasscodeWidget::onSubmit() {
-	if (_passcode.text().isEmpty()) {
-		_passcode.notaBene();
+	if (_passcode->text().isEmpty()) {
+		_passcode->notaBene();
 		return;
 	}
 	if (!passcodeCanTry()) {
 		_error = lang(lng_flood_error);
-		_passcode.notaBene();
+		_passcode->notaBene();
 		update();
 		return;
 	}
 
 	if (App::main()) {
-		if (Local::checkPasscode(_passcode.text().toUtf8())) {
+		if (Local::checkPasscode(_passcode->text().toUtf8())) {
 			cSetPasscodeBadTries(0);
 			App::wnd()->clearPasscode();
 		} else {
@@ -68,14 +69,14 @@ void PasscodeWidget::onSubmit() {
 			return;
 		}
 	} else {
-		if (Local::readMap(_passcode.text().toUtf8()) != Local::ReadMapPassNeeded) {
+		if (Local::readMap(_passcode->text().toUtf8()) != Local::ReadMapPassNeeded) {
 			cSetPasscodeBadTries(0);
 
 			MTP::start();
 			if (MTP::authedId()) {
-				App::wnd()->setupMain(true);
+				App::wnd()->setupMain();
 			} else {
-				App::wnd()->setupIntro(true);
+				App::wnd()->setupIntro();
 			}
 
 			App::app()->checkMapVersion();
@@ -90,8 +91,8 @@ void PasscodeWidget::onSubmit() {
 
 void PasscodeWidget::onError() {
 	_error = lang(lng_passcode_wrong);
-	_passcode.selectAll();
-	_passcode.notaBene();
+	_passcode->selectAll();
+	_passcode->notaBene();
 	update();
 }
 
@@ -151,15 +152,15 @@ void PasscodeWidget::stop_show() {
 }
 
 void PasscodeWidget::showAll() {
-	_passcode.show();
-	_submit.show();
-	_logout.show();
+	_passcode->show();
+	_submit->show();
+	_logout->show();
 }
 
 void PasscodeWidget::hideAll() {
-	_passcode.hide();
-	_submit.hide();
-	_logout.hide();
+	_passcode->hide();
+	_submit->hide();
+	_logout->hide();
 }
 
 void PasscodeWidget::paintEvent(QPaintEvent *e) {
@@ -186,32 +187,22 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 
 		p.setFont(st::passcodeHeaderFont);
 		p.setPen(st::windowTextFg);
-		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
+		p.drawText(QRect(0, _passcode->y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
 
 		if (!_error.isEmpty()) {
 			p.setFont(st::boxTextFont);
 			p.setPen(st::boxTextFgError);
-			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
+			p.drawText(QRect(0, _passcode->y() + _passcode->height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
 		}
 	}
 }
 
 void PasscodeWidget::resizeEvent(QResizeEvent *e) {
-	_passcode.move((width() - _passcode.width()) / 2, (height() / 3));
-	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSubmitSkip);
-	_logout.move(_passcode.x() + (_passcode.width() - _logout.width()) / 2, _submit.y() + _submit.height() + st::linkFont->ascent);
-}
-
-void PasscodeWidget::mousePressEvent(QMouseEvent *e) {
-
-}
-
-void PasscodeWidget::keyPressEvent(QKeyEvent *e) {
+	_passcode->move((width() - _passcode->width()) / 2, (height() / 3));
+	_submit->move(_passcode->x(), _passcode->y() + _passcode->height() + st::passcodeSubmitSkip);
+	_logout->move(_passcode->x() + (_passcode->width() - _logout->width()) / 2, _submit->y() + _submit->height() + st::linkFont->ascent);
 }
 
 void PasscodeWidget::setInnerFocus() {
-	_passcode.setFocus();
-}
-
-PasscodeWidget::~PasscodeWidget() {
+	_passcode->setFocus();
 }

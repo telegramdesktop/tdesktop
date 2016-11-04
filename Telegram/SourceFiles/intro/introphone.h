@@ -25,11 +25,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/flatlabel.h"
 #include "intro/introwidget.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class IntroPhone final : public IntroStep {
 	Q_OBJECT
 
 public:
-
 	IntroPhone(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e) override;
@@ -51,14 +54,12 @@ public:
 	void toSignUp();
 
 public slots:
-
 	void countryChanged();
 	void onInputChange();
 	void onSubmitPhone();
 	void onCheckRequest();
 
 private:
-
 	QString fullNumber() const;
 	void disableAll();
 	void enableAll(bool failed);
@@ -66,25 +67,26 @@ private:
 
 	void showError(const QString &err, bool signUp = false);
 
-	QString error;
+	QString _error;
 	anim::fvalue a_errorAlpha;
 	Animation _a_error;
 
-	bool changed;
-	FlatButton next;
+	bool _changed = false;
+	ChildWidget<Ui::RoundButton> _next;
 
-	QRect textRect;
+	QRect _textRect;
 
-	CountryInput country;
-	PhonePartInput phone;
-	CountryCodeInput code;
+	ChildWidget<CountryInput> _country;
+	ChildWidget<PhonePartInput> _phone;
+	ChildWidget<CountryCodeInput> _code;
 
-	FlatLabel _signup;
+	ChildWidget<FlatLabel> _signup;
 	QPixmap _signupCache;
-	bool _showSignup;
+	bool _showSignup = false;
 
-	QString sentPhone;
-	mtpRequestId sentRequest;
+	QString _sentPhone;
+	mtpRequestId _sentRequest = 0;
 
-	QTimer checkRequest;
+	ChildObject<QTimer> _checkRequest;
+
 };

@@ -255,9 +255,9 @@ void MainWindow::clearPasscode() {
 	}
 }
 
-void MainWindow::setupPasscode(bool anim) {
-	auto bg = grabInner();
-
+void MainWindow::setupPasscode() {
+	auto animated = (_main || _intro);
+	auto bg = animated ? grabInner() : QPixmap();
 	if (_passcode) {
 		_passcode->stop_show();
 		_passcode.destroyDelayed();
@@ -270,7 +270,7 @@ void MainWindow::setupPasscode(bool anim) {
 		_settings.destroyDelayed();
 	}
 	if (_intro) _intro->hide();
-	if (anim) {
+	if (animated) {
 		_passcode->animShow(bg);
 	} else {
 		setInnerFocus();
@@ -294,14 +294,14 @@ void MainWindow::checkAutoLock() {
 	App::app()->checkLocalTime();
 	uint64 ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000ULL;
 	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
-		setupPasscode(true);
+		setupPasscode();
 	} else {
 		_shouldLockAt = ms + (should - idle);
 		_autoLockTimer.start(should - idle);
 	}
 }
 
-void MainWindow::setupIntro(bool anim) {
+void MainWindow::setupIntro() {
 	cSetContactsReceived(false);
 	cSetDialogsReceived(false);
 	if (_intro && !_intro->isHidden() && !_main) return;
@@ -311,14 +311,17 @@ void MainWindow::setupIntro(bool anim) {
 	}
 	Ui::hideSettingsAndLayer(true);
 
-	QPixmap bg = anim ? grabInner() : QPixmap();
+	auto animated = (_main || _passcode);
+	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
 	_intro.create(bodyWidget());
 	updateControlsGeometry();
 
-	if (anim) {
+	if (animated) {
 		_intro->animShow(bg);
+	} else {
+		setInnerFocus();
 	}
 
 	fixOrder();
@@ -361,13 +364,15 @@ void MainWindow::sendServiceHistoryRequest() {
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), _main->rpcDone(&MainWidget::serviceHistoryDone), _main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
-void MainWindow::setupMain(bool anim, const MTPUser *self) {
-	QPixmap bg = anim ? grabInner() : QPixmap();
+void MainWindow::setupMain(const MTPUser *self) {
+	auto animated = (_intro || _passcode);
+	auto bg = animated ? grabInner() : QPixmap();
+
 	clearWidgets();
 	_main.create(bodyWidget());
 	updateControlsGeometry();
 
-	if (anim) {
+	if (animated) {
 		_main->animShow(bg);
 	} else {
 		_main->activate();

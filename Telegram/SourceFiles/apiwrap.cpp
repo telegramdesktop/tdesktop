@@ -34,9 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 , _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
-	if (!Local::readBackground()) {
-		Window::Theme::Background()->start();
-	}
+	Window::Theme::Background()->start();
 
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 	connect(&_draftsSaveTimer, SIGNAL(timeout()), this, SLOT(saveDraftsToCloud()));

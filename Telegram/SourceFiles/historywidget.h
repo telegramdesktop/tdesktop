@@ -351,8 +351,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	FlatButton _report, _hide;
-	LinkButton _clear;
+	ChildWidget<FlatButton> _report;
+	ChildWidget<FlatButton> _hide;
+	ChildWidget<LinkButton> _clear;
 
 };
 
@@ -489,7 +490,8 @@ private:
 	QString _shareUrl, _shareText;
 	QString _botAndQuery;
 
-	BoxButton _send, _cancel;
+	ChildWidget<BoxButton> _send;
+	ChildWidget<BoxButton> _cancel;
 	PeerData *_offered = nullptr;
 
 	anim::fvalue a_opacity;
@@ -1098,7 +1100,11 @@ private:
 
 	ReportSpamPanel _reportSpamPanel;
 
-	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
+	ChildWidget<FlatButton> _send;
+	ChildWidget<FlatButton> _unblock;
+	ChildWidget<FlatButton> _botStart;
+	ChildWidget<FlatButton> _joinChannel;
+	ChildWidget<FlatButton> _muteUnmute;
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	ChildWidget<Ui::IconButton> _attachDocument;
@@ -1109,7 +1115,7 @@ private:
 	ChildWidget<Ui::IconButton> _botCommandStart;
 	ChildWidget<SilentToggle> _silent;
 	bool _cmdStartShown = false;
-	MessageField _field;
+	ChildWidget<MessageField> _field;
 	Animation _a_record, _a_recording;
 	bool _recording = false;
 	bool _inRecord = false;

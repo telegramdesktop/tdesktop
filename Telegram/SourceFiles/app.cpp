@@ -199,7 +199,7 @@ namespace {
 		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
-			w->setupIntro(true);
+			w->setupIntro();
 		}
 		MTP::setAuthedId(0);
 		Local::reset();
