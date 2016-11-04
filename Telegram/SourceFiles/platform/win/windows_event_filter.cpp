@@ -183,20 +183,20 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		GetWindowRect(hWnd, &r);
 		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
 		switch (res) {
-		case HitTestType::Client:
-		case HitTestType::SysButton:   *result = HTCLIENT; break;
-		case HitTestType::Icon:        *result = HTCAPTION; break;
-		case HitTestType::Caption:     *result = HTCAPTION; break;
-		case HitTestType::Top:         *result = HTTOP; break;
-		case HitTestType::TopRight:    *result = HTTOPRIGHT; break;
-		case HitTestType::Right:       *result = HTRIGHT; break;
-		case HitTestType::BottomRight: *result = HTBOTTOMRIGHT; break;
-		case HitTestType::Bottom:      *result = HTBOTTOM; break;
-		case HitTestType::BottomLeft:  *result = HTBOTTOMLEFT; break;
-		case HitTestType::Left:        *result = HTLEFT; break;
-		case HitTestType::TopLeft:     *result = HTTOPLEFT; break;
-		case HitTestType::None:
-		default:                 *result = HTTRANSPARENT; break;
+		case Window::HitTestResult::Client:
+		case Window::HitTestResult::SysButton:   *result = HTCLIENT; break;
+		case Window::HitTestResult::Icon:        *result = HTCAPTION; break;
+		case Window::HitTestResult::Caption:     *result = HTCAPTION; break;
+		case Window::HitTestResult::Top:         *result = HTTOP; break;
+		case Window::HitTestResult::TopRight:    *result = HTTOPRIGHT; break;
+		case Window::HitTestResult::Right:       *result = HTRIGHT; break;
+		case Window::HitTestResult::BottomRight: *result = HTBOTTOMRIGHT; break;
+		case Window::HitTestResult::Bottom:      *result = HTBOTTOM; break;
+		case Window::HitTestResult::BottomLeft:  *result = HTBOTTOMLEFT; break;
+		case Window::HitTestResult::Left:        *result = HTLEFT; break;
+		case Window::HitTestResult::TopLeft:     *result = HTTOPLEFT; break;
+		case Window::HitTestResult::None:
+		default:                                 *result = HTTRANSPARENT; break;
 		};
 	} return true;
 
@@ -210,23 +210,23 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		GetWindowRect(hWnd, &r);
 		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
 		switch (res) {
-		case HitTestType::Icon:
-		if (menuHidden && getms() < menuHidden + 10) {
-			menuHidden = 0;
-			if (getms() < menuShown + GetDoubleClickTime()) {
-				App::wnd()->close();
+		case Window::HitTestResult::Icon:
+			if (menuHidden && getms() < menuHidden + 10) {
+				menuHidden = 0;
+				if (getms() < menuShown + GetDoubleClickTime()) {
+					App::wnd()->close();
+				}
+			} else {
+				QRect icon = App::wnd()->iconRect();
+				p.x = r.left - App::wnd()->deltaLeft() + icon.left();
+				p.y = r.top - App::wnd()->deltaTop() + icon.top() + icon.height();
+				App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
+				menuShown = getms();
+				menuHidden = 0;
+				TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
+				menuHidden = getms();
 			}
-		} else {
-			QRect icon = App::wnd()->iconRect();
-			p.x = r.left - App::wnd()->deltaLeft() + icon.left();
-			p.y = r.top - App::wnd()->deltaTop() + icon.top() + icon.height();
-			App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
-			menuShown = getms();
-			menuHidden = 0;
-			TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
-			menuHidden = getms();
-		}
-		return true;
+			return true;
 		};
 	} return false;
 
@@ -236,7 +236,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		GetWindowRect(hWnd, &r);
 		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
 		switch (res) {
-		case HitTestType::Icon: App::wnd()->close(); return true;
+		case Window::HitTestResult::Icon: App::wnd()->close(); return true;
 		};
 	} return false;
 

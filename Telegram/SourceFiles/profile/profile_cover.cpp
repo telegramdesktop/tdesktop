@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_cover.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_window.h"
 #include "profile/profile_cover_drop_area.h"
 #include "profile/profile_userpic_button.h"
 #include "ui/buttons/round_button.h"
@@ -112,7 +113,7 @@ void CoverWidget::onCancelPhotoUpload() {
 
 int CoverWidget::countPhotoLeft(int newWidth) const {
 	int result = st::profilePhotoLeftMin;
-	result += (newWidth - st::wndMinWidth) / 2;
+	result += (newWidth - st::windowMinWidth) / 2;
 	return qMin(result, st::profilePhotoLeftMax);
 }
 

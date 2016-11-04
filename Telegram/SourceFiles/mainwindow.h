@@ -20,14 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "title.h"
 #include "pspecific.h"
 #include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
+#include "window/window_title.h"
 #include "core/single_timer.h"
 
 class MediaView;
-class TitleWidget;
 class PasscodeWidget;
 class IntroWidget;
 class MainWidget;
@@ -49,13 +48,15 @@ class WarningWidget;
 } // namespace Theme
 } // namespace Window
 
-class ConnectingWidget : public QWidget {
+class ConnectingWidget : public TWidget {
 	Q_OBJECT
 
 public:
 	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
 	void set(const QString &text, const QString &reconnect);
-	void paintEvent(QPaintEvent *e);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
 public slots:
 	void onReconnect();
@@ -82,19 +83,8 @@ public:
 
 	QWidget *filedialogParent();
 
-	bool eventFilter(QObject *obj, QEvent *evt);
-
 	void inactivePress(bool inactive);
 	bool inactivePress() const;
-
-	void wStartDrag(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void closeEvent(QCloseEvent *e);
-
-	void paintEvent(QPaintEvent *e);
-
-	void resizeEvent(QResizeEvent *e);
 
 	void setupPasscode(bool anim);
 	void clearPasscode();
@@ -107,13 +97,8 @@ public:
 
 	void mtpStateChanged(int32 dc, int32 state);
 
-	TitleWidget *getTitle();
-
-	HitTestType hitTest(const QPoint &p) const;
+	Window::HitTestResult hitTest(const QPoint &p) const;
 	QRect iconRect() const;
-
-	QRect clientRect() const;
-	QRect photoRect() const;
 
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
@@ -184,6 +169,11 @@ public:
 	void ui_hideMediaPreview();
 	PeerData *ui_getPeerForMouseAction();
 
+protected:
+	bool eventFilter(QObject *o, QEvent *e) override;
+	void closeEvent(QCloseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
 public slots:
 	void updateIsActive(int timeout = 0);
 
@@ -220,7 +210,6 @@ public slots:
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 signals:
-	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void newAuthorization();
@@ -250,13 +239,14 @@ private:
 	QVector<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
-	TitleWidget *title = nullptr;
-	PasscodeWidget *_passcode = nullptr;
-	IntroWidget *intro = nullptr;
-	MainWidget *main = nullptr;
-	ChildWidget<Settings::Widget> settings = { nullptr };
-	ChildWidget<LayerStackWidget> layerBg = { nullptr };
-	std_::unique_ptr<MediaPreviewWidget> _mediaPreview;
+	Window::TitleWidget *_title = nullptr;
+	ChildWidget<TWidget> _body;
+	ChildWidget<PasscodeWidget> _passcode = { nullptr };
+	ChildWidget<IntroWidget> _intro = { nullptr };
+	ChildWidget<MainWidget> _main = { nullptr };
+	ChildWidget<Settings::Widget> _settings = { nullptr };
+	ChildWidget<LayerStackWidget> _layerBg = { nullptr };
+	ChildWidget<MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	QTimer _isActiveTimer;
 	bool _isActive = false;
@@ -267,9 +257,6 @@ private:
 	Local::ClearManager *_clearManager = nullptr;
 
 	void clearWidgets();
-
-	bool dragging = false;
-	QPoint dragStart;
 
 	bool _inactivePress = false;
 	QTimer _inactiveTimer;

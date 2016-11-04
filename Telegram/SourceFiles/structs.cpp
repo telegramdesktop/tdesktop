@@ -981,11 +981,11 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 	auto &location = data->location(true);
 	if (auto applyTheme = data->name.endsWith(qstr(".tdesktop-theme"))) {
 		if (!location.isEmpty() && location.accessEnable()) {
-			if (Window::Theme::Apply(location.name())) {
-				location.accessDisable();
-				return;
+			if (!Window::Theme::Apply(location.name())) {
+				// show error?
 			}
 			location.accessDisable();
+			return;
 		}
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
@@ -1290,11 +1290,11 @@ void DocumentData::performActionOnLoad() {
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
 	if (auto applyTheme = name.endsWith(qstr(".tdesktop-theme"))) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
-			if (Window::Theme::Apply(loc.name())) {
-				loc.accessDisable();
-				return;
+			if (!Window::Theme::Apply(loc.name())) {
+				// show error?
 			}
 			loc.accessDisable();
+			return;
 		}
 	}
 	if (playVoice) {

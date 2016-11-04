@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
 #include "styles/style_settings.h"
+#include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/shadow.h"
 #include "ui/scrollarea.h"
@@ -123,7 +124,7 @@ void codesFeedString(const QString &text) {
 
 } // namespace
 
-Widget::Widget() : LayerWidget()
+Widget::Widget(QWidget *parent) : LayerWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this)
 , _fixedBar(this)
@@ -147,18 +148,18 @@ void Widget::parentResized() {
 	if (windowWidth <= st::settingsMaxWidth) {
 		newWidth = windowWidth;
 		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::wndMinWidth) {
-			// Width changes from st::wndMinWidth to st::settingsMaxWidth.
+		if (windowWidth > st::windowMinWidth) {
+			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
 			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::wndMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::wndMinWidth);
+			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
 		}
 	} else if (windowWidth < st::settingsMaxWidth + 2 * st::settingsMargin) {
 		newWidth = windowWidth - 2 * st::settingsMargin;
 		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::wndMinWidth) {
-			// Width changes from st::wndMinWidth to st::settingsMaxWidth.
+		if (windowWidth > st::windowMinWidth) {
+			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
 			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::wndMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::wndMinWidth);
+			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
 		}
 	}
 

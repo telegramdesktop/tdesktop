@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/main_window_win.h"
 
+#include "styles/style_window.h"
 #include "platform/platform_notifications_manager.h"
 #include "platform/win/windows_dlls.h"
 #include "window/notifications_manager.h"
@@ -140,13 +141,13 @@ public:
 	}
 
 	bool init(QColor c) {
-		_fullsize = st::wndShadow.width();
-		_shift = st::wndShadowShift;
+		_fullsize = st::windowShadow.width();
+		_shift = st::windowShadowShift;
 		QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&cornersImage);
 			p.setCompositionMode(QPainter::CompositionMode_Source);
-			st::wndShadow.paint(p, 0, 0, _fullsize);
+			st::windowShadow.paint(p, 0, 0, _fullsize);
 		}
 		if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 
@@ -191,9 +192,9 @@ public:
 
 		QRect avail(Sandbox::availableGeometry());
 		max_w = avail.width();
-		if (max_w < st::wndMinWidth) max_w = st::wndMinWidth;
+		accumulate_max(max_w, st::windowMinWidth);
 		max_h = avail.height();
-		if (max_h < st::wndMinHeight) max_h = st::wndMinHeight;
+		accumulate_max(max_h, st::windowMinHeight);
 
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
 		HWND hwnd = App::wnd() ? App::wnd()->psHwnd() : 0;
@@ -645,7 +646,7 @@ void MainWindow::psShowTrayMenu() {
 
 void MainWindow::psRefreshTaskbarIcon() {
 	QWidget *w = new QWidget(this);
-	w->setWindowFlags(::operator|(Qt::Tool, Qt::FramelessWindowHint));
+	w->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	w->setGeometry(x() + 1, y() + 1, 1, 1);
 	QPalette p(w->palette());
 	p.setColor(QPalette::Background, st::titleBg->c);
@@ -776,20 +777,17 @@ BOOL CALLBACK _monitorEnumProc(
 } // namespace
 
 void MainWindow::psInitSize() {
-	setMinimumWidth(st::wndMinWidth);
-	setMinimumHeight(st::wndMinHeight);
-
 	TWindowPos pos(cWindowPos());
 	QRect avail(Sandbox::availableGeometry());
 	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
+	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
 	if (pos.w && pos.h) {
 		if (pos.y < 0) pos.y = 0;
 		enumMonitor = 0;
 		EnumDisplayMonitors(0, 0, &_monitorEnumProc, pos.moncrc);
 		if (enumMonitor) {
 			int32 w = enumMonitorWork.right - enumMonitorWork.left, h = enumMonitorWork.bottom - enumMonitorWork.top;
-			if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
+			if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
 				if (pos.w > w) pos.w = w;
 				if (pos.h > h) pos.h = h;
 				pos.x += enumMonitorWork.left;
@@ -853,7 +851,7 @@ void MainWindow::psSavePosition(Qt::WindowState state) {
 		curPos.moncrc = hashCrc32(info.szDevice, sizeof(info.szDevice));
 	}
 
-	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
+	if (curPos.w >= st::windowMinWidth && curPos.h >= st::windowMinHeight) {
 		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
 			cSetWindowPos(curPos);
 			Local::writeSettings();
@@ -900,10 +898,6 @@ void MainWindow::psFirstShow() {
 	if (showShadows) {
 		shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized | ShadowsChange::Shown);
 	}
-}
-
-bool MainWindow::psHandleTitle() {
-	return true;
 }
 
 void MainWindow::psInitSysMenu() {

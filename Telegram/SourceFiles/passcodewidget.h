@@ -24,13 +24,8 @@ class PasscodeWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
 	PasscodeWidget(QWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
 	void setInnerFocus();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
@@ -39,15 +34,18 @@ public:
 
 	~PasscodeWidget();
 
-public slots:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
-	void onParentResize(const QSize &newSize);
+public slots:
 	void onError();
 	void onChanged();
 	void onSubmit();
 
 private:
-
 	void showAll();
 	void hideAll();
 

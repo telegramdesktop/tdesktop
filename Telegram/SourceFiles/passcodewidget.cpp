@@ -33,9 +33,6 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _passcode(this, st::passcodeInput)
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
-	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
-
 	_passcode.setEchoMode(QLineEdit::Password);
 	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
 
@@ -46,10 +43,6 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 
 	show();
 	_passcode.setFocus();
-}
-
-void PasscodeWidget::onParentResize(const QSize &newSize) {
-	resize(newSize);
 }
 
 void PasscodeWidget::onSubmit() {

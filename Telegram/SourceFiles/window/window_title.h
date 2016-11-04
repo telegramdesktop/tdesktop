@@ -20,44 +20,34 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+namespace Window {
 
-namespace Ui {
-class PlainShadow;
-} // namespace Ui
+enum class HitTestResult {
+	None = 0,
+	Client,
+	SysButton,
+	Icon,
+	Caption,
+	Top,
+	TopRight,
+	Right,
+	BottomRight,
+	Bottom,
+	BottomLeft,
+	Left,
+	TopLeft,
+};
 
-namespace Settings {
-
-class InnerWidget;
-class FixedBar;
-
-class Widget : public LayerWidget {
-	Q_OBJECT
-
+class TitleWidget : public TWidget {
 public:
-	Widget(QWidget *parent);
-
-	void parentResized() override;
-	void showDone() override;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-private slots:
-	void onInnerHeightUpdated();
-
-private:
-	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
-
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
-
-	int _contentLeft = 0;
+	using TWidget::TWidget;
+	virtual HitTestResult hitTest(const QPoint &p) const {
+		return HitTestResult::None;
+	}
+	virtual QRect iconRect() const {
+		return QRect();
+	}
 
 };
 
-} // namespace Settings
+} // namespace Window

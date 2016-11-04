@@ -37,7 +37,7 @@ boxBlueClose: MaskButton(defaultMaskButton) {
 	iconBg: #c8e1f0;
 	iconBgOver: #ffffff;
 
-	icon: icon {{ "box_button_close", boxBlueTitleBg }};
+	icon: icon {{ "box_button_close-invert", boxBlueTitleBg }};
 }
 
 confirmInviteTitle: flatLabel(labelDefFlat) {
@@ -198,7 +198,7 @@ notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxScreenBg: titleBg;
+notificationsBoxScreenBg: #6389a8;
 notificationsBoxCountLabelTop: 80px;
 notificationsBoxCountTop: 30px;
 

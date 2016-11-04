@@ -36,6 +36,8 @@ historyToDownPaddingTop: 10px;
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
 
+historyToDownShownAfter: 480px;
+
 historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
 historyEmptySize: 128px;
 

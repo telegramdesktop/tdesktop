@@ -38,7 +38,7 @@ inline bool skipWhitespaces(const char *&from, const char *end) {
 	return (from != end);
 }
 
-inline QByteArray readName(const char *&from, const char *end) {
+inline QLatin1String readName(const char *&from, const char *end) {
 	t_assert(from <= end);
 	auto start = from;
 	while (from != end && (
@@ -48,7 +48,7 @@ inline QByteArray readName(const char *&from, const char *end) {
 		(*from == '_'))) {
 		++from;
 	}
-	return QByteArray::fromRawData(start, from - start);
+	return QLatin1String(start, from - start);
 }
 
 } // namespace parse

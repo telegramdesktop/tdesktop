@@ -294,8 +294,7 @@ void LayerStackWidget::showLayer(LayerWidget *l) {
 void LayerStackWidget::showSpecialLayer(LayerWidget *l) {
 	clearLayers();
 	if (_specialLayer) {
-		_specialLayer->hide();
-		_specialLayer->deleteLater();
+		_specialLayer.destroyDelayed();
 	}
 	_specialLayer = l;
 	activateLayer(l);

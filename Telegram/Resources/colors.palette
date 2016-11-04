@@ -29,10 +29,17 @@ windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over
 windowActiveTextFg: #1485c2; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
 
-titleBg: #6389a8;
-
 imageBg: #000000;
 imageBgTransparent: #ffffff;
+
+// custom title bar for Windows
+titleBg: #f3f3f3;
+titleShadow: #00000003;
+titleButtonFg: #ababab;
+titleButtonBgOver: #e5e5e5;
+titleButtonFgOver: #9a9a9a;
+titleButtonCloseBgOver: #e81123;
+titleButtonCloseFgOver: #ffffff;
 
 // tray icon
 trayCounterBg: #f23c34;
@@ -55,11 +62,6 @@ lightButtonBg: windowBg;
 lightButtonBgOver: #f2f7fa | lightButtonBg;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
-
-// window title
-titleCounterBg: trayCounterBg;
-titleCounterBgMute: trayCounterBgMute;
-titleCounterFg: trayCounterFg;
 
 // layers
 layerBg: #0000007f;

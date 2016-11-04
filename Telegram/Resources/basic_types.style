@@ -38,14 +38,6 @@ linkButton {
 	overFont: font;
 }
 
-sysButton {
-	size: size;
-	icon: icon;
-	color: color;
-	overColor: color;
-	duration: int;
-}
-
 flatButton {
 	color: color;
 	overColor: color;

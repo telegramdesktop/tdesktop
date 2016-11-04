@@ -50,8 +50,6 @@ public:
 	void psUpdateMargins();
 	void psUpdatedPosition();
 
-	bool psHandleTitle();
-
 	void psFlash();
 	void psNotifySettingGot();
 

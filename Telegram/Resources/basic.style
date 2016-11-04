@@ -34,17 +34,6 @@ emojiPadding: 0px;
 
 lineWidth: 1px;
 
-wndMinWidth: 380px;
-
-adaptiveNormalWidth: 640px;
-adaptiveWideWidth: 1366px;
-
-wndMinHeight: 480px;
-wndDefWidth: 800px;
-wndDefHeight: 600px;
-wndShadow: icon {{ "window_shadow", windowShadowFg }};
-wndShadowShift: 1px;
-
 labelDefFlat: flatLabel {
 	font: font(fsize);
 	width: 0px;
@@ -277,20 +266,11 @@ boxScroll: flatScroll(solidScroll) {
 boxScrollSkip: 6px;
 boxScrollShadowBg: #00000012;
 
-titleHeight: 39px;
-titleFont: font(17px);
-titlePos: point(44px, 29px);
-titleMenuOffset: 36px;
-
-titleRed: #ee4928;
-titleGray: #777777;
-titleGreen: #41a903;
-
-titleStatusFg: #999999;
-titleStatusActiveFg: #0080c0;
-titleTypingFg: #0080c0;
-
 statusFont: font(fsize);
+statusFg: #999999;
+statusFgActive: #0080c0;
+statusFgTyping: statusFgActive;
+
 versionColor: #777777;
 
 shadowColor: #00000018;
@@ -302,62 +282,10 @@ slideFadeOutBg: #0000003c;
 slideShadow: icon {{ "slide_shadow", #000000 }};
 slideFunction: transition(easeOutCirc);
 
-titleButtonFg: #c4d8e9;
-titleButtonActiveFg: #ffffff;
-titleButtonDuration: 150;
-sysBtnDelta: 6px;
-sysUpd: sysButton {
-	size: size(31px, 39px);
-	icon: icon {{ "title_button_update", titleBg }};
-	color: titleButtonFg;
-	overColor: titleButtonActiveFg;
-	duration: titleButtonDuration;
-}
-updateBlinkDuration: 500;
-sysMin: sysButton(sysUpd) {
-	icon: icon {{ "title_button_minimize", titleBg }};
-}
-sysMax: sysButton(sysUpd) {
-	icon: icon {{ "title_button_maximize", titleBg }};
-}
-sysRes: sysButton(sysUpd) {
-	icon: icon {{ "title_button_restore", titleBg }};
-}
-sysCls: sysButton(sysUpd) {
-	icon: icon {{ "title_button_close", titleBg }};
-}
-sysLock: sysButton(sysUpd) {
-	icon: icon {{ "title_button_lock", titleBg }};
-}
-sysUnlock: sysButton(sysUpd) {
-	icon: icon {{ "title_button_unlock", titleBg }};
-}
-
 btnYesColor: #0080c0;
 btnYesHover: #0073ad;
 btnNoColor: #8b8b8b;
 btnNoHover: #777777;
-
-titleTextButton: flatButton {
-	color: #d4e3ef;
-	overColor: #ffffff;
-	downColor: #ffffff;
-	bgColor: transparent;
-	overBgColor: transparent;
-	downBgColor: transparent;
-
-	width: -14px;
-	height: 39px;
-
-	textTop: 10px;
-	overTextTop: 10px;
-	downTextTop: 11px;
-
-	font: font(fsize);
-	overFont: font(fsize);
-	duration: 150;
-	cursor: cursor(default);
-}
 
 linkCropLimit: 360px;
 linkFont: normalFont;
@@ -919,8 +847,8 @@ confirmCompressedSkip: 10px;
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
 
-profileOnlineFg: titleStatusActiveFg;
-profileOfflineFg: titleStatusFg;
+profileOnlineFg: statusFgActive;
+profileOfflineFg: statusFg;
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
@@ -1064,17 +992,6 @@ medviewSaveMsgHiding: 2500;
 medviewSaveMsgFg: #ffffff;
 medviewSaveMsg: #000000b2;
 
-// Mac specific
-
-macAccessoryWidth: 450.;
-macAccessoryHeight: 90.;
-macEnableFilterAdd: 2;
-macEnableFilterTop: 5;
-macSelectorTop: 6;
-macAlwaysThisAppTop: 4;
-macAppHintTop: 8;
-macCautionIconSize: 16;
-
 radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;
@@ -1191,9 +1108,9 @@ infoButton: PeerAvatarButton {
 profileTopBarBackIconFg: #0290d7;
 profileTopBarBackIcon: icon {{ "title_previous", profileTopBarBackIconFg }};
 
-historyReplyCancelIcon: icon {{ "box_button_close", historyReplyBg }};
-boxSearchCancelIcon: icon {{ "box_button_close", boxSearchBg }};
-settingsFixedBarCloseIcon: icon {{ "box_button_close", settingsFixedBarBg }};
+historyReplyCancelIcon: icon {{ "box_button_close-invert", historyReplyBg }};
+boxSearchCancelIcon: icon {{ "box_button_close-invert", boxSearchBg }};
+settingsFixedBarCloseIcon: icon {{ "box_button_close-invert", settingsFixedBarBg }};
 
 notifyFadeRight: icon {{ "fade_horizontal_right", notificationBg }};
 

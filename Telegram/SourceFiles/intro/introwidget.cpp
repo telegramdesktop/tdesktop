@@ -40,8 +40,6 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))
 , _a_show(animation(this, &IntroWidget::step_show))
 , _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda_unique<void()>(), st::introSlideDuration) {
-	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-
 	_back->entity()->setClickedCallback([this] { onBack(); });
 	_back->hideFast();
 
@@ -51,8 +49,6 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 
 	_stepHistory.push_back(new IntroStart(this));
 	_back->raise();
-
-	connect(parent, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	show();
 	setFocus();
@@ -74,10 +70,6 @@ void IntroWidget::onChangeLang() {
 	cSetLang(_langChangeTo);
 	Local::writeSettings();
 	App::restart();
-}
-
-void IntroWidget::onParentResize(const QSize &newSize) {
-	resize(newSize);
 }
 
 void IntroWidget::onStepSubmit() {
@@ -339,8 +331,8 @@ bool IntroWidget::codeByTelegram() const {
 }
 
 void IntroWidget::resizeEvent(QResizeEvent *e) {
-	QRect r(innerRect());
-	for (IntroStep *step : _stepHistory) {
+	auto r = innerRect();
+	for (auto step : _stepHistory) {
 		step->setGeometry(r);
 	}
 }

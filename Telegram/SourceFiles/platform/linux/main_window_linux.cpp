@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/linux/main_window_linux.h"
 
+#include "styles/style_window.h"
 #include "platform/linux/linux_libs.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
@@ -203,9 +204,6 @@ void MainWindow::psStatusIconCheck() {
 }
 
 void MainWindow::psShowTrayMenu() {
-}
-
-void MainWindow::psRefreshTaskbarIcon() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
@@ -434,13 +432,10 @@ void MainWindow::LibsLoaded() {
 }
 
 void MainWindow::psInitSize() {
-	setMinimumWidth(st::wndMinWidth);
-	setMinimumHeight(st::wndMinHeight);
-
 	TWindowPos pos(cWindowPos());
 	QRect avail(QDesktopWidget().availableGeometry());
 	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
+	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
 	if (pos.w && pos.h) {
 		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
@@ -448,7 +443,7 @@ void MainWindow::psInitSize() {
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
 				QRect screen((*i)->geometry());
 				int32 w = screen.width(), h = screen.height();
-				if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
+				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
 					if (pos.w > w) pos.w = w;
 					if (pos.h > h) pos.h = h;
 					pos.x += screen.x();
@@ -647,10 +642,6 @@ void MainWindow::psFirstShow() {
 	}
 
 	posInited = true;
-}
-
-bool MainWindow::psHandleTitle() {
-	return false;
 }
 
 void MainWindow::psInitSysMenu() {

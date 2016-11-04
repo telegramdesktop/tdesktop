@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_inner_widget.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_window.h"
 #include "profile/profile_cover.h"
 #include "profile/profile_info_widget.h"
 #include "profile/profile_settings_widget.h"
@@ -132,7 +133,7 @@ int InnerWidget::countBlocksHeight(BlockSide countSide) const {
 
 int InnerWidget::countBlocksLeft(int newWidth) const {
 	int result = st::profileBlockLeftMin;
-	result += (newWidth - st::wndMinWidth) / 2;
+	result += (newWidth - st::windowMinWidth) / 2;
 	return qMin(result, st::profileBlockLeftMax);
 }
 

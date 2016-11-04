@@ -67,7 +67,7 @@ StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&me
 StackItemSection::~StackItemSection() {
 }
 
-MainWidget::MainWidget(MainWindow *window) : TWidget(window)
+MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &MainWidget::step_show))
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowColor)
@@ -78,13 +78,10 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _playerPanel(this, Media::Player::Panel::Layout::Full)
 , _mediaType(this, st::historyAttachDropdownMenu)
 , _api(new ApiWrap(this)) {
-	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
 
-	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
@@ -156,7 +153,6 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 	} else {
 		_history->show();
 	}
-	App::wnd()->getTitle()->updateControlsVisibility();
 	_topBar->hide();
 
 	orderWidgets();
@@ -614,7 +610,6 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
 			}
-			App::wnd()->getTitle()->updateControlsVisibility();
 		} else {
 			if (_forwardConfirm) {
 				_forwardConfirm->deleteLater();
@@ -651,7 +646,6 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 			resizeEvent(0);
 			_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
 		}
-		App::wnd()->getTitle()->updateControlsVisibility();
 	} else {
 		_hider->show();
 		resizeEvent(0);
@@ -1588,6 +1582,9 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 			if (!_playerUsingPanel && !_player && Media::Player::exists()) {
 				createPlayer();
 			}
+		} else if (_player && _player->isHidden() && !_playerUsingPanel) {
+			_player.destroyDelayed();
+			_playerVolume.destroyDelayed();
 		}
 	}
 
@@ -1632,8 +1629,12 @@ void MainWidget::switchToFixedPlayer() {
 }
 
 void MainWidget::closeBothPlayers() {
-	_playerUsingPanel = false;
-	_player.destroyDelayed();
+	if (_playerUsingPanel) {
+		_playerUsingPanel = false;
+		_player.destroyDelayed();
+	} else {
+		_player->slideUp();
+	}
 	_playerVolume.destroyDelayed();
 
 	if (Media::Player::exists()) {
@@ -1651,7 +1652,7 @@ void MainWidget::closeBothPlayers() {
 
 void MainWidget::createPlayer() {
 	_player.create(this, [this] { playerHeightUpdated(); });
-	_player->entity()->setCloseCallback([this] { switchToPanelPlayer(); });
+	_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 	_playerVolume.create(this);
 	_player->entity()->volumeWidgetCreated(_playerVolume);
 	orderWidgets();
@@ -1660,9 +1661,11 @@ void MainWidget::createPlayer() {
 		_player->hide();
 	} else {
 		_player->hideFast();
-		_player->slideDown();
-		_playerHeight = _contentScrollAddToY = _player->contentHeight();
-		updateControlsGeometry();
+		if (_player) {
+			_player->slideDown();
+			_playerHeight = _contentScrollAddToY = _player->contentHeight();
+			updateControlsGeometry();
+		}
 	}
 
 	Shortcuts::enableMediaShortcuts();
@@ -1675,9 +1678,13 @@ void MainWidget::playerHeightUpdated() {
 		_playerHeight = playerHeight;
 		updateControlsGeometry();
 	}
-	if (_playerUsingPanel && !_playerHeight && _player->isHidden()) {
-		_playerVolume.destroyDelayed();
-		_player.destroyDelayed();
+	if (!_playerHeight && _player->isHidden()) {
+		AudioMsgId playing;
+		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+		if (playing && (playbackState.state & AudioPlayerStoppedMask)) {
+			_playerVolume.destroyDelayed();
+			_player.destroyDelayed();
+		}
 	}
 }
 
@@ -1766,10 +1773,6 @@ void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
 	if (!markedIds.isEmpty()) {
 		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
 	}
-}
-
-void MainWidget::onParentResize(const QSize &newSize) {
-	resize(newSize);
 }
 
 void MainWidget::updateOnlineDisplay() {
@@ -2216,7 +2219,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_dialogs->update();
 	}
 	topBar()->showAll();
-	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
@@ -2337,8 +2339,6 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	if (Adaptive::OneColumn()) _dialogs->hide();
 
 	orderWidgets();
-
-	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 void MainWidget::showWideSection(const Window::SectionMemento &memento) {
@@ -2465,8 +2465,6 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	if (Adaptive::OneColumn()) _dialogs->hide();
 
 	orderWidgets();
-
-	App::wnd()->getTitle()->updateControlsVisibility();
 }
 
 bool MainWidget::stackIsEmpty() const {
@@ -3412,7 +3410,6 @@ void MainWidget::getDifference() {
 
 	_getDifferenceTimeByPts = 0;
 
-	LOG(("Getting difference! no updates timer: %1, remains: %2").arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
 	if (requestingDifference()) return;
 
 	_bySeqUpdates.clear();
@@ -3421,7 +3418,6 @@ void MainWidget::getDifference() {
 	noUpdatesTimer.stop();
 	_getDifferenceTimeAfterFail = 0;
 
-	LOG(("Getting difference for %1, %2").arg(_ptsWaiter.current()).arg(updDate));
 	_ptsWaiter.setRequesting(true);
 	MTP::send(MTPupdates_GetDifference(MTP_int(_ptsWaiter.current()), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
 }
@@ -3433,14 +3429,12 @@ void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifference
 		_channelGetDifferenceTimeByPts.remove(channel);
 	}
 
-	LOG(("Getting channel difference!"));
 	if (!channel->ptsInited() || channel->ptsRequesting()) return;
 
 	if (from != GetChannelDifferenceFromFail) {
 		_channelGetDifferenceTimeAfterFail.remove(channel);
 	}
 
-	LOG(("Getting channel difference for %1").arg(channel->pts()));
 	channel->ptsSetRequesting(true);
 
 	auto filter = MTP_channelMessagesFilterEmpty();
@@ -3456,7 +3450,6 @@ void MainWidget::start(const MTPUser &user) {
 	if (MTP::authedId() != uid) {
 		MTP::setAuthedId(uid);
 		Local::writeMtpData();
-		App::wnd()->getTitle()->updateControlsVisibility();
 	}
 
 	Local::readSavedPeers();

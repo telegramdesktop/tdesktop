@@ -82,14 +82,14 @@ inline uchar readHexUchar(char char1, char char2, bool &error) {
 	return ((readHexUchar(char1, error) & 0x0F) << 4) | (readHexUchar(char2, error) & 0x0F);
 }
 
-bool readNameAndValue(const char *&from, const char *end, QByteArray *outName, QByteArray *outValue) {
+bool readNameAndValue(const char *&from, const char *end, QLatin1String *outName, QLatin1String *outValue) {
 	using base::parse::skipWhitespaces;
 	using base::parse::readName;
 
 	if (!skipWhitespaces(from, end)) return true;
 
 	*outName = readName(from, end);
-	if (outName->isEmpty()) {
+	if (outName->size() == 0) {
 		LOG(("Error: Could not read name in the color scheme."));
 		return false;
 	}
@@ -108,11 +108,11 @@ bool readNameAndValue(const char *&from, const char *end, QByteArray *outName, Q
 	auto valueStart = from;
 	if (*from == '#') ++from;
 
-	if (readName(from, end).isEmpty()) {
+	if (readName(from, end).size() == 0) {
 		LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme."));
 		return false;
 	}
-	*outValue = QByteArray::fromRawData(valueStart, from - valueStart);
+	*outValue = QLatin1String(valueStart, from - valueStart);
 
 	if (!skipWhitespaces(from, end)) {
 		LOG(("Error: Unexpected end of the color scheme."));
@@ -126,47 +126,66 @@ bool readNameAndValue(const char *&from, const char *end, QByteArray *outName, Q
 	return true;
 }
 
+enum class SetResult {
+	Ok,
+	Bad,
+	NotFound,
+};
+SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance *out) {
+	auto found = false;
+	auto size = value.size();
+	auto data = value.data();
+	if (data[0] == '#' && (size == 7 || size == 9)) {
+		auto error = false;
+		auto r = readHexUchar(data[1], data[2], error);
+		auto g = readHexUchar(data[3], data[4], error);
+		auto b = readHexUchar(data[5], data[6], error);
+		auto a = (size == 9) ? readHexUchar(data[7], data[8], error) : uchar(255);
+		if (error) {
+			LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme (while applying '%1: %2')").arg(QLatin1String(name)).arg(QLatin1String(value)));
+			return SetResult::Bad;
+		} else if (out) {
+			found = out->palette.setColor(name, r, g, b, a);
+		} else {
+			found = style::main_palette::setColor(name, r, g, b, a);
+		}
+	} else {
+		if (out) {
+			found = out->palette.setColor(name, value);
+		} else {
+			found = style::main_palette::setColor(name, value);
+		}
+	}
+	return found ? SetResult::Ok : SetResult::NotFound;
+}
+
 bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 	if (content.size() > kThemeSchemeSizeLimit) {
 		LOG(("Error: color scheme file too large (should be less than 1 MB, got %2)").arg(content.size()));
 		return false;
 	}
 
+	QMap<QLatin1String, QLatin1String> unsupported;
 	auto data = base::parse::stripComments(content);
 	auto from = data.constData(), end = from + data.size();
 	while (from != end) {
-		QByteArray name, value;
+		QLatin1String name, value;
 		if (!readNameAndValue(from, end, &name, &value)) {
 			return false;
 		}
-		if (name.isEmpty()) { // End of content reached.
+		if (name.size() == 0) { // End of content reached.
 			return true;
 		}
 
-		auto size = value.size();
-		auto error = false;
-		if (value[0] == '#' && (size == 7 || size == 9)) {
-			auto r = readHexUchar(value[1], value[2], error);
-			auto g = readHexUchar(value[3], value[4], error);
-			auto b = readHexUchar(value[5], value[6], error);
-			auto a = (size == 9) ? readHexUchar(value[7], value[8], error) : uchar(255);
-			if (!error) {
-				if (out) {
-					error = !out->palette.setColor(QLatin1String(name), r, g, b, a);
-				} else {
-					error = !style::main_palette::setColor(QLatin1String(name), r, g, b, a);
-				}
-			}
-		} else {
-			if (out) {
-				error = !out->palette.setColor(QLatin1String(name), QLatin1String(value));
-			} else {
-				error = !style::main_palette::setColor(QLatin1String(name), QLatin1String(value));
-			}
-		}
-		if (error) {
-			LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme (while applying '%1: %2')").arg(QLatin1String(name)).arg(QLatin1String(value)));
+		// Find the named value in the already read unsupported list.
+		value = unsupported.value(value, value);
+
+		auto result = setColorSchemeValue(name, value, out);
+		if (result == SetResult::Bad) {
 			return false;
+		} else if (result == SetResult::NotFound) {
+			LOG(("Warning: unexpected name or value in the color scheme (while applying '%1: %2')").arg(name).arg(value));
+			unsupported.insert(name, value);
 		}
 	}
 	return true;

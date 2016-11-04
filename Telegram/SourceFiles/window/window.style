@@ -22,12 +22,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "ui/widgets/widgets.style";
 
-titleIconPosition: point(9px, 9px);
-titleIcon: icon {
-	{ "title_icon_bg", #49708f },
-	{ "title_icon", #ffffff, point(4px, 4px) }
-};
-titleCounterPosition: point(17px, 17px);
+windowMinWidth: 380px;
+windowMinHeight: 480px;
+windowDefWidth: 800px;
+windowDefHeight: 600px;
+windowShadow: icon {{ "window_shadow", windowShadowFg }};
+windowShadowShift: 1px;
+
+adaptiveNormalWidth: 640px;
+adaptiveWideWidth: 1366px;
 
 notifyBorder: #f1f1f1;
 notifyBorderWidth: 1px;
@@ -78,3 +81,50 @@ notifySendReply: IconButton {
 	iconPosition: point(0px, 0px);
 	iconPositionDown: point(0px, 1px);
 }
+
+titleHeight: 21px;
+titleButtonMinimize: IconButton {
+	width: 24px;
+	height: 21px;
+
+	icon: icon {{ "title_button_minimize", titleButtonFg, point(4px, 4px) }};
+	iconOver: icon {
+		{ size(24px, 21px), titleButtonBgOver },
+		{ "title_button_minimize", titleButtonFgOver, point(4px, 4px) },
+	};
+
+	iconPosition: point(0px, 0px);
+	iconPositionDown: point(0px, 0px);
+}
+titleButtonMaximize: IconButton(titleButtonMinimize) {
+	icon: icon {{ "title_button_maximize", titleButtonFg, point(4px, 4px) }};
+	iconOver: icon {
+		{ size(24px, 21px), titleButtonBgOver },
+		{ "title_button_maximize", titleButtonFgOver, point(4px, 4px) },
+	};
+}
+titleButtonRestoreIcon: icon {{ "title_button_restore", titleButtonFg, point(4px, 4px) }};
+titleButtonRestoreIconOver: icon {
+	{ size(24px, 21px), titleButtonBgOver },
+	{ "title_button_restore", titleButtonFgOver, point(4px, 4px) },
+};
+titleButtonClose: IconButton(titleButtonMinimize) {
+	width: 25px;
+
+	icon: icon {{ "title_button_close", titleButtonFg, point(5px, 4px) }};
+	iconOver: icon {
+		{ size(25px, 21px), titleButtonCloseBgOver },
+		{ "title_button_close", titleButtonCloseFgOver, point(5px, 4px) },
+	};
+}
+
+// Mac specific
+
+macAccessoryWidth: 450.;
+macAccessoryHeight: 90.;
+macEnableFilterAdd: 2;
+macEnableFilterTop: 5;
+macSelectorTop: 6;
+macAlwaysThisAppTop: 4;
+macAppHintTop: 8;
+macCautionIconSize: 16;

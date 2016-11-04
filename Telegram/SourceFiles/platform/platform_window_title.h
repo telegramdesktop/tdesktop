@@ -20,44 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "window/window_title.h"
 
-namespace Ui {
-class PlainShadow;
-} // namespace Ui
+#if defined Q_OS_WIN
+#include "platform/win/window_title_win.h"
+#else // Q_OS_WIN
+namespace Platform {
 
-namespace Settings {
+inline Window::TitleWidget *CreateTitleWidget() {
+	return nullptr;
+}
 
-class InnerWidget;
-class FixedBar;
-
-class Widget : public LayerWidget {
-	Q_OBJECT
-
-public:
-	Widget(QWidget *parent);
-
-	void parentResized() override;
-	void showDone() override;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-private slots:
-	void onInnerHeightUpdated();
-
-private:
-	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
-
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
-
-	int _contentLeft = 0;
-
-};
-
-} // namespace Settings
+} // namespace Platform
+#endif // else for Q_OS_WIN

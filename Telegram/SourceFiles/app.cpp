@@ -214,7 +214,6 @@ namespace {
 		clearStorageImages();
 		if (auto w = wnd()) {
 			w->updateConnectingStatus();
-			w->getTitle()->updateControlsVisibility();
 		}
 		return true;
 	}

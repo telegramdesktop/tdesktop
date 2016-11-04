@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_window.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
@@ -56,13 +57,13 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _search(this, st::dlgFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
-, _width(st::wndMinWidth) {
+, _width(st::windowMinWidth) {
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
 
-	resize(_width, st::wndMinHeight);
+	resize(_width, st::windowMinHeight);
 
 	App::contextItem(0);
 

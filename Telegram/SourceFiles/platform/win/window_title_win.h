@@ -20,35 +20,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "window/window_title.h"
 
-namespace Media {
-namespace Player {
+namespace Ui {
+class IconButton;
+} // namespace Ui
 
-class PlayButtonLayout;
+namespace Platform {
 
-class TitleButton : public Button, private base::Subscriber {
+class TitleWidget : public Window::TitleWidget, private base::Subscriber {
+	Q_OBJECT
+
 public:
-	TitleButton(QWidget *parent);
+	TitleWidget(QWidget *parent);
 
-	void updatePauseState();
+	Window::HitTestResult hitTest(const QPoint &p) const override;
 
-	~TitleButton();
+public slots:
+	void onWindowStateChanged(Qt::WindowState state = Qt::WindowNoState);
+	void updateControlsVisibility();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void paintIcon(Painter &p);
+	void updateMaximizeRestoreButton();
+	void updateControlsPosition();
 
-	std_::unique_ptr<PlayButtonLayout> _layout;
-	ColorAnimation _iconFg;
+	ChildWidget<Ui::IconButton> _minimize;
+	ChildWidget<Ui::IconButton> _maximizeRestore;
+	ChildWidget<Ui::IconButton> _close;
+
+	bool _maximized = false;
 
 };
 
-} // namespace Clip
-} // namespace Media
+inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
+	return new TitleWidget(parent);
+}
+
+} // namespace Platform

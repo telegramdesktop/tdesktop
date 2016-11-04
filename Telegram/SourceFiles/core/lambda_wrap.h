@@ -394,4 +394,25 @@ public:
 
 };
 
+class lambda_slot_wrap : public QObject {
+	Q_OBJECT
+
+public:
+	lambda_slot_wrap(QObject *parent, lambda_unique<void()> lambda) : QObject(parent), _lambda(std_::move(lambda)) {
+	}
+
+public slots:
+	void action() {
+		_lambda();
+	}
+
+private:
+	lambda_unique<void()> _lambda;
+
+};
+
+inline lambda_slot_wrap *lambda_slot(QObject *parent, lambda_unique<void()> lambda) {
+	return new lambda_slot_wrap(parent, std_::move(lambda));
+}
+
 } // namespace base

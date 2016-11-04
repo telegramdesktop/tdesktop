@@ -82,7 +82,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _playback(new Ui::FilledSlider(this, st::mediaPlayerPlayback)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
-	resize(st::wndMinWidth, st::mediaPlayerHeight + st::lineWidth);
+	resize(width(), st::mediaPlayerHeight + st::lineWidth);
 
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);

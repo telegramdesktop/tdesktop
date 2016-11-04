@@ -18,6 +18,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/mac/main_window_mac.h"
 
+#include "styles/style_window.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -25,6 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "window/notifications_manager_default.h"
 #include "platform/mac/notifications_manager_mac.h"
+#include "boxes/contactsbox.h"
+#include "boxes/aboutbox.h"
 
 #include "lang.h"
 
@@ -88,9 +91,6 @@ QImage MainWindow::psTrayIcon(bool selected) const {
 }
 
 void MainWindow::psShowTrayMenu() {
-}
-
-void MainWindow::psRefreshTaskbarIcon() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
@@ -191,13 +191,10 @@ void MainWindow::psUpdateCounter() {
 }
 
 void MainWindow::psInitSize() {
-	setMinimumWidth(st::wndMinWidth);
-	setMinimumHeight(st::wndMinHeight);
-
 	TWindowPos pos(cWindowPos());
 	QRect avail(QDesktopWidget().availableGeometry());
 	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
+	QRect geom(avail.x() + (avail.width() - st::windowDefWidth) / 2, avail.y() + (avail.height() - st::windowDefHeight) / 2, st::windowDefWidth, st::windowDefHeight);
 	if (pos.w && pos.h) {
 		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
@@ -205,7 +202,7 @@ void MainWindow::psInitSize() {
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
 				QRect screen((*i)->geometry());
 				int32 w = screen.width(), h = screen.height();
-				if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
+				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
 					if (pos.w > w) pos.w = w;
 					if (pos.h > h) pos.h = h;
 					pos.x += screen.x();
@@ -302,8 +299,14 @@ void MainWindow::psFirstShow() {
 	posInited = true;
 
 	// init global menu
-	QMenu *main = psMainMenu.addMenu(qsl("Telegram"));
-	main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")), App::wnd()->getTitle(), SLOT(onAbout()))->setMenuRole(QAction::AboutQtRole);
+	auto main = psMainMenu.addMenu(qsl("Telegram"));
+	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
+	connect(about, SIGNAL(triggered()), base::lambda_slot(about, [] {
+		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+		Ui::showLayer(new AboutBox());
+	}), SLOT(action()));
+	about->setMenuRole(QAction::AboutQtRole);
+
 	main->addSeparator();
 	QAction *prefs = main->addAction(lang(lng_mac_menu_preferences), App::wnd(), SLOT(showSettings()), QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 	prefs->setMenuRole(QAction::PreferencesRole);
@@ -323,7 +326,13 @@ void MainWindow::psFirstShow() {
 	psSelectAll = edit->addAction(lang(lng_mac_menu_select_all), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
 
 	QMenu *window = psMainMenu.addMenu(lang(lng_mac_menu_window));
-	psContacts = window->addAction(lang(lng_mac_menu_contacts), App::wnd()->getTitle(), SLOT(onContacts()));
+	psContacts = window->addAction(lang(lng_mac_menu_contacts));
+	connect(psContacts, SIGNAL(triggered()), base::lambda_slot(psContacts, [] {
+		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+
+		if (!App::self()) return;
+		Ui::showLayer(new ContactsBox());
+	}, SLOT(action()));
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
@@ -377,10 +386,6 @@ void MainWindow::psMacDelete() {
 
 void MainWindow::psMacSelectAll() {
 	_sendKeySequence(Qt::Key_A, Qt::ControlModifier);
-}
-
-bool MainWindow::psHandleTitle() {
-	return false;
 }
 
 void MainWindow::psInitSysMenu() {

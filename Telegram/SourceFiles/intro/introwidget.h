@@ -92,7 +92,6 @@ public:
 public slots:
 	void onStepSubmit();
 	void onBack();
-	void onParentResize(const QSize &newSize);
 	void onChangeLang();
 
 signals:

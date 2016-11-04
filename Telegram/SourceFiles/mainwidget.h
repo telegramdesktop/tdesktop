@@ -139,7 +139,7 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	MainWidget(MainWindow *window);
+	MainWidget(QWidget *parent);
 
 	bool needBackButton();
 
@@ -426,7 +426,6 @@ public slots:
 
 	void dialogsCancelled();
 
-	void onParentResize(const QSize &newSize);
 	void getDifference();
 	void onGetDifferenceTimeByPts();
 	void onGetDifferenceTimeAfterFail();

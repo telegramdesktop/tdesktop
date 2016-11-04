@@ -26,6 +26,8 @@ class LayerWidget : public TWidget {
 	Q_OBJECT
 
 public:
+	using TWidget::TWidget;
+
 	virtual void parentResized() = 0;
 	virtual void showDone() {
 	}

@@ -144,21 +144,7 @@ mediaPlayerPlayback: FilledSlider {
 	duration: 150;
 }
 
-mediaPlayerTitleButtonSize: size(titleHeight, titleHeight);
-mediaPlayerTitleButtonInner: size(25px, 25px);
-mediaPlayerTitleButtonInnerBg: #49708f;
 mediaPlayerButtonTransformDuration: 200;
-
-mediaPlayerTitleButton: MediaPlayerButton {
-	playPosition: point(10px, 7px);
-	playOuter: size(29px, 25px);
-	pausePosition: point(8px, 8px);
-	pauseOuter: size(25px, 25px);
-	pauseStroke: 3px;
-	cancelPosition: point(8px, 8px);
-	cancelOuter: size(25px, 25px);
-	cancelStroke: 2px;
-}
 
 mediaPlayerPanelButton: MediaPlayerButton {
 	playPosition: point(3px, 0px);

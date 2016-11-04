@@ -2701,7 +2701,6 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 void HistoryHider::init() {
 	connect(&_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
-	connect(App::wnd()->getTitle(), SIGNAL(hiderClicked()), this, SLOT(startHide()));
 
 	_chooseWidth = st::forwardFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
 
@@ -2720,7 +2719,6 @@ void HistoryHider::step_appearance(float64 ms, bool timer) {
 	} else {
 		a_opacity.update(dt, anim::linear);
 	}
-	App::wnd()->getTitle()->setHideLevel(a_opacity.current());
 	if (timer) update();
 }
 
@@ -2746,7 +2744,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			_toText.drawElided(p, _box.left() + st::boxPadding.left(), _box.top() + st::boxPadding.top(), _toTextWidth + 2);
 		} else {
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
-			App::roundRect(p, (width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h, st::forwardBg, ForwardCorners);
+			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
 			p.setPen(st::forwardFg);
 			p.drawText(_box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
@@ -2835,7 +2833,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 		_send.hide();
 		_cancel.hide();
 	}
-	_box = QRect((width() - w) / 2, (height() - st::titleHeight - h) / 2, w, h);
+	_box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
 	_send.moveToRight(width() - (_box.x() + _box.width()) + st::boxButtonPadding.right(), _box.y() + h - st::boxButtonPadding.bottom() - _send.height());
 	_cancel.moveToRight(width() - (_box.x() + _box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
 }
@@ -2909,7 +2907,6 @@ bool HistoryHider::wasOffered() const {
 
 HistoryHider::~HistoryHider() {
 	if (_sendPath) cSetSendPaths(QStringList());
-	if (App::wnd()) App::wnd()->getTitle()->setHideLevel(0);
 	parent()->noHider(this);
 }
 
@@ -6269,10 +6266,10 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	QRect rectForName(st::topBarArrowPadding.right() + increaseLeft, st::topBarArrowPadding.top(), width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dialogsTextFont);
 	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
-		p.setPen(_titlePeerTextOnline ? st::titleStatusActiveFg : st::titleStatusFg);
+		p.setPen(_titlePeerTextOnline ? st::statusFgActive : st::statusFg);
 		p.drawText(rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	} else {
-		p.setPen(st::titleTypingFg);
+		p.setPen(st::statusFgTyping);
 		_history->typingText.drawElided(p, rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height, rectForName.width());
 	}
 
@@ -7394,7 +7391,7 @@ void HistoryWidget::updateToEndVisibility() {
 		if (!_history->loadedAtBottom() || _replyReturn) {
 			return true;
 		}
-		if (_scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax()) {
+		if (_scroll.scrollTop() + st::historyToDownShownAfter < _scroll.scrollTopMax()) {
 			return true;
 		}
 		if (haveUnreadBelowBottom(_history) || haveUnreadBelowBottom(_migrated)) {

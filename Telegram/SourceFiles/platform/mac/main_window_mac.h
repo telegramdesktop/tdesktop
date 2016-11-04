@@ -51,13 +51,12 @@ public:
 	void psUpdateMargins();
 	void psUpdatedPosition();
 
-	bool psHandleTitle();
-
 	void psFlash();
 
 	void psUpdateWorkmode();
 
-	void psRefreshTaskbarIcon();
+	void psRefreshTaskbarIcon() {
+	}
 
 	bool psPosInited() const {
 		return posInited;
