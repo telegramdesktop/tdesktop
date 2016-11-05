@@ -266,6 +266,9 @@ public:
 	}
 	bool isVerified() const;
 	bool isMegagroup() const;
+	bool isMuted() const {
+		return (notify != EmptyNotifySettings) && (notify != UnknownNotifySettings) && (notify->mute >= unixtime());
+	}
 	bool canWrite() const;
 	UserData *asUser();
 	const UserData *asUser() const;

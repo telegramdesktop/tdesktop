@@ -33,18 +33,11 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _inner(this, &_mrows, &_hrows, &_brows, &_srows)
 , a_opacity(0)
 , _a_appearance(animation(this, &FieldAutocomplete::step_appearance)) {
-	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
-
 	connect(_inner, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
-
-	setFocusPolicy(Qt::NoFocus);
-	_scroll->setFocusPolicy(Qt::NoFocus);
-	_scroll->viewport()->setFocusPolicy(Qt::NoFocus);
 
 	_inner->setGeometry(rect());
 	_scroll->setGeometry(rect());
@@ -402,7 +395,6 @@ void FieldAutocomplete::hideFast() {
 		_a_appearance.stop();
 	}
 	a_opacity = anim::fvalue(0, 0);
-	_hideTimer.stop();
 	hideFinish();
 }
 

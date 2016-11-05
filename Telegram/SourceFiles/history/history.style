@@ -80,25 +80,22 @@ historyFileOutPlaySelected: icon {{ "history_file_play", msgOutBgSelected }};
 historyFileInPlay: icon {{ "history_file_play", msgInBg }};
 historyFileInPlaySelected: icon {{ "history_file_play", msgInBgSelected }};
 
-historyOutFg: dialogsSentStateFg;
-historyOutSelectedFg: #4da79f;
-historyInvertedFg: #ffffff;
 historySendStateSpace: 24px;
 historySendStatePosition: point(-17px, -19px);
-historySentIcon: icon {{ "history_sent", historyOutFg, point(2px, 4px) }};
-historySentSelectedIcon: icon {{ "history_sent", historyOutSelectedFg, point(2px, 4px) }};
-historySentInvertedIcon: icon {{ "history_sent", historyInvertedFg, point(2px, 4px) }};
-historyReceivedIcon: icon {{ "history_received", historyOutFg, point(2px, 4px) }};
-historyReceivedSelectedIcon: icon {{ "history_received", historyOutSelectedFg, point(2px, 4px) }};
-historyReceivedInvertedIcon: icon {{ "history_received", historyInvertedFg, point(2px, 4px) }};
+historySentIcon: icon {{ "history_sent", historyOutIconFg, point(2px, 4px) }};
+historySentSelectedIcon: icon {{ "history_sent", historyOutIconFgSelected, point(2px, 4px) }};
+historySentInvertedIcon: icon {{ "history_sent", historyIconFgInverted, point(2px, 4px) }};
+historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4px) }};
+historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
+historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
 
 historyViewsSpace: 11px;
 historyViewsWidth: 20px;
 historyViewsTop: -15px;
 historyViewsInIcon: icon {{ "history_views", #a0acb6 }};
 historyViewsInSelectedIcon: icon {{ "history_views", #6a9bc5 }};
-historyViewsOutIcon: icon {{ "history_views", historyOutFg }};
-historyViewsOutSelectedIcon: icon {{ "history_views", historyOutSelectedFg }};
+historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
+historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
 historyViewsInvertedIcon: icon {{ "history_views", #ffffffe6 }};
 
 historyPeer1NameFg: #c03d33; // red
@@ -279,16 +276,20 @@ historyInlineBotCancel: MaskButton(historyReplyCancel) {
 	height: 46px;
 }
 
-topBarSearch: MaskButton {
+topBarSearch: IconButton {
 	width: 44px;
 	height: topBarHeight;
 
-	bg: topBarBg;
-	icon: icon {{ "title_search-invert", topBarBg }};
-
-	iconBg: #c7c7c7;
-	iconBgOver: #a3a3a3;
+	icon: icon {{ "title_search", #a8a8a8 }};
+	iconOver: icon {{ "title_search", #a3a3a3 }};
 
 	iconPosition: point(13px, 18px);
 	iconPositionDown: point(13px, 18px);
+}
+topBarMenuToggle: IconButton(topBarSearch) {
+	icon: icon {{ "title_menu_dots", #a8a8a8 }};
+	iconOver: icon {{ "title_menu_dots", #a3a3a3 }};
+
+	iconPosition: point(18px, 17px);
+	iconPositionDown: point(18px, 17px);
 }

@@ -35,10 +35,6 @@ class IntroWidget : public TWidget, public RPCSender {
 public:
 	IntroWidget(QWidget *window);
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);
 	void stop_show();
@@ -87,7 +83,12 @@ public:
 		pushStep(step, MoveReplace);
 	}
 
-	~IntroWidget() override;
+	~IntroWidget();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 public slots:
 	void onStepSubmit();
@@ -97,7 +98,13 @@ public slots:
 signals:
 	void countryChanged();
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+private slots:
+	void onCheckUpdateStatus();
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
 private:
+	void updateControlsGeometry();
 	QPixmap grabStep(int skip = 0);
 
 	int _langChangeTo = 0;
@@ -145,6 +152,8 @@ private:
 	QString _firstname, _lastname;
 
 	ChildWidget<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
+	ChildWidget<BoxButton> _settings;
+	ChildWidget<BoxButton> _update = { nullptr };
 
 	float64 _backFrom = 0.;
 	float64 _backTo = 0.;

@@ -27,7 +27,7 @@ class FakeRow;
 
 namespace Layout {
 
-const style::icon *ChatTypeIcon(PeerData *peer, bool active);
+const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected);
 
 class RowPainter {
 public:

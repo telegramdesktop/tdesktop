@@ -364,6 +364,8 @@ public:
 
 	void scheduleViewIncrement(HistoryItem *item);
 
+	void fillPeerMenu(PeerData *peer, base::lambda_unique<QAction*(const QString &text, base::lambda_unique<void()> handler)> callback);
+
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
 

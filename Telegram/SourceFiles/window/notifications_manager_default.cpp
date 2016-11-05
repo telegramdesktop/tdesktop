@@ -638,7 +638,7 @@ void Notification::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!options.hideNameAndPhoto) {
-			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false)) {
+			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false, false)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 			}
@@ -649,8 +649,8 @@ void Notification::updateNotifyDisplay() {
 			Text itemTextCache(itemWidth);
 			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
 			if (_item) {
-				bool active = false;
-				_item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
+				auto active = false, selected = false;
+				_item->drawInDialog(p, r, active, selected, textCachedFor, itemTextCache);
 			} else if (_forwardedCount > 1) {
 				p.setFont(st::dialogsTextFont);
 				if (_author) {

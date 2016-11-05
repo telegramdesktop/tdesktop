@@ -25,11 +25,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "shortcuts.h"
 #include "lang.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/buttons/round_button.h"
 #include "ui/buttons/icon_button.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/flatbutton.h"
 
 namespace Window {
@@ -41,16 +43,18 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::infoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
-, _search(this, st::topBarSearch) {
+, _search(this, st::topBarSearch)
+, _menuToggle(this, st::topBarMenuToggle) {
 	_clearSelection->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	_forward->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	_delete->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 
-	connect(_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
-	connect(_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
-	connect(_clearSelection, SIGNAL(clicked()), this, SLOT(onClearSelection()));
-	connect(_info, SIGNAL(clicked()), this, SLOT(onInfoClicked()));
-	connect(_search, SIGNAL(clicked()), this, SLOT(onSearch()));
+	_forward->setClickedCallback([this] { onForwardSelection(); });
+	_delete->setClickedCallback([this] { onDeleteSelection(); });
+	_clearSelection->setClickedCallback([this] { onClearSelection(); });
+	_info->setClickedCallback([this] { onInfoClicked(); });
+	_search->setClickedCallback([this] { onSearch(); });
+	_menuToggle->setClickedCallback([this] { showMenu(); });
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
@@ -79,6 +83,22 @@ void TopBarWidget::onSearch() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
 			main->searchInPeer(peer);
+		}
+	}
+}
+
+void TopBarWidget::showMenu() {
+	if (auto main = App::main()) {
+		if (auto peer = main->peer()) {
+			_menu.create(App::main());
+			App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda_unique<void()> callback) {
+				return _menu->addAction(text, std_::move(callback));
+			});
+			_menu->setHiddenCallback([this] {
+				_menu.destroyDelayed();
+			});
+			_menu->moveToRight(0, 0);
+			_menu->showAnimated();
 		}
 	}
 }
@@ -163,13 +183,11 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	int r = width();
-
 	int buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
 	int buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
 	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
-	int widthLeft = qMin(r - buttonsWidth, -2 * st::defaultActiveButton.width);
+	int widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	_forward->setFullWidth(-(widthLeft / 2));
 	_delete->setFullWidth(-(widthLeft / 2));
 
@@ -181,9 +199,10 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	_delete->moveToLeft(buttonsLeft, buttonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, buttonsTop);
 
-	if (!_info->isHidden()) _info->move(r -= _info->width(), 0);
-	if (!_mediaType->isHidden()) _mediaType->move(r -= _mediaType->width(), 0);
-	_search->move(width() - (_info->isHidden() ? st::topBarArrowPadding.left() : _info->width()) - _search->width(), 0);
+	_info->moveToRight(0, 0);
+	_menuToggle->moveToRight(0, 0);
+	_mediaType->moveToRight(0, 0);
+	_search->moveToRight(_info->isHidden() ? _menuToggle->width() : _info->width(), 0);
 }
 
 void TopBarWidget::startAnim() {
@@ -193,6 +212,7 @@ void TopBarWidget::startAnim() {
 	_forward->hide();
 	_mediaType->hide();
 	_search->hide();
+	_menuToggle->hide();
 	if (_membersShowArea) {
 		_membersShowArea->hide();
 	}
@@ -235,13 +255,16 @@ void TopBarWidget::showAll() {
 		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 			_info->setPeer(h);
 			_info->show();
+			_menuToggle->hide();
 		} else {
 			_info->hide();
+			_menuToggle->show();
 		}
 		_search->show();
 	} else {
 		_search->hide();
 		_info->hide();
+		_menuToggle->hide();
 	}
 	if (_membersShowArea) {
 		_membersShowArea->show();

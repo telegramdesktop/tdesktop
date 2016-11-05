@@ -130,8 +130,6 @@ private:
 	anim::fvalue a_opacity;
 	Animation _a_appearance;
 
-	QTimer _hideTimer;
-
 	friend class internal::FieldAutocompleteInner;
 
 };

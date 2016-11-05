@@ -22,9 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 // basic
 windowBg: #ffffff; // white: fallback for background
 windowTextFg: #000000; // black: fallback for text color
-windowSubTextFg: #8a8a8a; // gray: fallback for subtext color
+windowSubTextFg: #999999; // gray: fallback for subtext color
 windowActiveFill: #40ace3; // bright blue: fallback for blue filled active areas
-windowOverBg: #f3f3f3; // light blue: fallback for over background
+windowOverBg: #f0f0f0; // light gray: fallback for over background
 windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over color
 windowActiveTextFg: #1485c2; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
@@ -46,8 +46,6 @@ lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
 menuIconFg: windowSubTextFg;
-
-dialogsMenuIconFg: menuIconFg;
 
 // custom title bar for Windows
 titleBg: windowOverBg;
@@ -106,6 +104,45 @@ notificationSampleNameFg: #939393 | windowSubTextFg;
 introHeaderFg: windowTextFg;
 introErrorFg: windowTextFg;
 
+// dialogs
+dialogsMenuIconFg: menuIconFg;
+
+dialogsBg: windowBg;
+dialogsNameFg: #373737 | windowTextFg;
+dialogsChatIconFg: dialogsNameFg;
+dialogsDateFg: windowSubTextFg;
+dialogsTextFg: windowSubTextFg;
+dialogsTextFgService: #4981af;
+dialogsDraftFg: #dd4b39;
+dialogsVerifiedIconBg: #4abcf1;
+dialogsVerifiedIconFg: #ffffff;
+dialogsSendingIconFg: #c1c1c1;
+dialogsSentIconFg: #5dc452;
+
+dialogsBgOver: windowOverBg;
+dialogsNameFgOver: windowTextFg;
+dialogsChatIconFgOver: dialogsNameFgOver;
+dialogsDateFgOver: #8a8a8a | dialogsDateFg;
+dialogsTextFgOver: dialogsTextFg;
+dialogsTextFgServiceOver: dialogsTextFgService;
+dialogsDraftFgOver: dialogsDraftFg;
+dialogsVerifiedIconBgOver: dialogsVerifiedIconBg;
+dialogsVerifiedIconFgOver: dialogsVerifiedIconFg;
+dialogsSendingIconFgOver: dialogsSendingIconFg;
+dialogsSentIconFgOver: dialogsSentIconFg;
+
+dialogsBgActive: dialogsBgOver;
+dialogsNameFgActive: dialogsNameFgOver;
+dialogsChatIconFgActive: dialogsNameFgActive;
+dialogsDateFgActive: dialogsDateFgOver;
+dialogsTextFgActive: dialogsTextFgOver;
+dialogsTextFgServiceActive: dialogsTextFgServiceOver;
+dialogsDraftFgActive: dialogsDraftFgOver;
+dialogsVerifiedIconBgActive: dialogsVerifiedIconBgOver;
+dialogsVerifiedIconFgActive: dialogsVerifiedIconFgOver;
+dialogsSendingIconFgActive: dialogsSendingIconFgOver;
+dialogsSentIconFgActive: dialogsSentIconFgOver;
+
 // history
 topBarBg: windowBg;
 
@@ -132,6 +169,9 @@ historyCaptionInFg: historyTextInFg;
 historyCaptionOutFg: historyTextOutFg;
 historyFileNameInFg: historyTextInFg;
 historyFileNameOutFg: historyTextOutFg;
+historyOutIconFg: dialogsSentIconFg;
+historyOutIconFgSelected: #4da79f;
+historyIconFgInverted: #ffffff;
 
 historySystemBg: #89a0b47f;
 historySystemBgSelected: #bbc8d4a2;

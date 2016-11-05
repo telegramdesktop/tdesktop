@@ -35,6 +35,10 @@ public:
 	QAction *addSeparator();
 	void clearActions();
 
+	void setHiddenCallback(base::lambda_unique<void()> callback) {
+		_hiddenCallback = std_::move(callback);
+	}
+
 	using Actions = Ui::Menu::Actions;
 	Actions &actions();
 
@@ -91,6 +95,7 @@ private:
 	void showMenu(const QPoint &p, DropdownMenu *parent, TriggeredSource source);
 
 	const style::DropdownMenu &_st;
+	base::lambda_unique<void()> _hiddenCallback;
 
 	ChildWidget<Ui::Menu> _menu;
 

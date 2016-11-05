@@ -134,18 +134,7 @@ public slots:
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
-	void onContextProfile();
-	void onContextToggleNotifications();
-	void onContextSearch();
-	void onContextClearHistory();
-	void onContextClearHistorySure();
-	void onContextDeleteAndLeave();
-	void onContextDeleteAndLeaveSure();
-	void onContextToggleBlock();
-
 	void onMenuDestroyed(QObject*);
-
-	void peerUpdated(PeerData *peer);
 
 signals:
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
@@ -173,8 +162,6 @@ private:
 	void clearSelection();
 	void clearSearchResults(bool clearPeople = true);
 	void updateSelectedRow(PeerData *peer = 0);
-	bool menuPeerMuted();
-	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
 
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? importantDialogs.get() : dialogs.get();
@@ -227,7 +214,6 @@ private:
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
 	PeerData *_menuPeer = nullptr;
-	PeerData *_menuActionPeer = nullptr;
 
 	Ui::PopupMenu *_menu = nullptr;
 
@@ -283,10 +269,8 @@ public:
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();
 
-	void updateNotifySettings(PeerData *peer);
-
 	void rpcClear() override {
-		_inner.rpcClear();
+		_inner->rpcClear();
 		RPCSender::rpcClear();
 	}
 
@@ -312,6 +296,11 @@ public slots:
 	void onNeedSearchMessages();
 
 	void onChooseByDrag();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+private slots:
+	void onCheckUpdateStatus();
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 private:
 	void showMainMenu();
@@ -341,8 +330,9 @@ private:
 	ChildWidget<FlatInput> _filter;
 	ChildWidget<Ui::IconButton> _cancelSearch;
 	ChildWidget<Ui::IconButton> _lockUnlock;
-	ScrollArea _scroll;
-	DialogsInner _inner;
+	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<DialogsInner> _inner;
+	ChildWidget<FlatButton> _updateTelegram = { nullptr };
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;

@@ -25,7 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class PeerAvatarButton;
 class RoundButton;
-class MaskButton;
+class IconButton;
+class DropdownMenu;
 } // namespace Ui
 
 namespace Window {
@@ -58,17 +59,17 @@ public:
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-public slots:
+signals:
+	void clicked();
+
+private:
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
 	void onInfoClicked();
 	void onSearch();
+	void showMenu();
 
-signals:
-	void clicked();
-
-private:
 	void updateAdaptiveLayout();
 
 	MainWidget *main();
@@ -87,7 +88,10 @@ private:
 	ChildWidget<Ui::PeerAvatarButton> _info;
 	ChildWidget<Ui::RoundButton> _mediaType;
 
-	ChildWidget<Ui::MaskButton> _search;
+	ChildWidget<Ui::IconButton> _search;
+	ChildWidget<Ui::IconButton> _menuToggle;
+	ChildWidget<Ui::DropdownMenu> _menu = { nullptr };
+
 	ChildWidget<TWidget> _membersShowArea = { nullptr };
 
 };

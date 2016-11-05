@@ -42,9 +42,6 @@ public:
 
 	void showFinished();
 
-signals:
-	void heightUpdated();
-
 private slots:
 	void onBlockHeightUpdated();
 

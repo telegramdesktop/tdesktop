@@ -83,7 +83,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	updateScrollColors();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
-	connect(this, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
+	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
@@ -1993,6 +1993,94 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	j.value().insert(item->id, true);
 }
 
+void MainWidget::fillPeerMenu(PeerData *peer, base::lambda_unique<QAction*(const QString &text, base::lambda_unique<void()> handler)> callback) {
+	callback(lang((peer->isChat() || peer->isMegagroup()) ? lng_context_view_group : (peer->isUser() ? lng_context_view_profile : lng_context_view_channel)), [peer] {
+		Ui::showPeerProfile(peer);
+	});
+	auto muteSubscription = MakeShared<base::Subscription>();
+	auto muteAction = callback(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray), [peer, muteSubscription] {
+		App::main()->updateNotifySetting(peer, peer->isMuted() ? NotifySettingSetNotify : NotifySettingSetMuted);
+	});
+	auto muteChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NotificationsEnabled, [muteAction, peer](const Notify::PeerUpdate &update) {
+		if (update.peer != peer) return;
+		muteAction->setText(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
+	});
+	*muteSubscription = Notify::PeerUpdated().add_subscription(std_::move(muteChangedHandler));
+
+	callback(lang(lng_profile_search_messages), [peer] {
+		App::main()->searchInPeer(peer);
+	});
+
+	auto clearHistoryHandler = [peer] {
+		auto box = new ConfirmBox(peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) : lng_sure_delete_group_history(lt_group, peer->name), lang(lng_box_delete), st::attentionBoxButton);
+		box->setConfirmedCallback([peer] {
+			if (!App::main()) return;
+
+			Ui::hideLayer();
+			App::main()->clearHistory(peer);
+		});
+		Ui::showLayer(box);
+	};
+	auto deleteAndLeaveHandler = [peer] {
+		auto warningText = peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) :
+			peer->isChat() ? lng_sure_delete_and_exit(lt_group, peer->name) :
+			lang(peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel);
+		auto confirmText = lang(peer->isUser() ? lng_box_delete : lng_box_leave);
+		auto &confirmStyle = peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton;
+		auto box = new ConfirmBox(warningText, confirmText, confirmStyle);
+		box->setConfirmedCallback([peer] {
+			if (!App::main()) return;
+
+			Ui::hideLayer();
+			Ui::showChatsList();
+			if (peer->isUser()) {
+				App::main()->deleteConversation(peer);
+			} else if (peer->isChat()) {
+				MTP::send(MTPmessages_DeleteChatUser(peer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, peer));
+			} else if (peer->isChannel()) {
+				if (peer->migrateFrom()) {
+					App::main()->deleteConversation(peer->migrateFrom());
+				}
+				MTP::send(MTPchannels_LeaveChannel(peer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+			}
+		});
+		Ui::showLayer(box);
+	};
+	if (auto user = peer->asUser()) {
+		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
+		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
+		if (user->access != UserNoAccess && user != App::self()) {
+			auto blockSubscription = MakeShared<base::Subscription>();
+			auto blockAction = callback(lang(user->isBlocked() ? (user->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (user->botInfo ? lng_profile_block_bot : lng_profile_block_user)), [user, blockSubscription] {
+				auto willBeBlocked = !user->isBlocked();
+				auto handler = ::rpcDone([user, willBeBlocked](const MTPBool &result) {
+					user->setBlockStatus(willBeBlocked ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+					emit App::main()->peerUpdated(user);
+				});
+				if (willBeBlocked) {
+					MTP::send(MTPcontacts_Block(user->inputUser), std_::move(handler));
+				} else {
+					MTP::send(MTPcontacts_Unblock(user->inputUser), std_::move(handler));
+				}
+			});
+			auto blockChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [blockAction, peer](const Notify::PeerUpdate &update) {
+				if (update.peer != peer) return;
+				blockAction->setText(lang(peer->asUser()->isBlocked() ? (peer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (peer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
+			});
+			*blockSubscription = Notify::PeerUpdated().add_subscription(std_::move(blockChangedHandler));
+
+			if (user->blockStatus() == UserData::BlockStatus::Unknown) {
+				App::api()->requestFullPeer(user);
+			}
+		}
+	} else if (peer->isChat()) {
+		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
+		callback(lang(lng_profile_clear_and_exit), std_::move(deleteAndLeaveHandler));
+	} else if (peer->isChannel() && peer->asChannel()->amIn() && !peer->asChannel()->amCreator()) {
+		callback(lang(peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel), std_::move(deleteAndLeaveHandler));
+	}
+}
+
 void MainWidget::onViewsIncrement() {
 	if (!App::main() || !MTP::authedId()) return;
 
@@ -3817,7 +3905,6 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		if (_history->peer() == updatePeer) {
 			_history->updateNotifySettings();
 		}
-		_dialogs->updateNotifySettings(updatePeer);
 		if (changed) {
 			Notify::peerUpdatedDelayed(updatePeer, Notify::PeerUpdate::Flag::NotificationsEnabled);
 		}

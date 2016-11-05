@@ -142,7 +142,8 @@ Widget::Widget(QWidget *parent) : LayerWidget(parent)
 }
 
 void Widget::parentResized() {
-	int windowWidth = App::wnd()->width();
+	auto parentSize = parentWidget()->size();
+	int windowWidth = parentSize.width();
 	int newWidth = st::settingsMaxWidth;
 	int newContentLeft = st::settingsMaxPadding;
 	if (windowWidth <= st::settingsMaxWidth) {
@@ -177,8 +178,9 @@ void Widget::onInnerHeightUpdated() {
 void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
 	if (!App::wnd()) return;
 
-	int windowWidth = App::wnd()->width();
-	int windowHeight = App::wnd()->height();
+	auto parentSize = parentWidget()->size();
+	int windowWidth = parentSize.width();
+	int windowHeight = parentSize.height();
 	int maxHeight = st::settingsFixedBarHeight + _inner->height();
 	int newHeight = maxHeight;
 	if (newHeight > windowHeight || newWidth >= windowWidth) {
@@ -189,7 +191,7 @@ void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
 		_contentLeft = newContentLeft;
 	}
 
-	setGeometry((App::wnd()->width() - newWidth) / 2, (App::wnd()->height() - newHeight) / 2, newWidth, newHeight);
+	setGeometry((windowWidth - newWidth) / 2, (windowHeight - newHeight) / 2, newWidth, newHeight);
 	update();
 }
 

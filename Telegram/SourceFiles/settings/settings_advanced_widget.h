@@ -39,6 +39,7 @@ private slots:
 	void onAskQuestion();
 	void onAskQuestionSure();
 	void onTelegramFAQ();
+	void onAbout();
 	void onLogOut();
 
 private:
@@ -54,6 +55,7 @@ private:
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	ChildWidget<LinkButton> _askQuestion = { nullptr };
 	ChildWidget<LinkButton> _telegramFAQ = { nullptr };
+	ChildWidget<LinkButton> _about = { nullptr };
 	ChildWidget<LinkButton> _logOut = { nullptr };
 
 	mtpRequestId _supportGetRequest = 0;

@@ -44,7 +44,7 @@ DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : Inn
 //}
 
 void DropdownMenu::init() {
-	connect(this, SIGNAL(beforeHidden()), this, SLOT(onHidden()));
+	InnerDropdown::setHiddenCallback([this] { hideFinish(); });
 
 	setOwnedWidget(_menu);
 
@@ -216,6 +216,9 @@ void DropdownMenu::childHiding(DropdownMenu *child) {
 
 void DropdownMenu::hideFinish() {
 	_menu->clearSelection();
+	if (_hiddenCallback) {
+		_hiddenCallback();
+	}
 }
 
 // Not ready with submenus yet.

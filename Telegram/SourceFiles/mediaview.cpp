@@ -134,7 +134,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	connect(&_docSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
 	connect(&_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
 
-	connect(_dropdown, SIGNAL(beforeHidden()), this, SLOT(onDropdownHidden()));
+	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
 }
 
 void MediaView::moveToScreen() {
@@ -142,7 +142,7 @@ void MediaView::moveToScreen() {
 		windowHandle()->setScreen(App::wnd()->windowHandle()->screen());
 	}
 
-	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
+	auto wndCenter = App::wnd()->geometry().center();
 	QRect avail = Sandbox::screenGeometry(wndCenter);
 	if (avail != geometry()) {
 		setGeometry(avail);
@@ -679,7 +679,7 @@ void MediaView::onHideControls(bool force) {
 	if (!_a_state.animating()) _a_state.start();
 }
 
-void MediaView::onDropdownHidden() {
+void MediaView::dropdownHidden() {
 	setFocus();
 	_ignoringDropdown = true;
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());

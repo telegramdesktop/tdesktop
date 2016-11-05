@@ -80,9 +80,23 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	bool event(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
 private slots:
 	void onHideControls(bool force = false);
-	void onDropdownHidden();
 
 	void onScreenResized(int screen);
 
@@ -105,22 +119,6 @@ private slots:
 
 	void updateImage();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void wheelEvent(QWheelEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-
-	bool event(QEvent *e) override;
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
-private slots:
 	void onVideoPauseResume();
 	void onVideoSeekProgress(int64 positionMs);
 	void onVideoSeekFinished(int64 positionMs);
@@ -129,6 +127,7 @@ private slots:
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
+	void dropdownHidden();
 	void updateDocSize();
 	void updateControls();
 	void updateActions();

@@ -328,6 +328,7 @@ ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handle
 , _bottomShadow(this, &_st)
 , _touchEnabled(handleTouch) {
 	setLayoutDirection(cLangDir());
+	setFocusPolicy(Qt::NoFocus);
 
 	connect(_verticalBar, SIGNAL(topShadowVisibility(bool)), _topShadow, SLOT(changeVisibility(bool)));
 	connect(_verticalBar, SIGNAL(bottomShadowVisibility(bool)), _bottomShadow, SLOT(changeVisibility(bool)));

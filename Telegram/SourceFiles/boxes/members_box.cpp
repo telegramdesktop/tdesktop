@@ -310,7 +310,8 @@ void MembersBox::Inner::selectSkipPage(int32 h, int32 dir) {
 }
 
 void MembersBox::Inner::loadProfilePhotos(int32 yFrom) {
-	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
+	if (!parentWidget()) return;
+	int32 yTo = yFrom + parentWidget()->height() * 5;
 	MTP::clearLoaderPriorities();
 
 	if (yTo < 0) return;

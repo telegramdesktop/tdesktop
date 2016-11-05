@@ -44,12 +44,12 @@ introCountry: countryInput {
 }
 
 introBtnTop: 288px;
-introSkip: 45px;
+introSkip: 25px;
 introFinishSkip: 15px;
 introPhotoSize: 98px;
 introHeaderFont: font(24px);
 introHeaderSkip: 14px;
-introIconSkip: 54px;
+introIconSkip: 50px;
 introFont: font(16px);
 introLink: linkButton(btnDefLink) {
 	font: introFont;
@@ -61,7 +61,7 @@ introLabel: flatLabel(labelDefFlat) {
 }
 
 introStepSize: size(400px, 200px);
-introSize: size(400px, 400px);
+introSize: size(400px, 460px);
 introSlideShift: 500px; // intro hiding animation
 introSlideDuration: 200;
 introSlideDelta: 0; // between hide start and show start

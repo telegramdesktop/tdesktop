@@ -63,7 +63,8 @@ void AdvancedWidget::createControls() {
 	if (self()) {
 		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
 	}
-	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
+	addChildRow(_telegramFAQ, marginSmall, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
+	addChildRow(_about, marginLarge, lang(lng_menu_about), SLOT(onAbout()));
 	if (self()) {
 		style::margins marginLogout(0, 0, 0, 2 * st::settingsLargeSkip);
 		addChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
@@ -121,6 +122,10 @@ void AdvancedWidget::supportGot(const MTPhelp_Support &support) {
 
 void AdvancedWidget::onTelegramFAQ() {
 	QDesktopServices::openUrl(telegramFaqLink());
+}
+
+void AdvancedWidget::onAbout() {
+	Ui::showLayer(new AboutBox());
 }
 
 void AdvancedWidget::onLogOut() {

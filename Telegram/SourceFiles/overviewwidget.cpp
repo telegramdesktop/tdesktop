@@ -1879,7 +1879,6 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 , _inner(this, &_scroll, peer, type)
 , _a_show(animation(this, &OverviewWidget::step_show))
 , _topShadow(this, st::shadowColor) {
-	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);

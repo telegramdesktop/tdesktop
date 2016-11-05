@@ -35,9 +35,12 @@ namespace {
 // Show all dates that are in the last 20 hours in time format.
 constexpr int kRecentlyInSeconds = 20 * 3600;
 
-void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool active) {
-	QDateTime now(QDateTime::currentDateTime()), lastTime(date);
-	QDate nowDate(now.date()), lastDate(lastTime.date());
+void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool active, bool selected) {
+	auto now = QDateTime::currentDateTime();
+	auto lastTime = date;
+	auto nowDate = now.date();
+	auto lastDate = lastTime.date();
+
 	QString dt;
 	bool wasSameDay = (lastDate == nowDate);
 	bool wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
@@ -51,7 +54,7 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 	int32 dtWidth = st::dialogsDateFont->width(dt);
 	rectForName.setWidth(rectForName.width() - dtWidth - st::dialogsDateSkip);
 	p.setFont(st::dialogsDateFont);
-	p.setPen(active ? st::dialogsDateFgActive : st::dialogsDateFg);
+	p.setPen(active ? st::dialogsDateFgActive : (selected ? st::dialogsDateFgOver : st::dialogsDateFg));
 	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
 }
 
@@ -68,57 +71,56 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 	int32 namewidth = w - nameleft - st::dialogsPadding.x();
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
-	if (auto chatTypeIcon = ChatTypeIcon(history->peer, active)) {
+	if (auto chatTypeIcon = ChatTypeIcon(history->peer, active, selected)) {
 		chatTypeIcon->paint(p, rectForName.topLeft(), w);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 
 	int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 	if (draft) {
-		paintRowDate(p, date, rectForName, active);
+		paintRowDate(p, date, rectForName, active, selected);
 
 		p.setFont(st::dialogsTextFont);
-		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
 				history->cloudDraftTextCache.setText(st::dialogsTextFont, draftText, _textDlgOptions);
 			}
-			textstyleSet(&(active ? st::dialogsTextStyleDraftActive : st::dialogsTextStyleDraft));
-			p.setFont(st::dialogsTextFont);
-			p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFg);
+			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
+			textstyleSet(&(active ? st::dialogsTextStyleDraftActive : (selected ? st::dialogsTextStyleDraftOver : st::dialogsTextStyleDraft)));
 			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, 1);
 			textstyleRestore();
 		} else {
+			p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
 			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else if (!item) {
 		p.setFont(st::dialogsTextFont);
-		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
+		p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			p.drawText(nameleft, texttop + st::msgNameFont->ascent, lang(lng_empty_history));
 		} else {
 			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else if (!item->isEmpty()) {
-		paintRowDate(p, date, rectForName, active);
+		paintRowDate(p, date, rectForName, active, selected);
 
 		paintItemCallback(nameleft, namewidth, item);
 	}
-	auto sendStateIcon = ([draft, item, active]() -> const style::icon* {
+	auto sendStateIcon = ([draft, item, active, selected]() -> const style::icon* {
 		if (draft) {
 			if (draft->saveRequestId) {
-				return &(active ? st::dialogsSendingActiveIcon : st::dialogsSendingIcon);
+				return &(active ? st::dialogsSendingIconActive : (selected ? st::dialogsSendingIconOver : st::dialogsSendingIcon));
 			}
 		} else if (item && !item->isEmpty() && item->needCheck()) {
 			if (item->id > 0) {
 				if (item->unread()) {
-					return &(active ? st::dialogsSentActiveIcon : st::dialogsSentIcon);
+					return &(active ? st::dialogsSentIconActive : (selected ? st::dialogsSentIconOver : st::dialogsSentIcon));
 				}
-				return &(active ? st::dialogsReceivedActiveIcon : st::dialogsReceivedIcon);
+				return &(active ? st::dialogsReceivedIconActive : (selected ? st::dialogsReceivedIconOver : st::dialogsReceivedIcon));
 			}
-			return &(active ? st::dialogsSendingActiveIcon : st::dialogsSendingIcon);
+			return &(active ? st::dialogsSendingIconActive : (selected ? st::dialogsSendingIconOver : st::dialogsSendingIcon));
 		}
 		return nullptr;
 	})();
@@ -128,12 +130,12 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 	}
 
 	if (history->peer->isUser() && history->peer->isVerified()) {
-		auto icon = &(active ? st::dialogsVerifiedActiveIcon : st::dialogsVerifiedIcon);
+		auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
 		rectForName.setWidth(rectForName.width() - icon->width());
 		icon->paint(p, rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0), w);
 	}
 
-	p.setPen(active ? st::dialogsTextFgActive : st::dialogsNameFg);
+	p.setPen(active ? st::dialogsNameFgActive : (selected ? st::dialogsNameFgOver : st::dialogsNameFg));
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
@@ -167,11 +169,11 @@ QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xof
 
 } // namepsace
 
-const style::icon *ChatTypeIcon(PeerData *peer, bool active) {
+const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected) {
 	if (peer->isChat() || peer->isMegagroup()) {
-		return &(active ? st::dialogsChatActiveIcon : st::dialogsChatIcon);
+		return &(active ? st::dialogsChatIconActive : (selected ? st::dialogsChatIconOver : st::dialogsChatIcon));
 	} else if (peer->isChannel()) {
-		return &(active ? st::dialogsChannelActiveIcon : st::dialogsChannelIcon);
+		return &(active ? st::dialogsChannelIconActive : (selected ? st::dialogsChannelIconOver : st::dialogsChannelIcon));
 	}
 	return nullptr;
 }
@@ -263,7 +265,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 	if (item && cloudDraft && unreadCount > 0) {
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
-	paintRow(p, history, item, cloudDraft, displayDate(), w, active, selected, onlyBackground, [&p, w, active, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, cloudDraft, displayDate(), w, active, selected, onlyBackground, [&p, w, active, selected, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
 		int availableWidth = namewidth;
 		int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		if (unreadCount) {
@@ -280,9 +282,9 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			availableWidth -= unreadWidth + st::dialogsUnreadPadding;
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
-			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, history->textCachedFor, history->lastItemTextCache);
+			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, selected, history->textCachedFor, history->lastItemTextCache);
 		} else {
-			p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
+			p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
 			history->typingText.drawElided(p, nameleft, texttop, availableWidth);
 		}
 	});
@@ -291,9 +293,9 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, history, item, nullptr, item->date, w, active, selected, onlyBackground, [&p, row, active](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, nullptr, item->date, w, active, selected, onlyBackground, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
-		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, row->_cacheFor, row->_cache);
+		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, selected, row->_cacheFor, row->_cache);
 	});
 }
 

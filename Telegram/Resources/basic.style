@@ -404,7 +404,6 @@ noContactsColor: #777777;
 
 topBarHeight: 54px;
 topBarDuration: 200;
-topBarForward: icon {{ "title_back-flip_horizontal", #a3a3a3 }};
 topBarBackward: icon {{ "title_back", #a3a3a3 }};
 topBarForwardAlpha: 0.6;
 topBarBack: icon {{ "title_back", #259fd8 }};
@@ -504,6 +503,8 @@ msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
 msgInReplyBarColor: #2fa9e2;
 msgInReplyBarSelColor: #2fa9e2;
+msgOutReplyBarColor: historyOutIconFg;
+msgOutReplyBarSelColor: historyOutIconFgSelected;
 msgImgReplyBarColor: #ffffff;
 
 msgBotKbDuration: 200;

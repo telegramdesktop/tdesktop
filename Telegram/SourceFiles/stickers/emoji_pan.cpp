@@ -49,7 +49,6 @@ EmojiColorPicker::EmojiColorPicker() : TWidget()
 	memset(_hovers, 0, sizeof(_hovers));
 
 	setMouseTracking(true);
-	setFocusPolicy(Qt::NoFocus);
 
 	int32 w = st::emojiPanSize.width() * (EmojiColorsCount + 1) + 4 * st::emojiColorsPadding + st::emojiColorsSep + st::defaultDropdownShadow.width() * 2;
 	int32 h = 2 * st::emojiColorsPadding + st::emojiPanSize.height() + st::defaultDropdownShadow.height() * 2;
@@ -299,7 +298,6 @@ EmojiPanInner::EmojiPanInner() : TWidget()
 	resize(st::emojiPanWidth - st::emojiScroll.width, countHeight());
 
 	setMouseTracking(true);
-	setFocusPolicy(Qt::NoFocus);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_picker.hide();
@@ -804,7 +802,6 @@ StickerPanInner::StickerPanInner() : TWidget()
 	setMaxHeight(st::emojiPanMaxHeight - st::emojiCategory.height);
 
 	setMouseTracking(true);
-	setFocusPolicy(Qt::NoFocus);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	connect(&_settings, SIGNAL(clicked()), this, SLOT(onSettings()));
@@ -2431,7 +2428,6 @@ EmojiPanel::EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool 
 , _delete(special ? 0 : new Ui::IconButton(this, st::hashtagClose)) { // Stickers::NoneSetId if in emoji
 	resize(st::emojiPanWidth, st::emojiPanHeader);
 	setMouseTracking(true);
-	setFocusPolicy(Qt::NoFocus);
 	setText(text);
 	if (_delete) {
 		_delete->hide();
@@ -2569,12 +2565,6 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , s_scroll(this, st::emojiScroll)
 , s_inner()
 , s_switch(&s_scroll, false) {
-	setFocusPolicy(Qt::NoFocus);
-	e_scroll.setFocusPolicy(Qt::NoFocus);
-	e_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
-	s_scroll.setFocusPolicy(Qt::NoFocus);
-	s_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
-
 	_width = st::defaultDropdownPadding.left() + st::emojiPanWidth + st::defaultDropdownPadding.right();
 	_height = st::defaultDropdownPadding.top() + _contentHeight + st::defaultDropdownPadding.bottom();
 	_bottom = 0;

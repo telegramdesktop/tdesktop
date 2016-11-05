@@ -859,15 +859,15 @@ QString HistoryItem::inDialogsText() const {
 	return plainText;
 }
 
-void HistoryItem::drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const {
+void HistoryItem::drawInDialog(Painter &p, const QRect &r, bool active, bool selected, const HistoryItem *&cacheFor, Text &cache) const {
 	if (cacheFor != this) {
 		cacheFor = this;
 		cache.setText(st::dialogsTextFont, inDialogsText(), _textDlgOptions);
 	}
 	if (r.width()) {
-		textstyleSet(&(act ? st::dialogsTextStyleActive : st::dialogsTextStyle));
+		textstyleSet(&(active ? st::dialogsTextStyleActive : (selected ? st::dialogsTextStyleOver : st::dialogsTextStyle)));
 		p.setFont(st::dialogsTextFont);
-		p.setPen(act ? st::dialogsTextFgActive : st::dialogsTextFg);
+		p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
 		textstyleRestore();
 	}

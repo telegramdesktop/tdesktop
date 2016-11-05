@@ -188,7 +188,9 @@ void InnerDropdown::hideFinished() {
 	_cache = QPixmap();
 	_ignoreShowEvents = false;
 	if (!isHidden()) {
-		emit beforeHidden();
+		if (_hiddenCallback) {
+			_hiddenCallback();
+		}
 		hide();
 	}
 }

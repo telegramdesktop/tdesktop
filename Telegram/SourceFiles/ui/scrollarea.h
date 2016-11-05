@@ -106,11 +106,9 @@ class SplittedWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
-	SplittedWidget(QWidget *parent) : TWidget(parent), _otherWidth(0) {
+	SplittedWidget(QWidget *parent) : TWidget(parent) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
-	void paintEvent(QPaintEvent *e); // paintEvent done through paintRegion
 	void setHeight(int32 newHeight) {
 		resize(width(), newHeight);
 		emit resizeOther();
@@ -122,18 +120,17 @@ public:
 	void update(const QRegion&);
 
 public slots:
-
 	void update() {
 		update(0, 0, fullWidth(), height());
 	}
 
 signals:
-
 	void resizeOther();
 	void updateOther(const QRect&);
 	void updateOther(const QRegion&);
 
 protected:
+	void paintEvent(QPaintEvent *e) override; // paintEvent done through paintRegion
 
 	int32 otherWidth() const {
 		return _otherWidth;
@@ -144,8 +141,7 @@ protected:
 	virtual void paintRegion(Painter &p, const QRegion &region, bool paintingOther) = 0;
 
 private:
-
-	int32 _otherWidth;
+	int32 _otherWidth = 0;
 	void setOtherWidth(int32 otherWidth) {
 		_otherWidth = otherWidth;
 	}
@@ -163,7 +159,6 @@ class ScrollArea : public QScrollArea {
 	T_WIDGET
 
 public:
-
 	ScrollArea(QWidget *parent, const style::flatScroll &st = st::scrollDef, bool handleTouch = true);
 
 	int scrollWidth() const;
@@ -190,7 +185,6 @@ public:
 	~ScrollArea();
 
 protected:
-
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	void resizeEvent(QResizeEvent *e) override;
@@ -201,7 +195,6 @@ protected:
 	void leaveEventHook(QEvent *e);
 
 public slots:
-
 	void scrollToY(int toTop, int toBottom = -1);
 	void disableScroll(bool dis);
 	void onScrolled();
@@ -215,18 +208,15 @@ public slots:
 	void onVerticalScroll();
 
 signals:
-
 	void scrolled();
 	void scrollStarted();
 	void scrollFinished();
 	void geometryChanged();
 
 protected:
-
 	void scrollContentsBy(int dx, int dy) override;
 
 private:
-
 	bool touchScroll(const QPoint &delta);
 
 	void touchScrollUpdated(const QPoint &screenPos);
@@ -271,5 +261,8 @@ class SplittedWidgetOther : public TWidget {
 public:
 	SplittedWidgetOther(ScrollArea *parent) : TWidget(parent) {
 	}
-	void paintEvent(QPaintEvent *e);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
 };

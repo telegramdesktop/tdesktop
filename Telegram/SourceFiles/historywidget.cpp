@@ -3019,8 +3019,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
 , _a_show(animation(this, &HistoryWidget::step_show))
 , _topShadow(this, st::shadowColor) {
-	_scroll.setFocusPolicy(Qt::NoFocus);
-
 	setAcceptDrops(true);
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
@@ -3086,8 +3084,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	_scroll.hide();
 
-	_kbScroll.setFocusPolicy(Qt::NoFocus);
-	_kbScroll.viewport()->setFocusPolicy(Qt::NoFocus);
 	_kbScroll.setWidget(&_keyboard);
 	_kbScroll.hide();
 
@@ -6279,9 +6275,6 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());
-	} else {
-		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		st::topBarForward.paint(p, width() - (st::topBarArrowPadding.left() + st::topBarForward.width()) / 2, (st::topBarHeight - st::topBarForward.height()) / 2, width());
 	}
 }
 
@@ -6318,17 +6311,13 @@ void HistoryWidget::onMembersDropdownShow() {
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 		_membersDropdown->moveToLeft(0, 0);
-		connect(_membersDropdown, SIGNAL(beforeHidden()), this, SLOT(onMembersDropdownHidden()));
+		_membersDropdown->setHiddenCallback([this] { _membersDropdown.destroyDelayed(); });
 	}
 	_membersDropdown->otherEnter();
 }
 
 void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
 	*outHandled = _keyboard.isHidden() ? false : _keyboard.moderateKeyActivate(index);
-}
-
-void HistoryWidget::onMembersDropdownHidden() {
-	_membersDropdown.destroyDelayed();
 }
 
 void HistoryWidget::topBarClick() {

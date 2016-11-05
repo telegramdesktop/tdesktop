@@ -107,17 +107,7 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	auto &bg = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
 	auto &fg = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
 	p.setOpacity(_opacity);
-	if (_st.radius > 0) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.setPen(Qt::NoPen);
-		if (animating) {
-			p.setBrush(a_bg.current());
-		} else {
-			p.setBrush(bg);
-		}
-		p.drawRoundedRect(r, _st.radius, _st.radius);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-	} else if (animating) {
+	if (animating) {
 		p.fillRect(r, a_bg.current());
 	} else {
 		p.fillRect(r, bg);

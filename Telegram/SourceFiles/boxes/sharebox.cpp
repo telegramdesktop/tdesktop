@@ -427,13 +427,14 @@ int ShareBox::Inner::chatIndex(PeerData *peer) const {
 }
 
 void ShareBox::Inner::loadProfilePhotos(int yFrom) {
+	if (!parentWidget()) return;
 	if (yFrom < 0) {
 		yFrom = 0;
 	}
 	if (auto part = (yFrom % _rowHeight)) {
 		yFrom -= part;
 	}
-	int yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5 * _columnCount;
+	int yTo = yFrom + parentWidget()->height() * 5 * _columnCount;
 	if (!yTo) {
 		return;
 	}

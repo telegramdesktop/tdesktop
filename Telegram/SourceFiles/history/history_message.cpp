@@ -245,7 +245,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 	const style::color *bar = &st::msgImgReplyBarColor;
 	if (flags & PaintInBubble) {
-		bar = &((flags & PaintSelected) ? (outbg ? st::historyOutSelectedFg : st::msgInReplyBarSelColor) : (outbg ? st::historyOutFg : st::msgInReplyBarColor));
+		bar = &((flags & PaintSelected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
 	}
 	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
 	p.fillRect(rbar, *bar);

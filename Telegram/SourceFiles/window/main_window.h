@@ -44,12 +44,13 @@ public:
 
 	virtual ~MainWindow();
 
+	QWidget *bodyWidget() {
+		return _body;
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-	QWidget *bodyWidget() { // temp
-		return _body;
-	}
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 
 	virtual void initHook() {

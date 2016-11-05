@@ -49,6 +49,10 @@ public:
 	void showFast();
 	void hideFast();
 
+	void setHiddenCallback(base::lambda_unique<void()> callback) {
+		_hiddenCallback = std_::move(callback);
+	}
+
 	bool isHiding() const {
 		return _hiding && _a_appearance.animating();
 	}
@@ -59,9 +63,6 @@ public:
 		IgnoreShow,
 	};
 	void hideAnimated(HideOption option = HideOption::Default);
-
-signals:
-	void beforeHidden();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -102,6 +103,7 @@ private:
 
 	QTimer _hideTimer;
 	bool _ignoreShowEvents = false;
+	base::lambda_unique<void()> _hiddenCallback;
 
 	RectShadow _shadow;
 	ChildWidget<ScrollArea> _scroll;

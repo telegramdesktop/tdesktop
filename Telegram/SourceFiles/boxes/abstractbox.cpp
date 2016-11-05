@@ -35,7 +35,7 @@ void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 	st::boxBlueTitleShadow.fill(p, QRect(r.left(), 0, r.width(), height()));
 }
 
-AbstractBox::AbstractBox(int w) : LayerWidget() {
+AbstractBox::AbstractBox(int w) : LayerWidget(App::wnd()->bodyWidget()) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(w, 0);
 }
@@ -64,8 +64,9 @@ void AbstractBox::resizeEvent(QResizeEvent *e) {
 }
 
 void AbstractBox::parentResized() {
-	int32 newHeight = countHeight();
-	setGeometry((App::wnd()->width() - width()) / 2, (App::wnd()->height() - newHeight) / 2, width(), newHeight);
+	auto newHeight = countHeight();
+	auto parentSize = parentWidget()->size();
+	setGeometry((parentSize.width() - width()) / 2, (parentSize.height() - newHeight) / 2, width(), newHeight);
 	update();
 }
 
@@ -123,7 +124,7 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 }
 
 int AbstractBox::countHeight() const {
-	return qMin(_maxHeight, App::wnd()->height() - 2 * st::boxVerticalMargin);
+	return qMin(_maxHeight, parentWidget()->height() - 2 * st::boxVerticalMargin);
 }
 
 void AbstractBox::onClose() {
@@ -163,7 +164,6 @@ void ScrollableBox::init(TWidget *inner, int bottomSkip, int topSkip) {
 	_bottomSkip = bottomSkip;
 	_topSkip = topSkip;
 	_scroll->setOwnedWidget(inner);
-	_scroll->setFocusPolicy(Qt::NoFocus);
 	updateScrollGeometry();
 }
 

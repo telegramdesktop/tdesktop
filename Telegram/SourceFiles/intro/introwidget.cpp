@@ -35,13 +35,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/icon_button.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "styles/style_intro.h"
+#include "autoupdater.h"
 
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))
 , _a_show(animation(this, &IntroWidget::step_show))
-, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda_unique<void()>(), st::introSlideDuration) {
+, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda_unique<void()>(), st::introSlideDuration)
+, _settings(this, lang(lng_menu_settings), st::defaultBoxButton) {
 	_back->entity()->setClickedCallback([this] { onBack(); });
 	_back->hideFast();
+
+	_settings->setClickedCallback([] { App::wnd()->showSettings(); });
 
 	_countryForReg = psCurrentCountry();
 
@@ -49,6 +53,7 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 
 	_stepHistory.push_back(new IntroStart(this));
 	_back->raise();
+	_settings->raise();
 
 	show();
 	setFocus();
@@ -58,9 +63,31 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 	_back->moveToLeft(st::introBackPosition.x(), st::introBackPosition.y());
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onCheckUpdateStatus()));
+	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onCheckUpdateStatus()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onCheckUpdateStatus()));
 	Sandbox::startUpdateCheck();
+	onCheckUpdateStatus();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+void IntroWidget::onCheckUpdateStatus() {
+	if (Sandbox::updatingState() == Application::UpdatingReady) {
+		if (_update) return;
+		_update.create(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton);
+		_update->show();
+		_update->setClickedCallback([] {
+			checkReadyUpdate();
+			App::restart();
+		});
+	} else {
+		if (!_update) return;
+		_update.destroy();
+	}
+	updateControlsGeometry();
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void IntroWidget::langChangeTo(int32 langId) {
 	_langChangeTo = langId;
@@ -136,6 +163,10 @@ void IntroWidget::historyMove(MoveType type) {
 void IntroWidget::pushStep(IntroStep *step, MoveType type) {
 	_stepHistory.push_back(step);
 	_back->raise();
+	_settings->raise();
+	if (_update) {
+		_update->raise();
+	}
 	_stepHistory.back()->hide();
 
 	historyMove(type);
@@ -334,6 +365,14 @@ void IntroWidget::resizeEvent(QResizeEvent *e) {
 	auto r = innerRect();
 	for (auto step : _stepHistory) {
 		step->setGeometry(r);
+	}
+	updateControlsGeometry();
+}
+
+void IntroWidget::updateControlsGeometry() {
+	_settings->moveToLeft(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _settings->height());
+	if (_update) {
+		_update->moveToLeft(st::boxButtonPadding.right() + _settings->width() + st::boxButtonPadding.left(), _settings->y());
 	}
 }
 
