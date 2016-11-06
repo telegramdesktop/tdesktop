@@ -536,13 +536,14 @@ public:
 		return s_inner.inlineResultsShown();
 	}
 
-public slots:
 	void showAnimated();
 	void hideAnimated();
 
+public slots:
 	void refreshStickers();
 
 private slots:
+	void hideByTimerOrLeave();
 	void refreshSavedGifs();
 
 	void hideFinish();
@@ -595,7 +596,6 @@ private:
 	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child);
-	void startHideAnimated();
 	void prepareShowHideCache();
 
 	void updateSelected();

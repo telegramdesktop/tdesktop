@@ -501,6 +501,7 @@ void MediaPreviewWidget::showPreview(PhotoData *photo) {
 	startShow();
 	_photo = photo;
 	_document = nullptr;
+	fillEmojiString();
 	resetGifAndCache();
 }
 
@@ -548,7 +549,9 @@ void MediaPreviewWidget::fillEmojiString() {
 		return result;
 	};
 
-	if (auto sticker = _document->sticker()) {
+	if (_photo) {
+		_emojiList.clear();
+	} else if (auto sticker = _document->sticker()) {
 		auto &inputSet = sticker->set;
 		if (inputSet.type() == mtpc_inputStickerSetID) {
 			_emojiList = getStickerEmojiList(inputSet.c_inputStickerSetID().vid.v);

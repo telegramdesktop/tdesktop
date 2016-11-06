@@ -7561,7 +7561,6 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		}
 	}
 	t_assert(_history != nullptr);
-
 	if (!_pinnedBar->msg) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}

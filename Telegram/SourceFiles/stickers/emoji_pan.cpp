@@ -2597,7 +2597,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	setCurrentTabIcon(dbietRecent);
 
 	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideAnimated()));
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideByTimerOrLeave()));
 
 	connect(&e_inner, SIGNAL(scrollToY(int)), &e_scroll, SLOT(scrollToY(int)));
 	connect(&e_inner, SIGNAL(disableScroll(bool)), &e_scroll, SLOT(disableScroll(bool)));
@@ -2865,7 +2865,7 @@ bool EmojiPan::preventAutoHide() const {
 void EmojiPan::leaveEvent(QEvent *e) {
 	if (preventAutoHide() || s_inner.inlineResultsShown()) return;
 	if (_a_appearance.animating()) {
-		hideAnimated();
+		hideByTimerOrLeave();
 	} else {
 		_hideTimer.start(300);
 	}
@@ -2879,7 +2879,7 @@ void EmojiPan::otherEnter() {
 void EmojiPan::otherLeave() {
 	if (preventAutoHide() || s_inner.inlineResultsShown()) return;
 	if (_a_appearance.animating()) {
-		hideAnimated();
+		hideByTimerOrLeave();
 	} else {
 		_hideTimer.start(0);
 	}
@@ -3177,10 +3177,10 @@ void EmojiPan::step_appearance(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void EmojiPan::hideAnimated() {
+void EmojiPan::hideByTimerOrLeave() {
 	if (isHidden() || preventAutoHide() || s_inner.inlineResultsShown()) return;
 
-	startHideAnimated();
+	hideAnimated();
 }
 
 void EmojiPan::prepareShowHideCache() {
@@ -3193,7 +3193,7 @@ void EmojiPan::prepareShowHideCache() {
 	}
 }
 
-void EmojiPan::startHideAnimated() {
+void EmojiPan::hideAnimated() {
 	if (_hiding) return;
 
 	prepareShowHideCache();
