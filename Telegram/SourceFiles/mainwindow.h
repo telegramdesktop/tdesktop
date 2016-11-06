@@ -144,7 +144,7 @@ public:
 	bool isActive(bool cached = true) const;
 	void hideMediaview();
 
-	QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon);
+	QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) override;
 
 	bool contentOverlapped(const QRect &globalRect);
 	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
@@ -225,7 +225,7 @@ private:
 
 	QPixmap grabInner();
 
-	void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color);
+	void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) override;
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;

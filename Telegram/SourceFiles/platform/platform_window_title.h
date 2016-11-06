@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #else // Q_OS_WIN
 namespace Platform {
 
-inline Window::TitleWidget *CreateTitleWidget() {
+inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
 	return nullptr;
 }
 

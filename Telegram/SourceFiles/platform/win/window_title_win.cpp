@@ -31,8 +31,8 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 , _minimize(this, st::titleButtonMinimize)
 , _maximizeRestore(this, st::titleButtonMaximize)
 , _close(this, st::titleButtonClose)
-, _maximized(parent->window()->windowState() & Qt::WindowMaximized)
-, _shadow(this, st::titleShadow) {
+, _shadow(this, st::titleShadow)
+, _maximized(parent->window()->windowState() & Qt::WindowMaximized) {
 	_minimize->setClickedCallback([this]() {
 		window()->setWindowState(Qt::WindowMinimized);
 		_minimize->clearState();

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "localstorage.h"
 #include "window/notifications_manager_default.h"
-#include "platform/mac/notifications_manager_mac.h"
+#include "platform/platform_notifications_manager.h"
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
 
@@ -189,11 +189,6 @@ void MainWindow::psUpdateCounter() {
 	}
 }
 
-void MainWindow::psInitFrameless() {
-	psUpdatedPositionTimer.setSingleShot(true);
-	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
-}
-
 void MainWindow::psFirstShow() {
 	psUpdateMargins();
 
@@ -258,7 +253,7 @@ void MainWindow::createGlobalMenu() {
 
 		if (!App::self()) return;
 		Ui::showLayer(new ContactsBox());
-	}, SLOT(action()));
+	}), SLOT(action()));
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));

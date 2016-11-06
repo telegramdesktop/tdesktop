@@ -25,6 +25,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
+inline bool skipAudio() {
+	return false;
+}
+
+inline bool skipToast() {
+	return false;
+}
+
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager();
