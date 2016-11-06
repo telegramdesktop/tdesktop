@@ -82,6 +82,11 @@ notifySendReply: IconButton {
 	iconPositionDown: point(0px, 1px);
 }
 
+titleUnreadCounterTop: 5px;
+titleUnreadCounterRight: 35px;
+
+// Windows specific title
+
 titleHeight: 21px;
 titleButtonMinimize: IconButton {
 	width: 24px;

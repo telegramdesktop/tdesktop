@@ -441,7 +441,7 @@ private:
 
 };
 
-class HistoryHider : public TWidget {
+class HistoryHider : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -559,7 +559,7 @@ public:
 
 	void updateTopBarSelection();
 
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	bool paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	void topBarClick();

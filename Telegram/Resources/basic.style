@@ -817,6 +817,7 @@ contactsScroll: flatScroll(boxScroll) {
 
 simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
+dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};
 
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);

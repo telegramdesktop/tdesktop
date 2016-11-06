@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 
 #include "styles/style_history.h"
+#include "styles/style_window.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "mainwidget.h"
@@ -33,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/icon_button.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/flatbutton.h"
+#include "dialogs/dialogs_layout.h"
 
 namespace Window {
 
@@ -57,6 +59,11 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+	if (Adaptive::OneColumn()) {
+		_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
+			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
+		});
+	}
 
 	setCursor(style::cur_pointer);
 	showAll();
@@ -171,8 +178,27 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
-		main()->paintTopBar(p, a_over.current(), decreaseWidth);
+		auto paintCounter = main()->paintTopBar(p, a_over.current(), decreaseWidth);
 		p.restore();
+
+		if (paintCounter) {
+			paintUnreadCounter(p, width());
+		}
+	}
+}
+
+void TopBarWidget::paintUnreadCounter(Painter &p, int outerWidth) {
+	if (!Adaptive::OneColumn()) {
+		return;
+	}
+	if (auto counter = App::histories().unreadBadge()) {
+		auto counterText = (counter > 99) ? qsl("..%1").arg(counter % 100) : QString::number(counter);
+		Dialogs::Layout::UnreadBadgeStyle unreadSt;
+		unreadSt.muted = App::histories().unreadOnlyMuted();
+		auto unreadRight = st::titleUnreadCounterRight;
+		if (rtl()) unreadRight = outerWidth - st::titleUnreadCounterRight;
+		auto unreadTop = st::titleUnreadCounterTop;
+		Dialogs::Layout::paintUnreadCount(p, counterText, unreadRight, unreadTop, unreadSt);
 	}
 }
 
@@ -316,6 +342,13 @@ void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
 void TopBarWidget::updateAdaptiveLayout() {
 	updateMembersShowArea();
 	showAll();
+	if (!Adaptive::OneColumn()) {
+		unsubscribe(base::take(_unreadCounterSubscription));
+	} else if (!_unreadCounterSubscription) {
+		_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
+			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
+		});
+	}
 }
 
 Ui::RoundButton *TopBarWidget::mediaTypeButton() {

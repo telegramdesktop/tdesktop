@@ -253,6 +253,7 @@ public:
 		return true;
 	}
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
+	void showFast();
 	void step_show(float64 ms, bool timer);
 
 	void destroyData();
@@ -307,6 +308,7 @@ private:
 	void updateLockUnlockVisibility();
 	void updateControlsGeometry();
 	void updateMainMenuGeometry();
+	void updateForwardBar();
 
 	bool _dragInScroll = false;
 	bool _dragForward = false;
@@ -325,6 +327,7 @@ private:
 	mtpRequestId _dialogsRequest = 0;
 	mtpRequestId _contactsRequest = 0;
 
+	ChildWidget<Ui::IconButton> _forwardCancel = { nullptr };
 	ChildWidget<Ui::IconButton> _mainMenuToggle;
 	ChildWidget<Ui::DropdownMenu> _mainMenu = { nullptr };
 	ChildWidget<FlatInput> _filter;

@@ -115,6 +115,7 @@ dialogsVerifiedIconBgActive: dialogsVerifiedIconBgOver;
 dialogsVerifiedIconFgActive: dialogsVerifiedIconFgOver;
 dialogsSendingIconFgActive: dialogsSendingIconFgOver;
 dialogsSentIconFgActive: dialogsSentIconFgOver;
+dialogsForwardFg: #ffffff;
 topBarBg: windowBg;
 emojiPanBg: windowBg;
 emojiPanCategories: #f7f7f7; // windowBg;

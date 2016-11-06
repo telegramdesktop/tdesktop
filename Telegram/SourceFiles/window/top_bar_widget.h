@@ -56,6 +56,8 @@ public:
 
 	Ui::RoundButton *mediaTypeButton();
 
+	static void paintUnreadCounter(Painter &p, int outerWidth);
+
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -93,6 +95,8 @@ private:
 	ChildWidget<Ui::DropdownMenu> _menu = { nullptr };
 
 	ChildWidget<TWidget> _membersShowArea = { nullptr };
+
+	int _unreadCounterSubscription = 0;
 
 };
 

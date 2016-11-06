@@ -1969,7 +1969,7 @@ void OverviewWidget::scrollReset() {
 	_scroll.scrollToY((type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? _scroll.scrollTopMax() : 0);
 }
 
-void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
@@ -1981,13 +1981,15 @@ void OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) 
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
 		p.setOpacity(a_progress.current());
 		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
-		return;
+		return false;
 	}
 	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
 	st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
 	p.setFont(st::topBarBackFont);
 	p.setPen(st::topBarBackColor);
 	p.drawText(st::topBarArrowPadding.left(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
+	p.setOpacity(1.);
+	return true;
 }
 
 void OverviewWidget::topBarClick() {

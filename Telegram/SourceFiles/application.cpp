@@ -932,9 +932,7 @@ void AppClass::call_handleHistoryUpdate() {
 }
 
 void AppClass::call_handleUnreadCounterUpdate() {
-	if (auto w = App::wnd()) {
-		w->updateUnreadCounter();
-	}
+	Global::RefUnreadCounterUpdate().notify(true);
 }
 
 void AppClass::call_handleFileDialogQueue() {

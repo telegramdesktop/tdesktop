@@ -1695,6 +1695,8 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	onCheckUpdateStatus();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
+	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
+
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
@@ -1767,17 +1769,24 @@ void DialogsWidget::dialogsToUp() {
 	}
 }
 
+void DialogsWidget::showFast() {
+	show();
+	updateForwardBar();
+}
+
 void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
 	if (App::app()) App::app()->mtpPause();
 
 	_cacheUnder = params.oldContentCache;
 	show();
+	updateForwardBar();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 
 	_a_show.stop();
 
 	_scroll->hide();
 	_mainMenuToggle->hide();
+	if (_forwardCancel) _forwardCancel->hide();
 	_filter->hide();
 	_cancelSearch->hide();
 	_lockUnlock->hide();
@@ -1809,6 +1818,7 @@ void DialogsWidget::step_show(float64 ms, bool timer) {
 
 		_scroll->show();
 		_mainMenuToggle->show();
+		if (_forwardCancel) _forwardCancel->show();
 		_filter->show();
 		updateLockUnlockVisibility();
 		_a_show.stop();
@@ -2378,20 +2388,26 @@ void DialogsWidget::updateLockUnlockVisibility() {
 }
 
 void DialogsWidget::updateControlsGeometry() {
+	auto filterTop = 0;
+	if (_forwardCancel) {
+		_forwardCancel->moveToLeft(0, filterTop);
+		filterTop += st::dialogsForwardHeight;
+	}
 	auto filterLeft = st::dialogsFilterPadding.x() * 2 + _mainMenuToggle->width();
 	auto filterWidth = width() - 2 * st::dialogsFilterPadding.x();
 	filterWidth -= st::dialogsFilterPadding.x() + _mainMenuToggle->width();
 	if (Global::LocalPasscode()) {
 		filterWidth -= st::dialogsFilterPadding.x() + _lockUnlock->width();
 	}
-	_filter->setGeometryToLeft(filterLeft, st::dialogsFilterPadding.y(), filterWidth, _filter->height());
+	filterTop += st::dialogsFilterPadding.y();
+	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), _filter->y());
 	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), _filter->y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
-	auto scrollTop = _filter->height() + 2 * st::dialogsFilterPadding.y();
+	auto scrollTop = filterTop + _filter->height() + st::dialogsFilterPadding.y();
 	auto scrollHeight = height() - scrollTop;
 	if (_updateTelegram) {
 		auto updateHeight = _updateTelegram->height();
@@ -2412,6 +2428,23 @@ void DialogsWidget::updateMainMenuGeometry() {
 	if (!_mainMenu) return;
 
 	_mainMenu->moveToLeft(st::dialogsMenuPosition.x(), st::dialogsMenuPosition.y());
+}
+
+void DialogsWidget::updateForwardBar() {
+	auto selecting = App::main()->selectingPeer();
+	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
+	if (!oneColumnSelecting == !_forwardCancel) {
+		return;
+	}
+	if (oneColumnSelecting) {
+		_forwardCancel.create(this, st::dialogsForwardCancel);
+		_forwardCancel->setClickedCallback([] { Global::RefPeerChooseCancel().notify(true); });
+		if (!_a_show.animating()) _forwardCancel->show();
+	} else {
+		_forwardCancel.destroyDelayed();
+	}
+	updateControlsGeometry();
+	update();
 }
 
 void DialogsWidget::keyPressEvent(QKeyEvent *e) {
@@ -2464,11 +2497,19 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
 		return;
 	}
-	QRect above(0, 0, width(), _scroll->y());
+	auto aboveTop = 0;
+	if (_forwardCancel) {
+		p.fillRect(0, aboveTop, width(), st::dialogsForwardHeight, st::dialogsForwardBg);
+		p.setPen(st::dialogsForwardFg);
+		p.setFont(st::dialogsForwardFont);
+		p.drawTextLeft(st::dialogsForwardTextLeft, st::dialogsForwardTextTop, width(), lang(lng_forward_choose));
+		aboveTop += st::dialogsForwardHeight;
+	}
+	auto above = QRect(0, aboveTop, width(), _scroll->y());
 	if (above.intersects(r)) {
 		p.fillRect(above.intersected(r), st::dialogsBg);
 	}
-	QRect below(0, _scroll->y() + qMin(_scroll->height(), _inner->height()), width(), height());
+	auto below = QRect(0, _scroll->y() + qMin(_scroll->height(), _inner->height()), width(), height());
 	if (below.intersects(r)) {
 		p.fillRect(below.intersected(r), st::dialogsBg);
 	}

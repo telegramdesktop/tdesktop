@@ -103,6 +103,7 @@ MainWindow::MainWindow() {
 			Notify::unreadCounterUpdated();
 		}
 	});
+	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
 
 	resize(st::windowDefaultWidth, st::windowDefaultHeight);
 

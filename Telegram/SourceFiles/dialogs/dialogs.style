@@ -184,3 +184,19 @@ dialogsUpdateButton: flatButton {
 	font: semiboldFont;
 	overFont: semiboldFont;
 }
+
+dialogsForwardHeight: 32px;
+dialogsForwardTextLeft: 35px;
+dialogsForwardTextTop: 6px;
+dialogsForwardCancel: IconButton {
+	width: 34px;
+	height: dialogsForwardHeight;
+
+	icon: dialogsForwardCancelIcon;
+	iconOver: dialogsForwardCancelIcon;
+
+	iconPosition: point(12px, 11px);
+	iconPositionDown: point(12px, 11px);
+}
+dialogsForwardFont: semiboldFont;
+dialogsForwardBg: windowActiveFill;

@@ -2264,7 +2264,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 			if (!animationParams.oldContentCache.isNull()) {
 				_dialogs->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
 			} else {
-				_dialogs->show();
+				_dialogs->showFast();
 			}
 		}
 	} else {
@@ -2820,7 +2820,7 @@ void MainWidget::showAll() {
 			}
 		}
 		if (selectingPeer()) {
-			_dialogs->show();
+			_dialogs->showFast();
 			_history->hide();
 			if (_overview) _overview->hide();
 			if (_wideSection) _wideSection->hide();
@@ -2833,7 +2833,7 @@ void MainWidget::showAll() {
 			_history->show();
 			_history->updateControlsGeometry();
 		} else {
-			_dialogs->show();
+			_dialogs->showFast();
 			_history->hide();
 		}
 		if (!selectingPeer()) {
@@ -2854,7 +2854,7 @@ void MainWidget::showAll() {
 				_forwardConfirm = 0;
 			}
 		}
-		_dialogs->show();
+		_dialogs->showFast();
 		if (_overview) {
 			_overview->show();
 		} else if (_wideSection) {
@@ -2972,12 +2972,13 @@ bool MainWidget::needBackButton() {
 	return _overview || _wideSection || _history->peer();
 }
 
-void MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_overview) {
-		_overview->paintTopBar(p, over, decreaseWidth);
+		return _overview->paintTopBar(p, over, decreaseWidth);
 	} else if (!_wideSection) {
-		_history->paintTopBar(p, over, decreaseWidth);
+		return _history->paintTopBar(p, over, decreaseWidth);
 	}
+	return false;
 }
 
 QRect MainWidget::getMembersShowAreaGeometry() const {

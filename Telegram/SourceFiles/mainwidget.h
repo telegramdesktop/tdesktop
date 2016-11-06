@@ -144,7 +144,7 @@ public:
 	bool needBackButton();
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	bool paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	Window::TopBarWidget *topBar();

@@ -22,19 +22,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_fixed_bar.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_window.h"
 #include "ui/buttons/round_button.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
+#include "window/top_bar_widget.h"
 
 namespace Profile {
 
-class BackButton final : public Button {
+class BackButton final : public Button, private base::Subscriber {
 public:
 	BackButton(QWidget *parent) : Button(parent) {
 		setCursor(style::cur_pointer);
+
+		subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
+		updateAdaptiveLayout();
 	}
 
 protected:
@@ -50,6 +55,8 @@ protected:
 		p.setFont(st::profileTopBarBackFont);
 		p.setPen(st::profileTopBarBackFg);
 		p.drawTextLeft(st::profileTopBarBackPosition.x(), st::profileTopBarBackPosition.y(), width(), lang(lng_menu_back));
+
+		Window::TopBarWidget::paintUnreadCounter(p, width());
 	}
 	void onStateChanged(int oldState, ButtonStateChangeSource source) override {
 		if ((_state & Button::StateDown) && !(oldState & Button::StateDown)) {
@@ -58,6 +65,17 @@ protected:
 	}
 
 private:
+	void updateAdaptiveLayout() {
+		if (!Adaptive::OneColumn()) {
+			unsubscribe(base::take(_unreadCounterSubscription));
+		} else if (!_unreadCounterSubscription) {
+			_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
+				rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
+			});
+		}
+	}
+
+	int _unreadCounterSubscription = 0;
 
 };
 

@@ -279,7 +279,7 @@ public:
 	void scrollBy(int32 add);
 	void scrollReset();
 
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	bool paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;

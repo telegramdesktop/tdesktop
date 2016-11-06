@@ -355,6 +355,8 @@ DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
+DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
+DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
 } // namespace Global
 

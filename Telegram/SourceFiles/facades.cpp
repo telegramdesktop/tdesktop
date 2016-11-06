@@ -666,6 +666,8 @@ struct Data {
 	base::Observable<void> LocalPasscodeChanged;
 
 	base::Observable<HistoryItem*> ItemRemoved;
+	base::Observable<void> UnreadCounterUpdate;
+	base::Observable<void> PeerChooseCancel;
 
 };
 
@@ -781,5 +783,7 @@ DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
+DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
+DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
 } // namespace Global

@@ -143,6 +143,8 @@ dialogsVerifiedIconFgActive: dialogsVerifiedIconFgOver;
 dialogsSendingIconFgActive: dialogsSendingIconFgOver;
 dialogsSentIconFgActive: dialogsSentIconFgOver;
 
+dialogsForwardFg: #ffffff;
+
 // history
 topBarBg: windowBg;
 

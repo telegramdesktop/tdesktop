@@ -2701,6 +2701,7 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 void HistoryHider::init() {
 	connect(_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
+	subscribe(Global::RefPeerChooseCancel(), [this] { startHide(); });
 
 	_chooseWidth = st::forwardFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
 
@@ -6240,7 +6241,7 @@ void HistoryWidget::onForwardHere() {
 	App::forward(_peer->id, ForwardContextMessage);
 }
 
-void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
@@ -6252,10 +6253,10 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
 		p.setOpacity(a_progress.current());
 		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
-		return;
+		return false;
 	}
 
-	if (!_history) return;
+	if (!_history) return false;
 
 	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
 	decreaseWidth += increaseLeft;
@@ -6275,7 +6276,9 @@ void HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());
+		p.setOpacity(1.);
 	}
+	return true;
 }
 
 QRect HistoryWidget::getMembersShowAreaGeometry() const {

@@ -144,8 +144,6 @@ public:
 	bool isActive(bool cached = true) const;
 	void hideMediaview();
 
-	void updateUnreadCounter();
-
 	QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon);
 
 	bool contentOverlapped(const QRect &globalRect);
@@ -217,6 +215,7 @@ private slots:
 	void onWindowActiveChanged();
 
 private:
+	void updateUnreadCounter();
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 

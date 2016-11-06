@@ -724,8 +724,8 @@ void MainWindow::psUpdateWorkmode() {
 }
 
 void MainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadBadge();
-	bool muted = App::histories().unreadOnlyMuted();
+	auto counter = App::histories().unreadBadge();
+	auto muted = App::histories().unreadOnlyMuted();
 
 	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
