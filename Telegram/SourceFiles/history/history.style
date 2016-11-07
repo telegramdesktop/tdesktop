@@ -153,9 +153,6 @@ historyComposeField: flatTextarea {
 	phPos: point(2px, 0px);
 	phShift: 50px;
 	phDuration: 100;
-	phLeftFunc: transition(linear);
-	phAlphaFunc: transition(linear);
-	phColorFunc: transition(linear);
 }
 historyComposeFieldMaxHeight: 224px;
 // historyMinHeight: 56px;

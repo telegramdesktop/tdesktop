@@ -196,7 +196,7 @@ private:
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
-	anim::cvalue a_phColor;
+	anim::fvalue a_phColorFocused;
 	Animation _a_appearance;
 
 	TextWithTags _lastTextWithTags;

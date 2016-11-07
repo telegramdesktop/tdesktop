@@ -87,7 +87,7 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
-, a_phColor(st.phColor->c)
+, a_phColorFocused(0)
 , _a_appearance(animation(this, &FlatTextarea::step_appearance))
 , _lastTextWithTags { v, tags }
 , _st(st) {
@@ -285,7 +285,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.save();
 		p.setClipRect(r);
 		p.setFont(_st.font);
-		p.setPen(a_phColor.current());
+		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, a_phColorFocused.current()));
 		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
 			int skipWidth = placeholderSkipWidth();
 			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
@@ -312,13 +312,13 @@ int FlatTextarea::placeholderSkipWidth() const {
 }
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
-	a_phColor.start(_st.phFocusColor->c);
+	a_phColorFocused.start(1.);
 	_a_appearance.start();
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
-	a_phColor.start(_st.phColor->c);
+	a_phColorFocused.start(0.);
 	_a_appearance.start();
 	QTextEdit::focusOutEvent(e);
 }
@@ -1269,14 +1269,14 @@ void FlatTextarea::step_appearance(float64 ms, bool timer) {
 		_a_appearance.stop();
 		a_phLeft.finish();
 		a_phAlpha.finish();
-		a_phColor.finish();
+		a_phColorFocused.finish();
 		a_phLeft = anim::ivalue(a_phLeft.current());
 		a_phAlpha = anim::fvalue(a_phAlpha.current());
-		a_phColor = anim::cvalue(a_phColor.current());
+		a_phColorFocused = anim::fvalue(a_phColorFocused.current());
 	} else {
-		a_phLeft.update(dt, _st.phLeftFunc);
-		a_phAlpha.update(dt, _st.phAlphaFunc);
-		a_phColor.update(dt, _st.phColorFunc);
+		a_phLeft.update(dt, anim::linear);
+		a_phAlpha.update(dt, anim::linear);
+		a_phColorFocused.update(dt, anim::linear);
 	}
 	if (timer) update();
 }

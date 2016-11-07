@@ -3147,10 +3147,10 @@ void EmojiPan::step_slide(float64 ms, bool timer) {
 		_fromCache = _toCache = QPixmap();
 		if (_cache.isNull()) showAll();
 	} else {
-		a_fromCoord.update(dt1, st::introHideFunc);
-		a_fromAlpha.update(dt1, st::introAlphaHideFunc);
-		a_toCoord.update(dt2, st::introShowFunc);
-		a_toAlpha.update(dt2, st::introAlphaShowFunc);
+		a_fromCoord.update(dt1, anim::easeInCirc);
+		a_fromAlpha.update(dt1, anim::easeOutCirc);
+		a_toCoord.update(dt2, anim::easeOutCirc);
+		a_toAlpha.update(dt2, anim::easeInCirc);
 	}
 	if (timer) update();
 }

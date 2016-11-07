@@ -38,7 +38,7 @@ DragArea::DragArea(QWidget *parent) : TWidget(parent)
 , _hiding(false)
 , _in(false)
 , a_opacity(0)
-, a_color(st::dragColor->c)
+, a_colorDrop(0)
 , _a_appearance(animation(this, &DragArea::step_appearance))
 , _shadow(st::boxShadow) {
 	setMouseTracking(true);
@@ -52,7 +52,7 @@ void DragArea::mouseMoveEvent(QMouseEvent *e) {
 	if (newIn != _in) {
 		_in = newIn;
 		a_opacity.start(1);
-		a_color.start((_in ? st::dragDropColor : st::dragColor)->c);
+		a_colorDrop.start(_in ? 1. : 0.);
 		_a_appearance.start();
 	}
 }
@@ -63,7 +63,7 @@ void DragArea::dragMoveEvent(QDragMoveEvent *e) {
 	if (newIn != _in) {
 		_in = newIn;
 		a_opacity.start(1);
-		a_color.start((_in ? st::dragDropColor : st::dragColor)->c);
+		a_colorDrop.start(_in ? 1. : 0.);
 		_a_appearance.start();
 	}
 	e->setDropAction(_in ? Qt::CopyAction : Qt::IgnoreAction);
@@ -90,7 +90,7 @@ void DragArea::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(r, st::dragBg);
 
-	p.setPen(a_color.current());
+	p.setPen(anim::pen(st::dragColor, st::dragDropColor, a_colorDrop.current()));
 
 	p.setFont(st::dragFont);
 	p.drawText(QRect(0, (height() - st::dragHeight) / 2, width(), st::dragFont->height), _text, QTextOption(style::al_top));
@@ -109,7 +109,7 @@ void DragArea::dragLeaveEvent(QDragLeaveEvent *e) {
 	static_cast<HistoryWidget*>(parentWidget())->dragLeaveEvent(e);
 	_in = false;
 	a_opacity.start(_hiding ? 0 : 1);
-	a_color.start((_in ? st::dragDropColor : st::dragColor)->c);
+	a_colorDrop.start(_in ? 1. : 0.);
 	_a_appearance.start();
 }
 
@@ -140,21 +140,21 @@ void DragArea::hideStart() {
 	_hiding = true;
 	_in = false;
 	a_opacity.start(0);
-	a_color.start((_in ? st::dragDropColor : st::dragColor)->c);
+	a_colorDrop.start(_in ? 1. : 0.);
 	_a_appearance.start();
 }
 
 void DragArea::hideFinish() {
 	hide();
 	_in = false;
-	a_color = anim::cvalue(st::dragColor->c);
+	a_colorDrop = anim::fvalue(0.);
 }
 
 void DragArea::showStart() {
 	_hiding = false;
 	show();
 	a_opacity.start(1);
-	a_color.start((_in ? st::dragDropColor : st::dragColor)->c);
+	a_colorDrop.start(_in ? 1. : 0.);
 	_a_appearance.start();
 }
 
@@ -162,14 +162,14 @@ void DragArea::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / st::defaultDropdownDuration;
 	if (dt >= 1) {
 		a_opacity.finish();
-		a_color.finish();
+		a_colorDrop.finish();
 		if (_hiding) {
 			hideFinish();
 		}
 		_a_appearance.stop();
 	} else {
 		a_opacity.update(dt, anim::linear);
-		a_color.update(dt, anim::linear);
+		a_colorDrop.update(dt, anim::linear);
 	}
 	if (timer) update();
 }

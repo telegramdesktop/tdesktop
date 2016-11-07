@@ -349,7 +349,7 @@ void MultiSelect::Inner::Item::setVisibleAnimated(bool visible) {
 	prepareCache();
 	auto from = visible ? 0. : 1.;
 	auto to = visible ? 1. : 0.;
-	auto transition = visible ? anim::bumpy<1125, 1000> : anim::linear;
+	auto transition = visible ? anim::bumpy(1.125) : anim::linear;
 	_visibility.start(_updateCallback, from, to, _st.duration, transition);
 }
 

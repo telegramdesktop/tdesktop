@@ -79,9 +79,10 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
-, a_phColor(st.phColor->c)
-, a_borderColor(st.borderColor->c)
-, a_bgColor(st.bgColor->c)
+, a_phColorFocus(0)
+, a_borderColorActive(0)
+, a_borderColorError(0)
+, a_bgColorActive(0)
 , _a_appearance(animation(this, &FlatInput::step_appearance))
 , _notingBene(0)
 , _st(st) {
@@ -173,10 +174,11 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	auto pen = QPen(a_borderColor.current());
+	auto borderColor = anim::color(_st.borderColor, _st.borderActive, a_borderColorActive.current());
+	auto pen = anim::pen(borderColor, _st.borderError, a_borderColorError.current());
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
-	p.setBrush(QBrush(a_bgColor.current()));
+	p.setBrush(anim::brush(_st.bgColor, _st.bgActive, a_bgColorActive.current()));
 	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
@@ -202,22 +204,20 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 }
 
 void FlatInput::focusInEvent(QFocusEvent *e) {
-	a_phColor.start(_st.phFocusColor->c);
-	if (_notingBene <= 0) {
-		a_borderColor.start(_st.borderActive->c);
-	}
-	a_bgColor.start(_st.bgActive->c);
+	a_phColorFocus.start(1.);
+	a_borderColorActive.start(1.);
+	a_borderColorError.restart();
+	a_bgColorActive.start(1);
 	_a_appearance.start();
 	QLineEdit::focusInEvent(e);
 	emit focused();
 }
 
 void FlatInput::focusOutEvent(QFocusEvent *e) {
-	a_phColor.start(_st.phColor->c);
-	if (_notingBene <= 0) {
-		a_borderColor.start(_st.borderColor->c);
-	}
-	a_bgColor.start(_st.bgColor->c);
+	a_phColorFocus.start(0.);
+	a_borderColorActive.start(0.);
+	a_borderColorError.restart();
+	a_bgColorActive.start(0);
 	_a_appearance.start();
 	QLineEdit::focusOutEvent(e);
 	emit blurred();
@@ -263,23 +263,25 @@ void FlatInput::step_appearance(float64 ms, bool timer) {
 		_a_appearance.stop();
 		a_phLeft.finish();
 		a_phAlpha.finish();
-		a_phColor.finish();
-		a_bgColor.finish();
+		a_phColorFocus.finish();
+		a_bgColorActive.finish();
 		if (_notingBene > 0) {
 			_notingBene = -1;
-			a_borderColor.start((hasFocus() ? _st.borderActive : _st.borderColor)->c);
+			a_borderColorActive.restart();
+			a_borderColorError.start(0);
 			_a_appearance.start();
 			return;
 		} else if (_notingBene) {
 			_notingBene = 0;
 		}
-		a_borderColor.finish();
+		a_borderColorActive.finish();
 	} else {
-		a_phLeft.update(dt, _st.phLeftFunc);
-		a_phAlpha.update(dt, _st.phAlphaFunc);
-		a_phColor.update(dt, _st.phColorFunc);
-		a_bgColor.update(dt, _st.phColorFunc);
-		a_borderColor.update(dt, _st.phColorFunc);
+		a_phLeft.update(dt, anim::linear);
+		a_phAlpha.update(dt, anim::linear);
+		a_phColorFocus.update(dt, anim::linear);
+		a_bgColorActive.update(dt, anim::linear);
+		a_borderColorActive.update(dt, anim::linear);
+		a_borderColorError.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
@@ -326,8 +328,8 @@ void FlatInput::correctValue(const QString &was, QString &now) {
 }
 
 void FlatInput::phPrepare(Painter &p) {
-	p.setFont(_st.font->f);
-	p.setPen(a_phColor.current());
+	p.setFont(_st.font);
+	p.setPen(anim::pen(_st.phColor, _st.phFocusColor, a_phColorFocus.current()));
 }
 
 void FlatInput::keyPressEvent(QKeyEvent *e) {
@@ -381,7 +383,8 @@ void FlatInput::onTextChange(const QString &text) {
 void FlatInput::notaBene() {
 	_notingBene = 1;
 	setFocus();
-	a_borderColor.start(_st.borderError->c);
+	a_borderColorError.start(1.);
+	a_borderColorActive.restart();
 	_a_appearance.start();
 }
 
@@ -594,12 +597,13 @@ InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString 
 , _placeholderVisible(val.isEmpty())
 , a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
 , a_placeholderOpacity(_placeholderVisible ? 1 : 0)
-, a_placeholderFg(st.placeholderFg->c)
+, a_placeholderFgActive(0)
 , _a_placeholderFg(animation(this, &InputArea::step_placeholderFg))
 , _a_placeholderShift(animation(this, &InputArea::step_placeholderShift))
 
 , a_borderOpacityActive(0)
-, a_borderFg(st.borderFg->c)
+, a_borderFgActive(0)
+, a_borderFgError(0)
 , _a_border(animation(this, &InputArea::step_border))
 
 , _focused(false)
@@ -746,8 +750,10 @@ void InputArea::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
 	if (_st.borderActive && a_borderOpacityActive.current() > 0) {
+		auto borderFgActive = anim::color(_st.borderFg, _st.borderFgActive, a_borderFgActive.current());
+		auto borderFg = anim::color(borderFgActive, _st.borderFgError, a_borderFgError.current());
 		p.setOpacity(a_borderOpacityActive.current());
-		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, a_borderFg.current());
+		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, borderFg);
 		p.setOpacity(1);
 	}
 
@@ -765,7 +771,7 @@ void InputArea::paintEvent(QPaintEvent *e) {
 		if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
 		p.setFont(_st.font);
-		p.setPen(a_placeholderFg.current());
+		p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, a_placeholderFgActive.current()));
 		p.drawText(r, _placeholder, _st.placeholderAlign);
 
 		p.restore();
@@ -774,7 +780,8 @@ void InputArea::paintEvent(QPaintEvent *e) {
 }
 
 void InputArea::startBorderAnimation() {
-	a_borderFg.start((_error ? _st.borderFgError : (_focused ? _st.borderFgActive : _st.borderFg))->c);
+	a_borderFgActive.start(_focused ? 1. : 0.);
+	a_borderFgError.start(_error ? 1. : 0.);
 	a_borderOpacityActive.start((_error || _focused) ? 1 : 0);
 	_a_border.start();
 }
@@ -801,7 +808,7 @@ void InputArea::focusInInner() {
 	if (!_focused) {
 		_focused = true;
 
-		a_placeholderFg.start(_st.placeholderFgActive->c);
+		a_placeholderFgActive.start(1.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -818,7 +825,7 @@ void InputArea::focusOutInner() {
 	if (_focused) {
 		_focused = false;
 
-		a_placeholderFg.start(_st.placeholderFg->c);
+		a_placeholderFgActive.start(0.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -1149,9 +1156,9 @@ void InputArea::step_placeholderFg(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_placeholderFg.stop();
-		a_placeholderFg.finish();
+		a_placeholderFgActive.finish();
 	} else {
-		a_placeholderFg.update(dt, anim::linear);
+		a_placeholderFgActive.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
@@ -1174,10 +1181,12 @@ void InputArea::step_border(float64 ms, bool timer) {
 	bool res = true;
 	if (dt >= 1) {
 		_a_border.stop();
-		a_borderFg.finish();
+		a_borderFgActive.finish();
+		a_borderFgError.finish();
 		a_borderOpacityActive.finish();
 	} else {
-		a_borderFg.update(dt, anim::linear);
+		a_borderFgActive.update(dt, anim::linear);
+		a_borderFgError.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
 	if (timer) update();
@@ -1317,12 +1326,13 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 , _placeholderVisible(val.isEmpty())
 , a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
 , a_placeholderOpacity(_placeholderVisible ? 1 : 0)
-, a_placeholderFg(st.placeholderFg->c)
+, a_placeholderFgActive(0)
 , _a_placeholderFg(animation(this, &InputField::step_placeholderFg))
 , _a_placeholderShift(animation(this, &InputField::step_placeholderShift))
 
 , a_borderOpacityActive(0)
-, a_borderFg(st.borderFg->c)
+, a_borderFgActive(0)
+, a_borderFgError(0)
 , _a_border(animation(this, &InputField::step_border))
 
 , _focused(false)
@@ -1455,8 +1465,10 @@ void InputField::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}
 	if (_st.borderActive && a_borderOpacityActive.current() > 0) {
+		auto borderFgActive = anim::color(_st.borderFg, _st.borderFgActive, a_borderFgActive.current());
+		auto borderFg = anim::color(borderFgActive, _st.borderFgError, a_borderFgError.current());
 		p.setOpacity(a_borderOpacityActive.current());
-		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, a_borderFg.current());
+		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, borderFg);
 		p.setOpacity(1);
 	}
 
@@ -1474,7 +1486,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 		if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
 		p.setFont(_st.font);
-		p.setPen(a_placeholderFg.current());
+		p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, a_placeholderFgActive.current()));
 		p.drawText(r, _placeholder, _st.placeholderAlign);
 
 		p.restore();
@@ -1483,7 +1495,8 @@ void InputField::paintEvent(QPaintEvent *e) {
 }
 
 void InputField::startBorderAnimation() {
-	a_borderFg.start((_error ? _st.borderFgError : (_focused ? _st.borderFgActive : _st.borderFg))->c);
+	a_borderFgActive.start(_focused ? 1. : 0.);
+	a_borderFgError.start(_error ? 1. : 0.);
 	a_borderOpacityActive.start((_error || _focused) ? 1 : 0);
 	_a_border.start();
 }
@@ -1510,7 +1523,7 @@ void InputField::focusInInner() {
 	if (!_focused) {
 		_focused = true;
 
-		a_placeholderFg.start(_st.placeholderFgActive->c);
+		a_placeholderFgActive.start(1.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -1527,7 +1540,7 @@ void InputField::focusOutInner() {
 	if (_focused) {
 		_focused = false;
 
-		a_placeholderFg.start(_st.placeholderFg->c);
+		a_placeholderFgActive.start(0.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -1889,9 +1902,9 @@ void InputField::step_placeholderFg(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_placeholderFg.stop();
-		a_placeholderFg.finish();
+		a_placeholderFgActive.finish();
 	} else {
-		a_placeholderFg.update(dt, anim::linear);
+		a_placeholderFgActive.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
@@ -1918,10 +1931,12 @@ void InputField::step_border(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_border.stop();
-		a_borderFg.finish();
+		a_borderFgActive.finish();
+		a_borderFgError.finish();
 		a_borderOpacityActive.finish();
 	} else {
-		a_borderFg.update(dt, anim::linear);
+		a_borderFgActive.update(dt, anim::linear);
+		a_borderFgError.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
 	if (timer) update();
@@ -2064,12 +2079,13 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 , _placeholderFast(false)
 , a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
 , a_placeholderOpacity(_placeholderVisible ? 1 : 0)
-, a_placeholderFg(st.placeholderFg->c)
+, a_placeholderFgActive(0)
 , _a_placeholderFg(animation(this, &MaskedInputField::step_placeholderFg))
 , _a_placeholderShift(animation(this, &MaskedInputField::step_placeholderShift))
 
 , a_borderOpacityActive(0)
-, a_borderFg(st.borderFg->c)
+, a_borderFgActive(0)
+, a_borderFgError(0)
 , _a_border(animation(this, &MaskedInputField::step_border))
 
 , _focused(false)
@@ -2183,8 +2199,10 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}
 	if (_st.borderActive && a_borderOpacityActive.current() > 0) {
+		auto borderFgActive = anim::color(_st.borderFg, _st.borderFgActive, a_borderFgActive.current());
+		auto borderFg = anim::color(borderFgActive, _st.borderFgError, a_borderFgError.current());
 		p.setOpacity(a_borderOpacityActive.current());
-		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, a_borderFg.current());
+		p.fillRect(0, height() - _st.borderActive, width(), _st.borderActive, borderFg);
 		p.setOpacity(1);
 	}
 
@@ -2195,7 +2213,8 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 }
 
 void MaskedInputField::startBorderAnimation() {
-	a_borderFg.start((_error ? _st.borderFgError : (_focused ? _st.borderFgActive : _st.borderFg))->c);
+	a_borderFgActive.start(_focused ? 1. : 0.);
+	a_borderFgError.start(_error ? 1. : 0.);
 	a_borderOpacityActive.start((_error || _focused) ? 1 : 0);
 	_a_border.start();
 }
@@ -2204,7 +2223,7 @@ void MaskedInputField::focusInEvent(QFocusEvent *e) {
 	if (!_focused) {
 		_focused = true;
 
-		a_placeholderFg.start(_st.placeholderFgActive->c);
+		a_placeholderFgActive.start(1.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -2217,7 +2236,7 @@ void MaskedInputField::focusOutEvent(QFocusEvent *e) {
 	if (_focused) {
 		_focused = false;
 
-		a_placeholderFg.start(_st.placeholderFg->c);
+		a_placeholderFgActive.start(0.);
 		_a_placeholderFg.start();
 
 		startBorderAnimation();
@@ -2263,9 +2282,9 @@ void MaskedInputField::step_placeholderFg(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_placeholderFg.stop();
-		a_placeholderFg.finish();
+		a_placeholderFgActive.finish();
 	} else {
-		a_placeholderFg.update(dt, anim::linear);
+		a_placeholderFgActive.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
@@ -2287,10 +2306,12 @@ void MaskedInputField::step_border(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_border.stop();
-		a_borderFg.finish();
+		a_borderFgActive.finish();
+		a_borderFgError.finish();
 		a_borderOpacityActive.finish();
 	} else {
-		a_borderFg.update(dt, anim::linear);
+		a_borderFgActive.update(dt, anim::linear);
+		a_borderFgError.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
 	if (timer) update();
@@ -2364,7 +2385,7 @@ void MaskedInputField::paintPlaceholder(Painter &p) {
 
 void MaskedInputField::placeholderPreparePaint(Painter &p) {
 	p.setFont(_st.font);
-	p.setPen(a_placeholderFg.current());
+	p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, a_placeholderFgActive.current()));
 }
 
 void MaskedInputField::keyPressEvent(QKeyEvent *e) {

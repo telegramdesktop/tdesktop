@@ -2137,9 +2137,9 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_coordUnder.update(dt, st::slideFunction);
-		a_coordOver.update(dt, st::slideFunction);
-		a_progress.update(dt, st::slideFunction);
+		a_coordUnder.update(dt, Window::SlideAnimation::transition());
+		a_coordOver.update(dt, Window::SlideAnimation::transition());
+		a_progress.update(dt, Window::SlideAnimation::transition());
 	}
 	if (timer) {
 		update();

@@ -65,10 +65,6 @@ introSize: size(400px, 460px);
 introSlideShift: 500px; // intro hiding animation
 introSlideDuration: 200;
 introSlideDelta: 0; // between hide start and show start
-introHideFunc: transition(easeInCirc);
-introShowFunc: transition(easeOutCirc);
-introAlphaHideFunc: transition(easeOutCirc);
-introAlphaShowFunc: transition(easeInCirc);
 introTextTop: 22px;
 introTextSize: size(400px, 93px);
 introCallSkip: 15px;

@@ -51,7 +51,7 @@ private:
 
 	const style::flatButton &_st;
 
-	anim::cvalue a_bg, a_text;
+	anim::fvalue a_over;
 	Animation _a_appearance;
 
 	float64 _opacity = 1.;

@@ -47,8 +47,9 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 , _connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar())
 , _scrollMax(_connected->maximum())
 , _hideIn(-1)
-, a_bg(_st->hiding ? _st->bgColor->transparent() : _st->bgColor->c)
-, a_bar(_st->hiding ? _st->barColor->transparent() : _st->barColor->c)
+, a_bgOver(0.)
+, a_barOver(0.)
+, a_fullOpacity(_st->hiding ? 0. : 1.)
 , _a_appearance(animation(this, &ScrollBar::step_appearance)) {
 	recountSize();
 
@@ -119,8 +120,9 @@ void ScrollBar::updateBar(bool force) {
 
 void ScrollBar::onHideTimer() {
 	_hideIn = -1;
-	a_bg.start(QColor(a_bg.current().red(), a_bg.current().green(), a_bg.current().blue(), 0));
-	a_bar.start(QColor(a_bar.current().red(), a_bar.current().green(), a_bar.current().blue(), 0));
+	a_fullOpacity.start(0.);
+	a_bgOver.restart();
+	a_barOver.restart();
 	_a_appearance.start();
 }
 
@@ -133,22 +135,27 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 		hide();
 		return;
 	}
-	if (!a_bg.current().alpha() && !a_bar.current().alpha()) return;
+	if (a_fullOpacity.current() == 0.) return;
+
 	QPainter p(this);
 
-	int32 deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
-	int32 deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
+	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
+	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
+	auto bg = anim::color(_st->bgColor, _st->bgOverColor, a_bgOver.current());
+	bg.setAlpha(anim::interpolate(0, bg.alpha(), a_fullOpacity.current()));
+	auto bar = anim::color(_st->barColor, _st->barOverColor, a_barOver.current());
+	bar.setAlpha(anim::interpolate(0, bar.alpha(), a_fullOpacity.current()));
 	if (_st->round) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		p.setBrush(a_bg.current());
+		p.setBrush(bg);
 		p.drawRoundedRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), _st->round, _st->round);
-		p.setBrush(a_bar.current());
+		p.setBrush(bar);
 		p.drawRoundedRect(_bar, _st->round, _st->round);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	} else {
-		p.fillRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), a_bg.current());
-		p.fillRect(_bar, a_bar.current());
+		p.fillRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), bg);
+		p.fillRect(_bar, bar);
 	}
 }
 
@@ -156,19 +163,22 @@ void ScrollBar::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / _st->duration;
 	if (dt >= 1) {
 		_a_appearance.stop();
-		a_bg.finish();
-		a_bar.finish();
+		a_bgOver.finish();
+		a_barOver.finish();
+		a_fullOpacity.finish();
 	} else {
-		a_bg.update(dt, anim::linear);
-		a_bar.update(dt, anim::linear);
+		a_bgOver.update(dt, anim::linear);
+		a_barOver.update(dt, anim::linear);
+		a_fullOpacity.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
 
 void ScrollBar::hideTimeout(int64 dt) {
 	if (_hideIn < 0) {
-		a_bg.start((_over ? _st->bgOverColor : _st->bgColor)->c);
-		a_bar.start((_overbar ? _st->barOverColor : _st->barColor)->c);
+		a_bgOver.start(_over ? 1. : 0.);
+		a_barOver.start(_over ? 1. : 0.);
+		a_fullOpacity.start(1.);
 		_a_appearance.start();
 	}
 	_hideIn = dt;
@@ -181,16 +191,18 @@ void ScrollBar::enterEvent(QEvent *e) {
 	_hideTimer.stop();
 	setMouseTracking(true);
 	_over = true;
-	a_bg.start(_st->bgOverColor->c);
-	a_bar.start(_st->barColor->c);
+	a_bgOver.start(1.);
+	a_barOver.start(1.);
+	a_fullOpacity.start(1.);
 	_a_appearance.start();
 }
 
 void ScrollBar::leaveEvent(QEvent *e) {
 	if (!_moving) {
 		setMouseTracking(false);
-		a_bg.start(_st->bgColor->c);
-		a_bar.start(_st->barColor->c);
+		a_bgOver.start(0.);
+		a_barOver.start(0.);
+		a_fullOpacity.start(1.);
 		_a_appearance.start();
 		if (_hideIn >= 0) {
 			_hideTimer.start(_hideIn);
@@ -206,8 +218,9 @@ void ScrollBar::mouseMoveEvent(QMouseEvent *e) {
 	if (_overbar != newOverBar) {
 		_overbar = newOverBar;
 		if (!_moving) {
-			a_bar.start((newOverBar ? _st->barOverColor : _st->barColor)->c);
-			a_bg.start(_st->bgOverColor->c);
+			a_barOver.start(newOverBar ? 1. : 0.);
+			a_bgOver.start(1.);
+			a_fullOpacity.start(1.);
 			_a_appearance.start();
 		}
 	}
@@ -236,8 +249,9 @@ void ScrollBar::mousePressEvent(QMouseEvent *e) {
 		_connected->setValue(_startFrom);
 		if (!_overbar) {
 			_overbar = true;
-			a_bar.start(_st->barOverColor->c);
-			a_bg.start(_st->bgOverColor->c);
+			a_barOver.start(1.);
+			a_bgOver.start(1.);
+			a_fullOpacity.start(1.);
 			_a_appearance.start();
 		}
 	}
@@ -252,13 +266,17 @@ void ScrollBar::mouseReleaseEvent(QMouseEvent *e) {
 		bool a = false;
 		if (!_overbar) {
 			if (!_over || _hideIn) {
-				a_bar.start(_st->barColor->c);
+				a_bgOver.restart();
+				a_barOver.start(0.);
+				a_fullOpacity.start(1.);
 				a = true;
 			}
 		}
 		if (!_over) {
 			if (_hideIn) {
-				a_bg.start(_st->bgColor->c);
+				a_barOver.restart();
+				a_bgOver.start(0.);
+				a_fullOpacity.start(1.);
 				a = true;
 			}
 			if (_hideIn >= 0) {

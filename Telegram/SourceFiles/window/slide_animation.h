@@ -45,6 +45,10 @@ public:
 
 	void start();
 
+	static const anim::transition &transition() {
+		return anim::easeOutCirc;
+	}
+
 private:
 	void step(float64 ms, bool timer);
 

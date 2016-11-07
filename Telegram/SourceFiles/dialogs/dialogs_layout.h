@@ -50,6 +50,7 @@ struct UnreadBadgeStyle {
 
 	style::align align;
 	bool active;
+	bool selected;
 	bool muted;
 	int size;
 	UnreadBadgeSize sizeId;

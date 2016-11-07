@@ -969,19 +969,11 @@ void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, Cont
 		namew -= icon->width();
 		icon->paint(p, namex + qMin(data->name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
-	if (checkedRatio > 0) {
-		if (checkedRatio < 1) {
-			p.setPen(style::interpolate(st::contactsNameFg, st::contactsNameCheckedFg, checkedRatio));
-		} else {
-			p.setPen(st::contactsNameCheckedFg);
-		}
-	} else {
-		p.setPen(st::contactsNameFg);
-	}
+	p.setPen(anim::pen(st::contactsNameFg, st::contactsNameCheckedFg, checkedRatio));
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	bool uname = (user || peer->isChannel()) && (data->statusText.at(0) == '@');
-	p.setFont(st::contactsStatusFont->f);
+	p.setFont(st::contactsStatusFont);
 	if (uname && !_lastQuery.isEmpty() && peer->userName().startsWith(_lastQuery, Qt::CaseInsensitive)) {
 		int availw = width() - namex - st::contactsPadding.right();
 		QString first = '@' + peer->userName().mid(0, _lastQuery.size()), second = peer->userName().mid(_lastQuery.size());

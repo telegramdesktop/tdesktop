@@ -36,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_fade_wrap.h"
 #include "styles/style_intro.h"
 #include "autoupdater.h"
+#include "window/slide_animation.h"
 
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))
@@ -229,9 +230,9 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 		}
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_coordUnder.update(dt, st::slideFunction);
-		a_coordOver.update(dt, st::slideFunction);
-		a_shadow.update(dt, st::slideFunction);
+		a_coordUnder.update(dt, Window::SlideAnimation::transition());
+		a_coordOver.update(dt, Window::SlideAnimation::transition());
+		a_shadow.update(dt, Window::SlideAnimation::transition());
 	}
 	if (timer) update();
 }
@@ -255,10 +256,10 @@ void IntroWidget::step_stage(float64 ms, bool timer) {
 		step()->activate();
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_coordShow.update(dt2, st::introShowFunc);
-		a_opacityShow.update(dt2, st::introAlphaShowFunc);
-		a_coordHide.update(dt1, st::introHideFunc);
-		a_opacityHide.update(dt1, st::introAlphaHideFunc);
+		a_coordShow.update(dt2, anim::easeOutCirc);
+		a_opacityShow.update(dt2, anim::easeInCirc);
+		a_coordHide.update(dt1, anim::easeInCirc);
+		a_opacityHide.update(dt1, anim::easeOutCirc);
 	}
 	if (timer) update();
 }

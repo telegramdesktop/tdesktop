@@ -23,12 +23,6 @@ using "basic_types.style";
 
 using "ui/widgets/widgets.style";
 
-dialogsUnreadFg: #ffffff;
-dialogsUnreadFgActive: #5b94bf;
-dialogsUnreadBg: windowActiveFill;
-dialogsUnreadBgMuted: #bbbbbb;
-dialogsUnreadBgActive: #ffffff;
-dialogsUnreadBgMutedActive: #d3e2ee;
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
@@ -168,11 +162,9 @@ dialogsUpdateButton: flatButton {
 
 	color: activeButtonFg;
 	overColor: activeButtonFgOver;
-	downColor: activeButtonFgOver;
 
 	bgColor: activeButtonBg;
 	overBgColor: activeButtonBgOver;
-	downBgColor: activeButtonBgOver;
 
 	width: -34px;
 	height: 46px;

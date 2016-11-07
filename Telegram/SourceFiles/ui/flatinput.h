@@ -98,7 +98,10 @@ private:
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
-	anim::cvalue a_phColor, a_borderColor, a_bgColor;
+	anim::fvalue a_phColorFocus;
+	anim::fvalue a_borderColorActive;
+	anim::fvalue a_borderColorError;
+	anim::fvalue a_bgColorActive;
 	Animation _a_appearance;
 
 	int _notingBene;
@@ -303,11 +306,12 @@ private:
 	bool _placeholderVisible;
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
-	anim::cvalue a_placeholderFg;
+	anim::fvalue a_placeholderFgActive;
 	Animation _a_placeholderFg, _a_placeholderShift;
 
 	anim::fvalue a_borderOpacityActive;
-	anim::cvalue a_borderFg;
+	anim::fvalue a_borderFgActive;
+	anim::fvalue a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;
@@ -472,11 +476,12 @@ private:
 	bool _placeholderVisible;
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
-	anim::cvalue a_placeholderFg;
+	anim::fvalue a_placeholderFgActive;
 	Animation _a_placeholderFg, _a_placeholderShift;
 
 	anim::fvalue a_borderOpacityActive;
-	anim::cvalue a_borderFg;
+	anim::fvalue a_borderFgActive;
+	anim::fvalue a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;
@@ -588,11 +593,12 @@ private:
 	bool _placeholderVisible, _placeholderFast;
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
-	anim::cvalue a_placeholderFg;
+	anim::fvalue a_placeholderFgActive;
 	Animation _a_placeholderFg, _a_placeholderShift;
 
 	anim::fvalue a_borderOpacityActive;
-	anim::cvalue a_borderFg;
+	anim::fvalue a_borderFgActive;
+	anim::fvalue a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;

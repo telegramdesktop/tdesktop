@@ -141,15 +141,17 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 
 struct UnreadBadgeSizeData {
 	QImage circle;
-	QPixmap left[4], right[4];
+	QPixmap left[6], right[6];
 };
 class UnreadBadgeStyleData : public Data::AbstractStructure {
 public:
 	UnreadBadgeSizeData sizes[UnreadBadgeSizesCount];
-	const style::color *bg[4] = {
+	const style::color *bg[6] = {
 		&st::dialogsUnreadBg,
+		&st::dialogsUnreadBgOver,
 		&st::dialogsUnreadBgActive,
 		&st::dialogsUnreadBgMuted,
+		&st::dialogsUnreadBgMutedOver,
 		&st::dialogsUnreadBgMutedActive
 	};
 };
@@ -181,7 +183,7 @@ const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected) {
 void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st) {
 	t_assert(rect.height() == st.size);
 
-	int index = (st.active ? 0x01 : 0x00) | (st.muted ? 0x02 : 0x00);
+	int index = (st.muted ? 0x03 : 0x00) + (st.active ? 0x02 : (st.selected ? 0x01 : 0x00));
 	int size = st.size, sizehalf = size / 2;
 
 	unreadBadgeStyle.createIfNull();
@@ -209,6 +211,7 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 UnreadBadgeStyle::UnreadBadgeStyle()
 : align(style::al_right)
 , active(false)
+, selected(false)
 , muted(false)
 , size(st::dialogsUnreadHeight)
 , sizeId(UnreadBadgeInDialogs)
@@ -235,7 +238,7 @@ void paintUnreadCount(Painter &p, const QString &text, int x, int y, const Unrea
 	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), st);
 
 	p.setFont(st.font);
-	p.setPen(st.active ? st::dialogsUnreadFgActive : st::dialogsUnreadFg);
+	p.setPen(st.active ? st::dialogsUnreadFgActive : (st.selected ? st::dialogsUnreadFgOver : st::dialogsUnreadFg));
 	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + (unreadRectHeight - st.font->height) / 2 + st.font->ascent, text);
 }
 

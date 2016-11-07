@@ -1124,7 +1124,7 @@ private:
 	anim::ivalue a_recordingLevel = { 0, 0 };
 	int32 _recordingSamples = 0;
 	anim::fvalue a_recordDown = { 0, 0 };
-	anim::cvalue a_recordCancel;
+	anim::fvalue a_recordCancelActive;
 	int32 _recordCancelWidth;
 
 	bool kbWasHidden() const;

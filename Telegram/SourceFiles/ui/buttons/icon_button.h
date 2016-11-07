@@ -58,7 +58,7 @@ protected:
 private:
 	const style::MaskButton &_st;
 
-	ColorAnimation _a_iconBg;
+	FloatAnimation _a_iconOver;
 
 };
 

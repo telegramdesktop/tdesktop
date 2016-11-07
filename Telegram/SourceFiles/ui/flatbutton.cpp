@@ -26,8 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent)
 , _text(text)
 , _st(st)
-, a_bg(st.bgColor->c)
-, a_text(st.color->c)
+, a_over(0)
 , _a_appearance(animation(this, &FlatButton::step_appearance)) {
 	if (_st.width < 0) {
 		_width = textWidth() - _st.width;
@@ -73,25 +72,18 @@ void FlatButton::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
 		_a_appearance.stop();
-		a_bg.finish();
-		a_text.finish();
+		a_over.finish();
 	} else {
-		a_bg.update(dt, anim::linear);
-		a_text.update(dt, anim::linear);
+		a_over.update(dt, anim::linear);
 	}
 	if (timer) update();
 }
 
 void FlatButton::onStateChange(int oldState, ButtonStateChangeSource source) {
-	auto &bgColorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
-	auto &colorTo = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
-
-	a_bg.start(bgColorTo->c);
-	a_text.start(colorTo->c);
+	a_over.start((_state & StateOver) ? 1. : 0.);
 	if (source == ButtonByUser || source == ButtonByPress) {
 		_a_appearance.stop();
-		a_bg.finish();
-		a_text.finish();
+		a_over.finish();
 		update();
 	} else {
 		_a_appearance.start();
@@ -103,23 +95,12 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 
 	QRect r(0, height() - _st.height, width(), _st.height);
 
-	auto animating = _a_appearance.animating();
-	auto &bg = (_state & StateOver) ? ((_state & StateDown) ? _st.downBgColor : _st.overBgColor) : _st.bgColor;
-	auto &fg = (_state & StateOver) ? ((_state & StateDown) ? _st.downColor : _st.overColor) : _st.color;
 	p.setOpacity(_opacity);
-	if (animating) {
-		p.fillRect(r, a_bg.current());
-	} else {
-		p.fillRect(r, bg);
-	}
+	p.fillRect(r, anim::brush(_st.bgColor, _st.overBgColor, a_over.current()));
 
 	p.setFont((_state & StateOver) ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
-	if (animating) {
-		p.setPen(a_text.current());
-	} else {
-		p.setPen(fg);
-	}
+	p.setPen(anim::pen(_st.color, _st.overColor, a_over.current()));
 
 	int32 top = (_state & StateOver) ? ((_state & StateDown) ? _st.downTextTop : _st.overTextTop) : _st.textTop;
 	r.setTop(top);

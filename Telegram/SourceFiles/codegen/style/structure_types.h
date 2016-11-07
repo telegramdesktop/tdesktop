@@ -48,7 +48,6 @@ enum class TypeTag {
 	Color,
 	Point,
 	Size,
-	Transition,
 	Cursor,
 	Align,
 	Margins,

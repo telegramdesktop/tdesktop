@@ -485,16 +485,16 @@ ShareBox::Inner::Chat *ShareBox::Inner::getChat(Dialogs::Row *row) {
 
 void ShareBox::Inner::setActive(int active) {
 	if (active != _active) {
-		auto changeNameFg = [this](int index, const style::color &from, const style::color &to) {
+		auto changeNameFg = [this](int index, float64 from, float64 to) {
 			if (auto chat = getChatAtIndex(index)) {
-				chat->nameFg.start([this, peer = chat->peer] {
+				chat->nameActive.start([this, peer = chat->peer] {
 					repaintChat(peer);
-				}, from->c, to->c, st::shareActivateDuration);
+				}, from, to, st::shareActivateDuration);
 			}
 		};
-		changeNameFg(_active, st::shareNameActiveFg, st::shareNameFg);
+		changeNameFg(_active, 1., 0.);
 		_active = active;
-		changeNameFg(_active, st::shareNameFg, st::shareNameActiveFg);
+		changeNameFg(_active, 0., 1.);
 	}
 	auto y = (_active < _columnCount) ? 0 : (_rowsTop + ((_active / _columnCount) * _rowHeight));
 	emit mustScrollTo(y, y + _rowHeight);
@@ -509,11 +509,7 @@ void ShareBox::Inner::paintChat(Painter &p, uint64 ms, Chat *chat, int index) {
 	auto photoTop = st::sharePhotoTop;
 	chat->checkbox.paint(p, ms, x + photoLeft, y + photoTop, outerWidth);
 
-	if (chat->nameFg.animating()) {
-		p.setPen(chat->nameFg.current());
-	} else {
-		p.setPen((index == _active) ? st::shareNameActiveFg : st::shareNameFg);
-	}
+	p.setPen(anim::pen(st::shareNameFg, st::shareNameActiveFg, chat->nameActive.current((index == _active) ? 1. : 0.)));
 
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
 	auto nameLeft = st::shareColumnSkip / 2;

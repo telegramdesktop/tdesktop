@@ -162,7 +162,7 @@ private:
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		ColorAnimation nameFg;
+		FloatAnimation nameActive;
 	};
 	void paintChat(Painter &p, uint64 ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);

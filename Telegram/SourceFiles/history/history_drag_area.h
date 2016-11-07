@@ -69,7 +69,7 @@ private:
 	bool _hiding, _in;
 
 	anim::fvalue a_opacity;
-	anim::cvalue a_color;
+	anim::fvalue a_colorDrop;
 	Animation _a_appearance;
 
 	Ui::RectShadow _shadow;

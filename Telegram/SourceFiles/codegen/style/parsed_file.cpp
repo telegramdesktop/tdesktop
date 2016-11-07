@@ -120,7 +120,6 @@ std::string logType(const structure::Type &type) {
 		{ structure::TypeTag::Color     , "color" },
 		{ structure::TypeTag::Point     , "point" },
 		{ structure::TypeTag::Size      , "size" },
-		{ structure::TypeTag::Transition, "transition" },
 		{ structure::TypeTag::Cursor    , "cursor" },
 		{ structure::TypeTag::Align     , "align" },
 		{ structure::TypeTag::Margins   , "margins" },
@@ -136,10 +135,6 @@ bool validateAnsiString(const QString &value) {
 		}
 	}
 	return true;
-}
-
-bool validateTransitionString(const QString &value) {
-	return QRegularExpression("^[a-zA-Z_]+$").match(value).hasMatch();
 }
 
 bool validateCursorString(const QString &value) {
@@ -313,8 +308,6 @@ structure::Value ParsedFile::readValue() {
 		return pointValue;
 	} else if (auto sizeValue = readSizeValue()) {
 		return sizeValue;
-	} else if (auto transitionValue = readTransitionValue()) {
-		return transitionValue;
 	} else if (auto cursorValue = readCursorValue()) {
 		return cursorValue;
 	} else if (auto alignValue = readAlignValue()) {
@@ -600,26 +593,6 @@ structure::Value ParsedFile::readSizeValue() {
 			assertNextToken(BasicType::RightParenthesis);
 
 			return { structure::data::size { w.Int(), h.Int() } };
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
-structure::Value ParsedFile::readTransitionValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "transition") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto transition = tokenValue(assertNextToken(BasicType::Name));
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			if (validateTransitionString(transition)) {
-				return { structure::TypeTag::Transition, transition.toStdString() };
-			} else {
-				logError(kErrorBadString) << "bad transition value";
-			}
 		}
 		file_.putBack();
 	}

@@ -1820,16 +1820,8 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 		QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
 
 		p.setPen(Qt::NoPen);
-		if (o == 0.) {
-			p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
-			p.setBrush(st::msgDateImgBg);
-		} else if (o == 1.) {
-			p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
-			p.setBrush(st::msgDateImgBgOver);
-		} else {
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - o)) + (st::msgDateImgBgOver->c.alphaF() * o));
-			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, o));
-		}
+		p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
+		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, o));
 
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 		p.drawEllipse(inner);

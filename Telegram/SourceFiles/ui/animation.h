@@ -89,228 +89,188 @@ enum Notification {
 
 namespace anim {
 
-	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
+using transition = base::lambda_wrap<float64(float64 delta, float64 dt)>;
 
-    float64 linear(const float64 &delta, const float64 &dt);
-	float64 sineInOut(const float64 &delta, const float64 &dt);
-    float64 halfSine(const float64 &delta, const float64 &dt);
-    float64 easeOutBack(const float64 &delta, const float64 &dt);
-    float64 easeInCirc(const float64 &delta, const float64 &dt);
-    float64 easeOutCirc(const float64 &delta, const float64 &dt);
-    float64 easeInCubic(const float64 &delta, const float64 &dt);
-    float64 easeOutCubic(const float64 &delta, const float64 &dt);
-    float64 easeInQuint(const float64 &delta, const float64 &dt);
-    float64 easeOutQuint(const float64 &delta, const float64 &dt);
+extern transition linear;
+extern transition sineInOut;
+extern transition halfSine;
+extern transition easeOutBack;
+extern transition easeInCirc;
+extern transition easeOutCirc;
+extern transition easeInCubic;
+extern transition easeOutCirc;
+extern transition easeInQuint;
+extern transition easeOutQuint;
 
-	template <int BumpRatioNumerator, int BumpRatioDenominator>
-	float64 bumpy(const float64 &delta, const float64 &dt) {
-		struct Bumpy {
-			Bumpy()
-				: bump(BumpRatioNumerator / float64(BumpRatioDenominator))
-				, dt0(bump - sqrt(bump * (bump - 1.)))
-				, k(1 / (2 * dt0 - 1)) {
-			}
-			float64 bump;
-			float64 dt0;
-			float64 k;
-		};
-		static Bumpy data;
-		return delta * (data.bump - data.k * (dt - data.dt0) * (dt - data.dt0));
+inline transition bumpy(float64 bump) {
+	auto dt0 = (bump - sqrt(bump * (bump - 1.)));
+	auto k = (1 / (2 * dt0 - 1));
+	return [bump, dt0, k](float64 delta, float64 dt) {
+		return delta * (bump - k * (dt - dt0) * (dt - dt0));
+	};
+}
+
+// Basic animated value.
+class value {
+public:
+	using ValueType = float64;
+
+	value() = default;
+	value(float64 from) : _cur(from), _from(from) {
+	}
+	value(float64 from, float64 to) : _cur(from), _from(from), _delta(to - from) {
+	}
+	void start(float64 to) {
+		_from = _cur;
+		_delta = to - _from;
+	}
+	void restart() {
+		_delta = _from + _delta - _cur;
+		_from = _cur;
 	}
 
-	class fvalue { // float animated value
-	public:
-		using ValueType = float64;
+	float64 from() const {
+		return _from;
+	}
+	float64 current() const {
+		return _cur;
+	}
+	float64 to() const {
+		return _from + _delta;
+	}
+	void add(float64 delta) {
+		_from += delta;
+		_cur += delta;
+	}
+	value &update(float64 dt, const transition &func) {
+		_cur = _from + func(_delta, dt);
+		return *this;
+	}
+	void finish() {
+		_cur = _from + _delta;
+		_from = _cur;
+		_delta = 0;
+	}
 
-		fvalue() = default;
-		fvalue(float64 from) : _cur(from), _from(from) {
-		}
-		fvalue(float64 from, float64 to) : _cur(from), _from(from), _delta(to - from) {
-		}
-		void start(float64 to) {
-			_from = _cur;
-			_delta = to - _from;
-		}
-		void restart() {
-			_delta = _from + _delta - _cur;
-			_from = _cur;
-		}
+private:
+	float64 _cur = 0.;
+	float64 _from = 0.;
+	float64 _delta = 0.;
 
-		float64 from() const {
-			return _from;
-		}
-		float64 current() const {
-			return _cur;
-		}
-		float64 to() const {
-			return _from + _delta;
-		}
-		void add(float64 delta) {
-			_from += delta;
-			_cur += delta;
-		}
-		fvalue &update(float64 dt, transition func) {
-			_cur = _from + (*func)(_delta, dt);
-			return *this;
-		}
-		void finish() {
-			_cur = _from + _delta;
-			_from = _cur;
-			_delta = 0;
-		}
+};
 
-	private:
-		float64 _cur = 0.;
-		float64 _from = 0.;
-		float64 _delta = 0.;
+using fvalue = value;
 
+class ivalue { // int animated value
+public:
+	using ValueType = int;
+
+	ivalue() = default;
+	ivalue(int from) : _cur(from), _from(float64(from)) {
+	}
+	ivalue(int from, int to) : _cur(from), _from(float64(from)), _delta(float64(to - from)) {
+	}
+	void start(int32 to) {
+		_from = float64(_cur);
+		_delta = float64(to) - _from;
+	}
+	void restart() {
+		_delta = _from + _delta - float64(_cur);
+		_from = float64(_cur);
+	}
+
+	int from() const {
+		return _from;
+	}
+	int current() const {
+		return _cur;
+	}
+	int to() const {
+		return qRound(_from + _delta);
+	}
+	void add(int delta) {
+		_from += delta;
+		_cur += delta;
+	}
+	ivalue &update(float64 dt, const transition &func) {
+		_cur = qRound(_from + func(_delta, dt));
+		return *this;
+	}
+	void finish() {
+		_cur = qRound(_from + _delta);
+		_from = _cur;
+		_delta = 0;
+	}
+
+private:
+	int _cur = 0;
+	float64 _from = 0.;
+	float64 _delta = 0.;
+
+};
+
+void startManager();
+void stopManager();
+void registerClipManager(Media::Clip::Manager *manager);
+
+inline int interpolate(int a, int b, float64 b_ratio) {
+	return qRound(a + float64(b - a) * b_ratio);
+}
+
+inline QColor color(QColor a, QColor b, float64 b_ratio) {
+	auto bOpacity = snap(interpolate(0, 255, b_ratio), 0, 255) + 1;
+	auto aOpacity = (256 - bOpacity);
+	return {
+		(a.red() * aOpacity + b.red() * bOpacity) >> 8,
+		(a.green() * aOpacity + b.green() * bOpacity) >> 8,
+		(a.blue() * aOpacity + b.blue() * bOpacity) >> 8,
+		(a.alpha() * aOpacity + b.alpha() * bOpacity) >> 8
 	};
+}
 
-	class ivalue { // int animated value
-	public:
-		using ValueType = int;
+inline QColor color(const style::color &a, QColor b, float64 b_ratio) {
+	return color(a->c, b, b_ratio);
+}
 
-		ivalue() = default;
-		ivalue(int from) : _cur(from), _from(float64(from)) {
-		}
-		ivalue(int from, int to) : _cur(from), _from(float64(from)), _delta(float64(to - from)) {
-		}
-		void start(int32 to) {
-			_from = float64(_cur);
-			_delta = float64(to) - _from;
-		}
-		void restart() {
-			_delta = _from + _delta - float64(_cur);
-			_from = float64(_cur);
-		}
+inline QColor color(QColor a, const style::color &b, float64 b_ratio) {
+	return color(a, b->c, b_ratio);
+}
 
-		int from() const {
-			return _from;
-		}
-		int current() const {
-			return _cur;
-		}
-		int to() const {
-			return qRound(_from + _delta);
-		}
-		void add(int delta) {
-			_from += delta;
-			_cur += delta;
-		}
-		ivalue &update(float64 dt, transition func) {
-			_cur = qRound(_from + (*func)(_delta, dt));
-			return *this;
-		}
-		void finish() {
-			_cur = qRound(_from + _delta);
-			_from = _cur;
-			_delta = 0;
-		}
+inline QColor color(const style::color &a, const style::color &b, float64 b_ratio) {
+	return color(a->c, b->c, b_ratio);
+}
 
-	private:
-		int _cur = 0;
-		float64 _from = 0.;
-		float64 _delta = 0.;
+inline QPen pen(QColor a, QColor b, float64 b_ratio) {
+	return color(a, b, b_ratio);
+}
 
-	};
+inline QPen pen(const style::color &a, QColor b, float64 b_ratio) {
+	return (b_ratio > 0) ? pen(a->c, b, b_ratio) : a;
+}
 
-	class cvalue { // QColor animated value
-	public:
-		using ValueType = QColor;
+inline QPen pen(QColor a, const style::color &b, float64 b_ratio) {
+	return (b_ratio < 1) ? pen(a, b->c, b_ratio) : b;
+}
 
-		cvalue() = default;
-		explicit cvalue(QColor from)
-			: _cur(from)
-			, _from_r(from.redF())
-			, _from_g(from.greenF())
-			, _from_b(from.blueF())
-			, _from_a(from.alphaF()) {
-		}
-		cvalue(QColor from, QColor to)
-			: _cur(from)
-			, _from_r(from.redF())
-			, _from_g(from.greenF())
-			, _from_b(from.blueF())
-			, _from_a(from.alphaF())
-			, _delta_r(to.redF() - from.redF())
-			, _delta_g(to.greenF() - from.greenF())
-			, _delta_b(to.blueF() - from.blueF())
-			, _delta_a(to.alphaF() - from.alphaF()) {
-		}
-		void start(QColor to) {
-			_from_r = _cur.redF();
-			_from_g = _cur.greenF();
-			_from_b = _cur.blueF();
-			_from_a = _cur.alphaF();
-			_delta_r = to.redF() - _from_r;
-			_delta_g = to.greenF() - _from_g;
-			_delta_b = to.blueF() - _from_b;
-			_delta_a = to.alphaF() - _from_a;
-		}
-		void restart() {
-			_delta_r = _from_r + _delta_r - _cur.redF();
-			_delta_g = _from_g + _delta_g - _cur.greenF();
-			_delta_b = _from_b + _delta_b - _cur.blueF();
-			_delta_a = _from_a + _delta_a - _cur.alphaF();
-			_from_r = _cur.redF();
-			_from_g = _cur.greenF();
-			_from_b = _cur.blueF();
-			_from_a = _cur.alphaF();
-		}
-		QColor from() const {
-			QColor result;
-			result.setRedF(_from_r);
-			result.setGreenF(_from_g);
-			result.setBlueF(_from_b);
-			result.setAlphaF(_from_a);
-			return result;
-		}
-		QColor current() const {
-			return _cur;
-		}
-		QColor to() const {
-			QColor result;
-			result.setRedF(_from_r + _delta_r);
-			result.setGreenF(_from_g + _delta_g);
-			result.setBlueF(_from_b + _delta_b);
-			result.setAlphaF(_from_a + _delta_a);
-			return result;
-		}
-		cvalue &update(const float64 &dt, transition func) {
-			_cur.setRedF(_from_r + (*func)(_delta_r, dt));
-			_cur.setGreenF(_from_g + (*func)(_delta_g, dt));
-			_cur.setBlueF(_from_b + (*func)(_delta_b, dt));
-			_cur.setAlphaF(_from_a + (*func)(_delta_a, dt));
-			return *this;
-		}
-		void finish() {
-			_cur.setRedF(_from_r + _delta_r);
-			_cur.setGreenF(_from_g + _delta_g);
-			_cur.setBlueF(_from_b + _delta_b);
-			_cur.setAlphaF(_from_a + _delta_a);
-			_from_r = _cur.redF();
-			_from_g = _cur.greenF();
-			_from_b = _cur.blueF();
-			_from_a = _cur.alphaF();
-			_delta_r = _delta_g = _delta_b = _delta_a = 0;
-		}
+inline QPen pen(const style::color &a, const style::color &b, float64 b_ratio) {
+	return (b_ratio > 0) ? ((b_ratio < 1) ? pen(a->c, b->c, b_ratio) : b) : a;
+}
 
-	private:
-		QColor _cur;
-		float64 _from_r = 0.;
-		float64 _from_g = 0.;
-		float64 _from_b = 0.;
-		float64 _from_a = 0.;
-		float64 _delta_r = 0.;
-		float64 _delta_g = 0.;
-		float64 _delta_b = 0.;
-		float64 _delta_a = 0.;
+inline QBrush brush(QColor a, QColor b, float64 b_ratio) {
+	return color(a, b, b_ratio);
+}
 
-	};
+inline QBrush brush(const style::color &a, QColor b, float64 b_ratio) {
+	return (b_ratio > 0) ? brush(a->c, b, b_ratio) : a;
+}
 
-	void startManager();
-	void stopManager();
-	void registerClipManager(Media::Clip::Manager *manager);
+inline QBrush brush(QColor a, const style::color &b, float64 b_ratio) {
+	return (b_ratio < 1) ? brush(a, b->c, b_ratio) : b;
+}
+
+inline QBrush brush(const style::color &a, const style::color &b, float64 b_ratio) {
+	return (b_ratio > 0) ? ((b_ratio < 1) ? brush(a->c, b->c, b_ratio) : b) : a;
+}
 
 };
 
@@ -573,7 +533,6 @@ private:
 
 using FloatAnimation = SimpleAnimation<anim::fvalue>;
 using IntAnimation = SimpleAnimation<anim::ivalue>;
-using ColorAnimation = SimpleAnimation<anim::cvalue>;
 
 class AnimationManager : public QObject {
 	Q_OBJECT

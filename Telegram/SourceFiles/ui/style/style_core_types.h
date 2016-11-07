@@ -27,7 +27,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 
-#include "ui/animation.h"
 #include "ui/style/style_core_font.h"
 #include "ui/style/style_core_color.h"
 #include "ui/style/style_core_icon.h"
@@ -38,7 +37,6 @@ using string = QString;
 using rect = QRect;
 using point = QPoint;
 using size = QSize;
-using transition = anim::transition;
 using cursor = Qt::CursorShape;
 using align = Qt::Alignment;
 using margins = QMargins;

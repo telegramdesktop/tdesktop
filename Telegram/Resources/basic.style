@@ -63,7 +63,7 @@ defaultBoxButton: RoundButton {
 	secondaryTextFg: #2f9fea;
 	secondaryTextFgOver: #2f9fea;
 	textBg: boxBg;
-	textBgOver: #edf7ff;
+	textBgOver: lightButtonBgOver;
 
 	width: -24px;
 	height: 36px;
@@ -280,7 +280,6 @@ slideDuration: 240;
 slideShift: 100px;
 slideFadeOutBg: #0000003c;
 slideShadow: icon {{ "slide_shadow", #000000 }};
-slideFunction: transition(easeOutCirc);
 
 btnYesColor: #0080c0;
 btnYesHover: #0073ad;
@@ -321,9 +320,6 @@ inpDefFlat: flatInput {
 	phPos: point(2px, 0px);
 	phShift: 50px;
 	phDuration: 100;
-	phLeftFunc: transition(linear);
-	phAlphaFunc: transition(linear);
-	phColorFunc: transition(linear);
 }
 
 inpDefGray: flatInput(inpDefFlat) {
@@ -691,11 +687,9 @@ btnSend: flatButton {
 
 	color: btnYesColor;
 	overColor: btnYesHover;
-	downColor: btnYesHover;
 
 	bgColor: historySendBg;
 	overBgColor: historySendBgOver;
-	downBgColor: historySendBgOver;
 
 	width: -32px;
 	height: 46px;
@@ -710,7 +704,6 @@ btnSend: flatButton {
 btnUnblock: flatButton(btnSend) {
 	color: #d15948;
 	overColor: #d15948;
-	downColor: #db6352;
 }
 
 historyScroll: flatScroll(scrollDef) {
@@ -737,11 +730,9 @@ reportSpamHide: flatButton {
 
 	color: btnYesColor;
 	overColor: btnYesHover;
-	downColor: btnYesHover;
 
 	bgColor: transparent;
 	overBgColor: transparent;
-	downBgColor: transparent;
 
 	width: -40px;
 	height: 46px;
@@ -763,7 +754,6 @@ reportSpamButton: flatButton(reportSpamHide) {
 
 	bgColor: #888888;
 	overBgColor: #7b7b7b;
-	downBgColor: #7b7b7b;
 }
 reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;

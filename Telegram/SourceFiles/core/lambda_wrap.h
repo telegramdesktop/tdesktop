@@ -52,8 +52,9 @@ struct lambda_wrap_helper_base {
 	const call_type call;
 	const destruct_type destruct;
 
-	static constexpr size_t kFullStorageSize = sizeof(void*) + 24U;
+	static constexpr size_t kFullStorageSize = 24U + sizeof(void*);
 	static constexpr size_t kStorageSize = kFullStorageSize - sizeof(void*);
+	using alignment = uint64;
 
 	template <typename Lambda>
 	using IsLarge = std_::integral_constant<bool, !(sizeof(std_::decay_simple_t<Lambda>) <= kStorageSize)>;
@@ -144,7 +145,7 @@ struct lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> :
 		new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
 	}
 	static void construct_move_lambda_method(void *lambda, void *source) {
-		static_assert(alignof(JustLambda) <= alignof(void*), "Bad lambda alignment.");
+		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
 		auto space = sizeof(JustLambda);
 		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
 		t_assert(aligned == lambda);
@@ -219,7 +220,7 @@ struct lambda_wrap_helper_copy_impl<Lambda, std_::false_type, Return, Args...> :
 		new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
 	}
 	static void construct_copy_lambda_method(void *lambda, const void *source) {
-		static_assert(alignof(JustLambda) <= alignof(void*), "Bad lambda alignment.");
+		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
 		auto space = sizeof(JustLambda);
 		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
 		t_assert(aligned == lambda);
@@ -318,10 +319,12 @@ protected:
 	lambda_unique(const BaseHelper *helper, const Private &) : helper_(helper) {
 	}
 
-	const BaseHelper *helper_;
-
 	static_assert(BaseHelper::kStorageSize % sizeof(void*) == 0, "Bad pointer size.");
-	void *(storage_[BaseHelper::kStorageSize / sizeof(void*)]);
+	union {
+		void *(storage_[BaseHelper::kStorageSize / sizeof(void*)]);
+		typename BaseHelper::alignment alignment_;
+	};
+	const BaseHelper *helper_;
 
 };
 

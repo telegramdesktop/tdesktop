@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/text/text.h"
 #include "ui/buttons/round_button.h"
 #include "styles/style_boxes.h"
+#include "window/slide_animation.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))
@@ -140,9 +141,9 @@ void PasscodeWidget::step_show(float64 ms, bool timer) {
 
 		Ui::showChatsList();
 	} else {
-		a_coordUnder.update(dt, st::slideFunction);
-		a_coordOver.update(dt, st::slideFunction);
-		a_shadow.update(dt, st::slideFunction);
+		a_coordUnder.update(dt, Window::SlideAnimation::transition());
+		a_coordOver.update(dt, Window::SlideAnimation::transition());
+		a_shadow.update(dt, Window::SlideAnimation::transition());
 	}
 	if (timer) update();
 }

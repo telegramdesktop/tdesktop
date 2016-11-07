@@ -172,7 +172,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			auto over = _animation->_a_over.current();
-			p.fillRect(r, style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.fillRect(r, anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = (_state & StateFlag::Over);
 			p.fillRect(r, over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -708,11 +708,11 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	auto inner = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
 	p.setPen(Qt::NoPen);
 	if (isThumbAnimation(context->ms)) {
-		float64 over = _animation->a_thumbOver.current();
-		p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
+		auto over = _animation->a_thumbOver.current();
+		p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 	} else {
 		bool over = ClickHandler::showAsActive(document->loading() ? _cancel : _open);
-		p.setBrush((over ? st::msgFileInBgOver : st::msgFileInBg));
+		p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 	}
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing);

@@ -400,7 +400,7 @@ void Widget::step_shift(float64 ms, bool timer) {
 }
 
 void Widget::hideSlow() {
-	hideAnimated(st::notifySlowHide, st::notifySlowHideFunc);
+	hideAnimated(st::notifySlowHide, anim::easeInCirc);
 }
 
 void Widget::hideFast() {

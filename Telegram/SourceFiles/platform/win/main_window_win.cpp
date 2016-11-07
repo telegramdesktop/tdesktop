@@ -742,7 +742,7 @@ void MainWindow::psUpdateCounter() {
 	if (trayIcon) {
 		// Force Qt to use right icon size, not the larger one.
 		QIcon forTrayIcon;
-		forTrayIcon.addPixmap(iconSizeSmall.width() >= 32 ? iconSmallPixmap32 : iconSmallPixmap16);
+		forTrayIcon.addPixmap(iconSizeSmall.width() >= 20 ? iconSmallPixmap32 : iconSmallPixmap16);
 		trayIcon->setIcon(forTrayIcon);
 	}
 

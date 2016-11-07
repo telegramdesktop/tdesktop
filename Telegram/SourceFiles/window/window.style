@@ -52,7 +52,6 @@ notifyClose: IconButton {
 notifyItemTop: 12px;
 notifyTextLeft: 12px;
 notifyTextTop: 7px;
-notifySlowHideFunc: transition(easeInCirc);
 notifyWaitLongHide: 3000;
 notifyFastAnim: 150;
 notifyWidth: 320px;

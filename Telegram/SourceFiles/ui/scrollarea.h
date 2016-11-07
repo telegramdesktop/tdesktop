@@ -96,7 +96,7 @@ private:
 	int64 _hideIn;
 	QTimer _hideTimer;
 
-	anim::cvalue a_bg, a_bar;
+	anim::fvalue a_bgOver, a_barOver, a_fullOpacity;
 	Animation _a_appearance;
 
 	QRect _bar;

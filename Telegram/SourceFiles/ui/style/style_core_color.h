@@ -103,27 +103,4 @@ inline bool operator!=(const Color &a, const Color &b) {
 }
 
 } // namespace internal
-
-inline QColor interpolate(QColor a, QColor b, float64 opacity_b) {
-	auto bOpacity = static_cast<int>(opacity_b * 255) + 1, aOpacity = (256 - bOpacity);
-	return {
-		(a.red() * aOpacity + b.red() * bOpacity) >> 8,
-		(a.green() * aOpacity + b.green() * bOpacity) >> 8,
-		(a.blue() * aOpacity + b.blue() * bOpacity) >> 8,
-		(a.alpha() * aOpacity + b.alpha() * bOpacity) >> 8
-	};
-}
-
-inline QColor interpolate(const style::internal::Color &a, QColor b, float64 opacity_b) {
-	return interpolate(a->c, b, opacity_b);
-}
-
-inline QColor interpolate(QColor a, const style::internal::Color &b, float64 opacity_b) {
-	return interpolate(a, b->c, opacity_b);
-}
-
-inline QColor interpolate(const style::internal::Color &a, const style::internal::Color &b, float64 opacity_b) {
-	return interpolate(a->c, b->c, opacity_b);
-}
-
 } // namespace style

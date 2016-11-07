@@ -417,7 +417,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 			p.setBrush(st::msgDateImgBgSelected);
 		} else if (isThumbAnimation(ms)) {
 			auto over = _animation->a_thumbOver.current();
-			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -755,7 +755,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 		p.setBrush(st::msgDateImgBgSelected);
 	} else if (isThumbAnimation(ms)) {
 		auto over = _animation->a_thumbOver.current();
-		p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 	} else {
 		bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -1109,7 +1109,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 				p.setBrush(st::msgDateImgBgSelected);
 			} else if (isThumbAnimation(ms)) {
 				auto over = _animation->a_thumbOver.current();
-				p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+				p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 			} else {
 				auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 				p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -1157,7 +1157,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setBrush(outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected);
 		} else if (isThumbAnimation(ms)) {
 			auto over = _animation->a_thumbOver.current();
-			p.setBrush(style::interpolate(outbg ? st::msgFileOutBg : st::msgFileInBg, outbg ? st::msgFileOutBgOver : st::msgFileInBgOver, over));
+			p.setBrush(anim::brush(outbg ? st::msgFileOutBg : st::msgFileInBg, outbg ? st::msgFileOutBgOver : st::msgFileInBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(outbg ? (over ? st::msgFileOutBgOver : st::msgFileOutBg) : (over ? st::msgFileInBgOver : st::msgFileInBg));
@@ -1731,7 +1731,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 			p.setBrush(st::msgDateImgBgSelected);
 		} else if (isThumbAnimation(ms)) {
 			auto over = _animation->a_thumbOver.current();
-			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);

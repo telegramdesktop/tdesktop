@@ -164,7 +164,7 @@ void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
 	}
 	if (speed == SetStyle::Animated) {
 		prepareWideCache();
-		_selection.start(_updateCallback, _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim::bumpy<125, 100>);
+		_selection.start(_updateCallback, _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim::bumpy(1.25));
 	} else {
 		_selection.finish();
 	}

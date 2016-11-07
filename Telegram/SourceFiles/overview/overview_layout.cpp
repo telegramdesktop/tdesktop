@@ -332,7 +332,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		} else if (_a_iconOver.animating()) {
 			_a_iconOver.step(context->ms);
 			auto over = a_iconOver.current();
-			p.setBrush(style::interpolate(st::msgDateImgBg, st::msgDateImgBgOver, over));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
@@ -454,10 +454,10 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(st::msgFileInBgSelected);
 		} else if (_a_iconOver.animating()) {
 			_a_iconOver.step(context->ms);
-			float64 over = a_iconOver.current();
-			p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
+			auto over = a_iconOver.current();
+			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
-			bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 		}
 
@@ -665,10 +665,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				p.setBrush(st::msgFileInBgSelected);
 			} else if (_a_iconOver.animating()) {
 				_a_iconOver.step(context->ms);
-				float64 over = a_iconOver.current();
-				p.setBrush(style::interpolate(_st.songIconBg, _st.songOverBg, over));
+				auto over = a_iconOver.current();
+				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, over));
 			} else {
-				bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+				auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 				p.setBrush(over ? _st.songOverBg : _st.songIconBg);
 			}
 
@@ -741,7 +741,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					} else if (_a_iconOver.animating()) {
 						_a_iconOver.step(context->ms);
 						auto over = a_iconOver.current();
-						p.setBrush(style::interpolate(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), over));
+						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), over));
 					} else {
 						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));

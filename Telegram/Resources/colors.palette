@@ -34,14 +34,14 @@ imageBgTransparent: #ffffff;
 
 // widgets
 activeButtonBg: windowActiveFill;
-activeButtonBgOver: #46b4eb | activeButtonBg;
+activeButtonBgOver: #46b4eb;
 activeButtonFg: #ffffff;
 activeButtonFgOver: activeButtonFg;
 activeButtonSecondaryFg: #cceeff;
 activeButtonSecondaryFgOver: activeButtonSecondaryFg;
 
 lightButtonBg: windowBg;
-lightButtonBgOver: #f2f7fa | lightButtonBg;
+lightButtonBgOver: #edf7ff;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
@@ -74,7 +74,7 @@ boxBg: windowBg;
 boxTextFg: windowTextFg;
 boxTextFgGood: #4ab44a;
 boxTextFgError: #d84d4d;
-boxTitleFg: #404040 | windowTextFg;
+boxTitleFg: #404040;
 boxSearchBg: boxBg;
 boxSearchCancelIconFg: cancelIconFg;
 boxSearchCancelIconFgOver: cancelIconFgOver;
@@ -108,7 +108,7 @@ introErrorFg: windowTextFg;
 dialogsMenuIconFg: menuIconFg;
 
 dialogsBg: windowBg;
-dialogsNameFg: #373737 | windowTextFg;
+dialogsNameFg: #373737;
 dialogsChatIconFg: dialogsNameFg;
 dialogsDateFg: windowSubTextFg;
 dialogsTextFg: windowSubTextFg;
@@ -118,6 +118,9 @@ dialogsVerifiedIconBg: #4abcf1;
 dialogsVerifiedIconFg: #ffffff;
 dialogsSendingIconFg: #c1c1c1;
 dialogsSentIconFg: #5dc452;
+dialogsUnreadBg: windowActiveFill;
+dialogsUnreadBgMuted: #bbbbbb;
+dialogsUnreadFg: #ffffff;
 
 dialogsBgOver: windowOverBg;
 dialogsNameFgOver: windowTextFg;
@@ -130,6 +133,9 @@ dialogsVerifiedIconBgOver: dialogsVerifiedIconBg;
 dialogsVerifiedIconFgOver: dialogsVerifiedIconFg;
 dialogsSendingIconFgOver: dialogsSendingIconFg;
 dialogsSentIconFgOver: dialogsSentIconFg;
+dialogsUnreadBgOver: dialogsUnreadBg;
+dialogsUnreadBgMutedOver: dialogsUnreadBgMuted;
+dialogsUnreadFgOver: dialogsUnreadFg;
 
 dialogsBgActive: dialogsBgOver;
 dialogsNameFgActive: dialogsNameFgOver;
@@ -142,6 +148,9 @@ dialogsVerifiedIconBgActive: dialogsVerifiedIconBgOver;
 dialogsVerifiedIconFgActive: dialogsVerifiedIconFgOver;
 dialogsSendingIconFgActive: dialogsSendingIconFgOver;
 dialogsSentIconFgActive: dialogsSentIconFgOver;
+dialogsUnreadBgActive: dialogsUnreadBgOver;
+dialogsUnreadBgMutedActive: dialogsUnreadBgMutedOver;
+dialogsUnreadFgActive: dialogsUnreadFgOver;
 
 dialogsForwardFg: #ffffff;
 

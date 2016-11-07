@@ -3010,7 +3010,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _field(this, st::historyComposeField, lang(lng_message_ph))
 , _a_record(animation(this, &HistoryWidget::step_record))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
-, a_recordCancel(st::historyRecordCancel->c, st::historyRecordCancel->c)
+, a_recordCancelActive(0, 0)
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _kbScroll(this, st::botKbScroll)
 , _attachType(this, st::historyAttachDropdownMenu)
@@ -3272,7 +3272,7 @@ void HistoryWidget::onTextChange() {
 			_a_record.stop();
 			_inRecord = _inField = false;
 			a_recordDown = anim::fvalue(0, 0);
-			a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
+			a_recordCancelActive = anim::fvalue(0, 0);
 		}
 	}
 	if (updateCmdStartShown()) {
@@ -5511,9 +5511,9 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_coordUnder.update(dt, st::slideFunction);
-		a_coordOver.update(dt, st::slideFunction);
-		a_progress.update(dt, st::slideFunction);
+		a_coordUnder.update(dt, Window::SlideAnimation::transition());
+		a_coordOver.update(dt, Window::SlideAnimation::transition());
+		a_progress.update(dt, Window::SlideAnimation::transition());
 	}
 	if (timer) {
 		update();
@@ -5549,10 +5549,10 @@ void HistoryWidget::step_record(float64 ms, bool timer) {
 	if (dt >= 1 || !_send->isHidden() || isBotStart() || isBlocked()) {
 		_a_record.stop();
 		a_recordDown.finish();
-		a_recordCancel.finish();
+		a_recordCancelActive.finish();
 	} else {
 		a_recordDown.update(dt, anim::linear);
-		a_recordCancel.update(dt, anim::linear);
+		a_recordCancelActive.update(dt, anim::linear);
 	}
 	if (timer) {
 		if (_recording) {
@@ -5672,7 +5672,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	if (inField != _inField && _recording) {
 		_inField = inField;
 		a_recordDown.start(_inField ? 1 : 0);
-		a_recordCancel.start(_inField ? st::historyRecordCancel->c : st::historyRecordCancelActive->c);
+		a_recordCancelActive.start(_inField ? 0. : 1.);
 		_a_record.start();
 	}
 	if (inReplyEdit != _inReplyEdit) {
@@ -5721,7 +5721,7 @@ void HistoryWidget::stopRecording(bool send) {
 	updateField();
 
 	a_recordDown.start(0);
-	a_recordCancel = anim::cvalue(st::historyRecordCancel->c, st::historyRecordCancel->c);
+	a_recordCancelActive = anim::fvalue(0., 0.);
 	_a_record.start();
 }
 
@@ -7552,6 +7552,7 @@ HistoryWidget::PinnedBar::~PinnedBar() {
 }
 
 void HistoryWidget::updatePinnedBar(bool force) {
+	update();
 	if (!_pinnedBar) {
 		return;
 	}
@@ -7560,6 +7561,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 			return;
 		}
 	}
+
 	t_assert(_history != nullptr);
 	if (!_pinnedBar->msg) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
@@ -7573,7 +7575,6 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		}
 		destroyPinnedBar();
 		resizeEvent(0);
-		update();
 	}
 }
 
@@ -7623,7 +7624,6 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			_pinnedBar->msg = 0;
 			_pinnedBar->text.clear();
 			updatePinnedBar();
-			update();
 		}
 		if (!_pinnedBar->msg && App::api()) {
 			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, replyEditMessageDataCallback());
@@ -8656,7 +8656,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 	int32 left = _attachPhoto->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
 	int32 right = width() - _send->width();
 
-	p.setPen(a_recordCancel.current());
+	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, a_recordCancelActive.current()));
 	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
 }
 
