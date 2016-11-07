@@ -1702,7 +1702,7 @@ void HistoryInner::toggleScrollDateShown() {
 	_scrollDateShown = !_scrollDateShown;
 	auto from = _scrollDateShown ? 0. : 1.;
 	auto to = _scrollDateShown ? 1. : 0.;
-	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::historyAttachPhoto.duration);
+	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::historyAttach.duration);
 }
 
 void HistoryInner::repaintScrollDateCallback() {
@@ -2303,7 +2303,7 @@ void HistoryInner::onParentGeometryChanged() {
 }
 
 MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph, const QString &val) : FlatTextarea(history, st, ph, val), history(history) {
-	setMinHeight(st::btnSend.height - 2 * st::sendPadding);
+	setMinHeight(st::historySend.height - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);
 }
 
@@ -2995,13 +2995,12 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _historyToEnd(this)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
-, _send(this, lang(lng_send_button), st::btnSend)
-, _unblock(this, lang(lng_unblock_button), st::btnUnblock)
-, _botStart(this, lang(lng_bot_start), st::btnSend)
-, _joinChannel(this, lang(lng_channel_join), st::btnSend)
-, _muteUnmute(this, lang(lng_channel_mute), st::btnSend)
-, _attachDocument(this, st::historyAttachDocument)
-, _attachPhoto(this, st::historyAttachPhoto)
+, _send(this, st::historySend)
+, _unblock(this, lang(lng_unblock_button), st::historyUnblock)
+, _botStart(this, lang(lng_bot_start), st::historyComposeButton)
+, _joinChannel(this, lang(lng_channel_join), st::historyComposeButton)
+, _muteUnmute(this, lang(lng_channel_mute), st::historyComposeButton)
+, _attachToggle(this, st::historyAttach)
 , _attachEmoji(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
@@ -3035,8 +3034,18 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
 	connect(_silent, SIGNAL(clicked()), this, SLOT(onBroadcastSilentChange()));
-	connect(_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
-	connect(_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
+	_attachToggle->setClickedCallback([this] {
+		if (cDefaultAttach() == dbidaPhoto) {
+			onPhotoSelect();
+		} else {
+			onDocumentSelect();
+		}
+	});
+	if (cDefaultAttach() == dbidaPhoto) {
+		_attachToggle->setIcon(&st::historyAttachPhotoIcon, &st::historyAttachPhotoIconOver);
+	} else {
+		_attachToggle->setIcon(&st::historyAttachFileIcon, &st::historyAttachFileIconOver);
+	}
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
@@ -3112,16 +3121,14 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_reportSpamPanel.move(0, 0);
 	_reportSpamPanel.hide();
 
-	_attachDocument->hide();
-	_attachPhoto->hide();
+	_attachToggle->hide();
 	_attachEmoji->hide();
 	_botKeyboardShow->hide();
 	_botKeyboardHide->hide();
 	_silent->hide();
 	_botCommandStart->hide();
 
-	_attachDocument->installEventFilter(_attachType);
-	_attachPhoto->installEventFilter(_attachType);
+	_attachToggle->installEventFilter(_attachType);
 	_attachEmoji->installEventFilter(_emojiPan);
 
 	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
@@ -4502,8 +4509,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_fieldAutocomplete->hide();
 		_field->hide();
 		_fieldBarCancel->hide();
-		_attachDocument->hide();
-		_attachPhoto->hide();
+		_attachToggle->hide();
 		_attachEmoji->hide();
 		_silent->hide();
 		_historyToEnd->hide();
@@ -4561,13 +4567,11 @@ void HistoryWidget::updateControlsVisibility() {
 		_send->hide();
 		if (_inlineBotCancel) _inlineBotCancel->hide();
 		_botStart->hide();
-		_attachDocument->hide();
-		_attachPhoto->hide();
+		_attachToggle->hide();
 		_silent->hide();
 		_kbScroll.hide();
 		_fieldBarCancel->hide();
-		_attachDocument->hide();
-		_attachPhoto->hide();
+		_attachToggle->hide();
 		_attachEmoji->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
@@ -4597,8 +4601,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_botKeyboardShow->hide();
 			_botKeyboardHide->hide();
 			_botCommandStart->hide();
-			_attachDocument->hide();
-			_attachPhoto->hide();
+			_attachToggle->hide();
 			_silent->hide();
 			_kbScroll.hide();
 			_fieldBarCancel->hide();
@@ -4626,8 +4629,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_botKeyboardShow->hide();
 				_botKeyboardHide->hide();
 				_botCommandStart->hide();
-				_attachDocument->hide();
-				_attachPhoto->hide();
+				_attachToggle->hide();
 				_silent->hide();
 				if (_kbShown) {
 					_kbScroll.show();
@@ -4664,13 +4666,7 @@ void HistoryWidget::updateControlsVisibility() {
 						}
 					}
 				}
-				if (cDefaultAttach() == dbidaPhoto) {
-					_attachDocument->hide();
-					_attachPhoto->show();
-				} else {
-					_attachDocument->show();
-					_attachPhoto->hide();
-				}
+				_attachToggle->show();
 				if (hasSilentToggle()) {
 					_silent->show();
 				} else {
@@ -4696,13 +4692,11 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart->hide();
 		_joinChannel->hide();
 		_muteUnmute->hide();
-		_attachDocument->hide();
-		_attachPhoto->hide();
+		_attachToggle->hide();
 		_silent->hide();
 		_kbScroll.hide();
 		_fieldBarCancel->hide();
-		_attachDocument->hide();
-		_attachPhoto->hide();
+		_attachToggle->hide();
 		_attachEmoji->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
@@ -5456,8 +5450,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_kbScroll.hide();
 	_reportSpamPanel.hide();
 	_historyToEnd->hide();
-	_attachDocument->hide();
-	_attachPhoto->hide();
+	_attachToggle->hide();
 	_attachEmoji->hide();
 	_fieldAutocomplete->hide();
 	_silent->hide();
@@ -5545,7 +5538,7 @@ void HistoryWidget::animStop() {
 }
 
 void HistoryWidget::step_record(float64 ms, bool timer) {
-	float64 dt = ms / st::btnSend.duration;
+	float64 dt = ms / st::historyComposeButton.duration;
 	if (dt >= 1 || !_send->isHidden() || isBotStart() || isBlocked()) {
 		_a_record.stop();
 		a_recordDown.finish();
@@ -5571,15 +5564,13 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 	} else {
 		a_recordingLevel.update(dt, anim::linear);
 	}
-	if (timer) update(_attachDocument->geometry());
+	if (timer) update(_attachToggle->geometry());
 }
 
 void HistoryWidget::onPhotoSelect() {
 	if (!_history) return;
 
-	_attachDocument->clearState();
-	_attachDocument->hide();
-	_attachPhoto->show();
+	_attachToggle->setIcon(&st::historyAttachPhotoIcon, &st::historyAttachPhotoIconOver);
 	_attachType->hideFast();
 
 	if (cDefaultAttach() != dbidaPhoto) {
@@ -5605,9 +5596,7 @@ void HistoryWidget::onPhotoSelect() {
 void HistoryWidget::onDocumentSelect() {
 	if (!_history) return;
 
-	_attachPhoto->clearState();
-	_attachPhoto->hide();
-	_attachDocument->show();
+	_attachToggle->setIcon(&st::historyAttachFileIcon, &st::historyAttachFileIconOver);
 	_attachType->hideFast();
 
 	if (cDefaultAttach() != dbidaDocument) {
@@ -5663,7 +5652,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	QPoint pos(e ? e->pos() : mapFromGlobal(QCursor::pos()));
 	bool inRecord = _send->geometry().contains(pos);
 	bool inField = pos.y() >= (_scroll.y() + _scroll.height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
-	bool inReplyEdit = QRect(st::historyReplySkip, _field->y() - st::sendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
+	bool inReplyEdit = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
 	bool inPinnedMsg = QRect(0, 0, width(), st::historyReplyHeight).contains(pos) && _pinnedBar;
 	if (inRecord != _inRecord) {
 		_inRecord = inRecord;
@@ -5692,7 +5681,7 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
-		update(0, _field->y() - st::sendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
+		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
 	}
 	if (_attachDrag != DragStateNone || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
 		_attachDrag = DragStateNone;
@@ -6417,47 +6406,47 @@ void HistoryWidget::updateOnlineDisplayTimer() {
 }
 
 void HistoryWidget::moveFieldControls() {
-	int w = width(), h = height(), right = w, bottom = h, keyboardHeight = 0;
-	int maxKeyboardHeight = st::historyComposeFieldMaxHeight - _field->height();
+	auto keyboardHeight = 0;
+	auto bottom = height();
+	auto maxKeyboardHeight = st::historyComposeFieldMaxHeight - _field->height();
 	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
 	if (_kbShown) {
 		keyboardHeight = qMin(_keyboard.height(), maxKeyboardHeight);
 		bottom -= keyboardHeight;
-		_kbScroll.setGeometry(0, bottom, w, keyboardHeight);
+		_kbScroll.setGeometry(0, bottom, width(), keyboardHeight);
 	}
 
-// _attachType ----------------------------------------------------------- _emojiPan --------- _fieldBarCancel
+// _attachToggle --------------------------------------------------------- _emojiPan --------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
-	int buttonsBottom = bottom - _attachDocument->height();
-	_attachDocument->move(0, buttonsBottom);
-	_attachPhoto->move(0, buttonsBottom);
-	_field->move(_attachDocument->width(), bottom - _field->height() - st::sendPadding);
-	_send->move(right - _send->width(), buttonsBottom);
+	auto buttonsBottom = bottom - _attachToggle->height();
+	auto left = 0;
+	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
+	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
+	auto right = st::historySendRight;
+	_send->moveToRight(right, buttonsBottom); right += _send->width();
 	if (_inlineBotCancel) _inlineBotCancel->move(_send->pos());
-	right -= _send->width();
-	_attachEmoji->move(right - _attachEmoji->width(), buttonsBottom);
-	_botKeyboardHide->move(right - _botKeyboardHide->width(), buttonsBottom);
-	right -= _attachEmoji->width();
-	_botKeyboardShow->move(right - _botKeyboardShow->width(), buttonsBottom);
-	_botCommandStart->move(right - _botCommandStart->width(), buttonsBottom);
-	_silent->move(right - _silent->width(), buttonsBottom);
+	_attachEmoji->moveToRight(right, buttonsBottom);
+	_botKeyboardHide->moveToRight(right, buttonsBottom); right += _botKeyboardHide->width();
+	_botKeyboardShow->moveToRight(right, buttonsBottom);
+	_botCommandStart->moveToRight(right, buttonsBottom);
+	_silent->moveToRight(right, buttonsBottom);
 
-	right = w;
-	_fieldBarCancel->move(right - _fieldBarCancel->width(), _field->y() - st::sendPadding - _fieldBarCancel->height());
-	_attachType->move(0, _attachDocument->y() - _attachType->height());
+	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
+	_attachType->moveToLeft(0, _attachToggle->y() - _attachType->height());
 	_emojiPan->moveBottom(_attachEmoji->y());
 
-	_botStart->setGeometry(0, bottom - _botStart->height(), w, _botStart->height());
-	_unblock->setGeometry(0, bottom - _unblock->height(), w, _unblock->height());
-	_joinChannel->setGeometry(0, bottom - _joinChannel->height(), w, _joinChannel->height());
-	_muteUnmute->setGeometry(0, bottom - _muteUnmute->height(), w, _muteUnmute->height());
+	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
+	_botStart->setGeometry(fullWidthButtonRect);
+	_unblock->setGeometry(fullWidthButtonRect);
+	_joinChannel->setGeometry(fullWidthButtonRect);
+	_muteUnmute->setGeometry(fullWidthButtonRect);
 }
 
 void HistoryWidget::updateFieldSize() {
 	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
-	int fieldWidth = width() - _attachDocument->width();
+	int fieldWidth = width() - _attachToggle->width();
 	fieldWidth -= _send->width();
 	fieldWidth -= _attachEmoji->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
@@ -6525,14 +6514,14 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 void HistoryWidget::updateFieldPlaceholder() {
 	if (_editMsgId) {
 		_field->setPlaceholder(lang(lng_edit_message_text));
-		_send->setText(lang(lng_settings_save));
+//		_send->setText(lang(lng_settings_save));
 	} else {
 		if (_inlineBot && _inlineBot != LookingUpInlineBot) {
 			_field->setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
 		} else {
 			_field->setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
 		}
-		_send->setText(lang(lng_send_button));
+//		_send->setText(lang(lng_send_button));
 	}
 }
 
@@ -7097,7 +7086,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		newScrollHeight -= _unblock->height();
 	} else {
 		if (_canSendMessages) {
-			newScrollHeight -= (_field->height() + 2 * st::sendPadding);
+			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
 		}
 		if (_editMsgId || replyToId() || readyToForward() || (_previewData && _previewData->pendingTill >= 0)) {
 			newScrollHeight -= st::historyReplyHeight;
@@ -7400,7 +7389,7 @@ void HistoryWidget::updateToEndVisibility() {
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
-	_replyForwardPressed = QRect(0, _field->y() - st::sendPadding - st::historyReplyHeight, st::historyReplySkip, st::historyReplyHeight).contains(e->pos());
+	_replyForwardPressed = QRect(0, _field->y() - st::historySendPadding - st::historyReplyHeight, st::historyReplySkip, st::historyReplyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_fieldBarCancel->isHidden()) {
 		updateField();
 	} else if (_inRecord && cHasAudioCapture()) {
@@ -8480,7 +8469,7 @@ void HistoryWidget::updateField() {
 }
 
 void HistoryWidget::drawField(Painter &p, const QRect &rect) {
-	int32 backy = _field->y() - st::sendPadding, backh = _field->height() + 2 * st::sendPadding;
+	int32 backy = _field->y() - st::historySendPadding, backh = _field->height() + 2 * st::historySendPadding;
 	Text *from = 0, *text = 0;
 	bool serviceColor = false, hasForward = readyToForward();
 	ImagePtr preview;
@@ -8644,20 +8633,20 @@ void HistoryWidget::drawRecording(Painter &p) {
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	float64 delta = qMin(float64(a_recordingLevel.current()) / 0x4000, 1.);
 	int32 d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
-	p.drawEllipse(_attachPhoto->x() + (_attachEmoji->width() - d) / 2, _attachPhoto->y() + (_attachPhoto->height() - d) / 2, d, d);
+	p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
 	p.setFont(st::historyRecordFont);
 
 	p.setPen(st::historyRecordDurationFg);
-	p.drawText(_attachPhoto->x() + _attachEmoji->width(), _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
+	p.drawText(_attachToggle->x() + _attachEmoji->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
 
-	int32 left = _attachPhoto->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
+	int32 left = _attachToggle->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
 	int32 right = width() - _send->width();
 
 	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, a_recordCancelActive.current()));
-	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
+	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
 }
 
 void HistoryWidget::drawPinnedBar(Painter &p) {
@@ -8766,12 +8755,12 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (_scroll.isHidden()) {
 			p.setClipRect(_scroll.geometry());
-			HistoryLayout::paintEmpty(p, width(), height() - _field->height() - 2 * st::sendPadding);
+			HistoryLayout::paintEmpty(p, width(), height() - _field->height() - 2 * st::historySendPadding);
 		}
 	} else {
 		style::font font(st::msgServiceFont);
 		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
-		QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::sendPadding - h) / 2, w, h);
+		QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::historySendPadding - h) / 2, w, h);
 		HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
 		p.setPen(st::msgServiceColor->p);

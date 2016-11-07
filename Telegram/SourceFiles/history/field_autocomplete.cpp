@@ -541,7 +541,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::historyAttachPhoto.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	int32 htagleft = st::historyAttach.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	if (!_srows->isEmpty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);

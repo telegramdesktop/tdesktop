@@ -104,13 +104,12 @@ dialogsFilter: flatInput(inpDefGray) {
 	textMrg: margins(32px, 3px, 32px, 3px);
 }
 dialogsCancelSearch: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs_cancel_search", #a6a6a6, point(0px, 1px) }};
+	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg, point(0px, 1px) }};
+	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver, point(0px, 1px) }};
 }
 
 dialogsMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: Menu(defaultMenu) {
-		skip: 8px;
-
 		itemIconPosition: point(15px, 8px);
 		itemPadding: margins(56px, 10px, 56px, 12px);
 	}

@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "styles/style_dialogs.h"
-#include "styles/style_history.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/buttons/round_button.h"
 #include "ui/widgets/shadow.h"
@@ -76,7 +75,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 , _topBar(this)
 , _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
 , _playerPanel(this, Media::Player::Panel::Layout::Full)
-, _mediaType(this, st::historyAttachDropdownMenu)
+, _mediaType(this, st::defaultDropdownMenu)
 , _api(new ApiWrap(this)) {
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_ptsWaiter.setRequesting(true);
@@ -1386,12 +1385,12 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 			for (int32 i = 0; i < OverviewCount; ++i) {
 				if (mask & (1 << i)) {
 					switch (i) {
-					case OverviewPhotos: _mediaType->addAction(lang(lng_media_type_photos), this, SLOT(onPhotosSelect()), &st::historyMediaTypePhoto, &st::historyMediaTypePhotoOver); break;
-					case OverviewVideos: _mediaType->addAction(lang(lng_media_type_videos), this, SLOT(onVideosSelect()), &st::historyMediaTypeVideo, &st::historyMediaTypeVideoOver); break;
-					case OverviewMusicFiles: _mediaType->addAction(lang(lng_media_type_songs), this, SLOT(onSongsSelect()), &st::historyMediaTypeSong, &st::historyMediaTypeSongOver); break;
-					case OverviewFiles: _mediaType->addAction(lang(lng_media_type_files), this, SLOT(onDocumentsSelect()), &st::historyMediaTypeFile, &st::historyMediaTypeFileOver); break;
-					case OverviewVoiceFiles: _mediaType->addAction(lang(lng_media_type_audios), this, SLOT(onAudiosSelect()), &st::historyMediaTypeVoice, &st::historyMediaTypeVoiceOver); break;
-					case OverviewLinks: _mediaType->addAction(lang(lng_media_type_links), this, SLOT(onLinksSelect()), &st::historyMediaTypeLink, &st::historyMediaTypeLinkOver); break;
+					case OverviewPhotos: _mediaType->addAction(lang(lng_media_type_photos), this, SLOT(onPhotosSelect())); break;
+					case OverviewVideos: _mediaType->addAction(lang(lng_media_type_videos), this, SLOT(onVideosSelect())); break;
+					case OverviewMusicFiles: _mediaType->addAction(lang(lng_media_type_songs), this, SLOT(onSongsSelect())); break;
+					case OverviewFiles: _mediaType->addAction(lang(lng_media_type_files), this, SLOT(onDocumentsSelect())); break;
+					case OverviewVoiceFiles: _mediaType->addAction(lang(lng_media_type_audios), this, SLOT(onAudiosSelect())); break;
+					case OverviewLinks: _mediaType->addAction(lang(lng_media_type_links), this, SLOT(onLinksSelect())); break;
 					}
 				}
 			}

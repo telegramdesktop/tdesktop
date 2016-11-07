@@ -143,7 +143,7 @@ EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : Button(
 void EmojiButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	uint64 ms = getms();
+	auto ms = getms();
 
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
 

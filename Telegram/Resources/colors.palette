@@ -169,13 +169,15 @@ emojiPanHeaderBg: #fffffff2 | emojiPanBg;
 historyComposeAreaBg: windowBg;
 historyComposeIconFg: menuIconFg;
 historyComposeIconFgOver: menuIconFgOver;
+historySendIconFg: windowActiveBg;
+historySendIconFgOver: windowActiveBg;
 historyPinnedBg: historyComposeAreaBg;
 historyReplyBg: historyComposeAreaBg;
 historyReplyCancelIconFg: cancelIconFg;
 historyReplyCancelIconFgOver: cancelIconFgOver;
 
-historySendBg: historyComposeAreaBg;
-historySendBgOver: #f5f5f5 | historySendBg;
+historyComposeButtonBg: historyComposeAreaBg;
+historyComposeButtonBgOver: #f5f5f5;
 
 historyTextInFg: windowTextFg;
 historyTextOutFg: windowTextFg;

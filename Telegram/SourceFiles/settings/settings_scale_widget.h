@@ -38,6 +38,7 @@ public:
 private slots:
 	void onAutoChosen();
 	void onRestartNow();
+	void onCancel();
 
 private:
 	void scaleChanged();
@@ -46,6 +47,8 @@ private:
 
 	ChildWidget<Ui::Checkbox> _auto = { nullptr };
 	ChildWidget<Ui::DiscreteSlider> _scale = { nullptr };
+
+	DBIScale _newScale = dbisAuto;
 
 };
 

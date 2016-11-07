@@ -680,32 +680,6 @@ msgWaveformOutActiveSelected: #6badad;
 msgWaveformOutInactive: #b3e2b4;
 msgWaveformOutInactiveSelected: #91c3c3;
 
-sendPadding: 9px;
-btnSend: flatButton {
-	duration: 200;
-	cursor: cursor(pointer);
-
-	color: btnYesColor;
-	overColor: btnYesHover;
-
-	bgColor: historySendBg;
-	overBgColor: historySendBgOver;
-
-	width: -32px;
-	height: 46px;
-
-	textTop: 12px;
-	overTextTop: 12px;
-	downTextTop: 13px;
-
-	font: font(16px);
-	overFont: font(16px);
-}
-btnUnblock: flatButton(btnSend) {
-	color: #d15948;
-	overColor: #d15948;
-}
-
 historyScroll: flatScroll(scrollDef) {
 	barColor: #89a0b47a;
 	bgColor: #89a0b44c;

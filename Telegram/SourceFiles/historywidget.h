@@ -1099,15 +1099,14 @@ private:
 
 	ReportSpamPanel _reportSpamPanel;
 
-	ChildWidget<FlatButton> _send;
+	ChildWidget<Ui::IconButton> _send;
 	ChildWidget<FlatButton> _unblock;
 	ChildWidget<FlatButton> _botStart;
 	ChildWidget<FlatButton> _joinChannel;
 	ChildWidget<FlatButton> _muteUnmute;
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
-	ChildWidget<Ui::IconButton> _attachDocument;
-	ChildWidget<Ui::IconButton> _attachPhoto;
+	ChildWidget<Ui::IconButton> _attachToggle;
 	ChildWidget<Ui::EmojiButton> _attachEmoji;
 	ChildWidget<Ui::IconButton> _botKeyboardShow;
 	ChildWidget<Ui::IconButton> _botKeyboardHide;

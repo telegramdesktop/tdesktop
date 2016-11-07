@@ -157,29 +157,61 @@ historyComposeField: flatTextarea {
 historyComposeFieldMaxHeight: 224px;
 // historyMinHeight: 56px;
 
-historyAttachDocument: IconButton {
+historySendPadding: 9px;
+historySendRight: 2px;
+
+historyComposeButton: flatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+
+	color: btnYesColor;
+	overColor: btnYesHover;
+
+	bgColor: historyComposeButtonBg;
+	overBgColor: historyComposeButtonBgOver;
+
+	width: -32px;
+	height: 46px;
+
+	textTop: 12px;
+	overTextTop: 12px;
+	downTextTop: 13px;
+
+	font: font(16px);
+	overFont: font(16px);
+}
+historyUnblock: flatButton(historyComposeButton) {
+	color: #d15948;
+	overColor: #d15948;
+}
+
+historySend: IconButton {
 	width: 46px;
 	height: 46px;
 
-	icon: icon {{ "media_type_file", historyComposeIconFg, point(2px, 2px) }};
-	iconOver: icon {{ "media_type_file", historyComposeIconFgOver, point(2px, 2px) }};
+	icon: icon {{ "send_control_send", historySendIconFg }};
+	iconOver: icon {{ "send_control_send", historySendIconFgOver }};
 
-	iconPosition: point(9px, 9px);
-	iconPositionDown: point(9px, 10px);
+	iconPosition: point(11px, 11px);
+	iconPositionDown: point(11px, 11px);
 }
-historyAttachPhoto: IconButton(historyAttachDocument) {
-	icon: icon {{ "media_type_photo", historyComposeIconFg, point(2px, 2px) }};
-	iconOver: icon {{ "media_type_photo", historyComposeIconFgOver, point(2px, 2px) }};
+historyAttach: IconButton(historySend) {
+	icon: icon {{ "send_control_attach", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
 }
-historyAttachEmoji: IconButton(historyAttachDocument) {
-	width: 33px;
+historyAttachFileIcon: icon {{ "media_type_file", historyComposeIconFg }};
+historyAttachFileIconOver: icon {{ "media_type_file", historyComposeIconFgOver }};
+historyAttachPhotoIcon: icon {{ "media_type_photo", historyComposeIconFg }};
+historyAttachPhotoIconOver: icon {{ "media_type_photo", historyComposeIconFgOver }};
+
+historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
 
-	iconPosition: point(12px, 16px);
-	iconPositionDown: point(12px, 16px);
+	iconPosition: point(15px, 15px);
+	iconPositionDown: point(15px, 15px);
 }
-historyEmojiCircle: size(19px, 19px);
+historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
 historyEmojiCircleDuration: 500;
 historyEmojiCircleTop: 13px;
@@ -187,21 +219,18 @@ historyEmojiCircleLine: 2px;
 historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
-historyBotKeyboardShow: IconButton(historyAttachEmoji) {
+historyBotKeyboardShow: IconButton(historySend) {
 	icon: icon {{ "send_control_bot_keyboard", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_keyboard", historyComposeIconFgOver }};
-
-	iconPosition: point(6px, 12px);
-	iconPositionDown: point(6px, 12px);
 }
-historyBotKeyboardHide: IconButton(historyAttachEmoji) {
+historyBotKeyboardHide: IconButton(historySend) {
 	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
 
-	iconPosition: point(5px, 17px);
-	iconPositionDown: point(5px, 17px);
+	iconPosition: point(11px, 16px);
+	iconPositionDown: point(11px, 16px);
 }
-historyBotCommandStart: IconButton(historyBotKeyboardShow) {
+historyBotCommandStart: IconButton(historySend) {
 	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
 }
@@ -220,27 +249,16 @@ historyRecordFont: font(13px);
 historyRecordDurationFg: #000000;
 historyRecordTextTop: 14px;
 
+historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
+	menu: Menu(defaultMenu) {
+		itemIconPosition: point(13px, 6px);
+		itemPadding: margins(54px, 11px, 54px, 11px);
+	}
+}
 historyMediaTypeFile: icon {{ "media_type_file", menuIconFg, point(2px, 2px) }};
 historyMediaTypeFileOver: icon {{ "media_type_file", menuIconFgOver, point(2px, 2px) }};
 historyMediaTypePhoto: icon {{ "media_type_photo", menuIconFg, point(2px, 2px) }};
 historyMediaTypePhotoOver: icon {{ "media_type_photo", menuIconFgOver, point(2px, 2px) }};
-historyMediaTypeVideo: icon {{ "media_type_video", menuIconFg, point(2px, 2px) }};
-historyMediaTypeVideoOver: icon {{ "media_type_video", menuIconFgOver, point(2px, 2px) }};
-historyMediaTypeSong: icon {{ "media_type_song", menuIconFg, point(0px, 0px) }};
-historyMediaTypeSongOver: icon {{ "media_type_song", menuIconFgOver, point(0px, 0px) }};
-historyMediaTypeVoice: icon {{ "media_type_voice", menuIconFg, point(2px, 2px) }};
-historyMediaTypeVoiceOver: icon {{ "media_type_voice", menuIconFgOver, point(2px, 2px) }};
-historyMediaTypeLink: icon {{ "media_type_link", menuIconFg, point(2px, 2px) }};
-historyMediaTypeLinkOver: icon {{ "media_type_link", menuIconFgOver, point(2px, 2px) }};
-
-historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
-	menu: Menu(defaultMenu) {
-		skip: 5px;
-
-		itemIconPosition: point(12px, 6px);
-		itemPadding: margins(48px, 11px, 48px, 11px);
-	}
-}
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};

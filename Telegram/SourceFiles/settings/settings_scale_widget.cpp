@@ -81,10 +81,6 @@ void ScaleWidget::onAutoChosen() {
 }
 
 void ScaleWidget::setScale(DBIScale newScale) {
-	if (cConfigScale() == newScale) return;
-
-	cSetConfigScale(newScale);
-	Local::writeSettings();
 	if (newScale == dbisAuto && !_auto->checked()) {
 		_auto->setChecked(true);
 	} else if (newScale != dbisAuto && _auto->checked()) {
@@ -94,10 +90,17 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	if (_scale->activeSection() != newScale - 1) {
 		_scale->setActiveSection(newScale - 1);
 	}
-	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
-		auto box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_settings_restart_later));
+
+	if (cEvalScale(newScale) != cEvalScale(cRealScale())) {
+		_newScale = newScale;
+
+		auto box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_cancel));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
+		connect(box, SIGNAL(cancelled()), this, SLOT(onCancel()));
 		Ui::showLayer(box);
+	} else {
+		cSetConfigScale(newScale);
+		Local::writeSettings();
 	}
 }
 
@@ -116,7 +119,13 @@ void ScaleWidget::scaleChanged() {
 }
 
 void ScaleWidget::onRestartNow() {
+	cSetConfigScale(_newScale);
+	Local::writeSettings();
 	App::restart();
+}
+
+void ScaleWidget::onCancel() {
+	setScale(cRealScale());
 }
 
 } // namespace Settings
