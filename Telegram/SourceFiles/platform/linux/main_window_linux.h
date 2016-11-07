@@ -71,7 +71,7 @@ protected:
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
 
-	QTimer psUpdatedPositionTimer;
+	virtual void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) = 0;
 
 private:
 	void psCreateTrayIcon();
