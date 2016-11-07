@@ -28,10 +28,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-MainWindow::MainWindow() : QMainWindow()
+MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this) {
-	setCentralWidget(_body);
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		using Type = Theme::BackgroundUpdate::Type;
 		if (data.type == Type::TestingTheme || data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
@@ -40,20 +39,21 @@ MainWindow::MainWindow() : QMainWindow()
 			}
 		}
 	});
+
+	_title = Platform::CreateTitleWidget(this);
 }
 
 void MainWindow::init() {
 	_positionUpdatedTimer->setSingleShot(true);
 	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
-	_title = Platform::CreateTitleWidget(this);
-
 	auto p = palette();
 	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);
 
-	initSize();
+	if (_title) _title->init();
 
+	initSize();
 	initHook();
 }
 

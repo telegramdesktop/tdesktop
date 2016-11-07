@@ -26,7 +26,7 @@ namespace Window {
 
 class TitleWidget;
 
-class MainWindow : public QMainWindow, protected base::Subscriber {
+class MainWindow : public QWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:

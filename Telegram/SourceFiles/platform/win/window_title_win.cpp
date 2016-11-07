@@ -47,11 +47,12 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 	});
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void TitleWidget::init() {
+	connect(window()->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
+	_maximized = (window()->windowState() & Qt::WindowMaximized);
 	updateMaximizeRestoreButton();
-
-	onWindowStateChanged();
-
-	connect(parent->window()->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {

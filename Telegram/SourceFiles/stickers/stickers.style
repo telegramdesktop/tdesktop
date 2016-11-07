@@ -56,7 +56,7 @@ stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "mediaview_save_check", windowActiveFill }};
+stickersFeaturedInstalled: icon {{ "mediaview_save_check", lightButtonFg }};
 
 stickersMaxHeight: 440px;
 stickersPadding: margins(19px, 17px, 19px, 17px);

@@ -5004,8 +5004,8 @@ void HistoryWidget::loadMessages() {
 		return firstLoadMessages();
 	}
 
-	bool loadMigrated = _migrated && (_history->isEmpty() || _history->loadedAtTop() || (!_migrated->isEmpty() && !_migrated->loadedAtBottom()));
-	History *from = loadMigrated ? _migrated : _history;
+	auto loadMigrated = _migrated && (_history->isEmpty() || _history->loadedAtTop() || (!_migrated->isEmpty() && !_migrated->loadedAtBottom()));
+	auto from = loadMigrated ? _migrated : _history;
 	if (from->loadedAtTop()) {
 		return;
 	}

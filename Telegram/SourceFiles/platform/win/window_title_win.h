@@ -35,6 +35,8 @@ class TitleWidget : public Window::TitleWidget, private base::Subscriber {
 public:
 	TitleWidget(QWidget *parent);
 
+	void init() override;
+
 	Window::HitTestResult hitTest(const QPoint &p) const override;
 
 public slots:

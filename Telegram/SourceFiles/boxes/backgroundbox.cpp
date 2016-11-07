@@ -73,15 +73,14 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_old.png"));
-	wallpapers.push_back(App::WallPaper(Window::Theme::kOldBackground, oldBackground, oldBackground));
-	const auto &v(result.c_vector().v);
-	for (int i = 0, l = v.size(); i < l; ++i) {
-		const auto &w(v.at(i));
+	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.png"));
+	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
+	auto &v = result.c_vector().v;
+	for_const (auto &w, v) {
 		switch (w.type()) {
 		case mtpc_wallPaper: {
-			const auto &d(w.c_wallPaper());
-			const auto &sizes(d.vsizes.c_vector().v);
+			auto &d = w.c_wallPaper();
+			auto &sizes = d.vsizes.c_vector().v;
 			const MTPPhotoSize *thumb = 0, *full = 0;
 			int32 thumbLevel = -1, fullLevel = -1;
 			for (QVector<MTPPhotoSize>::const_iterator j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
@@ -89,14 +88,14 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 				int32 w = 0, h = 0;
 				switch (j->type()) {
 				case mtpc_photoSize: {
-					const auto &s(j->c_photoSize().vtype.c_string().v);
+					auto &s = j->c_photoSize().vtype.c_string().v;
 					if (s.size()) size = s[0];
 					w = j->c_photoSize().vw.v;
 					h = j->c_photoSize().vh.v;
 				} break;
 
 				case mtpc_photoCachedSize: {
-					const auto &s(j->c_photoCachedSize().vtype.c_string().v);
+					auto &s = j->c_photoCachedSize().vtype.c_string().v;
 					if (s.size()) size = s[0];
 					w = j->c_photoCachedSize().vw.v;
 					h = j->c_photoCachedSize().vh.v;
@@ -120,7 +119,7 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 		} break;
 
 		case mtpc_wallPaperSolid: {
-			const auto &d(w.c_wallPaperSolid());
+			auto &d = w.c_wallPaperSolid();
 		} break;
 		}
 	}

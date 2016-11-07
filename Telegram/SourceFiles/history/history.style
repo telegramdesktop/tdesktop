@@ -157,32 +157,19 @@ historyComposeField: flatTextarea {
 historyComposeFieldMaxHeight: 224px;
 // historyMinHeight: 56px;
 
-historyMediaTypeFile: icon {{ "media_type_file", historyComposeIconFg, point(2px, 2px) }};
-historyMediaTypeFileOver: icon {{ "media_type_file", historyComposeIconFgOver, point(2px, 2px) }};
-historyMediaTypePhoto: icon {{ "media_type_photo", historyComposeIconFg, point(2px, 2px) }};
-historyMediaTypePhotoOver: icon {{ "media_type_photo", historyComposeIconFgOver, point(2px, 2px) }};
-historyMediaTypeVideo: icon {{ "media_type_video", historyComposeIconFg, point(2px, 2px) }};
-historyMediaTypeVideoOver: icon {{ "media_type_video", historyComposeIconFgOver, point(2px, 2px) }};
-historyMediaTypeSong: icon {{ "media_type_song", historyComposeIconFg, point(0px, 0px) }};
-historyMediaTypeSongOver: icon {{ "media_type_song", historyComposeIconFgOver, point(0px, 0px) }};
-historyMediaTypeVoice: icon {{ "media_type_voice", historyComposeIconFg, point(2px, 2px) }};
-historyMediaTypeVoiceOver: icon {{ "media_type_voice", historyComposeIconFgOver, point(2px, 2px) }};
-historyMediaTypeLink: icon {{ "media_type_link", historyComposeIconFg, point(2px, 2px) }};
-historyMediaTypeLinkOver: icon {{ "media_type_link", historyComposeIconFgOver, point(2px, 2px) }};
-
 historyAttachDocument: IconButton {
 	width: 46px;
 	height: 46px;
 
-	icon: historyMediaTypeFile;
-	iconOver: historyMediaTypeFileOver;
+	icon: icon {{ "media_type_file", historyComposeIconFg, point(2px, 2px) }};
+	iconOver: icon {{ "media_type_file", historyComposeIconFgOver, point(2px, 2px) }};
 
 	iconPosition: point(9px, 9px);
 	iconPositionDown: point(9px, 10px);
 }
 historyAttachPhoto: IconButton(historyAttachDocument) {
-	icon: historyMediaTypePhoto;
-	iconOver: historyMediaTypePhotoOver;
+	icon: icon {{ "media_type_photo", historyComposeIconFg, point(2px, 2px) }};
+	iconOver: icon {{ "media_type_photo", historyComposeIconFgOver, point(2px, 2px) }};
 }
 historyAttachEmoji: IconButton(historyAttachDocument) {
 	width: 33px;
@@ -233,11 +220,23 @@ historyRecordFont: font(13px);
 historyRecordDurationFg: #000000;
 historyRecordTextTop: 14px;
 
+historyMediaTypeFile: icon {{ "media_type_file", menuIconFg, point(2px, 2px) }};
+historyMediaTypeFileOver: icon {{ "media_type_file", menuIconFgOver, point(2px, 2px) }};
+historyMediaTypePhoto: icon {{ "media_type_photo", menuIconFg, point(2px, 2px) }};
+historyMediaTypePhotoOver: icon {{ "media_type_photo", menuIconFgOver, point(2px, 2px) }};
+historyMediaTypeVideo: icon {{ "media_type_video", menuIconFg, point(2px, 2px) }};
+historyMediaTypeVideoOver: icon {{ "media_type_video", menuIconFgOver, point(2px, 2px) }};
+historyMediaTypeSong: icon {{ "media_type_song", menuIconFg, point(0px, 0px) }};
+historyMediaTypeSongOver: icon {{ "media_type_song", menuIconFgOver, point(0px, 0px) }};
+historyMediaTypeVoice: icon {{ "media_type_voice", menuIconFg, point(2px, 2px) }};
+historyMediaTypeVoiceOver: icon {{ "media_type_voice", menuIconFgOver, point(2px, 2px) }};
+historyMediaTypeLink: icon {{ "media_type_link", menuIconFg, point(2px, 2px) }};
+historyMediaTypeLinkOver: icon {{ "media_type_link", menuIconFgOver, point(2px, 2px) }};
+
 historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: Menu(defaultMenu) {
 		skip: 5px;
 
-		itemBgOver: historyMenuItemBgOver;
 		itemIconPosition: point(12px, 6px);
 		itemPadding: margins(48px, 11px, 48px, 11px);
 	}
@@ -277,15 +276,15 @@ topBarSearch: IconButton {
 	width: 44px;
 	height: topBarHeight;
 
-	icon: icon {{ "title_search", #a8a8a8 }};
-	iconOver: icon {{ "title_search", #a3a3a3 }};
+	icon: icon {{ "title_search", menuIconFg }};
+	iconOver: icon {{ "title_search", menuIconFgOver }};
 
 	iconPosition: point(13px, 18px);
 	iconPositionDown: point(13px, 18px);
 }
 topBarMenuToggle: IconButton(topBarSearch) {
-	icon: icon {{ "title_menu_dots", #a8a8a8 }};
-	iconOver: icon {{ "title_menu_dots", #a3a3a3 }};
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
 
 	iconPosition: point(18px, 17px);
 	iconPositionDown: point(18px, 17px);

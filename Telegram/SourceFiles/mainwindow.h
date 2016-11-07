@@ -77,7 +77,6 @@ public:
 	MainWindow();
 	~MainWindow();
 
-	void init();
 	void firstShow();
 
 	QWidget *filedialogParent();
@@ -167,6 +166,8 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 	void closeEvent(QCloseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+
+	void initHook() override;
 
 public slots:
 	void updateIsActive(int timeout = 0);

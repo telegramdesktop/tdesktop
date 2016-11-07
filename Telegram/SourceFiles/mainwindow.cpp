@@ -159,8 +159,8 @@ void MainWindow::onStateChanged(Qt::WindowState state) {
 	savePosition(state);
 }
 
-void MainWindow::init() {
-	Platform::MainWindow::init();
+void MainWindow::initHook() {
+	Platform::MainWindow::initHook();
 
 	setWindowIcon(wndIcon);
 
@@ -198,6 +198,7 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
 	psUpdateWorkmode();
+
 	psFirstShow();
 	updateTrayMenu();
 

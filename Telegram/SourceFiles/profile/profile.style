@@ -60,11 +60,11 @@ profilePrimaryButton: defaultActiveButton;
 profileSecondaryButton: defaultLightButton;
 profileAddMemberButton: RoundButton(profileSecondaryButton) {
 	width: 62px;
-	icon: icon {{ "profile_add_member", windowActiveFill, point(20px, 10px) }};
+	icon: icon {{ "profile_add_member", lightButtonFg, point(20px, 10px) }};
 }
 
 profileDropAreaBg: profileBg;
-profileDropAreaFg: windowActiveFill;
+profileDropAreaFg: lightButtonFg;
 profileDropAreaPadding: margins(25px, 3px, 25px, 20px);
 profileDropAreaTitleFont: font(24px);
 profileDropAreaTitleTop: 30px;

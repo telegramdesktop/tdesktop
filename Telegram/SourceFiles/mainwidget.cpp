@@ -1925,7 +1925,9 @@ void MainWidget::checkChatBackground() {
 		if (_background->full->loaded()) {
 			if (_background->full->isNull()) {
 				Window::Theme::Background()->setImage(Window::Theme::kDefaultBackground);
-			} else if (_background->id == Window::Theme::kOldBackground || _background->id == Window::Theme::kDefaultBackground) {
+			} else if (false
+				|| _background->id == Window::Theme::kInitialBackground
+				|| _background->id == Window::Theme::kDefaultBackground) {
 				Window::Theme::Background()->setImage(_background->id);
 			} else {
 				Window::Theme::Background()->setImage(_background->id, _background->full->pix().toImage());

@@ -40,6 +40,9 @@ enum class HitTestResult {
 class TitleWidget : public TWidget {
 public:
 	using TWidget::TWidget;
+
+	virtual void init() {
+	}
 	virtual HitTestResult hitTest(const QPoint &p) const {
 		return HitTestResult::None;
 	}

@@ -236,7 +236,7 @@ void ShareBox::onFilterUpdate(const QString &query) {
 void ShareBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->addItem(peer->id, peer->shortName(), st::windowActiveFill, PaintUserpicCallback(peer), addItemWay);
+	_select->addItem(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer), addItemWay);
 }
 
 void ShareBox::onPeerSelectedChanged(PeerData *peer, bool checked) {

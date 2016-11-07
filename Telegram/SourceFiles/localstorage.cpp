@@ -3630,8 +3630,7 @@ void writeBackground(int32 id, const QImage &img) {
 	}
 	quint32 size = sizeof(qint32) + sizeof(quint32) + (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
 	EncryptedDescriptor data(size);
-	data.stream << qint32(id);
-	if (!bmp.isEmpty()) data.stream << bmp;
+	data.stream << qint32(id) << bmp;
 
 	FileWriteDescriptor file(_backgroundKey);
 	file.writeEncrypted(data);
@@ -3653,21 +3652,21 @@ bool readBackground() {
 
 	QByteArray pngData;
 	qint32 id;
-	bg.stream >> id;
-	if (id == Window::Theme::kOldBackground || id == Window::Theme::kDefaultBackground) {
+	bg.stream >> id >> pngData;
+	auto oldEmptyImage = (bg.stream.status() != QDataStream::Ok);
+	if (oldEmptyImage
+		|| id == Window::Theme::kInitialBackground
+		|| id == Window::Theme::kDefaultBackground) {
 		_backgroundCanWrite = false;
-		if (bg.version < 8005) {
+		if (oldEmptyImage || bg.version < 8005) {
 			Window::Theme::Background()->setImage(Window::Theme::kDefaultBackground);
-			if (id == Window::Theme::kOldBackground) {
-				Window::Theme::Background()->setTile(false);
-			}
+			Window::Theme::Background()->setTile(false);
 		} else {
 			Window::Theme::Background()->setImage(id);
 		}
 		_backgroundCanWrite = true;
 		return true;
 	}
-	bg.stream >> pngData;
 
 	QImage image;
 	QBuffer buf(&pngData);

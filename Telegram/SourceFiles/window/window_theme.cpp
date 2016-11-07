@@ -440,18 +440,18 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 		}
 		setPreparedImage(std_::move(image));
 	} else {
-		if (_id == kDefaultBackground) {
-			image.load(qsl(":/gui/art/bg.jpg"));
-		} else if (_id == kOldBackground || image.isNull()) {
-			_id = kOldBackground;
-			image.load(qsl(":/gui/art/bg_old.png"));
+		if (_id == kInitialBackground) {
+			image.load(qsl(":/gui/art/bg_initial.png"));
 			if (cRetina()) {
 				image = image.scaledToWidth(image.width() * 2, Qt::SmoothTransformation);
 			} else if (cScale() != dbisOne) {
 				image = image.scaledToWidth(convertScale(image.width()), Qt::SmoothTransformation);
 			}
+		} else if (_id == kDefaultBackground || image.isNull()) {
+			_id = kDefaultBackground;
+			image.load(qsl(":/gui/art/bg.jpg"));
 		}
-		Local::writeBackground(_id, (_id == kDefaultBackground || _id == kOldBackground) ? QImage() : image);
+		Local::writeBackground(_id, (_id == kDefaultBackground || _id == kInitialBackground) ? QImage() : image);
 		setPreparedImage(prepareBackgroundImage(std_::move(image)));
 	}
 	t_assert(!_image.isNull());

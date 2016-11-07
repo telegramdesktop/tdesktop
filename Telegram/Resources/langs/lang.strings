@@ -473,8 +473,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_no_media" = "No media in this conversation.";
 "lng_profile_photos" = "{count:_not_used_|# photo|# photos}";
 "lng_profile_photos_header" = "Photos overview";
-"lng_profile_videos" = "{count:_not_used_|# video file|# video files}";
-"lng_profile_videos_header" = "Video files overview";
+"lng_profile_videos" = "{count:_not_used_|# video|# videos}";
+"lng_profile_videos_header" = "Videos overview";
 "lng_profile_songs" = "{count:_not_used_|# audio file|# audio files}";
 "lng_profile_songs_header" = "Audio files overview";
 "lng_profile_files" = "{count:_not_used_|# file|# files}";
@@ -582,7 +582,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_message" = "{from} pinned «{text}»";
 "lng_action_pinned_media" = "{from} pinned {media}";
 "lng_action_pinned_media_photo" = "a photo";
-"lng_action_pinned_media_video" = "a video file";
+"lng_action_pinned_media_video" = "a video";
 "lng_action_pinned_media_audio" = "an audio file";
 "lng_action_pinned_media_voice" = "a voice message";
 "lng_action_pinned_media_file" = "a file";
@@ -666,7 +666,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_media_type" = "Media type";
 "lng_media_type_photos" = "Photos";
-"lng_media_type_videos" = "Video files";
+"lng_media_type_videos" = "Videos";
 "lng_media_type_songs" = "Audio files";
 "lng_media_type_files" = "Files";
 "lng_media_type_audios" = "Voice messages";
@@ -675,7 +675,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";
 "lng_media_cancel" = "Cancel";
-"lng_media_video" = "Video file";
+"lng_media_video" = "Video";
 "lng_media_audio" = "Voice message";
 
 "lng_media_auto_settings" = "Automatic media download settings";
@@ -730,7 +730,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_masks_pack" = "This is a pack of mask stickers. You can use them in the photo editor on our mobile apps.";
 
 "lng_in_dlg_photo" = "Photo";
-"lng_in_dlg_video" = "Video file";
+"lng_in_dlg_video" = "Video";
 "lng_in_dlg_audio_file" = "Audio file";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Voice message";
@@ -825,7 +825,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_maps_point" = "Location";
 "lng_save_photo" = "Save image";
-"lng_save_video" = "Save video file";
+"lng_save_video" = "Save video";
 "lng_save_audio_file" = "Save audio file";
 "lng_save_audio" = "Save voice message";
 "lng_save_file" = "Save file";
@@ -853,7 +853,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Cancel Download";
 "lng_context_show_in_folder" = "Show in Folder";
 "lng_context_show_in_finder" = "Show in Finder";
-"lng_context_save_video" = "Save Video File As...";
+"lng_context_save_video" = "Save Video As...";
 "lng_context_save_audio_file" = "Save Audio File As...";
 "lng_context_save_audio" = "Save Voice Message As...";
 "lng_context_pack_info" = "Pack Info";

@@ -32,8 +32,8 @@ constexpr int32 kTestingDefaultBackground = -665;
 
 constexpr int32 kThemeBackground = -2;
 constexpr int32 kCustomBackground = -1;
-constexpr int32 kOldBackground = 0;
-constexpr int32 kDefaultBackground = 21;
+constexpr int32 kInitialBackground = 0;
+constexpr int32 kDefaultBackground = 105;
 
 struct Cached {
 	QByteArray colors;

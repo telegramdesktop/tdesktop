@@ -81,13 +81,16 @@ dialogsMenuToggle: IconButton {
 	height: 32px;
 
 	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_menu", dialogsMenuIconFgOver }};
 	iconPosition: point(6px, 6px);
 	iconPositionDown: point(6px, 6px);
 }
 dialogsLock: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_lock", dialogsMenuIconFgOver }};
 }
 dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
 
 dialogsFilter: flatInput(inpDefGray) {
 	font: font(fsize);
@@ -114,10 +117,15 @@ dialogsMenu: DropdownMenu(defaultDropdownMenu) {
 }
 dialogsMenuPosition: point(-3px, -2px);
 dialogsMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
+dialogsMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
 dialogsMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
+dialogsMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
 dialogsMenuContacts: icon {{ "menu_contacts", menuIconFg }};
+dialogsMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
 dialogsMenuSettings: icon {{ "menu_settings", menuIconFg }};
+dialogsMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
 dialogsMenuHelp: icon {{ "menu_help", menuIconFg }};
+dialogsMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
 
 dialogsChatTypeSkip: 22px;
 dialogsChatIcon: icon {{ "dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
@@ -191,4 +199,3 @@ dialogsForwardCancel: IconButton {
 	iconPositionDown: point(12px, 11px);
 }
 dialogsForwardFont: semiboldFont;
-dialogsForwardBg: windowActiveFill;

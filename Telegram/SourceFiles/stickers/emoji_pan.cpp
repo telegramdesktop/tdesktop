@@ -2135,7 +2135,7 @@ void StickerPanInner::updateSelected() {
 				t_assert(row >= 0 && row < _inlineRows.size() && col >= 0 && col < _inlineRows.at(row).items.size());
 				Ui::repaintInlineItem(_inlineRows.at(row).items.at(col));
 			}
-			if (_pressed >= 0 && _selected >= 0 && _pressed != _selected) {
+			if (_previewShown && _selected >= 0 && _pressed != _selected) {
 				_pressed = _selected;
 				if (row >= 0 && col >= 0) {
 					auto layout = _inlineRows.at(row).items.at(col);
@@ -2260,7 +2260,7 @@ void StickerPanInner::updateSelected() {
 		}
 	}
 	_selected = selIndex;
-	if (_pressed >= 0 && _selected >= 0 && _pressed != _selected) {
+	if (_previewShown && _selected >= 0 && _pressed != _selected) {
 		_pressed = _selected;
 		if (newSel >= 0 && xNewSel < 0) {
 			Ui::showMediaPreview(sets.at(newSelTab).pack.at(newSel % MatrixRowShift));

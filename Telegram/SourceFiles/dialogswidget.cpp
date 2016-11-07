@@ -1701,7 +1701,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
-		_lockUnlock->setIcon(&st::dialogsUnlockIcon);
+		_lockUnlock->setIcon(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
 		App::wnd()->setupPasscode();
 		_lockUnlock->setIcon(nullptr);
 	});
@@ -2016,19 +2016,19 @@ void DialogsWidget::showMainMenu() {
 		_mainMenu.create(this, st::dialogsMenu);
 		_mainMenu->addAction(lang(lng_create_group_title), [] {
 			App::wnd()->onShowNewGroup();
-		}, &st::dialogsMenuNewGroup);
+		}, &st::dialogsMenuNewGroup, &st::dialogsMenuNewGroupOver);
 		_mainMenu->addAction(lang(lng_create_channel_title), [] {
 			App::wnd()->onShowNewChannel();
-		}, &st::dialogsMenuNewChannel);
+		}, &st::dialogsMenuNewChannel, &st::dialogsMenuNewChannelOver);
 		_mainMenu->addAction(lang(lng_menu_contacts), [] {
 			Ui::showLayer(new ContactsBox());
-		}, &st::dialogsMenuContacts);
+		}, &st::dialogsMenuContacts, &st::dialogsMenuContactsOver);
 		_mainMenu->addAction(lang(lng_menu_settings), [] {
 			App::wnd()->showSettings();
-		}, &st::dialogsMenuSettings);
+		}, &st::dialogsMenuSettings, &st::dialogsMenuSettingsOver);
 		_mainMenu->addAction(lang(lng_settings_faq), [] {
 			QDesktopServices::openUrl(telegramFaqLink());
-		}, &st::dialogsMenuHelp);
+		}, &st::dialogsMenuHelp, &st::dialogsMenuHelpOver);
 	}
 	updateMainMenuGeometry();
 	_mainMenu->showAnimated();

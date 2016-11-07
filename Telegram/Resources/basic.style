@@ -103,7 +103,7 @@ boxLabel: flatLabel(labelDefFlat) {
 defaultLeftOutlineButton: OutlineButton {
 	outlineWidth: 3px;
 	outlineFg: windowBg;
-	outlineFgOver: windowActiveFill;
+	outlineFgOver: windowActiveBg;
 
 	textBg: windowBg;
 	textBgOver: #f2f7fa;
@@ -180,7 +180,7 @@ defaultCheckbox: Checkbox {
 	checkBg: #ffffff;
 	checkFg: #b3b3b3;
 	checkFgOver: #b3b3b3;
-	checkFgActive: windowActiveFill;
+	checkFgActive: windowActiveBg;
 
 	width: -44px;
 	height: 22px;
@@ -188,7 +188,7 @@ defaultCheckbox: Checkbox {
 	textPosition: point(32px, 2px);
 	diameter: 22px;
 	thickness: 2px;
-	checkIcon: icon {{ "default_checkbox_check", #ffffff, point(4px, 7px) }};
+	checkIcon: icon {{ "default_checkbox_check", windowActiveFg, point(4px, 7px) }};
 
 	font: normalFont;
 	duration: 120;
@@ -655,7 +655,7 @@ msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: windowActiveFill;
+msgFileInBg: windowActiveBg;
 msgFileInBgOver: #4eade3;
 msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
@@ -671,7 +671,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: windowActiveFill;
+msgWaveformInActive: windowActiveBg;
 msgWaveformInActiveSelected: #51a3d3;
 msgWaveformInInactive: #d4dee6;
 msgWaveformInInactiveSelected: #9cc1e1;
