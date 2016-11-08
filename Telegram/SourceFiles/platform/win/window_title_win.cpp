@@ -47,6 +47,7 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 	});
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
+	resize(width(), st::titleHeight);
 }
 
 void TitleWidget::init() {

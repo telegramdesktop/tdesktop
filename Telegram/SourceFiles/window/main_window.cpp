@@ -39,11 +39,11 @@ MainWindow::MainWindow() : QWidget()
 			}
 		}
 	});
-
-	_title = Platform::CreateTitleWidget(this);
 }
 
 void MainWindow::init() {
+	initHook();
+
 	_positionUpdatedTimer->setSingleShot(true);
 	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
@@ -51,10 +51,11 @@ void MainWindow::init() {
 	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);
 
-	if (_title) _title->init();
+	if ((_title = Platform::CreateTitleWidget(this))) {
+		_title->init();
+	}
 
 	initSize();
-	initHook();
 }
 
 HitTestResult MainWindow::hitTest(const QPoint &p) const {
@@ -104,6 +105,13 @@ void MainWindow::positionUpdated() {
 	_positionUpdatedTimer->start(SaveWindowPositionTimeout);
 }
 
+void MainWindow::setTitleVisibility(bool visible) {
+	if (_title && (_title->isHidden() == visible)) {
+		_title->setVisible(visible);
+		updateControlsGeometry();
+	}
+}
+
 int32 MainWindow::screenNameChecksum(const QString &name) const {
 	auto bytes = name.toUtf8();
 	return hashCrc32(bytes.constData(), bytes.size());
@@ -114,9 +122,13 @@ void MainWindow::setPositionInited() {
 }
 
 void MainWindow::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void MainWindow::updateControlsGeometry() {
 	auto bodyTop = 0;
-	if (_title) {
-		_title->setGeometry(0, bodyTop, width(), st::titleHeight);
+	if (_title && !_title->isHidden()) {
+		_title->setGeometry(0, bodyTop, width(), _title->height());
 		bodyTop += _title->height();
 	}
 	_body->setGeometry(0, bodyTop, width(), height() - bodyTop);

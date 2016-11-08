@@ -18,20 +18,36 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
-
-#include "window/window_title.h"
-
-#ifdef Q_OS_MAC
+#include "stdafx.h"
 #include "platform/mac/window_title_mac.h"
-#elif defined Q_OS_WIN // Q_OS_MAC
-#include "platform/win/window_title_win.h"
-#elif defined Q_OS_WINRT || defined Q_OS_LINUX
+
+#include "ui/widgets/shadow.h"
+#include "styles/style_window.h"
+#include "platform/platform_main_window.h"
+
 namespace Platform {
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
+TitleWidget::TitleWidget(QWidget *parent, int height) : Window::TitleWidget(parent)
+, _shadow(this, st::titleShadow) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	resize(width(), height);
+}
+
+void TitleWidget::paintEvent(QPaintEvent *e) {
+	Painter(this).fillRect(rect(), st::titleBg);
+}
+
+void TitleWidget::resizeEvent(QResizeEvent *e) {
+	_shadow->setGeometry(0, height() - st::lineWidth, width(), st::lineWidth);
+}
+
+Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
+	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
+		if (auto height = window->getCustomTitleHeight()) {
+			return new TitleWidget(parent, height);
+		}
+	}
 	return nullptr;
 }
 
 } // namespace Platform
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_WINRT || Q_OS_LINUX

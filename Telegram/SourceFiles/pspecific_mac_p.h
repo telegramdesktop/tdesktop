@@ -17,29 +17,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class PsMacWindowData;
-
-class PsMacWindowPrivate {
-public:
-	PsMacWindowPrivate();
-
-	void setWindowBadge(const QString &str);
-	void startBounce();
-
-	void enableShadow(WId winId);
-
-	bool filterNativeEvent(void *event);
-
-	virtual void activeSpaceChanged() {
-	}
-	virtual void darkModeChanged() {
-	}
-
-	~PsMacWindowPrivate();
-
-	PsMacWindowData *data;
-
-};
+// e is NSEvent*
+bool objc_handleMediaKeyEvent(void *e);
 
 void objc_holdOnTop(WId winId);
 bool objc_darkMode();

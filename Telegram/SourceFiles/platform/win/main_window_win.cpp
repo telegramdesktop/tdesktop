@@ -777,6 +777,8 @@ void MainWindow::initHook() {
 	}
 
 	psInitSysMenu();
+
+	setWindowIcon(wndIcon);
 }
 
 bool MainWindow::psHasNativeNotifications() {

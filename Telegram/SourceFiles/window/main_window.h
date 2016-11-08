@@ -40,6 +40,8 @@ public:
 	}
 	void positionUpdated();
 
+	void setTitleVisibility(bool visible);
+
 	virtual void closeWithoutDestroy();
 
 	virtual ~MainWindow();
@@ -70,6 +72,7 @@ private slots:
 	}
 
 private:
+	void updateControlsGeometry();
 	void initSize();
 
 	ChildObject<QTimer> _positionUpdatedTimer;

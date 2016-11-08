@@ -25,13 +25,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 
-class MacPrivate : public PsMacWindowPrivate {
-public:
-	void activeSpaceChanged();
-	void darkModeChanged();
-
-};
-
 class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
@@ -64,7 +57,13 @@ public:
 
 	void closeWithoutDestroy() override;
 
+	int getCustomTitleHeight() const {
+		return _customTitleHeight;
+	}
+
 	~MainWindow();
+
+	class Private;
 
 public slots:
 	void psShowTrayMenu();
@@ -82,6 +81,7 @@ private slots:
 
 protected:
 	void stateChangedHook(Qt::WindowState state) override;
+	void initHook() override;
 
 	QImage psTrayIcon(bool selected = false) const;
 	bool psHasTrayIcon() const {
@@ -106,7 +106,8 @@ protected:
 private:
 	void createGlobalMenu();
 
-	MacPrivate _private;
+	friend class Private;
+	std_::unique_ptr<Private> _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
@@ -127,6 +128,8 @@ private:
 	QAction *psNewGroup = nullptr;
 	QAction *psNewChannel = nullptr;
 	QAction *psShowTelegram = nullptr;
+
+	int _customTitleHeight = 0;
 
 };
 

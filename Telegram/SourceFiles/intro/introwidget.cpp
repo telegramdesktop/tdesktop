@@ -77,7 +77,7 @@ void IntroWidget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
 		_update.create(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton);
-		_update->show();
+		if (!_a_show.animating()) _update->show();
 		_update->setClickedCallback([] {
 			checkReadyUpdate();
 			App::restart();
@@ -194,6 +194,8 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	_a_show.stop();
 	step()->show();
+	_settings->show();
+	if (_update) _update->show();
 	if (step()->hasBack()) {
 		_back->showFast();
 	} else {
@@ -203,6 +205,8 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	step()->hide();
 	_back->hideFast();
+	_settings->hide();
+	if (_update) _update->hide();
 
 	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
@@ -228,6 +232,8 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 		if (step()->hasBack()) {
 			_back->showFast();
 		}
+		_settings->show();
+		if (_update) _update->show();
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_coordUnder.update(dt, Window::SlideAnimation::transition());

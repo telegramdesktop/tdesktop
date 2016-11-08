@@ -22,16 +22,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/window_title.h"
 
-#ifdef Q_OS_MAC
-#include "platform/mac/window_title_mac.h"
-#elif defined Q_OS_WIN // Q_OS_MAC
-#include "platform/win/window_title_win.h"
-#elif defined Q_OS_WINRT || defined Q_OS_LINUX
+namespace Ui {
+class PlainShadow;
+} // namespace Ui
+
 namespace Platform {
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-	return nullptr;
-}
+class TitleWidget : public Window::TitleWidget {
+public:
+	TitleWidget(QWidget *parent, int height);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	ChildWidget<Ui::PlainShadow> _shadow;
+
+};
+
+Window::TitleWidget *CreateTitleWidget(QWidget *parent);
 
 } // namespace Platform
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_WINRT || Q_OS_LINUX

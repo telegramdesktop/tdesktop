@@ -191,6 +191,10 @@ MainWindow::MainWindow()
 	_psUpdateIndicatorTimer.setSingleShot(true);
 }
 
+void MainWindow::initHook() {
+	setWindowIcon(wndIcon);
+}
+
 bool MainWindow::psHasTrayIcon() const {
 	return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (cWorkMode() != dbiwmWindowOnly));
 }

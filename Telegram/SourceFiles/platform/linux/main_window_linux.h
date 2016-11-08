@@ -60,6 +60,7 @@ public slots:
 	void psUpdateIndicator();
 
 protected:
+	void initHook() override;
 
 	bool psHasTrayIcon() const;
 

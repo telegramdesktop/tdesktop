@@ -28,18 +28,72 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "platform/platform_notifications_manager.h"
 #include "boxes/contactsbox.h"
 #include "boxes/aboutbox.h"
-
 #include "lang.h"
+#include "platform/mac/mac_utilities.h"
 
 #include <Cocoa/Cocoa.h>
-#include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
-
+#include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
+#include <SPMediaKeyTap.h>
+
+@interface MainWindowObserver : NSObject {
+}
+
+- (id) init:(MainWindow::Private*)window;
+- (void) activeSpaceDidChange:(NSNotification *)aNotification;
+- (void) darkModeChanged:(NSNotification *)aNotification;
+- (void) screenIsLocked:(NSNotification *)aNotification;
+- (void) screenIsUnlocked:(NSNotification *)aNotification;
+- (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
+- (void) windowWillExitFullScreen:(NSNotification *)aNotification;
+
+@end
 
 namespace Platform {
 
-void MacPrivate::activeSpaceChanged() {
+class MainWindow::Private {
+public:
+	Private(MainWindow *window);
+
+	void setWindowBadge(const QString &str);
+	void startBounce();
+
+	void enableShadow(WId winId);
+
+	bool filterNativeEvent(void *event);
+
+	void willEnterFullScreen();
+	void willExitFullScreen();
+
+	void initCustomTitle(NSWindow *window, NSView *view);
+
+	~Private();
+
+private:
+	MainWindow *_public;
+	friend class MainWindow;
+
+	MainWindowObserver *_observer;
+
+};
+
+} // namespace Platform
+
+@implementation MainWindowObserver {
+
+MainWindow::Private *_private;
+
+}
+
+- (id) init:(MainWindow::Private*)window {
+	if (self = [super init]) {
+		_private = window;
+	}
+	return self;
+}
+
+- (void) activeSpaceDidChange:(NSNotification *)aNotification {
 	if (auto manager = Window::Notifications::Default::manager()) {
 		manager->enumerateNotifications([](QWidget *widget) {
 			objc_activateWnd(widget->winId());
@@ -47,14 +101,110 @@ void MacPrivate::activeSpaceChanged() {
 	}
 }
 
-void MacPrivate::darkModeChanged() {
+- (void) darkModeChanged:(NSNotification *)aNotification {
 	Notify::unreadCounterUpdated();
+}
+
+- (void) screenIsLocked:(NSNotification *)aNotification {
+	Global::SetScreenIsLocked(true);
+}
+
+- (void) screenIsUnlocked:(NSNotification *)aNotification {
+	Global::SetScreenIsLocked(false);
+}
+
+- (void) windowWillEnterFullScreen:(NSNotification *)aNotification {
+	_private->willEnterFullScreen();
+}
+
+- (void) windowWillExitFullScreen:(NSNotification *)aNotification {
+	_private->willExitFullScreen();
+}
+
+@end
+
+namespace Platform {
+
+MainWindow::Private::Private(MainWindow *window)
+: _public(window)
+, _observer([[MainWindowObserver alloc] init:this]) {
+	@autoreleasepool {
+
+	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
+
+#ifndef OS_MAC_STORE
+	// Register defaults for the whitelist of apps that want to use media keys
+	[[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[SPMediaKeyTap defaultMediaKeyUserBundleIdentifiers], kMediaKeyUsingBundleIdentifiersDefaultsKey, nil]];
+#endif // !OS_MAC_STORE
+
+	}
+}
+
+void MainWindow::Private::setWindowBadge(const QString &str) {
+	@autoreleasepool {
+
+	[[NSApp dockTile] setBadgeLabel:Q2NSString(str)];
+
+	}
+}
+
+void MainWindow::Private::startBounce() {
+	[NSApp requestUserAttention:NSInformationalRequest];
+}
+
+void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
+	[window setStyleMask:[window styleMask] | NSFullSizeContentViewWindowMask];
+	[window setTitlebarAppearsTransparent:YES];
+	auto inner = [window contentLayoutRect];
+	auto full = [view frame];
+	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
+
+#ifndef OS_MAC_OLD
+	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:window];
+	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:window];
+#endif // !OS_MAC_OLD
+}
+
+void MainWindow::Private::willEnterFullScreen() {
+	_public->setTitleVisibility(false);
+}
+
+void MainWindow::Private::willExitFullScreen() {
+	_public->setTitleVisibility(true);
+}
+
+void MainWindow::Private::enableShadow(WId winId) {
+//	[[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
+//	[[(NSView*)winId window] setHasShadow:YES];
+}
+
+bool MainWindow::Private::filterNativeEvent(void *event) {
+	NSEvent *e = static_cast<NSEvent*>(event);
+	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
+#ifndef OS_MAC_STORE
+		// If event tap is not installed, handle events that reach the app instead
+		if (![SPMediaKeyTap usesGlobalMediaKeyTap]) {
+			return objc_handleMediaKeyEvent(e);
+		}
+#else // !OS_MAC_STORE
+		return objc_handleMediaKeyEvent(e);
+#endif // else for !OS_MAC_STORE
+	}
+	return false;
+}
+
+MainWindow::Private::~Private() {
+	[_observer release];
 }
 
 MainWindow::MainWindow()
 : icon256(qsl(":/gui/art/icon256.png"))
 , iconbig256(qsl(":/gui/art/iconbig256.png"))
-, wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly)) {
+, wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly))
+, _private(std_::make_unique<Private>(this)) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
 	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
@@ -78,6 +228,18 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 	if (_hideAfterFullScreenTimer.isActive()) {
 		_hideAfterFullScreenTimer.stop();
 		QTimer::singleShot(0, this, SLOT(onHideAfterFullScreen()));
+	}
+}
+
+void MainWindow::initHook() {
+	_customTitleHeight = 0;
+	if (auto view = reinterpret_cast<NSView*>(winId())) {
+		if (auto window = [view window]) {
+			if ([window respondsToSelector:@selector(contentLayoutRect)]
+				&& [window respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+				_private->initCustomTitle(window, view);
+			}
+		}
 	}
 }
 
@@ -124,7 +286,6 @@ void MainWindow::psUpdateWorkmode() {
 	if (auto manager = Platform::Notifications::manager()) {
 		manager->updateDelegate();
 	}
-	setWindowIcon(wndIcon);
 }
 
 void _placeCounter(QImage &img, int size, int count, const style::color &bg, const style::color &color) {
@@ -166,10 +327,9 @@ void MainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadBadge();
 
 	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
-	setWindowIcon(wndIcon);
 
 	QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-	_private.setWindowBadge(counter ? cnt : QString());
+	_private->setWindowBadge(counter ? cnt : QString());
 
 	if (trayIcon) {
 		bool muted = App::histories().unreadOnlyMuted();
@@ -195,7 +355,7 @@ void MainWindow::psFirstShow() {
 	bool showShadows = true;
 
 	show();
-	_private.enableShadow(winId());
+	_private->enableShadow(winId());
 	if (cWindowPos().maximized) {
 		setWindowState(Qt::WindowMaximized);
 	}
@@ -353,11 +513,11 @@ void MainWindow::psMacUpdateMenu() {
 }
 
 void MainWindow::psFlash() {
-	_private.startBounce();
+	return _private->startBounce();
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {
-	return _private.filterNativeEvent(event);
+	return _private->filterNativeEvent(event);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
